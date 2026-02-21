@@ -71,3 +71,42 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Security hardening (PR1)
+
+### Required environment variables
+Create a local `.env` file (not committed) based on `.env.example`:
+
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+```
+
+The frontend now fails fast at startup if either variable is missing.
+
+### Roles and admin promotion
+New users are now created with role `user` by default.
+
+To promote a specific user to admin, run this SQL in Supabase SQL Editor:
+
+```sql
+insert into public.user_roles (user_id, role)
+values ('<USER_UUID>', 'admin')
+on conflict (user_id, role) do nothing;
+```
+
+To revoke admin:
+
+```sql
+delete from public.user_roles
+where user_id = '<USER_UUID>'
+  and role = 'admin';
+```
+
+### RLS model used
+For operational tables (`items`, `item_aliases`, `stock_movements`, `suppliers`, `price_lists`, `price_list_versions`, `price_list_lines`, `customers`, `quotes`, `quote_lines`):
+
+- **Read**: any authenticated user (keeps current UX and cross-module listings).
+- **Write**: only record owner (`created_by = auth.uid()`) or `admin`.
+
+This preserves current functionality for each creator while removing previous permissive `USING (true)` write access.
