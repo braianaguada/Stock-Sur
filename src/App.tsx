@@ -8,10 +8,13 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import AuthPage from "./pages/Auth";
 import ItemsPage from "./pages/Items";
-import {
-  StockPage, SuppliersPage, PriceListsPage,
-  ImportsPage, PendingPage, QuotesPage, CustomersPage,
-} from "./pages/Placeholder";
+import StockPage from "./pages/Stock";
+import SuppliersPage from "./pages/Suppliers";
+import PriceListsPage from "./pages/PriceLists";
+import ImportsPage from "./pages/Imports";
+import PendingPage from "./pages/Pending";
+import QuotesPage from "./pages/Quotes";
+import CustomersPage from "./pages/Customers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
