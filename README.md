@@ -77,12 +77,20 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/c
 ### Required environment variables
 Create a local `.env` file (not committed) based on `.env.example`:
 
+```sh
+cp .env.example .env
+```
+
+Then complete:
+
 ```env
 VITE_SUPABASE_URL=
 VITE_SUPABASE_PUBLISHABLE_KEY=
 ```
 
-The frontend now fails fast at startup if either variable is missing.
+> `.env` is ignored by git and must not be committed. Use `.env.example` as template.
+
+If either variable is missing, the app renders a clear **"Configurar .env"** screen instead of failing with a blank page.
 
 ### Roles and admin promotion
 New users are now created with role `user` by default.
