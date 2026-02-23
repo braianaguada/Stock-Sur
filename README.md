@@ -110,3 +110,18 @@ For operational tables (`items`, `item_aliases`, `stock_movements`, `suppliers`,
 - **Write**: only record owner (`created_by = auth.uid()`) or `admin`.
 
 This preserves current functionality for each creator while removing previous permissive `USING (true)` write access.
+
+## Importación de listas (CSV + XLSX)
+
+Flujo rápido:
+
+1. Ir a **Importaciones** y elegir la lista de precios.
+2. Subir archivo `.csv` o `.xlsx` (se usa la primera hoja para XLSX).
+3. Mapear columnas obligatorias: **Descripción** y **Precio**. **Código proveedor** es opcional.
+4. Revisar preview: se muestran solo filas válidas (filas vacías se descartan automáticamente).
+5. Confirmar importación.
+
+Notas:
+
+- El parser tolera precios con `,` o `.` como separador decimal, símbolos de moneda y espacios.
+- Si el archivo no se puede leer, se informa un error claro en pantalla y en consola.
