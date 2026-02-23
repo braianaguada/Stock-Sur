@@ -12,15 +12,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileSpreadsheet, Check, X } from "lucide-react";
+import { Upload, Check } from "lucide-react";
+import { parseImportFile, parsePrice, type ParsedRow, isRowEmpty } from "@/lib/importParser";
 
 type Step = "upload" | "map" | "preview" | "done";
 
-interface ParsedRow {
-  [key: string]: string;
-}
 
 export default function ImportsPage() {
   const [step, setStep] = useState<Step>("upload");
@@ -41,32 +38,24 @@ export default function ImportsPage() {
     },
   });
 
-  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      const lines = text.split(/\r?\n/).filter((l) => l.trim());
-      if (lines.length < 2) { toast({ title: "Archivo vacío o sin datos", variant: "destructive" }); return; }
-
-      // Detect delimiter
-      const delimiter = lines[0].includes("\t") ? "\t" : lines[0].includes(";") ? ";" : ",";
-      const hdrs = lines[0].split(delimiter).map((h) => h.replace(/^"|"$/g, "").trim());
-      const rows = lines.slice(1).map((line) => {
-        const vals = line.split(delimiter).map((v) => v.replace(/^"|"$/g, "").trim());
-        const obj: ParsedRow = {};
-        hdrs.forEach((h, i) => { obj[h] = vals[i] ?? ""; });
-        return obj;
-      });
-
-      setHeaders(hdrs);
+    try {
+      const { headers: parsedHeaders, rows } = await parseImportFile(file);
+      setHeaders(parsedHeaders);
       setRawRows(rows);
       setMapping({ supplier_code: "", description: "", price: "" });
       setStep("map");
-    };
-    reader.readAsText(file);
+    } catch (error) {
+      console.error("Error leyendo archivo de importación", { fileName: file.name, error });
+      toast({
+        title: "No se pudo leer el archivo",
+        description: error instanceof Error ? error.message : "Formato inválido o archivo corrupto",
+        variant: "destructive",
+      });
+    }
   }, [toast]);
 
   const goPreview = () => {
@@ -77,19 +66,11 @@ export default function ImportsPage() {
     setStep("preview");
   };
 
-  const parsePrice = (val: string): number => {
-    let clean = val.replace(/[^\d.,\-]/g, "");
-    // Handle comma as decimal separator
-    if (clean.includes(",") && !clean.includes(".")) {
-      clean = clean.replace(",", ".");
-    } else if (clean.includes(",") && clean.includes(".")) {
-      clean = clean.replace(",", "");
-    }
-    return parseFloat(clean) || 0;
-  };
 
-  const previewData = rawRows.slice(0, 50).map((row) => ({
-    supplier_code: mapping.supplier_code ? row[mapping.supplier_code] ?? "" : "",
+  const validRows = rawRows.filter((row) => !isRowEmpty(row));
+
+  const previewData = validRows.slice(0, 50).map((row) => ({
+    supplier_code: mapping.supplier_code && mapping.supplier_code !== "__none__" ? row[mapping.supplier_code] ?? "" : "",
     raw_description: row[mapping.description] ?? "",
     price: parsePrice(row[mapping.price] ?? "0"),
   }));
@@ -109,8 +90,10 @@ export default function ImportsPage() {
       // Fetch aliases for matching
       const { data: aliases } = await supabase.from("item_aliases").select("item_id, alias, is_supplier_code");
 
-      const allLines = rawRows.map((row) => {
-        const supplierCode = mapping.supplier_code ? (row[mapping.supplier_code] ?? "").trim() : "";
+      const allLines = validRows.map((row) => {
+        const supplierCode = mapping.supplier_code && mapping.supplier_code !== "__none__"
+          ? (row[mapping.supplier_code] ?? "").trim()
+          : "";
         const rawDesc = (row[mapping.description] ?? "").trim();
         const price = parsePrice(row[mapping.price] ?? "0");
 
@@ -171,7 +154,7 @@ export default function ImportsPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Importaciones</h1>
-          <p className="text-muted-foreground">Importar listas de precios desde CSV</p>
+          <p className="text-muted-foreground">Importar listas de precios desde CSV o XLSX</p>
         </div>
 
         {step === "upload" && (
@@ -193,8 +176,8 @@ export default function ImportsPage() {
               </div>
               <div className="border-2 border-dashed rounded-lg p-8 text-center">
                 <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground mb-3">Arrastrá o seleccioná un archivo CSV</p>
-                <Input type="file" accept=".csv,.tsv,.txt" onChange={handleFileUpload} className="max-w-xs mx-auto" />
+                <p className="text-sm text-muted-foreground mb-3">Arrastrá o seleccioná un archivo CSV/XLSX</p>
+                <Input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" onChange={handleFileUpload} className="max-w-xs mx-auto" />
               </div>
             </CardContent>
           </Card>
@@ -204,7 +187,7 @@ export default function ImportsPage() {
           <Card className="max-w-lg">
             <CardHeader><CardTitle className="text-lg">Mapeo de columnas</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">{rawRows.length} filas detectadas. Mapeá las columnas:</p>
+              <p className="text-sm text-muted-foreground">{validRows.length} filas válidas detectadas. Mapeá las columnas:</p>
               <div className="space-y-3">
                 <div className="space-y-2">
                   <Label>Código proveedor (opcional)</Label>
@@ -242,11 +225,11 @@ export default function ImportsPage() {
         {step === "preview" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Mostrando primeras {previewData.length} de {rawRows.length} filas</p>
+              <p className="text-sm text-muted-foreground">Mostrando primeras {previewData.length} de {validRows.length} filas válidas</p>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep("map")}>Volver</Button>
                 <Button onClick={() => importMutation.mutate()} disabled={importMutation.isPending}>
-                  {importMutation.isPending ? "Importando..." : `Confirmar importación (${rawRows.length} filas)`}
+                  {importMutation.isPending ? "Importando..." : `Confirmar importación (${validRows.length} filas)`}
                 </Button>
               </div>
             </div>
