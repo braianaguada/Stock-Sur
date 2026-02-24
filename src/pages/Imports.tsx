@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Check } from "lucide-react";
 import { parseImportFile, parsePrice, type ParsedRow, isRowEmpty } from "@/lib/importParser";
+import { matchImportLine } from "@/lib/matching";
 
 type Step = "upload" | "map" | "preview" | "done";
 
@@ -97,21 +98,14 @@ export default function ImportsPage() {
         const rawDesc = (row[mapping.description] ?? "").trim();
         const price = parsePrice(row[mapping.price] ?? "0");
 
-        let item_id: string | null = null;
-        let match_status: "MATCHED" | "PENDING" | "NEW" = "PENDING";
+        const match = matchImportLine({
+          supplierCode,
+          rawDescription: rawDesc,
+          aliases: aliases ?? [],
+        });
 
-        // Try matching by supplier code
-        if (supplierCode && aliases) {
-          const match = aliases.find((a) => a.is_supplier_code && a.alias.toLowerCase() === supplierCode.toLowerCase());
-          if (match) { item_id = match.item_id; match_status = "MATCHED"; }
-        }
-
-        // Try matching by description alias
-        if (!item_id && aliases) {
-          const descNorm = rawDesc.toLowerCase();
-          const match = aliases.find((a) => descNorm.includes(a.alias.toLowerCase()));
-          if (match) { item_id = match.item_id; match_status = "MATCHED"; }
-        }
+        const item_id = match.itemId;
+        const match_status: "MATCHED" | "PENDING" | "NEW" = item_id ? "MATCHED" : "PENDING";
 
         return {
           version_id: version.id,
@@ -120,6 +114,7 @@ export default function ImportsPage() {
           price,
           item_id,
           match_status,
+          match_reason: match.reason,
         };
       }).filter((l) => l.raw_description);
 
