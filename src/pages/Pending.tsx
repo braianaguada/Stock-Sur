@@ -10,19 +10,30 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Link2, Plus } from "lucide-react";
+import { Search, Link2 } from "lucide-react";
+import { buildSuggestedAlias } from "@/lib/matching";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+
+type PendingLine = {
+  id: string;
+  raw_description: string;
+  supplier_code: string | null;
+  price: number;
+  price_list_versions?: any;
+};
 
 export default function PendingPage() {
   const [search, setSearch] = useState("");
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [selectedLine, setSelectedLine] = useState<any>(null);
+  const [aliasDialogOpen, setAliasDialogOpen] = useState(false);
+  const [selectedLine, setSelectedLine] = useState<PendingLine | null>(null);
   const [selectedItemId, setSelectedItemId] = useState("");
   const [itemSearch, setItemSearch] = useState("");
+  const [aliasValue, setAliasValue] = useState("");
+  const [newItemName, setNewItemName] = useState("");
+  const [saveAsSupplierCodeAlias, setSaveAsSupplierCodeAlias] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -54,35 +65,119 @@ export default function PendingPage() {
     },
   });
 
-  const assignMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedItemId || !selectedLine) throw new Error("Seleccioná un ítem");
-      const { error } = await supabase
-        .from("price_list_lines")
-        .update({ item_id: selectedItemId, match_status: "MATCHED" as const })
-        .eq("id", selectedLine.id);
-      if (error) throw error;
+  const closeAllDialogs = () => {
+    setAssignDialogOpen(false);
+    setAliasDialogOpen(false);
+    setSelectedItemId("");
+    setItemSearch("");
+    setAliasValue("");
+    setNewItemName("");
+    setSaveAsSupplierCodeAlias(false);
+    setSelectedLine(null);
+  };
 
-      // Also create alias for future matching
-      await supabase.from("item_aliases").insert({
-        item_id: selectedItemId,
-        alias: selectedLine.raw_description,
-        is_supplier_code: false,
-      }).then(() => {});
+  const assignLineToItem = async (lineId: string, itemId: string) => {
+    const { error } = await supabase
+      .from("price_list_lines")
+      .update({ item_id: itemId, match_status: "MATCHED" as const })
+      .eq("id", lineId);
+
+    if (error) throw error;
+  };
+
+  const createAliasForItem = async (itemId: string, alias: string, isSupplierCode: boolean) => {
+    const cleanAlias = alias.trim();
+    if (!cleanAlias) return;
+
+    const { error } = await supabase
+      .from("item_aliases")
+      .insert({ item_id: itemId, alias: cleanAlias, is_supplier_code: isSupplierCode });
+
+    if (error) throw error;
+  };
+
+  const assignWithoutAliasMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedLine || !selectedItemId) throw new Error("Seleccioná una línea e ítem");
+      await assignLineToItem(selectedLine.id, selectedItemId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pending-lines"] });
-      setAssignDialogOpen(false);
-      toast({ title: "Ítem asignado y alias creado" });
+      closeAllDialogs();
+      toast({ title: "Ítem asignado sin crear alias" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error al asignar", description: e.message, variant: "destructive" }),
   });
 
-  const openAssign = (line: any) => {
+  const assignWithAliasMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedLine || !selectedItemId) throw new Error("Seleccioná una línea e ítem");
+
+      await assignLineToItem(selectedLine.id, selectedItemId);
+      await createAliasForItem(selectedItemId, aliasValue, false);
+
+      if (saveAsSupplierCodeAlias && selectedLine.supplier_code) {
+        await createAliasForItem(selectedItemId, selectedLine.supplier_code, true);
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pending-lines"] });
+      closeAllDialogs();
+      toast({ title: "Ítem asignado y alias guardado" });
+    },
+    onError: (e: any) => toast({ title: "Error al crear alias", description: e.message, variant: "destructive" }),
+  });
+
+  const createItemWithAliasMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedLine) throw new Error("Seleccioná una línea");
+      const itemName = newItemName.trim();
+      const alias = aliasValue.trim();
+      if (!itemName) throw new Error("Ingresá el nombre del nuevo ítem");
+      if (!alias) throw new Error("Ingresá un alias");
+
+      const { data: createdItem, error: itemError } = await supabase
+        .from("items")
+        .insert({ name: itemName, is_active: true })
+        .select("id")
+        .single();
+      if (itemError) throw itemError;
+
+      await assignLineToItem(selectedLine.id, createdItem.id);
+      await createAliasForItem(createdItem.id, alias, false);
+
+      if (saveAsSupplierCodeAlias && selectedLine.supplier_code) {
+        await createAliasForItem(createdItem.id, selectedLine.supplier_code, true);
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pending-lines"] });
+      qc.invalidateQueries({ queryKey: ["items-search"] });
+      closeAllDialogs();
+      toast({ title: "Nuevo ítem creado, asignado y con alias" });
+    },
+    onError: (e: any) => toast({ title: "Error al crear ítem/alias", description: e.message, variant: "destructive" }),
+  });
+
+  const openAssign = (line: PendingLine) => {
     setSelectedLine(line);
     setSelectedItemId("");
     setItemSearch("");
     setAssignDialogOpen(true);
+  };
+
+  const openAliasDialog = () => {
+    if (!selectedLine || !selectedItemId) {
+      toast({ title: "Seleccioná un ítem primero", variant: "destructive" });
+      return;
+    }
+
+    const suggestedAlias = buildSuggestedAlias(selectedLine.raw_description);
+    setAliasValue(suggestedAlias);
+    setNewItemName(suggestedAlias || selectedLine.raw_description.slice(0, 80));
+    setSaveAsSupplierCodeAlias(Boolean(selectedLine.supplier_code));
+    setAssignDialogOpen(false);
+    setAliasDialogOpen(true);
   };
 
   return (
@@ -159,9 +254,56 @@ export default function PendingPage() {
                 {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Sin resultados</p>}
               </div>
             </div>
-            <Button onClick={() => assignMutation.mutate()} disabled={!selectedItemId || assignMutation.isPending} className="w-full">
-              {assignMutation.isPending ? "Asignando..." : "Asignar y crear alias"}
+            <Button onClick={openAliasDialog} disabled={!selectedItemId} className="w-full">
+              Continuar a crear alias
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={aliasDialogOpen} onOpenChange={setAliasDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Crear alias</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="alias">Alias sugerido (editable)</Label>
+              <Input id="alias" value={aliasValue} onChange={(e) => setAliasValue(e.target.value)} />
+            </div>
+
+            {selectedLine?.supplier_code && (
+              <div className="flex items-center gap-2">
+                <Checkbox id="supplier-code-alias" checked={saveAsSupplierCodeAlias} onCheckedChange={(checked) => setSaveAsSupplierCodeAlias(Boolean(checked))} />
+                <Label htmlFor="supplier-code-alias">Guardar también como alias-código ({selectedLine.supplier_code})</Label>
+              </div>
+            )}
+
+            <div className="space-y-2 border rounded-md p-3">
+              <Label htmlFor="new-item-name">Nuevo ítem (para crear ítem + alias)</Label>
+              <Input id="new-item-name" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Nombre del nuevo ítem" />
+            </div>
+
+            <div className="grid gap-2">
+              <Button
+                variant="outline"
+                onClick={() => assignWithoutAliasMutation.mutate()}
+                disabled={assignWithoutAliasMutation.isPending || assignWithAliasMutation.isPending || createItemWithAliasMutation.isPending}
+              >
+                Asignar sin alias
+              </Button>
+              <Button
+                onClick={() => assignWithAliasMutation.mutate()}
+                disabled={assignWithoutAliasMutation.isPending || assignWithAliasMutation.isPending || createItemWithAliasMutation.isPending}
+              >
+                Asignar y crear alias
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => createItemWithAliasMutation.mutate()}
+                disabled={assignWithoutAliasMutation.isPending || assignWithAliasMutation.isPending || createItemWithAliasMutation.isPending}
+              >
+                Crear ítem nuevo + alias
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

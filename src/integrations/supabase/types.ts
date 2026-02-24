@@ -118,6 +118,7 @@ export type Database = {
           currency: string
           id: string
           item_id: string | null
+          match_reason: Database["public"]["Enums"]["match_reason"]
           match_status: Database["public"]["Enums"]["match_status"]
           price: number
           raw_description: string
@@ -129,6 +130,7 @@ export type Database = {
           currency?: string
           id?: string
           item_id?: string | null
+          match_reason?: Database["public"]["Enums"]["match_reason"]
           match_status?: Database["public"]["Enums"]["match_status"]
           price: number
           raw_description: string
@@ -140,6 +142,7 @@ export type Database = {
           currency?: string
           id?: string
           item_id?: string | null
+          match_reason?: Database["public"]["Enums"]["match_reason"]
           match_status?: Database["public"]["Enums"]["match_status"]
           price?: number
           raw_description?: string
@@ -447,6 +450,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      match_reason: "SUPPLIER_CODE" | "ALIAS_TOKEN" | "ALIAS_CONTAINS" | "NONE"
       match_status: "MATCHED" | "PENDING" | "NEW"
       movement_type: "IN" | "OUT" | "ADJUSTMENT"
       quote_status: "DRAFT" | "SENT" | "ACCEPTED" | "REJECTED"
