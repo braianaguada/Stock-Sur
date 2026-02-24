@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +14,6 @@ import {
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { parseImportFile, parsePrice, type ParsedRow } from "@/lib/importParser";
-import { supabase } from "@/integrations/supabase/client";
 
 type LegacyRow = {
   id: string;
@@ -157,7 +155,6 @@ export default function LegacyCatalogImportPage() {
   const [rubroFilter, setRubroFilter] = useState("all");
   const [articleSearch, setArticleSearch] = useState("");
   const { toast } = useToast();
-  const qc = useQueryClient();
 
   const rubros = useMemo(() => {
     const all = new Set(rows.map((row) => row.rubro).filter(Boolean));
@@ -177,8 +174,9 @@ export default function LegacyCatalogImportPage() {
     mutationFn: async () => importSelected(rows, selectedIds),
     onSuccess: ({ selected, skipped, created }) => {
       toast({
-        title: "Importación finalizada",
-        description: `Seleccionadas: ${selected}. Creadas: ${created}. Saltadas por duplicado: ${skipped}.`,
+        title: "No hay filas seleccionadas",
+        description: "Seleccioná al menos una fila para generar el payload de importación.",
+        variant: "destructive",
       });
     },
     onError: (error: Error) => {
@@ -290,8 +288,8 @@ export default function LegacyCatalogImportPage() {
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" onClick={selectFiltered}>Seleccionar filtrados</Button>
                 <Button type="button" variant="outline" onClick={deselectAll}>Deseleccionar todo</Button>
-                <Button type="button" onClick={() => importMutation.mutate()} disabled={importMutation.isPending || selectedIds.size === 0}>
-                  {importMutation.isPending ? "Importando..." : "Importar seleccionados"}
+                <Button type="button" onClick={importSelected} disabled={selectedIds.size === 0}>
+                  Importar seleccionados
                 </Button>
               </div>
 
