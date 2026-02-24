@@ -48,6 +48,7 @@ export type Database = {
         Row: {
           alias: string
           created_at: string
+          created_by: string | null
           id: string
           is_supplier_code: boolean
           item_id: string
@@ -55,6 +56,7 @@ export type Database = {
         Insert: {
           alias: string
           created_at?: string
+          created_by?: string | null
           id?: string
           is_supplier_code?: boolean
           item_id: string
@@ -62,6 +64,7 @@ export type Database = {
         Update: {
           alias?: string
           created_at?: string
+          created_by?: string | null
           id?: string
           is_supplier_code?: boolean
           item_id?: string

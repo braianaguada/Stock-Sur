@@ -109,7 +109,8 @@ export default function LegacyCatalogImportPage() {
 
       const { data: existingAliases, error: aliasesErr } = await supabase
         .from("item_aliases")
-        .select("alias");
+        .select("alias")
+        .eq("is_supplier_code", true);
       if (aliasesErr) throw aliasesErr;
 
       const existingCodes = new Set((existingAliases ?? []).map((a) => a.alias.trim().toLowerCase()));
