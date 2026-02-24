@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +14,6 @@ import {
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { parseImportFile, parsePrice, type ParsedRow } from "@/lib/importParser";
-import { supabase } from "@/integrations/supabase/client";
 
 type LegacyRow = {
   id: string;
@@ -71,22 +69,12 @@ function extractLegacyRows(rows: ParsedRow[], headers: string[]) {
   return parsedRows;
 }
 
-async function itemsHaveCostField(): Promise<boolean> {
-  const { error } = await supabase.from("items").select("id, cost").limit(1);
-  if (!error) return true;
-  if (error.message.toLowerCase().includes("column") && error.message.toLowerCase().includes("cost")) {
-    return false;
-  }
-  throw error;
-}
-
 export default function LegacyCatalogImportPage() {
   const [rows, setRows] = useState<LegacyRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [rubroFilter, setRubroFilter] = useState("all");
   const [articleSearch, setArticleSearch] = useState("");
   const { toast } = useToast();
-  const qc = useQueryClient();
 
   const rubros = useMemo(() => {
     const all = new Set(rows.map((row) => row.rubro).filter(Boolean));
@@ -102,83 +90,31 @@ export default function LegacyCatalogImportPage() {
     });
   }, [rows, rubroFilter, articleSearch]);
 
-  const importMutation = useMutation({
-    mutationFn: async () => {
-      const selectedRows = rows.filter((row) => selectedIds.has(row.id));
-      if (selectedRows.length === 0) throw new Error("Seleccioná al menos una fila para importar");
-
-      const { data: existingAliases, error: aliasesErr } = await supabase
-        .from("item_aliases")
-        .select("alias")
-        .eq("is_supplier_code", true);
-      if (aliasesErr) throw aliasesErr;
-
-      const existingCodes = new Set((existingAliases ?? []).map((a) => a.alias.trim().toLowerCase()));
-      const seenCodes = new Set<string>();
-      const importableRows = selectedRows.filter((row) => {
-        const key = row.codigo.trim().toLowerCase();
-        if (existingCodes.has(key) || seenCodes.has(key)) return false;
-        seenCodes.add(key);
-        return true;
-      });
-
-      const supportsCost = await itemsHaveCostField();
-
-      let created = 0;
-      for (let i = 0; i < importableRows.length; i += 300) {
-        const batch = importableRows.slice(i, i + 300);
-        const itemsPayload = batch.map((row) => {
-          const payload: Record<string, unknown> = {
-            name: row.articulo,
-            unit: row.medida || "un",
-            category: row.rubro || null,
-            is_active: true,
-            sku: "",
-          };
-
-          if (supportsCost) payload.cost = row.costo;
-          return payload;
-        });
-
-        const { data: insertedItems, error: itemsErr } = await supabase
-          .from("items")
-          .insert(itemsPayload)
-          .select("id");
-        if (itemsErr) throw itemsErr;
-
-        const aliasPayload = (insertedItems ?? []).map((item, idx) => ({
-          item_id: item.id,
-          alias: batch[idx].codigo,
-          is_supplier_code: true,
-        }));
-
-        if (aliasPayload.length > 0) {
-          const { error: aliasErr } = await supabase.from("item_aliases").insert(aliasPayload);
-          if (aliasErr) throw aliasErr;
-        }
-
-        created += aliasPayload.length;
-      }
-
-      return {
-        selected: selectedRows.length,
-        skipped: selectedRows.length - importableRows.length,
-        created,
-      };
-    },
-    onSuccess: ({ selected, skipped, created }) => {
-      qc.invalidateQueries({ queryKey: ["items"] });
-      qc.invalidateQueries({ queryKey: ["items-count"] });
-      qc.invalidateQueries({ queryKey: ["item-aliases"] });
+  const importSelected = () => {
+    const selectedRows = rows.filter((row) => selectedIds.has(row.id));
+    if (selectedRows.length === 0) {
       toast({
-        title: "Importación finalizada",
-        description: `Seleccionadas: ${selected}. Creadas: ${created}. Saltadas por duplicado: ${skipped}.`,
+        title: "No hay filas seleccionadas",
+        description: "Seleccioná al menos una fila para generar el payload de importación.",
+        variant: "destructive",
       });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error al importar", description: error.message, variant: "destructive" });
-    },
-  });
+      return;
+    }
+
+    const payload = selectedRows.map((row) => ({
+      codigo: row.codigo,
+      articulo: row.articulo,
+      medida: row.medida || "un",
+      rubro: row.rubro || null,
+      costo: row.costo,
+    }));
+
+    console.log("[LegacyCatalogImport] Payload de importación", payload);
+    toast({
+      title: "Payload generado",
+      description: `Se enviaron ${payload.length} filas a consola para validar el mapeo.`,
+    });
+  };
 
   const onFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -279,8 +215,8 @@ export default function LegacyCatalogImportPage() {
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" onClick={selectFiltered}>Seleccionar filtrados</Button>
                 <Button type="button" variant="outline" onClick={deselectAll}>Deseleccionar todo</Button>
-                <Button type="button" onClick={() => importMutation.mutate()} disabled={importMutation.isPending || selectedIds.size === 0}>
-                  {importMutation.isPending ? "Importando..." : "Importar seleccionados"}
+                <Button type="button" onClick={importSelected} disabled={selectedIds.size === 0}>
+                  Importar seleccionados
                 </Button>
               </div>
 
