@@ -15,6 +15,7 @@ import ImportsPage from "./pages/Imports";
 import PendingPage from "./pages/Pending";
 import QuotesPage from "./pages/Quotes";
 import CustomersPage from "./pages/Customers";
+import LegacyCatalogImportPage from "./pages/LegacyCatalogImport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/pending" element={<ProtectedRoute><PendingPage /></ProtectedRoute>} />
             <Route path="/quotes" element={<ProtectedRoute><QuotesPage /></ProtectedRoute>} />
             <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
+            <Route path="/legacy-catalog-import" element={<ProtectedRoute><LegacyCatalogImportPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
