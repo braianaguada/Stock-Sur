@@ -80,6 +80,77 @@ async function itemsHaveCostField(): Promise<boolean> {
   throw error;
 }
 
+async function importSelected(rows: LegacyRow[], selectedIds: Set<string>) {
+  const selectedRows = rows.filter((row) => selectedIds.has(row.id));
+  if (selectedRows.length === 0) throw new Error("Seleccioná al menos una fila para importar");
+
+  const supportsCost = await itemsHaveCostField();
+  const selectedCodes = Array.from(new Set(selectedRows.map((row) => row.codigo.trim()).filter(Boolean)));
+
+  const existingCodes = new Set<string>();
+  for (let i = 0; i < selectedCodes.length; i += 300) {
+    const chunk = selectedCodes.slice(i, i + 300);
+    const { data: existingAliases, error: aliasesErr } = await supabase
+      .from("item_aliases")
+      .select("alias")
+      .in("alias", chunk);
+    if (aliasesErr) throw aliasesErr;
+
+    (existingAliases ?? []).forEach((alias) => {
+      existingCodes.add(alias.alias.trim().toLowerCase());
+    });
+  }
+
+  const seenCodes = new Set<string>();
+  const importableRows = selectedRows.filter((row) => {
+    const key = row.codigo.trim().toLowerCase();
+    if (!key || existingCodes.has(key) || seenCodes.has(key)) return false;
+    seenCodes.add(key);
+    return true;
+  });
+
+  let created = 0;
+  for (let i = 0; i < importableRows.length; i += 300) {
+    const batch = importableRows.slice(i, i + 300);
+    const itemsPayload = batch.map((row) => {
+      const payload: Record<string, unknown> = {
+        name: row.articulo,
+        unit: row.medida || "un",
+        category: row.rubro || null,
+        is_active: true,
+      };
+
+      if (supportsCost) payload.cost = row.costo;
+      return payload;
+    });
+
+    const { data: insertedItems, error: itemsErr } = await supabase
+      .from("items")
+      .insert(itemsPayload)
+      .select("id");
+    if (itemsErr) throw itemsErr;
+
+    const aliasPayload = (insertedItems ?? []).map((item, idx) => ({
+      item_id: item.id,
+      alias: batch[idx].codigo,
+      is_supplier_code: true,
+    }));
+
+    if (aliasPayload.length > 0) {
+      const { error: aliasErr } = await supabase.from("item_aliases").insert(aliasPayload);
+      if (aliasErr) throw aliasErr;
+    }
+
+    created += aliasPayload.length;
+  }
+
+  return {
+    selected: selectedRows.length,
+    skipped: selectedRows.length - importableRows.length,
+    created,
+  };
+}
+
 export default function LegacyCatalogImportPage() {
   const [rows, setRows] = useState<LegacyRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -103,73 +174,8 @@ export default function LegacyCatalogImportPage() {
   }, [rows, rubroFilter, articleSearch]);
 
   const importMutation = useMutation({
-    mutationFn: async () => {
-      const selectedRows = rows.filter((row) => selectedIds.has(row.id));
-      if (selectedRows.length === 0) throw new Error("Seleccioná al menos una fila para importar");
-
-      const { data: existingAliases, error: aliasesErr } = await supabase
-        .from("item_aliases")
-        .select("alias")
-        .eq("is_supplier_code", true);
-      if (aliasesErr) throw aliasesErr;
-
-      const existingCodes = new Set((existingAliases ?? []).map((a) => a.alias.trim().toLowerCase()));
-      const seenCodes = new Set<string>();
-      const importableRows = selectedRows.filter((row) => {
-        const key = row.codigo.trim().toLowerCase();
-        if (existingCodes.has(key) || seenCodes.has(key)) return false;
-        seenCodes.add(key);
-        return true;
-      });
-
-      const supportsCost = await itemsHaveCostField();
-
-      let created = 0;
-      for (let i = 0; i < importableRows.length; i += 300) {
-        const batch = importableRows.slice(i, i + 300);
-        const itemsPayload = batch.map((row) => {
-          const payload: Record<string, unknown> = {
-            name: row.articulo,
-            unit: row.medida || "un",
-            category: row.rubro || null,
-            is_active: true,
-            sku: "",
-          };
-
-          if (supportsCost) payload.cost = row.costo;
-          return payload;
-        });
-
-        const { data: insertedItems, error: itemsErr } = await supabase
-          .from("items")
-          .insert(itemsPayload)
-          .select("id");
-        if (itemsErr) throw itemsErr;
-
-        const aliasPayload = (insertedItems ?? []).map((item, idx) => ({
-          item_id: item.id,
-          alias: batch[idx].codigo,
-          is_supplier_code: true,
-        }));
-
-        if (aliasPayload.length > 0) {
-          const { error: aliasErr } = await supabase.from("item_aliases").insert(aliasPayload);
-          if (aliasErr) throw aliasErr;
-        }
-
-        created += aliasPayload.length;
-      }
-
-      return {
-        selected: selectedRows.length,
-        skipped: selectedRows.length - importableRows.length,
-        created,
-      };
-    },
+    mutationFn: async () => importSelected(rows, selectedIds),
     onSuccess: ({ selected, skipped, created }) => {
-      qc.invalidateQueries({ queryKey: ["items"] });
-      qc.invalidateQueries({ queryKey: ["items-count"] });
-      qc.invalidateQueries({ queryKey: ["item-aliases"] });
       toast({
         title: "Importación finalizada",
         description: `Seleccionadas: ${selected}. Creadas: ${created}. Saltadas por duplicado: ${skipped}.`,
@@ -177,6 +183,11 @@ export default function LegacyCatalogImportPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Error al importar", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["items"] });
+      qc.invalidateQueries({ queryKey: ["items-count"] });
+      qc.invalidateQueries({ queryKey: ["item-aliases"] });
     },
   });
 
