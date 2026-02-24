@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,15 +15,17 @@ import {
 } from "@/components/ui/table";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { parseImportFile, parsePrice, type ParsedRow } from "@/lib/importParser";
 
-type LegacyRow = {
+type Row = {
   id: string;
+  selected: boolean;
   codigo: string;
   articulo: string;
   medida: string;
   rubro: string;
-  costo: number;
+  costo_num: number;
 };
 
 function normalizeHeader(value: string): string {
@@ -33,7 +37,7 @@ function normalizeHeader(value: string): string {
     .replace(/_/g, "");
 }
 
-function extractLegacyRows(rows: ParsedRow[], headers: string[]) {
+function extractLegacyRows(rows: ParsedRow[], headers: string[]): Row[] {
   const map = new Map(headers.map((header) => [normalizeHeader(header), header]));
 
   const codigoKey = map.get("codigo");
@@ -46,7 +50,7 @@ function extractLegacyRows(rows: ParsedRow[], headers: string[]) {
     throw new Error("Faltan columnas requeridas: Código, Artículo, Medida, Rubro y Costo_num (o Costo)");
   }
 
-  const parsedRows: LegacyRow[] = [];
+  const parsedRows: Row[] = [];
   rows.forEach((row, index) => {
     const codigo = String(row[codigoKey] ?? "").trim();
     const articulo = String(row[articuloKey] ?? "").trim();
@@ -58,11 +62,12 @@ function extractLegacyRows(rows: ParsedRow[], headers: string[]) {
 
     parsedRows.push({
       id: `${index}-${codigo}`,
+      selected: true,
       codigo,
       articulo,
       medida: medida || "un",
       rubro,
-      costo,
+      costo_num: costo,
     });
   });
 
@@ -78,7 +83,7 @@ async function itemsHaveCostField(): Promise<boolean> {
   throw error;
 }
 
-async function importSelected(rows: LegacyRow[], selectedIds: Set<string>) {
+async function importSelectedRows(rows: Row[], selectedIds: Set<string>) {
   const selectedRows = rows.filter((row) => selectedIds.has(row.id));
   if (selectedRows.length === 0) throw new Error("Seleccioná al menos una fila para importar");
 
@@ -118,7 +123,7 @@ async function importSelected(rows: LegacyRow[], selectedIds: Set<string>) {
         is_active: true,
       };
 
-      if (supportsCost) payload.cost = row.costo;
+      if (supportsCost) payload.cost = row.costo_num;
       return payload;
     });
 
@@ -150,11 +155,12 @@ async function importSelected(rows: LegacyRow[], selectedIds: Set<string>) {
 }
 
 export default function LegacyCatalogImportPage() {
-  const [rows, setRows] = useState<LegacyRow[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [rubroFilter, setRubroFilter] = useState("all");
   const [articleSearch, setArticleSearch] = useState("");
   const { toast } = useToast();
+  const qc = useQueryClient();
 
   const rubros = useMemo(() => {
     const all = new Set(rows.map((row) => row.rubro).filter(Boolean));
@@ -171,12 +177,12 @@ export default function LegacyCatalogImportPage() {
   }, [rows, rubroFilter, articleSearch]);
 
   const importMutation = useMutation({
-    mutationFn: async () => importSelected(rows, selectedIds),
+    mutationFn: async (variables: { rows: Row[]; selectedIds: Set<string> }) =>
+      importSelectedRows(variables.rows, variables.selectedIds),
     onSuccess: ({ selected, skipped, created }) => {
       toast({
-        title: "No hay filas seleccionadas",
-        description: "Seleccioná al menos una fila para generar el payload de importación.",
-        variant: "destructive",
+        title: "Importación completada",
+        description: `Seleccionadas: ${selected}. Creadas: ${created}. Omitidas: ${skipped}.`,
       });
     },
     onError: (error: Error) => {
@@ -196,8 +202,8 @@ export default function LegacyCatalogImportPage() {
     try {
       const { headers, rows: parsedRows } = await parseImportFile(file);
       const extractedRows = extractLegacyRows(parsedRows, headers);
-      setRows(extractedRows);
-      setSelectedIds(new Set(extractedRows.map((row) => row.id)));
+      setRows(Array.isArray(extractedRows) ? extractedRows : []);
+      setSelectedIds(new Set(extractedRows.filter((row) => row.selected).map((row) => row.id)));
       setRubroFilter("all");
       setArticleSearch("");
     } catch (error) {
@@ -227,6 +233,26 @@ export default function LegacyCatalogImportPage() {
   };
 
   const deselectAll = () => setSelectedIds(new Set());
+
+  const importSelected = async () => {
+    const rowsArray = Array.isArray(rows)
+      ? rows
+      : Array.isArray((rows as unknown as { rows?: Row[] })?.rows)
+      ? (rows as unknown as { rows: Row[] }).rows
+      : [];
+
+    const selected = rowsArray.filter((row) => selectedIds.has(row.id));
+    if (selected.length === 0) {
+      toast({
+        title: "No hay filas seleccionadas",
+        description: "Seleccioná al menos una fila para importar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await importMutation.mutateAsync({ rows: rowsArray, selectedIds });
+  };
 
   return (
     <AppLayout>
@@ -288,7 +314,7 @@ export default function LegacyCatalogImportPage() {
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" onClick={selectFiltered}>Seleccionar filtrados</Button>
                 <Button type="button" variant="outline" onClick={deselectAll}>Deseleccionar todo</Button>
-                <Button type="button" onClick={importSelected} disabled={selectedIds.size === 0}>
+                <Button type="button" onClick={importSelected} disabled={importMutation.isPending}>
                   Importar seleccionados
                 </Button>
               </div>
@@ -318,7 +344,7 @@ export default function LegacyCatalogImportPage() {
                         <TableCell>{row.articulo}</TableCell>
                         <TableCell>{row.medida}</TableCell>
                         <TableCell>{row.rubro || "—"}</TableCell>
-                        <TableCell className="text-right font-mono">{row.costo.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right font-mono">{row.costo_num.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
