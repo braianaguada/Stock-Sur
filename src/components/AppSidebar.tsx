@@ -25,7 +25,7 @@ const navItems = [
   { title: "Proveedores", url: "/suppliers", icon: Truck },
   { title: "Listas de precios", url: "/price-lists", icon: FileSpreadsheet },
   { title: "Importaciones", url: "/imports", icon: Upload },
-  { title: "Importador legacy", url: "/legacy-catalog-import", icon: FolderUp },
+  { title: "Importar catálogo (sistema viejo)", url: "/items/catalog/import-legacy", icon: FolderUp },
   { title: "Pendientes", url: "/pending", icon: AlertCircle },
   { title: "Presupuestos", url: "/quotes", icon: FileText },
   { title: "Clientes", url: "/customers", icon: Users },
