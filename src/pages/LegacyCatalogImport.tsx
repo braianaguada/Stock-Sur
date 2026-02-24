@@ -69,6 +69,86 @@ function extractLegacyRows(rows: ParsedRow[], headers: string[]) {
   return parsedRows;
 }
 
+async function itemsHaveCostField(): Promise<boolean> {
+  const { error } = await supabase.from("items").select("id, cost").limit(1);
+  if (!error) return true;
+  if (error.message.toLowerCase().includes("column") && error.message.toLowerCase().includes("cost")) {
+    return false;
+  }
+  throw error;
+}
+
+async function importSelected(rows: LegacyRow[], selectedIds: Set<string>) {
+  const selectedRows = rows.filter((row) => selectedIds.has(row.id));
+  if (selectedRows.length === 0) throw new Error("Seleccioná al menos una fila para importar");
+
+  const supportsCost = await itemsHaveCostField();
+  const selectedCodes = Array.from(new Set(selectedRows.map((row) => row.codigo.trim()).filter(Boolean)));
+
+  const existingCodes = new Set<string>();
+  for (let i = 0; i < selectedCodes.length; i += 300) {
+    const chunk = selectedCodes.slice(i, i + 300);
+    const { data: existingAliases, error: aliasesErr } = await supabase
+      .from("item_aliases")
+      .select("alias")
+      .in("alias", chunk);
+    if (aliasesErr) throw aliasesErr;
+
+    (existingAliases ?? []).forEach((alias) => {
+      existingCodes.add(alias.alias.trim().toLowerCase());
+    });
+  }
+
+  const seenCodes = new Set<string>();
+  const importableRows = selectedRows.filter((row) => {
+    const key = row.codigo.trim().toLowerCase();
+    if (!key || existingCodes.has(key) || seenCodes.has(key)) return false;
+    seenCodes.add(key);
+    return true;
+  });
+
+  let created = 0;
+  for (let i = 0; i < importableRows.length; i += 300) {
+    const batch = importableRows.slice(i, i + 300);
+    const itemsPayload = batch.map((row) => {
+      const payload: Record<string, unknown> = {
+        name: row.articulo,
+        unit: row.medida || "un",
+        category: row.rubro || null,
+        is_active: true,
+      };
+
+      if (supportsCost) payload.cost = row.costo;
+      return payload;
+    });
+
+    const { data: insertedItems, error: itemsErr } = await supabase
+      .from("items")
+      .insert(itemsPayload)
+      .select("id");
+    if (itemsErr) throw itemsErr;
+
+    const aliasPayload = (insertedItems ?? []).map((item, idx) => ({
+      item_id: item.id,
+      alias: batch[idx].codigo,
+      is_supplier_code: true,
+    }));
+
+    if (aliasPayload.length > 0) {
+      const { error: aliasErr } = await supabase.from("item_aliases").insert(aliasPayload);
+      if (aliasErr) throw aliasErr;
+    }
+
+    created += aliasPayload.length;
+  }
+
+  return {
+    selected: selectedRows.length,
+    skipped: selectedRows.length - importableRows.length,
+    created,
+  };
+}
+
 export default function LegacyCatalogImportPage() {
   const [rows, setRows] = useState<LegacyRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -90,31 +170,24 @@ export default function LegacyCatalogImportPage() {
     });
   }, [rows, rubroFilter, articleSearch]);
 
-  const importSelected = () => {
-    const selectedRows = rows.filter((row) => selectedIds.has(row.id));
-    if (selectedRows.length === 0) {
+  const importMutation = useMutation({
+    mutationFn: async () => importSelected(rows, selectedIds),
+    onSuccess: ({ selected, skipped, created }) => {
       toast({
         title: "No hay filas seleccionadas",
         description: "Seleccioná al menos una fila para generar el payload de importación.",
         variant: "destructive",
       });
-      return;
-    }
-
-    const payload = selectedRows.map((row) => ({
-      codigo: row.codigo,
-      articulo: row.articulo,
-      medida: row.medida || "un",
-      rubro: row.rubro || null,
-      costo: row.costo,
-    }));
-
-    console.log("[LegacyCatalogImport] Payload de importación", payload);
-    toast({
-      title: "Payload generado",
-      description: `Se enviaron ${payload.length} filas a consola para validar el mapeo.`,
-    });
-  };
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error al importar", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["items"] });
+      qc.invalidateQueries({ queryKey: ["items-count"] });
+      qc.invalidateQueries({ queryKey: ["item-aliases"] });
+    },
+  });
 
   const onFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
