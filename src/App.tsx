@@ -45,7 +45,8 @@ const App = () => (
             <Route path="/pending" element={<ProtectedRoute><PendingPage /></ProtectedRoute>} />
             <Route path="/quotes" element={<ProtectedRoute><QuotesPage /></ProtectedRoute>} />
             <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
-            <Route path="/legacy-catalog-import" element={<ProtectedRoute><LegacyCatalogImportPage /></ProtectedRoute>} />
+            <Route path="/items/catalog/import-legacy" element={<ProtectedRoute><LegacyCatalogImportPage /></ProtectedRoute>} />
+            <Route path="/legacy-catalog-import" element={<Navigate to="/items/catalog/import-legacy" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
