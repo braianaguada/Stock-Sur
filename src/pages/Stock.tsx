@@ -110,8 +110,10 @@ export default function StockPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!form.item_id) throw new Error("Seleccioná un ítem");
+
       const qty = parseFloat(form.quantity);
-      if (isNaN(qty) || qty === 0) throw new Error("Cantidad inválida");
+      if (isNaN(qty) || !Number.isFinite(qty) || qty === 0) throw new Error("Cantidad inválida");
       const { error } = await supabase.from("stock_movements").insert({
         item_id: form.item_id,
         type: form.type,

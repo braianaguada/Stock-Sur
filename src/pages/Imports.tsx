@@ -45,6 +45,17 @@ export default function ImportsPage() {
 
     try {
       const { headers: parsedHeaders, rows } = await parseImportFile(file);
+      const nonEmptyRows = rows.filter((row) => !isRowEmpty(row));
+
+      if (nonEmptyRows.length === 0) {
+        toast({
+          title: "Archivo sin filas válidas",
+          description: "El archivo no contiene datos para importar.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       setHeaders(parsedHeaders);
       setRawRows(rows);
       setMapping({ supplier_code: "", description: "", price: "" });
@@ -64,6 +75,12 @@ export default function ImportsPage() {
       toast({ title: "Mapea al menos descripción y precio", variant: "destructive" });
       return;
     }
+
+    if (validRows.length === 0) {
+      toast({ title: "No hay filas válidas", description: "Subí un archivo con datos para continuar.", variant: "destructive" });
+      return;
+    }
+
     setStep("preview");
   };
 
@@ -89,7 +106,10 @@ export default function ImportsPage() {
       if (vErr) throw vErr;
 
       // Fetch aliases for matching
-      const { data: aliases } = await supabase.from("item_aliases").select("item_id, alias, is_supplier_code");
+      const { data: aliases, error: aliasesError } = await supabase
+        .from("item_aliases")
+        .select("item_id, alias, is_supplier_code");
+      if (aliasesError) throw aliasesError;
 
       const allLines = validRows.map((row) => {
         const supplierCode = mapping.supplier_code && mapping.supplier_code !== "__none__"
