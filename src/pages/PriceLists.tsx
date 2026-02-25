@@ -12,9 +12,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+  Badge,
+} from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Eye, Trash2 } from "lucide-react";
 
@@ -23,23 +22,14 @@ export default function PriceListsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [linesDialogOpen, setLinesDialogOpen] = useState(false);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", supplier_id: "" });
+  const [form, setForm] = useState({ name: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
-
-  const { data: suppliers = [] } = useQuery({
-    queryKey: ["suppliers-list"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("suppliers").select("id, name").eq("is_active", true).order("name");
-      if (error) throw error;
-      return data;
-    },
-  });
 
   const { data: priceLists = [], isLoading } = useQuery({
     queryKey: ["price-lists", search],
     queryFn: async () => {
-      let q = supabase.from("price_lists").select("*, suppliers(name), price_list_versions(id, version_date, notes)").order("name");
+      let q = supabase.from("price_lists").select("*, price_list_versions(id, version_date, notes)").order("name");
       if (search) q = q.ilike("name", `%${search}%`);
       const { data, error } = await q.limit(100);
       if (error) throw error;
@@ -63,7 +53,7 @@ export default function PriceListsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("price_lists").insert({ name: form.name, supplier_id: form.supplier_id });
+      const { error } = await supabase.from("price_lists").insert({ name: form.name });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -102,9 +92,9 @@ export default function PriceListsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Listas de precios</h1>
-            <p className="text-muted-foreground">Gestión de listas de precios por proveedor</p>
+            <p className="text-muted-foreground">Gestión de listas de precios internas</p>
           </div>
-          <Button onClick={() => { setForm({ name: "", supplier_id: "" }); setDialogOpen(true); }}>
+          <Button onClick={() => { setForm({ name: "" }); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Nueva lista
           </Button>
         </div>
@@ -119,20 +109,18 @@ export default function PriceListsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
-                <TableHead>Proveedor</TableHead>
                 <TableHead>Versiones</TableHead>
-                <TableHead className="w-[120px]">Acciones</TableHead>
+                <TableHead className="w-[90px]">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
               ) : priceLists.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No hay listas de precios</TableCell></TableRow>
+                <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No hay listas de precios</TableCell></TableRow>
               ) : priceLists.map((pl) => (
                 <TableRow key={pl.id}>
                   <TableCell className="font-medium">{pl.name}</TableCell>
-                  <TableCell>{pl.suppliers?.name ?? "—"}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {(pl.price_list_versions ?? []).map((v: any) => (
@@ -161,16 +149,7 @@ export default function PriceListsPage() {
           <DialogHeader><DialogTitle>Nueva lista de precios</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
             <div className="space-y-2"><Label>Nombre *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
-            <div className="space-y-2">
-              <Label>Proveedor *</Label>
-              <Select value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar proveedor" /></SelectTrigger>
-                <SelectContent>
-                  {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter><Button type="submit" disabled={saveMutation.isPending || !form.supplier_id}>{saveMutation.isPending ? "Guardando..." : "Crear"}</Button></DialogFooter>
+            <DialogFooter><Button type="submit" disabled={saveMutation.isPending}>{saveMutation.isPending ? "Guardando..." : "Crear"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

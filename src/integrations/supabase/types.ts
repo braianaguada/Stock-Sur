@@ -209,19 +209,19 @@ export type Database = {
           created_at: string
           id: string
           name: string
-          supplier_id: string
+          supplier_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
-          supplier_id: string
+          supplier_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
-          supplier_id?: string
+          supplier_id?: string | null
         }
         Relationships: [
           {
@@ -387,6 +387,136 @@ export type Database = {
           },
         ]
       }
+      supplier_catalog_lines: {
+        Row: {
+          cost: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          match_status: Database["public"]["Enums"]["match_status"]
+          matched_item_id: string | null
+          raw_description: string
+          supplier_catalog_version_id: string
+          supplier_code: string | null
+        }
+        Insert: {
+          cost: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          match_status?: Database["public"]["Enums"]["match_status"]
+          matched_item_id?: string | null
+          raw_description: string
+          supplier_catalog_version_id: string
+          supplier_code?: string | null
+        }
+        Update: {
+          cost?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          match_status?: Database["public"]["Enums"]["match_status"]
+          matched_item_id?: string | null
+          raw_description?: string
+          supplier_catalog_version_id?: string
+          supplier_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_catalog_lines_matched_item_id_fkey"
+            columns: ["matched_item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_catalog_lines_supplier_catalog_version_id_fkey"
+            columns: ["supplier_catalog_version_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_catalog_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_catalog_versions: {
+        Row: {
+          created_by: string | null
+          id: string
+          imported_at: string
+          note: string | null
+          supplier_document_id: string
+        }
+        Insert: {
+          created_by?: string | null
+          id?: string
+          imported_at?: string
+          note?: string | null
+          supplier_document_id: string
+        }
+        Update: {
+          created_by?: string | null
+          id?: string
+          imported_at?: string
+          note?: string | null
+          supplier_document_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_catalog_versions_supplier_document_id_fkey"
+            columns: ["supplier_document_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_documents: {
+        Row: {
+          created_by: string | null
+          file_name: string
+          file_type: string
+          id: string
+          notes: string | null
+          source_url: string | null
+          supplier_id: string
+          title: string
+          uploaded_at: string
+        }
+        Insert: {
+          created_by?: string | null
+          file_name: string
+          file_type: string
+          id?: string
+          notes?: string | null
+          source_url?: string | null
+          supplier_id: string
+          title: string
+          uploaded_at?: string
+        }
+        Update: {
+          created_by?: string | null
+          file_name?: string
+          file_type?: string
+          id?: string
+          notes?: string | null
+          source_url?: string | null
+          supplier_id?: string
+          title?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_documents_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           contact_name: string | null
@@ -397,6 +527,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          whatsapp: string | null
         }
         Insert: {
           contact_name?: string | null
@@ -407,6 +538,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          whatsapp?: string | null
         }
         Update: {
           contact_name?: string | null
@@ -417,6 +549,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          whatsapp?: string | null
         }
         Relationships: []
       }
