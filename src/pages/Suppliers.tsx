@@ -5,7 +5,6 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -14,9 +13,10 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, Trash2, Upload, MessageCircle, Copy, Link as LinkIcon } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Upload, MessageCircle, Copy, Link as LinkIcon, ChevronDown } from "lucide-react";
 import { parseImportFile, parsePrice, isRowEmpty } from "@/lib/importParser";
 import { matchImportLine } from "@/lib/matching";
 import { buildWhatsAppLink, normalizeWhatsappNumber } from "@/lib/whatsapp";
@@ -47,7 +47,8 @@ export default function SuppliersPage() {
   const [catalogDialogOpen, setCatalogDialogOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [catalogSearch, setCatalogSearch] = useState("");
-  const [form, setForm] = useState({ name: "", contact_name: "", email: "", phone: "", whatsapp: "", notes: "" });
+  const [form, setForm] = useState({ name: "", contact_name: "", email: "", whatsapp: "", notes: "" });
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [documentTitle, setDocumentTitle] = useState("");
   const [documentNotes, setDocumentNotes] = useState("");
@@ -119,8 +120,8 @@ export default function SuppliersPage() {
         name: form.name,
         contact_name: form.contact_name || null,
         email: form.email || null,
-        phone: form.phone || null,
         whatsapp: form.whatsapp || null,
+        phone: form.whatsapp || null,
         notes: form.notes || null,
       };
       if (editing) {
@@ -257,7 +258,8 @@ export default function SuppliersPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", contact_name: "", email: "", phone: "", whatsapp: "", notes: "" });
+    setForm({ name: "", contact_name: "", email: "", whatsapp: "", notes: "" });
+    setShowAdvanced(false);
     setDialogOpen(true);
   };
 
@@ -267,8 +269,7 @@ export default function SuppliersPage() {
       name: s.name,
       contact_name: s.contact_name ?? "",
       email: s.email ?? "",
-      phone: s.phone ?? "",
-      whatsapp: s.whatsapp ?? "",
+      whatsapp: s.whatsapp ?? s.phone ?? "",
       notes: s.notes ?? "",
     });
     setDialogOpen(true);
@@ -358,24 +359,22 @@ export default function SuppliersPage() {
                 <TableHead>Nombre</TableHead>
                 <TableHead>Contacto</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Teléfono</TableHead>
-                <TableHead>WhatsApp</TableHead>
+                                <TableHead>WhatsApp</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="w-[180px]">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
               ) : suppliers.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No se encontraron proveedores</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No se encontraron proveedores</TableCell></TableRow>
               ) : suppliers.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell>{s.contact_name ?? "—"}</TableCell>
                   <TableCell>{s.email ?? "—"}</TableCell>
-                  <TableCell>{s.phone ?? "—"}</TableCell>
-                  <TableCell>{s.whatsapp ? `+${normalizeWhatsappNumber(s.whatsapp)}` : "—"}</TableCell>
+                                    <TableCell>{s.whatsapp ? `+${normalizeWhatsappNumber(s.whatsapp)}` : "—"}</TableCell>
                   <TableCell><Badge variant={s.is_active ? "default" : "secondary"}>{s.is_active ? "Activo" : "Inactivo"}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -396,11 +395,19 @@ export default function SuppliersPage() {
           <DialogHeader><DialogTitle>{editing ? "Editar proveedor" : "Nuevo proveedor"}</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
             <div className="space-y-2"><Label>Nombre *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
-            <div className="space-y-2"><Label>Contacto</Label><Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Teléfono</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-            <div className="space-y-2"><Label>WhatsApp</Label><Input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="2991234567 o +542991234567" /></div>
-            <div className="space-y-2"><Label>Notas</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            <div className="space-y-2"><Label>WhatsApp (opcional)</Label><Input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="2991234567 o +542991234567" /></div>
+            <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+              <CollapsibleTrigger asChild>
+                <Button type="button" variant="ghost" className="px-0 text-muted-foreground">
+                  Campos avanzados <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 pt-2">
+                <div className="space-y-2"><Label>Contacto</Label><Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Notas</Label><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+              </CollapsibleContent>
+            </Collapsible>
             <DialogFooter><Button type="submit" disabled={saveMutation.isPending}>{saveMutation.isPending ? "Guardando..." : "Guardar"}</Button></DialogFooter>
           </form>
         </DialogContent>

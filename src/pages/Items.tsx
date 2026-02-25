@@ -41,6 +41,8 @@ interface ItemAlias {
   is_supplier_code: boolean;
 }
 
+const UNIT_OPTIONS = ["un", "kg", "g", "lt", "ml", "m", "cm"] as const;
+
 export default function ItemsPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -123,10 +125,10 @@ export default function ItemsPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const name = cleanText(form.name);
-      const unit = cleanText(form.unit);
+      const unit = cleanText(form.unit) || "un";
 
-      if (!name || !unit) {
-        throw new Error("Nombre y unidad son obligatorios");
+      if (!name) {
+        throw new Error("Nombre obligatorio");
       }
 
       if (editingItem) {
@@ -234,7 +236,7 @@ export default function ItemsPage() {
     setForm({
       name: item.name,
       brand: item.brand ?? "",
-      unit: item.unit,
+      unit: item.unit || "un",
       category: item.category ?? "",
       isActive: item.is_active,
     });
@@ -372,7 +374,14 @@ export default function ItemsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Unidad *</Label>
-                <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} required />
+                <Select value={form.unit || "un"} onValueChange={(value) => setForm({ ...form, unit: value })}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar unidad" /></SelectTrigger>
+                  <SelectContent>
+                    {UNIT_OPTIONS.map((unit) => (
+                      <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="space-y-2">
