@@ -133,3 +133,49 @@ Notas:
 
 - El parser tolera precios con `,` o `.` como separador decimal, símbolos de moneda y espacios.
 - Si el archivo no se puede leer, se informa un error claro en pantalla y en consola.
+
+## Migración definitiva (Supabase CLI, sin dashboard)
+
+Se agregó la migración:
+
+- `supabase/migrations/20260226090000_fix_schema_cache_price_list_items_and_supplier_nullable.sql`
+
+Incluye:
+
+- `suppliers.whatsapp` (nullable) + backfill opcional desde `phone`/`telefono` si existen.
+- `price_lists.supplier_id` nullable + FK con `ON DELETE SET NULL`.
+- creación idempotente de `public.price_list_items` + índices + RLS owner/admin.
+- `NOTIFY pgrst, 'reload schema';` al final para recargar schema cache de PostgREST.
+
+### Aplicar desde el proyecto
+
+```sh
+supabase db push
+```
+
+> Alternativa (según versión/flujo de tu CLI):
+
+```sh
+supabase migration up
+```
+
+### Verificación rápida por SQL
+
+```sql
+-- 1) columna suppliers.whatsapp existe
+select column_name, is_nullable, data_type
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'suppliers'
+  and column_name = 'whatsapp';
+
+-- 2) tabla public.price_list_items existe
+select to_regclass('public.price_list_items') as price_list_items_table;
+
+-- 3) price_lists.supplier_id ya no es NOT NULL
+select column_name, is_nullable
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'price_lists'
+  and column_name = 'supplier_id';
+```
