@@ -17,6 +17,7 @@ import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { parseImportFile, parsePrice, type ParsedRow } from "@/lib/importParser";
+import { cleanText, normalizeAlias } from "@/lib/clean";
 
 type Row = {
   id: string;
@@ -25,7 +26,13 @@ type Row = {
   articulo: string;
   medida: string;
   rubro: string;
+  marca: string;
   costo_num: number;
+};
+
+type ExtractLegacyRowsResult = {
+  rows: Row[];
+  skippedEmptyName: number;
 };
 
 function normalizeHeader(value: string): string {
@@ -37,42 +44,53 @@ function normalizeHeader(value: string): string {
     .replace(/_/g, "");
 }
 
-function extractLegacyRows(rows: ParsedRow[], headers: string[]): Row[] {
+function extractLegacyRows(rows: ParsedRow[], headers: string[]): ExtractLegacyRowsResult {
   const map = new Map(headers.map((header) => [normalizeHeader(header), header]));
 
   const codigoKey = map.get("codigo");
   const articuloKey = map.get("articulo");
   const medidaKey = map.get("medida");
   const rubroKey = map.get("rubro");
+  const marcaKey = map.get("marca");
   const costoNumKey = map.get("costonum") ?? map.get("costo");
 
-  if (!codigoKey || !articuloKey || !medidaKey || !rubroKey || !costoNumKey) {
-    throw new Error("Faltan columnas requeridas: Código, Artículo, Medida, Rubro y Costo_num (o Costo)");
+  if (!codigoKey || !articuloKey || !rubroKey || !costoNumKey) {
+    throw new Error("Faltan columnas requeridas: Código, Artículo, Rubro y Costo_num (o Costo)");
   }
 
   const parsedRows: Row[] = [];
+  let skippedEmptyName = 0;
+
   rows.forEach((row, index) => {
-    const codigo = String(row[codigoKey] ?? "").trim();
-    const articulo = String(row[articuloKey] ?? "").trim();
-    const medida = String(row[medidaKey] ?? "").trim();
-    const rubro = String(row[rubroKey] ?? "").trim();
+    const codigo = cleanText(row[codigoKey]);
+    const articulo = cleanText(row[articuloKey]);
+    const medida = medidaKey ? cleanText(row[medidaKey]) : "";
+    const rubro = rubroKey ? cleanText(row[rubroKey]) : "";
+    const marca = marcaKey ? cleanText(row[marcaKey]) : "";
     const costo = parsePrice(String(row[costoNumKey] ?? ""));
 
-    if (!codigo || !articulo) return;
+    if (!articulo) {
+      skippedEmptyName += 1;
+      return;
+    }
+
+    if (!codigo) return;
 
     parsedRows.push({
       id: `${index}-${codigo}`,
       selected: true,
       codigo,
       articulo,
-      medida: medida || "un",
+      medida,
       rubro,
+      marca,
       costo_num: costo,
     });
   });
 
-  return parsedRows;
+  return { rows: parsedRows, skippedEmptyName };
 }
+
 
 async function itemsHaveCostField(): Promise<boolean> {
   const { error } = await supabase.from("items").select("id, cost").limit(1);
@@ -88,7 +106,7 @@ async function importSelectedRows(rows: Row[], selectedIds: Set<string>) {
   if (selectedRows.length === 0) throw new Error("Seleccioná al menos una fila para importar");
 
   const supportsCost = await itemsHaveCostField();
-  const selectedCodes = Array.from(new Set(selectedRows.map((row) => row.codigo.trim()).filter(Boolean)));
+  const selectedCodes = Array.from(new Set(selectedRows.map((row) => normalizeAlias(row.codigo)).filter(Boolean)));
 
   const existingCodes = new Set<string>();
   for (let i = 0; i < selectedCodes.length; i += 300) {
@@ -100,13 +118,13 @@ async function importSelectedRows(rows: Row[], selectedIds: Set<string>) {
     if (aliasesErr) throw aliasesErr;
 
     (existingAliases ?? []).forEach((alias) => {
-      existingCodes.add(alias.alias.trim().toLowerCase());
+      existingCodes.add(normalizeAlias(alias.alias));
     });
   }
 
   const seenCodes = new Set<string>();
   const importableRows = selectedRows.filter((row) => {
-    const key = row.codigo.trim().toLowerCase();
+    const key = normalizeAlias(row.codigo);
     if (!key || existingCodes.has(key) || seenCodes.has(key)) return false;
     seenCodes.add(key);
     return true;
@@ -117,9 +135,10 @@ async function importSelectedRows(rows: Row[], selectedIds: Set<string>) {
     const batch = importableRows.slice(i, i + 300);
     const itemsPayload = batch.map((row) => {
       const payload: Record<string, unknown> = {
-        name: row.articulo,
-        unit: row.medida || "un",
-        category: row.rubro || null,
+        name: cleanText(row.articulo),
+        unit: cleanText(row.medida) || "un",
+        category: cleanText(row.rubro) || null,
+        brand: cleanText(row.marca) || null,
         is_active: true,
       };
 
@@ -135,16 +154,20 @@ async function importSelectedRows(rows: Row[], selectedIds: Set<string>) {
 
     const aliasPayload = (insertedItems ?? []).map((item, idx) => ({
       item_id: item.id,
-      alias: batch[idx].codigo,
+      alias: cleanText(batch[idx].codigo),
       is_supplier_code: true,
     }));
 
-    if (aliasPayload.length > 0) {
-      const { error: aliasErr } = await supabase.from("item_aliases").insert(aliasPayload);
+    const validAliasPayload = aliasPayload.filter((entry) => entry.alias !== "");
+
+    if (validAliasPayload.length > 0) {
+      const { error: aliasErr } = await supabase
+        .from("item_aliases")
+        .upsert(validAliasPayload, { onConflict: "item_id,alias", ignoreDuplicates: true });
       if (aliasErr) throw aliasErr;
     }
 
-    created += aliasPayload.length;
+    created += validAliasPayload.length;
   }
 
   return {
@@ -201,14 +224,22 @@ export default function LegacyCatalogImportPage() {
 
     try {
       const { headers, rows: parsedRows } = await parseImportFile(file);
-      const extractedRows = extractLegacyRows(parsedRows, headers);
+      const { rows: extractedRows, skippedEmptyName } = extractLegacyRows(parsedRows, headers);
+
+      if (skippedEmptyName > 0) {
+        toast({
+          title: "Filas omitidas",
+          description: `Se omitieron ${skippedEmptyName} fila(s) sin nombre válido.`,
+          variant: "destructive",
+        });
+      }
 
       if (extractedRows.length === 0) {
         setRows([]);
         setSelectedIds(new Set());
         toast({
           title: "Archivo sin filas importables",
-          description: "No se encontraron filas válidas con Código y Artículo.",
+          description: "No se encontraron filas válidas con Código y Artículo limpios.",
           variant: "destructive",
         });
         return;
@@ -281,7 +312,7 @@ export default function LegacyCatalogImportPage() {
           <CardContent>
             <div className="border-2 border-dashed rounded-lg p-6 text-center space-y-3">
               <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Columnas requeridas: Código, Artículo, Medida, Rubro, Costo_num (o Costo)</p>
+              <p className="text-sm text-muted-foreground">Columnas requeridas: Código, Artículo, Rubro, Costo_num (o Costo). Medida es opcional</p>
               <Input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" className="max-w-xs mx-auto" onChange={onFileUpload} />
             </div>
           </CardContent>

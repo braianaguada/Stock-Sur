@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { cleanText, normalizeAlias } from "@/lib/clean";
 
 interface Item {
   id: string;
@@ -121,8 +122,8 @@ export default function ItemsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const name = form.name.trim();
-      const unit = form.unit.trim();
+      const name = cleanText(form.name);
+      const unit = cleanText(form.unit);
 
       if (!name || !unit) {
         throw new Error("Nombre y unidad son obligatorios");
@@ -133,9 +134,9 @@ export default function ItemsPage() {
           .from("items")
           .update({
             name,
-            brand: form.brand || null,
+            brand: cleanText(form.brand) || null,
             unit,
-            category: form.category || null,
+            category: cleanText(form.category) || null,
             is_active: form.isActive,
           })
           .eq("id", editingItem.id);
@@ -145,9 +146,9 @@ export default function ItemsPage() {
           .from("items")
           .insert({
             name,
-            brand: form.brand || null,
+            brand: cleanText(form.brand) || null,
             unit,
-            category: form.category || null,
+            category: cleanText(form.category) || null,
             is_active: form.isActive,
             sku: "",
           });
@@ -180,12 +181,12 @@ export default function ItemsPage() {
   });
 
   const addAliasMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (alias: string) => {
       if (!editingItem) throw new Error("Seleccioná un ítem antes de agregar alias");
 
       const { error } = await supabase
         .from("item_aliases")
-        .insert({ item_id: editingItem.id, alias: newAlias.trim(), is_supplier_code: isSupplierCode });
+        .insert({ item_id: editingItem.id, alias, is_supplier_code: isSupplierCode });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -238,6 +239,24 @@ export default function ItemsPage() {
       isActive: item.is_active,
     });
     setDialogOpen(true);
+  };
+
+
+  const addAlias = () => {
+    const alias = cleanText(newAlias);
+    if (!alias) {
+      toast({ title: "Alias vacío", variant: "destructive" });
+      return;
+    }
+
+    const normalized = normalizeAlias(alias);
+    const isDuplicate = aliases.some((existing) => normalizeAlias(existing.alias) === normalized);
+    if (isDuplicate) {
+      toast({ title: "Alias duplicado", description: "Ese alias ya existe para este ítem.", variant: "destructive" });
+      return;
+    }
+
+    addAliasMutation.mutate(alias);
   };
 
   return (
@@ -394,8 +413,7 @@ export default function ItemsPage() {
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() => addAliasMutation.mutate()}
-                    disabled={!newAlias.trim()}
+                    onClick={addAlias}
                   >
                     Agregar
                   </Button>
