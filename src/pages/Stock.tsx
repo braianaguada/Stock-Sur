@@ -6,7 +6,6 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -17,7 +16,6 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, ArrowDownCircle, ArrowUpCircle, Settings2 } from "lucide-react";
 
@@ -37,7 +35,8 @@ interface Movement {
   type: MovementType;
   quantity: number;
   reference: string | null;
-  notes: string | null;
+  created_by: string | null;
+  created_by_name?: string;
   created_at: string;
   items?: { name: string; sku: string } | null;
 }
@@ -46,7 +45,7 @@ export default function StockPage() {
   const [tab, setTab] = useState("current");
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ item_id: "", type: "IN" as MovementType, quantity: "", reference: "", notes: "" });
+  const [form, setForm] = useState({ item_id: "", type: "IN" as MovementType, quantity: "", reference: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -100,11 +99,25 @@ export default function StockPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("stock_movements")
-        .select("*, items(name, sku)")
+        .select("id, item_id, type, quantity, reference, created_at, created_by, items(name, sku)")
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
-      return data as Movement[];
+
+      const userIds = Array.from(new Set((data ?? []).map((m) => m.created_by).filter(Boolean))) as string[];
+      const namesByUserId = new Map<string, string>();
+
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
+        for (const p of profiles ?? []) {
+          namesByUserId.set(p.user_id, p.full_name || p.user_id.slice(0, 8));
+        }
+      }
+
+      return ((data ?? []) as Movement[]).map((m) => ({
+        ...m,
+        created_by_name: m.created_by ? (namesByUserId.get(m.created_by) ?? m.created_by.slice(0, 8)) : "Sistema",
+      }));
     },
   });
 
@@ -119,8 +132,7 @@ export default function StockPage() {
         type: form.type,
         quantity: qty,
         reference: form.reference || null,
-        notes: form.notes || null,
-        created_by: user?.id ?? null,
+        created_by: user?.id ?? undefined,
       });
       if (error) throw error;
     },
@@ -149,7 +161,7 @@ export default function StockPage() {
             <h1 className="text-2xl font-bold tracking-tight">Stock</h1>
             <p className="text-muted-foreground">Movimientos y stock actual</p>
           </div>
-          <Button onClick={() => { setForm({ item_id: "", type: "IN", quantity: "", reference: "", notes: "" }); setDialogOpen(true); }}>
+          <Button onClick={() => { setForm({ item_id: "", type: "IN", quantity: "", reference: "" }); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Nuevo movimiento
           </Button>
         </div>
@@ -198,25 +210,27 @@ export default function StockPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Fecha/Hora</TableHead>
+                    <TableHead>Usuario</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Ítem</TableHead>
                     <TableHead className="text-right">Cantidad</TableHead>
                     <TableHead>Referencia</TableHead>
-                    <TableHead>Fecha</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loadingMovements ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
                   ) : movements.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Sin movimientos</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Sin movimientos</TableCell></TableRow>
                   ) : movements.map((m) => (
                     <TableRow key={m.id}>
+                      <TableCell className="text-sm text-muted-foreground">{new Date(m.created_at).toLocaleString("es-AR")}</TableCell>
+                      <TableCell className="text-sm">{m.created_by_name ?? "Sistema"}</TableCell>
                       <TableCell><div className="flex items-center gap-2">{typeIcon(m.type)}<span className="text-sm">{typeLabel[m.type]}</span></div></TableCell>
                       <TableCell className="font-medium">{(m.items as any)?.name ?? "—"}</TableCell>
                       <TableCell className="text-right font-mono">{m.quantity}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{m.reference ?? "—"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{new Date(m.created_at).toLocaleDateString("es-AR")}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -257,8 +271,7 @@ export default function StockPage() {
               </div>
             </div>
             <div className="space-y-2"><Label>Referencia</Label><Input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Notas</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-            <DialogFooter><Button type="submit" disabled={saveMutation.isPending || !form.item_id}>{saveMutation.isPending ? "Guardando..." : "Registrar"}</Button></DialogFooter>
+                        <DialogFooter><Button type="submit" disabled={saveMutation.isPending || !form.item_id}>{saveMutation.isPending ? "Guardando..." : "Registrar"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

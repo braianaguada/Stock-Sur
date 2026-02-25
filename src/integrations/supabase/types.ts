@@ -233,6 +233,48 @@ export type Database = {
           },
         ]
       }
+      price_list_items: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          is_active: boolean
+          item_id: string
+          price_list_id: string
+          price_override: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          is_active?: boolean
+          item_id: string
+          price_list_id: string
+          price_override?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          is_active?: boolean
+          item_id?: string
+          price_list_id?: string
+          price_override?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_list_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_list_items_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "price_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
