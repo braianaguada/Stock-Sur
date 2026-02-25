@@ -33,7 +33,7 @@ export default function ImportsPage() {
   const { data: priceLists = [] } = useQuery({
     queryKey: ["price-lists-simple"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("price_lists").select("id, name, supplier_id").order("name");
+      const { data, error } = await supabase.from("price_lists").select("id, name").order("name");
       if (error) throw error;
       return data;
     },
