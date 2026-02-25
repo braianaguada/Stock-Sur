@@ -202,6 +202,18 @@ export default function LegacyCatalogImportPage() {
     try {
       const { headers, rows: parsedRows } = await parseImportFile(file);
       const extractedRows = extractLegacyRows(parsedRows, headers);
+
+      if (extractedRows.length === 0) {
+        setRows([]);
+        setSelectedIds(new Set());
+        toast({
+          title: "Archivo sin filas importables",
+          description: "No se encontraron filas válidas con Código y Artículo.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       setRows(Array.isArray(extractedRows) ? extractedRows : []);
       setSelectedIds(new Set(extractedRows.filter((row) => row.selected).map((row) => row.id)));
       setRubroFilter("all");

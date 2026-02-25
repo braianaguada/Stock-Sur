@@ -121,13 +121,20 @@ export default function ItemsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const name = form.name.trim();
+      const unit = form.unit.trim();
+
+      if (!name || !unit) {
+        throw new Error("Nombre y unidad son obligatorios");
+      }
+
       if (editingItem) {
         const { error } = await supabase
           .from("items")
           .update({
-            name: form.name,
+            name,
             brand: form.brand || null,
-            unit: form.unit,
+            unit,
             category: form.category || null,
             is_active: form.isActive,
           })
@@ -137,9 +144,9 @@ export default function ItemsPage() {
         const { error } = await supabase
           .from("items")
           .insert({
-            name: form.name,
+            name,
             brand: form.brand || null,
-            unit: form.unit,
+            unit,
             category: form.category || null,
             is_active: form.isActive,
             sku: "",
@@ -169,13 +176,16 @@ export default function ItemsPage() {
       qc.invalidateQueries({ queryKey: ["items-categories"] });
       toast({ title: "Ítem eliminado" });
     },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const addAliasMutation = useMutation({
     mutationFn: async () => {
+      if (!editingItem) throw new Error("Seleccioná un ítem antes de agregar alias");
+
       const { error } = await supabase
         .from("item_aliases")
-        .insert({ item_id: editingItem!.id, alias: newAlias.trim(), is_supplier_code: isSupplierCode });
+        .insert({ item_id: editingItem.id, alias: newAlias.trim(), is_supplier_code: isSupplierCode });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -184,7 +194,16 @@ export default function ItemsPage() {
       setNewAlias("");
       setIsSupplierCode(false);
     },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => {
+      const lowerMessage = e.message.toLowerCase();
+      const duplicateAlias = lowerMessage.includes("duplicate") || lowerMessage.includes("unique");
+
+      toast({
+        title: duplicateAlias ? "Alias duplicado" : "Error",
+        description: duplicateAlias ? "Ese alias ya existe. Probá con otro código." : e.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const deleteAliasMutation = useMutation({
@@ -196,6 +215,7 @@ export default function ItemsPage() {
       qc.invalidateQueries({ queryKey: ["item-aliases", editingItem?.id] });
       qc.invalidateQueries({ queryKey: ["items"] });
     },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const openCreate = () => {
