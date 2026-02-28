@@ -429,6 +429,41 @@ export type Database = {
           },
         ]
       }
+      supplier_catalogs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          supplier_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          supplier_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          supplier_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_catalogs_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_catalog_lines: {
         Row: {
           cost: number
@@ -438,7 +473,9 @@ export type Database = {
           id: string
           match_status: Database["public"]["Enums"]["match_status"]
           matched_item_id: string | null
+          normalized_description: string | null
           raw_description: string
+          row_index: number | null
           supplier_catalog_version_id: string
           supplier_code: string | null
         }
@@ -450,7 +487,9 @@ export type Database = {
           id?: string
           match_status?: Database["public"]["Enums"]["match_status"]
           matched_item_id?: string | null
+          normalized_description?: string | null
           raw_description: string
+          row_index?: number | null
           supplier_catalog_version_id: string
           supplier_code?: string | null
         }
@@ -462,7 +501,9 @@ export type Database = {
           id?: string
           match_status?: Database["public"]["Enums"]["match_status"]
           matched_item_id?: string | null
+          normalized_description?: string | null
           raw_description?: string
+          row_index?: number | null
           supplier_catalog_version_id?: string
           supplier_code?: string | null
         }
@@ -485,32 +526,58 @@ export type Database = {
       }
       supplier_catalog_versions: {
         Row: {
+          catalog_id: string
+          created_at: string
           created_by: string | null
           id: string
           imported_at: string
           note: string | null
           supplier_document_id: string
+          supplier_id: string
+          title: string | null
         }
         Insert: {
+          catalog_id: string
+          created_at?: string
           created_by?: string | null
           id?: string
           imported_at?: string
           note?: string | null
           supplier_document_id: string
+          supplier_id: string
+          title?: string | null
         }
         Update: {
+          catalog_id?: string
+          created_at?: string
           created_by?: string | null
           id?: string
           imported_at?: string
           note?: string | null
           supplier_document_id?: string
+          supplier_id?: string
+          title?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "supplier_catalog_versions_catalog_id_fkey"
+            columns: ["catalog_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_catalogs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "supplier_catalog_versions_supplier_document_id_fkey"
             columns: ["supplier_document_id"]
             isOneToOne: false
             referencedRelation: "supplier_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_catalog_versions_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
