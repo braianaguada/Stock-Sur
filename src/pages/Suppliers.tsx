@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -14,9 +15,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, Trash2, Upload, MessageCircle, Copy, Link as LinkIcon, ChevronDown } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Upload, MessageCircle, Copy, ChevronDown } from "lucide-react";
 import { parseImportFile, parsePrice, isRowEmpty } from "@/lib/importParser";
 import { matchImportLine } from "@/lib/matching";
 import { buildWhatsAppLink, normalizeWhatsappNumber } from "@/lib/whatsapp";
@@ -32,12 +32,43 @@ interface Supplier {
   is_active: boolean;
 }
 
+interface SupplierCatalog {
+  id: string;
+  title: string;
+  created_at: string;
+}
+
+interface SupplierCatalogVersion {
+  id: string;
+  catalog_id: string;
+  title: string | null;
+  imported_at: string;
+  supplier_document_id: string;
+  file_name: string;
+  file_type: string;
+  line_count: number;
+}
+
 interface CatalogLine {
   id: string;
   supplier_code: string | null;
   raw_description: string;
   cost: number;
   currency: string;
+}
+
+interface OrderLine extends CatalogLine {
+  quantity: number;
+}
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleString("es-AR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function SuppliersPage() {
@@ -47,13 +78,16 @@ export default function SuppliersPage() {
   const [catalogDialogOpen, setCatalogDialogOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [catalogSearch, setCatalogSearch] = useState("");
+  const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
+  const [orderItems, setOrderItems] = useState<Record<string, OrderLine>>({});
+  const [lineQuantities, setLineQuantities] = useState<Record<string, number>>({});
   const [form, setForm] = useState({ name: "", contact_name: "", email: "", whatsapp: "", notes: "" });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [documentTitle, setDocumentTitle] = useState("");
   const [documentNotes, setDocumentNotes] = useState("");
+  const [selectedCatalogId, setSelectedCatalogId] = useState("new");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedLines, setSelectedLines] = useState<Record<string, number>>({});
 
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -69,38 +103,80 @@ export default function SuppliersPage() {
     },
   });
 
-  const { data: supplierDocuments = [], isLoading: isDocumentsLoading } = useQuery({
-    queryKey: ["supplier-documents", selectedSupplier?.id],
+  const { data: catalogs = [] } = useQuery({
+    queryKey: ["supplier-catalogs", selectedSupplier?.id],
     enabled: !!selectedSupplier,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("supplier_documents")
-        .select("*, supplier_catalog_versions(id, imported_at)")
+        .from("supplier_catalogs")
+        .select("id, title, created_at")
         .eq("supplier_id", selectedSupplier!.id)
-        .order("uploaded_at", { ascending: false });
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as any[];
+      return (data ?? []) as SupplierCatalog[];
     },
   });
 
-  const { data: catalogLines = [], isLoading: isCatalogLoading } = useQuery({
-    queryKey: ["supplier-catalog-lines", selectedSupplier?.id, catalogSearch],
+  const { data: catalogVersions = [], isLoading: isHistoryLoading } = useQuery({
+    queryKey: ["supplier-catalog-versions", selectedSupplier?.id],
     enabled: !!selectedSupplier,
     queryFn: async () => {
-      const { data: versionsData, error: versionError } = await supabase
+      const { data, error } = await supabase
         .from("supplier_catalog_versions")
-        .select("id, supplier_documents!inner(supplier_id)")
-        .eq("supplier_documents.supplier_id", selectedSupplier!.id);
-      if (versionError) throw versionError;
+        .select("id, catalog_id, title, imported_at, supplier_document_id")
+        .eq("supplier_id", selectedSupplier!.id)
+        .order("imported_at", { ascending: false });
+      if (error) throw error;
 
-      const versionIds = (versionsData ?? []).map((v: any) => v.id);
-      if (versionIds.length === 0) return [];
+      const versions = (data ?? []) as Array<{
+        id: string;
+        catalog_id: string;
+        title: string | null;
+        imported_at: string;
+        supplier_document_id: string;
+      }>;
 
+      if (versions.length === 0) return [];
+
+      const { data: docs, error: docsError } = await supabase
+        .from("supplier_documents")
+        .select("id, file_name, file_type")
+        .eq("supplier_id", selectedSupplier!.id);
+      if (docsError) throw docsError;
+      const docsById = new Map((docs ?? []).map((doc) => [doc.id, doc]));
+
+      const { data: lineCounts, error: lineCountError } = await supabase
+        .from("supplier_catalog_lines")
+        .select("supplier_catalog_version_id")
+        .in("supplier_catalog_version_id", versions.map((version) => version.id));
+      if (lineCountError) throw lineCountError;
+
+      const countMap = (lineCounts ?? []).reduce<Record<string, number>>((acc, row) => {
+        acc[row.supplier_catalog_version_id] = (acc[row.supplier_catalog_version_id] ?? 0) + 1;
+        return acc;
+      }, {});
+
+      return versions.map((version) => {
+        const doc = docsById.get(version.supplier_document_id);
+        return {
+          ...version,
+          file_name: doc?.file_name ?? "archivo",
+          file_type: doc?.file_type ?? "-",
+          line_count: countMap[version.id] ?? 0,
+        };
+      }) as SupplierCatalogVersion[];
+    },
+  });
+
+  const { data: activeCatalogLines = [], isLoading: isCatalogLoading } = useQuery({
+    queryKey: ["supplier-catalog-lines", activeVersionId, catalogSearch],
+    enabled: !!activeVersionId,
+    queryFn: async () => {
       let query = supabase
         .from("supplier_catalog_lines")
         .select("id, supplier_code, raw_description, cost, currency")
-        .in("supplier_catalog_version_id", versionIds)
-        .order("created_at", { ascending: false })
+        .eq("supplier_catalog_version_id", activeVersionId!)
+        .order("row_index", { ascending: true, nullsFirst: false })
         .limit(250);
 
       if (catalogSearch.trim()) {
@@ -137,7 +213,7 @@ export default function SuppliersPage() {
       setDialogOpen(false);
       toast({ title: editing ? "Proveedor actualizado" : "Proveedor creado" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -174,8 +250,35 @@ export default function SuppliersPage() {
         .single();
       if (docError) throw docError;
 
+      let catalogId = selectedCatalogId === "new" ? null : selectedCatalogId;
+      if (!catalogId) {
+        const { data: createdCatalog, error: catalogError } = await supabase
+          .from("supplier_catalogs")
+          .insert({
+            supplier_id: selectedSupplier.id,
+            title,
+            notes: documentNotes.trim() || null,
+          })
+          .select("id")
+          .single();
+        if (catalogError) throw catalogError;
+        catalogId = createdCatalog.id;
+      }
+
+      const { data: version, error: versionError } = await supabase
+        .from("supplier_catalog_versions")
+        .insert({
+          supplier_id: selectedSupplier.id,
+          catalog_id: catalogId,
+          supplier_document_id: document.id,
+          title,
+        })
+        .select("id")
+        .single();
+      if (versionError) throw versionError;
+
       if (fileType === "pdf") {
-        return { total: 0, parsed: false };
+        return { total: 0, parsed: false, versionId: version.id };
       }
 
       const { headers, rows } = await parseImportFile(selectedFile);
@@ -193,17 +296,11 @@ export default function SuppliersPage() {
       const codeHeader = findHeader("codigo", "código", "cod", "sku", "item", "supplier_code");
       const descriptionHeader = findHeader("descripcion", "descripción", "description", "detalle", "producto", "articulo", "artículo");
       const costHeader = findHeader("costo", "cost", "precio", "price", "importe");
+      const currencyHeader = findHeader("moneda", "currency", "curr");
 
       if (!descriptionHeader || !costHeader) {
         throw new Error("No se detectaron columnas de descripción/costo en el archivo");
       }
-
-      const { data: version, error: versionError } = await supabase
-        .from("supplier_catalog_versions")
-        .insert({ supplier_document_id: document.id, note: "Importación automática" })
-        .select("id")
-        .single();
-      if (versionError) throw versionError;
 
       const { data: aliases, error: aliasesError } = await supabase
         .from("item_aliases")
@@ -211,16 +308,20 @@ export default function SuppliersPage() {
       if (aliasesError) throw aliasesError;
 
       const lines = validRows
-        .map((row) => {
+        .map((row, rowIndex) => {
           const supplierCode = codeHeader ? (row[codeHeader] ?? "").trim() : "";
           const rawDescription = (row[descriptionHeader] ?? "").trim();
           const cost = parsePrice(row[costHeader] ?? "0");
+          const currency = currencyHeader ? (row[currencyHeader] ?? "ARS").trim().toUpperCase() : "ARS";
           const match = matchImportLine({ supplierCode, rawDescription, aliases: aliases ?? [] });
           return {
             supplier_catalog_version_id: version.id,
             supplier_code: supplierCode || null,
             raw_description: rawDescription,
+            normalized_description: rawDescription.toLowerCase(),
             cost,
+            currency: currency || "ARS",
+            row_index: rowIndex + 1,
             matched_item_id: match.itemId,
             match_status: (match.itemId ? "MATCHED" : "PENDING") as "MATCHED" | "PENDING" | "NEW",
           };
@@ -237,20 +338,25 @@ export default function SuppliersPage() {
         if (error) throw error;
       }
 
-      return { total: lines.length, parsed: true };
+      return { total: lines.length, parsed: true, versionId: version.id };
     },
     onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: ["supplier-documents", selectedSupplier?.id] });
-      qc.invalidateQueries({ queryKey: ["supplier-catalog-lines", selectedSupplier?.id] });
+      qc.invalidateQueries({ queryKey: ["supplier-catalogs", selectedSupplier?.id] });
+      qc.invalidateQueries({ queryKey: ["supplier-catalog-versions", selectedSupplier?.id] });
+      qc.invalidateQueries({ queryKey: ["supplier-catalog-lines"] });
       setDocumentTitle("");
       setDocumentNotes("");
+      setSelectedCatalogId("new");
       setSelectedFile(null);
+      setActiveVersionId(result.versionId);
+      setOrderItems({});
+      setLineQuantities({});
       toast({
         title: "Documento cargado",
-        description: result.parsed ? `Se importaron ${result.total} líneas` : "PDF guardado (sin parsear)",
+        description: result.parsed ? `Importados ${result.total} ítems` : "PDF guardado (sin parsear)",
       });
     },
-    onError: (e: any) => {
+    onError: (e: Error) => {
       setSelectedFile(null);
       toast({ title: "Error", description: e.message, variant: "destructive" });
     },
@@ -278,43 +384,94 @@ export default function SuppliersPage() {
   const openCatalog = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
     setCatalogSearch("");
-    setSelectedLines({});
+    setActiveVersionId(null);
+    setOrderItems({});
+    setLineQuantities({});
+    setSelectedCatalogId("new");
     setCatalogDialogOpen(true);
   };
 
-  const orderLines = useMemo(() => {
-    return catalogLines
-      .filter((line) => Boolean(selectedLines[line.id]))
-      .map((line) => ({ ...line, quantity: selectedLines[line.id] }));
-  }, [catalogLines, selectedLines]);
+  const activeVersion = useMemo(
+    () => catalogVersions.find((version) => version.id === activeVersionId) ?? null,
+    [catalogVersions, activeVersionId],
+  );
+
+  const catalogTitleById = useMemo(() => {
+    const map = new Map<string, string>();
+    catalogs.forEach((catalog) => map.set(catalog.id, catalog.title));
+    return map;
+  }, [catalogs]);
+
+  const versionsByCatalog = useMemo(() => {
+    const grouped: Record<string, SupplierCatalogVersion[]> = {};
+    catalogVersions.forEach((version) => {
+      if (!grouped[version.catalog_id]) grouped[version.catalog_id] = [];
+      grouped[version.catalog_id].push(version);
+    });
+    return grouped;
+  }, [catalogVersions]);
+
+  const orderLines = useMemo(() => Object.values(orderItems), [orderItems]);
+  const orderTotal = useMemo(
+    () => orderLines.reduce((acc, line) => acc + (line.cost * line.quantity), 0),
+    [orderLines],
+  );
 
   const orderMessage = useMemo(() => {
-    if (orderLines.length === 0) return "";
-    const rows = orderLines.map((line) => `- (${line.quantity}) ${line.raw_description} (${line.supplier_code ?? "s/cod"}) $ ${Number(line.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}`);
-    return `Hola! Te hago el pedido:\n${rows.join("\n")}\nTotal items: ${orderLines.length}\nGracias!`;
-  }, [orderLines]);
+    if (!selectedSupplier || orderLines.length === 0) return "";
+    const versionDate = activeVersion ? formatDate(activeVersion.imported_at) : "Sin versión";
+    const catalogName = activeVersion ? catalogTitleById.get(activeVersion.catalog_id) ?? activeVersion.title ?? "Listado" : "Sin listado";
+    const rows = orderLines.map((line) => `${line.supplier_code ?? "S/COD"} - ${line.raw_description} x ${line.quantity}`);
+    return [
+      `Proveedor: ${selectedSupplier.name}`,
+      `Listado/Versión usada: ${catalogName} (${versionDate})`,
+      "Ítems:",
+      ...rows,
+    ].join("\n");
+  }, [selectedSupplier, activeVersion, catalogTitleById, orderLines]);
 
   const waLink = buildWhatsAppLink(selectedSupplier?.whatsapp, orderMessage);
 
-  const updateLineSelection = (lineId: string, checked: boolean) => {
-    setSelectedLines((prev) => {
-      if (!checked) {
-        const { [lineId]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [lineId]: prev[lineId] && prev[lineId] > 0 ? prev[lineId] : 1 };
+  const addToOrder = (line: CatalogLine) => {
+    const quantityToAdd = Math.max(1, Math.trunc(lineQuantities[line.id] ?? 1));
+    setOrderItems((prev) => {
+      const current = prev[line.id];
+      const quantity = current ? current.quantity + quantityToAdd : quantityToAdd;
+      return {
+        ...prev,
+        [line.id]: { ...line, quantity },
+      };
     });
   };
 
-  const updateQuantity = (lineId: string, value: string) => {
+  const updateLineQuantity = (lineId: string, value: string) => {
     const qty = Number(value);
     if (!Number.isFinite(qty)) return;
-    setSelectedLines((prev) => ({ ...prev, [lineId]: Math.max(1, qty) }));
+    setLineQuantities((prev) => ({ ...prev, [lineId]: Math.max(1, Math.trunc(qty)) }));
+  };
+
+  const updateOrderQuantity = (lineId: string, value: string) => {
+    const qty = Number(value);
+    if (!Number.isFinite(qty)) return;
+    setOrderItems((prev) => {
+      if (!prev[lineId]) return prev;
+      return {
+        ...prev,
+        [lineId]: { ...prev[lineId], quantity: Math.max(1, Math.trunc(qty)) },
+      };
+    });
+  };
+
+  const removeOrderItem = (lineId: string) => {
+    setOrderItems((prev) => {
+      const { [lineId]: _, ...rest } = prev;
+      return rest;
+    });
   };
 
   const copyOrderMessage = async () => {
     if (orderLines.length === 0) {
-      toast({ title: "Pedido vacío", description: "Seleccioná al menos un producto", variant: "destructive" });
+      toast({ title: "Pedido vacío", description: "Agregá al menos un producto", variant: "destructive" });
       return;
     }
 
@@ -324,7 +481,7 @@ export default function SuppliersPage() {
 
   const openWhatsApp = () => {
     if (orderLines.length === 0) {
-      toast({ title: "Pedido vacío", description: "Seleccioná al menos un producto", variant: "destructive" });
+      toast({ title: "Pedido vacío", description: "Agregá al menos un producto", variant: "destructive" });
       return;
     }
 
@@ -348,7 +505,7 @@ export default function SuppliersPage() {
         </div>
 
         <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Buscar..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
 
@@ -359,22 +516,22 @@ export default function SuppliersPage() {
                 <TableHead>Nombre</TableHead>
                 <TableHead>Contacto</TableHead>
                 <TableHead>Email</TableHead>
-                                <TableHead>WhatsApp</TableHead>
+                <TableHead>WhatsApp</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="w-[180px]">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Cargando...</TableCell></TableRow>
               ) : suppliers.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No se encontraron proveedores</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No se encontraron proveedores</TableCell></TableRow>
               ) : suppliers.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell>{s.contact_name ?? "—"}</TableCell>
                   <TableCell>{s.email ?? "—"}</TableCell>
-                                    <TableCell>{s.whatsapp ? `+${normalizeWhatsappNumber(s.whatsapp)}` : "—"}</TableCell>
+                  <TableCell>{s.whatsapp ? `+${normalizeWhatsappNumber(s.whatsapp)}` : "—"}</TableCell>
                   <TableCell><Badge variant={s.is_active ? "default" : "secondary"}>{s.is_active ? "Activo" : "Inactivo"}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -414,26 +571,40 @@ export default function SuppliersPage() {
       </Dialog>
 
       <Dialog open={catalogDialogOpen} onOpenChange={setCatalogDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[85vh] overflow-auto">
+        <DialogContent className="max-w-7xl">
           <DialogHeader><DialogTitle>Catálogos del proveedor: {selectedSupplier?.name}</DialogTitle></DialogHeader>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
             <Card>
               <CardHeader><CardTitle className="text-base">Subir archivo</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-2">
                   <Label>Título</Label>
-                  <Input value={documentTitle} onChange={(e) => setDocumentTitle(e.target.value)} placeholder="Ej: Lista Febrero 2026" />
+                  <Input value={documentTitle} onChange={(e) => setDocumentTitle(e.target.value)} placeholder="Lista Febrero 2026 contado" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Agregar a listado existente (opcional)</Label>
+                  <Select value={selectedCatalogId} onValueChange={setSelectedCatalogId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Crear nuevo listado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">Crear nuevo listado</SelectItem>
+                      {catalogs.map((catalog) => (
+                        <SelectItem key={catalog.id} value={catalog.id}>{catalog.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Notas</Label>
-                  <Input value={documentNotes} onChange={(e) => setDocumentNotes(e.target.value)} placeholder="Opcional" />
+                  <Input value={documentNotes} onChange={(e) => setDocumentNotes(e.target.value)} placeholder="Observaciones" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Archivo (xlsx/csv/pdf)</Label>
+                  <Label>Archivo</Label>
                   <Input
                     type="file"
-                    accept=".csv,.tsv,.txt,.xlsx,.xls,.pdf"
+                    accept=".xlsx,.xls,.csv,.txt,.tsv,.pdf"
                     onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
                   />
                 </div>
@@ -445,14 +616,33 @@ export default function SuppliersPage() {
 
             <Card>
               <CardHeader><CardTitle className="text-base">Historial</CardTitle></CardHeader>
-              <CardContent className="space-y-2 max-h-[280px] overflow-auto">
-                {isDocumentsLoading ? <p className="text-sm text-muted-foreground">Cargando...</p> : supplierDocuments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Sin archivos cargados</p>
-                ) : supplierDocuments.map((doc) => (
-                  <div key={doc.id} className="rounded border p-2 text-sm">
-                    <p className="font-medium">{doc.title}</p>
-                    <p className="text-muted-foreground">{doc.file_name} · {doc.file_type.toUpperCase()}</p>
-                    <p className="text-muted-foreground">Versiones: {(doc.supplier_catalog_versions ?? []).length}</p>
+              <CardContent className="max-h-[280px] space-y-3 overflow-auto">
+                {isHistoryLoading ? <p className="text-sm text-muted-foreground">Cargando...</p> : catalogs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Sin listados cargados</p>
+                ) : catalogs.map((catalog) => (
+                  <div key={catalog.id} className="rounded border p-3">
+                    <p className="font-medium">{catalog.title}</p>
+                    <p className="text-xs text-muted-foreground">Creado: {formatDate(catalog.created_at)}</p>
+                    <div className="mt-2 space-y-2">
+                      {(versionsByCatalog[catalog.id] ?? []).length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Sin versiones</p>
+                      ) : (versionsByCatalog[catalog.id] ?? []).map((version) => (
+                        <button
+                          type="button"
+                          key={version.id}
+                          onClick={() => {
+                            setActiveVersionId(version.id);
+                            setCatalogSearch("");
+                            setOrderItems({});
+                            setLineQuantities({});
+                          }}
+                          className={`w-full rounded border p-2 text-left text-sm ${activeVersionId === version.id ? "border-primary bg-primary/5" : "border-border"}`}
+                        >
+                          <p className="font-medium">{version.title ?? catalog.title}</p>
+                          <p className="text-xs text-muted-foreground">{formatDate(version.imported_at)} · {version.file_name} · {version.file_type.toUpperCase()} · {version.line_count} líneas</p>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </CardContent>
@@ -463,48 +653,49 @@ export default function SuppliersPage() {
             <Card>
               <CardHeader className="space-y-2">
                 <CardTitle className="text-base">Buscar en catálogos</CardTitle>
-                <Input placeholder="Buscar por descripción o código" value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} />
+                <p className="text-xs text-muted-foreground">
+                  {activeVersion ? `Versión activa: ${activeVersion.title ?? catalogTitleById.get(activeVersion.catalog_id) ?? "Listado"} (${formatDate(activeVersion.imported_at)})` : "Seleccioná una versión en el Historial"}
+                </p>
+                <Input placeholder="Buscar por descripción o código" value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} disabled={!activeVersionId} />
               </CardHeader>
               <CardContent>
-                <div className="rounded border max-h-[340px] overflow-auto">
+                <div className="max-h-[340px] overflow-auto rounded border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-10" />
                         <TableHead>Código</TableHead>
                         <TableHead>Descripción</TableHead>
                         <TableHead className="text-right">Costo</TableHead>
                         <TableHead className="w-[110px]">Cantidad</TableHead>
+                        <TableHead className="w-[120px]" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {isCatalogLoading ? (
-                        <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">Cargando...</TableCell></TableRow>
-                      ) : catalogLines.length === 0 ? (
-                        <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">Sin resultados</TableCell></TableRow>
-                      ) : catalogLines.map((line) => {
-                        const checked = Boolean(selectedLines[line.id]);
-                        return (
-                          <TableRow key={line.id}>
-                            <TableCell>
-                              <Checkbox checked={checked} onCheckedChange={(v) => updateLineSelection(line.id, Boolean(v))} />
-                            </TableCell>
-                            <TableCell className="font-mono text-xs">{line.supplier_code ?? "—"}</TableCell>
-                            <TableCell className="text-sm">{line.raw_description}</TableCell>
-                            <TableCell className="text-right font-mono">{Number(line.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                min={1}
-                                step={1}
-                                disabled={!checked}
-                                value={checked ? selectedLines[line.id] : 1}
-                                onChange={(e) => updateQuantity(line.id, e.target.value)}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
+                      {!activeVersionId ? (
+                        <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Seleccioná una versión para ver líneas</TableCell></TableRow>
+                      ) : isCatalogLoading ? (
+                        <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Cargando...</TableCell></TableRow>
+                      ) : activeCatalogLines.length === 0 ? (
+                        <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Sin resultados</TableCell></TableRow>
+                      ) : activeCatalogLines.map((line) => (
+                        <TableRow key={line.id}>
+                          <TableCell className="font-mono text-xs">{line.supplier_code ?? "—"}</TableCell>
+                          <TableCell className="text-sm">{line.raw_description}</TableCell>
+                          <TableCell className="text-right font-mono">{Number(line.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={lineQuantities[line.id] ?? 1}
+                              onChange={(e) => updateLineQuantity(line.id, e.target.value)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button size="sm" onClick={() => addToOrder(line)}>Agregar</Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </div>
@@ -514,16 +705,23 @@ export default function SuppliersPage() {
             <Card>
               <CardHeader><CardTitle className="text-base">Pedido actual</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <div className="max-h-[220px] overflow-auto space-y-2">
+                <div className="max-h-[220px] space-y-2 overflow-auto">
                   {orderLines.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Sin productos seleccionados</p>
                   ) : orderLines.map((line) => (
                     <div key={line.id} className="rounded border p-2 text-sm">
-                      <p className="font-medium">{line.raw_description}</p>
-                      <p className="text-muted-foreground">x{line.quantity} · {line.supplier_code ?? "s/cod"} · ${Number(line.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
+                      <p className="font-medium">{line.supplier_code ?? "S/COD"} - {line.raw_description}</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <Input type="number" min={1} step={1} value={line.quantity} onChange={(e) => updateOrderQuantity(line.id, e.target.value)} className="h-8" />
+                        <p className="text-muted-foreground">${Number(line.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
+                        <p className="font-medium">Subtotal: ${(line.cost * line.quantity).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
+                        <Button variant="ghost" size="sm" onClick={() => removeOrderItem(line.id)} className="ml-auto">Quitar</Button>
+                      </div>
                     </div>
                   ))}
                 </div>
+
+                <p className="text-sm font-semibold">Total: ${orderTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
 
                 {!selectedSupplier?.whatsapp && (
                   <p className="text-sm text-amber-600">Este proveedor no tiene WhatsApp configurado.</p>
@@ -532,11 +730,6 @@ export default function SuppliersPage() {
                 <div className="grid gap-2">
                   <Button variant="outline" onClick={copyOrderMessage}><Copy className="mr-2 h-4 w-4" /> Copiar mensaje</Button>
                   <Button onClick={openWhatsApp}><MessageCircle className="mr-2 h-4 w-4" /> Abrir WhatsApp</Button>
-                  <Button variant="ghost" asChild disabled={!selectedSupplier?.whatsapp}>
-                    <a href={buildWhatsAppLink(selectedSupplier?.whatsapp) ?? "#"} target="_blank" rel="noreferrer">
-                      <LinkIcon className="mr-2 h-4 w-4" /> Ver link wa.me
-                    </a>
-                  </Button>
                 </div>
               </CardContent>
             </Card>
