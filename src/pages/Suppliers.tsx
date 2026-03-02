@@ -92,6 +92,17 @@ export default function SuppliersPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
+  const getErrorMessage = (error: unknown) => {
+    if (error && typeof error === "object") {
+      const maybeMessage = "message" in error && typeof error.message === "string" ? error.message : "";
+      const maybeDetails = "details" in error && typeof error.details === "string" ? error.details : "";
+      const maybeHint = "hint" in error && typeof error.hint === "string" ? error.hint : "";
+      return [maybeMessage, maybeDetails, maybeHint].filter(Boolean).join(" | ") || "Error desconocido";
+    }
+    if (typeof error === "string") return error;
+    return "Error desconocido";
+  };
+
   const { data: suppliers = [], isLoading } = useQuery({
     queryKey: ["suppliers", search],
     queryFn: async () => {
@@ -275,7 +286,10 @@ export default function SuppliersPage() {
         })
         .select("id")
         .single();
-      if (versionError) throw versionError;
+      if (versionError) {
+        console.error("Error inserting supplier_catalog_versions", versionError);
+        throw versionError;
+      }
 
       if (fileType === "pdf") {
         return { total: 0, parsed: false, versionId: version.id };
@@ -353,12 +367,16 @@ export default function SuppliersPage() {
       setLineQuantities({});
       toast({
         title: "Documento cargado",
-        description: result.parsed ? `Importados ${result.total} ítems` : "PDF guardado (sin parsear)",
+        description: result.parsed ? `Importados ${result.total} ítems` : "PDF guardado (sin parseo)",
       });
     },
-    onError: (e: Error) => {
+    onError: (error: unknown) => {
       setSelectedFile(null);
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["supplier-catalog-versions", selectedSupplier?.id] });
+      qc.invalidateQueries({ queryKey: ["supplier-catalog-lines"] });
     },
   });
 
