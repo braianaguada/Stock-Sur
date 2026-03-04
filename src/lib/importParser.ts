@@ -67,6 +67,25 @@ export function isRowEmpty(row: ParsedRow): boolean {
   return Object.values(row).every((val) => !String(val ?? "").trim());
 }
 
+async function readFileAsText(file: File): Promise<string> {
+  if (typeof file.text === "function") {
+    return file.text();
+  }
+  if (typeof file.arrayBuffer === "function") {
+    const buffer = await file.arrayBuffer();
+    return new TextDecoder("utf-8").decode(buffer);
+  }
+  if (typeof FileReader !== "undefined") {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+      reader.readAsText(file as Blob);
+    });
+  }
+  throw new Error("Entorno sin soporte para leer archivos de texto");
+}
+
 function sanitizeHeaders(rawHeaders: string[]): string[] {
   const used = new Set<string>();
 
@@ -133,7 +152,7 @@ export async function parseImportFile(file: File): Promise<{ headers: string[]; 
     return { headers, rows };
   }
 
-  const text = await file.text();
+  const text = await readFileAsText(file);
   const lines = text.split(/\r?\n/).filter((line) => line.trim());
   if (lines.length < 2) throw new Error("Archivo vacío o sin datos");
 

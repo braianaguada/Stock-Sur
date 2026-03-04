@@ -21,7 +21,14 @@ type PendingLine = {
   raw_description: string;
   supplier_code: string | null;
   price: number;
-  price_list_versions?: any;
+  price_list_versions?: {
+    price_lists?: {
+      name?: string | null;
+      suppliers?: {
+        name?: string | null;
+      } | null;
+    } | null;
+  } | null;
 };
 
 export default function PendingPage() {
@@ -49,7 +56,7 @@ export default function PendingPage() {
       if (search) q = q.ilike("raw_description", `%${search}%`);
       const { data, error } = await q;
       if (error) throw error;
-      return data as any[];
+      return (data ?? []) as PendingLine[];
     },
   });
 
@@ -106,7 +113,11 @@ export default function PendingPage() {
       closeAllDialogs();
       toast({ title: "Ítem asignado sin crear alias" });
     },
-    onError: (e: any) => toast({ title: "Error al asignar", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) => toast({
+      title: "Error al asignar",
+      description: e instanceof Error ? e.message : "Error desconocido",
+      variant: "destructive",
+    }),
   });
 
   const assignWithAliasMutation = useMutation({
@@ -125,7 +136,11 @@ export default function PendingPage() {
       closeAllDialogs();
       toast({ title: "Ítem asignado y alias guardado" });
     },
-    onError: (e: any) => toast({ title: "Error al crear alias", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) => toast({
+      title: "Error al crear alias",
+      description: e instanceof Error ? e.message : "Error desconocido",
+      variant: "destructive",
+    }),
   });
 
   const createItemWithAliasMutation = useMutation({
@@ -156,7 +171,11 @@ export default function PendingPage() {
       closeAllDialogs();
       toast({ title: "Nuevo ítem creado, asignado y con alias" });
     },
-    onError: (e: any) => toast({ title: "Error al crear ítem/alias", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) => toast({
+      title: "Error al crear ítem/alias",
+      description: e instanceof Error ? e.message : "Error desconocido",
+      variant: "destructive",
+    }),
   });
 
   const openAssign = (line: PendingLine) => {

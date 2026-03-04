@@ -37,6 +37,11 @@ function getTokenSet(normalizedText: string): Set<string> {
   return new Set(normalizedText.split(" ").filter((token) => token.length >= MIN_ALIAS_LENGTH));
 }
 
+function countAliasTokens(alias: string): number {
+  if (!alias) return 0;
+  return alias.split(" ").filter((token) => token.length >= MIN_ALIAS_LENGTH).length;
+}
+
 export function matchImportLine(args: {
   supplierCode?: string | null;
   rawDescription: string;
@@ -59,14 +64,20 @@ export function matchImportLine(args: {
   }
 
   const descriptionTokens = getTokenSet(descriptionNormalized);
+  // "ALIAS_TOKEN" should prioritize multi-word aliases that appear as full token phrases.
+  const paddedDescription = ` ${descriptionNormalized} `;
   const tokenMatches = aliases.filter((a) => {
     if (a.is_supplier_code || a.normalizedAlias.length < MIN_ALIAS_LENGTH) return false;
-    return descriptionTokens.has(a.normalizedAlias);
+    if (countAliasTokens(a.normalizedAlias) < 2) return false;
+    return paddedDescription.includes(` ${a.normalizedAlias} `);
   });
 
   const uniqueTokenItemIds = new Set(tokenMatches.map((m) => m.item_id));
   if (uniqueTokenItemIds.size === 1 && tokenMatches[0]) {
-    return { itemId: tokenMatches[0].item_id, reason: "ALIAS_TOKEN" };
+    const bestTokenMatch = tokenMatches.reduce((best, current) => {
+      return countAliasTokens(current.normalizedAlias) > countAliasTokens(best.normalizedAlias) ? current : best;
+    });
+    return { itemId: bestTokenMatch.item_id, reason: "ALIAS_TOKEN" };
   }
 
   const containsMatches = aliases.filter((a) => {

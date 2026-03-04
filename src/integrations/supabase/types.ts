@@ -207,21 +207,36 @@ export type Database = {
       price_lists: {
         Row: {
           created_at: string
+          flete_pct: number
           id: string
+          impuesto_pct: number
           name: string
+          round_mode: string
+          round_to: number
           supplier_id: string | null
+          utilidad_pct: number
         }
         Insert: {
           created_at?: string
+          flete_pct?: number
           id?: string
+          impuesto_pct?: number
           name: string
+          round_mode?: string
+          round_to?: number
           supplier_id?: string | null
+          utilidad_pct?: number
         }
         Update: {
           created_at?: string
+          flete_pct?: number
           id?: string
+          impuesto_pct?: number
           name?: string
+          round_mode?: string
+          round_to?: number
           supplier_id?: string | null
+          utilidad_pct?: number
         }
         Relationships: [
           {
@@ -235,28 +250,43 @@ export type Database = {
       }
       price_list_items: {
         Row: {
+          base_cost: number
           created_at: string
           created_by: string | null
+          final_price_override: number | null
+          flete_pct: number | null
+          impuesto_pct: number | null
           is_active: boolean
           item_id: string
           price_list_id: string
           price_override: number | null
+          utilidad_pct: number | null
         }
         Insert: {
+          base_cost?: number
           created_at?: string
           created_by?: string | null
+          final_price_override?: number | null
+          flete_pct?: number | null
+          impuesto_pct?: number | null
           is_active?: boolean
           item_id: string
           price_list_id: string
           price_override?: number | null
+          utilidad_pct?: number | null
         }
         Update: {
+          base_cost?: number
           created_at?: string
           created_by?: string | null
+          final_price_override?: number | null
+          flete_pct?: number | null
+          impuesto_pct?: number | null
           is_active?: boolean
           item_id?: string
           price_list_id?: string
           price_override?: number | null
+          utilidad_pct?: number | null
         }
         Relationships: [
           {
@@ -582,6 +612,44 @@ export type Database = {
           },
         ]
       }
+      supplier_import_mappings: {
+        Row: {
+          created_at: string
+          created_by: string
+          file_type: string
+          id: string
+          mapping: Json
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          file_type?: string
+          id?: string
+          mapping: Json
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          file_type?: string
+          id?: string
+          mapping?: Json
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_import_mappings_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_documents: {
         Row: {
           created_by: string | null
@@ -685,6 +753,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_supplier_catalog_import: {
+        Args: {
+          p_catalog_id?: string | null
+          p_catalog_notes?: string | null
+          p_catalog_title?: string | null
+          p_lines?: Json
+          p_supplier_document_id: string
+          p_supplier_id: string
+          p_version_title?: string | null
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

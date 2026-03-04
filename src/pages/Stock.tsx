@@ -68,7 +68,12 @@ export default function StockPage() {
       if (error) throw error;
 
       const map = new Map<string, StockRow>();
-      for (const m of movements as any[]) {
+      for (const m of (movements ?? []) as Array<{
+        item_id: string;
+        type: MovementType;
+        quantity: number;
+        items?: { name?: string | null; sku?: string | null; unit?: string | null } | null;
+      }>) {
         if (!map.has(m.item_id)) {
           map.set(m.item_id, {
             item_id: m.item_id,
@@ -142,7 +147,11 @@ export default function StockPage() {
       setDialogOpen(false);
       toast({ title: "Movimiento registrado" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) => toast({
+      title: "Error",
+      description: e instanceof Error ? e.message : "Error desconocido",
+      variant: "destructive",
+    }),
   });
 
   const typeIcon = (t: MovementType) => {
@@ -228,7 +237,7 @@ export default function StockPage() {
                       <TableCell className="text-sm text-muted-foreground">{new Date(m.created_at).toLocaleString("es-AR")}</TableCell>
                       <TableCell className="text-sm">{m.created_by_name ?? "Sistema"}</TableCell>
                       <TableCell><div className="flex items-center gap-2">{typeIcon(m.type)}<span className="text-sm">{typeLabel[m.type]}</span></div></TableCell>
-                      <TableCell className="font-medium">{(m.items as any)?.name ?? "—"}</TableCell>
+                      <TableCell className="font-medium">{m.items?.name ?? "—"}</TableCell>
                       <TableCell className="text-right font-mono">{m.quantity}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{m.reference ?? "—"}</TableCell>
                     </TableRow>

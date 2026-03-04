@@ -1,11 +1,10 @@
-import { useLocation, Link } from "react-router-dom";
+﻿import { useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard,
   Package,
   Warehouse,
   Truck,
   FileSpreadsheet,
-  Upload,
   FolderUp,
   AlertCircle,
   FileText,
@@ -24,7 +23,6 @@ const navItems = [
   { title: "Stock", url: "/stock", icon: Warehouse },
   { title: "Proveedores", url: "/suppliers", icon: Truck },
   { title: "Listas de precios", url: "/price-lists", icon: FileSpreadsheet },
-  { title: "Importaciones", url: "/imports", icon: Upload },
   { title: "Importar catálogo (sistema viejo)", url: "/items/catalog/import-legacy", icon: FolderUp },
   { title: "Pendientes", url: "/pending", icon: AlertCircle },
   { title: "Presupuestos", url: "/quotes", icon: FileText },
@@ -43,7 +41,6 @@ export function AppSidebar() {
         collapsed ? "w-16" : "w-60"
       )}
     >
-      {/* Logo */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
           <Package className="h-5 w-5 text-sidebar-primary-foreground" />
@@ -66,10 +63,10 @@ export function AppSidebar() {
         </Button>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.url || 
+          const isActive =
+            location.pathname === item.url ||
             (item.url !== "/" && location.pathname.startsWith(item.url));
           return (
             <Link
@@ -89,7 +86,6 @@ export function AppSidebar() {
         })}
       </nav>
 
-      {/* Footer */}
       <div className="border-t border-sidebar-border px-2 py-3">
         <button
           onClick={signOut}

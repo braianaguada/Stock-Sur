@@ -152,7 +152,11 @@ export default function ImportsPage() {
       setStep("done");
       toast({ title: `Importación completada: ${result.total} líneas, ${result.matched} matcheadas` });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) => toast({
+      title: "Error",
+      description: e instanceof Error ? e.message : "Error desconocido",
+      variant: "destructive",
+    }),
   });
 
   const reset = () => {

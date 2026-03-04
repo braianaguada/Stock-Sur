@@ -5,7 +5,6 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -20,9 +19,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, RotateCcw } from "lucide-react";
 import { cleanText, normalizeAlias } from "@/lib/clean";
+import { deleteByStrategy } from "@/lib/deleteStrategy";
 
 interface Item {
   id: string;
@@ -45,17 +46,32 @@ const UNIT_OPTIONS = ["un", "kg", "g", "lt", "ml", "m", "cm"] as const;
 
 export default function ItemsPage() {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
-  const [form, setForm] = useState({ name: "", brand: "", unit: "un", category: "", isActive: true });
+  const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
+  const [aliasToDelete, setAliasToDelete] = useState<ItemAlias | null>(null);
+  const [form, setForm] = useState({ sku: "", name: "", unit: "un", category: "" });
   const [newAlias, setNewAlias] = useState("");
   const [isSupplierCode, setIsSupplierCode] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
 
+  const generateSku = (name: string) => {
+    const base = cleanText(name)
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 12);
+    const suffix = Date.now().toString().slice(-4);
+    return `${base || "ITEM"}-${suffix}`;
+  };
+
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ["items", search, categoryFilter],
+    queryKey: ["items", search, categoryFilter, statusFilter],
     queryFn: async () => {
       const searchTerm = search.trim();
       let matchingItemIdsFromAlias: string[] = [];
@@ -71,6 +87,8 @@ export default function ItemsPage() {
       }
 
       let q = supabase.from("items").select("*").order("created_at", { ascending: false });
+      if (statusFilter === "active") q = q.eq("is_active", true);
+      if (statusFilter === "inactive") q = q.eq("is_active", false);
 
       if (searchTerm) {
         const searchFilters = [
@@ -96,12 +114,12 @@ export default function ItemsPage() {
   });
 
   const { data: categories = [] } = useQuery({
-    queryKey: ["items-categories"],
+    queryKey: ["items-categories", statusFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("items")
-        .select("category")
-        .not("category", "is", null);
+      let q = supabase.from("items").select("category").not("category", "is", null);
+      if (statusFilter === "active") q = q.eq("is_active", true);
+      if (statusFilter === "inactive") q = q.eq("is_active", false);
+      const { data, error } = await q;
       if (error) throw error;
 
       return Array.from(new Set((data ?? []).map((item) => item.category).filter(Boolean))) as string[];
@@ -125,6 +143,7 @@ export default function ItemsPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const name = cleanText(form.name);
+      const sku = cleanText(form.sku).toUpperCase();
       const unit = cleanText(form.unit) || "un";
 
       if (!name) {
@@ -135,11 +154,10 @@ export default function ItemsPage() {
         const { error } = await supabase
           .from("items")
           .update({
+            sku: sku || editingItem.sku,
             name,
-            brand: cleanText(form.brand) || null,
             unit,
             category: cleanText(form.category) || null,
-            is_active: form.isActive,
           })
           .eq("id", editingItem.id);
         if (error) throw error;
@@ -147,12 +165,11 @@ export default function ItemsPage() {
         const { error } = await supabase
           .from("items")
           .insert({
+            sku: sku || generateSku(name),
             name,
-            brand: cleanText(form.brand) || null,
             unit,
             category: cleanText(form.category) || null,
-            is_active: form.isActive,
-            sku: "",
+            is_active: true,
           });
         if (error) throw error;
       }
@@ -171,13 +188,27 @@ export default function ItemsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("items").delete().eq("id", id);
+      await deleteByStrategy({ table: "items", id });
+      const { error } = await supabase.from("price_list_items").update({ is_active: false }).eq("item_id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["items"] });
       qc.invalidateQueries({ queryKey: ["items-categories"] });
-      toast({ title: "Ítem eliminado" });
+      toast({ title: "Ítem desactivado" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("items").update({ is_active: true }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["items"] });
+      qc.invalidateQueries({ queryKey: ["items-categories"] });
+      toast({ title: "Ítem reactivado" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -211,8 +242,7 @@ export default function ItemsPage() {
 
   const deleteAliasMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("item_aliases").delete().eq("id", id);
-      if (error) throw error;
+      await deleteByStrategy({ table: "item_aliases", id });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["item-aliases", editingItem?.id] });
@@ -225,7 +255,7 @@ export default function ItemsPage() {
     setEditingItem(null);
     setNewAlias("");
     setIsSupplierCode(false);
-    setForm({ name: "", brand: "", unit: "un", category: "", isActive: true });
+    setForm({ sku: "", name: "", unit: "un", category: "" });
     setDialogOpen(true);
   };
 
@@ -234,11 +264,10 @@ export default function ItemsPage() {
     setNewAlias("");
     setIsSupplierCode(false);
     setForm({
+      sku: item.sku ?? "",
       name: item.name,
-      brand: item.brand ?? "",
       unit: item.unit || "un",
       category: item.category ?? "",
-      isActive: item.is_active,
     });
     setDialogOpen(true);
   };
@@ -283,6 +312,18 @@ export default function ItemsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+          </div>
+          <div className="w-full md:w-52">
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "active" | "inactive" | "all")}>
+              <SelectTrigger>
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Activos</SelectItem>
+                <SelectItem value="inactive">Inactivos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="w-full md:w-64">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -341,9 +382,15 @@ export default function ItemsPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(item.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {item.is_active ? (
+                          <Button variant="ghost" size="icon" onClick={() => setItemToDelete(item)} title="Desactivar">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" size="icon" onClick={() => restoreMutation.mutate(item.id)} title="Reactivar">
+                            <RotateCcw className="h-4 w-4 text-emerald-600" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -364,39 +411,38 @@ export default function ItemsPage() {
             className="space-y-4"
           >
             <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>SKU</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setForm((prev) => ({ ...prev, sku: generateSku(prev.name || "item") }))}
+                >
+                  Autogenerar
+                </Button>
+              </div>
+              <Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} placeholder="Ej: BOMBA-001" />
+            </div>
+            <div className="space-y-2">
               <Label>Nombre *</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Marca</Label>
-                <Input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Unidad *</Label>
-                <Select value={form.unit || "un"} onValueChange={(value) => setForm({ ...form, unit: value })}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar unidad" /></SelectTrigger>
-                  <SelectContent>
-                    {UNIT_OPTIONS.map((unit) => (
-                      <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>Unidad *</Label>
+              <Select value={form.unit || "un"} onValueChange={(value) => setForm({ ...form, unit: value })}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar unidad" /></SelectTrigger>
+                <SelectContent>
+                  {UNIT_OPTIONS.map((unit) => (
+                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Rubro</Label>
               <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
             </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="item-active"
-                checked={form.isActive}
-                onCheckedChange={(checked) => setForm({ ...form, isActive: Boolean(checked) })}
-              />
-              <Label htmlFor="item-active">Ítem activo</Label>
-            </div>
-
             {editingItem && (
               <div className="space-y-3 rounded-md border p-3">
                 <div>
@@ -439,7 +485,7 @@ export default function ItemsPage() {
                           <Badge variant="outline" className="text-xs">código</Badge>
                         )}
                       </div>
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteAliasMutation.mutate(a.id)}>
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAliasToDelete(a)}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -455,6 +501,37 @@ export default function ItemsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={!!itemToDelete}
+        onOpenChange={(open) => {
+          if (!open) setItemToDelete(null);
+        }}
+        title="Eliminar item"
+        description={itemToDelete ? `Esta accion eliminara "${itemToDelete.name}" de forma permanente.` : ""}
+        isPending={deleteMutation.isPending}
+        onConfirm={() => {
+          if (!itemToDelete) return;
+          deleteMutation.mutate(itemToDelete.id);
+          setItemToDelete(null);
+        }}
+      />
+
+      <ConfirmDeleteDialog
+        open={!!aliasToDelete}
+        onOpenChange={(open) => {
+          if (!open) setAliasToDelete(null);
+        }}
+        title="Eliminar alias"
+        description={aliasToDelete ? `Esta accion eliminara el alias "${aliasToDelete.alias}".` : ""}
+        isPending={deleteAliasMutation.isPending}
+        onConfirm={() => {
+          if (!aliasToDelete) return;
+          deleteAliasMutation.mutate(aliasToDelete.id);
+          setAliasToDelete(null);
+        }}
+      />
     </AppLayout>
   );
 }
+

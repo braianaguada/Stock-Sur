@@ -17,14 +17,37 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Eye, Trash2, FileDown, X } from "lucide-react";
+import { deleteByStrategy } from "@/lib/deleteStrategy";
 
 interface QuoteLine {
   description: string;
   quantity: number;
   unit_price: number;
   item_id: string | null;
+}
+
+interface QuoteListRow {
+  id: string;
+  quote_number: number;
+  customer_name: string | null;
+  status: string;
+  total: number;
+  notes: string | null;
+  created_at: string;
+  customers?: {
+    name?: string | null;
+  } | null;
+}
+
+interface QuoteLineRow {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
 }
 
 const STATUS_LABELS: Record<string, string> = { DRAFT: "Borrador", SENT: "Enviado", ACCEPTED: "Aceptado", REJECTED: "Rechazado" };
@@ -37,6 +60,7 @@ export default function QuotesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
+  const [quoteToDelete, setQuoteToDelete] = useState<QuoteListRow | null>(null);
   const [form, setForm] = useState({ customer_id: "", customer_name: "", notes: "" });
   const [lines, setLines] = useState<QuoteLine[]>([{ description: "", quantity: 1, unit_price: 0, item_id: null }]);
   const { toast } = useToast();
@@ -59,7 +83,7 @@ export default function QuotesPage() {
       if (search) q = q.or(`customer_name.ilike.%${search}%,quote_number.eq.${parseInt(search) || 0}`);
       const { data, error } = await q.limit(100);
       if (error) throw error;
-      return data as any[];
+      return (data ?? []) as QuoteListRow[];
     },
   });
 
@@ -69,7 +93,7 @@ export default function QuotesPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("quote_lines").select("*, items(name, sku)").eq("quote_id", selectedQuoteId!);
       if (error) throw error;
-      return data as any[];
+      return (data ?? []) as QuoteLineRow[];
     },
   });
 
@@ -112,14 +136,18 @@ export default function QuotesPage() {
       setDialogOpen(false);
       toast({ title: "Presupuesto creado" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) => toast({
+      title: "Error",
+      description: e instanceof Error ? e.message : "Error desconocido",
+      variant: "destructive",
+    }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await supabase.from("quote_lines").delete().eq("quote_id", id);
-      const { error } = await supabase.from("quotes").delete().eq("id", id);
-      if (error) throw error;
+      const { error: linesError } = await supabase.from("quote_lines").delete().eq("quote_id", id);
+      if (linesError) throw linesError;
+      await deleteByStrategy({ table: "quotes", id });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quotes"] });
@@ -129,13 +157,13 @@ export default function QuotesPage() {
 
   const addLine = () => setLines([...lines, { description: "", quantity: 1, unit_price: 0, item_id: null }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
-  const updateLine = (i: number, field: keyof QuoteLine, value: any) => {
+  const updateLine = (i: number, field: keyof QuoteLine, value: QuoteLine[keyof QuoteLine]) => {
     const updated = [...lines];
-    (updated[i] as any)[field] = value;
+    updated[i] = { ...updated[i], [field]: value };
     setLines(updated);
   };
 
-  const exportPDF = (quote: any) => {
+  const exportPDF = (quote: QuoteListRow) => {
     // Simple text-based export using a printable window
     const selectedQuote = quote;
     const w = window.open("", "_blank");
@@ -143,7 +171,7 @@ export default function QuotesPage() {
     
     // Fetch lines for this quote
     supabase.from("quote_lines").select("*").eq("quote_id", selectedQuote.id).then(({ data: ql }) => {
-      const linesHtml = (ql ?? []).map((l: any) =>
+      const linesHtml = ((ql ?? []) as QuoteLineRow[]).map((l) =>
         `<tr><td>${l.description}</td><td style="text-align:right">${l.quantity}</td><td style="text-align:right">$${Number(l.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td><td style="text-align:right">$${Number(l.subtotal).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td></tr>`
       ).join("");
       
@@ -219,7 +247,7 @@ export default function QuotesPage() {
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => { setSelectedQuoteId(q.id); setDetailDialogOpen(true); }}><Eye className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => exportPDF(q)}><FileDown className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(q.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setQuoteToDelete(q)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -276,6 +304,25 @@ export default function QuotesPage() {
         </DialogContent>
       </Dialog>
 
+      <ConfirmDeleteDialog
+        open={!!quoteToDelete}
+        onOpenChange={(open) => {
+          if (!open) setQuoteToDelete(null);
+        }}
+        title="Eliminar presupuesto"
+        description={
+          quoteToDelete
+            ? `Esta accion eliminara el presupuesto #${quoteToDelete.quote_number} de forma permanente.`
+            : ""
+        }
+        isPending={deleteMutation.isPending}
+        onConfirm={() => {
+          if (!quoteToDelete) return;
+          deleteMutation.mutate(quoteToDelete.id);
+          setQuoteToDelete(null);
+        }}
+      />
+
       {/* Detail Dialog */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
         <DialogContent className="max-w-2xl">
@@ -290,7 +337,7 @@ export default function QuotesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {quoteLines.map((l: any) => (
+              {quoteLines.map((l) => (
                 <TableRow key={l.id}>
                   <TableCell>{l.description}</TableCell>
                   <TableCell className="text-right">{l.quantity}</TableCell>

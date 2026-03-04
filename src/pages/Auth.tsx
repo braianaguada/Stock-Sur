@@ -33,8 +33,9 @@ export default function AuthPage() {
         toast({ title: "Cuenta creada", description: "Ya podés iniciar sesión." });
         setIsLogin(true);
       }
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Error desconocido";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
     }

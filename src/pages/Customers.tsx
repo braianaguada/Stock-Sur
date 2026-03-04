@@ -12,8 +12,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { deleteByStrategy } from "@/lib/deleteStrategy";
 
 interface Customer {
   id: string;
@@ -28,6 +30,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [form, setForm] = useState({ name: "", cuit: "", email: "", phone: "", is_occasional: false });
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -65,13 +68,16 @@ export default function CustomersPage() {
       setDialogOpen(false);
       toast({ title: editing ? "Cliente actualizado" : "Cliente creado" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) => toast({
+      title: "Error",
+      description: e instanceof Error ? e.message : "Error desconocido",
+      variant: "destructive",
+    }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("customers").delete().eq("id", id);
-      if (error) throw error;
+      await deleteByStrategy({ table: "customers", id });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["customers"] });
@@ -134,7 +140,7 @@ export default function CustomersPage() {
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setCustomerToDelete(c)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -162,6 +168,21 @@ export default function CustomersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={!!customerToDelete}
+        onOpenChange={(open) => {
+          if (!open) setCustomerToDelete(null);
+        }}
+        title="Eliminar cliente"
+        description={customerToDelete ? `Esta accion eliminara a "${customerToDelete.name}" de forma permanente.` : ""}
+        isPending={deleteMutation.isPending}
+        onConfirm={() => {
+          if (!customerToDelete) return;
+          deleteMutation.mutate(customerToDelete.id);
+          setCustomerToDelete(null);
+        }}
+      />
     </AppLayout>
   );
 }
