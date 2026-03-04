@@ -11,7 +11,13 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:login": "npx supabase login",
+    "db:link:staging": "npx supabase link --project-ref tihjnbfdjnjobxxecuaz",
+    "db:link:prod": "npx supabase link --project-ref xnikjfmgkhxfzhpgwdyl",
+    "db:push": "npx supabase db push",
+    "db:push:staging": "npm run db:link:staging && npm run db:push",
+    "db:push:prod": "npm run db:link:prod && npm run db:push"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

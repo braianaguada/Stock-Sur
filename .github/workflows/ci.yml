@@ -4,11 +4,14 @@ on:
     branches: [staging, main]
   push:
     branches: [staging, main]
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   ci:
+    name: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
