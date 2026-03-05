@@ -131,7 +131,7 @@ export default function StockPage() {
       if (!form.item_id) throw new Error("Seleccioná un ítem");
 
       const qty = parseFloat(form.quantity);
-      if (isNaN(qty) || !Number.isFinite(qty) || qty === 0) throw new Error("Cantidad inválida");
+      if (isNaN(qty) || !Number.isFinite(qty) || qty <= 0) throw new Error("La cantidad debe ser mayor a 0");
       const { error } = await supabase.from("stock_movements").insert({
         item_id: form.item_id,
         type: form.type,
@@ -276,7 +276,7 @@ export default function StockPage() {
               </div>
               <div className="space-y-2">
                 <Label>Cantidad *</Label>
-                <Input type="number" step="any" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} required />
+                <Input type="number" min={0.000001} step="any" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} required />
               </div>
             </div>
             <div className="space-y-2"><Label>Referencia</Label><Input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} /></div>
