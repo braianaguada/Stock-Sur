@@ -14,6 +14,7 @@ import PriceListsPage from "./pages/PriceLists";
 import ImportsPage from "./pages/Imports";
 import PendingPage from "./pages/Pending";
 import QuotesPage from "./pages/Quotes";
+import DocumentsPage from "./pages/Documents";
 import CustomersPage from "./pages/Customers";
 import LegacyCatalogImportPage from "./pages/LegacyCatalogImport";
 import NotFound from "./pages/NotFound";
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/imports" element={<ProtectedRoute><ImportsPage /></ProtectedRoute>} />
             <Route path="/pending" element={<ProtectedRoute><PendingPage /></ProtectedRoute>} />
             <Route path="/quotes" element={<ProtectedRoute><QuotesPage /></ProtectedRoute>} />
+            <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
             <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
             <Route path="/items/catalog/import-legacy" element={<ProtectedRoute><LegacyCatalogImportPage /></ProtectedRoute>} />
             <Route path="/legacy-catalog-import" element={<Navigate to="/items/catalog/import-legacy" replace />} />
