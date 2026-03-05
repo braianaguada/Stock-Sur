@@ -31,8 +31,11 @@ interface StockRow {
   item_unit: string;
   total: number;
   avg_daily_out_30d: number;
+  avg_daily_out_90d: number;
+  demand_daily: number;
   days_of_cover: number | null;
   health: StockHealth;
+  low_rotation: boolean;
 }
 
 interface Movement {
@@ -74,7 +77,8 @@ export default function StockPage() {
       if (error) throw error;
 
       const last30DaysTs = Date.now() - 30 * 24 * 60 * 60 * 1000;
-      const map = new Map<string, StockRow & { out_30d: number }>();
+      const last90DaysTs = Date.now() - 90 * 24 * 60 * 60 * 1000;
+      const map = new Map<string, StockRow & { out_30d: number; out_90d: number; out_days_90: Set<string> }>();
       for (const m of (movements ?? []) as Array<{
         item_id: string;
         type: MovementType;
@@ -90,9 +94,14 @@ export default function StockPage() {
             item_unit: m.items?.unit ?? "",
             total: 0,
             avg_daily_out_30d: 0,
+            avg_daily_out_90d: 0,
+            demand_daily: 0,
             days_of_cover: null,
             health: "GRAY",
+            low_rotation: false,
             out_30d: 0,
+            out_90d: 0,
+            out_days_90: new Set<string>(),
           });
         }
         const row = map.get(m.item_id)!;
@@ -102,26 +111,42 @@ export default function StockPage() {
         if (m.type === "OUT" && new Date(m.created_at).getTime() >= last30DaysTs) {
           row.out_30d += Math.max(0, Number(m.quantity));
         }
+        if (m.type === "OUT" && new Date(m.created_at).getTime() >= last90DaysTs) {
+          row.out_90d += Math.max(0, Number(m.quantity));
+          row.out_days_90.add(m.created_at.slice(0, 10));
+        }
       }
 
       let rows = Array.from(map.values()).map((r) => {
-        const avgDailyOut = r.out_30d / 30;
-        const daysOfCover = avgDailyOut > 0 ? r.total / avgDailyOut : null;
+        const avgDailyOut30 = r.out_30d / 30;
+        const avgDailyOut90 = r.out_90d / 90;
+        const demandDaily = (avgDailyOut30 * 0.65) + (avgDailyOut90 * 0.35);
+        const lowRotation = r.out_90d < 3 || r.out_days_90.size < 3;
+        const daysOfCover = demandDaily > 0 ? r.total / demandDaily : null;
         let health: StockHealth = "GRAY";
-        if (r.total <= 0) health = "RED";
-        else if (avgDailyOut === 0) health = "GRAY";
-        else if (daysOfCover !== null && daysOfCover < 3) health = "RED";
-        else if (daysOfCover !== null && daysOfCover < 10) health = "YELLOW";
-        else health = "GREEN";
+        if (r.total <= 0) {
+          health = "RED";
+        } else if (lowRotation) {
+          health = r.total <= 2 ? "YELLOW" : "GREEN";
+        } else if (daysOfCover !== null && daysOfCover < 5) {
+          health = "RED";
+        } else if (daysOfCover !== null && daysOfCover < 15) {
+          health = "YELLOW";
+        } else {
+          health = "GREEN";
+        }
         return {
           item_id: r.item_id,
           item_name: r.item_name,
           item_sku: r.item_sku,
           item_unit: r.item_unit,
           total: r.total,
-          avg_daily_out_30d: avgDailyOut,
+          avg_daily_out_30d: avgDailyOut30,
+          avg_daily_out_90d: avgDailyOut90,
+          demand_daily: demandDaily,
           days_of_cover: daysOfCover,
           health,
+          low_rotation: lowRotation,
         };
       });
       if (search) {
@@ -229,7 +254,7 @@ export default function StockPage() {
         detail: `Cobertura estimada: ${(r.days_of_cover ?? 0).toFixed(1)} dias.`,
       }));
     const overstock = stockRows
-      .filter((r) => r.days_of_cover !== null && r.days_of_cover > 45)
+      .filter((r) => !r.low_rotation && r.days_of_cover !== null && r.days_of_cover > 90)
       .slice(0, 3)
       .map((r) => ({
         id: `over-${r.item_id}`,
@@ -237,7 +262,16 @@ export default function StockPage() {
         title: `${r.item_name} con posible sobrestock`,
         detail: `Cobertura estimada: ${r.days_of_cover!.toFixed(1)} dias.`,
       }));
-    return [...critical, ...low, ...overstock];
+    const lowRotationInfo = stockRows
+      .filter((r) => r.low_rotation && r.total > 0)
+      .slice(0, 2)
+      .map((r) => ({
+        id: `slow-${r.item_id}`,
+        tone: "GRAY" as const,
+        title: `${r.item_name} con rotacion baja`,
+        detail: "Demanda muy baja/irregular: el semaforo prioriza stock disponible.",
+      }));
+    return [...critical, ...low, ...overstock, ...lowRotationInfo];
   }, [stockRows]);
 
   return (
@@ -261,23 +295,26 @@ export default function StockPage() {
 
           <TabsContent value="current" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-4">
-              <Card>
+              <Card className="border-red-200 bg-red-50/60">
                 <CardHeader className="pb-2"><CardTitle className="text-sm">En rojo</CardTitle></CardHeader>
                 <CardContent><p className="text-2xl font-bold">{stockRows.filter((r) => r.health === "RED").length}</p></CardContent>
               </Card>
-              <Card>
+              <Card className="border-amber-200 bg-amber-50/60">
                 <CardHeader className="pb-2"><CardTitle className="text-sm">En amarillo</CardTitle></CardHeader>
                 <CardContent><p className="text-2xl font-bold">{stockRows.filter((r) => r.health === "YELLOW").length}</p></CardContent>
               </Card>
-              <Card>
+              <Card className="border-slate-200 bg-slate-50/80">
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Sin datos</CardTitle></CardHeader>
                 <CardContent><p className="text-2xl font-bold">{stockRows.filter((r) => r.health === "GRAY").length}</p></CardContent>
               </Card>
-              <Card>
+              <Card className="border-emerald-200 bg-emerald-50/60">
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Alertas</CardTitle></CardHeader>
                 <CardContent><p className="text-2xl font-bold">{alerts.length}</p></CardContent>
               </Card>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Semaforo automatico: combina consumo de 30 y 90 dias, con tratamiento especial para rotacion baja.
+            </p>
             {alerts.length > 0 && (
               <Card>
                 <CardHeader><CardTitle className="text-base">Alertas inteligentes</CardTitle></CardHeader>
@@ -323,9 +360,16 @@ export default function StockPage() {
                       <TableCell className="font-medium">{r.item_name}</TableCell>
                       <TableCell>{r.item_unit}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={healthClass[r.health]}>
-                          {healthLabel[r.health]}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={healthClass[r.health]}>
+                            {healthLabel[r.health]}
+                          </Badge>
+                          {r.low_rotation && (
+                            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">
+                              Rotacion baja
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         {r.days_of_cover === null ? "—" : `${Math.max(0, r.days_of_cover).toFixed(1)}`}
