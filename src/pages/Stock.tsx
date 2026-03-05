@@ -83,11 +83,13 @@ export default function StockPage() {
       const last30DaysTs = Date.now() - 30 * 24 * 60 * 60 * 1000;
       const last90DaysTs = Date.now() - 90 * 24 * 60 * 60 * 1000;
       const last365DaysTs = Date.now() - 365 * 24 * 60 * 60 * 1000;
+      const now = new Date();
       const map = new Map<string, StockRow & {
         out_30d: number;
         out_90d: number;
         out_365d: number;
         out_days_365: Set<string>;
+        out_month_buckets_12m: number[];
       }>();
       for (const m of (movements ?? []) as Array<{
         item_id: string;
@@ -116,6 +118,7 @@ export default function StockPage() {
             out_90d: 0,
             out_365d: 0,
             out_days_365: new Set<string>(),
+            out_month_buckets_12m: Array.from({ length: 12 }, () => 0),
           });
         }
         const row = map.get(m.item_id)!;
@@ -131,7 +134,12 @@ export default function StockPage() {
         if (m.type === "OUT" && new Date(m.created_at).getTime() >= last365DaysTs) {
           const outQty = Math.max(0, Number(m.quantity));
           row.out_365d += outQty;
+          const moveDate = new Date(m.created_at);
           row.out_days_365.add(m.created_at.slice(0, 10));
+          const monthDiff = (now.getFullYear() - moveDate.getFullYear()) * 12 + (now.getMonth() - moveDate.getMonth());
+          if (monthDiff >= 0 && monthDiff < 12) {
+            row.out_month_buckets_12m[monthDiff] += outQty;
+          }
         }
       }
 
@@ -147,7 +155,10 @@ export default function StockPage() {
         const monthlyDemand90 = r.out_90d / 3;
         const lowRotation = r.demand_profile === "LOW";
         const daysOfCover = demandDaily > 0 ? r.total / demandDaily : null;
-        const lowRotationCandidates = [monthlyDemand90, monthlyDemand365].filter((v) => v > 0);
+        const sortedMonthlyDemand = [...r.out_month_buckets_12m].sort((a, b) => a - b);
+        const lowSeasonIdx = Math.floor((sortedMonthlyDemand.length - 1) * 0.35);
+        const lowSeasonMonthlyDemand = sortedMonthlyDemand[lowSeasonIdx] ?? 0;
+        const lowRotationCandidates = [lowSeasonMonthlyDemand, monthlyDemand365, monthlyDemand90].filter((v) => v > 0);
         const monthlyDemandLowRotation = lowRotationCandidates.length > 0 ? Math.min(...lowRotationCandidates) : 0;
         const monthsOfCoverLowRotation = monthlyDemandLowRotation > 0 ? r.total / monthlyDemandLowRotation : null;
         let health: StockHealth = "GRAY";
