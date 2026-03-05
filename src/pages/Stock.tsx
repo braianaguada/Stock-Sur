@@ -40,6 +40,7 @@ interface StockRow {
   health: StockHealth;
   low_rotation: boolean;
   demand_profile: DemandProfile;
+  demand_monthly_estimate: number | null;
 }
 
 interface Movement {
@@ -77,7 +78,7 @@ export default function StockPage() {
   const { data: stockRows = [], isLoading: loadingStock } = useQuery({
     queryKey: ["stock-current", search],
     queryFn: async () => {
-      const { data: movements, error } = await supabase.from("stock_movements").select("item_id, type, quantity, created_at, items(name, sku, unit, demand_profile)");
+      const { data: movements, error } = await supabase.from("stock_movements").select("item_id, type, quantity, created_at, items(name, sku, unit, demand_profile, demand_monthly_estimate)");
       if (error) throw error;
 
       const last30DaysTs = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -96,7 +97,13 @@ export default function StockPage() {
         type: MovementType;
         quantity: number;
         created_at: string;
-        items?: { name?: string | null; sku?: string | null; unit?: string | null; demand_profile?: DemandProfile | null } | null;
+        items?: {
+          name?: string | null;
+          sku?: string | null;
+          unit?: string | null;
+          demand_profile?: DemandProfile | null;
+          demand_monthly_estimate?: number | null;
+        } | null;
       }>) {
         if (!map.has(m.item_id)) {
           map.set(m.item_id, {
@@ -114,6 +121,7 @@ export default function StockPage() {
             health: "GRAY",
             low_rotation: false,
             demand_profile: (m.items?.demand_profile as DemandProfile) ?? "LOW",
+            demand_monthly_estimate: m.items?.demand_monthly_estimate ?? null,
             out_30d: 0,
             out_90d: 0,
             out_365d: 0,
@@ -159,7 +167,10 @@ export default function StockPage() {
         const lowSeasonIdx = Math.floor((sortedMonthlyDemand.length - 1) * 0.35);
         const lowSeasonMonthlyDemand = sortedMonthlyDemand[lowSeasonIdx] ?? 0;
         const lowRotationCandidates = [lowSeasonMonthlyDemand, monthlyDemand365, monthlyDemand90].filter((v) => v > 0);
-        const monthlyDemandLowRotation = lowRotationCandidates.length > 0 ? Math.min(...lowRotationCandidates) : 0;
+        const monthlyDemandLowRotationAuto = lowRotationCandidates.length > 0 ? Math.min(...lowRotationCandidates) : 0;
+        const monthlyDemandLowRotation = (r.demand_monthly_estimate ?? 0) > 0
+          ? (r.demand_monthly_estimate as number)
+          : monthlyDemandLowRotationAuto;
         const monthsOfCoverLowRotation = monthlyDemandLowRotation > 0 ? r.total / monthlyDemandLowRotation : null;
         let health: StockHealth = "GRAY";
         if (r.total <= 0) {
@@ -188,6 +199,7 @@ export default function StockPage() {
           health,
           low_rotation: lowRotation,
           demand_profile: r.demand_profile,
+          demand_monthly_estimate: r.demand_monthly_estimate,
         };
       });
       if (search) {
@@ -321,7 +333,9 @@ export default function StockPage() {
         tone: "GRAY" as const,
         title: `${r.item_name} con rotacion baja`,
         detail: r.months_of_cover_low_rotation !== null
-          ? `Cobertura estimada en baja rotacion: ${r.months_of_cover_low_rotation.toFixed(1)} meses.`
+          ? `Cobertura estimada en baja rotacion: ${
+            r.months_of_cover_low_rotation < 0.1 ? "<0.1" : r.months_of_cover_low_rotation.toFixed(1)
+          } meses.`
           : "Demanda muy baja/irregular: el semaforo prioriza stock disponible.",
       }));
     return [...critical, ...low, ...overstock, ...lowRotationInfo];

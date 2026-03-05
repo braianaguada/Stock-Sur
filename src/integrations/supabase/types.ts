@@ -85,6 +85,7 @@ export type Database = {
           category: string | null
           created_at: string
           demand_profile: Database["public"]["Enums"]["item_demand_profile"]
+          demand_monthly_estimate: number | null
           id: string
           is_active: boolean
           name: string
@@ -97,6 +98,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
+          demand_monthly_estimate?: number | null
           id?: string
           is_active?: boolean
           name: string
@@ -109,6 +111,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
+          demand_monthly_estimate?: number | null
           id?: string
           is_active?: boolean
           name?: string

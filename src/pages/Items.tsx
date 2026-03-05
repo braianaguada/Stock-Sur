@@ -34,6 +34,7 @@ interface Item {
   unit: string;
   category: string | null;
   demand_profile: "LOW" | "MEDIUM" | "HIGH";
+  demand_monthly_estimate: number | null;
   is_active: boolean;
 }
 
@@ -54,7 +55,14 @@ export default function ItemsPage() {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
   const [aliasToDelete, setAliasToDelete] = useState<ItemAlias | null>(null);
-  const [form, setForm] = useState({ sku: "", name: "", unit: "un", category: "", demand_profile: "LOW" as Item["demand_profile"] });
+  const [form, setForm] = useState({
+    sku: "",
+    name: "",
+    unit: "un",
+    category: "",
+    demand_profile: "LOW" as Item["demand_profile"],
+    demand_monthly_estimate: "",
+  });
   const [newAlias, setNewAlias] = useState("");
   const [isSupplierCode, setIsSupplierCode] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
@@ -155,6 +163,7 @@ export default function ItemsPage() {
       }
 
       if (editingItem) {
+        const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
         const { error } = await supabase
           .from("items")
           .update({
@@ -163,10 +172,12 @@ export default function ItemsPage() {
             unit,
             category: cleanText(form.category) || null,
             demand_profile: form.demand_profile,
+            demand_monthly_estimate: Number.isFinite(monthlyEstimate) ? monthlyEstimate : null,
           })
           .eq("id", editingItem.id);
         if (error) throw error;
       } else {
+        const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
         const { error } = await supabase
           .from("items")
           .insert({
@@ -175,6 +186,7 @@ export default function ItemsPage() {
             unit,
             category: cleanText(form.category) || null,
             demand_profile: form.demand_profile,
+            demand_monthly_estimate: Number.isFinite(monthlyEstimate) ? monthlyEstimate : null,
             is_active: true,
           });
         if (error) throw error;
@@ -280,7 +292,7 @@ export default function ItemsPage() {
     setEditingItem(null);
     setNewAlias("");
     setIsSupplierCode(false);
-    setForm({ sku: "", name: "", unit: "un", category: "", demand_profile: "LOW" });
+    setForm({ sku: "", name: "", unit: "un", category: "", demand_profile: "LOW", demand_monthly_estimate: "" });
     setDialogOpen(true);
   };
 
@@ -294,6 +306,7 @@ export default function ItemsPage() {
       unit: item.unit || "un",
       category: item.category ?? "",
       demand_profile: item.demand_profile ?? "LOW",
+      demand_monthly_estimate: item.demand_monthly_estimate?.toString() ?? "",
     });
     setDialogOpen(true);
   };
@@ -522,6 +535,17 @@ export default function ItemsPage() {
                   <SelectItem value="HIGH">Alta rotación</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Consumo mensual estimado (opcional)</Label>
+              <Input
+                type="number"
+                min={0}
+                step="any"
+                placeholder="Ej: 7"
+                value={form.demand_monthly_estimate}
+                onChange={(e) => setForm({ ...form, demand_monthly_estimate: e.target.value })}
+              />
             </div>
             {editingItem && (
               <div className="space-y-3 rounded-md border p-3">
