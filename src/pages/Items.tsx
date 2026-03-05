@@ -183,6 +183,7 @@ export default function ItemsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["items"] });
       qc.invalidateQueries({ queryKey: ["items-categories"] });
+      qc.invalidateQueries({ queryKey: ["stock-current"] });
       setDialogOpen(false);
       setEditingItem(null);
       setNewAlias("");
@@ -257,6 +258,7 @@ export default function ItemsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["items"] });
+      qc.invalidateQueries({ queryKey: ["stock-current"] });
       setSelectedItemIds([]);
       toast({ title: "Tipo de demanda actualizado" });
     },

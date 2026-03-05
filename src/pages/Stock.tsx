@@ -262,6 +262,16 @@ export default function StockPage() {
     RED: "bg-red-600 text-white border-red-700",
     GRAY: "bg-slate-600 text-white border-slate-700",
   };
+  const demandProfileLabel: Record<DemandProfile, string> = {
+    LOW: "Rotacion baja",
+    MEDIUM: "Rotacion media",
+    HIGH: "Rotacion alta",
+  };
+  const demandProfileClass: Record<DemandProfile, string> = {
+    LOW: "bg-slate-100 text-slate-700 border-slate-200",
+    MEDIUM: "bg-blue-100 text-blue-700 border-blue-200",
+    HIGH: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
+  };
   const alerts = useMemo(() => {
     const critical = stockRows
       .filter((r) => r.health === "RED")
@@ -402,11 +412,9 @@ export default function StockPage() {
                           <Badge variant="outline" className={healthClass[r.health]}>
                             {healthLabel[r.health]}
                           </Badge>
-                          {r.low_rotation && (
-                            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">
-                              Rotacion baja
-                            </Badge>
-                          )}
+                          <Badge variant="outline" className={demandProfileClass[r.demand_profile]}>
+                            {demandProfileLabel[r.demand_profile]}
+                          </Badge>
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-mono">
