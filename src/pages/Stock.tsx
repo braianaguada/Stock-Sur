@@ -285,6 +285,24 @@ export default function StockPage() {
     RED: "bg-red-600 text-white border-red-700",
     GRAY: "bg-slate-600 text-white border-slate-700",
   };
+  const alertToneLabel: Record<StockHealth, string> = {
+    GREEN: "OK",
+    YELLOW: "Atencion",
+    RED: "Critico",
+    GRAY: "Info",
+  };
+  const alertRowClass: Record<StockHealth, string> = {
+    GREEN: "border-emerald-200 bg-emerald-50",
+    YELLOW: "border-amber-200 bg-amber-50",
+    RED: "border-red-200 bg-red-50",
+    GRAY: "border-slate-200 bg-slate-50",
+  };
+  const alertBadgeClass: Record<StockHealth, string> = {
+    GREEN: "bg-emerald-600 text-white border-emerald-700",
+    YELLOW: "bg-amber-500 text-black border-amber-600",
+    RED: "bg-red-600 text-white border-red-700",
+    GRAY: "bg-slate-600 text-white border-slate-700",
+  };
   const demandProfileLabel: Record<DemandProfile, string> = {
     LOW: "Rotacion baja",
     MEDIUM: "Rotacion media",
@@ -393,13 +411,13 @@ export default function StockPage() {
                 <CardHeader><CardTitle className="text-base">Alertas inteligentes</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
                   {alerts.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                    <div key={a.id} className={`flex items-center justify-between rounded-md border p-2 text-sm ${alertRowClass[a.tone]}`}>
                       <div>
                         <p className="font-medium">{a.title}</p>
                         <p className="text-muted-foreground">{a.detail}</p>
                       </div>
-                      <Badge variant="outline" className={healthClass[a.tone]}>
-                        {healthLabel[a.tone]}
+                      <Badge variant="outline" className={alertBadgeClass[a.tone]}>
+                        {alertToneLabel[a.tone]}
                       </Badge>
                     </div>
                   ))}
