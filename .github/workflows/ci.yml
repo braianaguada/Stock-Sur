@@ -4,11 +4,17 @@ on:
     branches: [staging, main]
   push:
     branches: [staging, main]
+
+permissions:
+  statuses: write
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   ci:
+    name: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,3 +30,20 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      - name: Report required commit statuses
+        if: ${{ success() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const targetUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            for (const statusContext of ["CI", "ci"]) {
+              await github.rest.repos.createCommitStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                sha: context.sha,
+                state: "success",
+                context: statusContext,
+                description: "CI passed",
+                target_url: targetUrl
+              });
+            }
