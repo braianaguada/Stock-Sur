@@ -32,6 +32,7 @@ interface Item {
   brand: string | null;
   unit: string;
   category: string | null;
+  demand_profile: "LOW" | "MEDIUM" | "HIGH";
   is_active: boolean;
 }
 
@@ -52,7 +53,7 @@ export default function ItemsPage() {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
   const [aliasToDelete, setAliasToDelete] = useState<ItemAlias | null>(null);
-  const [form, setForm] = useState({ sku: "", name: "", unit: "un", category: "" });
+  const [form, setForm] = useState({ sku: "", name: "", unit: "un", category: "", demand_profile: "LOW" as Item["demand_profile"] });
   const [newAlias, setNewAlias] = useState("");
   const [isSupplierCode, setIsSupplierCode] = useState(false);
   const { toast } = useToast();
@@ -158,6 +159,7 @@ export default function ItemsPage() {
             name,
             unit,
             category: cleanText(form.category) || null,
+            demand_profile: form.demand_profile,
           })
           .eq("id", editingItem.id);
         if (error) throw error;
@@ -169,6 +171,7 @@ export default function ItemsPage() {
             name,
             unit,
             category: cleanText(form.category) || null,
+            demand_profile: form.demand_profile,
             is_active: true,
           });
         if (error) throw error;
@@ -255,7 +258,7 @@ export default function ItemsPage() {
     setEditingItem(null);
     setNewAlias("");
     setIsSupplierCode(false);
-    setForm({ sku: "", name: "", unit: "un", category: "" });
+    setForm({ sku: "", name: "", unit: "un", category: "", demand_profile: "LOW" });
     setDialogOpen(true);
   };
 
@@ -268,6 +271,7 @@ export default function ItemsPage() {
       name: item.name,
       unit: item.unit || "un",
       category: item.category ?? "",
+      demand_profile: item.demand_profile ?? "LOW",
     });
     setDialogOpen(true);
   };
@@ -348,6 +352,7 @@ export default function ItemsPage() {
                 <TableHead>Nombre</TableHead>
                 <TableHead>Rubro</TableHead>
                 <TableHead>Unidad</TableHead>
+                <TableHead>Demanda</TableHead>
                 <TableHead>Activo</TableHead>
                 <TableHead className="w-[120px]">Acciones</TableHead>
               </TableRow>
@@ -355,13 +360,13 @@ export default function ItemsPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Cargando...
                   </TableCell>
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No se encontraron ítems
                   </TableCell>
                 </TableRow>
@@ -372,6 +377,11 @@ export default function ItemsPage() {
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.category ?? "—"}</TableCell>
                     <TableCell>{item.unit}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {item.demand_profile === "HIGH" ? "Alta" : item.demand_profile === "MEDIUM" ? "Media" : "Baja"}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={item.is_active ? "default" : "secondary"}>
                         {item.is_active ? "Activo" : "Inactivo"}
@@ -442,6 +452,17 @@ export default function ItemsPage() {
             <div className="space-y-2">
               <Label>Rubro</Label>
               <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de demanda *</Label>
+              <Select value={form.demand_profile} onValueChange={(value) => setForm({ ...form, demand_profile: value as Item["demand_profile"] })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Baja rotación</SelectItem>
+                  <SelectItem value="MEDIUM">Rotación media</SelectItem>
+                  <SelectItem value="HIGH">Alta rotación</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             {editingItem && (
               <div className="space-y-3 rounded-md border p-3">

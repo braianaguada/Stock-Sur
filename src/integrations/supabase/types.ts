@@ -84,6 +84,7 @@ export type Database = {
           brand: string | null
           category: string | null
           created_at: string
+          demand_profile: Database["public"]["Enums"]["item_demand_profile"]
           id: string
           is_active: boolean
           name: string
@@ -95,6 +96,7 @@ export type Database = {
           brand?: string | null
           category?: string | null
           created_at?: string
+          demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
           id?: string
           is_active?: boolean
           name: string
@@ -106,6 +108,7 @@ export type Database = {
           brand?: string | null
           category?: string | null
           created_at?: string
+          demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
           id?: string
           is_active?: boolean
           name?: string
@@ -775,6 +778,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      item_demand_profile: "LOW" | "MEDIUM" | "HIGH"
       match_reason: "SUPPLIER_CODE" | "ALIAS_TOKEN" | "ALIAS_CONTAINS" | "NONE"
       match_status: "MATCHED" | "PENDING" | "NEW"
       movement_type: "IN" | "OUT" | "ADJUSTMENT"
@@ -907,6 +911,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      item_demand_profile: ["LOW", "MEDIUM", "HIGH"],
       match_status: ["MATCHED", "PENDING", "NEW"],
       movement_type: ["IN", "OUT", "ADJUSTMENT"],
       quote_status: ["DRAFT", "SENT", "ACCEPTED", "REJECTED"],

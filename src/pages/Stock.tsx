@@ -23,6 +23,7 @@ import { Plus, Search, ArrowDownCircle, ArrowUpCircle, Settings2 } from "lucide-
 
 type MovementType = "IN" | "OUT" | "ADJUSTMENT";
 type StockHealth = "GREEN" | "YELLOW" | "RED" | "GRAY";
+type DemandProfile = "LOW" | "MEDIUM" | "HIGH";
 
 interface StockRow {
   item_id: string;
@@ -38,6 +39,7 @@ interface StockRow {
   months_of_cover_low_rotation: number | null;
   health: StockHealth;
   low_rotation: boolean;
+  demand_profile: DemandProfile;
 }
 
 interface Movement {
@@ -75,7 +77,7 @@ export default function StockPage() {
   const { data: stockRows = [], isLoading: loadingStock } = useQuery({
     queryKey: ["stock-current", search],
     queryFn: async () => {
-      const { data: movements, error } = await supabase.from("stock_movements").select("item_id, type, quantity, created_at, items(name, sku, unit)");
+      const { data: movements, error } = await supabase.from("stock_movements").select("item_id, type, quantity, created_at, items(name, sku, unit, demand_profile)");
       if (error) throw error;
 
       const last30DaysTs = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -92,7 +94,7 @@ export default function StockPage() {
         type: MovementType;
         quantity: number;
         created_at: string;
-        items?: { name?: string | null; sku?: string | null; unit?: string | null } | null;
+        items?: { name?: string | null; sku?: string | null; unit?: string | null; demand_profile?: DemandProfile | null } | null;
       }>) {
         if (!map.has(m.item_id)) {
           map.set(m.item_id, {
@@ -109,6 +111,7 @@ export default function StockPage() {
             months_of_cover_low_rotation: null,
             health: "GRAY",
             low_rotation: false,
+            demand_profile: (m.items?.demand_profile as DemandProfile) ?? "LOW",
             out_30d: 0,
             out_90d: 0,
             out_365d: 0,
@@ -142,7 +145,7 @@ export default function StockPage() {
         );
         const monthlyDemand365 = r.out_365d / 12;
         const monthlyDemand90 = r.out_90d / 3;
-        const lowRotation = r.out_365d < 24 || r.out_days_365.size < 18;
+        const lowRotation = r.demand_profile === "LOW";
         const daysOfCover = demandDaily > 0 ? r.total / demandDaily : null;
         const lowRotationCandidates = [monthlyDemand90, monthlyDemand365].filter((v) => v > 0);
         const monthlyDemandLowRotation = lowRotationCandidates.length > 0 ? Math.min(...lowRotationCandidates) : 0;
@@ -152,12 +155,12 @@ export default function StockPage() {
           health = "RED";
         } else if (lowRotation) {
           health = r.total <= 2 ? "YELLOW" : "GREEN";
-        } else if (daysOfCover !== null && daysOfCover < 5) {
-          health = "RED";
-        } else if (daysOfCover !== null && daysOfCover < 15) {
-          health = "YELLOW";
         } else {
-          health = "GREEN";
+          const redThreshold = r.demand_profile === "HIGH" ? 15 : 10;
+          const yellowThreshold = r.demand_profile === "HIGH" ? 30 : 20;
+          if (daysOfCover !== null && daysOfCover < redThreshold) health = "RED";
+          else if (daysOfCover !== null && daysOfCover < yellowThreshold) health = "YELLOW";
+          else health = "GREEN";
         }
         return {
           item_id: r.item_id,
@@ -173,6 +176,7 @@ export default function StockPage() {
           months_of_cover_low_rotation: monthsOfCoverLowRotation,
           health,
           low_rotation: lowRotation,
+          demand_profile: r.demand_profile,
         };
       });
       if (search) {
