@@ -60,13 +60,6 @@ export default function StockPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const median = (values: number[]) => {
-    if (values.length === 0) return 0;
-    const sorted = [...values].sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    if (sorted.length % 2 === 0) return (sorted[mid - 1] + sorted[mid]) / 2;
-    return sorted[mid];
-  };
 
   // Items for select
   const { data: items = [] } = useQuery({
@@ -93,7 +86,6 @@ export default function StockPage() {
         out_90d: number;
         out_365d: number;
         out_days_365: Set<string>;
-        out_qty_365: number[];
       }>();
       for (const m of (movements ?? []) as Array<{
         item_id: string;
@@ -121,7 +113,6 @@ export default function StockPage() {
             out_90d: 0,
             out_365d: 0,
             out_days_365: new Set<string>(),
-            out_qty_365: [],
           });
         }
         const row = map.get(m.item_id)!;
@@ -138,7 +129,6 @@ export default function StockPage() {
           const outQty = Math.max(0, Number(m.quantity));
           row.out_365d += outQty;
           row.out_days_365.add(m.created_at.slice(0, 10));
-          row.out_qty_365.push(outQty);
         }
       }
 
@@ -151,15 +141,11 @@ export default function StockPage() {
           (avgDailyOut30 * 0.5) + (avgDailyOut90 * 0.3) + (avgDailyOut365 * 0.2),
         );
         const monthlyDemand365 = r.out_365d / 12;
+        const monthlyDemand90 = r.out_90d / 3;
         const lowRotation = r.out_365d < 24 || r.out_days_365.size < 18;
         const daysOfCover = demandDaily > 0 ? r.total / demandDaily : null;
-        const medianOutQty = median(r.out_qty_365.filter((q) => q > 0));
-        const monthlyEventFrequency = r.out_days_365.size / 12;
-        const monthlyDemandLowRotation = Math.max(
-          monthlyDemand365,
-          medianOutQty * monthlyEventFrequency,
-          0,
-        );
+        const lowRotationCandidates = [monthlyDemand90, monthlyDemand365].filter((v) => v > 0);
+        const monthlyDemandLowRotation = lowRotationCandidates.length > 0 ? Math.min(...lowRotationCandidates) : 0;
         const monthsOfCoverLowRotation = monthlyDemandLowRotation > 0 ? r.total / monthlyDemandLowRotation : null;
         let health: StockHealth = "GRAY";
         if (r.total <= 0) {
