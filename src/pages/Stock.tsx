@@ -35,6 +35,7 @@ interface StockRow {
   avg_daily_out_365d: number;
   demand_daily: number;
   days_of_cover: number | null;
+  months_of_cover_low_rotation: number | null;
   health: StockHealth;
   low_rotation: boolean;
 }
@@ -100,6 +101,7 @@ export default function StockPage() {
             avg_daily_out_365d: 0,
             demand_daily: 0,
             days_of_cover: null,
+            months_of_cover_low_rotation: null,
             health: "GRAY",
             low_rotation: false,
             out_30d: 0,
@@ -132,8 +134,10 @@ export default function StockPage() {
           avgDailyOut365,
           (avgDailyOut30 * 0.5) + (avgDailyOut90 * 0.3) + (avgDailyOut365 * 0.2),
         );
+        const monthlyDemand365 = r.out_365d / 12;
         const lowRotation = r.out_365d < 24 || r.out_days_365.size < 18;
         const daysOfCover = demandDaily > 0 ? r.total / demandDaily : null;
+        const monthsOfCoverLowRotation = monthlyDemand365 > 0 ? r.total / monthlyDemand365 : null;
         let health: StockHealth = "GRAY";
         if (r.total <= 0) {
           health = "RED";
@@ -157,6 +161,7 @@ export default function StockPage() {
           avg_daily_out_365d: avgDailyOut365,
           demand_daily: demandDaily,
           days_of_cover: daysOfCover,
+          months_of_cover_low_rotation: monthsOfCoverLowRotation,
           health,
           low_rotation: lowRotation,
         };
@@ -281,7 +286,9 @@ export default function StockPage() {
         id: `slow-${r.item_id}`,
         tone: "GRAY" as const,
         title: `${r.item_name} con rotacion baja`,
-        detail: "Demanda muy baja/irregular: el semaforo prioriza stock disponible.",
+        detail: r.months_of_cover_low_rotation !== null
+          ? `Cobertura estimada en baja rotacion: ${r.months_of_cover_low_rotation.toFixed(1)} meses.`
+          : "Demanda muy baja/irregular: el semaforo prioriza stock disponible.",
       }));
     return [...critical, ...low, ...overstock, ...lowRotationInfo];
   }, [stockRows]);
@@ -325,7 +332,7 @@ export default function StockPage() {
               </Card>
             </div>
             <p className="text-xs text-muted-foreground">
-              Semaforo automatico: combina consumo de 30 y 90 dias, con tratamiento especial para rotacion baja.
+              Semaforo automatico: combina consumo de 30, 90 y 365 dias, con tratamiento especial para rotacion baja.
             </p>
             {alerts.length > 0 && (
               <Card>
@@ -357,7 +364,7 @@ export default function StockPage() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Unidad</TableHead>
                     <TableHead>Semáforo</TableHead>
-                    <TableHead className="text-right">Cobertura (días)</TableHead>
+                    <TableHead className="text-right">Cobertura</TableHead>
                     <TableHead className="text-right">Stock</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -384,7 +391,9 @@ export default function StockPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-mono">
-                        {r.days_of_cover === null ? "—" : `${Math.max(0, r.days_of_cover).toFixed(1)}`}
+                        {r.low_rotation
+                          ? (r.months_of_cover_low_rotation === null ? "—" : `${Math.max(0, r.months_of_cover_low_rotation).toFixed(1)} m`)
+                          : (r.days_of_cover === null ? "—" : `${Math.max(0, r.days_of_cover).toFixed(1)} d`)}
                       </TableCell>
                       <TableCell className="text-right font-bold">{r.total}</TableCell>
                     </TableRow>
