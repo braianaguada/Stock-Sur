@@ -44,6 +44,209 @@ export type Database = {
         }
         Relationships: []
       }
+      document_events: {
+        Row: {
+          created_at: string
+          created_by: string
+          document_id: string
+          event_type: string
+          id: string
+          payload: Json | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          document_id: string
+          event_type: string
+          id?: string
+          payload?: Json | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          document_id?: string
+          event_type?: string
+          id?: string
+          payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_events_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_lines: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string
+          discount_pct: number
+          document_id: string
+          id: string
+          item_id: string | null
+          line_order: number
+          line_total: number
+          quantity: number
+          sku_snapshot: string | null
+          unit: string | null
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          description: string
+          discount_pct?: number
+          document_id: string
+          id?: string
+          item_id?: string | null
+          line_order?: number
+          line_total?: number
+          quantity?: number
+          sku_snapshot?: string | null
+          unit?: string | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string
+          discount_pct?: number
+          document_id?: string
+          id?: string
+          item_id?: string | null
+          line_order?: number
+          line_total?: number
+          quantity?: number
+          sku_snapshot?: string | null
+          unit?: string | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_lines_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_sequences: {
+        Row: {
+          doc_type: Database["public"]["Enums"]["document_type"]
+          id: string
+          last_number: number
+          point_of_sale: number
+          updated_at: string
+        }
+        Insert: {
+          doc_type: Database["public"]["Enums"]["document_type"]
+          id?: string
+          last_number?: number
+          point_of_sale?: number
+          updated_at?: string
+        }
+        Update: {
+          doc_type?: Database["public"]["Enums"]["document_type"]
+          id?: string
+          last_number?: number
+          point_of_sale?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name: string | null
+          customer_tax_condition: string | null
+          customer_tax_id: string | null
+          discount_total: number
+          doc_type: Database["public"]["Enums"]["document_type"]
+          document_number: number | null
+          id: string
+          issue_date: string
+          notes: string | null
+          point_of_sale: number
+          price_list_id: string | null
+          status: Database["public"]["Enums"]["document_status"]
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_tax_condition?: string | null
+          customer_tax_id?: string | null
+          discount_total?: number
+          doc_type: Database["public"]["Enums"]["document_type"]
+          document_number?: number | null
+          id?: string
+          issue_date?: string
+          notes?: string | null
+          point_of_sale?: number
+          price_list_id?: string | null
+          status?: Database["public"]["Enums"]["document_status"]
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_tax_condition?: string | null
+          customer_tax_id?: string | null
+          discount_total?: number
+          doc_type?: Database["public"]["Enums"]["document_type"]
+          document_number?: number | null
+          id?: string
+          issue_date?: string
+          notes?: string | null
+          point_of_sale?: number
+          price_list_id?: string | null
+          status?: Database["public"]["Enums"]["document_status"]
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "price_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       item_aliases: {
         Row: {
           alias: string
@@ -771,6 +974,31 @@ export type Database = {
         }
         Returns: Json
       }
+      issue_document: {
+        Args: {
+          p_document_id: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name: string | null
+          customer_tax_condition: string | null
+          customer_tax_id: string | null
+          discount_total: number
+          doc_type: Database["public"]["Enums"]["document_type"]
+          document_number: number | null
+          id: string
+          issue_date: string
+          notes: string | null
+          point_of_sale: number
+          price_list_id: string | null
+          status: Database["public"]["Enums"]["document_status"]
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -781,6 +1009,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      document_status: "DRAFT" | "ISSUED" | "CANCELLED"
+      document_type: "PRESUPUESTO" | "REMITO"
       item_demand_profile: "LOW" | "MEDIUM" | "HIGH"
       match_reason: "SUPPLIER_CODE" | "ALIAS_TOKEN" | "ALIAS_CONTAINS" | "NONE"
       match_status: "MATCHED" | "PENDING" | "NEW"
@@ -914,6 +1144,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      document_status: ["DRAFT", "ISSUED", "CANCELLED"],
+      document_type: ["PRESUPUESTO", "REMITO"],
       item_demand_profile: ["LOW", "MEDIUM", "HIGH"],
       match_status: ["MATCHED", "PENDING", "NEW"],
       movement_type: ["IN", "OUT", "ADJUSTMENT"],
