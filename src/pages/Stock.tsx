@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -20,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, ArrowDownCircle, ArrowUpCircle, Settings2 } from "lucide-react";
 
 type MovementType = "IN" | "OUT" | "ADJUSTMENT";
+type StockHealth = "GREEN" | "YELLOW" | "RED" | "GRAY";
 
 interface StockRow {
   item_id: string;
@@ -27,6 +30,9 @@ interface StockRow {
   item_sku: string;
   item_unit: string;
   total: number;
+  avg_daily_out_30d: number;
+  days_of_cover: number | null;
+  health: StockHealth;
 }
 
 interface Movement {
@@ -64,14 +70,16 @@ export default function StockPage() {
   const { data: stockRows = [], isLoading: loadingStock } = useQuery({
     queryKey: ["stock-current", search],
     queryFn: async () => {
-      const { data: movements, error } = await supabase.from("stock_movements").select("item_id, type, quantity, items(name, sku, unit)");
+      const { data: movements, error } = await supabase.from("stock_movements").select("item_id, type, quantity, created_at, items(name, sku, unit)");
       if (error) throw error;
 
-      const map = new Map<string, StockRow>();
+      const last30DaysTs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const map = new Map<string, StockRow & { out_30d: number }>();
       for (const m of (movements ?? []) as Array<{
         item_id: string;
         type: MovementType;
         quantity: number;
+        created_at: string;
         items?: { name?: string | null; sku?: string | null; unit?: string | null } | null;
       }>) {
         if (!map.has(m.item_id)) {
@@ -81,15 +89,41 @@ export default function StockPage() {
             item_sku: m.items?.sku ?? "",
             item_unit: m.items?.unit ?? "",
             total: 0,
+            avg_daily_out_30d: 0,
+            days_of_cover: null,
+            health: "GRAY",
+            out_30d: 0,
           });
         }
         const row = map.get(m.item_id)!;
         if (m.type === "IN") row.total += Number(m.quantity);
         else if (m.type === "OUT") row.total -= Number(m.quantity);
         else row.total += Number(m.quantity); // ADJUSTMENT can be +/-
+        if (m.type === "OUT" && new Date(m.created_at).getTime() >= last30DaysTs) {
+          row.out_30d += Math.max(0, Number(m.quantity));
+        }
       }
 
-      let rows = Array.from(map.values());
+      let rows = Array.from(map.values()).map((r) => {
+        const avgDailyOut = r.out_30d / 30;
+        const daysOfCover = avgDailyOut > 0 ? r.total / avgDailyOut : null;
+        let health: StockHealth = "GRAY";
+        if (r.total <= 0) health = "RED";
+        else if (avgDailyOut === 0) health = "GRAY";
+        else if (daysOfCover !== null && daysOfCover < 3) health = "RED";
+        else if (daysOfCover !== null && daysOfCover < 10) health = "YELLOW";
+        else health = "GREEN";
+        return {
+          item_id: r.item_id,
+          item_name: r.item_name,
+          item_sku: r.item_sku,
+          item_unit: r.item_unit,
+          total: r.total,
+          avg_daily_out_30d: avgDailyOut,
+          days_of_cover: daysOfCover,
+          health,
+        };
+      });
       if (search) {
         const s = search.toLowerCase();
         rows = rows.filter((r) => r.item_name.toLowerCase().includes(s) || r.item_sku.toLowerCase().includes(s));
@@ -161,6 +195,50 @@ export default function StockPage() {
   };
 
   const typeLabel: Record<MovementType, string> = { IN: "Entrada", OUT: "Salida", ADJUSTMENT: "Ajuste" };
+  const healthLabel: Record<StockHealth, string> = {
+    GREEN: "Verde",
+    YELLOW: "Amarillo",
+    RED: "Rojo",
+    GRAY: "Sin datos",
+  };
+  const healthClass: Record<StockHealth, string> = {
+    GREEN: "bg-emerald-100 text-emerald-900 border-emerald-200",
+    YELLOW: "bg-amber-100 text-amber-900 border-amber-200",
+    RED: "bg-red-100 text-red-900 border-red-200",
+    GRAY: "bg-slate-100 text-slate-800 border-slate-200",
+  };
+  const alerts = useMemo(() => {
+    const critical = stockRows
+      .filter((r) => r.health === "RED")
+      .slice(0, 6)
+      .map((r) => ({
+        id: `critical-${r.item_id}`,
+        tone: "RED" as const,
+        title: `${r.item_name} en riesgo critico`,
+        detail: r.total <= 0
+          ? "Sin stock o en negativo. Reposicion urgente."
+          : `Cobertura estimada: ${Math.max(0, r.days_of_cover ?? 0).toFixed(1)} dias.`,
+      }));
+    const low = stockRows
+      .filter((r) => r.health === "YELLOW")
+      .slice(0, 4)
+      .map((r) => ({
+        id: `low-${r.item_id}`,
+        tone: "YELLOW" as const,
+        title: `${r.item_name} con cobertura baja`,
+        detail: `Cobertura estimada: ${(r.days_of_cover ?? 0).toFixed(1)} dias.`,
+      }));
+    const overstock = stockRows
+      .filter((r) => r.days_of_cover !== null && r.days_of_cover > 45)
+      .slice(0, 3)
+      .map((r) => ({
+        id: `over-${r.item_id}`,
+        tone: "GRAY" as const,
+        title: `${r.item_name} con posible sobrestock`,
+        detail: `Cobertura estimada: ${r.days_of_cover!.toFixed(1)} dias.`,
+      }));
+    return [...critical, ...low, ...overstock];
+  }, [stockRows]);
 
   return (
     <AppLayout>
@@ -182,6 +260,42 @@ export default function StockPage() {
           </TabsList>
 
           <TabsContent value="current" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm">En rojo</CardTitle></CardHeader>
+                <CardContent><p className="text-2xl font-bold">{stockRows.filter((r) => r.health === "RED").length}</p></CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm">En amarillo</CardTitle></CardHeader>
+                <CardContent><p className="text-2xl font-bold">{stockRows.filter((r) => r.health === "YELLOW").length}</p></CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm">Sin datos</CardTitle></CardHeader>
+                <CardContent><p className="text-2xl font-bold">{stockRows.filter((r) => r.health === "GRAY").length}</p></CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm">Alertas</CardTitle></CardHeader>
+                <CardContent><p className="text-2xl font-bold">{alerts.length}</p></CardContent>
+              </Card>
+            </div>
+            {alerts.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle className="text-base">Alertas inteligentes</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {alerts.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                      <div>
+                        <p className="font-medium">{a.title}</p>
+                        <p className="text-muted-foreground">{a.detail}</p>
+                      </div>
+                      <Badge variant="outline" className={healthClass[a.tone]}>
+                        {healthLabel[a.tone]}
+                      </Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
             <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar ítem..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -193,19 +307,29 @@ export default function StockPage() {
                     <TableHead>SKU</TableHead>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Unidad</TableHead>
+                    <TableHead>Semáforo</TableHead>
+                    <TableHead className="text-right">Cobertura (días)</TableHead>
                     <TableHead className="text-right">Stock</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loadingStock ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
                   ) : stockRows.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Sin movimientos de stock</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Sin movimientos de stock</TableCell></TableRow>
                   ) : stockRows.map((r) => (
                     <TableRow key={r.item_id}>
                       <TableCell className="font-mono text-xs">{r.item_sku}</TableCell>
                       <TableCell className="font-medium">{r.item_name}</TableCell>
                       <TableCell>{r.item_unit}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={healthClass[r.health]}>
+                          {healthLabel[r.health]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {r.days_of_cover === null ? "—" : `${Math.max(0, r.days_of_cover).toFixed(1)}`}
+                      </TableCell>
                       <TableCell className="text-right font-bold">{r.total}</TableCell>
                     </TableRow>
                   ))}
