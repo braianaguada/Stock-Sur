@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -32,6 +33,8 @@ interface Item {
   brand: string | null;
   unit: string;
   category: string | null;
+  demand_profile: "LOW" | "MEDIUM" | "HIGH";
+  demand_monthly_estimate: number | null;
   is_active: boolean;
 }
 
@@ -52,9 +55,18 @@ export default function ItemsPage() {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
   const [aliasToDelete, setAliasToDelete] = useState<ItemAlias | null>(null);
-  const [form, setForm] = useState({ sku: "", name: "", unit: "un", category: "" });
+  const [form, setForm] = useState({
+    sku: "",
+    name: "",
+    unit: "un",
+    category: "",
+    demand_profile: "LOW" as Item["demand_profile"],
+    demand_monthly_estimate: "",
+  });
   const [newAlias, setNewAlias] = useState("");
   const [isSupplierCode, setIsSupplierCode] = useState(false);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [bulkDemandProfile, setBulkDemandProfile] = useState<Item["demand_profile"]>("LOW");
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -151,6 +163,7 @@ export default function ItemsPage() {
       }
 
       if (editingItem) {
+        const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
         const { error } = await supabase
           .from("items")
           .update({
@@ -158,10 +171,13 @@ export default function ItemsPage() {
             name,
             unit,
             category: cleanText(form.category) || null,
+            demand_profile: form.demand_profile,
+            demand_monthly_estimate: Number.isFinite(monthlyEstimate) ? monthlyEstimate : null,
           })
           .eq("id", editingItem.id);
         if (error) throw error;
       } else {
+        const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
         const { error } = await supabase
           .from("items")
           .insert({
@@ -169,6 +185,8 @@ export default function ItemsPage() {
             name,
             unit,
             category: cleanText(form.category) || null,
+            demand_profile: form.demand_profile,
+            demand_monthly_estimate: Number.isFinite(monthlyEstimate) ? monthlyEstimate : null,
             is_active: true,
           });
         if (error) throw error;
@@ -177,6 +195,7 @@ export default function ItemsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["items"] });
       qc.invalidateQueries({ queryKey: ["items-categories"] });
+      qc.invalidateQueries({ queryKey: ["stock-current"] });
       setDialogOpen(false);
       setEditingItem(null);
       setNewAlias("");
@@ -240,6 +259,24 @@ export default function ItemsPage() {
     },
   });
 
+  const bulkDemandProfileMutation = useMutation({
+    mutationFn: async () => {
+      if (selectedItemIds.length === 0) return;
+      const { error } = await supabase
+        .from("items")
+        .update({ demand_profile: bulkDemandProfile })
+        .in("id", selectedItemIds);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["items"] });
+      qc.invalidateQueries({ queryKey: ["stock-current"] });
+      setSelectedItemIds([]);
+      toast({ title: "Tipo de demanda actualizado" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   const deleteAliasMutation = useMutation({
     mutationFn: async (id: string) => {
       await deleteByStrategy({ table: "item_aliases", id });
@@ -255,7 +292,7 @@ export default function ItemsPage() {
     setEditingItem(null);
     setNewAlias("");
     setIsSupplierCode(false);
-    setForm({ sku: "", name: "", unit: "un", category: "" });
+    setForm({ sku: "", name: "", unit: "un", category: "", demand_profile: "LOW", demand_monthly_estimate: "" });
     setDialogOpen(true);
   };
 
@@ -268,6 +305,8 @@ export default function ItemsPage() {
       name: item.name,
       unit: item.unit || "un",
       category: item.category ?? "",
+      demand_profile: item.demand_profile ?? "LOW",
+      demand_monthly_estimate: item.demand_monthly_estimate?.toString() ?? "",
     });
     setDialogOpen(true);
   };
@@ -338,16 +377,43 @@ export default function ItemsPage() {
               </SelectContent>
             </Select>
           </div>
+          <div className="w-full md:w-64">
+            <Select value={bulkDemandProfile} onValueChange={(value) => setBulkDemandProfile(value as Item["demand_profile"])}>
+              <SelectTrigger>
+                <SelectValue placeholder="Demanda masiva" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="LOW">Baja rotación</SelectItem>
+                <SelectItem value="MEDIUM">Rotación media</SelectItem>
+                <SelectItem value="HIGH">Alta rotación</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            variant="outline"
+            disabled={selectedItemIds.length === 0 || bulkDemandProfileMutation.isPending}
+            onClick={() => bulkDemandProfileMutation.mutate()}
+          >
+            Aplicar a seleccionados ({selectedItemIds.length})
+          </Button>
         </div>
 
         <div className="rounded-lg border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[44px]">
+                  <Checkbox
+                    checked={items.length > 0 && selectedItemIds.length === items.length}
+                    onCheckedChange={(checked) => setSelectedItemIds(checked === true ? items.map((item) => item.id) : [])}
+                    aria-label="Seleccionar todos"
+                  />
+                </TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead>Nombre</TableHead>
                 <TableHead>Rubro</TableHead>
                 <TableHead>Unidad</TableHead>
+                <TableHead>Demanda</TableHead>
                 <TableHead>Activo</TableHead>
                 <TableHead className="w-[120px]">Acciones</TableHead>
               </TableRow>
@@ -355,23 +421,39 @@ export default function ItemsPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Cargando...
                   </TableCell>
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No se encontraron ítems
                   </TableCell>
                 </TableRow>
               ) : (
                 items.map((item) => (
                   <TableRow key={item.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedItemIds.includes(item.id)}
+                        onCheckedChange={(checked) => setSelectedItemIds((prev) => (
+                          checked === true
+                            ? (prev.includes(item.id) ? prev : [...prev, item.id])
+                            : prev.filter((id) => id !== item.id)
+                        ))}
+                        aria-label={`Seleccionar ${item.name}`}
+                      />
+                    </TableCell>
                     <TableCell className="font-mono text-xs">{item.sku}</TableCell>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.category ?? "—"}</TableCell>
                     <TableCell>{item.unit}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {item.demand_profile === "HIGH" ? "Alta" : item.demand_profile === "MEDIUM" ? "Media" : "Baja"}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={item.is_active ? "default" : "secondary"}>
                         {item.is_active ? "Activo" : "Inactivo"}
@@ -442,6 +524,28 @@ export default function ItemsPage() {
             <div className="space-y-2">
               <Label>Rubro</Label>
               <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de demanda *</Label>
+              <Select value={form.demand_profile} onValueChange={(value) => setForm({ ...form, demand_profile: value as Item["demand_profile"] })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Baja rotación</SelectItem>
+                  <SelectItem value="MEDIUM">Rotación media</SelectItem>
+                  <SelectItem value="HIGH">Alta rotación</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Consumo mensual estimado (opcional)</Label>
+              <Input
+                type="number"
+                min={0}
+                step="any"
+                placeholder="Ej: 7"
+                value={form.demand_monthly_estimate}
+                onChange={(e) => setForm({ ...form, demand_monthly_estimate: e.target.value })}
+              />
             </div>
             {editingItem && (
               <div className="space-y-3 rounded-md border p-3">
