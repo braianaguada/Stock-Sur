@@ -345,17 +345,26 @@ export default function StockPage() {
       }));
     const lowRotationInfo = stockRows
       .filter((r) => r.low_rotation && r.total > 0)
-      .slice(0, 2)
-      .map((r) => ({
-        id: `slow-${r.item_id}`,
-        tone: "GRAY" as const,
-        title: `${r.item_name} con rotacion baja`,
-        detail: r.months_of_cover_low_rotation !== null
-          ? `Cobertura estimada en baja rotacion: ${
-            r.months_of_cover_low_rotation < 0.1 ? "<0.1" : r.months_of_cover_low_rotation.toFixed(1)
-          } meses.`
-          : "Demanda muy baja/irregular: el semaforo prioriza stock disponible.",
-      }));
+      .slice(0, 6)
+      .map((r) => {
+        const m = r.months_of_cover_low_rotation;
+        if (m !== null && m >= 24) {
+          return {
+            id: `slow-over-${r.item_id}`,
+            tone: "YELLOW" as const,
+            title: `${r.item_name} con sobrestock en baja rotacion`,
+            detail: `Cobertura estimada: ${m.toFixed(1)} meses. Revisar compras futuras.`,
+          };
+        }
+        return {
+          id: `slow-${r.item_id}`,
+          tone: "GRAY" as const,
+          title: `${r.item_name} con rotacion baja`,
+          detail: m !== null
+            ? `Cobertura estimada en baja rotacion: ${m < 0.1 ? "<0.1" : m.toFixed(1)} meses.`
+            : "Demanda muy baja/irregular: el semaforo prioriza stock disponible.",
+        };
+      });
     return [...critical, ...low, ...overstock, ...lowRotationInfo];
   }, [stockRows]);
   const formatCoverage = (value: number | null, unit: "m" | "d") => {
