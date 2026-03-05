@@ -179,3 +179,23 @@ where table_schema = 'public'
   and table_name = 'price_lists'
   and column_name = 'supplier_id';
 ```
+
+## Database migrations
+
+Migrations are stored in:
+
+`supabase/migrations`
+
+Step 1 - deploy to staging:
+
+```sh
+npm run db:push:staging
+```
+
+Step 2 - verify staging.
+
+Step 3 - deploy to production:
+
+```sh
+npm run db:push:prod
+```
