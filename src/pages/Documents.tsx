@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,6 +56,32 @@ interface DocLineRow {
   sku_snapshot: string | null;
 }
 
+interface PriceListRow {
+  id: string;
+  name: string;
+  flete_pct: number | null;
+  utilidad_pct: number | null;
+  impuesto_pct: number | null;
+  round_mode: "none" | "integer" | "tens" | "hundreds" | "x99";
+  round_to: number | null;
+}
+
+interface PriceListItemRow {
+  item_id: string;
+  is_active: boolean;
+  base_cost: number;
+  flete_pct: number | null;
+  utilidad_pct: number | null;
+  impuesto_pct: number | null;
+  final_price_override: number | null;
+  items: {
+    id: string;
+    sku: string;
+    name: string;
+    unit: string;
+  } | null;
+}
+
 const DOC_LABEL: Record<DocType, string> = { PRESUPUESTO: "Presupuesto", REMITO: "Remito" };
 const STATUS_LABEL: Record<DocStatus, string> = { DRAFT: "Borrador", ISSUED: "Emitido", CANCELLED: "Anulado" };
 const STATUS_VARIANT: Record<DocStatus, "secondary" | "default" | "destructive"> = {
@@ -66,6 +92,16 @@ const STATUS_VARIANT: Record<DocStatus, "secondary" | "default" | "destructive">
 
 const EMPTY_LINE: LineDraft = { item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 };
 
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const maybeMessage = (error as { message?: unknown }).message;
+    if (typeof maybeMessage === "string" && maybeMessage.trim()) return maybeMessage;
+  }
+  if (typeof error === "string" && error.trim()) return error;
+  return "Error desconocido";
+};
+
 const formatNumber = (n: number | null, pointOfSale: number) => {
   if (n === null) return "BORRADOR";
   return `${String(pointOfSale).padStart(4, "0")}-${String(n).padStart(8, "0")}`;
@@ -75,6 +111,7 @@ export default function DocumentsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocType | "ALL">("ALL");
@@ -96,6 +133,10 @@ export default function DocumentsPage() {
     notes: "",
   });
   const [lines, setLines] = useState<LineDraft[]>([EMPTY_LINE]);
+  const [documentLogo, setDocumentLogo] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem("documents.logoDataUrl") ?? "";
+  });
 
   const { data: customers = [] } = useQuery({
     queryKey: ["documents-customers"],
@@ -118,9 +159,12 @@ export default function DocumentsPage() {
   const { data: priceLists = [] } = useQuery({
     queryKey: ["documents-price-lists"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("price_lists").select("id, name").order("name");
+      const { data, error } = await supabase
+        .from("price_lists")
+        .select("id, name, flete_pct, utilidad_pct, impuesto_pct, round_mode, round_to")
+        .order("name");
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as PriceListRow[];
     },
   });
 
@@ -130,19 +174,76 @@ export default function DocumentsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
-        .select("item_id, final_price")
+        .select("item_id, is_active, base_cost, flete_pct, utilidad_pct, impuesto_pct, final_price_override, items(id, sku, name, unit)")
         .eq("price_list_id", form.price_list_id)
         .eq("is_active", true);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as PriceListItemRow[];
     },
   });
 
+  const selectedPriceList = useMemo(
+    () => priceLists.find((row) => row.id === form.price_list_id) ?? null,
+    [priceLists, form.price_list_id],
+  );
+
+  const applyRounding = (value: number, roundMode: PriceListRow["round_mode"], roundTo: number | null) => {
+    switch (roundMode) {
+      case "integer":
+        return Math.round(value);
+      case "tens":
+        return Math.round(value / 10) * 10;
+      case "hundreds":
+        return Math.round(value / 100) * 100;
+      case "x99":
+        return value <= 0 ? 0 : Math.floor(value) + 0.99;
+      case "none":
+      default: {
+        const safeRoundTo = !roundTo || roundTo <= 0 ? 1 : roundTo;
+        if (safeRoundTo === 1) return value;
+        return Math.round(value / safeRoundTo) * safeRoundTo;
+      }
+    }
+  };
+
+  const availableItems = useMemo(() => {
+    if (!form.price_list_id) return items;
+    return priceListItems
+      .filter((row) => row.items)
+      .map((row) => ({
+        id: row.items!.id,
+        sku: row.items!.sku,
+        name: row.items!.name,
+        unit: row.items!.unit,
+      }));
+  }, [items, form.price_list_id, priceListItems]);
+
   const priceByItem = useMemo(() => {
     const map = new Map<string, number>();
-    for (const row of priceListItems) map.set(row.item_id, Number(row.final_price) || 0);
+    for (const row of priceListItems) {
+      if (row.final_price_override !== null && Number(row.final_price_override) > 0) {
+        map.set(row.item_id, Number(row.final_price_override));
+        continue;
+      }
+      if (!selectedPriceList) {
+        map.set(row.item_id, 0);
+        continue;
+      }
+
+      const baseCost = Number(row.base_cost) || 0;
+      if (baseCost <= 0) {
+        map.set(row.item_id, 0);
+        continue;
+      }
+
+      const flete = row.flete_pct ?? selectedPriceList.flete_pct ?? 0;
+      const utilidad = row.utilidad_pct ?? selectedPriceList.utilidad_pct ?? 0;
+      const impuesto = row.impuesto_pct ?? selectedPriceList.impuesto_pct ?? 0;
+      const computed = baseCost * (1 + flete / 100) * (1 + utilidad / 100) * (1 + impuesto / 100);
+      map.set(row.item_id, applyRounding(computed, selectedPriceList.round_mode, selectedPriceList.round_to));
+    }
     return map;
-  }, [priceListItems]);
+  }, [priceListItems, selectedPriceList]);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["documents", search, typeFilter, statusFilter],
@@ -181,6 +282,14 @@ export default function DocumentsPage() {
 
   const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
 
+  useEffect(() => {
+    if (!form.price_list_id) return;
+    setLines((prev) => prev.map((line) => {
+      if (!line.item_id || !priceByItem.has(line.item_id)) return line;
+      return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
+    }));
+  }, [form.price_list_id, priceByItem]);
+
   const resetDraftForm = () => {
     setEditingDocId(null);
     setForm({
@@ -199,6 +308,32 @@ export default function DocumentsPage() {
   const openCreateDialog = () => {
     resetDraftForm();
     setDialogOpen(true);
+  };
+
+  const updateLogo = (nextValue: string) => {
+    setDocumentLogo(nextValue);
+    if (typeof window !== "undefined") {
+      if (nextValue) window.localStorage.setItem("documents.logoDataUrl", nextValue);
+      else window.localStorage.removeItem("documents.logoDataUrl");
+    }
+  };
+
+  const onLogoSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (!result) {
+        toast({ title: "Logo invalido", description: "No se pudo leer la imagen seleccionada", variant: "destructive" });
+        return;
+      }
+      updateLogo(result);
+      toast({ title: "Logo actualizado" });
+    };
+    reader.readAsDataURL(file);
+    event.target.value = "";
   };
 
   const openEditDialog = async (docId: string) => {
@@ -340,7 +475,7 @@ export default function DocumentsPage() {
     onError: (error: unknown) => {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo guardar",
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     },
@@ -348,6 +483,17 @@ export default function DocumentsPage() {
 
   const issueMutation = useMutation({
     mutationFn: async (documentId: string) => {
+      const currentDocument = documents.find((row) => row.id === documentId);
+      if (currentDocument?.doc_type === "REMITO") {
+        const { data: remitoLines, error: linesError } = await supabase
+          .from("document_lines")
+          .select("item_id")
+          .eq("document_id", documentId);
+        if (linesError) throw linesError;
+        if ((remitoLines ?? []).some((line) => !line.item_id)) {
+          throw new Error("El remito tiene lineas sin item asociado y no se puede emitir");
+        }
+      }
       const { error } = await supabase.rpc("issue_document", { p_document_id: documentId });
       if (error) throw error;
     },
@@ -360,7 +506,7 @@ export default function DocumentsPage() {
     onError: (error: unknown) => {
       toast({
         title: "Error al emitir",
-        description: error instanceof Error ? error.message : "Error desconocido",
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     },
@@ -397,6 +543,13 @@ export default function DocumentsPage() {
         .eq("document_id", sourceId)
         .order("line_order");
       if (lineErr) throw lineErr;
+
+      if (src.status === "CANCELLED") {
+        throw new Error("No se puede convertir a remito un presupuesto anulado");
+      }
+      if ((srcLines ?? []).some((line) => !line.item_id)) {
+        throw new Error("El presupuesto tiene lineas sin item asociado. Completa los items antes de convertir a remito");
+      }
 
       const { data: newDoc, error: newDocErr } = await supabase
         .from("documents")
@@ -438,6 +591,9 @@ export default function DocumentsPage() {
       qc.invalidateQueries({ queryKey: ["documents"] });
       toast({ title: "Remito borrador creado" });
     },
+    onError: (error: unknown) => {
+      toast({ title: "No se pudo convertir a remito", description: getErrorMessage(error), variant: "destructive" });
+    },
   });
 
   const onPickItem = (idx: number, itemId: string) => {
@@ -457,9 +613,13 @@ export default function DocumentsPage() {
 
   const onPriceListChange = (priceListId: string) => {
     setForm((prev) => ({ ...prev, price_list_id: priceListId }));
-    if (!priceListId) return;
     setLines((prev) => prev.map((line) => {
-      if (!line.item_id || !priceByItem.has(line.item_id)) return line;
+      if (!priceListId) {
+        return { ...line, unit_price: line.unit_price };
+      }
+      if (!line.item_id || !priceByItem.has(line.item_id)) {
+        return { ...line, item_id: null, sku_snapshot: "", description: "", unit: "un", unit_price: 0 };
+      }
       return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
     }));
   };
@@ -489,30 +649,35 @@ export default function DocumentsPage() {
 
     const win = window.open("", "_blank");
     if (!win) return;
+    const logoBlock = documentLogo
+      ? `<img src="${documentLogo}" alt="Logo" style="max-height:72px;max-width:220px;object-fit:contain" />`
+      : `<div style="font-size:24px;font-weight:700;letter-spacing:.08em;color:#1f2937">STOCK SUR</div>`;
 
     win.document.write(`<!doctype html><html><head><title>${DOC_LABEL[doc.doc_type]} ${formatNumber(doc.document_number, doc.point_of_sale)}</title>
       <style>
-      body{font-family:Arial,sans-serif;padding:24px;max-width:980px;margin:0 auto;color:#111827}
-      .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111827;padding-bottom:12px;margin-bottom:14px}
-      .brand h1{margin:0;font-size:24px}
+      body{font-family:Arial,sans-serif;padding:24px;max-width:980px;margin:0 auto;color:#111827;background:#fff}
+      .sheet{border:1px solid #d6dbe3;border-radius:14px;padding:22px}
+      .head{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid #d6dbe3}
+      .brand{display:flex;flex-direction:column;gap:6px}
       .muted{color:#4b5563;font-size:12px;margin:2px 0}
-      .docbox{border:1px solid #9ca3af;padding:10px 12px;border-radius:8px;min-width:260px}
-      .docbox h2{margin:0 0 6px 0;font-size:18px}
-      .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-      .meta-card{border:1px solid #d1d5db;border-radius:8px;padding:8px 10px}
+      .docbox{border:1px solid #cbd5e1;background:#f8fafc;padding:12px 14px;border-radius:12px;min-width:290px}
+      .docbox h2{margin:0 0 8px 0;font-size:18px}
+      .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+      .meta-card{border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;background:#fff}
       table{width:100%;border-collapse:collapse;margin-top:8px}
-      th,td{border:1px solid #d1d5db;padding:8px;font-size:12px}
-      th{background:#f3f4f6;text-align:left}
-      .totals{display:flex;justify-content:flex-end;margin-top:12px}
-      .totals-box{border:1px solid #111827;border-radius:8px;padding:10px 14px;font-weight:bold}
-      .notes{margin-top:12px;border:1px dashed #9ca3af;border-radius:8px;padding:8px;font-size:12px;min-height:38px}
-      .foot{margin-top:18px;font-size:11px;color:#4b5563;display:flex;justify-content:space-between}
+      th,td{border:1px solid #dbe3ee;padding:8px;font-size:12px}
+      th{background:#eef4f8;text-align:left}
+      .totals{display:flex;justify-content:flex-end;margin-top:14px}
+      .totals-box{border:1px solid #cbd5e1;background:#f8fafc;border-radius:12px;padding:10px 14px;font-weight:bold}
+      .notes{margin-top:14px;border:1px dashed #cbd5e1;border-radius:12px;padding:10px 12px;font-size:12px;min-height:42px;background:#fcfcfd}
+      .foot{margin-top:18px;font-size:11px;color:#64748b;display:flex;justify-content:space-between}
       @media print{button{display:none}}
       </style></head><body>
+      <div class="sheet">
       <div class="head">
         <div class="brand">
-          <h1>Stock Sur</h1>
-          <p class="muted">Documentos comerciales internos</p>
+          ${logoBlock}
+          <p class="muted">Documento comercial interno</p>
         </div>
         <div class="docbox">
           <h2>${DOC_LABEL[doc.doc_type]}</h2>
@@ -546,6 +711,7 @@ export default function DocumentsPage() {
       <div class="notes"><strong>Notas:</strong> ${doc.notes ?? "-"}</div>
 
       <div class="foot"><span>Generado por Stock Sur</span><span>Este documento no reemplaza comprobantes fiscales</span></div>
+      </div>
       <button onclick="window.print()">Imprimir / Guardar PDF</button>
       </body></html>`);
     win.document.close();
@@ -559,9 +725,20 @@ export default function DocumentsPage() {
             <h1 className="text-2xl font-bold tracking-tight">Documentos</h1>
             <p className="text-muted-foreground">Presupuestos y remitos rapidos</p>
           </div>
-          <Button onClick={openCreateDialog}>
-            <Plus className="mr-2 h-4 w-4" /> Nuevo documento
-          </Button>
+          <div className="flex items-center gap-2">
+            <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={onLogoSelected} />
+            <Button type="button" variant="outline" onClick={() => logoInputRef.current?.click()}>
+              {documentLogo ? "Cambiar logo PDF" : "Cargar logo PDF"}
+            </Button>
+            {documentLogo && (
+              <Button type="button" variant="ghost" onClick={() => updateLogo("")}>
+                Quitar logo
+              </Button>
+            )}
+            <Button onClick={openCreateDialog}>
+              <Plus className="mr-2 h-4 w-4" /> Nuevo documento
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -636,7 +813,7 @@ export default function DocumentsPage() {
                           </Button>
                         </>
                       )}
-                      {doc.doc_type === "PRESUPUESTO" && (
+                      {doc.doc_type === "PRESUPUESTO" && doc.status !== "CANCELLED" && (
                         <Button variant="ghost" size="icon" onClick={() => cloneAsRemitoMutation.mutate(doc.id)} title="Convertir a remito">
                           <Copy className="h-4 w-4 text-blue-600" />
                         </Button>
@@ -729,23 +906,24 @@ export default function DocumentsPage() {
                 </Button>
               </div>
               {form.price_list_id && (
-                <p className="text-xs text-muted-foreground">Con lista activa, el precio unitario se toma de la lista y no es editable.</p>
+                <p className="text-xs text-muted-foreground">Con lista activa, solo aparecen items de esa lista y el precio unitario se toma automaticamente.</p>
               )}
               <div className="space-y-2">
                 {lines.map((line, idx) => {
                   const lockPrice = !!form.price_list_id && !!line.item_id;
+                  const lockDescription = !!line.item_id;
                   return (
                     <div key={idx} className="grid grid-cols-12 gap-2">
                       <div className="col-span-3">
                         <Select value={line.item_id ?? "__none__"} onValueChange={(v) => onPickItem(idx, v === "__none__" ? "" : v)}>
                           <SelectTrigger><SelectValue placeholder="Item" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__">Manual</SelectItem>
-                            {items.map((it) => <SelectItem key={it.id} value={it.id}>{it.sku} - {it.name}</SelectItem>)}
+                            {!form.price_list_id && <SelectItem value="__none__">Manual</SelectItem>}
+                            {availableItems.map((it) => <SelectItem key={it.id} value={it.id}>{it.sku} - {it.name}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
-                      <Input className="col-span-4" placeholder="Descripcion" value={line.description} onChange={(e) => {
+                      <Input className="col-span-4" placeholder="Descripcion" value={line.description} disabled={lockDescription} onChange={(e) => {
                         const next = [...lines];
                         next[idx] = { ...next[idx], description: e.target.value };
                         setLines(next);
