@@ -281,6 +281,11 @@ export default function DocumentsPage() {
     },
   });
 
+  const selectedDocument = useMemo(
+    () => documents.find((row) => row.id === selectedDocId) ?? null,
+    [documents, selectedDocId],
+  );
+
   const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
 
   useEffect(() => {
@@ -625,50 +630,67 @@ export default function DocumentsPage() {
     const win = window.open("", "_blank");
     if (!win) return;
     const logoBlock = companySettings.logo_url
-      ? `<img src="${companySettings.logo_url}" alt="${companySettings.app_name}" style="max-height:90px;max-width:280px;object-fit:contain" />`
-      : `<div style="font-size:28px;font-weight:700;letter-spacing:.06em;color:#1f2937">${companySettings.app_name.toUpperCase()}</div>`;
+      ? `<img src="${companySettings.logo_url}" alt="${companySettings.app_name}" style="max-height:110px;max-width:320px;object-fit:contain;filter:drop-shadow(0 10px 20px rgba(15,23,42,.10))" />`
+      : `<div style="font-size:30px;font-weight:800;letter-spacing:.05em;color:#0f172a">${companySettings.app_name.toUpperCase()}</div>`;
 
     win.document.write(`<!doctype html><html><head><title>${DOC_LABEL[doc.doc_type]} ${formatNumber(doc.document_number, doc.point_of_sale)}</title>
       <style>
-      body{font-family:Arial,sans-serif;padding:24px;max-width:980px;margin:0 auto;color:#111827;background:#fff}
-      .sheet{border:1px solid #d6dbe3;border-radius:14px;padding:22px}
-      .head{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid #d6dbe3}
-      .brand{display:flex;flex-direction:column;justify-content:center;min-height:92px}
-      .muted{color:#4b5563;font-size:12px;margin:2px 0}
-      .docbox{border:1px solid #cbd5e1;background:#f8fafc;padding:12px 14px;border-radius:12px;min-width:290px}
-      .docbox h2{margin:0 0 8px 0;font-size:18px}
-      .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-      .meta-card{border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;background:#fff}
-      table{width:100%;border-collapse:collapse;margin-top:8px}
-      th,td{border:1px solid #dbe3ee;padding:8px;font-size:12px}
-      th{background:#eef4f8;text-align:left}
-      .totals{display:flex;justify-content:flex-end;margin-top:14px}
-      .totals-box{border:1px solid #cbd5e1;background:#f8fafc;border-radius:12px;padding:10px 14px;font-weight:bold}
-      .notes{margin-top:14px;border:1px dashed #cbd5e1;border-radius:12px;padding:10px 12px;font-size:12px;min-height:42px;background:#fcfcfd}
-      .foot{margin-top:18px;font-size:11px;color:#64748b;display:flex;justify-content:space-between}
+      body{font-family:Arial,sans-serif;padding:20px;max-width:1020px;margin:0 auto;color:#0f172a;background:#f8fafc}
+      .sheet{border:1px solid #d6dbe3;border-radius:22px;padding:24px;background:#fff;box-shadow:0 20px 60px rgba(15,23,42,.08)}
+      .head{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:stretch;margin-bottom:18px}
+      .brand{display:flex;flex-direction:column;justify-content:space-between;min-height:150px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#ffffff 0%,#f5f9ff 60%,#eef4ff 100%);border:1px solid #dbe7f5}
+      .brand-copy{display:flex;flex-direction:column;gap:8px}
+      .eyebrow{display:inline-flex;width:max-content;border:1px solid #dbe3ee;border-radius:999px;background:#ffffff;padding:6px 12px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#475569}
+      .muted{color:#475569;font-size:12px;margin:2px 0}
+      .brand-name{font-size:20px;font-weight:800;color:#0f172a;letter-spacing:.04em}
+      .docbox{padding:18px;border-radius:18px;min-width:290px;background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);color:#f8fafc}
+      .docbox h2{margin:0 0 10px 0;font-size:22px}
+      .docline{font-size:12px;color:#dbeafe;margin:6px 0}
+      .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+      .meta-card{border:1px solid #e2e8f0;border-radius:16px;padding:14px;background:#fff}
+      .meta-title{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#64748b;margin:0 0 10px 0}
+      table{width:100%;border-collapse:separate;border-spacing:0;margin-top:8px;overflow:hidden;border:1px solid #dbe3ee;border-radius:16px}
+      th,td{padding:10px 12px;font-size:12px;border-bottom:1px solid #e8eef5}
+      th{background:#eef4f8;text-align:left;color:#334155}
+      tbody tr:nth-child(even){background:#fbfdff}
+      tbody tr:last-child td{border-bottom:none}
+      .totals{display:flex;justify-content:flex-end;margin-top:16px}
+      .totals-box{min-width:260px;border:1px solid #dbe3ee;background:linear-gradient(180deg,#f8fbff 0%,#eef5ff 100%);border-radius:18px;padding:14px 16px}
+      .totals-label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#64748b}
+      .totals-value{margin-top:6px;font-size:26px;font-weight:800;color:#0f172a}
+      .notes{margin-top:16px;border:1px dashed #cbd5e1;border-radius:18px;padding:14px 16px;font-size:12px;min-height:56px;background:#fcfcfd}
+      .foot{margin-top:22px;font-size:11px;color:#64748b;display:flex;justify-content:space-between;gap:16px}
       @media print{button{display:none}}
       </style></head><body>
       <div class="sheet">
       <div class="head">
         <div class="brand">
-          ${logoBlock}
-          <p class="muted">${companySettings.document_tagline ?? "Documentacion comercial"}</p>
+          <div class="brand-copy">
+            <span class="eyebrow">${DOC_LABEL[doc.doc_type]}</span>
+            ${logoBlock}
+          </div>
+          <div>
+            <p class="brand-name">${companySettings.legal_name ?? companySettings.app_name}</p>
+            <p class="muted">${companySettings.document_tagline ?? "Documentacion comercial"}</p>
+          </div>
         </div>
         <div class="docbox">
           <h2>${DOC_LABEL[doc.doc_type]}</h2>
-          <p class="muted"><strong>Nro:</strong> ${formatNumber(doc.document_number, doc.point_of_sale)}</p>
-          <p class="muted"><strong>Fecha:</strong> ${new Date(doc.issue_date).toLocaleDateString("es-AR")}</p>
-          <p class="muted"><strong>Estado:</strong> ${STATUS_LABEL[doc.status]}</p>
+          <p class="docline"><strong>Nro:</strong> ${formatNumber(doc.document_number, doc.point_of_sale)}</p>
+          <p class="docline"><strong>Fecha:</strong> ${new Date(doc.issue_date).toLocaleDateString("es-AR")}</p>
+          <p class="docline"><strong>Estado:</strong> ${STATUS_LABEL[doc.status]}</p>
         </div>
       </div>
 
       <div class="meta-grid">
         <div class="meta-card">
+          <p class="meta-title">Cliente</p>
           <p class="muted"><strong>Cliente:</strong> ${doc.customer_name ?? "Cliente ocasional"}</p>
           <p class="muted"><strong>CUIT:</strong> ${doc.customer_tax_id ?? "-"}</p>
           <p class="muted"><strong>Condicion fiscal:</strong> ${doc.customer_tax_condition ?? "-"}</p>
         </div>
         <div class="meta-card">
+          <p class="meta-title">Operacion</p>
           <p class="muted"><strong>Punto de venta:</strong> ${String(doc.point_of_sale).padStart(4, "0")}</p>
           <p class="muted"><strong>Tipo:</strong> ${DOC_LABEL[doc.doc_type]}</p>
           <p class="muted"><strong>Creado:</strong> ${new Date(doc.created_at).toLocaleString("es-AR")}</p>
@@ -682,7 +704,7 @@ export default function DocumentsPage() {
         <tbody>${rows}</tbody>
       </table>
 
-      <div class="totals"><div class="totals-box">Total: $${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div></div>
+      <div class="totals"><div class="totals-box"><div class="totals-label">Total documento</div><div class="totals-value">$${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div></div></div>
       <div class="notes"><strong>Notas:</strong> ${doc.notes ?? "-"}</div>
 
       <div class="foot"><span>Generado por ${companySettings.app_name}</span><span>${companySettings.document_footer ?? "Este documento no reemplaza comprobantes fiscales"}</span></div>
@@ -935,33 +957,95 @@ export default function DocumentsPage() {
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-4xl">
-          <DialogHeader><DialogTitle>Detalle del documento</DialogTitle></DialogHeader>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Descripcion</TableHead>
-                <TableHead className="text-right">Cant.</TableHead>
-                <TableHead>Unidad</TableHead>
-                <TableHead className="text-right">P.Unit.</TableHead>
-                <TableHead className="text-right">Importe</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {selectedLines.map((line) => (
-                <TableRow key={line.id}>
-                  <TableCell>{line.line_order}</TableCell>
-                  <TableCell className="font-mono text-xs">{line.sku_snapshot ?? "-"}</TableCell>
-                  <TableCell>{line.description}</TableCell>
-                  <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
-                  <TableCell>{line.unit ?? "un"}</TableCell>
-                  <TableCell className="text-right font-mono">${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell className="text-right font-mono">${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DialogHeader><DialogTitle>Vista previa del documento</DialogTitle></DialogHeader>
+          {selectedDocument && (
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+                <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-[hsl(var(--accent))]/70 p-5">
+                  <div className="mb-4 flex items-start justify-between gap-4">
+                    <div className="space-y-3">
+                      <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
+                        {DOC_LABEL[selectedDocument.doc_type]}
+                      </Badge>
+                      <div>
+                        {companySettings.logo_url ? (
+                          <img src={companySettings.logo_url} alt={companySettings.app_name} className="h-16 w-auto max-w-[220px] object-contain" />
+                        ) : (
+                          <p className="text-2xl font-black tracking-[0.12em] text-primary">{companySettings.app_name}</p>
+                        )}
+                        <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                          {companySettings.document_tagline ?? "Documentacion comercial"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right text-white shadow-sm">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300">Documento</p>
+                      <p className="mt-1 text-lg font-bold">{DOC_LABEL[selectedDocument.doc_type]}</p>
+                      <p className="mt-2 text-xs text-slate-300">{formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}</p>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border bg-white/80 p-4">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+                      <p className="mt-2 font-semibold">{selectedDocument.customer_name ?? "Cliente ocasional"}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">CUIT: {selectedDocument.customer_tax_id ?? "-"}</p>
+                      <p className="text-sm text-muted-foreground">Condicion fiscal: {selectedDocument.customer_tax_condition ?? "-"}</p>
+                    </div>
+                    <div className="rounded-2xl border bg-white/80 p-4">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
+                      <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(selectedDocument.issue_date).toLocaleDateString("es-AR")}</p>
+                      <p className="text-sm"><span className="font-semibold">Estado:</span> {STATUS_LABEL[selectedDocument.status]}</p>
+                      <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(selectedDocument.point_of_sale).padStart(4, "0")}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-3xl border bg-card p-5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Resumen</p>
+                  <div className="mt-4 space-y-3">
+                    <div className="rounded-2xl border bg-[hsl(var(--accent))]/50 p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total documento</p>
+                      <p className="mt-2 text-3xl font-black text-primary">
+                        ${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-dashed p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Notas</p>
+                      <p className="mt-2 text-sm text-muted-foreground">{selectedDocument.notes ?? "Sin observaciones cargadas."}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Descripcion</TableHead>
+                      <TableHead className="text-right">Cant.</TableHead>
+                      <TableHead>Unidad</TableHead>
+                      <TableHead className="text-right">P.Unit.</TableHead>
+                      <TableHead className="text-right">Importe</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedLines.map((line) => (
+                      <TableRow key={line.id}>
+                        <TableCell>{line.line_order}</TableCell>
+                        <TableCell className="font-mono text-xs">{line.sku_snapshot ?? "-"}</TableCell>
+                        <TableCell className="font-medium">{line.description}</TableCell>
+                        <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
+                        <TableCell>{line.unit ?? "un"}</TableCell>
+                        <TableCell className="text-right font-mono">${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right font-mono">${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>
