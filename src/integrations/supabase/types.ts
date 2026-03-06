@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      company_settings: {
+        Row: {
+          accent_color: string
+          address: string | null
+          app_name: string
+          created_at: string
+          default_point_of_sale: number
+          document_footer: string | null
+          document_tagline: string | null
+          email: string | null
+          id: number
+          legal_name: string | null
+          logo_url: string | null
+          phone: string | null
+          primary_color: string
+          secondary_color: string
+          tax_id: string | null
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          accent_color?: string
+          address?: string | null
+          app_name?: string
+          created_at?: string
+          default_point_of_sale?: number
+          document_footer?: string | null
+          document_tagline?: string | null
+          email?: string | null
+          id?: number
+          legal_name?: string | null
+          logo_url?: string | null
+          phone?: string | null
+          primary_color?: string
+          secondary_color?: string
+          tax_id?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          accent_color?: string
+          address?: string | null
+          app_name?: string
+          created_at?: string
+          default_point_of_sale?: number
+          document_footer?: string | null
+          document_tagline?: string | null
+          email?: string | null
+          id?: number
+          legal_name?: string | null
+          logo_url?: string | null
+          phone?: string | null
+          primary_color?: string
+          secondary_color?: string
+          tax_id?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           created_at: string

@@ -1,4 +1,4 @@
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Eye, FileDown, Send, Copy, Ban, Pencil } from "lucide-react";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
 
 type DocType = "PRESUPUESTO" | "REMITO";
 type DocStatus = "DRAFT" | "ISSUED" | "CANCELLED";
@@ -89,6 +90,10 @@ const STATUS_VARIANT: Record<DocStatus, "secondary" | "default" | "destructive">
   ISSUED: "default",
   CANCELLED: "destructive",
 };
+const DOC_TYPE_CLASS: Record<DocType, string> = {
+  PRESUPUESTO: "border-blue-200 bg-blue-50 text-blue-700",
+  REMITO: "border-emerald-200 bg-emerald-50 text-emerald-700",
+};
 
 const EMPTY_LINE: LineDraft = { item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 };
 
@@ -111,7 +116,7 @@ export default function DocumentsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const logoInputRef = useRef<HTMLInputElement | null>(null);
+  const { settings: companySettings } = useCompanyBrand();
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocType | "ALL">("ALL");
@@ -124,7 +129,7 @@ export default function DocumentsPage() {
 
   const [form, setForm] = useState({
     doc_type: "PRESUPUESTO" as DocType,
-    point_of_sale: 1,
+    point_of_sale: companySettings.default_point_of_sale ?? 1,
     customer_id: "",
     customer_name: "",
     customer_tax_condition: "",
@@ -133,10 +138,6 @@ export default function DocumentsPage() {
     notes: "",
   });
   const [lines, setLines] = useState<LineDraft[]>([EMPTY_LINE]);
-  const [documentLogo, setDocumentLogo] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    return window.localStorage.getItem("documents.logoDataUrl") ?? "";
-  });
 
   const { data: customers = [] } = useQuery({
     queryKey: ["documents-customers"],
@@ -294,7 +295,7 @@ export default function DocumentsPage() {
     setEditingDocId(null);
     setForm({
       doc_type: "PRESUPUESTO",
-      point_of_sale: 1,
+      point_of_sale: companySettings.default_point_of_sale ?? 1,
       customer_id: "",
       customer_name: "",
       customer_tax_condition: "",
@@ -308,32 +309,6 @@ export default function DocumentsPage() {
   const openCreateDialog = () => {
     resetDraftForm();
     setDialogOpen(true);
-  };
-
-  const updateLogo = (nextValue: string) => {
-    setDocumentLogo(nextValue);
-    if (typeof window !== "undefined") {
-      if (nextValue) window.localStorage.setItem("documents.logoDataUrl", nextValue);
-      else window.localStorage.removeItem("documents.logoDataUrl");
-    }
-  };
-
-  const onLogoSelected = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      if (!result) {
-        toast({ title: "Logo invalido", description: "No se pudo leer la imagen seleccionada", variant: "destructive" });
-        return;
-      }
-      updateLogo(result);
-      toast({ title: "Logo actualizado" });
-    };
-    reader.readAsDataURL(file);
-    event.target.value = "";
   };
 
   const openEditDialog = async (docId: string) => {
@@ -649,16 +624,16 @@ export default function DocumentsPage() {
 
     const win = window.open("", "_blank");
     if (!win) return;
-    const logoBlock = documentLogo
-      ? `<img src="${documentLogo}" alt="Logo" style="max-height:72px;max-width:220px;object-fit:contain" />`
-      : `<div style="font-size:24px;font-weight:700;letter-spacing:.08em;color:#1f2937">STOCK SUR</div>`;
+    const logoBlock = companySettings.logo_url
+      ? `<img src="${companySettings.logo_url}" alt="${companySettings.app_name}" style="max-height:90px;max-width:280px;object-fit:contain" />`
+      : `<div style="font-size:28px;font-weight:700;letter-spacing:.06em;color:#1f2937">${companySettings.app_name.toUpperCase()}</div>`;
 
     win.document.write(`<!doctype html><html><head><title>${DOC_LABEL[doc.doc_type]} ${formatNumber(doc.document_number, doc.point_of_sale)}</title>
       <style>
       body{font-family:Arial,sans-serif;padding:24px;max-width:980px;margin:0 auto;color:#111827;background:#fff}
       .sheet{border:1px solid #d6dbe3;border-radius:14px;padding:22px}
       .head{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid #d6dbe3}
-      .brand{display:flex;flex-direction:column;gap:6px}
+      .brand{display:flex;flex-direction:column;justify-content:center;min-height:92px}
       .muted{color:#4b5563;font-size:12px;margin:2px 0}
       .docbox{border:1px solid #cbd5e1;background:#f8fafc;padding:12px 14px;border-radius:12px;min-width:290px}
       .docbox h2{margin:0 0 8px 0;font-size:18px}
@@ -677,7 +652,7 @@ export default function DocumentsPage() {
       <div class="head">
         <div class="brand">
           ${logoBlock}
-          <p class="muted">Documento comercial interno</p>
+          <p class="muted">${companySettings.document_tagline ?? "Documentacion comercial"}</p>
         </div>
         <div class="docbox">
           <h2>${DOC_LABEL[doc.doc_type]}</h2>
@@ -710,7 +685,7 @@ export default function DocumentsPage() {
       <div class="totals"><div class="totals-box">Total: $${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div></div>
       <div class="notes"><strong>Notas:</strong> ${doc.notes ?? "-"}</div>
 
-      <div class="foot"><span>Generado por Stock Sur</span><span>Este documento no reemplaza comprobantes fiscales</span></div>
+      <div class="foot"><span>Generado por ${companySettings.app_name}</span><span>${companySettings.document_footer ?? "Este documento no reemplaza comprobantes fiscales"}</span></div>
       </div>
       <button onclick="window.print()">Imprimir / Guardar PDF</button>
       </body></html>`);
@@ -725,20 +700,9 @@ export default function DocumentsPage() {
             <h1 className="text-2xl font-bold tracking-tight">Documentos</h1>
             <p className="text-muted-foreground">Presupuestos y remitos rapidos</p>
           </div>
-          <div className="flex items-center gap-2">
-            <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={onLogoSelected} />
-            <Button type="button" variant="outline" onClick={() => logoInputRef.current?.click()}>
-              {documentLogo ? "Cambiar logo PDF" : "Cargar logo PDF"}
-            </Button>
-            {documentLogo && (
-              <Button type="button" variant="ghost" onClick={() => updateLogo("")}>
-                Quitar logo
-              </Button>
-            )}
-            <Button onClick={openCreateDialog}>
-              <Plus className="mr-2 h-4 w-4" /> Nuevo documento
-            </Button>
-          </div>
+          <Button onClick={openCreateDialog}>
+            <Plus className="mr-2 h-4 w-4" /> Nuevo documento
+          </Button>
         </div>
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -789,7 +753,11 @@ export default function DocumentsPage() {
                 <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Sin documentos</TableCell></TableRow>
               ) : documents.map((doc) => (
                 <TableRow key={doc.id}>
-                  <TableCell>{DOC_LABEL[doc.doc_type]}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={DOC_TYPE_CLASS[doc.doc_type]}>
+                      {DOC_LABEL[doc.doc_type]}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="font-mono">{formatNumber(doc.document_number, doc.point_of_sale)}</TableCell>
                   <TableCell className="font-medium">{doc.customer_name ?? "Cliente ocasional"}</TableCell>
                   <TableCell><Badge variant={STATUS_VARIANT[doc.status]}>{STATUS_LABEL[doc.status]}</Badge></TableCell>
