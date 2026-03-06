@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Warehouse, FileText, Truck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
 
 export default function Dashboard() {
+  const { settings } = useCompanyBrand();
   const { data: itemCount } = useQuery({
     queryKey: ["items-count"],
     queryFn: async () => {
@@ -40,7 +42,7 @@ export default function Dashboard() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Resumen general de Stock Sur</p>
+          <p className="text-muted-foreground">Resumen general de {settings.app_name}</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">

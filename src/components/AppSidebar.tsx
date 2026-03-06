@@ -11,11 +11,13 @@ import {
   Users,
   LogOut,
   ChevronLeft,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -27,12 +29,14 @@ const navItems = [
   { title: "Pendientes", url: "/pending", icon: AlertCircle },
   { title: "Documentos", url: "/documents", icon: FileText },
   { title: "Clientes", url: "/customers", icon: Users },
+  { title: "Configuracion", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
   const location = useLocation();
   const { signOut, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const { settings } = useCompanyBrand();
 
   return (
     <aside
@@ -42,12 +46,18 @@ export function AppSidebar() {
       )}
     >
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
-          <Package className="h-5 w-5 text-sidebar-primary-foreground" />
-        </div>
+        {settings.logo_url ? (
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/90 p-1">
+            <img src={settings.logo_url} alt={settings.app_name} className="h-full w-full object-contain" />
+          </div>
+        ) : (
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
+            <Package className="h-5 w-5 text-sidebar-primary-foreground" />
+          </div>
+        )}
         {!collapsed && (
           <span className="text-lg font-bold text-sidebar-accent-foreground tracking-tight">
-            Stock Sur
+            {settings.app_name}
           </span>
         )}
         <Button
