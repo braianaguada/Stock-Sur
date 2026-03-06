@@ -233,6 +233,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          customer_kind: Database["public"]["Enums"]["document_customer_kind"]
           customer_id: string | null
           customer_name: string | null
           customer_tax_condition: string | null
@@ -242,9 +243,11 @@ export type Database = {
           document_number: number | null
           id: string
           issue_date: string
+          internal_remito_type: Database["public"]["Enums"]["internal_remito_type"] | null
           notes: string | null
           point_of_sale: number
           price_list_id: string | null
+          source_document_id: string | null
           status: Database["public"]["Enums"]["document_status"]
           subtotal: number
           total: number
@@ -253,6 +256,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string
+          customer_kind?: Database["public"]["Enums"]["document_customer_kind"]
           customer_id?: string | null
           customer_name?: string | null
           customer_tax_condition?: string | null
@@ -262,9 +266,11 @@ export type Database = {
           document_number?: number | null
           id?: string
           issue_date?: string
+          internal_remito_type?: Database["public"]["Enums"]["internal_remito_type"] | null
           notes?: string | null
           point_of_sale?: number
           price_list_id?: string | null
+          source_document_id?: string | null
           status?: Database["public"]["Enums"]["document_status"]
           subtotal?: number
           total?: number
@@ -273,6 +279,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          customer_kind?: Database["public"]["Enums"]["document_customer_kind"]
           customer_id?: string | null
           customer_name?: string | null
           customer_tax_condition?: string | null
@@ -282,9 +289,11 @@ export type Database = {
           document_number?: number | null
           id?: string
           issue_date?: string
+          internal_remito_type?: Database["public"]["Enums"]["internal_remito_type"] | null
           notes?: string | null
           point_of_sale?: number
           price_list_id?: string | null
+          source_document_id?: string | null
           status?: Database["public"]["Enums"]["document_status"]
           subtotal?: number
           total?: number
@@ -303,6 +312,13 @@ export type Database = {
             columns: ["price_list_id"]
             isOneToOne: false
             referencedRelation: "price_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]
@@ -1041,6 +1057,7 @@ export type Database = {
         Returns: {
           created_at: string
           created_by: string
+          customer_kind: Database["public"]["Enums"]["document_customer_kind"]
           customer_id: string | null
           customer_name: string | null
           customer_tax_condition: string | null
@@ -1050,9 +1067,40 @@ export type Database = {
           document_number: number | null
           id: string
           issue_date: string
+          internal_remito_type: Database["public"]["Enums"]["internal_remito_type"] | null
           notes: string | null
           point_of_sale: number
           price_list_id: string | null
+          source_document_id: string | null
+          status: Database["public"]["Enums"]["document_status"]
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+      }
+      transition_document_status: {
+        Args: {
+          p_document_id: string
+          p_target_status: Database["public"]["Enums"]["document_status"]
+        }
+        Returns: {
+          created_at: string
+          created_by: string
+          customer_kind: Database["public"]["Enums"]["document_customer_kind"]
+          customer_id: string | null
+          customer_name: string | null
+          customer_tax_condition: string | null
+          customer_tax_id: string | null
+          discount_total: number
+          doc_type: Database["public"]["Enums"]["document_type"]
+          document_number: number | null
+          id: string
+          issue_date: string
+          internal_remito_type: Database["public"]["Enums"]["internal_remito_type"] | null
+          notes: string | null
+          point_of_sale: number
+          price_list_id: string | null
+          source_document_id: string | null
           status: Database["public"]["Enums"]["document_status"]
           subtotal: number
           total: number
@@ -1069,8 +1117,10 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
-      document_status: "DRAFT" | "ISSUED" | "CANCELLED"
+      document_customer_kind: "GENERAL" | "INTERNO" | "EMPRESA"
+      document_status: "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO"
       document_type: "PRESUPUESTO" | "REMITO"
+      internal_remito_type: "CUENTA_CORRIENTE" | "DESCUENTO_SUELDO"
       item_demand_profile: "LOW" | "MEDIUM" | "HIGH"
       match_reason: "SUPPLIER_CODE" | "ALIAS_TOKEN" | "ALIAS_CONTAINS" | "NONE"
       match_status: "MATCHED" | "PENDING" | "NEW"
@@ -1204,8 +1254,10 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
-      document_status: ["DRAFT", "ISSUED", "CANCELLED"],
+      document_customer_kind: ["GENERAL", "INTERNO", "EMPRESA"],
+      document_status: ["BORRADOR", "ENVIADO", "APROBADO", "RECHAZADO", "EMITIDO", "ANULADO"],
       document_type: ["PRESUPUESTO", "REMITO"],
+      internal_remito_type: ["CUENTA_CORRIENTE", "DESCUENTO_SUELDO"],
       item_demand_profile: ["LOW", "MEDIUM", "HIGH"],
       match_status: ["MATCHED", "PENDING", "NEW"],
       movement_type: ["IN", "OUT", "ADJUSTMENT"],
