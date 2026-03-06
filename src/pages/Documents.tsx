@@ -635,8 +635,11 @@ export default function DocumentsPage() {
 
     win.document.write(`<!doctype html><html><head><title>${DOC_LABEL[doc.doc_type]} ${formatNumber(doc.document_number, doc.point_of_sale)}</title>
       <style>
-      body{font-family:Arial,sans-serif;padding:20px;max-width:1020px;margin:0 auto;color:#0f172a;background:#f8fafc}
-      .sheet{border:1px solid #d6dbe3;border-radius:22px;padding:24px;background:#fff;box-shadow:0 20px 60px rgba(15,23,42,.08)}
+      @page{size:A4 portrait;margin:10mm}
+      html,body{margin:0;padding:0}
+      body{font-family:Arial,sans-serif;color:#0f172a;background:#f8fafc}
+      .print-shell{width:190mm;max-width:190mm;margin:0 auto;padding:6mm 0}
+      .sheet{border:1px solid #d6dbe3;border-radius:22px;padding:8mm;background:#fff;box-shadow:0 20px 60px rgba(15,23,42,.08);box-sizing:border-box}
       .head{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:stretch;margin-bottom:18px}
       .brand{display:flex;flex-direction:column;justify-content:space-between;min-height:150px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#ffffff 0%,#f5f9ff 60%,#eef4ff 100%);border:1px solid #dbe7f5}
       .brand-copy{display:flex;flex-direction:column;gap:8px}
@@ -660,8 +663,15 @@ export default function DocumentsPage() {
       .totals-value{margin-top:6px;font-size:26px;font-weight:800;color:#0f172a}
       .notes{margin-top:16px;border:1px dashed #cbd5e1;border-radius:18px;padding:14px 16px;font-size:12px;min-height:56px;background:#fcfcfd}
       .foot{margin-top:22px;font-size:11px;color:#64748b;display:flex;justify-content:space-between;gap:16px}
-      @media print{button{display:none}}
+      .print-action{display:block;margin:16px auto 0;padding:10px 16px;border:none;border-radius:999px;background:#0f172a;color:#fff;cursor:pointer}
+      @media print{
+        body{background:#fff}
+        .print-shell{width:190mm;max-width:190mm;padding:0}
+        .sheet{border:none;box-shadow:none;border-radius:0;padding:0}
+        .print-action{display:none}
+      }
       </style></head><body>
+      <div class="print-shell">
       <div class="sheet">
       <div class="head">
         <div class="brand">
@@ -709,7 +719,8 @@ export default function DocumentsPage() {
 
       <div class="foot"><span>Generado por ${companySettings.app_name}</span><span>${companySettings.document_footer ?? "Este documento no reemplaza comprobantes fiscales"}</span></div>
       </div>
-      <button onclick="window.print()">Imprimir / Guardar PDF</button>
+      </div>
+      <button class="print-action" onclick="window.print()">Imprimir / Guardar PDF</button>
       </body></html>`);
     win.document.close();
   };
