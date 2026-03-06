@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Eye, FileDown, Send, Copy, Ban, Pencil } from "lucide-react";
+import { Plus, Search, Eye, FileDown, Send, Copy, Ban, Pencil, Trash2 } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 
 type DocType = "PRESUPUESTO" | "REMITO";
@@ -669,6 +669,13 @@ export default function DocumentsPage() {
     setLines([EMPTY_LINE]);
   };
 
+  const removeLine = (idx: number) => {
+    setLines((prev) => {
+      if (prev.length === 1) return [EMPTY_LINE];
+      return prev.filter((_, lineIdx) => lineIdx !== idx);
+    });
+  };
+
   const printDocument = async (doc: DocRow) => {
     const { data: lineRows } = await supabase
       .from("document_lines")
@@ -1113,6 +1120,18 @@ export default function DocumentsPage() {
                       />
                       <div className="col-span-2 flex items-center justify-end text-sm font-mono">
                         ${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                      </div>
+                      <div className="col-span-12 flex justify-end md:col-span-12">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeLine(idx)}
+                          title="Eliminar linea"
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" /> Eliminar linea
+                        </Button>
                       </div>
                     </div>
                   );
