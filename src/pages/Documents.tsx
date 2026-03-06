@@ -649,16 +649,24 @@ export default function DocumentsPage() {
   };
 
   const onPriceListChange = (priceListId: string) => {
+    if (priceListId === form.price_list_id) return;
+
+    const hasLoadedLines = lines.some((line) =>
+      line.item_id !== null ||
+      line.description.trim() !== "" ||
+      line.quantity !== EMPTY_LINE.quantity ||
+      line.unit_price !== EMPTY_LINE.unit_price,
+    );
+
+    if (hasLoadedLines) {
+      const confirmed = window.confirm(
+        "Cambiar la lista va a eliminar todas las lineas cargadas para evitar mezclar productos y precios. ¿Querés continuar?",
+      );
+      if (!confirmed) return;
+    }
+
     setForm((prev) => ({ ...prev, price_list_id: priceListId }));
-    setLines((prev) => prev.map((line) => {
-      if (!priceListId) {
-        return { ...line, unit_price: line.unit_price };
-      }
-      if (!line.item_id || !priceByItem.has(line.item_id)) {
-        return { ...line, item_id: null, sku_snapshot: "", description: "", unit: "un", unit_price: 0 };
-      }
-      return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
-    }));
+    setLines([EMPTY_LINE]);
   };
 
   const printDocument = async (doc: DocRow) => {
