@@ -7,18 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Eye, FileDown, Send, Copy, Ban } from "lucide-react";
+import { Plus, Search, Eye, FileDown, Send, Copy, Ban, Pencil } from "lucide-react";
 
 type DocType = "PRESUPUESTO" | "REMITO";
 type DocStatus = "DRAFT" | "ISSUED" | "CANCELLED";
@@ -39,16 +33,24 @@ interface DocRow {
   point_of_sale: number;
   document_number: number | null;
   issue_date: string;
+  customer_id: string | null;
   customer_name: string | null;
-  total: number;
+  customer_tax_id: string | null;
+  customer_tax_condition: string | null;
+  price_list_id: string | null;
   notes: string | null;
+  subtotal: number;
+  total: number;
+  created_at: string;
 }
 
 interface DocLineRow {
   id: string;
+  item_id: string | null;
   line_order: number;
   description: string;
   quantity: number;
+  unit: string | null;
   unit_price: number;
   line_total: number;
   sku_snapshot: string | null;
@@ -61,6 +63,8 @@ const STATUS_VARIANT: Record<DocStatus, "secondary" | "default" | "destructive">
   ISSUED: "default",
   CANCELLED: "destructive",
 };
+
+const EMPTY_LINE: LineDraft = { item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 };
 
 const formatNumber = (n: number | null, pointOfSale: number) => {
   if (n === null) return "BORRADOR";
@@ -79,6 +83,7 @@ export default function DocumentsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     doc_type: "PRESUPUESTO" as DocType,
@@ -90,9 +95,7 @@ export default function DocumentsPage() {
     price_list_id: "",
     notes: "",
   });
-  const [lines, setLines] = useState<LineDraft[]>([
-    { item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 },
-  ]);
+  const [lines, setLines] = useState<LineDraft[]>([EMPTY_LINE]);
 
   const { data: customers = [] } = useQuery({
     queryKey: ["documents-customers"],
@@ -137,7 +140,7 @@ export default function DocumentsPage() {
 
   const priceByItem = useMemo(() => {
     const map = new Map<string, number>();
-    for (const r of priceListItems) map.set(r.item_id, Number(r.final_price) || 0);
+    for (const row of priceListItems) map.set(row.item_id, Number(row.final_price) || 0);
     return map;
   }, [priceListItems]);
 
@@ -146,7 +149,7 @@ export default function DocumentsPage() {
     queryFn: async () => {
       let q = supabase
         .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_name, total, notes")
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, customer_name, customer_tax_id, customer_tax_condition, price_list_id, notes, subtotal, total, created_at")
         .order("created_at", { ascending: false });
       if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
       if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
@@ -156,7 +159,7 @@ export default function DocumentsPage() {
         if (Number.isFinite(n)) clauses.push(`document_number.eq.${n}`);
         q = q.or(clauses.join(","));
       }
-      const { data, error } = await q.limit(200);
+      const { data, error } = await q.limit(300);
       if (error) throw error;
       return (data ?? []) as DocRow[];
     },
@@ -168,7 +171,7 @@ export default function DocumentsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("document_lines")
-        .select("id, line_order, description, quantity, unit_price, line_total, sku_snapshot")
+        .select("id, item_id, line_order, description, quantity, unit, unit_price, line_total, sku_snapshot")
         .eq("document_id", selectedDocId!)
         .order("line_order");
       if (error) throw error;
@@ -176,56 +179,154 @@ export default function DocumentsPage() {
     },
   });
 
-  const totalDraft = useMemo(() => lines.reduce((acc, l) => acc + l.quantity * l.unit_price, 0), [lines]);
+  const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
+
+  const resetDraftForm = () => {
+    setEditingDocId(null);
+    setForm({
+      doc_type: "PRESUPUESTO",
+      point_of_sale: 1,
+      customer_id: "",
+      customer_name: "",
+      customer_tax_condition: "",
+      customer_tax_id: "",
+      price_list_id: "",
+      notes: "",
+    });
+    setLines([EMPTY_LINE]);
+  };
+
+  const openCreateDialog = () => {
+    resetDraftForm();
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = async (docId: string) => {
+    const target = documents.find((d) => d.id === docId);
+    if (!target || target.status !== "DRAFT") return;
+
+    const { data: lineRows, error } = await supabase
+      .from("document_lines")
+      .select("item_id, sku_snapshot, description, unit, quantity, unit_price")
+      .eq("document_id", docId)
+      .order("line_order");
+    if (error) {
+      toast({ title: "Error", description: "No se pudo cargar el borrador", variant: "destructive" });
+      return;
+    }
+
+    setEditingDocId(docId);
+    setForm({
+      doc_type: target.doc_type,
+      point_of_sale: target.point_of_sale,
+      customer_id: target.customer_id ?? "",
+      customer_name: target.customer_name ?? "",
+      customer_tax_condition: target.customer_tax_condition ?? "",
+      customer_tax_id: target.customer_tax_id ?? "",
+      price_list_id: target.price_list_id ?? "",
+      notes: target.notes ?? "",
+    });
+    const nextLines = (lineRows ?? []).map((line) => ({
+      item_id: line.item_id,
+      sku_snapshot: line.sku_snapshot ?? "",
+      description: line.description,
+      unit: line.unit ?? "un",
+      quantity: Number(line.quantity) || 0,
+      unit_price: Number(line.unit_price) || 0,
+    }));
+    setLines(nextLines.length > 0 ? nextLines : [EMPTY_LINE]);
+    setDialogOpen(true);
+  };
 
   const upsertDraftMutation = useMutation({
     mutationFn: async () => {
-      const valid = lines.filter((l) => l.description.trim() && l.quantity > 0);
-      if (valid.length === 0) throw new Error("Agregá al menos una línea válida");
+      const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
+      if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
 
-      const customerName =
-        form.customer_id
-          ? customers.find((c) => c.id === form.customer_id)?.name ?? form.customer_name
-          : form.customer_name || "Cliente ocasional";
+      if (form.price_list_id) {
+        const missingItem = valid.some((line) => !line.item_id);
+        if (missingItem) throw new Error("Con lista de precios activa, todas las lineas deben tener item");
+      }
 
-      const { data: doc, error: dErr } = await supabase
-        .from("documents")
-        .insert({
-          doc_type: form.doc_type,
-          status: "DRAFT",
-          point_of_sale: form.point_of_sale,
-          customer_id: form.customer_id || null,
-          customer_name: customerName || null,
-          customer_tax_condition: form.customer_tax_condition || null,
-          customer_tax_id: form.customer_tax_id || null,
-          price_list_id: form.price_list_id || null,
-          notes: form.notes || null,
-          subtotal: totalDraft,
-          total: totalDraft,
-          created_by: user?.id,
-        })
-        .select("id")
-        .single();
-      if (dErr) throw dErr;
+      const normalizedLines = valid.map((line) => {
+        if (!form.price_list_id || !line.item_id) return line;
+        if (!priceByItem.has(line.item_id)) {
+          throw new Error("Hay items sin precio en la lista seleccionada");
+        }
+        return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
+      });
 
-      const payload = valid.map((l, i) => ({
-        document_id: doc.id,
-        line_order: i + 1,
-        item_id: l.item_id,
-        sku_snapshot: l.sku_snapshot || null,
-        description: l.description,
-        unit: l.unit || null,
-        quantity: l.quantity,
-        unit_price: l.unit_price,
-        line_total: l.quantity * l.unit_price,
+      const pickedCustomer = form.customer_id ? customers.find((c) => c.id === form.customer_id) : null;
+      const customerName = pickedCustomer?.name ?? form.customer_name ?? "Cliente ocasional";
+      const customerTaxId = form.customer_tax_id || pickedCustomer?.cuit || null;
+
+      let documentId = editingDocId;
+      if (!documentId) {
+        const { data: doc, error: docErr } = await supabase
+          .from("documents")
+          .insert({
+            doc_type: form.doc_type,
+            status: "DRAFT",
+            point_of_sale: form.point_of_sale,
+            customer_id: form.customer_id || null,
+            customer_name: customerName || null,
+            customer_tax_condition: form.customer_tax_condition || null,
+            customer_tax_id: customerTaxId,
+            price_list_id: form.price_list_id || null,
+            notes: form.notes || null,
+            subtotal: totalDraft,
+            total: totalDraft,
+            created_by: user?.id,
+          })
+          .select("id")
+          .single();
+        if (docErr) throw docErr;
+        documentId = doc.id;
+      } else {
+        const { error: updErr } = await supabase
+          .from("documents")
+          .update({
+            doc_type: form.doc_type,
+            point_of_sale: form.point_of_sale,
+            customer_id: form.customer_id || null,
+            customer_name: customerName || null,
+            customer_tax_condition: form.customer_tax_condition || null,
+            customer_tax_id: customerTaxId,
+            price_list_id: form.price_list_id || null,
+            notes: form.notes || null,
+            subtotal: totalDraft,
+            total: totalDraft,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", documentId)
+          .eq("status", "DRAFT");
+        if (updErr) throw updErr;
+
+        const { error: delErr } = await supabase
+          .from("document_lines")
+          .delete()
+          .eq("document_id", documentId);
+        if (delErr) throw delErr;
+      }
+
+      const payload = normalizedLines.map((line, index) => ({
+        document_id: documentId,
+        line_order: index + 1,
+        item_id: line.item_id,
+        sku_snapshot: line.sku_snapshot || null,
+        description: line.description,
+        unit: line.unit || null,
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        line_total: line.quantity * line.unit_price,
         created_by: user?.id,
       }));
-      const { error: lErr } = await supabase.from("document_lines").insert(payload);
-      if (lErr) throw lErr;
+      const { error: lineErr } = await supabase.from("document_lines").insert(payload);
+      if (lineErr) throw lineErr;
 
       await supabase.from("document_events").insert({
-        document_id: doc.id,
-        event_type: "CREATED",
+        document_id: documentId,
+        event_type: editingDocId ? "UPDATED" : "CREATED",
         payload: { source: "ui" },
         created_by: user?.id,
       });
@@ -233,14 +334,16 @@ export default function DocumentsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["documents"] });
       setDialogOpen(false);
-      setLines([{ item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 }]);
-      toast({ title: "Borrador guardado" });
+      resetDraftForm();
+      toast({ title: editingDocId ? "Borrador actualizado" : "Borrador guardado" });
     },
-    onError: (e: unknown) => toast({
-      title: "Error",
-      description: e instanceof Error ? e.message : "No se pudo guardar",
-      variant: "destructive",
-    }),
+    onError: (error: unknown) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo guardar",
+        variant: "destructive",
+      });
+    },
   });
 
   const issueMutation = useMutation({
@@ -250,46 +353,52 @@ export default function DocumentsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["documents"] });
+      qc.invalidateQueries({ queryKey: ["stock-current"] });
+      qc.invalidateQueries({ queryKey: ["stock-movements"] });
       toast({ title: "Documento emitido" });
     },
-    onError: (e: unknown) => toast({
-      title: "Error al emitir",
-      description: e instanceof Error ? e.message : "Error desconocido",
-      variant: "destructive",
-    }),
+    onError: (error: unknown) => {
+      toast({
+        title: "Error al emitir",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+      });
+    },
   });
 
   const cancelMutation = useMutation({
     mutationFn: async (documentId: string) => {
       const { error } = await supabase
         .from("documents")
-        .update({ status: "CANCELLED" })
+        .update({ status: "CANCELLED", updated_at: new Date().toISOString() })
         .eq("id", documentId)
-        .eq("status", "ISSUED");
+        .eq("status", "ISSUED")
+        .eq("doc_type", "PRESUPUESTO");
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["documents"] });
-      toast({ title: "Documento anulado" });
+      toast({ title: "Presupuesto anulado" });
     },
   });
 
   const cloneAsRemitoMutation = useMutation({
     mutationFn: async (sourceId: string) => {
-      const { data: src, error: sErr } = await supabase
+      const { data: src, error: srcErr } = await supabase
         .from("documents")
         .select("*")
         .eq("id", sourceId)
         .single();
-      if (sErr) throw sErr;
-      const { data: srcLines, error: lErr } = await supabase
+      if (srcErr) throw srcErr;
+
+      const { data: srcLines, error: lineErr } = await supabase
         .from("document_lines")
         .select("*")
         .eq("document_id", sourceId)
         .order("line_order");
-      if (lErr) throw lErr;
+      if (lineErr) throw lineErr;
 
-      const { data: newDoc, error: nErr } = await supabase
+      const { data: newDoc, error: newDocErr } = await supabase
         .from("documents")
         .insert({
           doc_type: "REMITO",
@@ -307,19 +416,19 @@ export default function DocumentsPage() {
         })
         .select("id")
         .single();
-      if (nErr) throw nErr;
+      if (newDocErr) throw newDocErr;
 
-      const linesPayload = (srcLines ?? []).map((l) => ({
+      const linesPayload = (srcLines ?? []).map((line) => ({
         document_id: newDoc.id,
-        line_order: l.line_order,
-        item_id: l.item_id,
-        sku_snapshot: l.sku_snapshot,
-        description: l.description,
-        unit: l.unit,
-        quantity: l.quantity,
-        unit_price: l.unit_price,
-        discount_pct: l.discount_pct,
-        line_total: l.line_total,
+        line_order: line.line_order,
+        item_id: line.item_id,
+        sku_snapshot: line.sku_snapshot,
+        description: line.description,
+        unit: line.unit,
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        discount_pct: line.discount_pct,
+        line_total: line.line_total,
         created_by: user?.id,
       }));
       const { error: insErr } = await supabase.from("document_lines").insert(linesPayload);
@@ -332,58 +441,114 @@ export default function DocumentsPage() {
   });
 
   const onPickItem = (idx: number, itemId: string) => {
-    const it = items.find((x) => x.id === itemId);
-    if (!it) return;
+    const item = items.find((row) => row.id === itemId);
+    if (!item) return;
     const next = [...lines];
     next[idx] = {
       ...next[idx],
       item_id: itemId,
-      sku_snapshot: it.sku,
-      description: it.name,
-      unit: it.unit || "un",
-      unit_price: priceByItem.get(itemId) ?? next[idx].unit_price,
+      sku_snapshot: item.sku,
+      description: item.name,
+      unit: item.unit || "un",
+      unit_price: form.price_list_id ? (priceByItem.get(itemId) ?? 0) : next[idx].unit_price,
     };
     setLines(next);
   };
 
-  const printDocument = async (d: DocRow) => {
-    const { data: linesData } = await supabase
+  const onPriceListChange = (priceListId: string) => {
+    setForm((prev) => ({ ...prev, price_list_id: priceListId }));
+    if (!priceListId) return;
+    setLines((prev) => prev.map((line) => {
+      if (!line.item_id || !priceByItem.has(line.item_id)) return line;
+      return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
+    }));
+  };
+
+  const printDocument = async (doc: DocRow) => {
+    const { data: lineRows } = await supabase
       .from("document_lines")
-      .select("line_order, description, quantity, unit_price, line_total")
-      .eq("document_id", d.id)
+      .select("line_order, sku_snapshot, description, unit, quantity, unit_price, line_total")
+      .eq("document_id", doc.id)
       .order("line_order");
 
-    const rows = (linesData ?? []).map((l) => `
+    const printableLines = (lineRows ?? []) as Array<
+      Pick<DocLineRow, "line_order" | "sku_snapshot" | "description" | "quantity" | "unit" | "unit_price" | "line_total">
+    >;
+
+    const rows = printableLines.map((line) => `
       <tr>
-        <td>${l.line_order}</td>
-        <td>${l.description}</td>
-        <td style="text-align:right">${Number(l.quantity).toLocaleString("es-AR")}</td>
-        <td style="text-align:right">$${Number(l.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
-        <td style="text-align:right">$${Number(l.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
+        <td>${line.line_order}</td>
+        <td>${line.sku_snapshot ?? "-"}</td>
+        <td>${line.description}</td>
+        <td style="text-align:right">${Number(line.quantity).toLocaleString("es-AR")}</td>
+        <td>${line.unit ?? "un"}</td>
+        <td style="text-align:right">$${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
+        <td style="text-align:right">$${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
       </tr>
     `).join("");
 
-    const w = window.open("", "_blank");
-    if (!w) return;
-    w.document.write(`<!doctype html><html><head><title>${DOC_LABEL[d.doc_type]} ${formatNumber(d.document_number, d.point_of_sale)}</title>
+    const win = window.open("", "_blank");
+    if (!win) return;
+
+    win.document.write(`<!doctype html><html><head><title>${DOC_LABEL[doc.doc_type]} ${formatNumber(doc.document_number, doc.point_of_sale)}</title>
       <style>
-      body{font-family:Arial,sans-serif;padding:28px;max-width:900px;margin:0 auto}
-      h1{margin:0 0 8px 0}
-      .meta{color:#4b5563;margin:2px 0}
-      table{width:100%;border-collapse:collapse;margin-top:14px}
+      body{font-family:Arial,sans-serif;padding:24px;max-width:980px;margin:0 auto;color:#111827}
+      .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111827;padding-bottom:12px;margin-bottom:14px}
+      .brand h1{margin:0;font-size:24px}
+      .muted{color:#4b5563;font-size:12px;margin:2px 0}
+      .docbox{border:1px solid #9ca3af;padding:10px 12px;border-radius:8px;min-width:260px}
+      .docbox h2{margin:0 0 6px 0;font-size:18px}
+      .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+      .meta-card{border:1px solid #d1d5db;border-radius:8px;padding:8px 10px}
+      table{width:100%;border-collapse:collapse;margin-top:8px}
       th,td{border:1px solid #d1d5db;padding:8px;font-size:12px}
-      th{background:#f3f4f6}
-      .t{text-align:right;font-weight:bold;margin-top:14px}
+      th{background:#f3f4f6;text-align:left}
+      .totals{display:flex;justify-content:flex-end;margin-top:12px}
+      .totals-box{border:1px solid #111827;border-radius:8px;padding:10px 14px;font-weight:bold}
+      .notes{margin-top:12px;border:1px dashed #9ca3af;border-radius:8px;padding:8px;font-size:12px;min-height:38px}
+      .foot{margin-top:18px;font-size:11px;color:#4b5563;display:flex;justify-content:space-between}
       @media print{button{display:none}}
       </style></head><body>
-      <h1>${DOC_LABEL[d.doc_type]} ${formatNumber(d.document_number, d.point_of_sale)}</h1>
-      <p class="meta">Fecha: ${new Date(d.issue_date).toLocaleDateString("es-AR")} | Estado: ${STATUS_LABEL[d.status]}</p>
-      <p class="meta">Cliente: ${d.customer_name ?? "Cliente ocasional"}</p>
-      <table><thead><tr><th>#</th><th>Descripción</th><th>Cant.</th><th>P.Unit.</th><th>Importe</th></tr></thead><tbody>${rows}</tbody></table>
-      <p class="t">Total: $${Number(d.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
+      <div class="head">
+        <div class="brand">
+          <h1>Stock Sur</h1>
+          <p class="muted">Documentos comerciales internos</p>
+        </div>
+        <div class="docbox">
+          <h2>${DOC_LABEL[doc.doc_type]}</h2>
+          <p class="muted"><strong>Nro:</strong> ${formatNumber(doc.document_number, doc.point_of_sale)}</p>
+          <p class="muted"><strong>Fecha:</strong> ${new Date(doc.issue_date).toLocaleDateString("es-AR")}</p>
+          <p class="muted"><strong>Estado:</strong> ${STATUS_LABEL[doc.status]}</p>
+        </div>
+      </div>
+
+      <div class="meta-grid">
+        <div class="meta-card">
+          <p class="muted"><strong>Cliente:</strong> ${doc.customer_name ?? "Cliente ocasional"}</p>
+          <p class="muted"><strong>CUIT:</strong> ${doc.customer_tax_id ?? "-"}</p>
+          <p class="muted"><strong>Condicion fiscal:</strong> ${doc.customer_tax_condition ?? "-"}</p>
+        </div>
+        <div class="meta-card">
+          <p class="muted"><strong>Punto de venta:</strong> ${String(doc.point_of_sale).padStart(4, "0")}</p>
+          <p class="muted"><strong>Tipo:</strong> ${DOC_LABEL[doc.doc_type]}</p>
+          <p class="muted"><strong>Creado:</strong> ${new Date(doc.created_at).toLocaleString("es-AR")}</p>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>#</th><th>SKU</th><th>Descripcion</th><th>Cant.</th><th>Unidad</th><th>P.Unit.</th><th>Importe</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <div class="totals"><div class="totals-box">Total: $${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div></div>
+      <div class="notes"><strong>Notas:</strong> ${doc.notes ?? "-"}</div>
+
+      <div class="foot"><span>Generado por Stock Sur</span><span>Este documento no reemplaza comprobantes fiscales</span></div>
       <button onclick="window.print()">Imprimir / Guardar PDF</button>
       </body></html>`);
-    w.document.close();
+    win.document.close();
   };
 
   return (
@@ -392,9 +557,9 @@ export default function DocumentsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Documentos</h1>
-            <p className="text-muted-foreground">Presupuestos y remitos rápidos</p>
+            <p className="text-muted-foreground">Presupuestos y remitos rapidos</p>
           </div>
-          <Button onClick={() => setDialogOpen(true)}>
+          <Button onClick={openCreateDialog}>
             <Plus className="mr-2 h-4 w-4" /> Nuevo documento
           </Button>
         </div>
@@ -402,7 +567,7 @@ export default function DocumentsPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar cliente o número..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input placeholder="Buscar cliente o numero..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="w-full md:w-52">
             <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as DocType | "ALL")}>
@@ -432,12 +597,12 @@ export default function DocumentsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Tipo</TableHead>
-                <TableHead>Número</TableHead>
+                <TableHead>Numero</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Fecha</TableHead>
-                <TableHead className="w-[220px]">Acciones</TableHead>
+                <TableHead className="w-[260px]">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -445,34 +610,39 @@ export default function DocumentsPage() {
                 <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
               ) : documents.length === 0 ? (
                 <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Sin documentos</TableCell></TableRow>
-              ) : documents.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell>{DOC_LABEL[d.doc_type]}</TableCell>
-                  <TableCell className="font-mono">{formatNumber(d.document_number, d.point_of_sale)}</TableCell>
-                  <TableCell className="font-medium">{d.customer_name ?? "Cliente ocasional"}</TableCell>
-                  <TableCell><Badge variant={STATUS_VARIANT[d.status]}>{STATUS_LABEL[d.status]}</Badge></TableCell>
-                  <TableCell className="text-right font-mono">${Number(d.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell>{new Date(d.issue_date).toLocaleDateString("es-AR")}</TableCell>
+              ) : documents.map((doc) => (
+                <TableRow key={doc.id}>
+                  <TableCell>{DOC_LABEL[doc.doc_type]}</TableCell>
+                  <TableCell className="font-mono">{formatNumber(doc.document_number, doc.point_of_sale)}</TableCell>
+                  <TableCell className="font-medium">{doc.customer_name ?? "Cliente ocasional"}</TableCell>
+                  <TableCell><Badge variant={STATUS_VARIANT[doc.status]}>{STATUS_LABEL[doc.status]}</Badge></TableCell>
+                  <TableCell className="text-right font-mono">${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell>{new Date(doc.issue_date).toLocaleDateString("es-AR")}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => { setSelectedDocId(d.id); setDetailOpen(true); }} title="Ver">
+                      <Button variant="ghost" size="icon" onClick={() => { setSelectedDocId(doc.id); setDetailOpen(true); }} title="Ver">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => printDocument(d)} title="Imprimir / PDF">
+                      <Button variant="ghost" size="icon" onClick={() => printDocument(doc)} title="Imprimir / PDF">
                         <FileDown className="h-4 w-4" />
                       </Button>
-                      {d.status === "DRAFT" && (
-                        <Button variant="ghost" size="icon" onClick={() => issueMutation.mutate(d.id)} title="Emitir">
-                          <Send className="h-4 w-4 text-emerald-600" />
-                        </Button>
+                      {doc.status === "DRAFT" && (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(doc.id)} title="Editar borrador">
+                            <Pencil className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => issueMutation.mutate(doc.id)} title="Emitir">
+                            <Send className="h-4 w-4 text-emerald-600" />
+                          </Button>
+                        </>
                       )}
-                      {d.doc_type === "PRESUPUESTO" && (
-                        <Button variant="ghost" size="icon" onClick={() => cloneAsRemitoMutation.mutate(d.id)} title="Convertir a remito">
+                      {doc.doc_type === "PRESUPUESTO" && (
+                        <Button variant="ghost" size="icon" onClick={() => cloneAsRemitoMutation.mutate(doc.id)} title="Convertir a remito">
                           <Copy className="h-4 w-4 text-blue-600" />
                         </Button>
                       )}
-                      {d.status === "ISSUED" && (
-                        <Button variant="ghost" size="icon" onClick={() => cancelMutation.mutate(d.id)} title="Anular">
+                      {doc.status === "ISSUED" && doc.doc_type === "PRESUPUESTO" && (
+                        <Button variant="ghost" size="icon" onClick={() => cancelMutation.mutate(doc.id)} title="Anular">
                           <Ban className="h-4 w-4 text-destructive" />
                         </Button>
                       )}
@@ -485,14 +655,14 @@ export default function DocumentsPage() {
         </div>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-          <DialogHeader><DialogTitle>Nuevo documento</DialogTitle></DialogHeader>
+      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetDraftForm(); }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
+          <DialogHeader><DialogTitle>{editingDocId ? "Editar borrador" : "Nuevo documento"}</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); upsertDraftMutation.mutate(); }} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-2">
                 <Label>Tipo *</Label>
-                <Select value={form.doc_type} onValueChange={(v) => setForm({ ...form, doc_type: v as DocType })}>
+                <Select value={form.doc_type} onValueChange={(v) => setForm((prev) => ({ ...prev, doc_type: v as DocType }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="PRESUPUESTO">Presupuesto</SelectItem>
@@ -502,11 +672,11 @@ export default function DocumentsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Punto de venta</Label>
-                <Input type="number" min={1} value={form.point_of_sale} onChange={(e) => setForm({ ...form, point_of_sale: Math.max(1, Number(e.target.value) || 1) })} />
+                <Input type="number" min={1} value={form.point_of_sale} onChange={(e) => setForm((prev) => ({ ...prev, point_of_sale: Math.max(1, Number(e.target.value) || 1) }))} />
               </div>
               <div className="space-y-2">
                 <Label>Lista de precios</Label>
-                <Select value={form.price_list_id || "__none__"} onValueChange={(v) => setForm({ ...form, price_list_id: v === "__none__" ? "" : v })}>
+                <Select value={form.price_list_id || "__none__"} onValueChange={(v) => onPriceListChange(v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Sin lista</SelectItem>
@@ -516,10 +686,10 @@ export default function DocumentsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="space-y-2">
                 <Label>Cliente registrado</Label>
-                <Select value={form.customer_id || "__none__"} onValueChange={(v) => setForm({ ...form, customer_id: v === "__none__" ? "" : v })}>
+                <Select value={form.customer_id || "__none__"} onValueChange={(v) => setForm((prev) => ({ ...prev, customer_id: v === "__none__" ? "" : v }))}>
                   <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Sin seleccionar</SelectItem>
@@ -529,70 +699,88 @@ export default function DocumentsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Nombre cliente</Label>
-                <Input value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} />
+                <Input value={form.customer_name} onChange={(e) => setForm((prev) => ({ ...prev, customer_name: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label>CUIT (opcional)</Label>
-                <Input value={form.customer_tax_id} onChange={(e) => setForm({ ...form, customer_tax_id: e.target.value })} />
+                <Label>CUIT</Label>
+                <Input value={form.customer_tax_id} onChange={(e) => setForm((prev) => ({ ...prev, customer_tax_id: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Condicion fiscal</Label>
+                <Input value={form.customer_tax_condition} onChange={(e) => setForm((prev) => ({ ...prev, customer_tax_condition: e.target.value }))} />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>Notas</Label>
-              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              <Textarea value={form.notes} onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))} />
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Líneas</Label>
+                <Label>Lineas</Label>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setLines((prev) => [...prev, { item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 }])}
+                  onClick={() => setLines((prev) => [...prev, EMPTY_LINE])}
                 >
-                  <Plus className="h-3 w-3 mr-1" /> Línea
+                  <Plus className="h-3 w-3 mr-1" /> Linea
                 </Button>
               </div>
+              {form.price_list_id && (
+                <p className="text-xs text-muted-foreground">Con lista activa, el precio unitario se toma de la lista y no es editable.</p>
+              )}
               <div className="space-y-2">
-                {lines.map((line, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-2">
-                    <div className="col-span-3">
-                      <Select value={line.item_id ?? "__none__"} onValueChange={(v) => onPickItem(idx, v === "__none__" ? "" : v)}>
-                        <SelectTrigger><SelectValue placeholder="Ítem" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Manual</SelectItem>
-                          {items.map((it) => <SelectItem key={it.id} value={it.id}>{it.sku} - {it.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                {lines.map((line, idx) => {
+                  const lockPrice = !!form.price_list_id && !!line.item_id;
+                  return (
+                    <div key={idx} className="grid grid-cols-12 gap-2">
+                      <div className="col-span-3">
+                        <Select value={line.item_id ?? "__none__"} onValueChange={(v) => onPickItem(idx, v === "__none__" ? "" : v)}>
+                          <SelectTrigger><SelectValue placeholder="Item" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Manual</SelectItem>
+                            {items.map((it) => <SelectItem key={it.id} value={it.id}>{it.sku} - {it.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Input className="col-span-4" placeholder="Descripcion" value={line.description} onChange={(e) => {
+                        const next = [...lines];
+                        next[idx] = { ...next[idx], description: e.target.value };
+                        setLines(next);
+                      }} />
+                      <Input className="col-span-1" type="number" min={0.001} step="any" value={line.quantity} onChange={(e) => {
+                        const next = [...lines];
+                        next[idx] = { ...next[idx], quantity: Number(e.target.value) || 0 };
+                        setLines(next);
+                      }} />
+                      <Input
+                        className="col-span-2"
+                        type="number"
+                        min={0}
+                        step="any"
+                        value={line.unit_price}
+                        disabled={lockPrice}
+                        onChange={(e) => {
+                          const next = [...lines];
+                          next[idx] = { ...next[idx], unit_price: Number(e.target.value) || 0 };
+                          setLines(next);
+                        }}
+                      />
+                      <div className="col-span-2 flex items-center justify-end text-sm font-mono">
+                        ${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                      </div>
                     </div>
-                    <Input className="col-span-4" placeholder="Descripción" value={line.description} onChange={(e) => {
-                      const next = [...lines];
-                      next[idx] = { ...next[idx], description: e.target.value };
-                      setLines(next);
-                    }} />
-                    <Input className="col-span-1" type="number" step="any" value={line.quantity} onChange={(e) => {
-                      const next = [...lines];
-                      next[idx] = { ...next[idx], quantity: Number(e.target.value) || 0 };
-                      setLines(next);
-                    }} />
-                    <Input className="col-span-2" type="number" step="any" value={line.unit_price} onChange={(e) => {
-                      const next = [...lines];
-                      next[idx] = { ...next[idx], unit_price: Number(e.target.value) || 0 };
-                      setLines(next);
-                    }} />
-                    <div className="col-span-2 flex items-center justify-end text-sm font-mono">
-                      ${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <p className="text-right font-bold">Total: ${totalDraft.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
             </div>
 
             <DialogFooter>
               <Button type="submit" disabled={upsertDraftMutation.isPending}>
-                {upsertDraftMutation.isPending ? "Guardando..." : "Guardar borrador"}
+                {upsertDraftMutation.isPending ? "Guardando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
               </Button>
             </DialogFooter>
           </form>
@@ -600,26 +788,30 @@ export default function DocumentsPage() {
       </Dialog>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader><DialogTitle>Detalle del documento</DialogTitle></DialogHeader>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>#</TableHead>
-                <TableHead>Descripción</TableHead>
+                <TableHead>SKU</TableHead>
+                <TableHead>Descripcion</TableHead>
                 <TableHead className="text-right">Cant.</TableHead>
+                <TableHead>Unidad</TableHead>
                 <TableHead className="text-right">P.Unit.</TableHead>
                 <TableHead className="text-right">Importe</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {selectedLines.map((l) => (
-                <TableRow key={l.id}>
-                  <TableCell>{l.line_order}</TableCell>
-                  <TableCell>{l.description}</TableCell>
-                  <TableCell className="text-right">{Number(l.quantity).toLocaleString("es-AR")}</TableCell>
-                  <TableCell className="text-right font-mono">${Number(l.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell className="text-right font-mono">${Number(l.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+              {selectedLines.map((line) => (
+                <TableRow key={line.id}>
+                  <TableCell>{line.line_order}</TableCell>
+                  <TableCell className="font-mono text-xs">{line.sku_snapshot ?? "-"}</TableCell>
+                  <TableCell>{line.description}</TableCell>
+                  <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
+                  <TableCell>{line.unit ?? "un"}</TableCell>
+                  <TableCell className="text-right font-mono">${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-right font-mono">${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
