@@ -16,7 +16,9 @@ import { Plus, Search, Eye, FileDown, Send, Copy, Ban, Pencil } from "lucide-rea
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 
 type DocType = "PRESUPUESTO" | "REMITO";
-type DocStatus = "DRAFT" | "ISSUED" | "CANCELLED";
+type DocStatus = "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO";
+type CustomerKind = "GENERAL" | "INTERNO" | "EMPRESA";
+type InternalRemitoType = "CUENTA_CORRIENTE" | "DESCUENTO_SUELDO";
 
 interface LineDraft {
   item_id: string | null;
@@ -38,7 +40,10 @@ interface DocRow {
   customer_name: string | null;
   customer_tax_id: string | null;
   customer_tax_condition: string | null;
+  customer_kind: CustomerKind;
+  internal_remito_type: InternalRemitoType | null;
   price_list_id: string | null;
+  source_document_id: string | null;
   notes: string | null;
   subtotal: number;
   total: number;
@@ -84,15 +89,34 @@ interface PriceListItemRow {
 }
 
 const DOC_LABEL: Record<DocType, string> = { PRESUPUESTO: "Presupuesto", REMITO: "Remito" };
-const STATUS_LABEL: Record<DocStatus, string> = { DRAFT: "Borrador", ISSUED: "Emitido", CANCELLED: "Anulado" };
-const STATUS_VARIANT: Record<DocStatus, "secondary" | "default" | "destructive"> = {
-  DRAFT: "secondary",
-  ISSUED: "default",
-  CANCELLED: "destructive",
+const STATUS_LABEL: Record<DocStatus, string> = {
+  BORRADOR: "Borrador",
+  ENVIADO: "Enviado",
+  APROBADO: "Aprobado",
+  RECHAZADO: "Rechazado",
+  EMITIDO: "Emitido",
+  ANULADO: "Anulado",
+};
+const STATUS_VARIANT: Record<DocStatus, "secondary" | "default" | "destructive" | "outline"> = {
+  BORRADOR: "secondary",
+  ENVIADO: "outline",
+  APROBADO: "default",
+  RECHAZADO: "destructive",
+  EMITIDO: "default",
+  ANULADO: "destructive",
 };
 const DOC_TYPE_CLASS: Record<DocType, string> = {
   PRESUPUESTO: "border-blue-200 bg-blue-50 text-blue-700",
   REMITO: "border-emerald-200 bg-emerald-50 text-emerald-700",
+};
+const CUSTOMER_KIND_LABEL: Record<CustomerKind, string> = {
+  GENERAL: "Cliente general",
+  INTERNO: "Personal / tecnico interno",
+  EMPRESA: "Empresa",
+};
+const INTERNAL_REMITO_LABEL: Record<InternalRemitoType, string> = {
+  CUENTA_CORRIENTE: "Cuenta corriente",
+  DESCUENTO_SUELDO: "Descuento de sueldo",
 };
 
 const EMPTY_LINE: LineDraft = { item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 };
@@ -134,6 +158,8 @@ export default function DocumentsPage() {
     customer_name: "",
     customer_tax_condition: "",
     customer_tax_id: "",
+    customer_kind: "GENERAL" as CustomerKind,
+    internal_remito_type: "" as InternalRemitoType | "",
     price_list_id: "",
     notes: "",
   });
@@ -251,7 +277,7 @@ export default function DocumentsPage() {
     queryFn: async () => {
       let q = supabase
         .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, customer_name, customer_tax_id, customer_tax_condition, price_list_id, notes, subtotal, total, created_at")
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, price_list_id, source_document_id, notes, subtotal, total, created_at")
         .order("created_at", { ascending: false });
       if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
       if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
@@ -281,6 +307,11 @@ export default function DocumentsPage() {
     },
   });
 
+  const selectedDocument = useMemo(
+    () => documents.find((row) => row.id === selectedDocId) ?? null,
+    [documents, selectedDocId],
+  );
+
   const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
 
   useEffect(() => {
@@ -300,6 +331,8 @@ export default function DocumentsPage() {
       customer_name: "",
       customer_tax_condition: "",
       customer_tax_id: "",
+      customer_kind: "GENERAL",
+      internal_remito_type: "",
       price_list_id: "",
       notes: "",
     });
@@ -313,7 +346,7 @@ export default function DocumentsPage() {
 
   const openEditDialog = async (docId: string) => {
     const target = documents.find((d) => d.id === docId);
-    if (!target || target.status !== "DRAFT") return;
+    if (!target || target.status !== "BORRADOR") return;
 
     const { data: lineRows, error } = await supabase
       .from("document_lines")
@@ -333,6 +366,8 @@ export default function DocumentsPage() {
       customer_name: target.customer_name ?? "",
       customer_tax_condition: target.customer_tax_condition ?? "",
       customer_tax_id: target.customer_tax_id ?? "",
+      customer_kind: target.customer_kind ?? "GENERAL",
+      internal_remito_type: target.internal_remito_type ?? "",
       price_list_id: target.price_list_id ?? "",
       notes: target.notes ?? "",
     });
@@ -352,6 +387,15 @@ export default function DocumentsPage() {
     mutationFn: async () => {
       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
       if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
+      if (form.doc_type === "PRESUPUESTO" && form.customer_kind === "INTERNO") {
+        throw new Error("Los presupuestos no aplican a personal interno");
+      }
+      if (form.doc_type === "REMITO" && form.customer_kind === "INTERNO" && !form.internal_remito_type) {
+        throw new Error("El remito interno requiere definir si va a cuenta corriente o descuento de sueldo");
+      }
+      if (form.customer_kind !== "INTERNO" && form.internal_remito_type) {
+        throw new Error("El tipo de remito interno solo aplica a remitos del personal interno");
+      }
 
       if (form.price_list_id) {
         const missingItem = valid.some((line) => !line.item_id);
@@ -376,12 +420,14 @@ export default function DocumentsPage() {
           .from("documents")
           .insert({
             doc_type: form.doc_type,
-            status: "DRAFT",
+            status: "BORRADOR",
             point_of_sale: form.point_of_sale,
             customer_id: form.customer_id || null,
             customer_name: customerName || null,
             customer_tax_condition: form.customer_tax_condition || null,
             customer_tax_id: customerTaxId,
+            customer_kind: form.customer_kind,
+            internal_remito_type: form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? form.internal_remito_type || null : null,
             price_list_id: form.price_list_id || null,
             notes: form.notes || null,
             subtotal: totalDraft,
@@ -402,6 +448,8 @@ export default function DocumentsPage() {
             customer_name: customerName || null,
             customer_tax_condition: form.customer_tax_condition || null,
             customer_tax_id: customerTaxId,
+            customer_kind: form.customer_kind,
+            internal_remito_type: form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? form.internal_remito_type || null : null,
             price_list_id: form.price_list_id || null,
             notes: form.notes || null,
             subtotal: totalDraft,
@@ -409,7 +457,7 @@ export default function DocumentsPage() {
             updated_at: new Date().toISOString(),
           })
           .eq("id", documentId)
-          .eq("status", "DRAFT");
+          .eq("status", "BORRADOR");
         if (updErr) throw updErr;
 
         const { error: delErr } = await supabase
@@ -459,15 +507,16 @@ export default function DocumentsPage() {
   const issueMutation = useMutation({
     mutationFn: async (documentId: string) => {
       const currentDocument = documents.find((row) => row.id === documentId);
-      if (currentDocument?.doc_type === "REMITO") {
-        const { data: remitoLines, error: linesError } = await supabase
-          .from("document_lines")
-          .select("item_id")
-          .eq("document_id", documentId);
-        if (linesError) throw linesError;
-        if ((remitoLines ?? []).some((line) => !line.item_id)) {
-          throw new Error("El remito tiene lineas sin item asociado y no se puede emitir");
-        }
+      if (currentDocument?.doc_type !== "REMITO") {
+        throw new Error("Solo los remitos se emiten");
+      }
+      const { data: remitoLines, error: linesError } = await supabase
+        .from("document_lines")
+        .select("item_id")
+        .eq("document_id", documentId);
+      if (linesError) throw linesError;
+      if ((remitoLines ?? []).some((line) => !line.item_id)) {
+        throw new Error("El remito tiene lineas sin item asociado y no se puede emitir");
       }
       const { error } = await supabase.rpc("issue_document", { p_document_id: documentId });
       if (error) throw error;
@@ -487,19 +536,26 @@ export default function DocumentsPage() {
     },
   });
 
-  const cancelMutation = useMutation({
-    mutationFn: async (documentId: string) => {
-      const { error } = await supabase
-        .from("documents")
-        .update({ status: "CANCELLED", updated_at: new Date().toISOString() })
-        .eq("id", documentId)
-        .eq("status", "ISSUED")
-        .eq("doc_type", "PRESUPUESTO");
+  const transitionMutation = useMutation({
+    mutationFn: async ({ documentId, targetStatus }: { documentId: string; targetStatus: DocStatus }) => {
+      const { error } = await supabase.rpc("transition_document_status", {
+        p_document_id: documentId,
+        p_target_status: targetStatus,
+      });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ["documents"] });
-      toast({ title: "Presupuesto anulado" });
+      qc.invalidateQueries({ queryKey: ["stock-current"] });
+      qc.invalidateQueries({ queryKey: ["stock-movements"] });
+      toast({ title: `Documento ${STATUS_LABEL[variables.targetStatus].toLowerCase()}` });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo cambiar el estado",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
     },
   });
 
@@ -519,8 +575,11 @@ export default function DocumentsPage() {
         .order("line_order");
       if (lineErr) throw lineErr;
 
-      if (src.status === "CANCELLED") {
+      if (src.status === "ANULADO") {
         throw new Error("No se puede convertir a remito un presupuesto anulado");
+      }
+      if (src.status !== "APROBADO") {
+        throw new Error("Solo se puede convertir a remito un presupuesto aprobado");
       }
       if ((srcLines ?? []).some((line) => !line.item_id)) {
         throw new Error("El presupuesto tiene lineas sin item asociado. Completa los items antes de convertir a remito");
@@ -530,13 +589,16 @@ export default function DocumentsPage() {
         .from("documents")
         .insert({
           doc_type: "REMITO",
-          status: "DRAFT",
+          status: "BORRADOR",
           point_of_sale: src.point_of_sale,
           customer_id: src.customer_id,
           customer_name: src.customer_name,
           customer_tax_condition: src.customer_tax_condition,
           customer_tax_id: src.customer_tax_id,
+          customer_kind: src.customer_kind,
+          internal_remito_type: src.internal_remito_type,
           price_list_id: src.price_list_id,
+          source_document_id: src.id,
           notes: src.notes,
           subtotal: src.subtotal,
           total: src.total,
@@ -625,52 +687,82 @@ export default function DocumentsPage() {
     const win = window.open("", "_blank");
     if (!win) return;
     const logoBlock = companySettings.logo_url
-      ? `<img src="${companySettings.logo_url}" alt="${companySettings.app_name}" style="max-height:90px;max-width:280px;object-fit:contain" />`
-      : `<div style="font-size:28px;font-weight:700;letter-spacing:.06em;color:#1f2937">${companySettings.app_name.toUpperCase()}</div>`;
+      ? `<img src="${companySettings.logo_url}" alt="${companySettings.app_name}" style="max-height:110px;max-width:320px;object-fit:contain;filter:drop-shadow(0 10px 20px rgba(15,23,42,.10))" />`
+      : `<div style="font-size:30px;font-weight:800;letter-spacing:.05em;color:#0f172a">${companySettings.app_name.toUpperCase()}</div>`;
 
     win.document.write(`<!doctype html><html><head><title>${DOC_LABEL[doc.doc_type]} ${formatNumber(doc.document_number, doc.point_of_sale)}</title>
       <style>
-      body{font-family:Arial,sans-serif;padding:24px;max-width:980px;margin:0 auto;color:#111827;background:#fff}
-      .sheet{border:1px solid #d6dbe3;border-radius:14px;padding:22px}
-      .head{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid #d6dbe3}
-      .brand{display:flex;flex-direction:column;justify-content:center;min-height:92px}
-      .muted{color:#4b5563;font-size:12px;margin:2px 0}
-      .docbox{border:1px solid #cbd5e1;background:#f8fafc;padding:12px 14px;border-radius:12px;min-width:290px}
-      .docbox h2{margin:0 0 8px 0;font-size:18px}
-      .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-      .meta-card{border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;background:#fff}
-      table{width:100%;border-collapse:collapse;margin-top:8px}
-      th,td{border:1px solid #dbe3ee;padding:8px;font-size:12px}
-      th{background:#eef4f8;text-align:left}
-      .totals{display:flex;justify-content:flex-end;margin-top:14px}
-      .totals-box{border:1px solid #cbd5e1;background:#f8fafc;border-radius:12px;padding:10px 14px;font-weight:bold}
-      .notes{margin-top:14px;border:1px dashed #cbd5e1;border-radius:12px;padding:10px 12px;font-size:12px;min-height:42px;background:#fcfcfd}
-      .foot{margin-top:18px;font-size:11px;color:#64748b;display:flex;justify-content:space-between}
-      @media print{button{display:none}}
+      @page{size:A4 portrait;margin:10mm}
+      html,body{margin:0;padding:0}
+      body{font-family:Arial,sans-serif;color:#0f172a;background:#f8fafc}
+      .print-shell{width:190mm;max-width:190mm;margin:0 auto;padding:6mm 0}
+      .sheet{border:1px solid #d6dbe3;border-radius:22px;padding:8mm;background:#fff;box-shadow:0 20px 60px rgba(15,23,42,.08);box-sizing:border-box}
+      .head{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:stretch;margin-bottom:18px}
+      .brand{display:flex;flex-direction:column;justify-content:space-between;min-height:150px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#ffffff 0%,#f5f9ff 60%,#eef4ff 100%);border:1px solid #dbe7f5}
+      .brand-copy{display:flex;flex-direction:column;gap:8px}
+      .eyebrow{display:inline-flex;width:max-content;border:1px solid #dbe3ee;border-radius:999px;background:#ffffff;padding:6px 12px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#475569}
+      .muted{color:#475569;font-size:12px;margin:2px 0}
+      .brand-name{font-size:20px;font-weight:800;color:#0f172a;letter-spacing:.04em}
+      .docbox{padding:18px;border-radius:18px;min-width:290px;background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);color:#f8fafc}
+      .docbox h2{margin:0 0 10px 0;font-size:22px}
+      .docline{font-size:12px;color:#dbeafe;margin:6px 0}
+      .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+      .meta-card{border:1px solid #e2e8f0;border-radius:16px;padding:14px;background:#fff}
+      .meta-title{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#64748b;margin:0 0 10px 0}
+      table{width:100%;border-collapse:separate;border-spacing:0;margin-top:8px;overflow:hidden;border:1px solid #dbe3ee;border-radius:16px}
+      th,td{padding:10px 12px;font-size:12px;border-bottom:1px solid #e8eef5}
+      th{background:#eef4f8;text-align:left;color:#334155}
+      tbody tr:nth-child(even){background:#fbfdff}
+      tbody tr:last-child td{border-bottom:none}
+      .totals{display:flex;justify-content:flex-end;margin-top:16px}
+      .totals-box{min-width:260px;border:1px solid #dbe3ee;background:linear-gradient(180deg,#f8fbff 0%,#eef5ff 100%);border-radius:18px;padding:14px 16px}
+      .totals-label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#64748b}
+      .totals-value{margin-top:6px;font-size:26px;font-weight:800;color:#0f172a}
+      .notes{margin-top:16px;border:1px dashed #cbd5e1;border-radius:18px;padding:14px 16px;font-size:12px;min-height:56px;background:#fcfcfd}
+      .foot{margin-top:22px;font-size:11px;color:#64748b;display:flex;justify-content:space-between;gap:16px}
+      .print-action{display:block;margin:16px auto 0;padding:10px 16px;border:none;border-radius:999px;background:#0f172a;color:#fff;cursor:pointer}
+      @media print{
+        body{background:#fff}
+        .print-shell{width:190mm;max-width:190mm;padding:0}
+        .sheet{border:none;box-shadow:none;border-radius:0;padding:0}
+        .print-action{display:none}
+      }
       </style></head><body>
+      <div class="print-shell">
       <div class="sheet">
       <div class="head">
         <div class="brand">
-          ${logoBlock}
-          <p class="muted">${companySettings.document_tagline ?? "Documentacion comercial"}</p>
+          <div class="brand-copy">
+            <span class="eyebrow">${DOC_LABEL[doc.doc_type]}</span>
+            ${logoBlock}
+          </div>
+          <div>
+            <p class="brand-name">${companySettings.legal_name ?? companySettings.app_name}</p>
+            <p class="muted">${companySettings.document_tagline ?? "Documentacion comercial"}</p>
+          </div>
         </div>
         <div class="docbox">
           <h2>${DOC_LABEL[doc.doc_type]}</h2>
-          <p class="muted"><strong>Nro:</strong> ${formatNumber(doc.document_number, doc.point_of_sale)}</p>
-          <p class="muted"><strong>Fecha:</strong> ${new Date(doc.issue_date).toLocaleDateString("es-AR")}</p>
-          <p class="muted"><strong>Estado:</strong> ${STATUS_LABEL[doc.status]}</p>
+          <p class="docline"><strong>Nro:</strong> ${formatNumber(doc.document_number, doc.point_of_sale)}</p>
+          <p class="docline"><strong>Fecha:</strong> ${new Date(doc.issue_date).toLocaleDateString("es-AR")}</p>
+          <p class="docline"><strong>Estado:</strong> ${STATUS_LABEL[doc.status]}</p>
         </div>
       </div>
 
       <div class="meta-grid">
         <div class="meta-card">
+          <p class="meta-title">Cliente</p>
           <p class="muted"><strong>Cliente:</strong> ${doc.customer_name ?? "Cliente ocasional"}</p>
+          <p class="muted"><strong>Tipo:</strong> ${CUSTOMER_KIND_LABEL[doc.customer_kind]}</p>
           <p class="muted"><strong>CUIT:</strong> ${doc.customer_tax_id ?? "-"}</p>
           <p class="muted"><strong>Condicion fiscal:</strong> ${doc.customer_tax_condition ?? "-"}</p>
         </div>
         <div class="meta-card">
+          <p class="meta-title">Operacion</p>
           <p class="muted"><strong>Punto de venta:</strong> ${String(doc.point_of_sale).padStart(4, "0")}</p>
           <p class="muted"><strong>Tipo:</strong> ${DOC_LABEL[doc.doc_type]}</p>
+          <p class="muted"><strong>Estado:</strong> ${STATUS_LABEL[doc.status]}</p>
+          ${doc.internal_remito_type ? `<p class="muted"><strong>Imputacion:</strong> ${INTERNAL_REMITO_LABEL[doc.internal_remito_type]}</p>` : ""}
           <p class="muted"><strong>Creado:</strong> ${new Date(doc.created_at).toLocaleString("es-AR")}</p>
         </div>
       </div>
@@ -682,12 +774,13 @@ export default function DocumentsPage() {
         <tbody>${rows}</tbody>
       </table>
 
-      <div class="totals"><div class="totals-box">Total: $${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div></div>
+      <div class="totals"><div class="totals-box"><div class="totals-label">Total documento</div><div class="totals-value">$${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div></div></div>
       <div class="notes"><strong>Notas:</strong> ${doc.notes ?? "-"}</div>
 
       <div class="foot"><span>Generado por ${companySettings.app_name}</span><span>${companySettings.document_footer ?? "Este documento no reemplaza comprobantes fiscales"}</span></div>
       </div>
-      <button onclick="window.print()">Imprimir / Guardar PDF</button>
+      </div>
+      <button class="print-action" onclick="window.print()">Imprimir / Guardar PDF</button>
       </body></html>`);
     win.document.close();
   };
@@ -725,9 +818,12 @@ export default function DocumentsPage() {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos</SelectItem>
-                <SelectItem value="DRAFT">Borrador</SelectItem>
-                <SelectItem value="ISSUED">Emitido</SelectItem>
-                <SelectItem value="CANCELLED">Anulado</SelectItem>
+                <SelectItem value="BORRADOR">Borrador</SelectItem>
+                <SelectItem value="ENVIADO">Enviado</SelectItem>
+                <SelectItem value="APROBADO">Aprobado</SelectItem>
+                <SelectItem value="RECHAZADO">Rechazado</SelectItem>
+                <SelectItem value="EMITIDO">Emitido</SelectItem>
+                <SelectItem value="ANULADO">Anulado</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -771,23 +867,64 @@ export default function DocumentsPage() {
                       <Button variant="ghost" size="icon" onClick={() => printDocument(doc)} title="Imprimir / PDF">
                         <FileDown className="h-4 w-4" />
                       </Button>
-                      {doc.status === "DRAFT" && (
+                      {doc.status === "BORRADOR" && (
                         <>
                           <Button variant="ghost" size="icon" onClick={() => openEditDialog(doc.id)} title="Editar borrador">
                             <Pencil className="h-4 w-4 text-blue-600" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => issueMutation.mutate(doc.id)} title="Emitir">
+                        </>
+                      )}
+                      {doc.doc_type === "PRESUPUESTO" && doc.status === "BORRADOR" && (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ENVIADO" })} title="Marcar como enviado">
+                            <Send className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "APROBADO" })} title="Aprobar">
                             <Send className="h-4 w-4 text-emerald-600" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "RECHAZADO" })} title="Rechazar">
+                            <Ban className="h-4 w-4 text-amber-600" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular">
+                            <Ban className="h-4 w-4 text-destructive" />
                           </Button>
                         </>
                       )}
-                      {doc.doc_type === "PRESUPUESTO" && doc.status !== "CANCELLED" && (
+                      {doc.doc_type === "PRESUPUESTO" && doc.status === "ENVIADO" && (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "APROBADO" })} title="Aprobar">
+                            <Send className="h-4 w-4 text-emerald-600" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "RECHAZADO" })} title="Rechazar">
+                            <Ban className="h-4 w-4 text-amber-600" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular">
+                            <Ban className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      )}
+                      {doc.doc_type === "REMITO" && doc.status === "BORRADOR" && (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => issueMutation.mutate(doc.id)} title="Emitir remito">
+                            <Send className="h-4 w-4 text-emerald-600" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular borrador">
+                            <Ban className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      )}
+                      {doc.doc_type === "PRESUPUESTO" && doc.status === "APROBADO" && (
                         <Button variant="ghost" size="icon" onClick={() => cloneAsRemitoMutation.mutate(doc.id)} title="Convertir a remito">
                           <Copy className="h-4 w-4 text-blue-600" />
                         </Button>
                       )}
-                      {doc.status === "ISSUED" && doc.doc_type === "PRESUPUESTO" && (
-                        <Button variant="ghost" size="icon" onClick={() => cancelMutation.mutate(doc.id)} title="Anular">
+                      {doc.doc_type === "PRESUPUESTO" && doc.status === "APROBADO" && (
+                        <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular">
+                          <Ban className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                      {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && (
+                        <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular remito">
                           <Ban className="h-4 w-4 text-destructive" />
                         </Button>
                       )}
@@ -807,7 +944,21 @@ export default function DocumentsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-2">
                 <Label>Tipo *</Label>
-                <Select value={form.doc_type} onValueChange={(v) => setForm((prev) => ({ ...prev, doc_type: v as DocType }))}>
+                <Select
+                  value={form.doc_type}
+                  onValueChange={(v) =>
+                    setForm((prev) => {
+                      const nextDocType = v as DocType;
+                      const nextCustomerKind = nextDocType === "PRESUPUESTO" && prev.customer_kind === "INTERNO" ? "GENERAL" : prev.customer_kind;
+                      return {
+                        ...prev,
+                        doc_type: nextDocType,
+                        customer_kind: nextCustomerKind,
+                        internal_remito_type: nextDocType === "REMITO" && nextCustomerKind === "INTERNO" ? prev.internal_remito_type : "",
+                      };
+                    })
+                  }
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="PRESUPUESTO">Presupuesto</SelectItem>
@@ -833,6 +984,26 @@ export default function DocumentsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="space-y-2">
+                <Label>Tipo de cliente</Label>
+                <Select
+                  value={form.customer_kind}
+                  onValueChange={(v) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      customer_kind: v as CustomerKind,
+                      internal_remito_type: v === "INTERNO" && prev.doc_type === "REMITO" ? prev.internal_remito_type : "",
+                    }))
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="GENERAL">Cliente general</SelectItem>
+                    {form.doc_type === "REMITO" && <SelectItem value="INTERNO">Personal / tecnico interno</SelectItem>}
+                    <SelectItem value="EMPRESA">Empresa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label>Cliente registrado</Label>
                 <Select value={form.customer_id || "__none__"} onValueChange={(v) => setForm((prev) => ({ ...prev, customer_id: v === "__none__" ? "" : v }))}>
                   <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
@@ -855,6 +1026,24 @@ export default function DocumentsPage() {
                 <Input value={form.customer_tax_condition} onChange={(e) => setForm((prev) => ({ ...prev, customer_tax_condition: e.target.value }))} />
               </div>
             </div>
+
+            {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Imputacion del remito</Label>
+                  <Select
+                    value={form.internal_remito_type || "__none__"}
+                    onValueChange={(v) => setForm((prev) => ({ ...prev, internal_remito_type: v === "__none__" ? "" : (v as InternalRemitoType) }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
+                      <SelectItem value="DESCUENTO_SUELDO">Descuento de sueldo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Notas</Label>
@@ -935,33 +1124,99 @@ export default function DocumentsPage() {
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-4xl">
-          <DialogHeader><DialogTitle>Detalle del documento</DialogTitle></DialogHeader>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Descripcion</TableHead>
-                <TableHead className="text-right">Cant.</TableHead>
-                <TableHead>Unidad</TableHead>
-                <TableHead className="text-right">P.Unit.</TableHead>
-                <TableHead className="text-right">Importe</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {selectedLines.map((line) => (
-                <TableRow key={line.id}>
-                  <TableCell>{line.line_order}</TableCell>
-                  <TableCell className="font-mono text-xs">{line.sku_snapshot ?? "-"}</TableCell>
-                  <TableCell>{line.description}</TableCell>
-                  <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
-                  <TableCell>{line.unit ?? "un"}</TableCell>
-                  <TableCell className="text-right font-mono">${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell className="text-right font-mono">${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DialogHeader><DialogTitle>Vista previa del documento</DialogTitle></DialogHeader>
+          {selectedDocument && (
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+                <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-[hsl(var(--accent))]/70 p-5">
+                  <div className="mb-4 flex items-start justify-between gap-4">
+                    <div className="space-y-3">
+                      <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
+                        {DOC_LABEL[selectedDocument.doc_type]}
+                      </Badge>
+                      <div>
+                        {companySettings.logo_url ? (
+                          <img src={companySettings.logo_url} alt={companySettings.app_name} className="h-16 w-auto max-w-[220px] object-contain" />
+                        ) : (
+                          <p className="text-2xl font-black tracking-[0.12em] text-primary">{companySettings.app_name}</p>
+                        )}
+                        <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                          {companySettings.document_tagline ?? "Documentacion comercial"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right text-white shadow-sm">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300">Documento</p>
+                      <p className="mt-1 text-lg font-bold">{DOC_LABEL[selectedDocument.doc_type]}</p>
+                      <p className="mt-2 text-xs text-slate-300">{formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}</p>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border bg-white/80 p-4">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+                      <p className="mt-2 font-semibold">{selectedDocument.customer_name ?? "Cliente ocasional"}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Tipo: {CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">CUIT: {selectedDocument.customer_tax_id ?? "-"}</p>
+                      <p className="text-sm text-muted-foreground">Condicion fiscal: {selectedDocument.customer_tax_condition ?? "-"}</p>
+                    </div>
+                    <div className="rounded-2xl border bg-white/80 p-4">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
+                      <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(selectedDocument.issue_date).toLocaleDateString("es-AR")}</p>
+                      <p className="text-sm"><span className="font-semibold">Estado:</span> {STATUS_LABEL[selectedDocument.status]}</p>
+                      <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(selectedDocument.point_of_sale).padStart(4, "0")}</p>
+                      {selectedDocument.internal_remito_type && (
+                        <p className="text-sm"><span className="font-semibold">Imputacion:</span> {INTERNAL_REMITO_LABEL[selectedDocument.internal_remito_type]}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-3xl border bg-card p-5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Resumen</p>
+                  <div className="mt-4 space-y-3">
+                    <div className="rounded-2xl border bg-[hsl(var(--accent))]/50 p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total documento</p>
+                      <p className="mt-2 text-3xl font-black text-primary">
+                        ${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-dashed p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Notas</p>
+                      <p className="mt-2 text-sm text-muted-foreground">{selectedDocument.notes ?? "Sin observaciones cargadas."}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Descripcion</TableHead>
+                      <TableHead className="text-right">Cant.</TableHead>
+                      <TableHead>Unidad</TableHead>
+                      <TableHead className="text-right">P.Unit.</TableHead>
+                      <TableHead className="text-right">Importe</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedLines.map((line) => (
+                      <TableRow key={line.id}>
+                        <TableCell>{line.line_order}</TableCell>
+                        <TableCell className="font-mono text-xs">{line.sku_snapshot ?? "-"}</TableCell>
+                        <TableCell className="font-medium">{line.description}</TableCell>
+                        <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
+                        <TableCell>{line.unit ?? "un"}</TableCell>
+                        <TableCell className="text-right font-mono">${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right font-mono">${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>
