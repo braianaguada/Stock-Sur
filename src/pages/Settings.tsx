@@ -118,13 +118,26 @@ export default function SettingsPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
+        <div className="rounded-3xl border bg-gradient-to-r from-[hsl(var(--accent))] via-card to-card p-6">
           <h1 className="text-2xl font-bold tracking-tight">Configuracion</h1>
-          <p className="text-muted-foreground">Empresa, identidad visual y encabezados de documentos.</p>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Empresa, identidad visual y encabezados de documentos. Todo lo que definas aca se refleja en menus, PDFs y branding compartido.</p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="rounded-full border bg-background/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+              {form.app_name || "Nombre de la app"}
+            </div>
+            <div className="flex items-center gap-2 rounded-full border bg-background/70 px-4 py-2 text-xs text-muted-foreground">
+              <span className="h-2.5 w-2.5 rounded-full border" style={{ backgroundColor: form.primary_color }} />
+              Primario
+              <span className="h-2.5 w-2.5 rounded-full border" style={{ backgroundColor: form.secondary_color }} />
+              Secundario
+              <span className="h-2.5 w-2.5 rounded-full border" style={{ backgroundColor: form.accent_color }} />
+              Acento
+            </div>
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
-          <Card>
+          <Card className="rounded-3xl">
             <CardHeader>
               <CardTitle>Datos de la empresa</CardTitle>
               <CardDescription>Estos datos se reutilizan en la app, el sidebar y los PDFs.</CardDescription>
@@ -176,10 +189,10 @@ export default function SettingsPage() {
           </Card>
 
           <div className="space-y-6">
-            <Card>
+            <Card className="rounded-3xl">
               <CardHeader>
                 <CardTitle>Marca visual</CardTitle>
-                <CardDescription>SVG es el formato ideal para logo. PNG funciona como respaldo.</CardDescription>
+                <CardDescription>SVG es el formato ideal para logo. PNG funciona como respaldo. El color de acento se usa para fondos suaves, paneles seleccionados y superficies de apoyo.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -209,17 +222,42 @@ export default function SettingsPage() {
                     <Input type="color" value={form.accent_color} onChange={(e) => setForm((prev) => ({ ...prev, accent_color: e.target.value }))} className="h-12 p-2" />
                   </div>
                 </div>
-                <div className="rounded-2xl border p-4">
+                <div className="rounded-3xl border p-4">
                   <p className="mb-3 text-sm font-medium">Vista previa</p>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: form.primary_color }}>
-                      Primario
+                  <div className="grid gap-4">
+                    <div className="rounded-2xl border p-4" style={{ backgroundColor: form.accent_color }}>
+                      <div className="mb-3 flex flex-wrap items-center gap-3">
+                        <div className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: form.primary_color }}>
+                          Primario
+                        </div>
+                        <div className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: form.secondary_color }}>
+                          Secundario
+                        </div>
+                        <div className="rounded-lg border bg-white/70 px-4 py-2 text-sm font-semibold" style={{ borderColor: form.primary_color }}>
+                          Acento
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border bg-white/80 p-4">
+                        <p className="text-sm font-semibold" style={{ color: form.primary_color }}>Panel con acento</p>
+                        <p className="mt-1 text-sm text-slate-600">Este fondo usa el color de acento como superficie suave para hover, seleccion y paneles destacados.</p>
+                      </div>
                     </div>
-                    <div className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: form.secondary_color }}>
-                      Secundario
-                    </div>
-                    <div className="rounded-lg border px-4 py-2 text-sm font-semibold" style={{ backgroundColor: form.accent_color }}>
-                      Acento
+                    <div className="overflow-hidden rounded-3xl border">
+                      <div className="flex min-h-[160px]">
+                        <div className="w-28 p-4 text-white" style={{ backgroundColor: form.primary_color }}>
+                          <div className="rounded-xl bg-white/15 px-3 py-2 text-xs font-semibold">Sidebar</div>
+                          <div className="mt-3 rounded-xl px-3 py-2 text-xs font-semibold" style={{ backgroundColor: form.secondary_color }}>
+                            Item activo
+                          </div>
+                        </div>
+                        <div className="flex-1 p-4" style={{ backgroundColor: form.accent_color }}>
+                          <div className="rounded-2xl border bg-white p-4 shadow-sm">
+                            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Preview de interfaz</p>
+                            <p className="mt-2 text-lg font-bold" style={{ color: form.primary_color }}>{form.app_name || "Tu empresa"}</p>
+                            <p className="mt-1 text-sm text-slate-600">Asi se perciben juntos los tres colores dentro de la app.</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
