@@ -471,7 +471,11 @@ export default function DocumentsPage() {
       .eq("document_id", doc.id)
       .order("line_order");
 
-    const rows = (lineRows ?? []).map((line: any) => `
+    const printableLines = (lineRows ?? []) as Array<
+      Pick<DocLineRow, "line_order" | "sku_snapshot" | "description" | "quantity" | "unit" | "unit_price" | "line_total">
+    >;
+
+    const rows = printableLines.map((line) => `
       <tr>
         <td>${line.line_order}</td>
         <td>${line.sku_snapshot ?? "-"}</td>
