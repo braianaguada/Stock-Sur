@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Eye, FileDown, Send, Copy, Ban, Pencil } from "lucide-react";
+import { Plus, Search, Eye, FileDown, Send, Copy, Ban, Pencil, Trash2 } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 
 type DocType = "PRESUPUESTO" | "REMITO";
@@ -649,16 +649,31 @@ export default function DocumentsPage() {
   };
 
   const onPriceListChange = (priceListId: string) => {
+    if (priceListId === form.price_list_id) return;
+
+    const hasLoadedLines = lines.some((line) =>
+      line.item_id !== null ||
+      line.description.trim() !== "" ||
+      line.quantity !== EMPTY_LINE.quantity ||
+      line.unit_price !== EMPTY_LINE.unit_price,
+    );
+
+    if (hasLoadedLines) {
+      const confirmed = window.confirm(
+        "Cambiar la lista va a eliminar todas las lineas cargadas para evitar mezclar productos y precios. ¿Querés continuar?",
+      );
+      if (!confirmed) return;
+    }
+
     setForm((prev) => ({ ...prev, price_list_id: priceListId }));
-    setLines((prev) => prev.map((line) => {
-      if (!priceListId) {
-        return { ...line, unit_price: line.unit_price };
-      }
-      if (!line.item_id || !priceByItem.has(line.item_id)) {
-        return { ...line, item_id: null, sku_snapshot: "", description: "", unit: "un", unit_price: 0 };
-      }
-      return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
-    }));
+    setLines([EMPTY_LINE]);
+  };
+
+  const removeLine = (idx: number) => {
+    setLines((prev) => {
+      if (prev.length === 1) return [EMPTY_LINE];
+      return prev.filter((_, lineIdx) => lineIdx !== idx);
+    });
   };
 
   const printDocument = async (doc: DocRow) => {
@@ -1105,6 +1120,18 @@ export default function DocumentsPage() {
                       />
                       <div className="col-span-2 flex items-center justify-end text-sm font-mono">
                         ${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                      </div>
+                      <div className="col-span-12 flex justify-end md:col-span-12">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeLine(idx)}
+                          title="Eliminar linea"
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" /> Eliminar linea
+                        </Button>
                       </div>
                     </div>
                   );
