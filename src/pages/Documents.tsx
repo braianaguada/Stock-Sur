@@ -125,6 +125,13 @@ const INTERNAL_REMITO_LABEL: Record<InternalRemitoType, string> = {
   CUENTA_CORRIENTE: "Cuenta corriente",
   DESCUENTO_SUELDO: "Descuento de sueldo",
 };
+const HISTORY_TONE_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
+  neutral: "border-slate-200 bg-slate-50 text-slate-700",
+  info: "border-blue-200 bg-blue-50 text-blue-700",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  warning: "border-amber-200 bg-amber-50 text-amber-700",
+  danger: "border-rose-200 bg-rose-50 text-rose-700",
+};
 
 const EMPTY_LINE: LineDraft = { item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 };
 
@@ -728,28 +735,40 @@ export default function DocumentsPage() {
       case "CREATED":
         return {
           title: "Documento creado",
-          detail: "Se genero el borrador inicial del documento.",
+          detail: "Borrador inicial",
+          tone: "neutral" as const,
         };
       case "UPDATED":
         return {
           title: "Borrador actualizado",
-          detail: "Se modificaron datos o lineas del documento.",
+          detail: "Se guardaron cambios",
+          tone: "info" as const,
         };
       case "STATUS_CHANGED": {
         const from = typeof payload?.from === "string" ? payload.from : null;
         const to = typeof payload?.to === "string" ? payload.to : null;
         const fromLabel = from && from in STATUS_LABEL ? STATUS_LABEL[from as DocStatus] : from;
         const toLabel = to && to in STATUS_LABEL ? STATUS_LABEL[to as DocStatus] : to;
+        const tone =
+          to === "APROBADO" || to === "EMITIDO"
+            ? "success"
+            : to === "RECHAZADO"
+              ? "warning"
+              : to === "ANULADO"
+                ? "danger"
+                : "info";
         return {
           title: "Cambio de estado",
-          detail: fromLabel && toLabel ? `Paso de ${fromLabel.toLowerCase()} a ${toLabel.toLowerCase()}.` : "Se actualizo el estado del documento.",
+          detail: fromLabel && toLabel ? `${fromLabel} -> ${toLabel}` : "Estado actualizado",
+          tone,
         };
       }
       case "REMITO_EMITIDO": {
         const reference = typeof payload?.reference === "string" ? payload.reference : null;
         return {
           title: "Remito emitido",
-          detail: reference ? `Se emitio el remito y se registro stock con referencia ${reference}.` : "Se emitio el remito y se desconto stock automaticamente.",
+          detail: reference ? `Stock descontado (${reference})` : "Stock descontado automaticamente",
+          tone: "success" as const,
         };
       }
       case "REMIO_CREATED_FROM_BUDGET":
@@ -757,13 +776,15 @@ export default function DocumentsPage() {
         const targetNumber = typeof payload?.target_number === "string" ? payload.target_number : null;
         return {
           title: "Convertido a remito",
-          detail: targetNumber ? `Se genero el remito borrador ${targetNumber}.` : "Se genero un remito borrador a partir de este presupuesto.",
+          detail: targetNumber ? `Nuevo remito ${targetNumber}` : "Nuevo remito borrador",
+          tone: "info" as const,
         };
       }
       default:
         return {
           title: event.event_type,
-          detail: "Evento registrado en el historial del documento.",
+          detail: "Evento registrado",
+          tone: "neutral" as const,
         };
     }
   };
@@ -1342,7 +1363,7 @@ export default function DocumentsPage() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Historial</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Eventos y cambios registrados del documento.</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Resumen de movimientos del documento.</p>
                     </div>
                   </div>
                   {sourceDocument && (
@@ -1363,15 +1384,20 @@ export default function DocumentsPage() {
                       const described = describeEvent(event);
                       return (
                         <div key={event.id} className="relative pb-5 last:pb-0">
-                          <div className="absolute left-[-15px] top-1 h-4 w-4 rounded-full border-4 border-background bg-primary shadow-sm" />
+                          <div className={`absolute left-[-15px] top-1 h-4 w-4 rounded-full border-4 border-background shadow-sm ${described.tone === "success" ? "bg-emerald-500" : described.tone === "info" ? "bg-blue-500" : described.tone === "warning" ? "bg-amber-500" : described.tone === "danger" ? "bg-rose-500" : "bg-slate-400"}`} />
                           <div className="rounded-2xl border bg-white/80 p-4 shadow-sm">
-                            <div className="flex flex-col gap-1">
-                              <p className="font-semibold">{described.title}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(event.created_at).toLocaleString("es-AR")}
-                              </p>
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="font-semibold">{described.title}</p>
+                                <p className="mt-1 text-sm text-muted-foreground">{described.detail}</p>
+                              </div>
+                              <Badge variant="outline" className={`shrink-0 ${HISTORY_TONE_CLASS[described.tone]}`}>
+                                {new Date(event.created_at).toLocaleDateString("es-AR")}
+                              </Badge>
                             </div>
-                            <p className="mt-2 text-sm text-muted-foreground">{described.detail}</p>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              {new Date(event.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
                           </div>
                         </div>
                       );
