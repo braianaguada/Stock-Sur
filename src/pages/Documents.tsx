@@ -62,6 +62,13 @@ interface DocLineRow {
   sku_snapshot: string | null;
 }
 
+interface DocEventRow {
+  id: string;
+  event_type: string;
+  payload: unknown;
+  created_at: string;
+}
+
 interface PriceListRow {
   id: string;
   name: string;
@@ -120,6 +127,9 @@ const INTERNAL_REMITO_LABEL: Record<InternalRemitoType, string> = {
 };
 
 const EMPTY_LINE: LineDraft = { item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) return error.message;
@@ -307,9 +317,28 @@ export default function DocumentsPage() {
     },
   });
 
+  const { data: selectedEvents = [] } = useQuery({
+    queryKey: ["document-events", selectedDocId],
+    enabled: !!selectedDocId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("document_events")
+        .select("id, event_type, payload, created_at")
+        .eq("document_id", selectedDocId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as DocEventRow[];
+    },
+  });
+
   const selectedDocument = useMemo(
     () => documents.find((row) => row.id === selectedDocId) ?? null,
     [documents, selectedDocId],
+  );
+
+  const sourceDocument = useMemo(
+    () => documents.find((row) => row.id === selectedDocument?.source_document_id) ?? null,
+    [documents, selectedDocument?.source_document_id],
   );
 
   const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
@@ -623,6 +652,22 @@ export default function DocumentsPage() {
       }));
       const { error: insErr } = await supabase.from("document_lines").insert(linesPayload);
       if (insErr) throw insErr;
+
+      const remitoNumberLabel = formatNumber(null, src.point_of_sale);
+      await supabase.from("document_events").insert([
+        {
+          document_id: newDoc.id,
+          event_type: "CREATED",
+          payload: { source: "budget_conversion", source_document_id: src.id },
+          created_by: user?.id,
+        },
+        {
+          document_id: src.id,
+          event_type: "REMITO_CREATED_FROM_BUDGET",
+          payload: { target_document_id: newDoc.id, target_number: remitoNumberLabel },
+          created_by: user?.id,
+        },
+      ]);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["documents"] });
@@ -674,6 +719,53 @@ export default function DocumentsPage() {
       if (prev.length === 1) return [EMPTY_LINE];
       return prev.filter((_, lineIdx) => lineIdx !== idx);
     });
+  };
+
+  const describeEvent = (event: DocEventRow) => {
+    const payload = isRecord(event.payload) ? event.payload : null;
+
+    switch (event.event_type) {
+      case "CREATED":
+        return {
+          title: "Documento creado",
+          detail: "Se genero el borrador inicial del documento.",
+        };
+      case "UPDATED":
+        return {
+          title: "Borrador actualizado",
+          detail: "Se modificaron datos o lineas del documento.",
+        };
+      case "STATUS_CHANGED": {
+        const from = typeof payload?.from === "string" ? payload.from : null;
+        const to = typeof payload?.to === "string" ? payload.to : null;
+        const fromLabel = from && from in STATUS_LABEL ? STATUS_LABEL[from as DocStatus] : from;
+        const toLabel = to && to in STATUS_LABEL ? STATUS_LABEL[to as DocStatus] : to;
+        return {
+          title: "Cambio de estado",
+          detail: fromLabel && toLabel ? `Paso de ${fromLabel.toLowerCase()} a ${toLabel.toLowerCase()}.` : "Se actualizo el estado del documento.",
+        };
+      }
+      case "REMITO_EMITIDO": {
+        const reference = typeof payload?.reference === "string" ? payload.reference : null;
+        return {
+          title: "Remito emitido",
+          detail: reference ? `Se emitio el remito y se registro stock con referencia ${reference}.` : "Se emitio el remito y se desconto stock automaticamente.",
+        };
+      }
+      case "REMIO_CREATED_FROM_BUDGET":
+      case "REMITO_CREATED_FROM_BUDGET": {
+        const targetNumber = typeof payload?.target_number === "string" ? payload.target_number : null;
+        return {
+          title: "Convertido a remito",
+          detail: targetNumber ? `Se genero el remito borrador ${targetNumber}.` : "Se genero un remito borrador a partir de este presupuesto.",
+        };
+      }
+      default:
+        return {
+          title: event.event_type,
+          detail: "Evento registrado en el historial del documento.",
+        };
+    }
   };
 
   const printDocument = async (doc: DocRow) => {
@@ -1241,6 +1333,45 @@ export default function DocumentsPage() {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+
+              <div className="rounded-3xl border bg-card p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Historial</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Eventos y cambios registrados del documento.</p>
+                  </div>
+                  {sourceDocument && (
+                    <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
+                      Origen: {DOC_LABEL[sourceDocument.doc_type]} {formatNumber(sourceDocument.document_number, sourceDocument.point_of_sale)}
+                    </Badge>
+                  )}
+                </div>
+                <div className="mt-4 space-y-3">
+                  {selectedEvents.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+                      Todavia no hay eventos registrados para este documento.
+                    </div>
+                  ) : (
+                    selectedEvents.map((event) => {
+                      const described = describeEvent(event);
+                      return (
+                        <div key={event.id} className="flex gap-3 rounded-2xl border bg-white/80 p-4">
+                          <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                              <p className="font-semibold">{described.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(event.created_at).toLocaleString("es-AR")}
+                              </p>
+                            </div>
+                            <p className="mt-1 text-sm text-muted-foreground">{described.detail}</p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
           )}
