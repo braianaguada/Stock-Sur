@@ -62,6 +62,13 @@ interface DocLineRow {
   sku_snapshot: string | null;
 }
 
+interface DocEventRow {
+  id: string;
+  event_type: string;
+  payload: unknown;
+  created_at: string;
+}
+
 interface PriceListRow {
   id: string;
   name: string;
@@ -118,8 +125,25 @@ const INTERNAL_REMITO_LABEL: Record<InternalRemitoType, string> = {
   CUENTA_CORRIENTE: "Cuenta corriente",
   DESCUENTO_SUELDO: "Descuento de sueldo",
 };
+const HISTORY_TONE_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
+  neutral: "border-slate-200 bg-slate-50 text-slate-700",
+  info: "border-blue-200 bg-blue-50 text-blue-700",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  warning: "border-amber-200 bg-amber-50 text-amber-700",
+  danger: "border-rose-200 bg-rose-50 text-rose-700",
+};
+const HISTORY_DOT_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
+  neutral: "bg-slate-400 shadow-slate-200",
+  info: "bg-blue-500 shadow-blue-200",
+  success: "bg-emerald-500 shadow-emerald-200",
+  warning: "bg-amber-500 shadow-amber-200",
+  danger: "bg-rose-500 shadow-rose-200",
+};
 
 const EMPTY_LINE: LineDraft = { item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) return error.message;
@@ -307,9 +331,28 @@ export default function DocumentsPage() {
     },
   });
 
+  const { data: selectedEvents = [] } = useQuery({
+    queryKey: ["document-events", selectedDocId],
+    enabled: !!selectedDocId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("document_events")
+        .select("id, event_type, payload, created_at")
+        .eq("document_id", selectedDocId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as DocEventRow[];
+    },
+  });
+
   const selectedDocument = useMemo(
     () => documents.find((row) => row.id === selectedDocId) ?? null,
     [documents, selectedDocId],
+  );
+
+  const sourceDocument = useMemo(
+    () => documents.find((row) => row.id === selectedDocument?.source_document_id) ?? null,
+    [documents, selectedDocument?.source_document_id],
   );
 
   const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
@@ -623,6 +666,22 @@ export default function DocumentsPage() {
       }));
       const { error: insErr } = await supabase.from("document_lines").insert(linesPayload);
       if (insErr) throw insErr;
+
+      const remitoNumberLabel = formatNumber(null, src.point_of_sale);
+      await supabase.from("document_events").insert([
+        {
+          document_id: newDoc.id,
+          event_type: "CREATED",
+          payload: { source: "budget_conversion", source_document_id: src.id },
+          created_by: user?.id,
+        },
+        {
+          document_id: src.id,
+          event_type: "REMITO_CREATED_FROM_BUDGET",
+          payload: { target_document_id: newDoc.id, target_number: remitoNumberLabel },
+          created_by: user?.id,
+        },
+      ]);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["documents"] });
@@ -674,6 +733,67 @@ export default function DocumentsPage() {
       if (prev.length === 1) return [EMPTY_LINE];
       return prev.filter((_, lineIdx) => lineIdx !== idx);
     });
+  };
+
+  const describeEvent = (event: DocEventRow) => {
+    const payload = isRecord(event.payload) ? event.payload : null;
+
+    switch (event.event_type) {
+      case "CREATED":
+        return {
+          title: "Documento creado",
+          detail: "Borrador inicial",
+          tone: "neutral" as const,
+        };
+      case "UPDATED":
+        return {
+          title: "Borrador actualizado",
+          detail: "Se guardaron cambios",
+          tone: "info" as const,
+        };
+      case "STATUS_CHANGED": {
+        const from = typeof payload?.from === "string" ? payload.from : null;
+        const to = typeof payload?.to === "string" ? payload.to : null;
+        const fromLabel = from && from in STATUS_LABEL ? STATUS_LABEL[from as DocStatus] : from;
+        const toLabel = to && to in STATUS_LABEL ? STATUS_LABEL[to as DocStatus] : to;
+        const tone =
+          to === "APROBADO" || to === "EMITIDO"
+            ? "success"
+            : to === "RECHAZADO"
+              ? "warning"
+              : to === "ANULADO"
+                ? "danger"
+                : "info";
+        return {
+          title: "Cambio de estado",
+          detail: fromLabel && toLabel ? `${fromLabel} -> ${toLabel}` : "Estado actualizado",
+          tone,
+        };
+      }
+      case "REMITO_EMITIDO": {
+        const reference = typeof payload?.reference === "string" ? payload.reference : null;
+        return {
+          title: "Remito emitido",
+          detail: reference ? `Stock descontado (${reference})` : "Stock descontado automaticamente",
+          tone: "success" as const,
+        };
+      }
+      case "REMIO_CREATED_FROM_BUDGET":
+      case "REMITO_CREATED_FROM_BUDGET": {
+        const targetNumber = typeof payload?.target_number === "string" ? payload.target_number : null;
+        return {
+          title: "Convertido a remito",
+          detail: targetNumber ? `Nuevo remito ${targetNumber}` : "Nuevo remito borrador",
+          tone: "info" as const,
+        };
+      }
+      default:
+        return {
+          title: event.event_type,
+          detail: "Evento registrado",
+          tone: "neutral" as const,
+        };
+    }
   };
 
   const printDocument = async (doc: DocRow) => {
@@ -1150,98 +1270,148 @@ export default function DocumentsPage() {
       </Dialog>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader><DialogTitle>Vista previa del documento</DialogTitle></DialogHeader>
           {selectedDocument && (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-                <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-[hsl(var(--accent))]/70 p-5">
-                  <div className="mb-4 flex items-start justify-between gap-4">
-                    <div className="space-y-3">
-                      <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
-                        {DOC_LABEL[selectedDocument.doc_type]}
-                      </Badge>
-                      <div>
-                        {companySettings.logo_url ? (
-                          <img src={companySettings.logo_url} alt={companySettings.app_name} className="h-16 w-auto max-w-[220px] object-contain" />
-                        ) : (
-                          <p className="text-2xl font-black tracking-[0.12em] text-primary">{companySettings.app_name}</p>
-                        )}
-                        <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                          {companySettings.document_tagline ?? "Documentacion comercial"}
-                        </p>
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="min-w-0 max-h-[72vh] space-y-4 overflow-y-auto pr-1">
+                <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+                  <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-[hsl(var(--accent))]/70 p-5">
+                    <div className="mb-4 flex items-start justify-between gap-4">
+                      <div className="space-y-3">
+                        <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
+                          {DOC_LABEL[selectedDocument.doc_type]}
+                        </Badge>
+                        <div>
+                          {companySettings.logo_url ? (
+                            <img src={companySettings.logo_url} alt={companySettings.app_name} className="h-16 w-auto max-w-[220px] object-contain" />
+                          ) : (
+                            <p className="text-2xl font-black tracking-[0.12em] text-primary">{companySettings.app_name}</p>
+                          )}
+                          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                            {companySettings.document_tagline ?? "Documentacion comercial"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right text-white shadow-sm">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300">Documento</p>
+                        <p className="mt-1 text-lg font-bold">{DOC_LABEL[selectedDocument.doc_type]}</p>
+                        <p className="mt-2 text-xs text-slate-300">{formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}</p>
                       </div>
                     </div>
-                    <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right text-white shadow-sm">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300">Documento</p>
-                      <p className="mt-1 text-lg font-bold">{DOC_LABEL[selectedDocument.doc_type]}</p>
-                      <p className="mt-2 text-xs text-slate-300">{formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-2xl border bg-white/80 p-4">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+                        <p className="mt-2 font-semibold">{selectedDocument.customer_name ?? "Cliente ocasional"}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Tipo: {CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">CUIT: {selectedDocument.customer_tax_id ?? "-"}</p>
+                        <p className="text-sm text-muted-foreground">Condicion fiscal: {selectedDocument.customer_tax_condition ?? "-"}</p>
+                      </div>
+                      <div className="rounded-2xl border bg-white/80 p-4">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
+                        <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(selectedDocument.issue_date).toLocaleDateString("es-AR")}</p>
+                        <p className="text-sm"><span className="font-semibold">Estado:</span> {STATUS_LABEL[selectedDocument.status]}</p>
+                        <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(selectedDocument.point_of_sale).padStart(4, "0")}</p>
+                        {selectedDocument.internal_remito_type && (
+                          <p className="text-sm"><span className="font-semibold">Imputacion:</span> {INTERNAL_REMITO_LABEL[selectedDocument.internal_remito_type]}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border bg-white/80 p-4">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
-                      <p className="mt-2 font-semibold">{selectedDocument.customer_name ?? "Cliente ocasional"}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Tipo: {CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">CUIT: {selectedDocument.customer_tax_id ?? "-"}</p>
-                      <p className="text-sm text-muted-foreground">Condicion fiscal: {selectedDocument.customer_tax_condition ?? "-"}</p>
-                    </div>
-                    <div className="rounded-2xl border bg-white/80 p-4">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
-                      <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(selectedDocument.issue_date).toLocaleDateString("es-AR")}</p>
-                      <p className="text-sm"><span className="font-semibold">Estado:</span> {STATUS_LABEL[selectedDocument.status]}</p>
-                      <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(selectedDocument.point_of_sale).padStart(4, "0")}</p>
-                      {selectedDocument.internal_remito_type && (
-                        <p className="text-sm"><span className="font-semibold">Imputacion:</span> {INTERNAL_REMITO_LABEL[selectedDocument.internal_remito_type]}</p>
-                      )}
+                  <div className="rounded-3xl border bg-card p-5">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Resumen</p>
+                    <div className="mt-4 space-y-3">
+                      <div className="rounded-2xl border bg-[hsl(var(--accent))]/50 p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total documento</p>
+                        <p className="mt-2 text-3xl font-black text-primary">
+                          ${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-dashed p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Notas</p>
+                        <p className="mt-2 text-sm text-muted-foreground">{selectedDocument.notes ?? "Sin observaciones cargadas."}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="rounded-3xl border bg-card p-5">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Resumen</p>
-                  <div className="mt-4 space-y-3">
-                    <div className="rounded-2xl border bg-[hsl(var(--accent))]/50 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total documento</p>
-                      <p className="mt-2 text-3xl font-black text-primary">
-                        ${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-dashed p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Notas</p>
-                      <p className="mt-2 text-sm text-muted-foreground">{selectedDocument.notes ?? "Sin observaciones cargadas."}</p>
-                    </div>
-                  </div>
+
+                <div className="overflow-x-auto rounded-3xl border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Descripcion</TableHead>
+                        <TableHead className="text-right">Cant.</TableHead>
+                        <TableHead>Unidad</TableHead>
+                        <TableHead className="text-right">P.Unit.</TableHead>
+                        <TableHead className="text-right">Importe</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedLines.map((line) => (
+                        <TableRow key={line.id}>
+                          <TableCell>{line.line_order}</TableCell>
+                          <TableCell className="font-mono text-xs">{line.sku_snapshot ?? "-"}</TableCell>
+                          <TableCell className="font-medium">{line.description}</TableCell>
+                          <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
+                          <TableCell>{line.unit ?? "un"}</TableCell>
+                          <TableCell className="text-right font-mono">${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right font-mono">${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-3xl border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>#</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Descripcion</TableHead>
-                      <TableHead className="text-right">Cant.</TableHead>
-                      <TableHead>Unidad</TableHead>
-                      <TableHead className="text-right">P.Unit.</TableHead>
-                      <TableHead className="text-right">Importe</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedLines.map((line) => (
-                      <TableRow key={line.id}>
-                        <TableCell>{line.line_order}</TableCell>
-                        <TableCell className="font-mono text-xs">{line.sku_snapshot ?? "-"}</TableCell>
-                        <TableCell className="font-medium">{line.description}</TableCell>
-                        <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
-                        <TableCell>{line.unit ?? "un"}</TableCell>
-                        <TableCell className="text-right font-mono">${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right font-mono">${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <aside className="rounded-3xl border bg-card p-5 lg:max-h-[72vh] lg:overflow-y-auto">
+                <div className="mb-5">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Historial</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Linea de tiempo del documento.</p>
+                  {sourceDocument && (
+                    <Badge variant="outline" className="mt-3 border-slate-200 bg-slate-50 text-slate-700">
+                      Origen: {DOC_LABEL[sourceDocument.doc_type]} {formatNumber(sourceDocument.document_number, sourceDocument.point_of_sale)}
+                    </Badge>
+                  )}
+                </div>
+
+                {selectedEvents.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+                    Todavia no hay eventos registrados para este documento.
+                  </div>
+                ) : (
+                  <div className="relative pl-7">
+                    <div className="absolute bottom-2 left-[11px] top-2 w-px rounded-full bg-gradient-to-b from-blue-200 via-emerald-200 to-slate-200" />
+                    <div className="space-y-4">
+                      {selectedEvents.map((event) => {
+                        const described = describeEvent(event);
+                        return (
+                          <div key={event.id} className="relative">
+                            <div className={`absolute left-[-21px] top-5 h-3.5 w-3.5 rounded-full ring-4 ring-white shadow-md ${HISTORY_DOT_CLASS[described.tone]}`} />
+                            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold leading-5 text-slate-900">{described.title}</p>
+                                  <p className="mt-1 text-sm leading-5 text-slate-500">{described.detail}</p>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <Badge variant="outline" className={HISTORY_TONE_CLASS[described.tone]}>
+                                    {new Date(event.created_at).toLocaleDateString("es-AR")}
+                                  </Badge>
+                                  <p className="mt-2 text-xs text-slate-400">
+                                    {new Date(event.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </aside>
             </div>
           )}
         </DialogContent>
