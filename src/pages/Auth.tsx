@@ -6,8 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Package } from "lucide-react";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
 
 export default function AuthPage() {
+  const { settings } = useCompanyBrand();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,10 +47,16 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md animate-fade-in">
         <CardHeader className="text-center space-y-2">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
-            <Package className="h-7 w-7 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">Stock Sur</CardTitle>
+          {settings.logo_url ? (
+            <div className="mx-auto flex h-16 w-20 items-center justify-center">
+              <img src={settings.logo_url} alt={settings.app_name} className="h-full w-full object-contain" />
+            </div>
+          ) : (
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
+              <Package className="h-7 w-7 text-primary-foreground" />
+            </div>
+          )}
+          <CardTitle className="text-2xl font-bold tracking-tight">{settings.app_name}</CardTitle>
           <CardDescription>
             {isLogin ? "Ingresá a tu cuenta" : "Creá una cuenta nueva"}
           </CardDescription>

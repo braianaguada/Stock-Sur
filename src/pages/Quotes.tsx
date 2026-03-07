@@ -21,6 +21,7 @@ import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Eye, Trash2, FileDown, X } from "lucide-react";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
 
 interface QuoteLine {
   description: string;
@@ -56,6 +57,7 @@ const STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline" | "des
 };
 
 export default function QuotesPage() {
+  const { settings } = useCompanyBrand();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
@@ -184,7 +186,7 @@ export default function QuotesPage() {
         .total{font-size:1.2em;font-weight:bold;text-align:right;margin-top:20px}
         .meta{color:#64748b;margin:5px 0}
         @media print{button{display:none}}</style></head><body>
-        <h1>Stock Sur — Presupuesto #${selectedQuote.quote_number}</h1>
+        <h1>${settings.app_name} — Presupuesto #${selectedQuote.quote_number}</h1>
         <p class="meta">Cliente: <strong>${selectedQuote.customer_name ?? "—"}</strong></p>
         <p class="meta">Fecha: ${new Date(selectedQuote.created_at).toLocaleDateString("es-AR")}</p>
         ${selectedQuote.notes ? `<p class="meta">Notas: ${selectedQuote.notes}</p>` : ""}

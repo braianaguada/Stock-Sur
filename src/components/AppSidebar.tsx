@@ -11,11 +11,13 @@ import {
   Users,
   LogOut,
   ChevronLeft,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -25,14 +27,16 @@ const navItems = [
   { title: "Listas de precios", url: "/price-lists", icon: FileSpreadsheet },
   { title: "Importar catálogo (sistema viejo)", url: "/items/catalog/import-legacy", icon: FolderUp },
   { title: "Pendientes", url: "/pending", icon: AlertCircle },
-  { title: "Presupuestos", url: "/quotes", icon: FileText },
+  { title: "Documentos", url: "/documents", icon: FileText },
   { title: "Clientes", url: "/customers", icon: Users },
+  { title: "Configuracion", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
   const location = useLocation();
   const { signOut, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const { settings } = useCompanyBrand();
 
   return (
     <aside
@@ -41,14 +45,22 @@ export function AppSidebar() {
         collapsed ? "w-16" : "w-60"
       )}
     >
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
-          <Package className="h-5 w-5 text-sidebar-primary-foreground" />
-        </div>
+      <div className="border-b border-sidebar-border bg-gradient-to-b from-white/5 to-transparent px-4 py-4">
+        <div className="flex items-center gap-3">
+        {settings.logo_url ? (
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/90 p-1 shadow-sm">
+            <img src={settings.logo_url} alt={settings.app_name} className="h-full w-full object-contain" />
+          </div>
+        ) : (
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm">
+            <Package className="h-5 w-5 text-sidebar-primary-foreground" />
+          </div>
+        )}
         {!collapsed && (
-          <span className="text-lg font-bold text-sidebar-accent-foreground tracking-tight">
-            Stock Sur
-          </span>
+          <div className="min-w-0">
+            <p className="truncate text-lg font-bold tracking-tight text-sidebar-accent-foreground">{settings.app_name}</p>
+            <p className="truncate text-[11px] uppercase tracking-[0.18em] text-sidebar-foreground/70">Panel operativo</p>
+          </div>
         )}
         <Button
           variant="ghost"
@@ -61,6 +73,7 @@ export function AppSidebar() {
         >
           <ChevronLeft className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
         </Button>
+        </div>
       </div>
 
       <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
@@ -73,12 +86,13 @@ export function AppSidebar() {
               key={item.url}
               to={item.url}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                "relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-primary"
+                  ? "bg-sidebar-accent text-sidebar-primary shadow-sm"
                   : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
             >
+              {isActive && <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-sidebar-primary" />}
               <item.icon className="h-4.5 w-4.5 shrink-0" />
               {!collapsed && <span>{item.title}</span>}
             </Link>
@@ -90,7 +104,7 @@ export function AppSidebar() {
         <button
           onClick={signOut}
           className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium w-full transition-colors",
+            "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full transition-colors",
             "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           )}
         >
