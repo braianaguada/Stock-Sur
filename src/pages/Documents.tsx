@@ -1242,137 +1242,143 @@ export default function DocumentsPage() {
       </Dialog>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader><DialogTitle>Vista previa del documento</DialogTitle></DialogHeader>
           {selectedDocument && (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-                <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-[hsl(var(--accent))]/70 p-5">
-                  <div className="mb-4 flex items-start justify-between gap-4">
-                    <div className="space-y-3">
-                      <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
-                        {DOC_LABEL[selectedDocument.doc_type]}
-                      </Badge>
-                      <div>
-                        {companySettings.logo_url ? (
-                          <img src={companySettings.logo_url} alt={companySettings.app_name} className="h-16 w-auto max-w-[220px] object-contain" />
-                        ) : (
-                          <p className="text-2xl font-black tracking-[0.12em] text-primary">{companySettings.app_name}</p>
-                        )}
-                        <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                          {companySettings.document_tagline ?? "Documentacion comercial"}
-                        </p>
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="min-w-0 max-h-[72vh] space-y-4 overflow-y-auto pr-1">
+                <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+                  <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-[hsl(var(--accent))]/70 p-5">
+                    <div className="mb-4 flex items-start justify-between gap-4">
+                      <div className="space-y-3">
+                        <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
+                          {DOC_LABEL[selectedDocument.doc_type]}
+                        </Badge>
+                        <div>
+                          {companySettings.logo_url ? (
+                            <img src={companySettings.logo_url} alt={companySettings.app_name} className="h-16 w-auto max-w-[220px] object-contain" />
+                          ) : (
+                            <p className="text-2xl font-black tracking-[0.12em] text-primary">{companySettings.app_name}</p>
+                          )}
+                          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                            {companySettings.document_tagline ?? "Documentacion comercial"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right text-white shadow-sm">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300">Documento</p>
+                        <p className="mt-1 text-lg font-bold">{DOC_LABEL[selectedDocument.doc_type]}</p>
+                        <p className="mt-2 text-xs text-slate-300">{formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}</p>
                       </div>
                     </div>
-                    <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right text-white shadow-sm">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300">Documento</p>
-                      <p className="mt-1 text-lg font-bold">{DOC_LABEL[selectedDocument.doc_type]}</p>
-                      <p className="mt-2 text-xs text-slate-300">{formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-2xl border bg-white/80 p-4">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+                        <p className="mt-2 font-semibold">{selectedDocument.customer_name ?? "Cliente ocasional"}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Tipo: {CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">CUIT: {selectedDocument.customer_tax_id ?? "-"}</p>
+                        <p className="text-sm text-muted-foreground">Condicion fiscal: {selectedDocument.customer_tax_condition ?? "-"}</p>
+                      </div>
+                      <div className="rounded-2xl border bg-white/80 p-4">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
+                        <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(selectedDocument.issue_date).toLocaleDateString("es-AR")}</p>
+                        <p className="text-sm"><span className="font-semibold">Estado:</span> {STATUS_LABEL[selectedDocument.status]}</p>
+                        <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(selectedDocument.point_of_sale).padStart(4, "0")}</p>
+                        {selectedDocument.internal_remito_type && (
+                          <p className="text-sm"><span className="font-semibold">Imputacion:</span> {INTERNAL_REMITO_LABEL[selectedDocument.internal_remito_type]}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border bg-white/80 p-4">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
-                      <p className="mt-2 font-semibold">{selectedDocument.customer_name ?? "Cliente ocasional"}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Tipo: {CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">CUIT: {selectedDocument.customer_tax_id ?? "-"}</p>
-                      <p className="text-sm text-muted-foreground">Condicion fiscal: {selectedDocument.customer_tax_condition ?? "-"}</p>
-                    </div>
-                    <div className="rounded-2xl border bg-white/80 p-4">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
-                      <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(selectedDocument.issue_date).toLocaleDateString("es-AR")}</p>
-                      <p className="text-sm"><span className="font-semibold">Estado:</span> {STATUS_LABEL[selectedDocument.status]}</p>
-                      <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(selectedDocument.point_of_sale).padStart(4, "0")}</p>
-                      {selectedDocument.internal_remito_type && (
-                        <p className="text-sm"><span className="font-semibold">Imputacion:</span> {INTERNAL_REMITO_LABEL[selectedDocument.internal_remito_type]}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-3xl border bg-card p-5">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Resumen</p>
-                  <div className="mt-4 space-y-3">
-                    <div className="rounded-2xl border bg-[hsl(var(--accent))]/50 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total documento</p>
-                      <p className="mt-2 text-3xl font-black text-primary">
-                        ${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-dashed p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Notas</p>
-                      <p className="mt-2 text-sm text-muted-foreground">{selectedDocument.notes ?? "Sin observaciones cargadas."}</p>
+                  <div className="rounded-3xl border bg-card p-5">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Resumen</p>
+                    <div className="mt-4 space-y-3">
+                      <div className="rounded-2xl border bg-[hsl(var(--accent))]/50 p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total documento</p>
+                        <p className="mt-2 text-3xl font-black text-primary">
+                          ${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-dashed p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Notas</p>
+                        <p className="mt-2 text-sm text-muted-foreground">{selectedDocument.notes ?? "Sin observaciones cargadas."}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="overflow-hidden rounded-3xl border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>#</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Descripcion</TableHead>
-                      <TableHead className="text-right">Cant.</TableHead>
-                      <TableHead>Unidad</TableHead>
-                      <TableHead className="text-right">P.Unit.</TableHead>
-                      <TableHead className="text-right">Importe</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedLines.map((line) => (
-                      <TableRow key={line.id}>
-                        <TableCell>{line.line_order}</TableCell>
-                        <TableCell className="font-mono text-xs">{line.sku_snapshot ?? "-"}</TableCell>
-                        <TableCell className="font-medium">{line.description}</TableCell>
-                        <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
-                        <TableCell>{line.unit ?? "un"}</TableCell>
-                        <TableCell className="text-right font-mono">${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right font-mono">${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                <div className="overflow-x-auto rounded-3xl border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Descripcion</TableHead>
+                        <TableHead className="text-right">Cant.</TableHead>
+                        <TableHead>Unidad</TableHead>
+                        <TableHead className="text-right">P.Unit.</TableHead>
+                        <TableHead className="text-right">Importe</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedLines.map((line) => (
+                        <TableRow key={line.id}>
+                          <TableCell>{line.line_order}</TableCell>
+                          <TableCell className="font-mono text-xs">{line.sku_snapshot ?? "-"}</TableCell>
+                          <TableCell className="font-medium">{line.description}</TableCell>
+                          <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
+                          <TableCell>{line.unit ?? "un"}</TableCell>
+                          <TableCell className="text-right font-mono">${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right font-mono">${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
 
-              <div className="rounded-3xl border bg-card p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Historial</p>
-                    <p className="mt-1 text-sm text-muted-foreground">Eventos y cambios registrados del documento.</p>
+              <aside className="rounded-3xl border bg-card p-5 lg:max-h-[72vh] lg:overflow-y-auto">
+                <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 rounded-t-3xl border-b bg-card px-5 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Historial</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Eventos y cambios registrados del documento.</p>
+                    </div>
                   </div>
                   {sourceDocument && (
-                    <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
+                    <Badge variant="outline" className="mt-3 border-slate-200 bg-slate-50 text-slate-700">
                       Origen: {DOC_LABEL[sourceDocument.doc_type]} {formatNumber(sourceDocument.document_number, sourceDocument.point_of_sale)}
                     </Badge>
                   )}
                 </div>
-                <div className="mt-4 space-y-3">
-                  {selectedEvents.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
-                      Todavia no hay eventos registrados para este documento.
-                    </div>
-                  ) : (
-                    selectedEvents.map((event) => {
+
+                {selectedEvents.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+                    Todavia no hay eventos registrados para este documento.
+                  </div>
+                ) : (
+                  <div className="relative space-y-0 pl-6">
+                    <div className="absolute bottom-0 left-[9px] top-1 w-px bg-border" />
+                    {selectedEvents.map((event) => {
                       const described = describeEvent(event);
                       return (
-                        <div key={event.id} className="flex gap-3 rounded-2xl border bg-white/80 p-4">
-                          <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                        <div key={event.id} className="relative pb-5 last:pb-0">
+                          <div className="absolute left-[-15px] top-1 h-4 w-4 rounded-full border-4 border-background bg-primary shadow-sm" />
+                          <div className="rounded-2xl border bg-white/80 p-4 shadow-sm">
+                            <div className="flex flex-col gap-1">
                               <p className="font-semibold">{described.title}</p>
                               <p className="text-xs text-muted-foreground">
                                 {new Date(event.created_at).toLocaleString("es-AR")}
                               </p>
                             </div>
-                            <p className="mt-1 text-sm text-muted-foreground">{described.detail}</p>
+                            <p className="mt-2 text-sm text-muted-foreground">{described.detail}</p>
                           </div>
                         </div>
                       );
-                    })
-                  )}
-                </div>
-              </div>
+                    })}
+                  </div>
+                )}
+              </aside>
             </div>
           )}
         </DialogContent>
