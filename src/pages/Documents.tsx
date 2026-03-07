@@ -132,6 +132,13 @@ const HISTORY_TONE_CLASS: Record<"neutral" | "info" | "success" | "warning" | "d
   warning: "border-amber-200 bg-amber-50 text-amber-700",
   danger: "border-rose-200 bg-rose-50 text-rose-700",
 };
+const HISTORY_DOT_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
+  neutral: "bg-slate-400 shadow-slate-200",
+  info: "bg-blue-500 shadow-blue-200",
+  success: "bg-emerald-500 shadow-emerald-200",
+  warning: "bg-amber-500 shadow-amber-200",
+  danger: "bg-rose-500 shadow-rose-200",
+};
 
 const EMPTY_LINE: LineDraft = { item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 };
 
@@ -1359,13 +1366,9 @@ export default function DocumentsPage() {
               </div>
 
               <aside className="rounded-3xl border bg-card p-5 lg:max-h-[72vh] lg:overflow-y-auto">
-                <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 rounded-t-3xl border-b bg-card px-5 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Historial</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Resumen de movimientos del documento.</p>
-                    </div>
-                  </div>
+                <div className="mb-5">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Historial</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Linea de tiempo del documento.</p>
                   {sourceDocument && (
                     <Badge variant="outline" className="mt-3 border-slate-200 bg-slate-50 text-slate-700">
                       Origen: {DOC_LABEL[sourceDocument.doc_type]} {formatNumber(sourceDocument.document_number, sourceDocument.point_of_sale)}
@@ -1378,30 +1381,34 @@ export default function DocumentsPage() {
                     Todavia no hay eventos registrados para este documento.
                   </div>
                 ) : (
-                  <div className="relative space-y-0 pl-6">
-                    <div className="absolute bottom-0 left-[9px] top-1 w-px bg-border" />
-                    {selectedEvents.map((event) => {
-                      const described = describeEvent(event);
-                      return (
-                        <div key={event.id} className="relative pb-5 last:pb-0">
-                          <div className={`absolute left-[-15px] top-1 h-4 w-4 rounded-full border-4 border-background shadow-sm ${described.tone === "success" ? "bg-emerald-500" : described.tone === "info" ? "bg-blue-500" : described.tone === "warning" ? "bg-amber-500" : described.tone === "danger" ? "bg-rose-500" : "bg-slate-400"}`} />
-                          <div className="rounded-2xl border bg-white/80 p-4 shadow-sm">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="font-semibold">{described.title}</p>
-                                <p className="mt-1 text-sm text-muted-foreground">{described.detail}</p>
+                  <div className="relative pl-7">
+                    <div className="absolute bottom-2 left-[11px] top-2 w-px rounded-full bg-gradient-to-b from-blue-200 via-emerald-200 to-slate-200" />
+                    <div className="space-y-4">
+                      {selectedEvents.map((event) => {
+                        const described = describeEvent(event);
+                        return (
+                          <div key={event.id} className="relative">
+                            <div className={`absolute left-[-21px] top-5 h-3.5 w-3.5 rounded-full ring-4 ring-white shadow-md ${HISTORY_DOT_CLASS[described.tone]}`} />
+                            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold leading-5 text-slate-900">{described.title}</p>
+                                  <p className="mt-1 text-sm leading-5 text-slate-500">{described.detail}</p>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <Badge variant="outline" className={HISTORY_TONE_CLASS[described.tone]}>
+                                    {new Date(event.created_at).toLocaleDateString("es-AR")}
+                                  </Badge>
+                                  <p className="mt-2 text-xs text-slate-400">
+                                    {new Date(event.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                                  </p>
+                                </div>
                               </div>
-                              <Badge variant="outline" className={`shrink-0 ${HISTORY_TONE_CLASS[described.tone]}`}>
-                                {new Date(event.created_at).toLocaleDateString("es-AR")}
-                              </Badge>
                             </div>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              {new Date(event.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-                            </p>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </aside>
