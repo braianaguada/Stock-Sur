@@ -672,7 +672,12 @@ export default function DocumentsPage() {
         {
           document_id: newDoc.id,
           event_type: "CREATED",
-          payload: { source: "budget_conversion", source_document_id: src.id },
+          payload: {
+            source: "budget_conversion",
+            source_document_id: src.id,
+            source_doc_type: src.doc_type,
+            source_number: formatNumber(src.document_number, src.point_of_sale),
+          },
           created_by: user?.id,
         },
         {
@@ -739,12 +744,19 @@ export default function DocumentsPage() {
     const payload = isRecord(event.payload) ? event.payload : null;
 
     switch (event.event_type) {
-      case "CREATED":
+      case "CREATED": {
+        const source = typeof payload?.source === "string" ? payload.source : null;
+        const sourceNumber = typeof payload?.source_number === "string" ? payload.source_number : null;
+        const sourceDocType = typeof payload?.source_doc_type === "string" ? payload.source_doc_type : null;
         return {
-          title: "Documento creado",
-          detail: "Borrador inicial",
+          title: source === "budget_conversion" ? "Remito creado" : "Documento creado",
+          detail:
+            source === "budget_conversion"
+              ? `Creado a partir de ${sourceDocType === "PRESUPUESTO" ? "presupuesto" : "documento"} ${sourceNumber ?? ""}`.trim()
+              : "Borrador inicial",
           tone: "neutral" as const,
         };
+      }
       case "UPDATED":
         return {
           title: "Borrador actualizado",
