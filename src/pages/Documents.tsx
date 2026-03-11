@@ -42,10 +42,17 @@ interface DocRow {
   customer_tax_condition: string | null;
   customer_kind: CustomerKind;
   internal_remito_type: InternalRemitoType | null;
+  payment_terms: string | null;
+  delivery_address: string | null;
+  salesperson: string | null;
+  valid_until: string | null;
   price_list_id: string | null;
   source_document_id: string | null;
+  source_document_type: DocType | null;
+  source_document_number_snapshot: string | null;
   notes: string | null;
   subtotal: number;
+  tax_total: number;
   total: number;
   created_at: string;
 }
@@ -184,6 +191,10 @@ export default function DocumentsPage() {
     customer_tax_id: "",
     customer_kind: "GENERAL" as CustomerKind,
     internal_remito_type: "" as InternalRemitoType | "",
+    payment_terms: "",
+    delivery_address: "",
+    salesperson: "",
+    valid_until: "",
     price_list_id: "",
     notes: "",
   });
@@ -301,7 +312,7 @@ export default function DocumentsPage() {
     queryFn: async () => {
       let q = supabase
         .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, price_list_id, source_document_id, notes, subtotal, total, created_at")
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, notes, subtotal, tax_total, total, created_at")
         .order("created_at", { ascending: false });
       if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
       if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
@@ -355,6 +366,15 @@ export default function DocumentsPage() {
     [documents, selectedDocument?.source_document_id],
   );
 
+  const sourceDocumentLabel = useMemo(() => {
+    if (!selectedDocument?.source_document_id) return null;
+    const sourceType = selectedDocument.source_document_type ?? sourceDocument?.doc_type ?? null;
+    const sourceNumber = selectedDocument.source_document_number_snapshot
+      ?? (sourceDocument ? formatNumber(sourceDocument.document_number, sourceDocument.point_of_sale) : null);
+    if (!sourceType || !sourceNumber) return null;
+    return `${DOC_LABEL[sourceType]} ${sourceNumber}`;
+  }, [selectedDocument, sourceDocument]);
+
   const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
 
   useEffect(() => {
@@ -376,6 +396,10 @@ export default function DocumentsPage() {
       customer_tax_id: "",
       customer_kind: "GENERAL",
       internal_remito_type: "",
+      payment_terms: "",
+      delivery_address: "",
+      salesperson: "",
+      valid_until: "",
       price_list_id: "",
       notes: "",
     });
@@ -411,6 +435,10 @@ export default function DocumentsPage() {
       customer_tax_id: target.customer_tax_id ?? "",
       customer_kind: target.customer_kind ?? "GENERAL",
       internal_remito_type: target.internal_remito_type ?? "",
+      payment_terms: target.payment_terms ?? "",
+      delivery_address: target.delivery_address ?? "",
+      salesperson: target.salesperson ?? "",
+      valid_until: target.valid_until ?? "",
       price_list_id: target.price_list_id ?? "",
       notes: target.notes ?? "",
     });
@@ -471,9 +499,14 @@ export default function DocumentsPage() {
             customer_tax_id: customerTaxId,
             customer_kind: form.customer_kind,
             internal_remito_type: form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? form.internal_remito_type || null : null,
+            payment_terms: form.payment_terms || null,
+            delivery_address: form.delivery_address || null,
+            salesperson: form.salesperson || null,
+            valid_until: form.doc_type === "PRESUPUESTO" ? form.valid_until || null : null,
             price_list_id: form.price_list_id || null,
             notes: form.notes || null,
             subtotal: totalDraft,
+            tax_total: 0,
             total: totalDraft,
             created_by: user?.id,
           })
@@ -493,9 +526,14 @@ export default function DocumentsPage() {
             customer_tax_id: customerTaxId,
             customer_kind: form.customer_kind,
             internal_remito_type: form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? form.internal_remito_type || null : null,
+            payment_terms: form.payment_terms || null,
+            delivery_address: form.delivery_address || null,
+            salesperson: form.salesperson || null,
+            valid_until: form.doc_type === "PRESUPUESTO" ? form.valid_until || null : null,
             price_list_id: form.price_list_id || null,
             notes: form.notes || null,
             subtotal: totalDraft,
+            tax_total: 0,
             total: totalDraft,
             updated_at: new Date().toISOString(),
           })
@@ -640,11 +678,17 @@ export default function DocumentsPage() {
           customer_tax_id: src.customer_tax_id,
           customer_kind: src.customer_kind,
           internal_remito_type: src.internal_remito_type,
+          payment_terms: src.payment_terms,
+          delivery_address: src.delivery_address,
+          salesperson: src.salesperson,
           price_list_id: src.price_list_id,
           source_document_id: src.id,
+          source_document_type: src.doc_type,
+          source_document_number_snapshot: formatNumber(src.document_number, src.point_of_sale),
           notes: src.notes,
-          subtotal: src.subtotal,
-          total: src.total,
+          subtotal: 0,
+          tax_total: 0,
+          total: 0,
           created_by: user?.id,
         })
         .select("id")
@@ -683,7 +727,11 @@ export default function DocumentsPage() {
         {
           document_id: src.id,
           event_type: "REMITO_CREATED_FROM_BUDGET",
-          payload: { target_document_id: newDoc.id, target_number: remitoNumberLabel },
+          payload: {
+            target_document_id: newDoc.id,
+            target_number: remitoNumberLabel,
+            source_number: formatNumber(src.document_number, src.point_of_sale),
+          },
           created_by: user?.id,
         },
       ]);
@@ -793,9 +841,15 @@ export default function DocumentsPage() {
       case "REMIO_CREATED_FROM_BUDGET":
       case "REMITO_CREATED_FROM_BUDGET": {
         const targetNumber = typeof payload?.target_number === "string" ? payload.target_number : null;
+        const sourceNumber = typeof payload?.source_number === "string" ? payload.source_number : null;
         return {
           title: "Convertido a remito",
-          detail: targetNumber ? `Nuevo remito ${targetNumber}` : "Nuevo remito borrador",
+          detail:
+            targetNumber && sourceNumber
+              ? `Remito ${targetNumber} creado desde Presupuesto ${sourceNumber}`
+              : targetNumber
+                ? `Nuevo remito ${targetNumber}`
+                : "Nuevo remito borrador",
           tone: "info" as const,
         };
       }
@@ -909,6 +963,11 @@ export default function DocumentsPage() {
           <p class="muted"><strong>Punto de venta:</strong> ${String(doc.point_of_sale).padStart(4, "0")}</p>
           <p class="muted"><strong>Tipo:</strong> ${DOC_LABEL[doc.doc_type]}</p>
           <p class="muted"><strong>Estado:</strong> ${STATUS_LABEL[doc.status]}</p>
+          ${doc.payment_terms ? `<p class="muted"><strong>Condicion de venta:</strong> ${doc.payment_terms}</p>` : ""}
+          ${doc.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${doc.salesperson}</p>` : ""}
+          ${doc.valid_until ? `<p class="muted"><strong>Valido hasta:</strong> ${new Date(doc.valid_until).toLocaleDateString("es-AR")}</p>` : ""}
+          ${doc.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${doc.delivery_address}</p>` : ""}
+          ${doc.source_document_type && doc.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${DOC_LABEL[doc.source_document_type]} ${doc.source_document_number_snapshot}</p>` : ""}
           ${doc.internal_remito_type ? `<p class="muted"><strong>Imputacion:</strong> ${INTERNAL_REMITO_LABEL[doc.internal_remito_type]}</p>` : ""}
           <p class="muted"><strong>Creado:</strong> ${new Date(doc.created_at).toLocaleString("es-AR")}</p>
         </div>
@@ -1174,6 +1233,30 @@ export default function DocumentsPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Condicion de venta</Label>
+                <Input value={form.payment_terms} onChange={(e) => setForm((prev) => ({ ...prev, payment_terms: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Vendedor</Label>
+                <Input value={form.salesperson} onChange={(e) => setForm((prev) => ({ ...prev, salesperson: e.target.value }))} />
+              </div>
+              {form.doc_type === "PRESUPUESTO" && (
+                <div className="space-y-2">
+                  <Label>Valido hasta</Label>
+                  <Input type="date" value={form.valid_until} onChange={(e) => setForm((prev) => ({ ...prev, valid_until: e.target.value }))} />
+                </div>
+              )}
+            </div>
+
+            {form.doc_type === "REMITO" && (
+              <div className="space-y-2">
+                <Label>Domicilio de entrega</Label>
+                <Input value={form.delivery_address} onChange={(e) => setForm((prev) => ({ ...prev, delivery_address: e.target.value }))} />
+              </div>
+            )}
+
             {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="space-y-2">
@@ -1324,6 +1407,18 @@ export default function DocumentsPage() {
                         <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(selectedDocument.issue_date).toLocaleDateString("es-AR")}</p>
                         <p className="text-sm"><span className="font-semibold">Estado:</span> {STATUS_LABEL[selectedDocument.status]}</p>
                         <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(selectedDocument.point_of_sale).padStart(4, "0")}</p>
+                        {selectedDocument.payment_terms && (
+                          <p className="text-sm"><span className="font-semibold">Condicion de venta:</span> {selectedDocument.payment_terms}</p>
+                        )}
+                        {selectedDocument.salesperson && (
+                          <p className="text-sm"><span className="font-semibold">Vendedor:</span> {selectedDocument.salesperson}</p>
+                        )}
+                        {selectedDocument.valid_until && (
+                          <p className="text-sm"><span className="font-semibold">Valido hasta:</span> {new Date(selectedDocument.valid_until).toLocaleDateString("es-AR")}</p>
+                        )}
+                        {selectedDocument.delivery_address && (
+                          <p className="text-sm"><span className="font-semibold">Entrega:</span> {selectedDocument.delivery_address}</p>
+                        )}
                         {selectedDocument.internal_remito_type && (
                           <p className="text-sm"><span className="font-semibold">Imputacion:</span> {INTERNAL_REMITO_LABEL[selectedDocument.internal_remito_type]}</p>
                         )}
@@ -1381,9 +1476,9 @@ export default function DocumentsPage() {
                 <div className="mb-5">
                   <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Historial</p>
                   <p className="mt-1 text-sm text-muted-foreground">Linea de tiempo del documento.</p>
-                  {sourceDocument && (
+                  {sourceDocumentLabel && (
                     <Badge variant="outline" className="mt-3 border-slate-200 bg-slate-50 text-slate-700">
-                      Origen: {DOC_LABEL[sourceDocument.doc_type]} {formatNumber(sourceDocument.document_number, sourceDocument.point_of_sale)}
+                      Origen: {sourceDocumentLabel}
                     </Badge>
                   )}
                 </div>
