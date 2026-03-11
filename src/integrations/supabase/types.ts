@@ -152,6 +152,7 @@ export type Database = {
           line_total: number
           quantity: number
           sku_snapshot: string | null
+          tax_pct: number
           unit: string | null
           unit_price: number
           updated_at: string
@@ -168,6 +169,7 @@ export type Database = {
           line_total?: number
           quantity?: number
           sku_snapshot?: string | null
+          tax_pct?: number
           unit?: string | null
           unit_price?: number
           updated_at?: string
@@ -184,6 +186,7 @@ export type Database = {
           line_total?: number
           quantity?: number
           sku_snapshot?: string | null
+          tax_pct?: number
           unit?: string | null
           unit_price?: number
           updated_at?: string
@@ -238,6 +241,7 @@ export type Database = {
           customer_name: string | null
           customer_tax_condition: string | null
           customer_tax_id: string | null
+          delivery_address: string | null
           discount_total: number
           doc_type: Database["public"]["Enums"]["document_type"]
           document_number: number | null
@@ -245,13 +249,19 @@ export type Database = {
           issue_date: string
           internal_remito_type: Database["public"]["Enums"]["internal_remito_type"] | null
           notes: string | null
+          payment_terms: string | null
           point_of_sale: number
           price_list_id: string | null
+          salesperson: string | null
           source_document_id: string | null
+          source_document_number_snapshot: string | null
+          source_document_type: Database["public"]["Enums"]["document_type"] | null
           status: Database["public"]["Enums"]["document_status"]
           subtotal: number
+          tax_total: number
           total: number
           updated_at: string
+          valid_until: string | null
         }
         Insert: {
           created_at?: string
@@ -261,6 +271,7 @@ export type Database = {
           customer_name?: string | null
           customer_tax_condition?: string | null
           customer_tax_id?: string | null
+          delivery_address?: string | null
           discount_total?: number
           doc_type: Database["public"]["Enums"]["document_type"]
           document_number?: number | null
@@ -268,13 +279,19 @@ export type Database = {
           issue_date?: string
           internal_remito_type?: Database["public"]["Enums"]["internal_remito_type"] | null
           notes?: string | null
+          payment_terms?: string | null
           point_of_sale?: number
           price_list_id?: string | null
+          salesperson?: string | null
           source_document_id?: string | null
+          source_document_number_snapshot?: string | null
+          source_document_type?: Database["public"]["Enums"]["document_type"] | null
           status?: Database["public"]["Enums"]["document_status"]
           subtotal?: number
+          tax_total?: number
           total?: number
           updated_at?: string
+          valid_until?: string | null
         }
         Update: {
           created_at?: string
@@ -284,6 +301,7 @@ export type Database = {
           customer_name?: string | null
           customer_tax_condition?: string | null
           customer_tax_id?: string | null
+          delivery_address?: string | null
           discount_total?: number
           doc_type?: Database["public"]["Enums"]["document_type"]
           document_number?: number | null
@@ -291,13 +309,19 @@ export type Database = {
           issue_date?: string
           internal_remito_type?: Database["public"]["Enums"]["internal_remito_type"] | null
           notes?: string | null
+          payment_terms?: string | null
           point_of_sale?: number
           price_list_id?: string | null
+          salesperson?: string | null
           source_document_id?: string | null
+          source_document_number_snapshot?: string | null
+          source_document_type?: Database["public"]["Enums"]["document_type"] | null
           status?: Database["public"]["Enums"]["document_status"]
           subtotal?: number
+          tax_total?: number
           total?: number
           updated_at?: string
+          valid_until?: string | null
         }
         Relationships: [
           {
@@ -1062,6 +1086,7 @@ export type Database = {
           customer_name: string | null
           customer_tax_condition: string | null
           customer_tax_id: string | null
+          delivery_address: string | null
           discount_total: number
           doc_type: Database["public"]["Enums"]["document_type"]
           document_number: number | null
@@ -1069,13 +1094,19 @@ export type Database = {
           issue_date: string
           internal_remito_type: Database["public"]["Enums"]["internal_remito_type"] | null
           notes: string | null
+          payment_terms: string | null
           point_of_sale: number
           price_list_id: string | null
+          salesperson: string | null
           source_document_id: string | null
+          source_document_number_snapshot: string | null
+          source_document_type: Database["public"]["Enums"]["document_type"] | null
           status: Database["public"]["Enums"]["document_status"]
           subtotal: number
+          tax_total: number
           total: number
           updated_at: string
+          valid_until: string | null
         }
       }
       transition_document_status: {
@@ -1091,6 +1122,7 @@ export type Database = {
           customer_name: string | null
           customer_tax_condition: string | null
           customer_tax_id: string | null
+          delivery_address: string | null
           discount_total: number
           doc_type: Database["public"]["Enums"]["document_type"]
           document_number: number | null
@@ -1098,13 +1130,19 @@ export type Database = {
           issue_date: string
           internal_remito_type: Database["public"]["Enums"]["internal_remito_type"] | null
           notes: string | null
+          payment_terms: string | null
           point_of_sale: number
           price_list_id: string | null
+          salesperson: string | null
           source_document_id: string | null
+          source_document_number_snapshot: string | null
+          source_document_type: Database["public"]["Enums"]["document_type"] | null
           status: Database["public"]["Enums"]["document_status"]
           subtotal: number
+          tax_total: number
           total: number
           updated_at: string
+          valid_until: string | null
         }
       }
       has_role: {
