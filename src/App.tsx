@@ -18,6 +18,7 @@ import DocumentsPage from "./pages/Documents";
 import CustomersPage from "./pages/Customers";
 import LegacyCatalogImportPage from "./pages/LegacyCatalogImport";
 import SettingsPage from "./pages/Settings";
+import CashPage from "./pages/Cash";
 import NotFound from "./pages/NotFound";
 import { CompanyBrandProvider } from "@/components/CompanyBrandProvider";
 
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/pending" element={<ProtectedRoute><PendingPage /></ProtectedRoute>} />
               <Route path="/quotes" element={<ProtectedRoute><QuotesPage /></ProtectedRoute>} />
               <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
+              <Route path="/cash" element={<ProtectedRoute><CashPage /></ProtectedRoute>} />
               <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/items/catalog/import-legacy" element={<ProtectedRoute><LegacyCatalogImportPage /></ProtectedRoute>} />

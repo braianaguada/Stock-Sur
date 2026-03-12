@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronLeft,
   Settings,
+  Wallet,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ const navItems = [
   { title: "Importar catálogo (sistema viejo)", url: "/items/catalog/import-legacy", icon: FolderUp },
   { title: "Pendientes", url: "/pending", icon: AlertCircle },
   { title: "Documentos", url: "/documents", icon: FileText },
+  { title: "Caja", url: "/cash", icon: Wallet },
   { title: "Clientes", url: "/customers", icon: Users },
   { title: "Configuracion", url: "/settings", icon: Settings },
 ];
