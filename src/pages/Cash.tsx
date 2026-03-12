@@ -68,8 +68,6 @@ type CashSummary = {
   pendientes: number;
 };
 
-const db = supabase as any;
-
 const PAYMENT_LABEL: Record<PaymentMethod, string> = {
   EFECTIVO: "Efectivo",
   POINT: "Point",
@@ -164,7 +162,7 @@ export default function CashPage() {
   const { data: sales = [], isLoading } = useQuery({
     queryKey: ["cash-sales", businessDate],
     queryFn: async () => {
-      const { data, error } = await db
+      const { data, error } = await supabase
         .from("cash_sales")
         .select("id, sold_at, amount_total, payment_method, receipt_kind, status, receipt_reference, customer_name_snapshot, notes")
         .eq("business_date", businessDate)
@@ -179,7 +177,7 @@ export default function CashPage() {
   const { data: closure, isLoading: closureLoading } = useQuery({
     queryKey: ["cash-closure", businessDate],
     queryFn: async () => {
-      const { data, error } = await db.rpc("get_or_create_cash_closure", { p_business_date: businessDate });
+      const { data, error } = await supabase.rpc("get_or_create_cash_closure", { p_business_date: businessDate });
       if (error) throw error;
       return data as CashClosureRow;
     },
@@ -191,16 +189,7 @@ export default function CashPage() {
     setCountedPointTotal(closure.counted_point_total != null ? String(closure.counted_point_total) : String(closure.expected_point_sales_total || 0));
     setCountedTransferTotal(closure.counted_transfer_total != null ? String(closure.counted_transfer_total) : String(closure.expected_transfer_sales_total || 0));
     setCloseNotes(closure.notes ?? "");
-  }, [
-    closure?.id,
-    closure?.counted_cash_total,
-    closure?.counted_point_total,
-    closure?.counted_transfer_total,
-    closure?.expected_cash_to_render,
-    closure?.expected_point_sales_total,
-    closure?.expected_transfer_sales_total,
-    closure?.notes,
-  ]);
+  }, [closure]);
 
   const summary: CashSummary = sales.reduce(
     (acc, sale) => {
@@ -252,7 +241,7 @@ export default function CashPage() {
         notes: notes.trim() || null,
       };
 
-      const { error } = await db.from("cash_sales").insert(payload);
+      const { error } = await supabase.from("cash_sales").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -280,7 +269,7 @@ export default function CashPage() {
       if (pendingReceiptKind === "PENDIENTE") throw new Error("Debes elegir remito o factura");
       if (!pendingReceiptReference.trim()) throw new Error("Debes ingresar la referencia del comprobante");
 
-      const { error } = await db.rpc("attach_cash_sale_receipt", {
+      const { error } = await supabase.rpc("attach_cash_sale_receipt", {
         p_sale_id: selectedSale.id,
         p_receipt_kind: pendingReceiptKind,
         p_document_id: null,
@@ -308,7 +297,7 @@ export default function CashPage() {
 
   const cancelSaleMutation = useMutation({
     mutationFn: async (saleId: string) => {
-      const { error } = await db.rpc("cancel_cash_sale", { p_sale_id: saleId, p_reason: "Venta anulada desde Caja" });
+      const { error } = await supabase.rpc("cancel_cash_sale", { p_sale_id: saleId, p_reason: "Venta anulada desde Caja" });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -336,7 +325,7 @@ export default function CashPage() {
       if (countedPointTotal && !Number.isFinite(parsedPoint)) throw new Error("Ingresa un total de Point valido");
       if (countedTransferTotal && !Number.isFinite(parsedTransfer)) throw new Error("Ingresa un total de transferencias valido");
 
-      const { error } = await db.rpc("close_cash_closure", {
+      const { error } = await supabase.rpc("close_cash_closure", {
         p_closure_id: closure.id,
         p_counted_cash_total: parsedCash,
         p_counted_point_total: countedPointTotal ? parsedPoint : null,
