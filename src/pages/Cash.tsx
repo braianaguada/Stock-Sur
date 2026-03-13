@@ -681,7 +681,7 @@ export default function CashPage() {
                   <Badge variant="outline" className="w-fit">{sales.length} registros</Badge>
                 </CardHeader>
                 <CardContent>
-                  <div className="rounded-lg border">
+                  <div className="max-h-[560px] overflow-auto rounded-lg border">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -766,7 +766,7 @@ export default function CashPage() {
                   <CardDescription>Ventas registradas que ya impactan en caja pero todavia no tienen remito o factura asignada.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="rounded-lg border">
+                  <div className="max-h-[560px] overflow-auto rounded-lg border">
                     <Table>
                       <TableHeader>
                         <TableRow>
