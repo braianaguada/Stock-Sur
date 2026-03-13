@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, ClipboardCheck, FileClock, Eye, Ban, NotebookText } from "lucide-react";
-import { Link } from "react-router-dom";
 
 type PaymentMethod = "EFECTIVO" | "POINT" | "TRANSFERENCIA" | "CUENTA_CORRIENTE";
 type ReceiptKind = "PENDIENTE" | "REMITO" | "FACTURA";
@@ -85,6 +84,16 @@ type DocumentQuickRow = {
   notes: string | null;
 };
 
+type DocumentLineQuickRow = {
+  id: string;
+  line_order: number;
+  description: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  line_total: number;
+};
+
 type CashSummary = {
   efectivo: number;
   point: number;
@@ -109,8 +118,8 @@ const RECEIPT_LABEL: Record<ReceiptKind, string> = {
 
 const STATUS_LABEL: Record<SaleStatus, string> = {
   REGISTRADA: "Registrada",
-  PENDIENTE_COMPROBANTE: "Pendiente",
-  COMPROBANTADA: "Comprobantada",
+  PENDIENTE_COMPROBANTE: "Sin comprobante",
+  COMPROBANTADA: "Con comprobante",
   ANULADA: "Anulada",
 };
 
@@ -192,20 +201,20 @@ function getClosureSituation(sale: CashSaleRow, closureStatus: ClosureStatus | u
 
   if (sale.closure_id && closureStatus === "CERRADO") {
     return {
-      label: "En cierre",
+      label: "En caja cerrada",
       className: "border-emerald-200 bg-emerald-50 text-emerald-700",
     };
   }
 
   if (!sale.closure_id && closureStatus === "CERRADO") {
     return {
-      label: "Post cierre",
+      label: "Venta post cierre",
       className: "border-violet-200 bg-violet-50 text-violet-700",
     };
   }
 
   return {
-    label: "Abierta",
+    label: "Pendiente de cierre",
     className: "border-sky-200 bg-sky-50 text-sky-700",
   };
 }
@@ -309,6 +318,22 @@ export default function CashPage() {
 
       if (error) throw error;
       return (data ?? null) as DocumentQuickRow | null;
+    },
+  });
+
+  const { data: linkedDocumentLines = [] } = useQuery({
+    queryKey: ["cash-linked-document-lines", detailSale?.document_id],
+    enabled: Boolean(detailSale?.document_id),
+    queryFn: async () => {
+      if (!detailSale?.document_id) return [];
+      const { data, error } = await supabase
+        .from("document_lines")
+        .select("id, line_order, description, quantity, unit, unit_price, line_total")
+        .eq("document_id", detailSale.document_id)
+        .order("line_order", { ascending: true });
+
+      if (error) throw error;
+      return (data ?? []) as DocumentLineQuickRow[];
     },
   });
 
@@ -756,7 +781,6 @@ export default function CashPage() {
                           <TableHead>Cliente</TableHead>
                           <TableHead>Pago</TableHead>
                           <TableHead>Comprobante</TableHead>
-                          <TableHead>Estado</TableHead>
                           <TableHead>Situacion</TableHead>
                           <TableHead className="w-[120px] text-right">Acciones</TableHead>
                         </TableRow>
@@ -780,10 +804,12 @@ export default function CashPage() {
                               <TableCell>
                                 <div className="text-sm">
                                   <p>{RECEIPT_LABEL[sale.receipt_kind]}</p>
+                                  <Badge variant="outline" className={`${STATUS_CLASS[sale.status]} mt-1`}>
+                                    {STATUS_LABEL[sale.status]}
+                                  </Badge>
                                   {sale.receipt_reference ? <p className="font-mono text-xs text-muted-foreground">{sale.receipt_reference}</p> : null}
                                 </div>
                               </TableCell>
-                              <TableCell><Badge variant="outline" className={STATUS_CLASS[sale.status]}>{STATUS_LABEL[sale.status]}</Badge></TableCell>
                               <TableCell>
                                 <Badge variant="outline" className={getClosureSituation(sale, closure?.status).className}>
                                   {getClosureSituation(sale, closure?.status).label}
@@ -1123,6 +1149,24 @@ export default function CashPage() {
                     {linkedDocument.notes}
                   </div>
                 ) : null}
+                {linkedDocumentLines.length > 0 ? (
+                  <div className="mt-3 rounded-xl border border-emerald-200 bg-white/80 p-3">
+                    <p className="mb-2 text-xs uppercase tracking-[0.18em] text-emerald-700">Lineas</p>
+                    <div className="space-y-2">
+                      {linkedDocumentLines.map((line) => (
+                        <div key={line.id} className="flex items-start justify-between gap-3 border-b border-emerald-100 pb-2 text-sm last:border-b-0 last:pb-0">
+                          <div>
+                            <p className="font-medium">{line.description}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {Number(line.quantity).toLocaleString("es-AR")} {line.unit} x {currency.format(Number(line.unit_price))}
+                            </p>
+                          </div>
+                          <p className="font-semibold">{currency.format(Number(line.line_total))}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -1158,11 +1202,6 @@ export default function CashPage() {
             </div>
           </div>
           <DialogFooter>
-            {linkedDocument ? (
-              <Button asChild variant="outline">
-                <Link to="/documents">Ir a documentos</Link>
-              </Button>
-            ) : null}
             {detailSale && canAttachReceipt(detailSale) ? (
               <Button
                 variant="outline"
