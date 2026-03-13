@@ -43,6 +43,7 @@ type CashSaleRow = {
   payment_method: PaymentMethod;
   receipt_kind: ReceiptKind;
   status: SaleStatus;
+  document_id: string | null;
   receipt_reference: string | null;
   customer_name_snapshot: string | null;
   notes: string | null;
@@ -178,12 +179,12 @@ export default function CashPage() {
     },
   });
 
-  const { data: sales = [], isLoading } = useQuery({
+  const { data: sales = [], isLoading, error: salesError, refetch: refetchSales } = useQuery({
     queryKey: ["cash-sales", businessDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cash_sales")
-        .select("id, sold_at, amount_total, payment_method, receipt_kind, status, receipt_reference, customer_name_snapshot, notes")
+        .select("id, sold_at, amount_total, payment_method, receipt_kind, status, document_id, receipt_reference, customer_name_snapshot, notes")
         .eq("business_date", businessDate)
         .order("sold_at", { ascending: false })
         .limit(150);
@@ -193,7 +194,7 @@ export default function CashPage() {
     },
   });
 
-  const { data: remitos = [] } = useQuery({
+  const { data: remitos = [], error: remitosError, refetch: refetchRemitos } = useQuery({
     queryKey: ["cash-remitos", businessDate],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -210,7 +211,7 @@ export default function CashPage() {
     },
   });
 
-  const { data: closure, isLoading: closureLoading } = useQuery({
+  const { data: closure, isLoading: closureLoading, error: closureError, refetch: refetchClosure } = useQuery({
     queryKey: ["cash-closure", businessDate],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_or_create_cash_closure", { p_business_date: businessDate });
@@ -263,11 +264,22 @@ export default function CashPage() {
   );
 
   const pendingSales = sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE");
+  const assignedRemitoIds = new Set(
+    sales
+      .filter((sale) => sale.status !== "ANULADA" && sale.document_id)
+      .map((sale) => sale.document_id as string),
+  );
+  const availableRemitos = remitos.filter((remito) => !assignedRemitoIds.has(remito.id));
 
-  const refreshCash = () => {
-    qc.invalidateQueries({ queryKey: ["cash-sales", businessDate] });
-    qc.invalidateQueries({ queryKey: ["cash-closure", businessDate] });
-    qc.invalidateQueries({ queryKey: ["cash-remitos", businessDate] });
+  const refreshCash = async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["cash-sales", businessDate] }),
+      qc.invalidateQueries({ queryKey: ["cash-closure", businessDate] }),
+      qc.invalidateQueries({ queryKey: ["cash-remitos", businessDate] }),
+      refetchSales(),
+      refetchClosure(),
+      refetchRemitos(),
+    ]);
   };
 
   const createSaleMutation = useMutation({
@@ -395,6 +407,7 @@ export default function CashPage() {
 
   const closeClosureMutation = useMutation({
     mutationFn: async () => {
+      if (closureError instanceof Error) throw closureError;
       if (!closure) throw new Error("No se encontro el cierre del dia");
 
       const parsedCash = Number(countedCashTotal.replace(",", "."));
@@ -449,6 +462,12 @@ export default function CashPage() {
             <Input id="business-date" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} />
           </div>
         </div>
+
+        {salesError || remitosError ? (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            {(salesError instanceof Error ? salesError.message : null) ?? (remitosError instanceof Error ? remitosError.message : "No se pudo cargar Caja.")}
+          </div>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <Card className="border-emerald-300 bg-emerald-100">
@@ -547,7 +566,7 @@ export default function CashPage() {
                       <SelectTrigger><SelectValue placeholder="Seleccionar remito del dia" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
-                        {remitos.map((remito) => (
+                        {availableRemitos.map((remito) => (
                           <SelectItem key={remito.id} value={remito.id}>
                             {formatDocumentNumber(remito.point_of_sale, remito.document_number)} - {remito.customer_name}
                           </SelectItem>
@@ -607,14 +626,15 @@ export default function CashPage() {
                           <TableHead>Pago</TableHead>
                           <TableHead>Comprobante</TableHead>
                           <TableHead>Estado</TableHead>
+                          <TableHead className="w-[120px] text-right">Acciones</TableHead>
                           <TableHead className="text-right">Importe</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {isLoading ? (
-                          <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Cargando ventas...</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Cargando ventas...</TableCell></TableRow>
                         ) : sales.length === 0 ? (
-                          <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Todavia no hay ventas registradas para esta fecha.</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Todavia no hay ventas registradas para esta fecha.</TableCell></TableRow>
                         ) : (
                           sales.map((sale) => (
                             <TableRow key={sale.id}>
@@ -632,6 +652,20 @@ export default function CashPage() {
                                 </div>
                               </TableCell>
                               <TableCell><Badge variant="outline" className={STATUS_CLASS[sale.status]}>{STATUS_LABEL[sale.status]}</Badge></TableCell>
+                              <TableCell className="text-right">
+                                {sale.status !== "ANULADA" ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive"
+                                    onClick={() => cancelSaleMutation.mutate(sale.id)}
+                                    disabled={cancelSaleMutation.isPending || closure?.status === "CERRADO"}
+                                  >
+                                    Anular
+                                  </Button>
+                                ) : null}
+                              </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-2">
                                   {sale.notes ? (
@@ -691,11 +725,12 @@ export default function CashPage() {
                               <TableCell className="text-right font-semibold">{currency.format(Number(sale.amount_total))}</TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-2">
-                                  <Button size="sm" variant="outline" onClick={() => openReceiptDialog(sale)}>
+                                  <Button type="button" size="sm" variant="outline" onClick={() => openReceiptDialog(sale)}>
                                     <ClipboardCheck className="mr-2 h-3.5 w-3.5" />
                                     Asignar comprobante
                                   </Button>
                                   <Button
+                                    type="button"
                                     size="sm"
                                     variant="ghost"
                                     className="text-destructive"
@@ -729,6 +764,11 @@ export default function CashPage() {
                   </Badge>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {closureError ? (
+                    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                      {closureError instanceof Error ? closureError.message : "No se pudo cargar el cierre diario."}
+                    </div>
+                  ) : null}
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Efectivo a rendir</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(closure?.expected_cash_to_render ?? 0))}</CardTitle></CardHeader></Card>
                     <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Point esperado</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(closure?.expected_point_sales_total ?? 0))}</CardTitle></CardHeader></Card>
@@ -783,10 +823,10 @@ export default function CashPage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3">
-                    <Button onClick={() => closeClosureMutation.mutate()} disabled={closureLoading || closeClosureMutation.isPending || closure?.status === "CERRADO"}>
+                    <Button onClick={() => closeClosureMutation.mutate()} disabled={closureLoading || closeClosureMutation.isPending || closure?.status === "CERRADO" || Boolean(closureError)}>
                       {closeClosureMutation.isPending ? "Cerrando..." : "Cerrar caja"}
                     </Button>
-                    <Button variant="outline" onClick={refreshCash}>
+                    <Button variant="outline" onClick={() => void refreshCash()}>
                       Recalcular
                     </Button>
                     {closure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya esta bloqueado. Solo queda disponible para consulta.</p> : null}
@@ -826,7 +866,7 @@ export default function CashPage() {
                   <SelectTrigger><SelectValue placeholder="Seleccionar remito del dia" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
-                    {remitos.map((remito) => (
+                    {availableRemitos.map((remito) => (
                       <SelectItem key={remito.id} value={remito.id}>
                         {formatDocumentNumber(remito.point_of_sale, remito.document_number)} - {remito.customer_name}
                       </SelectItem>
