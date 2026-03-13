@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, ClipboardCheck, FileClock, XCircle } from "lucide-react";
+import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, ClipboardCheck, FileClock, XCircle, Eye } from "lucide-react";
 
 type PaymentMethod = "EFECTIVO" | "POINT" | "TRANSFERENCIA" | "CUENTA_CORRIENTE";
 type ReceiptKind = "PENDIENTE" | "REMITO" | "FACTURA";
@@ -24,6 +24,16 @@ type CustomerOption = {
   id: string;
   name: string;
   cuit: string | null;
+};
+
+type RemitoOption = {
+  id: string;
+  customer_id: string | null;
+  customer_name: string;
+  point_of_sale: number;
+  document_number: number | null;
+  issue_date: string;
+  status: string;
 };
 
 type CashSaleRow = {
@@ -126,6 +136,11 @@ function formatDateTime(value: string | null) {
   });
 }
 
+function formatDocumentNumber(pointOfSale: number, documentNumber: number | null) {
+  if (documentNumber == null) return "Sin numero";
+  return `${String(pointOfSale).padStart(4, "0")}-${String(documentNumber).padStart(8, "0")}`;
+}
+
 export default function CashPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -134,12 +149,16 @@ export default function CashPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO");
   const [receiptKind, setReceiptKind] = useState<ReceiptKind>("PENDIENTE");
   const [customerId, setCustomerId] = useState<string>("__none__");
+  const [selectedRemitoId, setSelectedRemitoId] = useState<string>("__none__");
   const [receiptReference, setReceiptReference] = useState("");
   const [notes, setNotes] = useState("");
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<CashSaleRow | null>(null);
   const [pendingReceiptKind, setPendingReceiptKind] = useState<ReceiptKind>("REMITO");
+  const [pendingRemitoId, setPendingRemitoId] = useState<string>("__none__");
   const [pendingReceiptReference, setPendingReceiptReference] = useState("");
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [noteDialogSale, setNoteDialogSale] = useState<CashSaleRow | null>(null);
   const [closeNotes, setCloseNotes] = useState("");
   const [countedCashTotal, setCountedCashTotal] = useState("");
   const [countedPointTotal, setCountedPointTotal] = useState("");
@@ -174,12 +193,31 @@ export default function CashPage() {
     },
   });
 
+  const { data: remitos = [] } = useQuery({
+    queryKey: ["cash-remitos", businessDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("id, customer_id, customer_name, point_of_sale, document_number, issue_date, status")
+        .eq("doc_type", "REMITO")
+        .eq("status", "EMITIDO")
+        .eq("issue_date", businessDate)
+        .order("document_number", { ascending: false })
+        .limit(200);
+
+      if (error) throw error;
+      return (data ?? []) as RemitoOption[];
+    },
+  });
+
   const { data: closure, isLoading: closureLoading } = useQuery({
     queryKey: ["cash-closure", businessDate],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_or_create_cash_closure", { p_business_date: businessDate });
       if (error) throw error;
-      return data as CashClosureRow;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) throw new Error("No se encontro el cierre del dia");
+      return row as CashClosureRow;
     },
   });
 
@@ -190,6 +228,24 @@ export default function CashPage() {
     setCountedTransferTotal(closure.counted_transfer_total != null ? String(closure.counted_transfer_total) : String(closure.expected_transfer_sales_total || 0));
     setCloseNotes(closure.notes ?? "");
   }, [closure]);
+
+  useEffect(() => {
+    if (receiptKind !== "REMITO") {
+      setSelectedRemitoId("__none__");
+    }
+    if (receiptKind !== "FACTURA") {
+      setReceiptReference("");
+    }
+  }, [receiptKind]);
+
+  useEffect(() => {
+    if (pendingReceiptKind !== "REMITO") {
+      setPendingRemitoId("__none__");
+    }
+    if (pendingReceiptKind !== "FACTURA") {
+      setPendingReceiptReference("");
+    }
+  }, [pendingReceiptKind]);
 
   const summary: CashSummary = sales.reduce(
     (acc, sale) => {
@@ -211,6 +267,7 @@ export default function CashPage() {
   const refreshCash = () => {
     qc.invalidateQueries({ queryKey: ["cash-sales", businessDate] });
     qc.invalidateQueries({ queryKey: ["cash-closure", businessDate] });
+    qc.invalidateQueries({ queryKey: ["cash-remitos", businessDate] });
   };
 
   const createSaleMutation = useMutation({
@@ -218,6 +275,10 @@ export default function CashPage() {
       const parsedAmount = Number(amount.replace(",", "."));
       if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
         throw new Error("Ingresa un importe valido");
+      }
+
+      if (receiptKind === "REMITO" && selectedRemitoId === "__none__") {
+        throw new Error("Selecciona un remito emitido");
       }
 
       if (receiptKind === "FACTURA" && !receiptReference.trim()) {
@@ -229,15 +290,22 @@ export default function CashPage() {
       }
 
       const selectedCustomer = customers.find((customer) => customer.id === customerId);
+      const selectedRemito = remitos.find((remito) => remito.id === selectedRemitoId);
 
       const payload = {
         business_date: businessDate,
         amount_total: parsedAmount,
         payment_method: paymentMethod,
         receipt_kind: receiptKind,
-        customer_id: customerId === "__none__" ? null : customerId,
-        customer_name_snapshot: selectedCustomer?.name ?? null,
-        receipt_reference: receiptKind === "PENDIENTE" ? null : receiptReference.trim() || null,
+        customer_id: customerId === "__none__" ? selectedRemito?.customer_id ?? null : customerId,
+        customer_name_snapshot: selectedCustomer?.name ?? selectedRemito?.customer_name ?? "Consumidor final",
+        document_id: receiptKind === "REMITO" ? selectedRemito?.id ?? null : null,
+        receipt_reference:
+          receiptKind === "PENDIENTE"
+            ? null
+            : receiptKind === "REMITO"
+              ? formatDocumentNumber(selectedRemito?.point_of_sale ?? 0, selectedRemito?.document_number ?? null)
+              : receiptReference.trim() || null,
         notes: notes.trim() || null,
       };
 
@@ -250,6 +318,7 @@ export default function CashPage() {
       setPaymentMethod("EFECTIVO");
       setReceiptKind("PENDIENTE");
       setCustomerId("__none__");
+      setSelectedRemitoId("__none__");
       setReceiptReference("");
       setNotes("");
       toast({ title: "Venta registrada" });
@@ -267,13 +336,23 @@ export default function CashPage() {
     mutationFn: async () => {
       if (!selectedSale) throw new Error("Selecciona una venta pendiente");
       if (pendingReceiptKind === "PENDIENTE") throw new Error("Debes elegir remito o factura");
-      if (!pendingReceiptReference.trim()) throw new Error("Debes ingresar la referencia del comprobante");
+      if (pendingReceiptKind === "REMITO" && pendingRemitoId === "__none__") {
+        throw new Error("Selecciona un remito emitido");
+      }
+      if (pendingReceiptKind === "FACTURA" && !pendingReceiptReference.trim()) {
+        throw new Error("Debes ingresar la referencia de la factura");
+      }
+
+      const selectedRemito = remitos.find((remito) => remito.id === pendingRemitoId);
 
       const { error } = await supabase.rpc("attach_cash_sale_receipt", {
         p_sale_id: selectedSale.id,
         p_receipt_kind: pendingReceiptKind,
-        p_document_id: null,
-        p_receipt_reference: pendingReceiptReference.trim(),
+        p_document_id: pendingReceiptKind === "REMITO" ? selectedRemito?.id ?? null : null,
+        p_receipt_reference:
+          pendingReceiptKind === "REMITO"
+            ? formatDocumentNumber(selectedRemito?.point_of_sale ?? 0, selectedRemito?.document_number ?? null)
+            : pendingReceiptReference.trim(),
       });
 
       if (error) throw error;
@@ -283,6 +362,7 @@ export default function CashPage() {
       setReceiptDialogOpen(false);
       setSelectedSale(null);
       setPendingReceiptKind("REMITO");
+      setPendingRemitoId("__none__");
       setPendingReceiptReference("");
       toast({ title: "Comprobante asociado" });
     },
@@ -351,7 +431,8 @@ export default function CashPage() {
   const openReceiptDialog = (sale: CashSaleRow) => {
     setSelectedSale(sale);
     setPendingReceiptKind("REMITO");
-    setPendingReceiptReference(sale.receipt_reference ?? "");
+    setPendingRemitoId("__none__");
+    setPendingReceiptReference("");
     setReceiptDialogOpen(true);
   };
 
@@ -370,31 +451,31 @@ export default function CashPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <Card className="border-emerald-200/70 bg-emerald-50/80">
+          <Card className="border-emerald-300 bg-emerald-100">
             <CardHeader className="pb-3">
               <CardDescription>Efectivo</CardDescription>
               <CardTitle className="flex items-center gap-2 text-emerald-900"><Banknote className="h-4 w-4" /> {currency.format(summary.efectivo)}</CardTitle>
             </CardHeader>
           </Card>
-          <Card className="border-sky-200/70 bg-sky-50/80">
+          <Card className="border-sky-300 bg-sky-100">
             <CardHeader className="pb-3">
               <CardDescription>Point</CardDescription>
               <CardTitle className="flex items-center gap-2 text-sky-900"><Smartphone className="h-4 w-4" /> {currency.format(summary.point)}</CardTitle>
             </CardHeader>
           </Card>
-          <Card className="border-violet-200/70 bg-violet-50/80">
+          <Card className="border-violet-300 bg-violet-100">
             <CardHeader className="pb-3">
               <CardDescription>Transferencias</CardDescription>
               <CardTitle className="flex items-center gap-2 text-violet-900"><Landmark className="h-4 w-4" /> {currency.format(summary.transferencia)}</CardTitle>
             </CardHeader>
           </Card>
-          <Card className="border-amber-200/70 bg-amber-50/80">
+          <Card className="border-amber-300 bg-amber-100">
             <CardHeader className="pb-3">
               <CardDescription>Cuenta corriente</CardDescription>
               <CardTitle className="flex items-center gap-2 text-amber-900"><Receipt className="h-4 w-4" /> {currency.format(summary.cuentaCorriente)}</CardTitle>
             </CardHeader>
           </Card>
-          <Card className="border-slate-200/70 bg-slate-50/80">
+          <Card className="border-slate-300 bg-slate-100">
             <CardHeader className="pb-3">
               <CardDescription>Total del dia</CardDescription>
               <CardTitle className="flex items-center gap-2 text-slate-900"><CircleDollarSign className="h-4 w-4" /> {currency.format(summary.total)}</CardTitle>
@@ -447,9 +528,9 @@ export default function CashPage() {
                 <div className="space-y-2">
                   <Label>Cliente</Label>
                   <Select value={customerId} onValueChange={setCustomerId}>
-                    <SelectTrigger><SelectValue placeholder="Sin cliente seleccionado" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Consumidor final" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Sin cliente seleccionado</SelectItem>
+                      <SelectItem value="__none__">Consumidor final</SelectItem>
                       {customers.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
                           {customer.name}{customer.cuit ? ` · ${customer.cuit}` : ""}
@@ -459,14 +540,29 @@ export default function CashPage() {
                   </Select>
                 </div>
 
-                {receiptKind !== "PENDIENTE" && (
+                {receiptKind === "REMITO" && (
                   <div className="space-y-2">
-                    <Label htmlFor="receipt-reference">
-                      {receiptKind === "FACTURA" ? "Numero / referencia de factura" : "Numero / referencia de remito"}
-                    </Label>
+                    <Label>Remito emitido</Label>
+                    <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
+                      <SelectTrigger><SelectValue placeholder="Seleccionar remito del dia" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
+                        {remitos.map((remito) => (
+                          <SelectItem key={remito.id} value={remito.id}>
+                            {formatDocumentNumber(remito.point_of_sale, remito.document_number)} - {remito.customer_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {receiptKind === "FACTURA" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="receipt-reference">Referencia de factura</Label>
                     <Input
                       id="receipt-reference"
-                      placeholder={receiptKind === "FACTURA" ? "Ej. 0009-00001782" : "Ej. 0001-00009312"}
+                      placeholder="Ej. 0009-00001782"
                       value={receiptReference}
                       onChange={(event) => setReceiptReference(event.target.value)}
                     />
@@ -526,7 +622,6 @@ export default function CashPage() {
                               <TableCell>
                                 <div className="max-w-[220px]">
                                   <p className="truncate text-sm font-medium">{sale.customer_name_snapshot ?? "Consumidor final"}</p>
-                                  {sale.notes ? <p className="truncate text-xs text-muted-foreground">{sale.notes}</p> : null}
                                 </div>
                               </TableCell>
                               <TableCell>{PAYMENT_LABEL[sale.payment_method]}</TableCell>
@@ -537,7 +632,25 @@ export default function CashPage() {
                                 </div>
                               </TableCell>
                               <TableCell><Badge variant="outline" className={STATUS_CLASS[sale.status]}>{STATUS_LABEL[sale.status]}</Badge></TableCell>
-                              <TableCell className="text-right font-semibold">{currency.format(Number(sale.amount_total))}</TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  {sale.notes ? (
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        setNoteDialogSale(sale);
+                                        setNoteDialogOpen(true);
+                                      }}
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  ) : null}
+                                  <span className="font-semibold">{currency.format(Number(sale.amount_total))}</span>
+                                </div>
+                              </TableCell>
                             </TableRow>
                           ))
                         )}
@@ -706,16 +819,49 @@ export default function CashPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="pending-receipt-reference">Numero / referencia</Label>
-              <Input id="pending-receipt-reference" value={pendingReceiptReference} onChange={(event) => setPendingReceiptReference(event.target.value)} placeholder="Ej. 0001-00009312" />
-            </div>
+            {pendingReceiptKind === "REMITO" && (
+              <div className="space-y-2">
+                <Label>Remito emitido</Label>
+                <Select value={pendingRemitoId} onValueChange={setPendingRemitoId}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar remito del dia" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
+                    {remitos.map((remito) => (
+                      <SelectItem key={remito.id} value={remito.id}>
+                        {formatDocumentNumber(remito.point_of_sale, remito.document_number)} - {remito.customer_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {pendingReceiptKind === "FACTURA" && (
+              <div className="space-y-2">
+                <Label htmlFor="pending-receipt-reference">Referencia de factura</Label>
+                <Input id="pending-receipt-reference" value={pendingReceiptReference} onChange={(event) => setPendingReceiptReference(event.target.value)} placeholder="Ej. 0009-00001782" />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReceiptDialogOpen(false)}>Cancelar</Button>
             <Button onClick={() => attachReceiptMutation.mutate()} disabled={attachReceiptMutation.isPending}>
               {attachReceiptMutation.isPending ? "Guardando..." : "Guardar comprobante"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Observacion</DialogTitle>
+            <DialogDescription>Detalle guardado para esta venta.</DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border bg-muted/30 p-4 text-sm leading-6">
+            {noteDialogSale?.notes ?? "Sin observaciones"}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoteDialogOpen(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
