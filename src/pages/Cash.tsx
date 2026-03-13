@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, ClipboardCheck, FileClock, Eye, Ban, NotebookText } from "lucide-react";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
 
 type PaymentMethod = "EFECTIVO" | "POINT" | "TRANSFERENCIA" | "CUENTA_CORRIENTE";
 type ReceiptKind = "PENDIENTE" | "REMITO" | "FACTURA";
@@ -93,6 +94,32 @@ type DocumentLineQuickRow = {
   unit_price: number;
   line_total: number;
 };
+
+type DocumentEventQuickRow = {
+  id: string;
+  event_type: string;
+  payload: unknown;
+  created_at: string;
+};
+
+type CashClosureHistoryRow = Pick<
+  CashClosureRow,
+  | "id"
+  | "business_date"
+  | "status"
+  | "expected_sales_total"
+  | "expected_cash_to_render"
+  | "expected_point_sales_total"
+  | "expected_transfer_sales_total"
+  | "counted_cash_total"
+  | "counted_point_total"
+  | "counted_transfer_total"
+  | "cash_difference"
+  | "point_difference"
+  | "transfer_difference"
+  | "notes"
+  | "closed_at"
+>;
 
 type CashSummary = {
   efectivo: number;
@@ -219,9 +246,18 @@ function getClosureSituation(sale: CashSaleRow, closureStatus: ClosureStatus | u
   };
 }
 
+function describeDocumentEvent(event: DocumentEventQuickRow) {
+  const eventType = event.event_type.toUpperCase();
+  if (eventType.includes("EMIT")) return { title: "Documento emitido", tone: "success" as const };
+  if (eventType.includes("ANUL")) return { title: "Documento anulado", tone: "danger" as const };
+  if (eventType.includes("CRE")) return { title: "Documento creado", tone: "info" as const };
+  return { title: event.event_type.replaceAll("_", " "), tone: "neutral" as const };
+}
+
 export default function CashPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { settings: companySettings } = useCompanyBrand();
   const [businessDate, setBusinessDate] = useState(todayDateInputValue());
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO");
@@ -237,6 +273,8 @@ export default function CashPage() {
   const [pendingReceiptReference, setPendingReceiptReference] = useState("");
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailSale, setDetailSale] = useState<CashSaleRow | null>(null);
+  const [closurePreviewOpen, setClosurePreviewOpen] = useState(false);
+  const [selectedClosureId, setSelectedClosureId] = useState<string | null>(null);
   const [closeNotes, setCloseNotes] = useState("");
   const [countedCashTotal, setCountedCashTotal] = useState("");
   const [countedPointTotal, setCountedPointTotal] = useState("");
@@ -334,6 +372,52 @@ export default function CashPage() {
 
       if (error) throw error;
       return (data ?? []) as DocumentLineQuickRow[];
+    },
+  });
+
+  const { data: linkedDocumentEvents = [] } = useQuery({
+    queryKey: ["cash-linked-document-events", detailSale?.document_id],
+    enabled: Boolean(detailSale?.document_id),
+    queryFn: async () => {
+      if (!detailSale?.document_id) return [];
+      const { data, error } = await supabase
+        .from("document_events")
+        .select("id, event_type, payload, created_at")
+        .eq("document_id", detailSale.document_id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return (data ?? []) as DocumentEventQuickRow[];
+    },
+  });
+
+  const { data: closuresHistory = [] } = useQuery({
+    queryKey: ["cash-closures-history"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_closures")
+        .select("id, business_date, status, expected_sales_total, expected_cash_to_render, expected_point_sales_total, expected_transfer_sales_total, counted_cash_total, counted_point_total, counted_transfer_total, cash_difference, point_difference, transfer_difference, notes, closed_at")
+        .order("business_date", { ascending: false })
+        .limit(30);
+
+      if (error) throw error;
+      return (data ?? []) as CashClosureHistoryRow[];
+    },
+  });
+
+  const { data: selectedClosureSales = [] } = useQuery({
+    queryKey: ["cash-closure-sales", selectedClosureId],
+    enabled: Boolean(selectedClosureId),
+    queryFn: async () => {
+      if (!selectedClosureId) return [];
+      const { data, error } = await supabase
+        .from("cash_sales")
+        .select("id, sold_at, business_date, amount_total, payment_method, receipt_kind, status, document_id, closure_id, receipt_reference, customer_name_snapshot, notes")
+        .eq("closure_id", selectedClosureId)
+        .order("sold_at", { ascending: true });
+
+      if (error) throw error;
+      return (data ?? []) as CashSaleRow[];
     },
   });
 
@@ -593,6 +677,50 @@ export default function CashPage() {
 
   const canCancelSale = (sale: CashSaleRow) => !(sale.closure_id && closure?.status === "CERRADO");
   const canAttachReceipt = (sale: CashSaleRow) => sale.status === "PENDIENTE_COMPROBANTE";
+  const selectedClosurePreview = closuresHistory.find((item) => item.id === selectedClosureId) ?? null;
+
+  const openClosurePreview = (closureId: string) => {
+    setSelectedClosureId(closureId);
+    setClosurePreviewOpen(true);
+  };
+
+  const printClosurePreview = () => {
+    if (!selectedClosurePreview) return;
+    const rows = selectedClosureSales.map((sale) => `
+      <tr>
+        <td>${new Date(sale.sold_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</td>
+        <td>${sale.customer_name_snapshot ?? "Consumidor final"}</td>
+        <td>${PAYMENT_LABEL[sale.payment_method]}</td>
+        <td>${sale.receipt_reference ?? RECEIPT_LABEL[sale.receipt_kind]}</td>
+        <td style="text-align:right">${currency.format(Number(sale.amount_total))}</td>
+      </tr>
+    `).join("");
+
+    const win = window.open("", "_blank", "width=1100,height=800");
+    if (!win) return;
+    win.document.write(`<!doctype html><html><head><title>Cierre ${selectedClosurePreview.business_date}</title><style>
+      body{font-family:Arial,sans-serif;padding:24px;color:#0f172a}
+      h1,h2{margin:0 0 12px}
+      .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+      .card{border:1px solid #cbd5e1;border-radius:12px;padding:12px}
+      table{width:100%;border-collapse:collapse;margin-top:16px}
+      th,td{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left;font-size:12px}
+      .muted{color:#64748b}
+    </style></head><body>
+      <h1>Cierre diario ${new Date(selectedClosurePreview.business_date).toLocaleDateString("es-AR")}</h1>
+      <p class="muted">Generado por ${companySettings.app_name}</p>
+      <div class="grid">
+        <div class="card"><strong>Total ventas</strong><div>${currency.format(Number(selectedClosurePreview.expected_sales_total))}</div></div>
+        <div class="card"><strong>Efectivo esperado</strong><div>${currency.format(Number(selectedClosurePreview.expected_cash_to_render))}</div></div>
+        <div class="card"><strong>Point esperado</strong><div>${currency.format(Number(selectedClosurePreview.expected_point_sales_total))}</div></div>
+        <div class="card"><strong>Diferencia efectivo</strong><div>${currency.format(Number(selectedClosurePreview.cash_difference ?? 0))}</div></div>
+      </div>
+      <table><thead><tr><th>Hora</th><th>Cliente</th><th>Pago</th><th>Comprobante</th><th style="text-align:right">Importe</th></tr></thead><tbody>${rows}</tbody></table>
+    </body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
+  };
 
   return (
     <AppLayout>
@@ -772,17 +900,17 @@ export default function CashPage() {
                   <Badge variant="outline" className="w-fit">{sales.length} registros</Badge>
                 </CardHeader>
                 <CardContent>
-                  <div className="max-h-[560px] overflow-auto rounded-lg border">
-                    <Table>
+                  <div className="max-h-[560px] overflow-y-auto rounded-lg border">
+                    <Table className="table-fixed">
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Hora</TableHead>
-                          <TableHead className="text-right">Importe</TableHead>
-                          <TableHead>Cliente</TableHead>
-                          <TableHead>Pago</TableHead>
-                          <TableHead>Comprobante</TableHead>
-                          <TableHead>Situacion</TableHead>
-                          <TableHead className="w-[120px] text-right">Acciones</TableHead>
+                          <TableHead className="w-[78px]">Hora</TableHead>
+                          <TableHead className="w-[110px] text-right">Importe</TableHead>
+                          <TableHead className="w-[170px]">Cliente</TableHead>
+                          <TableHead className="w-[96px]">Pago</TableHead>
+                          <TableHead className="w-[160px]">Comprobante</TableHead>
+                          <TableHead className="w-[150px]">Situacion</TableHead>
+                          <TableHead className="w-[92px] text-right">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -794,20 +922,20 @@ export default function CashPage() {
                           sales.map((sale) => (
                             <TableRow key={sale.id}>
                               <TableCell className="font-mono text-xs">{formatTime(sale.sold_at)}</TableCell>
-                              <TableCell className="text-right font-semibold">{currency.format(Number(sale.amount_total))}</TableCell>
+                              <TableCell className="text-right font-semibold whitespace-nowrap">{currency.format(Number(sale.amount_total))}</TableCell>
                               <TableCell>
-                                <div className="max-w-[220px]">
+                                <div className="max-w-[160px]">
                                   <p className="truncate text-sm font-medium">{sale.customer_name_snapshot ?? "Consumidor final"}</p>
                                 </div>
                               </TableCell>
-                              <TableCell>{PAYMENT_LABEL[sale.payment_method]}</TableCell>
+                              <TableCell className="text-sm">{PAYMENT_LABEL[sale.payment_method]}</TableCell>
                               <TableCell>
-                                <div className="text-sm">
-                                  <p>{RECEIPT_LABEL[sale.receipt_kind]}</p>
-                                  <Badge variant="outline" className={`${STATUS_CLASS[sale.status]} mt-1`}>
+                                <div className="min-w-0 text-sm">
+                                  <p className="truncate">{RECEIPT_LABEL[sale.receipt_kind]}</p>
+                                  <Badge variant="outline" className={`${STATUS_CLASS[sale.status]} mt-1 max-w-full`}>
                                     {STATUS_LABEL[sale.status]}
                                   </Badge>
-                                  {sale.receipt_reference ? <p className="font-mono text-xs text-muted-foreground">{sale.receipt_reference}</p> : null}
+                                  {sale.receipt_reference ? <p className="truncate font-mono text-xs text-muted-foreground">{sale.receipt_reference}</p> : null}
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -1047,7 +1175,54 @@ export default function CashPage() {
                     >
                       Usar valores del sistema
                     </Button>
+                    {closure?.status === "CERRADO" ? (
+                      <Button variant="outline" onClick={() => openClosurePreview(closure.id)}>
+                        Ver resumen
+                      </Button>
+                    ) : null}
                     {closure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya esta bloqueado. Solo queda disponible para consulta.</p> : null}
+                  </div>
+
+                  <div className="rounded-2xl border bg-card p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Historial de cierres</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">Resumenes diarios guardados para consulta e impresion.</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      {closuresHistory.length === 0 ? (
+                        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Todavia no hay cierres guardados.</div>
+                      ) : (
+                        closuresHistory.map((historyItem) => (
+                          <div key={historyItem.id} className="flex flex-col gap-3 rounded-xl border p-4 md:flex-row md:items-center md:justify-between">
+                            <div>
+                              <p className="font-semibold">{new Date(historyItem.business_date).toLocaleDateString("es-AR")}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {historyItem.status === "CERRADO" ? `Cerrado el ${formatDateTime(historyItem.closed_at)}` : "Caja abierta"}
+                              </p>
+                            </div>
+                            <div className="grid gap-2 text-sm md:grid-cols-3 md:text-right">
+                              <div>
+                                <p className="text-muted-foreground">Ventas</p>
+                                <p className="font-semibold">{currency.format(Number(historyItem.expected_sales_total))}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Efectivo</p>
+                                <p className="font-semibold">{currency.format(Number(historyItem.expected_cash_to_render))}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Dif. efectivo</p>
+                                <p className="font-semibold">{currency.format(Number(historyItem.cash_difference ?? 0))}</p>
+                              </div>
+                            </div>
+                            <Button variant="outline" onClick={() => openClosurePreview(historyItem.id)}>
+                              Ver resumen
+                            </Button>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -1110,96 +1285,139 @@ export default function CashPage() {
       </Dialog>
 
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle>Detalle de venta</DialogTitle>
-            <DialogDescription>Vista rapida para revisar la operacion y sus acciones disponibles.</DialogDescription>
+            <DialogTitle>Vista previa del documento</DialogTitle>
+            <DialogDescription>Documento asociado a la venta y su trazabilidad.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 text-sm">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
             {linkedDocument ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Comprobante asociado</p>
-                    <p className="mt-1 text-lg font-semibold text-emerald-950">
-                      {linkedDocument.doc_type === "REMITO" ? "Remito" : linkedDocument.doc_type} {formatDocumentNumber(linkedDocument.point_of_sale, linkedDocument.document_number)}
-                    </p>
-                    <p className="text-sm text-emerald-800">{linkedDocument.customer_name}</p>
-                  </div>
-                  <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">
-                    {DOC_STATUS_LABEL[linkedDocument.status]}
-                  </Badge>
-                </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                  <div>
-                    <p className="text-xs text-emerald-700">Fecha</p>
-                    <p className="font-medium">{new Date(linkedDocument.issue_date).toLocaleDateString("es-AR")}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-emerald-700">Total</p>
-                    <p className="font-medium">{currency.format(Number(linkedDocument.total))}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-emerald-700">Documento</p>
-                    <p className="font-medium">{formatDocumentNumber(linkedDocument.point_of_sale, linkedDocument.document_number)}</p>
-                  </div>
-                </div>
-                {linkedDocument.notes ? (
-                  <div className="mt-3 rounded-xl border border-emerald-200 bg-white/80 p-3 leading-6">
-                    {linkedDocument.notes}
-                  </div>
-                ) : null}
-                {linkedDocumentLines.length > 0 ? (
-                  <div className="mt-3 rounded-xl border border-emerald-200 bg-white/80 p-3">
-                    <p className="mb-2 text-xs uppercase tracking-[0.18em] text-emerald-700">Lineas</p>
-                    <div className="space-y-2">
-                      {linkedDocumentLines.map((line) => (
-                        <div key={line.id} className="flex items-start justify-between gap-3 border-b border-emerald-100 pb-2 text-sm last:border-b-0 last:pb-0">
+              <>
+                <div className="min-w-0 max-h-[72vh] space-y-4 overflow-y-auto pr-1">
+                  <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+                    <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-emerald-50 p-5">
+                      <div className="mb-4 flex items-start justify-between gap-4">
+                        <div className="space-y-3">
+                          <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Remito</Badge>
                           <div>
-                            <p className="font-medium">{line.description}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {Number(line.quantity).toLocaleString("es-AR")} {line.unit} x {currency.format(Number(line.unit_price))}
+                            {companySettings.logo_url ? (
+                              <img src={companySettings.logo_url} alt={companySettings.app_name} className="h-16 w-auto max-w-[220px] object-contain" />
+                            ) : (
+                              <p className="text-2xl font-black tracking-[0.12em] text-primary">{companySettings.app_name}</p>
+                            )}
+                            <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                              {companySettings.document_tagline ?? "Documentacion comercial"}
                             </p>
                           </div>
-                          <p className="font-semibold">{currency.format(Number(line.line_total))}</p>
                         </div>
-                      ))}
+                        <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right text-white shadow-sm">
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300">Documento</p>
+                          <p className="mt-1 text-lg font-bold">{linkedDocument.doc_type === "REMITO" ? "Remito" : linkedDocument.doc_type}</p>
+                          <p className="mt-2 text-xs text-slate-300">{formatDocumentNumber(linkedDocument.point_of_sale, linkedDocument.document_number)}</p>
+                        </div>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="rounded-2xl border bg-white/80 p-4">
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+                          <p className="mt-2 font-semibold">{linkedDocument.customer_name ?? "Cliente ocasional"}</p>
+                        </div>
+                        <div className="rounded-2xl border bg-white/80 p-4">
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
+                          <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(linkedDocument.issue_date).toLocaleDateString("es-AR")}</p>
+                          <p className="text-sm"><span className="font-semibold">Estado:</span> {DOC_STATUS_LABEL[linkedDocument.status]}</p>
+                          <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(linkedDocument.point_of_sale).padStart(4, "0")}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-3xl border bg-card p-5">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Resumen</p>
+                      <div className="mt-4 space-y-3">
+                        <div className="rounded-2xl border bg-emerald-50 p-4">
+                          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total documento</p>
+                          <p className="mt-2 text-3xl font-black text-primary">{currency.format(Number(linkedDocument.total))}</p>
+                        </div>
+                        <div className="rounded-2xl border border-dashed p-4">
+                          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Notas</p>
+                          <p className="mt-2 text-sm text-muted-foreground">{linkedDocument.notes ?? "Sin observaciones cargadas."}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                ) : null}
-              </div>
-            ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border bg-muted/30 p-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
-                <p className="mt-1 font-medium">{detailSale?.customer_name_snapshot ?? "Consumidor final"}</p>
+                  <div className="rounded-3xl border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>#</TableHead>
+                          <TableHead>Descripcion</TableHead>
+                          <TableHead className="text-right">Cant.</TableHead>
+                          <TableHead>Unidad</TableHead>
+                          <TableHead className="text-right">P.Unit.</TableHead>
+                          <TableHead className="text-right">Importe</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {linkedDocumentLines.map((line) => (
+                          <TableRow key={line.id}>
+                            <TableCell>{line.line_order}</TableCell>
+                            <TableCell className="font-medium">{line.description}</TableCell>
+                            <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
+                            <TableCell>{line.unit ?? "un"}</TableCell>
+                            <TableCell className="text-right font-mono">{currency.format(Number(line.unit_price))}</TableCell>
+                            <TableCell className="text-right font-mono">{currency.format(Number(line.line_total))}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                <aside className="rounded-3xl border bg-card p-5 lg:max-h-[72vh] lg:overflow-y-auto">
+                  <div className="mb-5">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Historial</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Linea de tiempo del documento.</p>
+                  </div>
+
+                  {linkedDocumentEvents.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+                      Todavia no hay eventos registrados para este documento.
+                    </div>
+                  ) : (
+                    <div className="relative pl-7">
+                      <div className="absolute bottom-2 left-[11px] top-2 w-px rounded-full bg-gradient-to-b from-blue-200 via-emerald-200 to-slate-200" />
+                      <div className="space-y-4">
+                        {linkedDocumentEvents.map((event) => {
+                          const described = describeDocumentEvent(event);
+                          return (
+                            <div key={event.id} className="relative">
+                              <div className={`absolute left-[-21px] top-5 h-3.5 w-3.5 rounded-full ring-4 ring-white shadow-md ${described.tone === "success" ? "bg-emerald-500" : described.tone === "danger" ? "bg-rose-500" : described.tone === "info" ? "bg-blue-500" : "bg-slate-400"}`} />
+                              <div className="rounded-2xl border border-slate-200/80 bg-white p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold leading-5 text-slate-900">{described.title}</p>
+                                    <p className="mt-1 text-sm leading-5 text-slate-500">{event.event_type.replaceAll("_", " ")}</p>
+                                  </div>
+                                  <div className="shrink-0 text-right">
+                                    <Badge variant="outline">{new Date(event.created_at).toLocaleDateString("es-AR")}</Badge>
+                                    <p className="mt-2 text-xs text-slate-400">
+                                      {new Date(event.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </aside>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
+                Esta venta todavia no tiene un documento asociado para previsualizar.
               </div>
-              <div className="rounded-xl border bg-muted/30 p-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Importe</p>
-                <p className="mt-1 font-medium">{detailSale ? currency.format(Number(detailSale.amount_total)) : "-"}</p>
-              </div>
-              <div className="rounded-xl border bg-muted/30 p-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Pago</p>
-                <p className="mt-1 font-medium">{detailSale ? PAYMENT_LABEL[detailSale.payment_method] : "-"}</p>
-              </div>
-              <div className="rounded-xl border bg-muted/30 p-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Comprobante</p>
-                <p className="mt-1 font-medium">{detailSale ? RECEIPT_LABEL[detailSale.receipt_kind] : "-"}</p>
-                {detailSale?.receipt_reference ? <p className="font-mono text-xs text-muted-foreground">{detailSale.receipt_reference}</p> : null}
-              </div>
-              <div className="rounded-xl border bg-muted/30 p-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Estado</p>
-                <p className="mt-1 font-medium">{detailSale ? STATUS_LABEL[detailSale.status] : "-"}</p>
-              </div>
-              <div className="rounded-xl border bg-muted/30 p-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Situacion</p>
-                <p className="mt-1 font-medium">{detailSale ? getClosureSituation(detailSale, closure?.status).label : "-"}</p>
-              </div>
-            </div>
-            <div className="rounded-xl border bg-muted/30 p-4 leading-6">
-              {detailSale?.notes ?? "Sin observaciones"}
-            </div>
+            )}
           </div>
           <DialogFooter>
             {detailSale && canAttachReceipt(detailSale) ? (
@@ -1224,6 +1442,84 @@ export default function CashPage() {
               </Button>
             ) : null}
             <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={closurePreviewOpen} onOpenChange={setClosurePreviewOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Resumen del cierre</DialogTitle>
+            <DialogDescription>Vista previa del cierre diario guardado para control e impresion.</DialogDescription>
+          </DialogHeader>
+          {selectedClosurePreview ? (
+            <div className="space-y-4 overflow-y-auto pr-1">
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="rounded-2xl border bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Fecha</p>
+                  <p className="mt-2 font-semibold">{new Date(selectedClosurePreview.business_date).toLocaleDateString("es-AR")}</p>
+                </div>
+                <div className="rounded-2xl border bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total ventas</p>
+                  <p className="mt-2 font-semibold">{currency.format(Number(selectedClosurePreview.expected_sales_total))}</p>
+                </div>
+                <div className="rounded-2xl border bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Efectivo esperado</p>
+                  <p className="mt-2 font-semibold">{currency.format(Number(selectedClosurePreview.expected_cash_to_render))}</p>
+                </div>
+                <div className="rounded-2xl border bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Dif. efectivo</p>
+                  <p className="mt-2 font-semibold">{currency.format(Number(selectedClosurePreview.cash_difference ?? 0))}</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Point</p>
+                  <p className="mt-2 font-semibold">{currency.format(Number(selectedClosurePreview.expected_point_sales_total))}</p>
+                  <p className="text-sm text-muted-foreground">Contado: {currency.format(Number(selectedClosurePreview.counted_point_total ?? 0))}</p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Transferencias</p>
+                  <p className="mt-2 font-semibold">{currency.format(Number(selectedClosurePreview.expected_transfer_sales_total))}</p>
+                  <p className="text-sm text-muted-foreground">Contado: {currency.format(Number(selectedClosurePreview.counted_transfer_total ?? 0))}</p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Cierre</p>
+                  <p className="mt-2 font-semibold">{selectedClosurePreview.status === "CERRADO" ? formatDateTime(selectedClosurePreview.closed_at) : "Abierto"}</p>
+                  <p className="text-sm text-muted-foreground">{selectedClosurePreview.notes ?? "Sin observaciones"}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Hora</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Pago</TableHead>
+                      <TableHead>Comprobante</TableHead>
+                      <TableHead className="text-right">Importe</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedClosureSales.map((sale) => (
+                      <TableRow key={sale.id}>
+                        <TableCell>{formatTime(sale.sold_at)}</TableCell>
+                        <TableCell>{sale.customer_name_snapshot ?? "Consumidor final"}</TableCell>
+                        <TableCell>{PAYMENT_LABEL[sale.payment_method]}</TableCell>
+                        <TableCell>{sale.receipt_reference ?? RECEIPT_LABEL[sale.receipt_kind]}</TableCell>
+                        <TableCell className="text-right font-semibold">{currency.format(Number(sale.amount_total))}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={printClosurePreview}>Imprimir</Button>
+            <Button variant="outline" onClick={() => setClosurePreviewOpen(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
