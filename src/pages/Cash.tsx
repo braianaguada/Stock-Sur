@@ -1,0 +1,724 @@
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AppLayout } from "@/components/AppLayout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, ClipboardCheck, FileClock, XCircle } from "lucide-react";
+
+type PaymentMethod = "EFECTIVO" | "POINT" | "TRANSFERENCIA" | "CUENTA_CORRIENTE";
+type ReceiptKind = "PENDIENTE" | "REMITO" | "FACTURA";
+type SaleStatus = "REGISTRADA" | "PENDIENTE_COMPROBANTE" | "COMPROBANTADA" | "ANULADA";
+type ClosureStatus = "ABIERTO" | "CERRADO";
+
+type CustomerOption = {
+  id: string;
+  name: string;
+  cuit: string | null;
+};
+
+type CashSaleRow = {
+  id: string;
+  sold_at: string;
+  amount_total: number;
+  payment_method: PaymentMethod;
+  receipt_kind: ReceiptKind;
+  status: SaleStatus;
+  receipt_reference: string | null;
+  customer_name_snapshot: string | null;
+  notes: string | null;
+};
+
+type CashClosureRow = {
+  id: string;
+  business_date: string;
+  status: ClosureStatus;
+  expected_cash_sales_total: number;
+  expected_point_sales_total: number;
+  expected_transfer_sales_total: number;
+  expected_account_sales_total: number;
+  expected_cash_expenses_total: number;
+  expected_sales_total: number;
+  expected_cash_to_render: number;
+  counted_cash_total: number | null;
+  counted_point_total: number | null;
+  counted_transfer_total: number | null;
+  cash_difference: number | null;
+  point_difference: number | null;
+  transfer_difference: number | null;
+  notes: string | null;
+  closed_at: string | null;
+};
+
+type CashSummary = {
+  efectivo: number;
+  point: number;
+  transferencia: number;
+  cuentaCorriente: number;
+  total: number;
+  pendientes: number;
+};
+
+const PAYMENT_LABEL: Record<PaymentMethod, string> = {
+  EFECTIVO: "Efectivo",
+  POINT: "Point",
+  TRANSFERENCIA: "Transferencia",
+  CUENTA_CORRIENTE: "Cuenta corriente",
+};
+
+const RECEIPT_LABEL: Record<ReceiptKind, string> = {
+  PENDIENTE: "Definir despues",
+  REMITO: "Remito",
+  FACTURA: "Factura",
+};
+
+const STATUS_LABEL: Record<SaleStatus, string> = {
+  REGISTRADA: "Registrada",
+  PENDIENTE_COMPROBANTE: "Pendiente",
+  COMPROBANTADA: "Comprobantada",
+  ANULADA: "Anulada",
+};
+
+const STATUS_CLASS: Record<SaleStatus, string> = {
+  REGISTRADA: "bg-slate-100 text-slate-700 border-slate-200",
+  PENDIENTE_COMPROBANTE: "bg-amber-100 text-amber-700 border-amber-200",
+  COMPROBANTADA: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  ANULADA: "bg-rose-100 text-rose-700 border-rose-200",
+};
+
+const currency = new Intl.NumberFormat("es-AR", {
+  style: "currency",
+  currency: "ARS",
+  minimumFractionDigits: 2,
+});
+
+function todayDateInputValue() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset();
+  const local = new Date(now.getTime() - offset * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
+function formatTime(value: string) {
+  return new Date(value).toLocaleTimeString("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "Abierto";
+  return new Date(value).toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export default function CashPage() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [businessDate, setBusinessDate] = useState(todayDateInputValue());
+  const [amount, setAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO");
+  const [receiptKind, setReceiptKind] = useState<ReceiptKind>("PENDIENTE");
+  const [customerId, setCustomerId] = useState<string>("__none__");
+  const [receiptReference, setReceiptReference] = useState("");
+  const [notes, setNotes] = useState("");
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<CashSaleRow | null>(null);
+  const [pendingReceiptKind, setPendingReceiptKind] = useState<ReceiptKind>("REMITO");
+  const [pendingReceiptReference, setPendingReceiptReference] = useState("");
+  const [closeNotes, setCloseNotes] = useState("");
+  const [countedCashTotal, setCountedCashTotal] = useState("");
+  const [countedPointTotal, setCountedPointTotal] = useState("");
+  const [countedTransferTotal, setCountedTransferTotal] = useState("");
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ["cash-customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name, cuit")
+        .order("name")
+        .limit(200);
+
+      if (error) throw error;
+      return (data ?? []) as CustomerOption[];
+    },
+  });
+
+  const { data: sales = [], isLoading } = useQuery({
+    queryKey: ["cash-sales", businessDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_sales")
+        .select("id, sold_at, amount_total, payment_method, receipt_kind, status, receipt_reference, customer_name_snapshot, notes")
+        .eq("business_date", businessDate)
+        .order("sold_at", { ascending: false })
+        .limit(150);
+
+      if (error) throw error;
+      return (data ?? []) as CashSaleRow[];
+    },
+  });
+
+  const { data: closure, isLoading: closureLoading } = useQuery({
+    queryKey: ["cash-closure", businessDate],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_or_create_cash_closure", { p_business_date: businessDate });
+      if (error) throw error;
+      return data as CashClosureRow;
+    },
+  });
+
+  useEffect(() => {
+    if (!closure) return;
+    setCountedCashTotal(closure.counted_cash_total != null ? String(closure.counted_cash_total) : String(closure.expected_cash_to_render || 0));
+    setCountedPointTotal(closure.counted_point_total != null ? String(closure.counted_point_total) : String(closure.expected_point_sales_total || 0));
+    setCountedTransferTotal(closure.counted_transfer_total != null ? String(closure.counted_transfer_total) : String(closure.expected_transfer_sales_total || 0));
+    setCloseNotes(closure.notes ?? "");
+  }, [closure]);
+
+  const summary: CashSummary = sales.reduce(
+    (acc, sale) => {
+      if (sale.status !== "ANULADA") {
+        acc.total += Number(sale.amount_total);
+        if (sale.payment_method === "EFECTIVO") acc.efectivo += Number(sale.amount_total);
+        if (sale.payment_method === "POINT") acc.point += Number(sale.amount_total);
+        if (sale.payment_method === "TRANSFERENCIA") acc.transferencia += Number(sale.amount_total);
+        if (sale.payment_method === "CUENTA_CORRIENTE") acc.cuentaCorriente += Number(sale.amount_total);
+      }
+      if (sale.status === "PENDIENTE_COMPROBANTE") acc.pendientes += 1;
+      return acc;
+    },
+    { efectivo: 0, point: 0, transferencia: 0, cuentaCorriente: 0, total: 0, pendientes: 0 },
+  );
+
+  const pendingSales = sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE");
+
+  const refreshCash = () => {
+    qc.invalidateQueries({ queryKey: ["cash-sales", businessDate] });
+    qc.invalidateQueries({ queryKey: ["cash-closure", businessDate] });
+  };
+
+  const createSaleMutation = useMutation({
+    mutationFn: async () => {
+      const parsedAmount = Number(amount.replace(",", "."));
+      if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+        throw new Error("Ingresa un importe valido");
+      }
+
+      if (receiptKind === "FACTURA" && !receiptReference.trim()) {
+        throw new Error("La factura necesita una referencia o numero");
+      }
+
+      if (paymentMethod === "CUENTA_CORRIENTE" && customerId === "__none__") {
+        throw new Error("La cuenta corriente requiere cliente");
+      }
+
+      const selectedCustomer = customers.find((customer) => customer.id === customerId);
+
+      const payload = {
+        business_date: businessDate,
+        amount_total: parsedAmount,
+        payment_method: paymentMethod,
+        receipt_kind: receiptKind,
+        customer_id: customerId === "__none__" ? null : customerId,
+        customer_name_snapshot: selectedCustomer?.name ?? null,
+        receipt_reference: receiptKind === "PENDIENTE" ? null : receiptReference.trim() || null,
+        notes: notes.trim() || null,
+      };
+
+      const { error } = await supabase.from("cash_sales").insert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refreshCash();
+      setAmount("");
+      setPaymentMethod("EFECTIVO");
+      setReceiptKind("PENDIENTE");
+      setCustomerId("__none__");
+      setReceiptReference("");
+      setNotes("");
+      toast({ title: "Venta registrada" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo registrar la venta",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const attachReceiptMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedSale) throw new Error("Selecciona una venta pendiente");
+      if (pendingReceiptKind === "PENDIENTE") throw new Error("Debes elegir remito o factura");
+      if (!pendingReceiptReference.trim()) throw new Error("Debes ingresar la referencia del comprobante");
+
+      const { error } = await supabase.rpc("attach_cash_sale_receipt", {
+        p_sale_id: selectedSale.id,
+        p_receipt_kind: pendingReceiptKind,
+        p_document_id: null,
+        p_receipt_reference: pendingReceiptReference.trim(),
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refreshCash();
+      setReceiptDialogOpen(false);
+      setSelectedSale(null);
+      setPendingReceiptKind("REMITO");
+      setPendingReceiptReference("");
+      toast({ title: "Comprobante asociado" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo asociar el comprobante",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cancelSaleMutation = useMutation({
+    mutationFn: async (saleId: string) => {
+      const { error } = await supabase.rpc("cancel_cash_sale", { p_sale_id: saleId, p_reason: "Venta anulada desde Caja" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refreshCash();
+      toast({ title: "Venta anulada" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo anular la venta",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const closeClosureMutation = useMutation({
+    mutationFn: async () => {
+      if (!closure) throw new Error("No se encontro el cierre del dia");
+
+      const parsedCash = Number(countedCashTotal.replace(",", "."));
+      const parsedPoint = Number(countedPointTotal.replace(",", "."));
+      const parsedTransfer = Number(countedTransferTotal.replace(",", "."));
+
+      if (!Number.isFinite(parsedCash)) throw new Error("Ingresa un efectivo contado valido");
+      if (countedPointTotal && !Number.isFinite(parsedPoint)) throw new Error("Ingresa un total de Point valido");
+      if (countedTransferTotal && !Number.isFinite(parsedTransfer)) throw new Error("Ingresa un total de transferencias valido");
+
+      const { error } = await supabase.rpc("close_cash_closure", {
+        p_closure_id: closure.id,
+        p_counted_cash_total: parsedCash,
+        p_counted_point_total: countedPointTotal ? parsedPoint : null,
+        p_counted_transfer_total: countedTransferTotal ? parsedTransfer : null,
+        p_notes: closeNotes.trim() || null,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refreshCash();
+      toast({ title: "Caja cerrada" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo cerrar la caja",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const openReceiptDialog = (sale: CashSaleRow) => {
+    setSelectedSale(sale);
+    setPendingReceiptKind("REMITO");
+    setPendingReceiptReference(sale.receipt_reference ?? "");
+    setReceiptDialogOpen(true);
+  };
+
+  return (
+    <AppLayout>
+      <div className="space-y-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Caja</h1>
+            <p className="text-muted-foreground">Carga rapida, pendientes de comprobante y cierre diario en una sola vista.</p>
+          </div>
+          <div className="w-full md:w-[220px]">
+            <Label htmlFor="business-date">Fecha operativa</Label>
+            <Input id="business-date" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} />
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <Card className="border-emerald-200/70 bg-emerald-50/80">
+            <CardHeader className="pb-3">
+              <CardDescription>Efectivo</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-emerald-900"><Banknote className="h-4 w-4" /> {currency.format(summary.efectivo)}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="border-sky-200/70 bg-sky-50/80">
+            <CardHeader className="pb-3">
+              <CardDescription>Point</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-sky-900"><Smartphone className="h-4 w-4" /> {currency.format(summary.point)}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="border-violet-200/70 bg-violet-50/80">
+            <CardHeader className="pb-3">
+              <CardDescription>Transferencias</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-violet-900"><Landmark className="h-4 w-4" /> {currency.format(summary.transferencia)}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="border-amber-200/70 bg-amber-50/80">
+            <CardHeader className="pb-3">
+              <CardDescription>Cuenta corriente</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-amber-900"><Receipt className="h-4 w-4" /> {currency.format(summary.cuentaCorriente)}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="border-slate-200/70 bg-slate-50/80">
+            <CardHeader className="pb-3">
+              <CardDescription>Total del dia</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-slate-900"><CircleDollarSign className="h-4 w-4" /> {currency.format(summary.total)}</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <p className="text-xs text-muted-foreground">{summary.pendientes} pendientes de comprobante</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
+          <Card className="border-primary/10 shadow-sm">
+            <CardHeader>
+              <CardTitle>Nueva venta</CardTitle>
+              <CardDescription>Captura minima para registrar la operacion sin quedar bloqueado por el comprobante.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); createSaleMutation.mutate(); }}>
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Importe</Label>
+                  <Input id="amount" inputMode="decimal" placeholder="0,00" value={amount} onChange={(event) => setAmount(event.target.value)} />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+                  <div className="space-y-2">
+                    <Label>Medio de pago</Label>
+                    <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="EFECTIVO">Efectivo</SelectItem>
+                        <SelectItem value="POINT">Point</SelectItem>
+                        <SelectItem value="TRANSFERENCIA">Transferencia</SelectItem>
+                        <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Comprobante</Label>
+                    <Select value={receiptKind} onValueChange={(value) => setReceiptKind(value as ReceiptKind)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PENDIENTE">Definir despues</SelectItem>
+                        <SelectItem value="REMITO">Remito</SelectItem>
+                        <SelectItem value="FACTURA">Factura</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Cliente</Label>
+                  <Select value={customerId} onValueChange={setCustomerId}>
+                    <SelectTrigger><SelectValue placeholder="Sin cliente seleccionado" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin cliente seleccionado</SelectItem>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}{customer.cuit ? ` · ${customer.cuit}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {receiptKind !== "PENDIENTE" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="receipt-reference">
+                      {receiptKind === "FACTURA" ? "Numero / referencia de factura" : "Numero / referencia de remito"}
+                    </Label>
+                    <Input
+                      id="receipt-reference"
+                      placeholder={receiptKind === "FACTURA" ? "Ej. 0009-00001782" : "Ej. 0001-00009312"}
+                      value={receiptReference}
+                      onChange={(event) => setReceiptReference(event.target.value)}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Observaciones</Label>
+                  <Textarea id="notes" placeholder="Cliente, detalle rapido o algo util para revisar la venta despues" value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} />
+                </div>
+
+                <Button type="submit" className="w-full" disabled={createSaleMutation.isPending || closure?.status === "CERRADO"}>
+                  {createSaleMutation.isPending ? "Guardando..." : "Registrar venta"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Tabs defaultValue="day" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="day">Caja del dia</TabsTrigger>
+              <TabsTrigger value="pending">Pendientes</TabsTrigger>
+              <TabsTrigger value="closure">Cierre diario</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="day">
+              <Card className="shadow-sm">
+                <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <CardTitle>Movimientos del dia</CardTitle>
+                    <CardDescription>Vista rapida para controlar lo cargado y detectar pendientes antes del cierre.</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="w-fit">{sales.length} registros</Badge>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Hora</TableHead>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead>Pago</TableHead>
+                          <TableHead>Comprobante</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead className="text-right">Importe</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {isLoading ? (
+                          <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Cargando ventas...</TableCell></TableRow>
+                        ) : sales.length === 0 ? (
+                          <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Todavia no hay ventas registradas para esta fecha.</TableCell></TableRow>
+                        ) : (
+                          sales.map((sale) => (
+                            <TableRow key={sale.id}>
+                              <TableCell className="font-mono text-xs">{formatTime(sale.sold_at)}</TableCell>
+                              <TableCell>
+                                <div className="max-w-[220px]">
+                                  <p className="truncate text-sm font-medium">{sale.customer_name_snapshot ?? "Consumidor final"}</p>
+                                  {sale.notes ? <p className="truncate text-xs text-muted-foreground">{sale.notes}</p> : null}
+                                </div>
+                              </TableCell>
+                              <TableCell>{PAYMENT_LABEL[sale.payment_method]}</TableCell>
+                              <TableCell>
+                                <div className="text-sm">
+                                  <p>{RECEIPT_LABEL[sale.receipt_kind]}</p>
+                                  {sale.receipt_reference ? <p className="font-mono text-xs text-muted-foreground">{sale.receipt_reference}</p> : null}
+                                </div>
+                              </TableCell>
+                              <TableCell><Badge variant="outline" className={STATUS_CLASS[sale.status]}>{STATUS_LABEL[sale.status]}</Badge></TableCell>
+                              <TableCell className="text-right font-semibold">{currency.format(Number(sale.amount_total))}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="pending">
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><FileClock className="h-4 w-4" /> Pendientes de comprobante</CardTitle>
+                  <CardDescription>Ventas registradas que ya impactan en caja pero todavia no tienen remito o factura asignada.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Hora</TableHead>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead>Pago</TableHead>
+                          <TableHead className="text-right">Importe</TableHead>
+                          <TableHead className="w-[220px]">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pendingSales.length === 0 ? (
+                          <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No hay pendientes para esta fecha.</TableCell></TableRow>
+                        ) : (
+                          pendingSales.map((sale) => (
+                            <TableRow key={sale.id}>
+                              <TableCell className="font-mono text-xs">{formatTime(sale.sold_at)}</TableCell>
+                              <TableCell>{sale.customer_name_snapshot ?? "Consumidor final"}</TableCell>
+                              <TableCell>{PAYMENT_LABEL[sale.payment_method]}</TableCell>
+                              <TableCell className="text-right font-semibold">{currency.format(Number(sale.amount_total))}</TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button size="sm" variant="outline" onClick={() => openReceiptDialog(sale)}>
+                                    <ClipboardCheck className="mr-2 h-3.5 w-3.5" />
+                                    Asignar comprobante
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive"
+                                    onClick={() => cancelSaleMutation.mutate(sale.id)}
+                                    disabled={cancelSaleMutation.isPending || closure?.status === "CERRADO"}
+                                  >
+                                    <XCircle className="mr-2 h-3.5 w-3.5" />
+                                    Anular
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="closure">
+              <Card className="shadow-sm">
+                <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <CardTitle>Cierre diario</CardTitle>
+                    <CardDescription>Comparacion entre lo esperado por sistema y lo contado al final de la jornada.</CardDescription>
+                  </div>
+                  <Badge variant="outline" className={closure?.status === "CERRADO" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}>
+                    {closure?.status === "CERRADO" ? "Cerrado" : "Abierto"}
+                  </Badge>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Efectivo a rendir</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(closure?.expected_cash_to_render ?? 0))}</CardTitle></CardHeader></Card>
+                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Point esperado</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(closure?.expected_point_sales_total ?? 0))}</CardTitle></CardHeader></Card>
+                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Transferencias esperadas</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(closure?.expected_transfer_sales_total ?? 0))}</CardTitle></CardHeader></Card>
+                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Total ventas</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(closure?.expected_sales_total ?? 0))}</CardTitle></CardHeader></Card>
+                  </div>
+
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="counted-cash">Efectivo contado</Label>
+                        <Input id="counted-cash" inputMode="decimal" value={countedCashTotal} onChange={(event) => setCountedCashTotal(event.target.value)} disabled={closure?.status === "CERRADO"} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="counted-point">Point contado</Label>
+                        <Input id="counted-point" inputMode="decimal" value={countedPointTotal} onChange={(event) => setCountedPointTotal(event.target.value)} disabled={closure?.status === "CERRADO"} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="counted-transfer">Transferencias contadas</Label>
+                        <Input id="counted-transfer" inputMode="decimal" value={countedTransferTotal} onChange={(event) => setCountedTransferTotal(event.target.value)} disabled={closure?.status === "CERRADO"} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="close-notes">Observaciones del cierre</Label>
+                        <Textarea id="close-notes" rows={5} value={closeNotes} onChange={(event) => setCloseNotes(event.target.value)} disabled={closure?.status === "CERRADO"} />
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border bg-muted/30 p-4">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resultado</h3>
+                      <div className="mt-4 space-y-3 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span>Efectivo esperado</span>
+                          <span className="font-semibold">{currency.format(Number(closure?.expected_cash_to_render ?? 0))}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Diferencia efectivo</span>
+                          <span className="font-semibold">{currency.format(Number(closure?.cash_difference ?? 0))}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Diferencia Point</span>
+                          <span className="font-semibold">{currency.format(Number(closure?.point_difference ?? 0))}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Diferencia transferencias</span>
+                          <span className="font-semibold">{currency.format(Number(closure?.transfer_difference ?? 0))}</span>
+                        </div>
+                        <div className="border-t pt-3">
+                          <p className="text-xs text-muted-foreground">Estado del cierre: {closure?.status === "CERRADO" ? `cerrado el ${formatDateTime(closure?.closed_at ?? null)}` : "todavia abierto"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button onClick={() => closeClosureMutation.mutate()} disabled={closureLoading || closeClosureMutation.isPending || closure?.status === "CERRADO"}>
+                      {closeClosureMutation.isPending ? "Cerrando..." : "Cerrar caja"}
+                    </Button>
+                    <Button variant="outline" onClick={refreshCash}>
+                      Recalcular
+                    </Button>
+                    {closure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya esta bloqueado. Solo queda disponible para consulta.</p> : null}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+
+      <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Asignar comprobante</DialogTitle>
+            <DialogDescription>La venta ya cuenta en caja. Desde aca solo completas el comprobante faltante.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-xl border bg-muted/30 p-3 text-sm">
+              <p className="font-medium">{selectedSale?.customer_name_snapshot ?? "Consumidor final"}</p>
+              <p className="text-muted-foreground">{selectedSale ? `${formatTime(selectedSale.sold_at)} · ${currency.format(Number(selectedSale.amount_total))}` : ""}</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de comprobante</Label>
+              <Select value={pendingReceiptKind} onValueChange={(value) => setPendingReceiptKind(value as ReceiptKind)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="REMITO">Remito</SelectItem>
+                  <SelectItem value="FACTURA">Factura</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pending-receipt-reference">Numero / referencia</Label>
+              <Input id="pending-receipt-reference" value={pendingReceiptReference} onChange={(event) => setPendingReceiptReference(event.target.value)} placeholder="Ej. 0001-00009312" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReceiptDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={() => attachReceiptMutation.mutate()} disabled={attachReceiptMutation.isPending}>
+              {attachReceiptMutation.isPending ? "Guardando..." : "Guardar comprobante"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AppLayout>
+  );
+}
