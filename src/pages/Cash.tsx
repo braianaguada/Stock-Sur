@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, ClipboardCheck, FileClock, XCircle, Eye } from "lucide-react";
+import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, ClipboardCheck, FileClock, Eye, Ban, NotebookText } from "lucide-react";
 
 type PaymentMethod = "EFECTIVO" | "POINT" | "TRANSFERENCIA" | "CUENTA_CORRIENTE";
 type ReceiptKind = "PENDIENTE" | "REMITO" | "FACTURA";
@@ -39,11 +39,13 @@ type RemitoOption = {
 type CashSaleRow = {
   id: string;
   sold_at: string;
+  business_date: string;
   amount_total: number;
   payment_method: PaymentMethod;
   receipt_kind: ReceiptKind;
   status: SaleStatus;
   document_id: string | null;
+  closure_id: string | null;
   receipt_reference: string | null;
   customer_name_snapshot: string | null;
   notes: string | null;
@@ -174,12 +176,18 @@ export default function CashPage() {
   const [pendingReceiptKind, setPendingReceiptKind] = useState<ReceiptKind>("REMITO");
   const [pendingRemitoId, setPendingRemitoId] = useState<string>("__none__");
   const [pendingReceiptReference, setPendingReceiptReference] = useState("");
-  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
-  const [noteDialogSale, setNoteDialogSale] = useState<CashSaleRow | null>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [detailSale, setDetailSale] = useState<CashSaleRow | null>(null);
   const [closeNotes, setCloseNotes] = useState("");
   const [countedCashTotal, setCountedCashTotal] = useState("");
   const [countedPointTotal, setCountedPointTotal] = useState("");
   const [countedTransferTotal, setCountedTransferTotal] = useState("");
+  const [closureInputDirty, setClosureInputDirty] = useState({
+    cash: false,
+    point: false,
+    transfer: false,
+    notes: false,
+  });
 
   const { data: customers = [] } = useQuery({
     queryKey: ["cash-customers"],
@@ -200,7 +208,7 @@ export default function CashPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cash_sales")
-        .select("id, sold_at, amount_total, payment_method, receipt_kind, status, document_id, receipt_reference, customer_name_snapshot, notes")
+        .select("id, business_date, sold_at, amount_total, payment_method, receipt_kind, status, document_id, closure_id, receipt_reference, customer_name_snapshot, notes")
         .eq("business_date", businessDate)
         .order("sold_at", { ascending: false })
         .limit(150);
@@ -240,11 +248,28 @@ export default function CashPage() {
 
   useEffect(() => {
     if (!closure) return;
-    setCountedCashTotal(closure.counted_cash_total != null ? String(closure.counted_cash_total) : String(closure.expected_cash_to_render || 0));
-    setCountedPointTotal(closure.counted_point_total != null ? String(closure.counted_point_total) : String(closure.expected_point_sales_total || 0));
-    setCountedTransferTotal(closure.counted_transfer_total != null ? String(closure.counted_transfer_total) : String(closure.expected_transfer_sales_total || 0));
-    setCloseNotes(closure.notes ?? "");
-  }, [closure]);
+    if (!closureInputDirty.cash) {
+      setCountedCashTotal(closure.counted_cash_total != null ? String(closure.counted_cash_total) : String(closure.expected_cash_to_render || 0));
+    }
+    if (!closureInputDirty.point) {
+      setCountedPointTotal(closure.counted_point_total != null ? String(closure.counted_point_total) : String(closure.expected_point_sales_total || 0));
+    }
+    if (!closureInputDirty.transfer) {
+      setCountedTransferTotal(closure.counted_transfer_total != null ? String(closure.counted_transfer_total) : String(closure.expected_transfer_sales_total || 0));
+    }
+    if (!closureInputDirty.notes) {
+      setCloseNotes(closure.notes ?? "");
+    }
+  }, [closure, closureInputDirty]);
+
+  useEffect(() => {
+    setClosureInputDirty({
+      cash: false,
+      point: false,
+      transfer: false,
+      notes: false,
+    });
+  }, [businessDate]);
 
   useEffect(() => {
     if (receiptKind !== "REMITO") {
@@ -286,6 +311,16 @@ export default function CashPage() {
       .map((sale) => sale.document_id as string),
   );
   const availableRemitos = remitos.filter((remito) => !assignedRemitoIds.has(remito.id));
+  const unclosedSalesAfterClosure = sales.filter((sale) => sale.status !== "ANULADA" && !sale.closure_id);
+  const expectedCashToRender = Number(closure?.expected_cash_to_render ?? 0);
+  const expectedPointTotal = Number(closure?.expected_point_sales_total ?? 0);
+  const expectedTransferTotal = Number(closure?.expected_transfer_sales_total ?? 0);
+  const parsedCountedCash = countedCashTotal ? Number(countedCashTotal.replace(",", ".")) : null;
+  const parsedCountedPoint = countedPointTotal ? Number(countedPointTotal.replace(",", ".")) : null;
+  const parsedCountedTransfer = countedTransferTotal ? Number(countedTransferTotal.replace(",", ".")) : null;
+  const liveCashDifference = parsedCountedCash != null && Number.isFinite(parsedCountedCash) ? parsedCountedCash - expectedCashToRender : null;
+  const livePointDifference = parsedCountedPoint != null && Number.isFinite(parsedCountedPoint) ? parsedCountedPoint - expectedPointTotal : null;
+  const liveTransferDifference = parsedCountedTransfer != null && Number.isFinite(parsedCountedTransfer) ? parsedCountedTransfer - expectedTransferTotal : null;
 
   const refreshCash = async () => {
     await Promise.all([
@@ -465,6 +500,9 @@ export default function CashPage() {
     setReceiptDialogOpen(true);
   };
 
+  const canCancelSale = (sale: CashSaleRow) => !(sale.closure_id && closure?.status === "CERRADO");
+  const canAttachReceipt = (sale: CashSaleRow) => sale.status === "PENDIENTE_COMPROBANTE";
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -486,6 +524,12 @@ export default function CashPage() {
               : remitosError
                 ? getErrorMessage(remitosError, "No se pudo cargar Caja.")
                 : "No se pudo cargar Caja."}
+          </div>
+        ) : null}
+
+        {closure?.status === "CERRADO" && unclosedSalesAfterClosure.length > 0 ? (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            Hay {unclosedSalesAfterClosure.length} movimiento{unclosedSalesAfterClosure.length === 1 ? "" : "s"} posterior{unclosedSalesAfterClosure.length === 1 ? "" : "es"} al cierre. No forman parte de la caja ya cerrada.
           </div>
         ) : null}
 
@@ -613,7 +657,7 @@ export default function CashPage() {
                   <Textarea id="notes" placeholder="Cliente, detalle rapido o algo util para revisar la venta despues" value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} />
                 </div>
 
-                <Button type="submit" className="w-full" disabled={createSaleMutation.isPending || closure?.status === "CERRADO"}>
+                <Button type="submit" className="w-full" disabled={createSaleMutation.isPending}>
                   {createSaleMutation.isPending ? "Guardando..." : "Registrar venta"}
                 </Button>
               </form>
@@ -673,35 +717,35 @@ export default function CashPage() {
                               </TableCell>
                               <TableCell><Badge variant="outline" className={STATUS_CLASS[sale.status]}>{STATUS_LABEL[sale.status]}</Badge></TableCell>
                               <TableCell className="text-right">
-                                {sale.status !== "ANULADA" ? (
+                                <div className="flex items-center justify-end gap-1">
                                   <Button
                                     type="button"
-                                    size="sm"
+                                    size="icon"
                                     variant="ghost"
-                                    className="text-destructive"
-                                    onClick={() => cancelSaleMutation.mutate(sale.id)}
-                                    disabled={cancelSaleMutation.isPending || closure?.status === "CERRADO"}
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      setDetailSale(sale);
+                                      setDetailDialogOpen(true);
+                                    }}
                                   >
-                                    Anular
+                                    <NotebookText className="h-4 w-4" />
                                   </Button>
-                                ) : null}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  {sale.notes ? (
+                                  {sale.status !== "ANULADA" ? (
                                     <Button
                                       type="button"
                                       size="icon"
                                       variant="ghost"
-                                      className="h-8 w-8"
-                                      onClick={() => {
-                                        setNoteDialogSale(sale);
-                                        setNoteDialogOpen(true);
-                                      }}
+                                      className="h-8 w-8 text-destructive"
+                                      onClick={() => cancelSaleMutation.mutate(sale.id)}
+                                      disabled={cancelSaleMutation.isPending || !canCancelSale(sale)}
                                     >
-                                      <Eye className="h-4 w-4" />
+                                      <Ban className="h-4 w-4" />
                                     </Button>
                                   ) : null}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
                                   <span className="font-semibold">{currency.format(Number(sale.amount_total))}</span>
                                 </div>
                               </TableCell>
@@ -745,20 +789,29 @@ export default function CashPage() {
                               <TableCell className="text-right font-semibold">{currency.format(Number(sale.amount_total))}</TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-2">
-                                  <Button type="button" size="sm" variant="outline" onClick={() => openReceiptDialog(sale)}>
-                                    <ClipboardCheck className="mr-2 h-3.5 w-3.5" />
-                                    Asignar comprobante
+                                  <Button type="button" size="icon" variant="outline" onClick={() => openReceiptDialog(sale)} disabled={!canAttachReceipt(sale)}>
+                                    <ClipboardCheck className="h-4 w-4" />
                                   </Button>
                                   <Button
                                     type="button"
-                                    size="sm"
+                                    size="icon"
                                     variant="ghost"
                                     className="text-destructive"
                                     onClick={() => cancelSaleMutation.mutate(sale.id)}
-                                    disabled={cancelSaleMutation.isPending || closure?.status === "CERRADO"}
+                                    disabled={cancelSaleMutation.isPending || !canCancelSale(sale)}
                                   >
-                                    <XCircle className="mr-2 h-3.5 w-3.5" />
-                                    Anular
+                                    <Ban className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setDetailSale(sale);
+                                      setDetailDialogOpen(true);
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4" />
                                   </Button>
                                 </div>
                               </TableCell>
@@ -800,19 +853,55 @@ export default function CashPage() {
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="counted-cash">Efectivo contado</Label>
-                        <Input id="counted-cash" inputMode="decimal" value={countedCashTotal} onChange={(event) => setCountedCashTotal(event.target.value)} disabled={closure?.status === "CERRADO"} />
+                        <Input
+                          id="counted-cash"
+                          inputMode="decimal"
+                          value={countedCashTotal}
+                          onChange={(event) => {
+                            setClosureInputDirty((current) => ({ ...current, cash: true }));
+                            setCountedCashTotal(event.target.value);
+                          }}
+                          disabled={closure?.status === "CERRADO"}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="counted-point">Point contado</Label>
-                        <Input id="counted-point" inputMode="decimal" value={countedPointTotal} onChange={(event) => setCountedPointTotal(event.target.value)} disabled={closure?.status === "CERRADO"} />
+                        <Input
+                          id="counted-point"
+                          inputMode="decimal"
+                          value={countedPointTotal}
+                          onChange={(event) => {
+                            setClosureInputDirty((current) => ({ ...current, point: true }));
+                            setCountedPointTotal(event.target.value);
+                          }}
+                          disabled={closure?.status === "CERRADO"}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="counted-transfer">Transferencias contadas</Label>
-                        <Input id="counted-transfer" inputMode="decimal" value={countedTransferTotal} onChange={(event) => setCountedTransferTotal(event.target.value)} disabled={closure?.status === "CERRADO"} />
+                        <Input
+                          id="counted-transfer"
+                          inputMode="decimal"
+                          value={countedTransferTotal}
+                          onChange={(event) => {
+                            setClosureInputDirty((current) => ({ ...current, transfer: true }));
+                            setCountedTransferTotal(event.target.value);
+                          }}
+                          disabled={closure?.status === "CERRADO"}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="close-notes">Observaciones del cierre</Label>
-                        <Textarea id="close-notes" rows={5} value={closeNotes} onChange={(event) => setCloseNotes(event.target.value)} disabled={closure?.status === "CERRADO"} />
+                        <Textarea
+                          id="close-notes"
+                          rows={5}
+                          value={closeNotes}
+                          onChange={(event) => {
+                            setClosureInputDirty((current) => ({ ...current, notes: true }));
+                            setCloseNotes(event.target.value);
+                          }}
+                          disabled={closure?.status === "CERRADO"}
+                        />
                       </div>
                     </div>
 
@@ -825,15 +914,15 @@ export default function CashPage() {
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Diferencia efectivo</span>
-                          <span className="font-semibold">{currency.format(Number(closure?.cash_difference ?? 0))}</span>
+                          <span className="font-semibold">{currency.format(Number(liveCashDifference ?? 0))}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Diferencia Point</span>
-                          <span className="font-semibold">{currency.format(Number(closure?.point_difference ?? 0))}</span>
+                          <span className="font-semibold">{currency.format(Number(livePointDifference ?? 0))}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Diferencia transferencias</span>
-                          <span className="font-semibold">{currency.format(Number(closure?.transfer_difference ?? 0))}</span>
+                          <span className="font-semibold">{currency.format(Number(liveTransferDifference ?? 0))}</span>
                         </div>
                         <div className="border-t pt-3">
                           <p className="text-xs text-muted-foreground">Estado del cierre: {closure?.status === "CERRADO" ? `cerrado el ${formatDateTime(closure?.closed_at ?? null)}` : "todavia abierto"}</p>
@@ -848,6 +937,21 @@ export default function CashPage() {
                     </Button>
                     <Button variant="outline" onClick={() => void refreshCash()}>
                       Recalcular
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setClosureInputDirty({ cash: false, point: false, transfer: false, notes: false });
+                        if (closure) {
+                          setCountedCashTotal(String(closure.counted_cash_total ?? closure.expected_cash_to_render ?? 0));
+                          setCountedPointTotal(String(closure.counted_point_total ?? closure.expected_point_sales_total ?? 0));
+                          setCountedTransferTotal(String(closure.counted_transfer_total ?? closure.expected_transfer_sales_total ?? 0));
+                          setCloseNotes(closure.notes ?? "");
+                        }
+                      }}
+                      disabled={closure?.status === "CERRADO"}
+                    >
+                      Usar valores del sistema
                     </Button>
                     {closure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya esta bloqueado. Solo queda disponible para consulta.</p> : null}
                   </div>
@@ -911,17 +1015,67 @@ export default function CashPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Observacion</DialogTitle>
-            <DialogDescription>Detalle guardado para esta venta.</DialogDescription>
+            <DialogTitle>Detalle de venta</DialogTitle>
+            <DialogDescription>Vista rapida para revisar la operacion y sus acciones disponibles.</DialogDescription>
           </DialogHeader>
-          <div className="rounded-xl border bg-muted/30 p-4 text-sm leading-6">
-            {noteDialogSale?.notes ?? "Sin observaciones"}
+          <div className="space-y-4 text-sm">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border bg-muted/30 p-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+                <p className="mt-1 font-medium">{detailSale?.customer_name_snapshot ?? "Consumidor final"}</p>
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Importe</p>
+                <p className="mt-1 font-medium">{detailSale ? currency.format(Number(detailSale.amount_total)) : "-"}</p>
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Pago</p>
+                <p className="mt-1 font-medium">{detailSale ? PAYMENT_LABEL[detailSale.payment_method] : "-"}</p>
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Comprobante</p>
+                <p className="mt-1 font-medium">{detailSale ? RECEIPT_LABEL[detailSale.receipt_kind] : "-"}</p>
+                {detailSale?.receipt_reference ? <p className="font-mono text-xs text-muted-foreground">{detailSale.receipt_reference}</p> : null}
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Estado</p>
+                <p className="mt-1 font-medium">{detailSale ? STATUS_LABEL[detailSale.status] : "-"}</p>
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Cierre</p>
+                <p className="mt-1 font-medium">{detailSale?.closure_id ? "Incluida en cierre" : "Sin cerrar"}</p>
+              </div>
+            </div>
+            <div className="rounded-xl border bg-muted/30 p-4 leading-6">
+              {detailSale?.notes ?? "Sin observaciones"}
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNoteDialogOpen(false)}>Cerrar</Button>
+            {detailSale && canAttachReceipt(detailSale) ? (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDetailDialogOpen(false);
+                  openReceiptDialog(detailSale);
+                }}
+              >
+                Asignar comprobante
+              </Button>
+            ) : null}
+            {detailSale && detailSale.status !== "ANULADA" ? (
+              <Button
+                variant="ghost"
+                className="text-destructive"
+                onClick={() => cancelSaleMutation.mutate(detailSale.id)}
+                disabled={cancelSaleMutation.isPending || !canCancelSale(detailSale)}
+              >
+                Anular
+              </Button>
+            ) : null}
+            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
