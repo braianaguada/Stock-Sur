@@ -142,6 +142,22 @@ function formatDocumentNumber(pointOfSale: number, documentNumber: number | null
   return `${String(pointOfSale).padStart(4, "0")}-${String(documentNumber).padStart(8, "0")}`;
 }
 
+function formatRemitoOptionLabel(remito: RemitoOption) {
+  const number = formatDocumentNumber(remito.point_of_sale, remito.document_number);
+  return remito.customer_name ? `${number} - ${remito.customer_name}` : number;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "object" && error !== null) {
+    const maybeMessage = "message" in error && typeof error.message === "string" ? error.message : null;
+    const maybeDetails = "details" in error && typeof error.details === "string" ? error.details : null;
+    const maybeHint = "hint" in error && typeof error.hint === "string" ? error.hint : null;
+    return [maybeMessage, maybeDetails, maybeHint].filter(Boolean).join(" - ") || fallback;
+  }
+  return fallback;
+}
+
 export default function CashPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -338,7 +354,7 @@ export default function CashPage() {
     onError: (error: unknown) => {
       toast({
         title: "No se pudo registrar la venta",
-        description: error instanceof Error ? error.message : "Error desconocido",
+        description: getErrorMessage(error, "Error desconocido"),
         variant: "destructive",
       });
     },
@@ -381,7 +397,7 @@ export default function CashPage() {
     onError: (error: unknown) => {
       toast({
         title: "No se pudo asociar el comprobante",
-        description: error instanceof Error ? error.message : "Error desconocido",
+        description: getErrorMessage(error, "Error desconocido"),
         variant: "destructive",
       });
     },
@@ -399,7 +415,7 @@ export default function CashPage() {
     onError: (error: unknown) => {
       toast({
         title: "No se pudo anular la venta",
-        description: error instanceof Error ? error.message : "Error desconocido",
+        description: getErrorMessage(error, "Error desconocido"),
         variant: "destructive",
       });
     },
@@ -435,7 +451,7 @@ export default function CashPage() {
     onError: (error: unknown) => {
       toast({
         title: "No se pudo cerrar la caja",
-        description: error instanceof Error ? error.message : "Error desconocido",
+        description: getErrorMessage(error, "Error desconocido"),
         variant: "destructive",
       });
     },
@@ -465,7 +481,11 @@ export default function CashPage() {
 
         {salesError || remitosError ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-            {(salesError instanceof Error ? salesError.message : null) ?? (remitosError instanceof Error ? remitosError.message : "No se pudo cargar Caja.")}
+            {salesError
+              ? getErrorMessage(salesError, "No se pudo cargar Caja.")
+              : remitosError
+                ? getErrorMessage(remitosError, "No se pudo cargar Caja.")
+                : "No se pudo cargar Caja."}
           </div>
         ) : null}
 
@@ -568,7 +588,7 @@ export default function CashPage() {
                         <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
                         {availableRemitos.map((remito) => (
                           <SelectItem key={remito.id} value={remito.id}>
-                            {formatDocumentNumber(remito.point_of_sale, remito.document_number)} - {remito.customer_name}
+                            {formatRemitoOptionLabel(remito)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -766,7 +786,7 @@ export default function CashPage() {
                 <CardContent className="space-y-6">
                   {closureError ? (
                     <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-                      {closureError instanceof Error ? closureError.message : "No se pudo cargar el cierre diario."}
+                      {getErrorMessage(closureError, "No se pudo cargar el cierre diario.")}
                     </div>
                   ) : null}
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -868,7 +888,7 @@ export default function CashPage() {
                     <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
                     {availableRemitos.map((remito) => (
                       <SelectItem key={remito.id} value={remito.id}>
-                        {formatDocumentNumber(remito.point_of_sale, remito.document_number)} - {remito.customer_name}
+                        {formatRemitoOptionLabel(remito)}
                       </SelectItem>
                     ))}
                   </SelectContent>
