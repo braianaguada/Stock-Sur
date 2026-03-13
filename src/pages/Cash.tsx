@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, ClipboardCheck, FileClock, Eye, Ban, NotebookText } from "lucide-react";
+import { Link } from "react-router-dom";
 
 type PaymentMethod = "EFECTIVO" | "POINT" | "TRANSFERENCIA" | "CUENTA_CORRIENTE";
 type ReceiptKind = "PENDIENTE" | "REMITO" | "FACTURA";
@@ -72,6 +73,18 @@ type CashClosureRow = {
   closed_at: string | null;
 };
 
+type DocumentQuickRow = {
+  id: string;
+  doc_type: "PRESUPUESTO" | "REMITO";
+  status: "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO";
+  point_of_sale: number;
+  document_number: number | null;
+  issue_date: string;
+  customer_name: string;
+  total: number;
+  notes: string | null;
+};
+
 type CashSummary = {
   efectivo: number;
   point: number;
@@ -106,6 +119,15 @@ const STATUS_CLASS: Record<SaleStatus, string> = {
   PENDIENTE_COMPROBANTE: "bg-amber-100 text-amber-700 border-amber-200",
   COMPROBANTADA: "bg-emerald-100 text-emerald-700 border-emerald-200",
   ANULADA: "bg-rose-100 text-rose-700 border-rose-200",
+};
+
+const DOC_STATUS_LABEL: Record<DocumentQuickRow["status"], string> = {
+  BORRADOR: "Borrador",
+  ENVIADO: "Enviado",
+  APROBADO: "Aprobado",
+  RECHAZADO: "Rechazado",
+  EMITIDO: "Emitido",
+  ANULADO: "Anulado",
 };
 
 const currency = new Intl.NumberFormat("es-AR", {
@@ -158,6 +180,34 @@ function getErrorMessage(error: unknown, fallback: string) {
     return [maybeMessage, maybeDetails, maybeHint].filter(Boolean).join(" - ") || fallback;
   }
   return fallback;
+}
+
+function getClosureSituation(sale: CashSaleRow, closureStatus: ClosureStatus | undefined) {
+  if (sale.status === "ANULADA") {
+    return {
+      label: "Anulada",
+      className: "border-rose-200 bg-rose-50 text-rose-700",
+    };
+  }
+
+  if (sale.closure_id && closureStatus === "CERRADO") {
+    return {
+      label: "En cierre",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    };
+  }
+
+  if (!sale.closure_id && closureStatus === "CERRADO") {
+    return {
+      label: "Post cierre",
+      className: "border-violet-200 bg-violet-50 text-violet-700",
+    };
+  }
+
+  return {
+    label: "Abierta",
+    className: "border-sky-200 bg-sky-50 text-sky-700",
+  };
 }
 
 export default function CashPage() {
@@ -243,6 +293,22 @@ export default function CashPage() {
       const row = Array.isArray(data) ? data[0] : data;
       if (!row) throw new Error("No se encontro el cierre del dia");
       return row as CashClosureRow;
+    },
+  });
+
+  const { data: linkedDocument } = useQuery({
+    queryKey: ["cash-linked-document", detailSale?.document_id],
+    enabled: Boolean(detailSale?.document_id),
+    queryFn: async () => {
+      if (!detailSale?.document_id) return null;
+      const { data, error } = await supabase
+        .from("documents")
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_name, total, notes")
+        .eq("id", detailSale.document_id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return (data ?? null) as DocumentQuickRow | null;
     },
   });
 
@@ -686,12 +752,13 @@ export default function CashPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Hora</TableHead>
+                          <TableHead className="text-right">Importe</TableHead>
                           <TableHead>Cliente</TableHead>
                           <TableHead>Pago</TableHead>
                           <TableHead>Comprobante</TableHead>
                           <TableHead>Estado</TableHead>
+                          <TableHead>Situacion</TableHead>
                           <TableHead className="w-[120px] text-right">Acciones</TableHead>
-                          <TableHead className="text-right">Importe</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -703,6 +770,7 @@ export default function CashPage() {
                           sales.map((sale) => (
                             <TableRow key={sale.id}>
                               <TableCell className="font-mono text-xs">{formatTime(sale.sold_at)}</TableCell>
+                              <TableCell className="text-right font-semibold">{currency.format(Number(sale.amount_total))}</TableCell>
                               <TableCell>
                                 <div className="max-w-[220px]">
                                   <p className="truncate text-sm font-medium">{sale.customer_name_snapshot ?? "Consumidor final"}</p>
@@ -716,6 +784,11 @@ export default function CashPage() {
                                 </div>
                               </TableCell>
                               <TableCell><Badge variant="outline" className={STATUS_CLASS[sale.status]}>{STATUS_LABEL[sale.status]}</Badge></TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={getClosureSituation(sale, closure?.status).className}>
+                                  {getClosureSituation(sale, closure?.status).label}
+                                </Badge>
+                              </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
@@ -742,11 +815,6 @@ export default function CashPage() {
                                       <Ban className="h-4 w-4" />
                                     </Button>
                                   ) : null}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <span className="font-semibold">{currency.format(Number(sale.amount_total))}</span>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -1022,6 +1090,42 @@ export default function CashPage() {
             <DialogDescription>Vista rapida para revisar la operacion y sus acciones disponibles.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 text-sm">
+            {linkedDocument ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Comprobante asociado</p>
+                    <p className="mt-1 text-lg font-semibold text-emerald-950">
+                      {linkedDocument.doc_type === "REMITO" ? "Remito" : linkedDocument.doc_type} {formatDocumentNumber(linkedDocument.point_of_sale, linkedDocument.document_number)}
+                    </p>
+                    <p className="text-sm text-emerald-800">{linkedDocument.customer_name}</p>
+                  </div>
+                  <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">
+                    {DOC_STATUS_LABEL[linkedDocument.status]}
+                  </Badge>
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs text-emerald-700">Fecha</p>
+                    <p className="font-medium">{new Date(linkedDocument.issue_date).toLocaleDateString("es-AR")}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-emerald-700">Total</p>
+                    <p className="font-medium">{currency.format(Number(linkedDocument.total))}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-emerald-700">Documento</p>
+                    <p className="font-medium">{formatDocumentNumber(linkedDocument.point_of_sale, linkedDocument.document_number)}</p>
+                  </div>
+                </div>
+                {linkedDocument.notes ? (
+                  <div className="mt-3 rounded-xl border border-emerald-200 bg-white/80 p-3 leading-6">
+                    {linkedDocument.notes}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border bg-muted/30 p-3">
                 <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
@@ -1045,8 +1149,8 @@ export default function CashPage() {
                 <p className="mt-1 font-medium">{detailSale ? STATUS_LABEL[detailSale.status] : "-"}</p>
               </div>
               <div className="rounded-xl border bg-muted/30 p-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Cierre</p>
-                <p className="mt-1 font-medium">{detailSale?.closure_id ? "Incluida en cierre" : "Sin cerrar"}</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Situacion</p>
+                <p className="mt-1 font-medium">{detailSale ? getClosureSituation(detailSale, closure?.status).label : "-"}</p>
               </div>
             </div>
             <div className="rounded-xl border bg-muted/30 p-4 leading-6">
@@ -1054,6 +1158,11 @@ export default function CashPage() {
             </div>
           </div>
           <DialogFooter>
+            {linkedDocument ? (
+              <Button asChild variant="outline">
+                <Link to="/documents">Ir a documentos</Link>
+              </Button>
+            ) : null}
             {detailSale && canAttachReceipt(detailSale) ? (
               <Button
                 variant="outline"
