@@ -1574,58 +1574,68 @@ export default function CashPage() {
           </DialogHeader>
           {selectedClosurePreview ? (
             <div className="max-h-[72vh] space-y-4 overflow-y-auto pr-1">
-              <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-                <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-sky-50 p-5">
-                  <div className="mb-4 flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cierre diario</p>
-                      <h3 className="mt-2 text-2xl font-black text-slate-950">
-                        {new Date(selectedClosurePreview.business_date).toLocaleDateString("es-AR")}
-                      </h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {selectedClosurePreview.status === "CERRADO" ? `Cerrado el ${formatDateTime(selectedClosurePreview.closed_at)}` : "Caja abierta"}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right text-white shadow-sm">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300">Estado</p>
-                      <p className="mt-1 text-lg font-bold">{selectedClosurePreview.status === "CERRADO" ? "Cerrado" : "Abierto"}</p>
-                    </div>
+              <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-sky-50 p-5">
+                <div className="mb-4 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cierre diario</p>
+                    <h3 className="mt-2 text-2xl font-black text-slate-950">
+                      {new Date(selectedClosurePreview.business_date).toLocaleDateString("es-AR")}
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {selectedClosurePreview.status === "CERRADO" ? `Cerrado el ${formatDateTime(selectedClosurePreview.closed_at)}` : "Caja abierta"}
+                    </p>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border bg-white/90 p-4">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo esperado</p>
-                      <p className="mt-2 text-xl font-bold text-emerald-700">{currency.format(Number(selectedClosurePreview.expected_cash_to_render))}</p>
-                      <p className="text-sm text-muted-foreground">Contado: {currency.format(Number(selectedClosurePreview.counted_cash_total ?? 0))}</p>
-                    </div>
-                    <div className="rounded-2xl border bg-white/90 p-4">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Total ventas</p>
-                      <p className="mt-2 text-xl font-bold text-slate-900">{currency.format(Number(selectedClosurePreview.expected_sales_total))}</p>
-                      <p className="text-sm text-muted-foreground">Movimientos incluidos: {selectedClosureSales.length}</p>
-                    </div>
+                  <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right text-white shadow-sm">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300">Estado</p>
+                    <p className="mt-1 text-lg font-bold">{selectedClosurePreview.status === "CERRADO" ? "Cerrado" : "Abierto"}</p>
                   </div>
                 </div>
-                <div className="rounded-3xl border bg-card p-5">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Resumen</p>
-                  <div className="mt-4 grid gap-3">
-                    <div className="rounded-2xl border bg-emerald-50 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Diferencia efectivo</p>
-                      <p className="mt-2 text-2xl font-black text-emerald-700">{currency.format(Number(selectedClosurePreview.cash_difference ?? 0))}</p>
-                    </div>
-                    <div className="rounded-2xl border bg-sky-50 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Point</p>
-                      <p className="mt-2 font-semibold">{currency.format(Number(selectedClosurePreview.expected_point_sales_total))}</p>
-                      <p className="text-sm text-muted-foreground">Contado: {currency.format(Number(selectedClosurePreview.counted_point_total ?? 0))}</p>
-                    </div>
-                    <div className="rounded-2xl border bg-violet-50 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Transferencias</p>
-                      <p className="mt-2 font-semibold">{currency.format(Number(selectedClosurePreview.expected_transfer_sales_total))}</p>
-                      <p className="text-sm text-muted-foreground">Contado: {currency.format(Number(selectedClosurePreview.counted_transfer_total ?? 0))}</p>
-                    </div>
-                    <div className="rounded-2xl border border-dashed p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Notas</p>
-                      <p className="mt-2 text-sm text-muted-foreground">{selectedClosurePreview.notes ?? "Sin observaciones"}</p>
-                    </div>
+
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="rounded-2xl border bg-white/95 p-4">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Total ventas</p>
+                    <p className="mt-2 text-xl font-bold text-slate-900">{currency.format(Number(selectedClosurePreview.expected_sales_total))}</p>
+                    <p className="text-sm text-muted-foreground">Movimientos: {selectedClosureSales.length}</p>
                   </div>
+                  <div className="rounded-2xl border bg-emerald-50 p-4">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo esperado</p>
+                    <p className="mt-2 text-xl font-bold text-emerald-700">{currency.format(Number(selectedClosurePreview.expected_cash_to_render))}</p>
+                  </div>
+                  <div className="rounded-2xl border bg-sky-50 p-4">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Point esperado</p>
+                    <p className="mt-2 text-xl font-bold text-sky-700">{currency.format(Number(selectedClosurePreview.expected_point_sales_total))}</p>
+                  </div>
+                  <div className="rounded-2xl border bg-violet-50 p-4">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Transf. esperadas</p>
+                    <p className="mt-2 text-xl font-bold text-violet-700">{currency.format(Number(selectedClosurePreview.expected_transfer_sales_total))}</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-3 md:grid-cols-4">
+                  <div className="rounded-2xl border bg-white/95 p-4">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo real</p>
+                    <p className="mt-2 text-lg font-bold text-slate-900">
+                      {selectedClosurePreview.counted_cash_total != null ? currency.format(Number(selectedClosurePreview.counted_cash_total)) : "Pendiente"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Completa responsable de caja</p>
+                  </div>
+                  <div className="rounded-2xl border bg-sky-50 p-4">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Point real</p>
+                    <p className="mt-2 text-lg font-bold text-sky-700">{currency.format(Number(selectedClosurePreview.counted_point_total ?? 0))}</p>
+                  </div>
+                  <div className="rounded-2xl border bg-violet-50 p-4">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Transf. reales</p>
+                    <p className="mt-2 text-lg font-bold text-violet-700">{currency.format(Number(selectedClosurePreview.counted_transfer_total ?? 0))}</p>
+                  </div>
+                  <div className="rounded-2xl border bg-amber-50 p-4">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Dif. efectivo</p>
+                    <p className="mt-2 text-lg font-bold text-amber-700">{currency.format(Number(selectedClosurePreview.cash_difference ?? 0))}</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-2xl border border-dashed bg-white/90 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Notas</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{selectedClosurePreview.notes ?? "Sin observaciones"}</p>
                 </div>
               </div>
 
@@ -1655,7 +1665,7 @@ export default function CashPage() {
               </div>
             </div>
           ) : null}
-          <DialogFooter>
+          <DialogFooter className="pt-2 sm:justify-end">
             <Button variant="outline" onClick={printClosurePreview}>Imprimir</Button>
             <Button variant="outline" onClick={() => setClosurePreviewOpen(false)}>Cerrar</Button>
           </DialogFooter>
