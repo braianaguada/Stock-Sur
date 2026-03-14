@@ -1567,13 +1567,13 @@ export default function CashPage() {
       </Dialog>
 
       <Dialog open={closurePreviewOpen} onOpenChange={setClosurePreviewOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
+        <DialogContent className="flex max-h-[90vh] max-w-5xl flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>Resumen del cierre</DialogTitle>
             <DialogDescription>Vista previa del cierre diario guardado para control e impresion.</DialogDescription>
           </DialogHeader>
           {selectedClosurePreview ? (
-            <div className="max-h-[72vh] space-y-4 overflow-y-auto pr-1">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">
               <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-sky-50 p-5">
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <div>
@@ -1614,18 +1614,13 @@ export default function CashPage() {
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <div className="rounded-2xl border bg-white/95 p-4">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo real</p>
-                    <p className="mt-2 text-lg font-bold text-slate-900">
-                      {selectedClosurePreview.counted_cash_total != null ? currency.format(Number(selectedClosurePreview.counted_cash_total)) : "Pendiente"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Completa responsable de caja</p>
+                    <div className="mt-3 h-14 rounded-xl border border-dashed border-slate-300 bg-slate-50/70" />
+                    <p className="mt-2 text-sm text-muted-foreground">Completa responsable de caja.</p>
                   </div>
                   <div className="rounded-2xl border bg-amber-50 p-4">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Diferencia</p>
-                    <p className="mt-2 text-lg font-bold text-amber-700">{currency.format(Number(selectedClosurePreview.cash_difference ?? 0))}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Point: {currency.format(Number(selectedClosurePreview.point_difference ?? 0))} · Transf.:{" "}
-                      {currency.format(Number(selectedClosurePreview.transfer_difference ?? 0))}
-                    </p>
+                    <div className="mt-3 h-14 rounded-xl border border-dashed border-amber-300 bg-amber-50/80" />
+                    <p className="mt-2 text-sm text-muted-foreground">Se completa a mano al momento del control.</p>
                   </div>
                 </div>
 
@@ -1661,7 +1656,7 @@ export default function CashPage() {
               </div>
             </div>
           ) : null}
-          <DialogFooter className="border-t bg-white px-6 pb-6 pt-4 sm:justify-end">
+          <DialogFooter className="sticky bottom-0 z-10 shrink-0 border-t bg-white px-6 pb-6 pt-4 sm:justify-end">
             <Button variant="outline" onClick={printClosurePreview}>Imprimir</Button>
             <Button variant="outline" onClick={() => setClosurePreviewOpen(false)}>Cerrar</Button>
           </DialogFooter>
@@ -1670,3 +1665,4 @@ export default function CashPage() {
     </AppLayout>
   );
 }
+
