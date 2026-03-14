@@ -188,6 +188,12 @@ function formatTime(value: string) {
   });
 }
 
+function formatBusinessDate(value: string) {
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
+  return `${day}/${month}/${year}`;
+}
+
 function formatDateTime(value: string | null) {
   if (!value) return "Abierto";
   return new Date(value).toLocaleString("es-AR", {
@@ -220,7 +226,7 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function getClosureSituation(sale: CashSaleRow, closureStatus: ClosureStatus | undefined) {
+function getClosureSituation(sale: CashSaleRow, hasClosedClosureForDay: boolean) {
   if (sale.status === "ANULADA") {
     return {
       label: "Anulada",
@@ -228,14 +234,14 @@ function getClosureSituation(sale: CashSaleRow, closureStatus: ClosureStatus | u
     };
   }
 
-  if (sale.closure_id && closureStatus === "CERRADO") {
+  if (sale.closure_id) {
     return {
       label: "En caja cerrada",
       className: "border-emerald-200 bg-emerald-50 text-emerald-700",
     };
   }
 
-  if (!sale.closure_id && closureStatus === "CERRADO") {
+  if (hasClosedClosureForDay) {
     return {
       label: "Venta post cierre",
       className: "border-violet-200 bg-violet-50 text-violet-700",
@@ -279,8 +285,8 @@ export default function CashPage() {
   const [selectedClosureId, setSelectedClosureId] = useState<string | null>(null);
   const [closeNotes, setCloseNotes] = useState("");
   const [countedCashTotal, setCountedCashTotal] = useState("");
-  const [countedPointTotal, setCountedPointTotal] = useState("");
-  const [countedTransferTotal, setCountedTransferTotal] = useState("");
+  const [, setCountedPointTotal] = useState("");
+  const [, setCountedTransferTotal] = useState("");
   const [closureInputDirty, setClosureInputDirty] = useState({
     cash: false,
     point: false,
@@ -430,10 +436,10 @@ export default function CashPage() {
       setCountedCashTotal(closure.counted_cash_total != null ? String(closure.counted_cash_total) : String(closure.expected_cash_to_render || 0));
     }
     if (!closureInputDirty.point) {
-      setCountedPointTotal(closure.counted_point_total != null ? String(closure.counted_point_total) : String(closure.expected_point_sales_total || 0));
+      setCountedPointTotal("");
     }
     if (!closureInputDirty.transfer) {
-      setCountedTransferTotal(closure.counted_transfer_total != null ? String(closure.counted_transfer_total) : String(closure.expected_transfer_sales_total || 0));
+      setCountedTransferTotal("");
     }
     if (!closureInputDirty.notes) {
       setCloseNotes(closure.notes ?? "");
@@ -483,6 +489,9 @@ export default function CashPage() {
   );
 
   const pendingSales = sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE");
+  const closureHistoryForDate = closuresHistory.find((item) => item.business_date === businessDate) ?? null;
+  const effectiveClosure = closureHistoryForDate ?? closure ?? null;
+  const hasClosedClosureForDay = effectiveClosure?.status === "CERRADO";
   const assignedRemitoIds = new Set(
     sales
       .filter((sale) => sale.status !== "ANULADA" && sale.document_id)
@@ -493,27 +502,22 @@ export default function CashPage() {
   const filteredSales = sales.filter((sale) => {
     if (situationFilter === "TODAS") return true;
     if (situationFilter === "ANULADA") return sale.status === "ANULADA";
-    const situation = getClosureSituation(sale, closure?.status).label;
+    const situation = getClosureSituation(sale, hasClosedClosureForDay).label;
     if (situationFilter === "PENDIENTE_CIERRE") return situation === "Pendiente de cierre";
     if (situationFilter === "EN_CAJA_CERRADA") return situation === "En caja cerrada";
     if (situationFilter === "POST_CIERRE") return situation === "Venta post cierre";
     return true;
   });
-  const expectedCashToRender = Number(closure?.expected_cash_to_render ?? 0);
-  const expectedPointTotal = Number(closure?.expected_point_sales_total ?? 0);
-  const expectedTransferTotal = Number(closure?.expected_transfer_sales_total ?? 0);
+  const expectedCashToRender = Number(effectiveClosure?.expected_cash_to_render ?? 0);
   const parsedCountedCash = countedCashTotal ? Number(countedCashTotal.replace(",", ".")) : null;
-  const parsedCountedPoint = countedPointTotal ? Number(countedPointTotal.replace(",", ".")) : null;
-  const parsedCountedTransfer = countedTransferTotal ? Number(countedTransferTotal.replace(",", ".")) : null;
   const liveCashDifference = parsedCountedCash != null && Number.isFinite(parsedCountedCash) ? parsedCountedCash - expectedCashToRender : null;
-  const livePointDifference = parsedCountedPoint != null && Number.isFinite(parsedCountedPoint) ? parsedCountedPoint - expectedPointTotal : null;
-  const liveTransferDifference = parsedCountedTransfer != null && Number.isFinite(parsedCountedTransfer) ? parsedCountedTransfer - expectedTransferTotal : null;
 
   const refreshCash = async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["cash-sales", businessDate] }),
       qc.invalidateQueries({ queryKey: ["cash-closure", businessDate] }),
       qc.invalidateQueries({ queryKey: ["cash-remitos", businessDate] }),
+      qc.invalidateQueries({ queryKey: ["cash-closures-history"] }),
       refetchSales(),
       refetchClosure(),
       refetchRemitos(),
@@ -649,18 +653,13 @@ export default function CashPage() {
       if (!closure) throw new Error("No se encontro el cierre del dia");
 
       const parsedCash = Number(countedCashTotal.replace(",", "."));
-      const parsedPoint = Number(countedPointTotal.replace(",", "."));
-      const parsedTransfer = Number(countedTransferTotal.replace(",", "."));
-
       if (!Number.isFinite(parsedCash)) throw new Error("Ingresa un efectivo contado valido");
-      if (countedPointTotal && !Number.isFinite(parsedPoint)) throw new Error("Ingresa un total de Point valido");
-      if (countedTransferTotal && !Number.isFinite(parsedTransfer)) throw new Error("Ingresa un total de transferencias valido");
 
       const { error } = await supabase.rpc("close_cash_closure", {
         p_closure_id: closure.id,
         p_counted_cash_total: parsedCash,
-        p_counted_point_total: countedPointTotal ? parsedPoint : null,
-        p_counted_transfer_total: countedTransferTotal ? parsedTransfer : null,
+        p_counted_point_total: null,
+        p_counted_transfer_total: null,
         p_notes: closeNotes.trim() || null,
       });
 
@@ -687,7 +686,7 @@ export default function CashPage() {
     setReceiptDialogOpen(true);
   };
 
-  const canCancelSale = (sale: CashSaleRow) => !(sale.closure_id && closure?.status === "CERRADO");
+  const canCancelSale = (sale: CashSaleRow) => !sale.closure_id;
   const canAttachReceipt = (sale: CashSaleRow) => sale.status === "PENDIENTE_COMPROBANTE";
   const selectedClosurePreview = closuresHistory.find((item) => item.id === selectedClosureId) ?? null;
 
@@ -748,7 +747,7 @@ export default function CashPage() {
       <div class="sheet">
         <div class="header">
           <div>
-            <div class="title">Cierre diario ${new Date(selectedClosurePreview.business_date).toLocaleDateString("es-AR")}</div>
+            <div class="title">Cierre diario ${formatBusinessDate(selectedClosurePreview.business_date)}</div>
             <div class="sub">Generado por ${companySettings.app_name} · ${selectedClosurePreview.status === "CERRADO" ? `Cerrado ${formatDateTime(selectedClosurePreview.closed_at)}` : "Caja abierta"}</div>
           </div>
           <div class="status">
@@ -836,7 +835,7 @@ export default function CashPage() {
             <h1 className="text-2xl font-bold tracking-tight">Caja</h1>
             <p className="text-muted-foreground">Carga rapida, pendientes de comprobante y cierre diario en una sola vista.</p>
           </div>
-          <div className="w-full md:w-[220px]">
+          <div className="w-full max-w-[180px]">
             <Label htmlFor="business-date">Fecha operativa</Label>
             <Input id="business-date" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} />
           </div>
@@ -852,7 +851,7 @@ export default function CashPage() {
           </div>
         ) : null}
 
-        {closure?.status === "CERRADO" && unclosedSalesAfterClosure.length > 0 ? (
+        {hasClosedClosureForDay && unclosedSalesAfterClosure.length > 0 ? (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
             Hay {unclosedSalesAfterClosure.length} movimiento{unclosedSalesAfterClosure.length === 1 ? "" : "s"} posterior{unclosedSalesAfterClosure.length === 1 ? "" : "es"} al cierre. No forman parte de la caja ya cerrada.
           </div>
@@ -1059,8 +1058,8 @@ export default function CashPage() {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <Badge variant="outline" className={getClosureSituation(sale, closure?.status).className}>
-                                  {getClosureSituation(sale, closure?.status).label}
+                                <Badge variant="outline" className={getClosureSituation(sale, hasClosedClosureForDay).className}>
+                                  {getClosureSituation(sale, hasClosedClosureForDay).label}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right">
@@ -1174,8 +1173,8 @@ export default function CashPage() {
                     <CardTitle>Cierre diario</CardTitle>
                     <CardDescription>Comparacion entre lo esperado por sistema y lo contado al final de la jornada.</CardDescription>
                   </div>
-                  <Badge variant="outline" className={closure?.status === "CERRADO" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}>
-                    {closure?.status === "CERRADO" ? "Cerrado" : "Abierto"}
+                  <Badge variant="outline" className={effectiveClosure?.status === "CERRADO" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}>
+                    {effectiveClosure?.status === "CERRADO" ? "Cerrado" : "Abierto"}
                   </Badge>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -1185,10 +1184,10 @@ export default function CashPage() {
                     </div>
                   ) : null}
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Efectivo a rendir</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(closure?.expected_cash_to_render ?? 0))}</CardTitle></CardHeader></Card>
-                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Point esperado</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(closure?.expected_point_sales_total ?? 0))}</CardTitle></CardHeader></Card>
-                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Transferencias esperadas</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(closure?.expected_transfer_sales_total ?? 0))}</CardTitle></CardHeader></Card>
-                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Total ventas</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(closure?.expected_sales_total ?? 0))}</CardTitle></CardHeader></Card>
+                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Efectivo a rendir</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_cash_to_render ?? 0))}</CardTitle></CardHeader></Card>
+                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Point esperado</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_point_sales_total ?? 0))}</CardTitle></CardHeader></Card>
+                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Transferencias esperadas</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_transfer_sales_total ?? 0))}</CardTitle></CardHeader></Card>
+                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Total ventas</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_sales_total ?? 0))}</CardTitle></CardHeader></Card>
                   </div>
 
                   <div className="grid gap-6 lg:grid-cols-2">
@@ -1203,33 +1202,7 @@ export default function CashPage() {
                             setClosureInputDirty((current) => ({ ...current, cash: true }));
                             setCountedCashTotal(event.target.value);
                           }}
-                          disabled={closure?.status === "CERRADO"}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="counted-point">Point contado</Label>
-                        <Input
-                          id="counted-point"
-                          inputMode="decimal"
-                          value={countedPointTotal}
-                          onChange={(event) => {
-                            setClosureInputDirty((current) => ({ ...current, point: true }));
-                            setCountedPointTotal(event.target.value);
-                          }}
-                          disabled={closure?.status === "CERRADO"}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="counted-transfer">Transferencias contadas</Label>
-                        <Input
-                          id="counted-transfer"
-                          inputMode="decimal"
-                          value={countedTransferTotal}
-                          onChange={(event) => {
-                            setClosureInputDirty((current) => ({ ...current, transfer: true }));
-                            setCountedTransferTotal(event.target.value);
-                          }}
-                          disabled={closure?.status === "CERRADO"}
+                          disabled={effectiveClosure?.status === "CERRADO"}
                         />
                       </div>
                       <div className="space-y-2">
@@ -1242,7 +1215,7 @@ export default function CashPage() {
                             setClosureInputDirty((current) => ({ ...current, notes: true }));
                             setCloseNotes(event.target.value);
                           }}
-                          disabled={closure?.status === "CERRADO"}
+                          disabled={effectiveClosure?.status === "CERRADO"}
                         />
                       </div>
                     </div>
@@ -1252,29 +1225,21 @@ export default function CashPage() {
                       <div className="mt-4 space-y-3 text-sm">
                         <div className="flex items-center justify-between">
                           <span>Efectivo esperado</span>
-                          <span className="font-semibold">{currency.format(Number(closure?.expected_cash_to_render ?? 0))}</span>
+                          <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_to_render ?? 0))}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Diferencia efectivo</span>
                           <span className="font-semibold">{currency.format(Number(liveCashDifference ?? 0))}</span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span>Diferencia Point</span>
-                          <span className="font-semibold">{currency.format(Number(livePointDifference ?? 0))}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Diferencia transferencias</span>
-                          <span className="font-semibold">{currency.format(Number(liveTransferDifference ?? 0))}</span>
-                        </div>
                         <div className="border-t pt-3">
-                          <p className="text-xs text-muted-foreground">Estado del cierre: {closure?.status === "CERRADO" ? `cerrado el ${formatDateTime(closure?.closed_at ?? null)}` : "todavia abierto"}</p>
+                          <p className="text-xs text-muted-foreground">Estado del cierre: {effectiveClosure?.status === "CERRADO" ? `cerrado el ${formatDateTime(effectiveClosure.closed_at ?? null)}` : "todavia abierto"}</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3">
-                    <Button onClick={() => closeClosureMutation.mutate()} disabled={closureLoading || closeClosureMutation.isPending || closure?.status === "CERRADO" || Boolean(closureError)}>
+                    <Button onClick={() => closeClosureMutation.mutate()} disabled={closureLoading || closeClosureMutation.isPending || effectiveClosure?.status === "CERRADO" || Boolean(closureError)}>
                       {closeClosureMutation.isPending ? "Cerrando..." : "Cerrar caja"}
                     </Button>
                     <Button variant="outline" onClick={() => void refreshCash()}>
@@ -1286,21 +1251,21 @@ export default function CashPage() {
                         setClosureInputDirty({ cash: false, point: false, transfer: false, notes: false });
                         if (closure) {
                           setCountedCashTotal(String(closure.counted_cash_total ?? closure.expected_cash_to_render ?? 0));
-                          setCountedPointTotal(String(closure.counted_point_total ?? closure.expected_point_sales_total ?? 0));
-                          setCountedTransferTotal(String(closure.counted_transfer_total ?? closure.expected_transfer_sales_total ?? 0));
+                          setCountedPointTotal("");
+                          setCountedTransferTotal("");
                           setCloseNotes(closure.notes ?? "");
                         }
                       }}
-                      disabled={closure?.status === "CERRADO"}
+                      disabled={effectiveClosure?.status === "CERRADO"}
                     >
                       Usar valores del sistema
                     </Button>
-                    {closure?.status === "CERRADO" ? (
-                      <Button variant="outline" onClick={() => openClosurePreview(closure.id)}>
+                    {effectiveClosure?.status === "CERRADO" && effectiveClosure?.id ? (
+                      <Button variant="outline" onClick={() => openClosurePreview(effectiveClosure.id)}>
                         Ver resumen
                       </Button>
                     ) : null}
-                    {closure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya esta bloqueado. Solo queda disponible para consulta.</p> : null}
+                    {effectiveClosure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya esta bloqueado. Solo queda disponible para consulta.</p> : null}
                   </div>
 
                   <div className="rounded-2xl border bg-card p-4">
@@ -1317,7 +1282,7 @@ export default function CashPage() {
                         closuresHistory.map((historyItem) => (
                           <div key={historyItem.id} className="flex flex-col gap-3 rounded-xl border p-4 md:flex-row md:items-center md:justify-between">
                             <div>
-                              <p className="font-semibold">{new Date(historyItem.business_date).toLocaleDateString("es-AR")}</p>
+                              <p className="font-semibold">{formatBusinessDate(historyItem.business_date)}</p>
                               <p className="text-sm text-muted-foreground">
                                 {historyItem.status === "CERRADO" ? `Cerrado el ${formatDateTime(historyItem.closed_at)}` : "Caja abierta"}
                               </p>
@@ -1579,7 +1544,7 @@ export default function CashPage() {
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cierre diario</p>
                     <h3 className="mt-2 text-2xl font-black text-slate-950">
-                      {new Date(selectedClosurePreview.business_date).toLocaleDateString("es-AR")}
+                      {formatBusinessDate(selectedClosurePreview.business_date)}
                     </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {selectedClosurePreview.status === "CERRADO" ? `Cerrado el ${formatDateTime(selectedClosurePreview.closed_at)}` : "Caja abierta"}
