@@ -1573,7 +1573,7 @@ export default function CashPage() {
             <DialogDescription>Vista previa del cierre diario guardado para control e impresion.</DialogDescription>
           </DialogHeader>
           {selectedClosurePreview ? (
-            <div className="space-y-4 overflow-y-auto pr-1">
+            <div className="max-h-[72vh] space-y-4 overflow-y-auto pr-1">
               <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
                 <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-sky-50 p-5">
                   <div className="mb-4 flex items-start justify-between gap-4">
