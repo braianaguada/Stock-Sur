@@ -1611,7 +1611,7 @@ export default function CashPage() {
                   </div>
                 </div>
 
-                <div className="mt-3 grid gap-3 md:grid-cols-4">
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <div className="rounded-2xl border bg-white/95 p-4">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo real</p>
                     <p className="mt-2 text-lg font-bold text-slate-900">
@@ -1619,17 +1619,13 @@ export default function CashPage() {
                     </p>
                     <p className="text-sm text-muted-foreground">Completa responsable de caja</p>
                   </div>
-                  <div className="rounded-2xl border bg-sky-50 p-4">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Point real</p>
-                    <p className="mt-2 text-lg font-bold text-sky-700">{currency.format(Number(selectedClosurePreview.counted_point_total ?? 0))}</p>
-                  </div>
-                  <div className="rounded-2xl border bg-violet-50 p-4">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Transf. reales</p>
-                    <p className="mt-2 text-lg font-bold text-violet-700">{currency.format(Number(selectedClosurePreview.counted_transfer_total ?? 0))}</p>
-                  </div>
                   <div className="rounded-2xl border bg-amber-50 p-4">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Dif. efectivo</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Diferencia</p>
                     <p className="mt-2 text-lg font-bold text-amber-700">{currency.format(Number(selectedClosurePreview.cash_difference ?? 0))}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Point: {currency.format(Number(selectedClosurePreview.point_difference ?? 0))} · Transf.:{" "}
+                      {currency.format(Number(selectedClosurePreview.transfer_difference ?? 0))}
+                    </p>
                   </div>
                 </div>
 
@@ -1665,7 +1661,7 @@ export default function CashPage() {
               </div>
             </div>
           ) : null}
-          <DialogFooter className="pt-2 sm:justify-end">
+          <DialogFooter className="border-t bg-white px-6 pb-6 pt-4 sm:justify-end">
             <Button variant="outline" onClick={printClosurePreview}>Imprimir</Button>
             <Button variant="outline" onClick={() => setClosurePreviewOpen(false)}>Cerrar</Button>
           </DialogFooter>
