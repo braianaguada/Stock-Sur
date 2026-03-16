@@ -727,7 +727,8 @@ export default function CashPage() {
       .card{border:1px solid #cbd5e1;border-radius:12px;padding:8px;background:#fff}
       .card strong{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:4px}
       .card .value{font-size:16px;font-weight:800}
-      .note{border:1px dashed #cbd5e1;border-radius:12px;padding:8px;min-height:56px}
+      .manual-box{margin-top:6px;height:42px;border:1px dashed #cbd5e1;border-radius:10px;background:#f8fafc}
+      .note{grid-column:1 / -1;border:1px dashed #cbd5e1;border-radius:12px;padding:8px;min-height:92px}
       table{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}
       thead th{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#64748b;border-bottom:1px solid #cbd5e1;padding:5px 6px;text-align:left}
       tbody td{border-bottom:1px solid #e2e8f0;padding:5px 6px;font-size:10px;vertical-align:top}
@@ -756,7 +757,6 @@ export default function CashPage() {
               <div class="mini alt-green">
                 <div class="eyebrow">Efectivo esperado</div>
                 <div class="big">${currency.format(Number(selectedClosurePreview.expected_cash_to_render))}</div>
-                <div class="sub">Contado: ${currency.format(Number(selectedClosurePreview.counted_cash_total ?? 0))}</div>
               </div>
               <div class="mini">
                 <div class="eyebrow">Total ventas</div>
@@ -766,28 +766,22 @@ export default function CashPage() {
               <div class="mini alt-blue">
                 <div class="eyebrow">Point</div>
                 <div class="big">${currency.format(Number(selectedClosurePreview.expected_point_sales_total))}</div>
-                <div class="sub">Contado: ${currency.format(Number(selectedClosurePreview.counted_point_total ?? 0))}</div>
               </div>
               <div class="mini alt-violet">
                 <div class="eyebrow">Transferencias</div>
                 <div class="big">${currency.format(Number(selectedClosurePreview.expected_transfer_sales_total))}</div>
-                <div class="sub">Contado: ${currency.format(Number(selectedClosurePreview.counted_transfer_total ?? 0))}</div>
               </div>
             </div>
           </div>
 
           <div class="cards">
             <div class="card">
-              <strong>Diferencia efectivo</strong>
-              <div class="value">${currency.format(Number(selectedClosurePreview.cash_difference ?? 0))}</div>
+              <strong>Efectivo real</strong>
+              <div class="manual-box"></div>
             </div>
             <div class="card">
-              <strong>Diferencia Point</strong>
-              <div class="value">${currency.format(Number(selectedClosurePreview.point_difference ?? 0))}</div>
-            </div>
-            <div class="card">
-              <strong>Diferencia transf.</strong>
-              <div class="value">${currency.format(Number(selectedClosurePreview.transfer_difference ?? 0))}</div>
+              <strong>Diferencia</strong>
+              <div class="manual-box"></div>
             </div>
             <div class="note">
               <strong style="display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:4px">Notas</strong>
