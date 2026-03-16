@@ -284,7 +284,7 @@ export default function CashPage() {
   const [closurePreviewOpen, setClosurePreviewOpen] = useState(false);
   const [selectedClosureId, setSelectedClosureId] = useState<string | null>(null);
   const [closeNotes, setCloseNotes] = useState("");
-  const [countedCashTotal, setCountedCashTotal] = useState("");
+  const [, setCountedCashTotal] = useState("");
   const [, setCountedPointTotal] = useState("");
   const [, setCountedTransferTotal] = useState("");
   const [closureInputDirty, setClosureInputDirty] = useState({
@@ -433,7 +433,7 @@ export default function CashPage() {
   useEffect(() => {
     if (!closure) return;
     if (!closureInputDirty.cash) {
-      setCountedCashTotal(closure.counted_cash_total != null ? String(closure.counted_cash_total) : String(closure.expected_cash_to_render || 0));
+      setCountedCashTotal("");
     }
     if (!closureInputDirty.point) {
       setCountedPointTotal("");
@@ -508,10 +508,6 @@ export default function CashPage() {
     if (situationFilter === "POST_CIERRE") return situation === "Venta post cierre";
     return true;
   });
-  const expectedCashToRender = Number(effectiveClosure?.expected_cash_to_render ?? 0);
-  const parsedCountedCash = countedCashTotal ? Number(countedCashTotal.replace(",", ".")) : null;
-  const liveCashDifference = parsedCountedCash != null && Number.isFinite(parsedCountedCash) ? parsedCountedCash - expectedCashToRender : null;
-
   const refreshCash = async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["cash-sales", businessDate] }),
@@ -652,12 +648,9 @@ export default function CashPage() {
       if (closureError instanceof Error) throw closureError;
       if (!closure) throw new Error("No se encontro el cierre del dia");
 
-      const parsedCash = Number(countedCashTotal.replace(",", "."));
-      if (!Number.isFinite(parsedCash)) throw new Error("Ingresa un efectivo contado valido");
-
       const { error } = await supabase.rpc("close_cash_closure", {
         p_closure_id: closure.id,
-        p_counted_cash_total: parsedCash,
+        p_counted_cash_total: null,
         p_counted_point_total: null,
         p_counted_transfer_total: null,
         p_notes: closeNotes.trim() || null,
@@ -835,9 +828,9 @@ export default function CashPage() {
             <h1 className="text-2xl font-bold tracking-tight">Caja</h1>
             <p className="text-muted-foreground">Carga rapida, pendientes de comprobante y cierre diario en una sola vista.</p>
           </div>
-          <div className="w-full max-w-[180px]">
+          <div className="w-full max-w-[155px]">
             <Label htmlFor="business-date">Fecha operativa</Label>
-            <Input id="business-date" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} />
+            <Input id="business-date" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} className="h-10" />
           </div>
         </div>
 
@@ -989,10 +982,11 @@ export default function CashPage() {
           </Card>
 
           <Tabs defaultValue="day" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="day">Caja del dia</TabsTrigger>
               <TabsTrigger value="pending">Pendientes</TabsTrigger>
               <TabsTrigger value="closure">Cierre diario</TabsTrigger>
+              <TabsTrigger value="history">Historial</TabsTrigger>
             </TabsList>
 
             <TabsContent value="day">
@@ -1171,7 +1165,7 @@ export default function CashPage() {
                 <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <CardTitle>Cierre diario</CardTitle>
-                    <CardDescription>Comparacion entre lo esperado por sistema y lo contado al final de la jornada.</CardDescription>
+                    <CardDescription>Cierre operativo del dia con los totales esperados y el resumen imprimible para control.</CardDescription>
                   </div>
                   <Badge variant="outline" className={effectiveClosure?.status === "CERRADO" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}>
                     {effectiveClosure?.status === "CERRADO" ? "Cerrado" : "Abierto"}
@@ -1192,18 +1186,8 @@ export default function CashPage() {
 
                   <div className="grid gap-6 lg:grid-cols-2">
                     <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="counted-cash">Efectivo contado</Label>
-                        <Input
-                          id="counted-cash"
-                          inputMode="decimal"
-                          value={countedCashTotal}
-                          onChange={(event) => {
-                            setClosureInputDirty((current) => ({ ...current, cash: true }));
-                            setCountedCashTotal(event.target.value);
-                          }}
-                          disabled={effectiveClosure?.status === "CERRADO"}
-                        />
+                      <div className="rounded-2xl border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+                        El conteo fisico del efectivo se completa sobre el resumen impreso. Desde esta pantalla solo cerras la caja del sistema y dejas observaciones.
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="close-notes">Observaciones del cierre</Label>
@@ -1221,15 +1205,15 @@ export default function CashPage() {
                     </div>
 
                     <div className="rounded-2xl border bg-muted/30 p-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resultado</h3>
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resumen operativo</h3>
                       <div className="mt-4 space-y-3 text-sm">
                         <div className="flex items-center justify-between">
                           <span>Efectivo esperado</span>
                           <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_to_render ?? 0))}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span>Diferencia efectivo</span>
-                          <span className="font-semibold">{currency.format(Number(liveCashDifference ?? 0))}</span>
+                          <span>Total ventas</span>
+                          <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_sales_total ?? 0))}</span>
                         </div>
                         <div className="border-t pt-3">
                           <p className="text-xs text-muted-foreground">Estado del cierre: {effectiveClosure?.status === "CERRADO" ? `cerrado el ${formatDateTime(effectiveClosure.closed_at ?? null)}` : "todavia abierto"}</p>
@@ -1245,21 +1229,6 @@ export default function CashPage() {
                     <Button variant="outline" onClick={() => void refreshCash()}>
                       Recalcular
                     </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setClosureInputDirty({ cash: false, point: false, transfer: false, notes: false });
-                        if (closure) {
-                          setCountedCashTotal(String(closure.counted_cash_total ?? closure.expected_cash_to_render ?? 0));
-                          setCountedPointTotal("");
-                          setCountedTransferTotal("");
-                          setCloseNotes(closure.notes ?? "");
-                        }
-                      }}
-                      disabled={effectiveClosure?.status === "CERRADO"}
-                    >
-                      Usar valores del sistema
-                    </Button>
                     {effectiveClosure?.status === "CERRADO" && effectiveClosure?.id ? (
                       <Button variant="outline" onClick={() => openClosurePreview(effectiveClosure.id)}>
                         Ver resumen
@@ -1267,47 +1236,54 @@ export default function CashPage() {
                     ) : null}
                     {effectiveClosure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya esta bloqueado. Solo queda disponible para consulta.</p> : null}
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                  <div className="rounded-2xl border bg-card p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Historial de cierres</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">Resumenes diarios guardados para consulta e impresion.</p>
-                      </div>
-                    </div>
-                    <div className="mt-4 space-y-3">
-                      {closuresHistory.length === 0 ? (
-                        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Todavia no hay cierres guardados.</div>
-                      ) : (
-                        closuresHistory.map((historyItem) => (
-                          <div key={historyItem.id} className="flex flex-col gap-3 rounded-xl border p-4 md:flex-row md:items-center md:justify-between">
-                            <div>
-                              <p className="font-semibold">{formatBusinessDate(historyItem.business_date)}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {historyItem.status === "CERRADO" ? `Cerrado el ${formatDateTime(historyItem.closed_at)}` : "Caja abierta"}
-                              </p>
-                            </div>
-                            <div className="grid gap-2 text-sm md:grid-cols-3 md:text-right">
-                              <div>
-                                <p className="text-muted-foreground">Ventas</p>
-                                <p className="font-semibold">{currency.format(Number(historyItem.expected_sales_total))}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Efectivo</p>
-                                <p className="font-semibold">{currency.format(Number(historyItem.expected_cash_to_render))}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Dif. efectivo</p>
-                                <p className="font-semibold">{currency.format(Number(historyItem.cash_difference ?? 0))}</p>
-                              </div>
-                            </div>
-                            <Button variant="outline" onClick={() => openClosurePreview(historyItem.id)}>
-                              Ver resumen
-                            </Button>
+            <TabsContent value="history">
+              <Card className="shadow-sm">
+                <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <CardTitle>Historial de cierres</CardTitle>
+                    <CardDescription>Resumenes diarios guardados para consulta e impresion.</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
+                    {closuresHistory.length} registro{closuresHistory.length === 1 ? "" : "s"}
+                  </Badge>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {closuresHistory.length === 0 ? (
+                      <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Todavia no hay cierres guardados.</div>
+                    ) : (
+                      closuresHistory.map((historyItem) => (
+                        <div key={historyItem.id} className="flex flex-col gap-3 rounded-xl border p-4 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <p className="font-semibold">{formatBusinessDate(historyItem.business_date)}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {historyItem.status === "CERRADO" ? `Cerrado el ${formatDateTime(historyItem.closed_at)}` : "Caja abierta"}
+                            </p>
                           </div>
-                        ))
-                      )}
-                    </div>
+                          <div className="grid gap-2 text-sm md:grid-cols-3 md:text-right">
+                            <div>
+                              <p className="text-muted-foreground">Ventas</p>
+                              <p className="font-semibold">{currency.format(Number(historyItem.expected_sales_total))}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Efectivo</p>
+                              <p className="font-semibold">{currency.format(Number(historyItem.expected_cash_to_render))}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Estado</p>
+                              <p className="font-semibold">{historyItem.status === "CERRADO" ? "Cerrado" : "Abierto"}</p>
+                            </div>
+                          </div>
+                          <Button variant="outline" onClick={() => openClosurePreview(historyItem.id)}>
+                            Ver resumen
+                          </Button>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
