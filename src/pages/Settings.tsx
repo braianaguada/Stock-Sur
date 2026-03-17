@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,18 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
-const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error !== null && "message" in error) {
-    const maybeMessage = (error as { message?: unknown }).message;
-    if (typeof maybeMessage === "string" && maybeMessage.trim()) return maybeMessage;
-  }
-  return "Error desconocido";
-};
+import { getErrorMessage } from "@/lib/errors";
+import { canManageSettings } from "@/lib/permissions";
 
 export default function SettingsPage() {
   const { settings, isLoading } = useCompanyBrand();
+  const { roles } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -114,6 +109,26 @@ export default function SettingsPage() {
     const preview = URL.createObjectURL(file);
     setLogoPreview(preview);
   };
+
+  if (!canManageSettings(roles)) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Configuracion</h1>
+            <p className="text-muted-foreground">Acceso restringido a usuarios administradores.</p>
+          </div>
+
+          <Card className="max-w-2xl rounded-3xl border-amber-200 bg-amber-50/80">
+            <CardHeader>
+              <CardTitle>Sin permisos</CardTitle>
+              <CardDescription>La configuracion global de empresa y branding solo puede modificarla un administrador.</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

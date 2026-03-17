@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { canViewSettings } from "@/lib/permissions";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -31,14 +32,15 @@ const navItems = [
   { title: "Documentos", url: "/documents", icon: FileText },
   { title: "Caja", url: "/cash", icon: Wallet },
   { title: "Clientes", url: "/customers", icon: Users },
-  { title: "Configuracion", url: "/settings", icon: Settings },
+  { title: "Configuracion", url: "/settings", icon: Settings, requiresAdmin: true },
 ];
 
 export function AppSidebar() {
   const location = useLocation();
-  const { signOut, user } = useAuth();
+  const { signOut, user, roles } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const { settings } = useCompanyBrand();
+  const visibleNavItems = navItems.filter((item) => !item.requiresAdmin || canViewSettings(roles));
 
   return (
     <aside
@@ -79,7 +81,7 @@ export function AppSidebar() {
       </div>
 
       <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isActive =
             location.pathname === item.url ||
             (item.url !== "/" && location.pathname.startsWith(item.url));

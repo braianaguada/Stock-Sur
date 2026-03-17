@@ -41,6 +41,7 @@ import {
   type MappingSelection,
 } from "@/components/suppliers/ColumnMappingModal";
 import { PdfMappingModal, type PdfMappingSelection } from "@/components/suppliers/PdfMappingModal";
+import { getErrorMessage } from "@/lib/errors";
 
 interface Supplier {
   id: string;
@@ -169,17 +170,6 @@ export default function SuppliersPage() {
 
   const { toast } = useToast();
   const qc = useQueryClient();
-
-  const getErrorMessage = (error: unknown) => {
-    if (error && typeof error === "object") {
-      const maybeMessage = "message" in error && typeof error.message === "string" ? error.message : "";
-      const maybeDetails = "details" in error && typeof error.details === "string" ? error.details : "";
-      const maybeHint = "hint" in error && typeof error.hint === "string" ? error.hint : "";
-      return [maybeMessage, maybeDetails, maybeHint].filter(Boolean).join(" | ") || "Error desconocido";
-    }
-    if (typeof error === "string") return error;
-    return "Error desconocido";
-  };
 
   const logSupabaseError = (scope: string, error: unknown, extra?: Record<string, unknown>) => {
     if (error && typeof error === "object") {

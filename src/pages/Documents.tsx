@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Eye, FileDown, Send, Copy, Ban, Pencil, Trash2 } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { getErrorMessage } from "@/lib/errors";
+import { formatDocumentNumber } from "@/lib/formatters";
 
 type DocType = "PRESUPUESTO" | "REMITO";
 type DocStatus = "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO";
@@ -152,20 +154,8 @@ const EMPTY_LINE: LineDraft = { item_id: null, sku_snapshot: "", description: ""
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error !== null && "message" in error) {
-    const maybeMessage = (error as { message?: unknown }).message;
-    if (typeof maybeMessage === "string" && maybeMessage.trim()) return maybeMessage;
-  }
-  if (typeof error === "string" && error.trim()) return error;
-  return "Error desconocido";
-};
-
-const formatNumber = (n: number | null, pointOfSale: number) => {
-  if (n === null) return "BORRADOR";
-  return `${String(pointOfSale).padStart(4, "0")}-${String(n).padStart(8, "0")}`;
-};
+const formatNumber = (n: number | null, pointOfSale: number) =>
+  n === null ? "BORRADOR" : formatDocumentNumber(pointOfSale, n);
 
 export default function DocumentsPage() {
   const { user } = useAuth();

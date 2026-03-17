@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, ClipboardCheck, FileClock, Eye, Ban, NotebookText } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { getErrorMessage } from "@/lib/errors";
+import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber, formatTime } from "@/lib/formatters";
 
 type PaymentMethod = "EFECTIVO" | "POINT" | "TRANSFERENCIA" | "CUENTA_CORRIENTE";
 type ReceiptKind = "PENDIENTE" | "REMITO" | "FACTURA";
@@ -168,12 +170,6 @@ const DOC_STATUS_LABEL: Record<DocumentQuickRow["status"], string> = {
   ANULADO: "Anulado",
 };
 
-const currency = new Intl.NumberFormat("es-AR", {
-  style: "currency",
-  currency: "ARS",
-  minimumFractionDigits: 2,
-});
-
 function todayDateInputValue() {
   const now = new Date();
   const offset = now.getTimezoneOffset();
@@ -181,49 +177,9 @@ function todayDateInputValue() {
   return local.toISOString().slice(0, 10);
 }
 
-function formatTime(value: string) {
-  return new Date(value).toLocaleTimeString("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatBusinessDate(value: string) {
-  const [year, month, day] = value.split("-");
-  if (!year || !month || !day) return value;
-  return `${day}/${month}/${year}`;
-}
-
-function formatDateTime(value: string | null) {
-  if (!value) return "Abierto";
-  return new Date(value).toLocaleString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatDocumentNumber(pointOfSale: number, documentNumber: number | null) {
-  if (documentNumber == null) return "Sin numero";
-  return `${String(pointOfSale).padStart(4, "0")}-${String(documentNumber).padStart(8, "0")}`;
-}
-
 function formatRemitoOptionLabel(remito: RemitoOption) {
   const number = formatDocumentNumber(remito.point_of_sale, remito.document_number);
   return remito.customer_name ? `${number} - ${remito.customer_name}` : number;
-}
-
-function getErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof Error && error.message) return error.message;
-  if (typeof error === "object" && error !== null) {
-    const maybeMessage = "message" in error && typeof error.message === "string" ? error.message : null;
-    const maybeDetails = "details" in error && typeof error.details === "string" ? error.details : null;
-    const maybeHint = "hint" in error && typeof error.hint === "string" ? error.hint : null;
-    return [maybeMessage, maybeDetails, maybeHint].filter(Boolean).join(" - ") || fallback;
-  }
-  return fallback;
 }
 
 function getClosureSituation(sale: CashSaleRow, hasClosedClosureForDay: boolean) {

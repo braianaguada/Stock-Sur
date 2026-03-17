@@ -23,6 +23,7 @@ import { PriceListItemsDialog } from "@/components/price-lists/PriceListItemsDia
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2, Link2 } from "lucide-react";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
+import { getErrorMessage } from "@/lib/errors";
 
 interface PriceList {
   id: string;
@@ -111,17 +112,6 @@ export default function PriceListsPage() {
 
   const { toast } = useToast();
   const qc = useQueryClient();
-
-  const getErrorMessage = (error: unknown) => {
-    if (error && typeof error === "object") {
-      const maybeMessage = "message" in error && typeof error.message === "string" ? error.message : "";
-      const maybeDetails = "details" in error && typeof error.details === "string" ? error.details : "";
-      const maybeHint = "hint" in error && typeof error.hint === "string" ? error.hint : "";
-      return [maybeMessage, maybeDetails, maybeHint].filter(Boolean).join(" | ") || "Error desconocido";
-    }
-    if (typeof error === "string") return error;
-    return "Error desconocido";
-  };
 
   const { data: priceLists = [], isLoading } = useQuery({
     queryKey: ["price-lists", search],
