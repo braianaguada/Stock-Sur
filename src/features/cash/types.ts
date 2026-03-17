@@ -113,3 +113,20 @@ export type CashSummary = {
 };
 
 export type SituationFilter = "TODAS" | "PENDIENTE_CIERRE" | "EN_CAJA_CERRADA" | "POST_CIERRE" | "ANULADA";
+
+export type CashSaleFormState = {
+  amount: string;
+  paymentMethod: PaymentMethod;
+  receiptKind: ReceiptKind;
+  customerId: string;
+  selectedRemitoId: string;
+  receiptReference: string;
+  notes: string;
+};
+
+export type CashPendingReceiptState = {
+  selectedSale: CashSaleRow | null;
+  pendingReceiptKind: ReceiptKind;
+  pendingRemitoId: string;
+  pendingReceiptReference: string;
+};

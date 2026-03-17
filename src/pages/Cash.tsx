@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,14 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, ClipboardCheck, FileClock, Eye, Ban, NotebookText } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
-import { getErrorMessage } from "@/lib/errors";
 import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber, formatTime } from "@/lib/formatters";
 import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LABEL } from "@/features/cash/constants";
 import { useCashData } from "@/features/cash/hooks/useCashData";
-import type { CashSaleRow, PaymentMethod, ReceiptKind, SituationFilter } from "@/features/cash/types";
+import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
+import type { CashPendingReceiptState, CashSaleFormState, CashSaleRow, PaymentMethod, ReceiptKind, SituationFilter } from "@/features/cash/types";
 import { describeDocumentEvent, formatRemitoOptionLabel, getClosureSituation, todayDateInputValue } from "@/features/cash/utils";
 
 export default function CashPage() {
@@ -127,155 +125,35 @@ export default function CashPage() {
     }
   }, [pendingReceiptKind]);
 
-  const createSaleMutation = useMutation({
-    mutationFn: async () => {
-      const parsedAmount = Number(amount.replace(",", "."));
-      if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-        throw new Error("Ingresa un importe valido");
-      }
+  const resetSaleForm = () => {
+    setAmount("");
+    setPaymentMethod("EFECTIVO");
+    setReceiptKind("PENDIENTE");
+    setCustomerId("__none__");
+    setSelectedRemitoId("__none__");
+    setReceiptReference("");
+    setNotes("");
+  };
 
-      if (receiptKind === "REMITO" && selectedRemitoId === "__none__") {
-        throw new Error("Selecciona un remito emitido");
-      }
+  const resetPendingReceiptForm = () => {
+    setReceiptDialogOpen(false);
+    setSelectedSale(null);
+    setPendingReceiptKind("REMITO");
+    setPendingRemitoId("__none__");
+    setPendingReceiptReference("");
+  };
 
-      if (receiptKind === "FACTURA" && !receiptReference.trim()) {
-        throw new Error("La factura necesita una referencia o numero");
-      }
-
-      if (paymentMethod === "CUENTA_CORRIENTE" && customerId === "__none__") {
-        throw new Error("La cuenta corriente requiere cliente");
-      }
-
-      const selectedCustomer = customers.find((customer) => customer.id === customerId);
-      const selectedRemito = remitos.find((remito) => remito.id === selectedRemitoId);
-
-      const payload = {
-        business_date: businessDate,
-        amount_total: parsedAmount,
-        payment_method: paymentMethod,
-        receipt_kind: receiptKind,
-        customer_id: customerId === "__none__" ? selectedRemito?.customer_id ?? null : customerId,
-        customer_name_snapshot: selectedCustomer?.name ?? selectedRemito?.customer_name ?? "Consumidor final",
-        document_id: receiptKind === "REMITO" ? selectedRemito?.id ?? null : null,
-        receipt_reference:
-          receiptKind === "PENDIENTE"
-            ? null
-            : receiptKind === "REMITO"
-              ? formatDocumentNumber(selectedRemito?.point_of_sale ?? 0, selectedRemito?.document_number ?? null)
-              : receiptReference.trim() || null,
-        notes: notes.trim() || null,
-      };
-
-      const { error } = await supabase.from("cash_sales").insert(payload);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      refreshCash();
-      setAmount("");
-      setPaymentMethod("EFECTIVO");
-      setReceiptKind("PENDIENTE");
-      setCustomerId("__none__");
-      setSelectedRemitoId("__none__");
-      setReceiptReference("");
-      setNotes("");
-      toast({ title: "Venta registrada" });
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: "No se pudo registrar la venta",
-        description: getErrorMessage(error, "Error desconocido"),
-        variant: "destructive",
-      });
-    },
-  });
-
-  const attachReceiptMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedSale) throw new Error("Selecciona una venta pendiente");
-      if (pendingReceiptKind === "PENDIENTE") throw new Error("Debes elegir remito o factura");
-      if (pendingReceiptKind === "REMITO" && pendingRemitoId === "__none__") {
-        throw new Error("Selecciona un remito emitido");
-      }
-      if (pendingReceiptKind === "FACTURA" && !pendingReceiptReference.trim()) {
-        throw new Error("Debes ingresar la referencia de la factura");
-      }
-
-      const selectedRemito = remitos.find((remito) => remito.id === pendingRemitoId);
-
-      const { error } = await supabase.rpc("attach_cash_sale_receipt", {
-        p_sale_id: selectedSale.id,
-        p_receipt_kind: pendingReceiptKind,
-        p_document_id: pendingReceiptKind === "REMITO" ? selectedRemito?.id ?? null : null,
-        p_receipt_reference:
-          pendingReceiptKind === "REMITO"
-            ? formatDocumentNumber(selectedRemito?.point_of_sale ?? 0, selectedRemito?.document_number ?? null)
-            : pendingReceiptReference.trim(),
-      });
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      refreshCash();
-      setReceiptDialogOpen(false);
-      setSelectedSale(null);
-      setPendingReceiptKind("REMITO");
-      setPendingRemitoId("__none__");
-      setPendingReceiptReference("");
-      toast({ title: "Comprobante asociado" });
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: "No se pudo asociar el comprobante",
-        description: getErrorMessage(error, "Error desconocido"),
-        variant: "destructive",
-      });
-    },
-  });
-
-  const cancelSaleMutation = useMutation({
-    mutationFn: async (saleId: string) => {
-      const { error } = await supabase.rpc("cancel_cash_sale", { p_sale_id: saleId, p_reason: "Venta anulada desde Caja" });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      refreshCash();
-      toast({ title: "Venta anulada" });
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: "No se pudo anular la venta",
-        description: getErrorMessage(error, "Error desconocido"),
-        variant: "destructive",
-      });
-    },
-  });
-
-  const closeClosureMutation = useMutation({
-    mutationFn: async () => {
-      if (closureError instanceof Error) throw closureError;
-      if (!closure) throw new Error("No se encontro el cierre del dia");
-
-      const { error } = await supabase.rpc("close_cash_closure", {
-        p_closure_id: closure.id,
-        p_counted_cash_total: null,
-        p_counted_point_total: null,
-        p_counted_transfer_total: null,
-        p_notes: closeNotes.trim() || null,
-      });
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      refreshCash();
-      toast({ title: "Caja cerrada" });
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: "No se pudo cerrar la caja",
-        description: getErrorMessage(error, "Error desconocido"),
-        variant: "destructive",
-      });
-    },
+  const { createSaleMutation, attachReceiptMutation, cancelSaleMutation, closeClosureMutation } = useCashMutations({
+    businessDate,
+    customers,
+    remitos,
+    closure,
+    closureError,
+    closeNotes,
+    refreshCash,
+    toast,
+    onCreateSaleSuccess: resetSaleForm,
+    onAttachReceiptSuccess: resetPendingReceiptForm,
   });
 
   const openReceiptDialog = (sale: CashSaleRow) => {
@@ -492,7 +370,21 @@ export default function CashPage() {
               <CardDescription>Captura minima para registrar la operacion sin quedar bloqueado por el comprobante.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); createSaleMutation.mutate(); }}>
+              <form
+                className="space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  createSaleMutation.mutate({
+                    amount,
+                    paymentMethod,
+                    receiptKind,
+                    customerId,
+                    selectedRemitoId,
+                    receiptReference,
+                    notes,
+                  } satisfies CashSaleFormState);
+                }}
+              >
                 <div className="space-y-2">
                   <Label htmlFor="amount">Importe</Label>
                   <Input id="amount" inputMode="decimal" placeholder="0,00" value={amount} onChange={(event) => setAmount(event.target.value)} />
@@ -937,7 +829,17 @@ export default function CashPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReceiptDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={() => attachReceiptMutation.mutate()} disabled={attachReceiptMutation.isPending}>
+            <Button
+              onClick={() =>
+                attachReceiptMutation.mutate({
+                  selectedSale,
+                  pendingReceiptKind,
+                  pendingRemitoId,
+                  pendingReceiptReference,
+                } satisfies CashPendingReceiptState)
+              }
+              disabled={attachReceiptMutation.isPending}
+            >
               {attachReceiptMutation.isPending ? "Guardando..." : "Guardar comprobante"}
             </Button>
           </DialogFooter>
