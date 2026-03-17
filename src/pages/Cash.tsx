@@ -11,10 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, ClipboardCheck, FileClock, Eye, Ban, NotebookText } from "lucide-react";
+import { ClipboardCheck, FileClock, Eye, Ban } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber, formatTime } from "@/lib/formatters";
 import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LABEL } from "@/features/cash/constants";
+import { CashSalesTab } from "@/features/cash/components/CashSalesTab";
+import { CashSummaryCards } from "@/features/cash/components/CashSummaryCards";
 import { useCashData } from "@/features/cash/hooks/useCashData";
 import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
 import type { CashPendingReceiptState, CashSaleFormState, CashSaleRow, PaymentMethod, ReceiptKind, SituationFilter } from "@/features/cash/types";
@@ -327,41 +329,7 @@ export default function CashPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <Card className="border-emerald-300 bg-emerald-100">
-            <CardHeader className="pb-3">
-              <CardDescription>Efectivo</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-emerald-900"><Banknote className="h-4 w-4" /> {currency.format(summary.efectivo)}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="border-sky-300 bg-sky-100">
-            <CardHeader className="pb-3">
-              <CardDescription>Point</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-sky-900"><Smartphone className="h-4 w-4" /> {currency.format(summary.point)}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="border-violet-300 bg-violet-100">
-            <CardHeader className="pb-3">
-              <CardDescription>Transferencias</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-violet-900"><Landmark className="h-4 w-4" /> {currency.format(summary.transferencia)}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="border-amber-300 bg-amber-100">
-            <CardHeader className="pb-3">
-              <CardDescription>Cuenta corriente</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-amber-900"><Receipt className="h-4 w-4" /> {currency.format(summary.cuentaCorriente)}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="border-slate-300 bg-slate-100">
-            <CardHeader className="pb-3">
-              <CardDescription>Total del dia</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-slate-900"><CircleDollarSign className="h-4 w-4" /> {currency.format(summary.total)}</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="text-xs text-muted-foreground">{summary.pendientes} pendientes de comprobante</p>
-            </CardContent>
-          </Card>
-        </div>
+        <CashSummaryCards summary={summary} />
 
         <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
           <Card className="border-primary/10 shadow-sm">
@@ -481,108 +449,20 @@ export default function CashPage() {
             </TabsList>
 
             <TabsContent value="day">
-              <Card className="shadow-sm">
-                <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <CardTitle>Movimientos del dia</CardTitle>
-                    <CardDescription>Vista rapida para controlar lo cargado y detectar pendientes antes del cierre.</CardDescription>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className="w-fit">{filteredSales.length} registros</Badge>
-                    <Select value={situationFilter} onValueChange={(value) => setSituationFilter(value as SituationFilter)}>
-                      <SelectTrigger className="w-[190px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="TODAS">Todas</SelectItem>
-                        <SelectItem value="PENDIENTE_CIERRE">Pendiente de cierre</SelectItem>
-                        <SelectItem value="EN_CAJA_CERRADA">En caja cerrada</SelectItem>
-                        <SelectItem value="POST_CIERRE">Venta post cierre</SelectItem>
-                        <SelectItem value="ANULADA">Anuladas</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="max-h-[560px] overflow-y-auto rounded-lg border">
-                    <Table className="table-fixed">
-                      <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
-                        <TableRow>
-                          <TableHead className="w-[78px]">Hora</TableHead>
-                          <TableHead className="w-[110px] text-right">Importe</TableHead>
-                          <TableHead className="w-[170px]">Cliente</TableHead>
-                          <TableHead className="w-[96px]">Pago</TableHead>
-                          <TableHead className="w-[160px]">Comprobante</TableHead>
-                          <TableHead className="w-[150px]">Situacion</TableHead>
-                          <TableHead className="w-[92px] text-right">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {salesLoading ? (
-                          <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Cargando ventas...</TableCell></TableRow>
-                        ) : filteredSales.length === 0 ? (
-                          <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Todavia no hay ventas registradas para esta fecha.</TableCell></TableRow>
-                        ) : (
-                          filteredSales.map((sale) => (
-                            <TableRow key={sale.id}>
-                              <TableCell className="font-mono text-xs">{formatTime(sale.sold_at)}</TableCell>
-                              <TableCell className="text-right font-semibold whitespace-nowrap">{currency.format(Number(sale.amount_total))}</TableCell>
-                              <TableCell>
-                                <div className="max-w-[160px]">
-                                  <p className="truncate text-sm font-medium">{sale.customer_name_snapshot ?? "Consumidor final"}</p>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-sm">{PAYMENT_LABEL[sale.payment_method]}</TableCell>
-                              <TableCell>
-                                <div className="min-w-0 text-sm">
-                                  <p className="truncate">{RECEIPT_LABEL[sale.receipt_kind]}</p>
-                                  <Badge variant="outline" className={`${STATUS_CLASS[sale.status]} mt-1 max-w-full`}>
-                                    {STATUS_LABEL[sale.status]}
-                                  </Badge>
-                                  {sale.receipt_reference ? <p className="truncate font-mono text-xs text-muted-foreground">{sale.receipt_reference}</p> : null}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className={getClosureSituation(sale, hasClosedClosureForDay).className}>
-                                  {getClosureSituation(sale, hasClosedClosureForDay).label}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button
-                                    type="button"
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-8 w-8"
-                                    onClick={() => {
-                                      setDetailSale(sale);
-                                      setDetailDialogOpen(true);
-                                    }}
-                                  >
-                                    <NotebookText className="h-4 w-4" />
-                                  </Button>
-                                  {sale.status !== "ANULADA" ? (
-                                    <Button
-                                      type="button"
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-8 w-8 text-destructive"
-                                      onClick={() => cancelSaleMutation.mutate(sale.id)}
-                                      disabled={cancelSaleMutation.isPending || !canCancelSale(sale)}
-                                    >
-                                      <Ban className="h-4 w-4" />
-                                    </Button>
-                                  ) : null}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
+              <CashSalesTab
+                filteredSales={filteredSales}
+                salesLoading={salesLoading}
+                situationFilter={situationFilter}
+                onSituationFilterChange={setSituationFilter}
+                hasClosedClosureForDay={hasClosedClosureForDay}
+                onOpenDetail={(sale) => {
+                  setDetailSale(sale);
+                  setDetailDialogOpen(true);
+                }}
+                onCancelSale={(saleId) => cancelSaleMutation.mutate(saleId)}
+                canCancelSale={canCancelSale}
+                cancelPending={cancelSaleMutation.isPending}
+              />
             </TabsContent>
 
             <TabsContent value="pending">
