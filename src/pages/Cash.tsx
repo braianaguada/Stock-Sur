@@ -11,16 +11,17 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardCheck, FileClock, Eye, Ban } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber, formatTime } from "@/lib/formatters";
 import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LABEL } from "@/features/cash/constants";
+import { CashClosureTab } from "@/features/cash/components/CashClosureTab";
+import { CashPendingTab } from "@/features/cash/components/CashPendingTab";
 import { CashSalesTab } from "@/features/cash/components/CashSalesTab";
 import { CashSummaryCards } from "@/features/cash/components/CashSummaryCards";
 import { useCashData } from "@/features/cash/hooks/useCashData";
 import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
 import type { CashPendingReceiptState, CashSaleFormState, CashSaleRow, PaymentMethod, ReceiptKind, SituationFilter } from "@/features/cash/types";
-import { describeDocumentEvent, formatRemitoOptionLabel, getClosureSituation, todayDateInputValue } from "@/features/cash/utils";
+import { describeDocumentEvent, formatRemitoOptionLabel, todayDateInputValue } from "@/features/cash/utils";
 
 export default function CashPage() {
   const { toast } = useToast();
@@ -43,13 +44,7 @@ export default function CashPage() {
   const [closurePreviewOpen, setClosurePreviewOpen] = useState(false);
   const [selectedClosureId, setSelectedClosureId] = useState<string | null>(null);
   const [closeNotes, setCloseNotes] = useState("");
-  const [, setCountedCashTotal] = useState("");
-  const [, setCountedPointTotal] = useState("");
-  const [, setCountedTransferTotal] = useState("");
   const [closureInputDirty, setClosureInputDirty] = useState({
-    cash: false,
-    point: false,
-    transfer: false,
     notes: false,
   });
   const [situationFilter, setSituationFilter] = useState<SituationFilter>("TODAS");
@@ -86,15 +81,6 @@ export default function CashPage() {
 
   useEffect(() => {
     if (!closure) return;
-    if (!closureInputDirty.cash) {
-      setCountedCashTotal("");
-    }
-    if (!closureInputDirty.point) {
-      setCountedPointTotal("");
-    }
-    if (!closureInputDirty.transfer) {
-      setCountedTransferTotal("");
-    }
     if (!closureInputDirty.notes) {
       setCloseNotes(closure.notes ?? "");
     }
@@ -102,9 +88,6 @@ export default function CashPage() {
 
   useEffect(() => {
     setClosureInputDirty({
-      cash: false,
-      point: false,
-      transfer: false,
       notes: false,
     });
   }, [businessDate]);
@@ -466,149 +449,35 @@ export default function CashPage() {
             </TabsContent>
 
             <TabsContent value="pending">
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><FileClock className="h-4 w-4" /> Pendientes de comprobante</CardTitle>
-                  <CardDescription>Ventas registradas que ya impactan en caja pero todavia no tienen remito o factura asignada.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="max-h-[560px] overflow-auto rounded-lg border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Hora</TableHead>
-                          <TableHead>Cliente</TableHead>
-                          <TableHead>Pago</TableHead>
-                          <TableHead className="text-right">Importe</TableHead>
-                          <TableHead className="w-[220px]">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pendingSales.length === 0 ? (
-                          <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No hay pendientes para esta fecha.</TableCell></TableRow>
-                        ) : (
-                          pendingSales.map((sale) => (
-                            <TableRow key={sale.id}>
-                              <TableCell className="font-mono text-xs">{formatTime(sale.sold_at)}</TableCell>
-                              <TableCell>{sale.customer_name_snapshot ?? "Consumidor final"}</TableCell>
-                              <TableCell>{PAYMENT_LABEL[sale.payment_method]}</TableCell>
-                              <TableCell className="text-right font-semibold">{currency.format(Number(sale.amount_total))}</TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-2">
-                                  <Button type="button" size="icon" variant="outline" onClick={() => openReceiptDialog(sale)} disabled={!canAttachReceipt(sale)}>
-                                    <ClipboardCheck className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="icon"
-                                    variant="ghost"
-                                    className="text-destructive"
-                                    onClick={() => cancelSaleMutation.mutate(sale.id)}
-                                    disabled={cancelSaleMutation.isPending || !canCancelSale(sale)}
-                                  >
-                                    <Ban className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      setDetailSale(sale);
-                                      setDetailDialogOpen(true);
-                                    }}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
+              <CashPendingTab
+                pendingSales={pendingSales}
+                onAssignReceipt={openReceiptDialog}
+                onCancelSale={(saleId) => cancelSaleMutation.mutate(saleId)}
+                onOpenDetail={(sale) => {
+                  setDetailSale(sale);
+                  setDetailDialogOpen(true);
+                }}
+                canAttachReceipt={canAttachReceipt}
+                canCancelSale={canCancelSale}
+                cancelPending={cancelSaleMutation.isPending}
+              />
             </TabsContent>
 
             <TabsContent value="closure">
-              <Card className="shadow-sm">
-                <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <CardTitle>Cierre diario</CardTitle>
-                    <CardDescription>Cierre operativo del dia con los totales esperados y el resumen imprimible para control.</CardDescription>
-                  </div>
-                  <Badge variant="outline" className={effectiveClosure?.status === "CERRADO" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}>
-                    {effectiveClosure?.status === "CERRADO" ? "Cerrado" : "Abierto"}
-                  </Badge>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {closureError ? (
-                    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-                      {getErrorMessage(closureError, "No se pudo cargar el cierre diario.")}
-                    </div>
-                  ) : null}
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Efectivo a rendir</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_cash_to_render ?? 0))}</CardTitle></CardHeader></Card>
-                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Point esperado</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_point_sales_total ?? 0))}</CardTitle></CardHeader></Card>
-                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Transferencias esperadas</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_transfer_sales_total ?? 0))}</CardTitle></CardHeader></Card>
-                    <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Total ventas</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_sales_total ?? 0))}</CardTitle></CardHeader></Card>
-                  </div>
-
-                  <div className="grid gap-6 lg:grid-cols-2">
-                    <div className="space-y-4">
-                      <div className="rounded-2xl border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
-                        El conteo fisico del efectivo se completa sobre el resumen impreso. Desde esta pantalla solo cerras la caja del sistema y dejas observaciones.
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="close-notes">Observaciones del cierre</Label>
-                        <Textarea
-                          id="close-notes"
-                          rows={5}
-                          value={closeNotes}
-                          onChange={(event) => {
-                            setClosureInputDirty((current) => ({ ...current, notes: true }));
-                            setCloseNotes(event.target.value);
-                          }}
-                          disabled={effectiveClosure?.status === "CERRADO"}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border bg-muted/30 p-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resumen operativo</h3>
-                      <div className="mt-4 space-y-3 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span>Efectivo esperado</span>
-                          <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_to_render ?? 0))}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Total ventas</span>
-                          <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_sales_total ?? 0))}</span>
-                        </div>
-                        <div className="border-t pt-3">
-                          <p className="text-xs text-muted-foreground">Estado del cierre: {effectiveClosure?.status === "CERRADO" ? `cerrado el ${formatDateTime(effectiveClosure.closed_at ?? null)}` : "todavia abierto"}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button onClick={() => closeClosureMutation.mutate()} disabled={closureLoading || closeClosureMutation.isPending || effectiveClosure?.status === "CERRADO" || Boolean(closureError)}>
-                      {closeClosureMutation.isPending ? "Cerrando..." : "Cerrar caja"}
-                    </Button>
-                    <Button variant="outline" onClick={() => void refreshCash()}>
-                      Recalcular
-                    </Button>
-                    {effectiveClosure?.status === "CERRADO" && effectiveClosure?.id ? (
-                      <Button variant="outline" onClick={() => openClosurePreview(effectiveClosure.id)}>
-                        Ver resumen
-                      </Button>
-                    ) : null}
-                    {effectiveClosure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya esta bloqueado. Solo queda disponible para consulta.</p> : null}
-                  </div>
-                </CardContent>
-              </Card>
+              <CashClosureTab
+                effectiveClosure={effectiveClosure}
+                closureLoading={closureLoading}
+                closureError={closureError}
+                closeNotes={closeNotes}
+                onCloseNotesChange={(value) => {
+                  setClosureInputDirty((current) => ({ ...current, notes: true }));
+                  setCloseNotes(value);
+                }}
+                onRecalculate={() => void refreshCash()}
+                onCloseClosure={() => closeClosureMutation.mutate()}
+                onOpenSummary={openClosurePreview}
+                closePending={closeClosureMutation.isPending}
+              />
             </TabsContent>
 
             <TabsContent value="history">
