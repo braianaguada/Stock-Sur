@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,209 +17,12 @@ import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, ClipboardChe
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { getErrorMessage } from "@/lib/errors";
 import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber, formatTime } from "@/lib/formatters";
-
-type PaymentMethod = "EFECTIVO" | "POINT" | "TRANSFERENCIA" | "CUENTA_CORRIENTE";
-type ReceiptKind = "PENDIENTE" | "REMITO" | "FACTURA";
-type SaleStatus = "REGISTRADA" | "PENDIENTE_COMPROBANTE" | "COMPROBANTADA" | "ANULADA";
-type ClosureStatus = "ABIERTO" | "CERRADO";
-
-type CustomerOption = {
-  id: string;
-  name: string;
-  cuit: string | null;
-};
-
-type RemitoOption = {
-  id: string;
-  customer_id: string | null;
-  customer_name: string;
-  point_of_sale: number;
-  document_number: number | null;
-  issue_date: string;
-  status: string;
-};
-
-type CashSaleRow = {
-  id: string;
-  sold_at: string;
-  business_date: string;
-  amount_total: number;
-  payment_method: PaymentMethod;
-  receipt_kind: ReceiptKind;
-  status: SaleStatus;
-  document_id: string | null;
-  closure_id: string | null;
-  receipt_reference: string | null;
-  customer_name_snapshot: string | null;
-  notes: string | null;
-};
-
-type CashClosureRow = {
-  id: string;
-  business_date: string;
-  status: ClosureStatus;
-  expected_cash_sales_total: number;
-  expected_point_sales_total: number;
-  expected_transfer_sales_total: number;
-  expected_account_sales_total: number;
-  expected_cash_expenses_total: number;
-  expected_sales_total: number;
-  expected_cash_to_render: number;
-  counted_cash_total: number | null;
-  counted_point_total: number | null;
-  counted_transfer_total: number | null;
-  cash_difference: number | null;
-  point_difference: number | null;
-  transfer_difference: number | null;
-  notes: string | null;
-  closed_at: string | null;
-};
-
-type DocumentQuickRow = {
-  id: string;
-  doc_type: "PRESUPUESTO" | "REMITO";
-  status: "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO";
-  point_of_sale: number;
-  document_number: number | null;
-  issue_date: string;
-  customer_name: string;
-  total: number;
-  notes: string | null;
-};
-
-type DocumentLineQuickRow = {
-  id: string;
-  line_order: number;
-  description: string;
-  quantity: number;
-  unit: string;
-  unit_price: number;
-  line_total: number;
-};
-
-type DocumentEventQuickRow = {
-  id: string;
-  event_type: string;
-  payload: unknown;
-  created_at: string;
-};
-
-type CashClosureHistoryRow = Pick<
-  CashClosureRow,
-  | "id"
-  | "business_date"
-  | "status"
-  | "expected_sales_total"
-  | "expected_cash_to_render"
-  | "expected_point_sales_total"
-  | "expected_transfer_sales_total"
-  | "counted_cash_total"
-  | "counted_point_total"
-  | "counted_transfer_total"
-  | "cash_difference"
-  | "point_difference"
-  | "transfer_difference"
-  | "notes"
-  | "closed_at"
->;
-
-type CashSummary = {
-  efectivo: number;
-  point: number;
-  transferencia: number;
-  cuentaCorriente: number;
-  total: number;
-  pendientes: number;
-};
-
-type SituationFilter = "TODAS" | "PENDIENTE_CIERRE" | "EN_CAJA_CERRADA" | "POST_CIERRE" | "ANULADA";
-
-const PAYMENT_LABEL: Record<PaymentMethod, string> = {
-  EFECTIVO: "Efectivo",
-  POINT: "Point",
-  TRANSFERENCIA: "Transferencia",
-  CUENTA_CORRIENTE: "Cuenta corriente",
-};
-
-const RECEIPT_LABEL: Record<ReceiptKind, string> = {
-  PENDIENTE: "Definir despues",
-  REMITO: "Remito",
-  FACTURA: "Factura",
-};
-
-const STATUS_LABEL: Record<SaleStatus, string> = {
-  REGISTRADA: "Registrada",
-  PENDIENTE_COMPROBANTE: "Sin comprobante",
-  COMPROBANTADA: "Con comprobante",
-  ANULADA: "Anulada",
-};
-
-const STATUS_CLASS: Record<SaleStatus, string> = {
-  REGISTRADA: "bg-slate-100 text-slate-700 border-slate-200",
-  PENDIENTE_COMPROBANTE: "bg-amber-100 text-amber-700 border-amber-200",
-  COMPROBANTADA: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  ANULADA: "bg-rose-100 text-rose-700 border-rose-200",
-};
-
-const DOC_STATUS_LABEL: Record<DocumentQuickRow["status"], string> = {
-  BORRADOR: "Borrador",
-  ENVIADO: "Enviado",
-  APROBADO: "Aprobado",
-  RECHAZADO: "Rechazado",
-  EMITIDO: "Emitido",
-  ANULADO: "Anulado",
-};
-
-function todayDateInputValue() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  const local = new Date(now.getTime() - offset * 60_000);
-  return local.toISOString().slice(0, 10);
-}
-
-function formatRemitoOptionLabel(remito: RemitoOption) {
-  const number = formatDocumentNumber(remito.point_of_sale, remito.document_number);
-  return remito.customer_name ? `${number} - ${remito.customer_name}` : number;
-}
-
-function getClosureSituation(sale: CashSaleRow, hasClosedClosureForDay: boolean) {
-  if (sale.status === "ANULADA") {
-    return {
-      label: "Anulada",
-      className: "border-rose-200 bg-rose-50 text-rose-700",
-    };
-  }
-
-  if (sale.closure_id) {
-    return {
-      label: "En caja cerrada",
-      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    };
-  }
-
-  if (hasClosedClosureForDay) {
-    return {
-      label: "Venta post cierre",
-      className: "border-violet-200 bg-violet-50 text-violet-700",
-    };
-  }
-
-  return {
-    label: "Pendiente de cierre",
-    className: "border-sky-200 bg-sky-50 text-sky-700",
-  };
-}
-
-function describeDocumentEvent(event: DocumentEventQuickRow) {
-  const eventType = event.event_type.toUpperCase();
-  if (eventType.includes("EMIT")) return { title: "Documento emitido", tone: "success" as const };
-  if (eventType.includes("ANUL")) return { title: "Documento anulado", tone: "danger" as const };
-  if (eventType.includes("CRE")) return { title: "Documento creado", tone: "info" as const };
-  return { title: event.event_type.replaceAll("_", " "), tone: "neutral" as const };
-}
+import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LABEL } from "@/features/cash/constants";
+import { useCashData } from "@/features/cash/hooks/useCashData";
+import type { CashSaleRow, PaymentMethod, ReceiptKind, SituationFilter } from "@/features/cash/types";
+import { describeDocumentEvent, formatRemitoOptionLabel, getClosureSituation, todayDateInputValue } from "@/features/cash/utils";
 
 export default function CashPage() {
-  const qc = useQueryClient();
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
   const [businessDate, setBusinessDate] = useState(todayDateInputValue());
@@ -250,140 +53,35 @@ export default function CashPage() {
     notes: false,
   });
   const [situationFilter, setSituationFilter] = useState<SituationFilter>("TODAS");
-
-  const { data: customers = [] } = useQuery({
-    queryKey: ["cash-customers"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("customers")
-        .select("id, name, cuit")
-        .order("name")
-        .limit(200);
-
-      if (error) throw error;
-      return (data ?? []) as CustomerOption[];
-    },
-  });
-
-  const { data: sales = [], isLoading, error: salesError, refetch: refetchSales } = useQuery({
-    queryKey: ["cash-sales", businessDate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cash_sales")
-        .select("id, business_date, sold_at, amount_total, payment_method, receipt_kind, status, document_id, closure_id, receipt_reference, customer_name_snapshot, notes")
-        .eq("business_date", businessDate)
-        .order("sold_at", { ascending: false })
-        .limit(150);
-
-      if (error) throw error;
-      return (data ?? []) as CashSaleRow[];
-    },
-  });
-
-  const { data: remitos = [], error: remitosError, refetch: refetchRemitos } = useQuery({
-    queryKey: ["cash-remitos", businessDate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("documents")
-        .select("id, customer_id, customer_name, point_of_sale, document_number, issue_date, status")
-        .eq("doc_type", "REMITO")
-        .eq("status", "EMITIDO")
-        .eq("issue_date", businessDate)
-        .order("document_number", { ascending: false })
-        .limit(200);
-
-      if (error) throw error;
-      return (data ?? []) as RemitoOption[];
-    },
-  });
-
-  const { data: closure, isLoading: closureLoading, error: closureError, refetch: refetchClosure } = useQuery({
-    queryKey: ["cash-closure", businessDate],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_or_create_cash_closure", { p_business_date: businessDate });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      if (!row) throw new Error("No se encontro el cierre del dia");
-      return row as CashClosureRow;
-    },
-  });
-
-  const { data: linkedDocument } = useQuery({
-    queryKey: ["cash-linked-document", detailSale?.document_id],
-    enabled: Boolean(detailSale?.document_id),
-    queryFn: async () => {
-      if (!detailSale?.document_id) return null;
-      const { data, error } = await supabase
-        .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_name, total, notes")
-        .eq("id", detailSale.document_id)
-        .maybeSingle();
-
-      if (error) throw error;
-      return (data ?? null) as DocumentQuickRow | null;
-    },
-  });
-
-  const { data: linkedDocumentLines = [] } = useQuery({
-    queryKey: ["cash-linked-document-lines", detailSale?.document_id],
-    enabled: Boolean(detailSale?.document_id),
-    queryFn: async () => {
-      if (!detailSale?.document_id) return [];
-      const { data, error } = await supabase
-        .from("document_lines")
-        .select("id, line_order, description, quantity, unit, unit_price, line_total")
-        .eq("document_id", detailSale.document_id)
-        .order("line_order", { ascending: true });
-
-      if (error) throw error;
-      return (data ?? []) as DocumentLineQuickRow[];
-    },
-  });
-
-  const { data: linkedDocumentEvents = [] } = useQuery({
-    queryKey: ["cash-linked-document-events", detailSale?.document_id],
-    enabled: Boolean(detailSale?.document_id),
-    queryFn: async () => {
-      if (!detailSale?.document_id) return [];
-      const { data, error } = await supabase
-        .from("document_events")
-        .select("id, event_type, payload, created_at")
-        .eq("document_id", detailSale.document_id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return (data ?? []) as DocumentEventQuickRow[];
-    },
-  });
-
-  const { data: closuresHistory = [] } = useQuery({
-    queryKey: ["cash-closures-history"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cash_closures")
-        .select("id, business_date, status, expected_sales_total, expected_cash_to_render, expected_point_sales_total, expected_transfer_sales_total, counted_cash_total, counted_point_total, counted_transfer_total, cash_difference, point_difference, transfer_difference, notes, closed_at")
-        .order("business_date", { ascending: false })
-        .limit(30);
-
-      if (error) throw error;
-      return (data ?? []) as CashClosureHistoryRow[];
-    },
-  });
-
-  const { data: selectedClosureSales = [] } = useQuery({
-    queryKey: ["cash-closure-sales", selectedClosureId],
-    enabled: Boolean(selectedClosureId),
-    queryFn: async () => {
-      if (!selectedClosureId) return [];
-      const { data, error } = await supabase
-        .from("cash_sales")
-        .select("id, sold_at, business_date, amount_total, payment_method, receipt_kind, status, document_id, closure_id, receipt_reference, customer_name_snapshot, notes")
-        .eq("closure_id", selectedClosureId)
-        .order("sold_at", { ascending: true });
-
-      if (error) throw error;
-      return (data ?? []) as CashSaleRow[];
-    },
+  const {
+    customers,
+    sales,
+    remitos,
+    closure,
+    closureLoading,
+    closureError,
+    salesLoading,
+    salesError,
+    remitosError,
+    linkedDocument,
+    linkedDocumentLines,
+    linkedDocumentEvents,
+    closuresHistory,
+    selectedClosureSales,
+    summary,
+    pendingSales,
+    effectiveClosure,
+    hasClosedClosureForDay,
+    availableRemitos,
+    unclosedSalesAfterClosure,
+    filteredSales,
+    selectedClosurePreview,
+    refreshCash,
+  } = useCashData({
+    businessDate,
+    detailDocumentId: detailSale?.document_id ?? null,
+    selectedClosureId,
+    situationFilter,
   });
 
   useEffect(() => {
@@ -428,53 +126,6 @@ export default function CashPage() {
       setPendingReceiptReference("");
     }
   }, [pendingReceiptKind]);
-
-  const summary: CashSummary = sales.reduce(
-    (acc, sale) => {
-      if (sale.status !== "ANULADA") {
-        acc.total += Number(sale.amount_total);
-        if (sale.payment_method === "EFECTIVO") acc.efectivo += Number(sale.amount_total);
-        if (sale.payment_method === "POINT") acc.point += Number(sale.amount_total);
-        if (sale.payment_method === "TRANSFERENCIA") acc.transferencia += Number(sale.amount_total);
-        if (sale.payment_method === "CUENTA_CORRIENTE") acc.cuentaCorriente += Number(sale.amount_total);
-      }
-      if (sale.status === "PENDIENTE_COMPROBANTE") acc.pendientes += 1;
-      return acc;
-    },
-    { efectivo: 0, point: 0, transferencia: 0, cuentaCorriente: 0, total: 0, pendientes: 0 },
-  );
-
-  const pendingSales = sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE");
-  const closureHistoryForDate = closuresHistory.find((item) => item.business_date === businessDate) ?? null;
-  const effectiveClosure = closureHistoryForDate ?? closure ?? null;
-  const hasClosedClosureForDay = effectiveClosure?.status === "CERRADO";
-  const assignedRemitoIds = new Set(
-    sales
-      .filter((sale) => sale.status !== "ANULADA" && sale.document_id)
-      .map((sale) => sale.document_id as string),
-  );
-  const availableRemitos = remitos.filter((remito) => !assignedRemitoIds.has(remito.id));
-  const unclosedSalesAfterClosure = sales.filter((sale) => sale.status !== "ANULADA" && !sale.closure_id);
-  const filteredSales = sales.filter((sale) => {
-    if (situationFilter === "TODAS") return true;
-    if (situationFilter === "ANULADA") return sale.status === "ANULADA";
-    const situation = getClosureSituation(sale, hasClosedClosureForDay).label;
-    if (situationFilter === "PENDIENTE_CIERRE") return situation === "Pendiente de cierre";
-    if (situationFilter === "EN_CAJA_CERRADA") return situation === "En caja cerrada";
-    if (situationFilter === "POST_CIERRE") return situation === "Venta post cierre";
-    return true;
-  });
-  const refreshCash = async () => {
-    await Promise.all([
-      qc.invalidateQueries({ queryKey: ["cash-sales", businessDate] }),
-      qc.invalidateQueries({ queryKey: ["cash-closure", businessDate] }),
-      qc.invalidateQueries({ queryKey: ["cash-remitos", businessDate] }),
-      qc.invalidateQueries({ queryKey: ["cash-closures-history"] }),
-      refetchSales(),
-      refetchClosure(),
-      refetchRemitos(),
-    ]);
-  };
 
   const createSaleMutation = useMutation({
     mutationFn: async () => {
@@ -637,8 +288,6 @@ export default function CashPage() {
 
   const canCancelSale = (sale: CashSaleRow) => !sale.closure_id;
   const canAttachReceipt = (sale: CashSaleRow) => sale.status === "PENDIENTE_COMPROBANTE";
-  const selectedClosurePreview = closuresHistory.find((item) => item.id === selectedClosureId) ?? null;
-
   const openClosurePreview = (closureId: string) => {
     setSelectedClosureId(closureId);
     setClosurePreviewOpen(true);
@@ -977,7 +626,7 @@ export default function CashPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {isLoading ? (
+                        {salesLoading ? (
                           <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Cargando ventas...</TableCell></TableRow>
                         ) : filteredSales.length === 0 ? (
                           <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Todavia no hay ventas registradas para esta fecha.</TableCell></TableRow>
