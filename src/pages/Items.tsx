@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Search, Pencil, Trash2, RotateCcw } from "lucide-react";
@@ -346,6 +347,9 @@ export default function ItemsPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitas una empresa activa para gestionar articulos, alias y catalogos de stock." />
+        ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Ítems</h1>

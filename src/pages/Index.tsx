@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Warehouse, FileText, Truck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -48,6 +49,9 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Tu cuenta todavia no tiene una empresa activa. Cuando el superadmin te asigne una, vas a ver aca el resumen de esa operacion." />
+        ) : null}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Resumen general de {settings.app_name}</p>

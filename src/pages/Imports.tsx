@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -176,6 +177,9 @@ export default function ImportsPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitas una empresa activa para importar archivos y generar nuevas versiones de listas." />
+        ) : null}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Importaciones</h1>
           <p className="text-muted-foreground">Importar listas de precios desde CSV o XLSX</p>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -207,6 +208,9 @@ export default function PendingPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitas una empresa activa para revisar pendientes de catalogos y vincularlos con articulos." />
+        ) : null}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Pendientes</h1>
           <p className="text-muted-foreground">Líneas de listas de precios sin asignar a un ítem</p>

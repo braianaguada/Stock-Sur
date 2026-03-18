@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { PriceListItemsDialog } from "@/components/price-lists/PriceListItemsDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -352,6 +353,9 @@ export default function PriceListsPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitas una empresa activa para crear listas de precios y relacionarlas con tu catalogo." />
+        ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Listas de precios</h1>
