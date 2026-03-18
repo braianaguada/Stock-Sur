@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { currency } from "@/lib/formatters";
+import { openPrintWindow } from "@/lib/print";
 import { STATUS_CLASS, STATUS_LABEL } from "@/features/cash/constants";
 import { CashClosureTab } from "@/features/cash/components/CashClosureTab";
 import { CashClosurePreviewDialog } from "@/features/cash/components/CashClosurePreviewDialog";
@@ -161,19 +162,16 @@ export default function CashPage() {
   const printClosurePreview = () => {
     if (!selectedClosurePreview) return;
 
-    const win = window.open("", "_blank", "width=1100,height=800");
-    if (!win) return;
-
-    win.document.write(
+    const win = openPrintWindow(
       buildCashClosurePrintHtml({
         closure: selectedClosurePreview,
         sales: selectedClosureSales,
         appName: companySettings.app_name,
         documentFooter: companySettings.document_footer,
       }),
+      "width=1100,height=800",
     );
-    win.document.close();
-    win.focus();
+    if (!win) return;
     win.print();
   };
 

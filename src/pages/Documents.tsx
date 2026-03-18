@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { getErrorMessage } from "@/lib/errors";
+import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
 import {
   CUSTOMER_KIND_LABEL,
   DOC_LABEL,
@@ -211,7 +212,7 @@ export default function DocumentsPage() {
 
     if (hasLoadedLines) {
       const confirmed = window.confirm(
-        "Cambiar la lista va a eliminar todas las lineas cargadas para evitar mezclar productos y precios. ¿Querés continuar?",
+        "Cambiar la lista va a eliminar todas las lineas cargadas para evitar mezclar productos y precios. Â¿QuerÃ©s continuar?",
       );
       if (!confirmed) return;
     }
@@ -241,22 +242,20 @@ export default function DocumentsPage() {
     const rows = printableLines.map((line) => `
       <tr>
         <td>${line.line_order}</td>
-        <td>${line.sku_snapshot ?? "-"}</td>
-        <td>${line.description}</td>
+        <td>${escapeHtml(line.sku_snapshot ?? "-")}</td>
+        <td>${escapeHtml(line.description)}</td>
         <td style="text-align:right">${Number(line.quantity).toLocaleString("es-AR")}</td>
-        <td>${line.unit ?? "un"}</td>
+        <td>${escapeHtml(line.unit ?? "un")}</td>
         <td style="text-align:right">$${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
         <td style="text-align:right">$${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
       </tr>
     `).join("");
 
-    const win = window.open("", "_blank");
-    if (!win) return;
     const logoBlock = companySettings.logo_url
-      ? `<img src="${companySettings.logo_url}" alt="${companySettings.app_name}" style="max-height:110px;max-width:320px;object-fit:contain;filter:drop-shadow(0 10px 20px rgba(15,23,42,.10))" />`
-      : `<div style="font-size:30px;font-weight:800;letter-spacing:.05em;color:#0f172a">${companySettings.app_name.toUpperCase()}</div>`;
+      ? `<img src="${escapeHtml(companySettings.logo_url)}" alt="${escapeHtml(companySettings.app_name)}" style="max-height:110px;max-width:320px;object-fit:contain;filter:drop-shadow(0 10px 20px rgba(15,23,42,.10))" />`
+      : `<div style="font-size:30px;font-weight:800;letter-spacing:.05em;color:#0f172a">${escapeHtml(companySettings.app_name.toUpperCase())}</div>`;
 
-    win.document.write(`<!doctype html><html><head><title>${DOC_LABEL[doc.doc_type]} ${formatNumber(doc.document_number, doc.point_of_sale)}</title>
+    const win = openPrintWindow(`<!doctype html><html><head><title>${escapeHtml(DOC_LABEL[doc.doc_type])} ${escapeHtml(formatNumber(doc.document_number, doc.point_of_sale))}</title>
       <style>
       @page{size:A4 portrait;margin:10mm}
       html,body{margin:0;padding:0}
@@ -299,41 +298,41 @@ export default function DocumentsPage() {
       <div class="head">
         <div class="brand">
           <div class="brand-copy">
-            <span class="eyebrow">${DOC_LABEL[doc.doc_type]}</span>
+            <span class="eyebrow">${escapeHtml(DOC_LABEL[doc.doc_type])}</span>
             ${logoBlock}
           </div>
           <div>
-            <p class="brand-name">${companySettings.legal_name ?? companySettings.app_name}</p>
-            <p class="muted">${companySettings.document_tagline ?? "Documentacion comercial"}</p>
+            <p class="brand-name">${escapeHtml(companySettings.legal_name ?? companySettings.app_name)}</p>
+            <p class="muted">${escapeHtml(companySettings.document_tagline ?? "Documentacion comercial")}</p>
           </div>
         </div>
         <div class="docbox">
-          <h2>${DOC_LABEL[doc.doc_type]}</h2>
-          <p class="docline"><strong>Nro:</strong> ${formatNumber(doc.document_number, doc.point_of_sale)}</p>
+          <h2>${escapeHtml(DOC_LABEL[doc.doc_type])}</h2>
+          <p class="docline"><strong>Nro:</strong> ${escapeHtml(formatNumber(doc.document_number, doc.point_of_sale))}</p>
           <p class="docline"><strong>Fecha:</strong> ${new Date(doc.issue_date).toLocaleDateString("es-AR")}</p>
-          <p class="docline"><strong>Estado:</strong> ${STATUS_LABEL[doc.status]}</p>
+          <p class="docline"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[doc.status])}</p>
         </div>
       </div>
 
       <div class="meta-grid">
         <div class="meta-card">
           <p class="meta-title">Cliente</p>
-          <p class="muted"><strong>Cliente:</strong> ${doc.customer_name ?? "Cliente ocasional"}</p>
-          <p class="muted"><strong>Tipo:</strong> ${CUSTOMER_KIND_LABEL[doc.customer_kind]}</p>
-          <p class="muted"><strong>CUIT:</strong> ${doc.customer_tax_id ?? "-"}</p>
-          <p class="muted"><strong>Condicion fiscal:</strong> ${doc.customer_tax_condition ?? "-"}</p>
+          <p class="muted"><strong>Cliente:</strong> ${escapeHtml(doc.customer_name ?? "Cliente ocasional")}</p>
+          <p class="muted"><strong>Tipo:</strong> ${escapeHtml(CUSTOMER_KIND_LABEL[doc.customer_kind])}</p>
+          <p class="muted"><strong>CUIT:</strong> ${escapeHtml(doc.customer_tax_id ?? "-")}</p>
+          <p class="muted"><strong>Condicion fiscal:</strong> ${escapeHtml(doc.customer_tax_condition ?? "-")}</p>
         </div>
         <div class="meta-card">
           <p class="meta-title">Operacion</p>
           <p class="muted"><strong>Punto de venta:</strong> ${String(doc.point_of_sale).padStart(4, "0")}</p>
-          <p class="muted"><strong>Tipo:</strong> ${DOC_LABEL[doc.doc_type]}</p>
-          <p class="muted"><strong>Estado:</strong> ${STATUS_LABEL[doc.status]}</p>
-          ${doc.payment_terms ? `<p class="muted"><strong>Condicion de venta:</strong> ${doc.payment_terms}</p>` : ""}
-          ${doc.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${doc.salesperson}</p>` : ""}
+          <p class="muted"><strong>Tipo:</strong> ${escapeHtml(DOC_LABEL[doc.doc_type])}</p>
+          <p class="muted"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[doc.status])}</p>
+          ${doc.payment_terms ? `<p class="muted"><strong>Condicion de venta:</strong> ${escapeHtml(doc.payment_terms)}</p>` : ""}
+          ${doc.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${escapeHtml(doc.salesperson)}</p>` : ""}
           ${doc.valid_until ? `<p class="muted"><strong>Valido hasta:</strong> ${new Date(doc.valid_until).toLocaleDateString("es-AR")}</p>` : ""}
-          ${doc.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${doc.delivery_address}</p>` : ""}
-          ${doc.source_document_type && doc.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${DOC_LABEL[doc.source_document_type]} ${doc.source_document_number_snapshot}</p>` : ""}
-          ${doc.internal_remito_type ? `<p class="muted"><strong>Imputacion:</strong> ${INTERNAL_REMITO_LABEL[doc.internal_remito_type]}</p>` : ""}
+          ${doc.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${escapeHtml(doc.delivery_address)}</p>` : ""}
+          ${doc.source_document_type && doc.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${escapeHtml(DOC_LABEL[doc.source_document_type])} ${escapeHtml(doc.source_document_number_snapshot)}</p>` : ""}
+          ${doc.internal_remito_type ? `<p class="muted"><strong>Imputacion:</strong> ${escapeHtml(INTERNAL_REMITO_LABEL[doc.internal_remito_type])}</p>` : ""}
           <p class="muted"><strong>Creado:</strong> ${new Date(doc.created_at).toLocaleString("es-AR")}</p>
         </div>
       </div>
@@ -346,14 +345,14 @@ export default function DocumentsPage() {
       </table>
 
       <div class="totals"><div class="totals-box"><div class="totals-label">Total documento</div><div class="totals-value">$${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div></div></div>
-      <div class="notes"><strong>Notas:</strong> ${doc.notes ?? "-"}</div>
+      <div class="notes"><strong>Notas:</strong> ${escapeHtmlWithLineBreaks(doc.notes ?? "-")}</div>
 
-      <div class="foot"><span>Generado por ${companySettings.app_name}</span><span>${companySettings.document_footer ?? "Este documento no reemplaza comprobantes fiscales"}</span></div>
+      <div class="foot"><span>Generado por ${escapeHtml(companySettings.app_name)}</span><span>${escapeHtml(companySettings.document_footer ?? "Este documento no reemplaza comprobantes fiscales")}</span></div>
       </div>
       </div>
       <button class="print-action" onclick="window.print()">Imprimir / Guardar PDF</button>
       </body></html>`);
-    win.document.close();
+    if (!win) return;
   };
 
   return (
@@ -447,4 +446,5 @@ export default function DocumentsPage() {
     </AppLayout>
   );
 }
+
 

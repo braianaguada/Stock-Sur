@@ -1,4 +1,5 @@
-import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber } from "@/lib/formatters";
+﻿import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber } from "@/lib/formatters";
+import { escapeHtml, escapeHtmlWithLineBreaks } from "@/lib/print";
 import { PAYMENT_LABEL, RECEIPT_LABEL } from "./constants";
 import type {
   CashClosureHistoryRow,
@@ -87,9 +88,9 @@ export function buildCashClosurePrintHtml({
   const rows = sales.map((sale) => `
       <tr>
         <td>${new Date(sale.sold_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</td>
-        <td>${sale.customer_name_snapshot ?? "Consumidor final"}</td>
-        <td>${PAYMENT_LABEL[sale.payment_method]}</td>
-        <td>${sale.receipt_reference ?? RECEIPT_LABEL[sale.receipt_kind]}</td>
+        <td>${escapeHtml(sale.customer_name_snapshot ?? "Consumidor final")}</td>
+        <td>${escapeHtml(PAYMENT_LABEL[sale.payment_method])}</td>
+        <td>${escapeHtml(sale.receipt_reference ?? RECEIPT_LABEL[sale.receipt_kind])}</td>
         <td style="text-align:right">${currency.format(Number(sale.amount_total))}</td>
       </tr>
     `).join("");
@@ -131,7 +132,7 @@ export function buildCashClosurePrintHtml({
         <div class="header">
           <div>
             <div class="title">Cierre diario ${formatBusinessDate(closure.business_date)}</div>
-            <div class="sub">Generado por ${appName} · ${closure.status === "CERRADO" ? `Cerrado ${formatDateTime(closure.closed_at)}` : "Caja abierta"}</div>
+            <div class="sub">Generado por ${escapeHtml(appName)} · ${closure.status === "CERRADO" ? `Cerrado ${formatDateTime(closure.closed_at)}` : "Caja abierta"}</div>
           </div>
           <div class="status">
             <div class="k">Estado</div>
@@ -174,7 +175,7 @@ export function buildCashClosurePrintHtml({
             </div>
             <div class="note">
               <strong style="display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:4px">Notas</strong>
-              <div>${closure.notes ?? "Sin observaciones"}</div>
+              <div>${escapeHtmlWithLineBreaks(closure.notes ?? "Sin observaciones")}</div>
             </div>
           </div>
         </div>
@@ -194,8 +195,9 @@ export function buildCashClosurePrintHtml({
 
         <div class="footer">
           <span>Hoja diaria de caja</span>
-          <span>${documentFooter ?? "Control interno"}</span>
+          <span>${escapeHtml(documentFooter ?? "Control interno")}</span>
         </div>
       </div>
     </body></html>`;
 }
+
