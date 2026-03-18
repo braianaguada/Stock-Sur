@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Search, ShieldCheck, Building2, Mail, User2, Eye, Shield, BadgeCheck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Search, ShieldCheck, Building2, Mail, User2, Eye, Shield, BadgeCheck, Pencil, Plus } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -20,11 +20,15 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { canManageUsers } from "@/lib/permissions";
 import { getErrorMessage } from "@/lib/errors";
+import { useToast } from "@/hooks/use-toast";
 
 interface UserCompanyAccess {
   companyUserId: string;
@@ -43,10 +47,38 @@ interface UserAccessRow {
   companies: UserCompanyAccess[];
 }
 
+interface CompanyOption {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+interface CompanyRoleOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface AccessFormState {
+  companyUserId: string | null;
+  companyId: string;
+  roleId: string;
+  status: "ACTIVE" | "INACTIVE";
+}
+
 export default function UsersPage() {
   const { roles } = useAuth();
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserAccessRow | null>(null);
+  const [accessDialogOpen, setAccessDialogOpen] = useState(false);
+  const [accessForm, setAccessForm] = useState<AccessFormState>({
+    companyUserId: null,
+    companyId: "",
+    roleId: "",
+    status: "ACTIVE",
+  });
+  const { toast } = useToast();
+  const qc = useQueryClient();
 
   const { data = [], isLoading, error } = useQuery({
     queryKey: ["users-access-list"],
@@ -56,6 +88,102 @@ export default function UsersPage() {
       if (error) throw error;
       return (data ?? []) as unknown as UserAccessRow[];
     },
+  });
+
+  const { data: companyOptions = [] } = useQuery({
+    queryKey: ["users-company-options"],
+    enabled: canManageUsers(roles),
+    queryFn: async () => {
+      const { data, error } = await supabase.from("companies").select("id,name,slug").eq("status", "ACTIVE").order("name");
+      if (error) throw error;
+      return (data ?? []) as CompanyOption[];
+    },
+  });
+
+  const { data: companyRoleOptions = [] } = useQuery({
+    queryKey: ["users-company-role-options"],
+    enabled: canManageUsers(roles),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("roles")
+        .select("id,code,name")
+        .eq("scope", "COMPANY")
+        .in("code", ["admin", "operador", "consulta"])
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as CompanyRoleOption[];
+    },
+  });
+
+  useEffect(() => {
+    if (!accessDialogOpen) return;
+    if (!accessForm.roleId && companyRoleOptions.length > 0) {
+      setAccessForm((current) => ({ ...current, roleId: companyRoleOptions[0].id }));
+    }
+  }, [accessDialogOpen, accessForm.roleId, companyRoleOptions]);
+
+  const syncSelectedUser = async (userId: string) => {
+    const { data, error } = await supabase.rpc("list_users_with_access");
+    if (error) throw error;
+    qc.setQueryData(["users-access-list"], data ?? []);
+    const refreshedUser = ((data ?? []) as unknown as UserAccessRow[]).find((user) => user.user_id === userId) ?? null;
+    setSelectedUser(refreshedUser);
+  };
+
+  const saveAccessMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedUser) throw new Error("Seleccioná un usuario");
+      if (!accessForm.companyId) throw new Error("Seleccioná una empresa");
+      if (!accessForm.roleId) throw new Error("Seleccioná un rol");
+
+      let companyUserId = accessForm.companyUserId;
+
+      if (companyUserId) {
+        const { error } = await supabase
+          .from("company_users")
+          .update({ status: accessForm.status })
+          .eq("id", companyUserId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("company_users")
+          .upsert(
+            {
+              company_id: accessForm.companyId,
+              user_id: selectedUser.user_id,
+              status: accessForm.status,
+            },
+            { onConflict: "company_id,user_id" },
+          )
+          .select("id")
+          .single();
+        if (error) throw error;
+        companyUserId = data.id;
+      }
+
+      const { error: deleteRolesError } = await supabase
+        .from("company_user_roles")
+        .delete()
+        .eq("company_user_id", companyUserId);
+      if (deleteRolesError) throw deleteRolesError;
+
+      const { error: insertRoleError } = await supabase
+        .from("company_user_roles")
+        .insert({ company_user_id: companyUserId, role_id: accessForm.roleId });
+      if (insertRoleError) throw insertRoleError;
+    },
+    onSuccess: async () => {
+      if (!selectedUser) return;
+      await syncSelectedUser(selectedUser.user_id);
+      setAccessDialogOpen(false);
+      toast({ title: "Acceso actualizado" });
+    },
+    onError: (error: unknown) =>
+      toast({
+        title: "No se pudo actualizar el acceso",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      }),
   });
 
   const filteredUsers = useMemo(() => {
@@ -80,6 +208,21 @@ export default function UsersPage() {
     () => data.reduce((sum, user) => sum + (user.companies?.length ?? 0), 0),
     [data],
   );
+
+  const openAccessDialog = (user: UserAccessRow, company?: UserCompanyAccess) => {
+    const matchingRole = company?.roles?.[0]
+      ? companyRoleOptions.find((role) => role.code === company.roles[0])
+      : companyRoleOptions[0];
+
+    setSelectedUser(user);
+    setAccessForm({
+      companyUserId: company?.companyUserId ?? null,
+      companyId: company?.companyId ?? "",
+      roleId: matchingRole?.id ?? "",
+      status: (company?.status as "ACTIVE" | "INACTIVE" | undefined) ?? "ACTIVE",
+    });
+    setAccessDialogOpen(true);
+  };
 
   if (!canManageUsers(roles)) {
     return (
@@ -208,6 +351,14 @@ export default function UsersPage() {
                                 <Badge variant={company.status === "ACTIVE" ? "outline" : "destructive"}>
                                   {company.status === "ACTIVE" ? "Activa" : "Inactiva"}
                                 </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="ml-auto h-8 w-8"
+                                  onClick={() => openAccessDialog(user, company)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
                               </div>
                               <div className="mt-1 flex flex-wrap gap-2">
                                 {company.roles?.length ? (
@@ -314,7 +465,13 @@ export default function UsersPage() {
 
               <Card className="border-primary/10">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Acceso por empresa</CardTitle>
+                  <div className="flex items-center justify-between gap-3">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Acceso por empresa</CardTitle>
+                    <Button size="sm" onClick={() => openAccessDialog(selectedUser)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Asignar empresa
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {selectedUser.companies?.length ? (
@@ -328,6 +485,15 @@ export default function UsersPage() {
                           <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                             {company.companySlug}
                           </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="ml-auto"
+                            onClick={() => openAccessDialog(selectedUser, company)}
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar acceso
+                          </Button>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {company.roles?.length ? (
@@ -351,6 +517,97 @@ export default function UsersPage() {
               </Card>
             </div>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={accessDialogOpen} onOpenChange={setAccessDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Gestionar acceso por empresa</DialogTitle>
+            <DialogDescription>
+              Definí la empresa, el rol base y el estado de la membresía para este usuario.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+              <p className="font-medium">{selectedUser?.full_name?.trim() || "Sin nombre cargado"}</p>
+              <p className="text-sm text-muted-foreground">{selectedUser?.email}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Empresa</Label>
+              <Select
+                value={accessForm.companyId}
+                onValueChange={(value) => setAccessForm((current) => ({ ...current, companyId: value }))}
+                disabled={Boolean(accessForm.companyUserId)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companyOptions.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {accessForm.companyUserId ? (
+                <p className="text-xs text-muted-foreground">
+                  Para cambiar de empresa, creá una membresía nueva en vez de editar la actual.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Rol base</Label>
+                <Select
+                  value={accessForm.roleId}
+                  onValueChange={(value) => setAccessForm((current) => ({ ...current, roleId: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar rol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companyRoleOptions.map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Estado</Label>
+                <Select
+                  value={accessForm.status}
+                  onValueChange={(value: "ACTIVE" | "INACTIVE") =>
+                    setAccessForm((current) => ({ ...current, status: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Activa</SelectItem>
+                    <SelectItem value="INACTIVE">Inactiva</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAccessDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => saveAccessMutation.mutate()} disabled={saveAccessMutation.isPending}>
+              {saveAccessMutation.isPending ? "Guardando..." : "Guardar acceso"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AppLayout>
