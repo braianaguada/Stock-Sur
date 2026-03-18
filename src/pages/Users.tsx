@@ -66,6 +66,16 @@ interface AccessFormState {
   status: "ACTIVE" | "INACTIVE";
 }
 
+interface PermissionOption {
+  id: string;
+  code: string;
+  module: string;
+  action: string;
+  description: string | null;
+}
+
+type PermissionOverrideState = Record<string, "ALLOW" | "DENY" | "INHERIT">;
+
 export default function UsersPage() {
   const { roles } = useAuth();
   const [search, setSearch] = useState("");
@@ -77,6 +87,7 @@ export default function UsersPage() {
     roleId: "",
     status: "ACTIVE",
   });
+  const [permissionOverrides, setPermissionOverrides] = useState<PermissionOverrideState>({});
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -115,12 +126,68 @@ export default function UsersPage() {
     },
   });
 
+  const { data: permissionOptions = [] } = useQuery({
+    queryKey: ["users-permission-options"],
+    enabled: canManageUsers(roles),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("permissions")
+        .select("id,code,module,action,description")
+        .neq("module", "users")
+        .order("module")
+        .order("action");
+      if (error) throw error;
+      return (data ?? []) as PermissionOption[];
+    },
+  });
+
+  const { data: inheritedRolePermissionIds = [] } = useQuery({
+    queryKey: ["users-role-permissions", accessForm.roleId || "no-role"],
+    enabled: Boolean(accessDialogOpen && accessForm.roleId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("role_permissions")
+        .select("permission_id")
+        .eq("role_id", accessForm.roleId);
+      if (error) throw error;
+      return (data ?? []).map((row) => row.permission_id);
+    },
+  });
+
+  const { data: existingPermissionOverrides = [] } = useQuery({
+    queryKey: ["users-company-permission-overrides", accessForm.companyUserId ?? "new-membership"],
+    enabled: Boolean(accessDialogOpen && accessForm.companyUserId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("company_user_permissions")
+        .select("permission_id,effect")
+        .eq("company_user_id", accessForm.companyUserId!);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   useEffect(() => {
     if (!accessDialogOpen) return;
     if (!accessForm.roleId && companyRoleOptions.length > 0) {
       setAccessForm((current) => ({ ...current, roleId: companyRoleOptions[0].id }));
     }
   }, [accessDialogOpen, accessForm.roleId, companyRoleOptions]);
+
+  useEffect(() => {
+    if (!accessDialogOpen) return;
+
+    const nextOverrides: PermissionOverrideState = {};
+    for (const permission of permissionOptions) {
+      nextOverrides[permission.id] = "INHERIT";
+    }
+
+    for (const row of existingPermissionOverrides) {
+      nextOverrides[row.permission_id] = row.effect;
+    }
+
+    setPermissionOverrides(nextOverrides);
+  }, [accessDialogOpen, existingPermissionOverrides, permissionOptions]);
 
   const syncSelectedUser = async (userId: string) => {
     const { data, error } = await supabase.rpc("list_users_with_access");
@@ -171,6 +238,27 @@ export default function UsersPage() {
         .from("company_user_roles")
         .insert({ company_user_id: companyUserId, role_id: accessForm.roleId });
       if (insertRoleError) throw insertRoleError;
+
+      const { error: deleteOverridesError } = await supabase
+        .from("company_user_permissions")
+        .delete()
+        .eq("company_user_id", companyUserId);
+      if (deleteOverridesError) throw deleteOverridesError;
+
+      const overrideRows = Object.entries(permissionOverrides)
+        .filter(([, effect]) => effect !== "INHERIT")
+        .map(([permissionId, effect]) => ({
+          company_user_id: companyUserId,
+          permission_id: permissionId,
+          effect,
+        }));
+
+      if (overrideRows.length > 0) {
+        const { error: insertOverridesError } = await supabase
+          .from("company_user_permissions")
+          .insert(overrideRows);
+        if (insertOverridesError) throw insertOverridesError;
+      }
     },
     onSuccess: async () => {
       if (!selectedUser) return;
@@ -209,6 +297,15 @@ export default function UsersPage() {
     [data],
   );
 
+  const permissionsByModule = useMemo(() => {
+    return permissionOptions.reduce<Record<string, PermissionOption[]>>((groups, permission) => {
+      const moduleKey = permission.module;
+      if (!groups[moduleKey]) groups[moduleKey] = [];
+      groups[moduleKey].push(permission);
+      return groups;
+    }, {});
+  }, [permissionOptions]);
+
   const openAccessDialog = (user: UserAccessRow, company?: UserCompanyAccess) => {
     const matchingRole = company?.roles?.[0]
       ? companyRoleOptions.find((role) => role.code === company.roles[0])
@@ -221,6 +318,7 @@ export default function UsersPage() {
       roleId: matchingRole?.id ?? "",
       status: (company?.status as "ACTIVE" | "INACTIVE" | undefined) ?? "ACTIVE",
     });
+    setPermissionOverrides({});
     setAccessDialogOpen(true);
   };
 
@@ -596,6 +694,66 @@ export default function UsersPage() {
                     <SelectItem value="INACTIVE">Inactiva</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium">Permisos adicionales</p>
+                <p className="text-sm text-muted-foreground">
+                  El rol base sigue dando permisos heredados. Acá solo definís excepciones puntuales.
+                </p>
+              </div>
+
+              <div className="max-h-[320px] space-y-4 overflow-y-auto rounded-2xl border bg-muted/10 p-4">
+                {Object.entries(permissionsByModule).map(([moduleName, modulePermissions]) => (
+                  <div key={moduleName} className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        {moduleName}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {modulePermissions.map((permission) => {
+                        const overrideValue = permissionOverrides[permission.id] ?? "INHERIT";
+                        const inherited = inheritedRolePermissionIds.includes(permission.id);
+
+                        return (
+                          <div
+                            key={permission.id}
+                            className="grid gap-3 rounded-xl border bg-background px-3 py-3 md:grid-cols-[1.2fr_180px]"
+                          >
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-medium">{permission.description ?? permission.code}</p>
+                                {inherited ? <Badge variant="outline">Heredado por rol</Badge> : null}
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">{permission.code}</p>
+                            </div>
+                            <Select
+                              value={overrideValue}
+                              onValueChange={(value: "ALLOW" | "DENY" | "INHERIT") =>
+                                setPermissionOverrides((current) => ({
+                                  ...current,
+                                  [permission.id]: value,
+                                }))
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="INHERIT">Heredar</SelectItem>
+                                <SelectItem value="ALLOW">Permitir</SelectItem>
+                                <SelectItem value="DENY">Denegar</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
