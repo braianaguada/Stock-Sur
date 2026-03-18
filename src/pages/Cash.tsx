@@ -17,12 +17,13 @@ import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LA
 import { CashClosureTab } from "@/features/cash/components/CashClosureTab";
 import { CashHistoryTab } from "@/features/cash/components/CashHistoryTab";
 import { CashPendingTab } from "@/features/cash/components/CashPendingTab";
+import { CashReceiptDialog } from "@/features/cash/components/CashReceiptDialog";
 import { CashSalesTab } from "@/features/cash/components/CashSalesTab";
 import { CashSummaryCards } from "@/features/cash/components/CashSummaryCards";
 import { useCashData } from "@/features/cash/hooks/useCashData";
 import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
 import type { CashPendingReceiptState, CashSaleFormState, CashSaleRow, PaymentMethod, ReceiptKind, SituationFilter } from "@/features/cash/types";
-import { describeDocumentEvent, formatRemitoOptionLabel, todayDateInputValue } from "@/features/cash/utils";
+import { describeDocumentEvent, todayDateInputValue } from "@/features/cash/utils";
 
 export default function CashPage() {
   const { toast } = useToast();
@@ -488,69 +489,20 @@ export default function CashPage() {
         </div>
       </div>
 
-      <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Asignar comprobante</DialogTitle>
-            <DialogDescription>La venta ya cuenta en caja. Desde aca solo completas el comprobante faltante.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="rounded-xl border bg-muted/30 p-3 text-sm">
-              <p className="font-medium">{selectedSale?.customer_name_snapshot ?? "Consumidor final"}</p>
-              <p className="text-muted-foreground">{selectedSale ? `${formatTime(selectedSale.sold_at)} · ${currency.format(Number(selectedSale.amount_total))}` : ""}</p>
-            </div>
-            <div className="space-y-2">
-              <Label>Tipo de comprobante</Label>
-              <Select value={pendingReceiptKind} onValueChange={(value) => setPendingReceiptKind(value as ReceiptKind)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="REMITO">Remito</SelectItem>
-                  <SelectItem value="FACTURA">Factura</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {pendingReceiptKind === "REMITO" && (
-              <div className="space-y-2">
-                <Label>Remito emitido</Label>
-                <Select value={pendingRemitoId} onValueChange={setPendingRemitoId}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar remito del dia" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
-                    {availableRemitos.map((remito) => (
-                      <SelectItem key={remito.id} value={remito.id}>
-                        {formatRemitoOptionLabel(remito)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {pendingReceiptKind === "FACTURA" && (
-              <div className="space-y-2">
-                <Label htmlFor="pending-receipt-reference">Referencia de factura</Label>
-                <Input id="pending-receipt-reference" value={pendingReceiptReference} onChange={(event) => setPendingReceiptReference(event.target.value)} placeholder="Ej. 0009-00001782" />
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReceiptDialogOpen(false)}>Cancelar</Button>
-            <Button
-              onClick={() =>
-                attachReceiptMutation.mutate({
-                  selectedSale,
-                  pendingReceiptKind,
-                  pendingRemitoId,
-                  pendingReceiptReference,
-                } satisfies CashPendingReceiptState)
-              }
-              disabled={attachReceiptMutation.isPending}
-            >
-              {attachReceiptMutation.isPending ? "Guardando..." : "Guardar comprobante"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
+      <CashReceiptDialog
+        open={receiptDialogOpen}
+        onOpenChange={setReceiptDialogOpen}
+        selectedSale={selectedSale}
+        pendingReceiptKind={pendingReceiptKind}
+        pendingRemitoId={pendingRemitoId}
+        pendingReceiptReference={pendingReceiptReference}
+        availableRemitos={availableRemitos}
+        saving={attachReceiptMutation.isPending}
+        onPendingReceiptKindChange={setPendingReceiptKind}
+        onPendingRemitoIdChange={setPendingRemitoId}
+        onPendingReceiptReferenceChange={setPendingReceiptReference}
+        onSave={(state) => attachReceiptMutation.mutate(state satisfies CashPendingReceiptState)}
+      />
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
@@ -812,4 +764,5 @@ export default function CashPage() {
     </AppLayout>
   );
 }
+
 
