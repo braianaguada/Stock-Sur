@@ -15,6 +15,7 @@ import { formatNumber } from "../utils";
 type ToastFn = (args: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
 
 type UseDocumentsMutationsParams = {
+  currentCompanyId: string | null;
   userId: string | undefined;
   documents: DocRow[];
   customers: Array<{ id: string; name: string; cuit: string | null }>;
@@ -29,6 +30,7 @@ type UseDocumentsMutationsParams = {
 };
 
 export function useDocumentsMutations({
+  currentCompanyId,
   userId,
   documents,
   customers,
@@ -45,6 +47,7 @@ export function useDocumentsMutations({
 
   const upsertDraftMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
       if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
       if (form.doc_type === "PRESUPUESTO" && form.customer_kind === "INTERNO") {
@@ -79,6 +82,7 @@ export function useDocumentsMutations({
         const { data: doc, error: docErr } = await supabase
           .from("documents")
           .insert({
+            company_id: currentCompanyId!,
             doc_type: form.doc_type,
             status: "BORRADOR",
             point_of_sale: form.point_of_sale,
@@ -231,6 +235,7 @@ export function useDocumentsMutations({
 
   const cloneAsRemitoMutation = useMutation({
     mutationFn: async (sourceId: string) => {
+      if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
       const { data: src, error: srcErr } = await supabase
         .from("documents")
         .select("*")
@@ -255,11 +260,12 @@ export function useDocumentsMutations({
         throw new Error("El presupuesto tiene lineas sin item asociado. Completa los items antes de convertir a remito");
       }
 
-      const { data: newDoc, error: newDocErr } = await supabase
-        .from("documents")
-        .insert({
-          doc_type: "REMITO",
-          status: "BORRADOR",
+        const { data: newDoc, error: newDocErr } = await supabase
+          .from("documents")
+          .insert({
+            company_id: currentCompanyId!,
+            doc_type: "REMITO",
+            status: "BORRADOR",
           point_of_sale: src.point_of_sale,
           customer_id: src.customer_id,
           customer_name: src.customer_name,

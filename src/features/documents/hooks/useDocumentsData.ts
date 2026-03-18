@@ -124,11 +124,13 @@ export function useDocumentsData({
   }, [priceListItems, selectedPriceList]);
 
   const { data: documents = [], isLoading } = useQuery({
-    queryKey: ["documents", search, typeFilter, statusFilter],
+    queryKey: ["documents", currentCompanyId ?? "no-company", search, typeFilter, statusFilter],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       let q = supabase
         .from("documents")
         .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, notes, subtotal, tax_total, total, created_at")
+        .eq("company_id", currentCompanyId!)
         .order("created_at", { ascending: false });
       if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
       if (statusFilter !== "ALL") q = q.eq("status", statusFilter);

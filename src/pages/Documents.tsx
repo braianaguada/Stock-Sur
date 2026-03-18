@@ -183,6 +183,7 @@ export default function DocumentsPage() {
     transitionMutation,
     cloneAsRemitoMutation,
   } = useDocumentsMutations({
+    currentCompanyId: currentCompany?.id ?? null,
     userId: user?.id,
     documents,
     customers,

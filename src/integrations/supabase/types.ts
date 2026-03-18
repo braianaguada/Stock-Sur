@@ -366,6 +366,7 @@ export type Database = {
       }
       document_sequences: {
         Row: {
+          company_id: string
           doc_type: Database["public"]["Enums"]["document_type"]
           id: string
           last_number: number
@@ -373,6 +374,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id: string
           doc_type: Database["public"]["Enums"]["document_type"]
           id?: string
           last_number?: number
@@ -380,6 +382,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string
           doc_type?: Database["public"]["Enums"]["document_type"]
           id?: string
           last_number?: number
@@ -390,6 +393,7 @@ export type Database = {
       }
       documents: {
         Row: {
+          company_id: string
           created_at: string
           created_by: string
           customer_kind: Database["public"]["Enums"]["document_customer_kind"]
@@ -420,6 +424,7 @@ export type Database = {
           valid_until: string | null
         }
         Insert: {
+          company_id: string
           created_at?: string
           created_by?: string
           customer_kind?: Database["public"]["Enums"]["document_customer_kind"]
@@ -450,6 +455,7 @@ export type Database = {
           valid_until?: string | null
         }
         Update: {
+          company_id?: string
           created_at?: string
           created_by?: string
           customer_kind?: Database["public"]["Enums"]["document_customer_kind"]

@@ -62,11 +62,13 @@ export function useCashData({
   });
 
   const remitosQuery = useQuery({
-    queryKey: ["cash-remitos", businessDate],
+    queryKey: ["cash-remitos", currentCompanyId ?? "no-company", businessDate],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("documents")
         .select("id, customer_id, customer_name, point_of_sale, document_number, issue_date, status")
+        .eq("company_id", currentCompanyId!)
         .eq("doc_type", "REMITO")
         .eq("status", "EMITIDO")
         .eq("issue_date", businessDate)
