@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { canManageUsers } from "@/lib/permissions";
@@ -79,6 +80,7 @@ type PermissionOverrideState = Record<string, "ALLOW" | "DENY" | "INHERIT">;
 export default function UsersPage() {
   const { roles } = useAuth();
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"ALL" | "SUPERADMINS" | "WITHOUT_COMPANY" | "INACTIVE_MEMBERSHIPS">("ALL");
   const [selectedUser, setSelectedUser] = useState<UserAccessRow | null>(null);
   const [accessDialogOpen, setAccessDialogOpen] = useState(false);
   const [accessForm, setAccessForm] = useState<AccessFormState>({
@@ -276,9 +278,16 @@ export default function UsersPage() {
 
   const filteredUsers = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-    if (!normalizedSearch) return data;
-
     return data.filter((user) => {
+      const matchesFilter =
+        filter === "ALL" ||
+        (filter === "SUPERADMINS" && user.global_roles?.includes("superadmin")) ||
+        (filter === "WITHOUT_COMPANY" && (user.companies?.length ?? 0) === 0) ||
+        (filter === "INACTIVE_MEMBERSHIPS" && (user.companies ?? []).some((company) => company.status === "INACTIVE"));
+
+      if (!matchesFilter) return false;
+      if (!normalizedSearch) return true;
+
       const haystack = [
         user.full_name ?? "",
         user.email ?? "",
@@ -290,7 +299,7 @@ export default function UsersPage() {
 
       return haystack.includes(normalizedSearch);
     });
-  }, [data, search]);
+  }, [data, filter, search]);
 
   const totalCompaniesAssigned = useMemo(
     () => data.reduce((sum, user) => sum + (user.companies?.length ?? 0), 0),
@@ -305,6 +314,16 @@ export default function UsersPage() {
       return groups;
     }, {});
   }, [permissionOptions]);
+
+  const overrideStats = useMemo(() => {
+    const values = Object.values(permissionOverrides);
+    return {
+      allow: values.filter((value) => value === "ALLOW").length,
+      deny: values.filter((value) => value === "DENY").length,
+    };
+  }, [permissionOverrides]);
+
+  const inheritedPermissionCount = inheritedRolePermissionIds.length;
 
   const openAccessDialog = (user: UserAccessRow, company?: UserCompanyAccess) => {
     const matchingRole = company?.roles?.[0]
@@ -381,6 +400,15 @@ export default function UsersPage() {
           />
         </div>
 
+        <Tabs value={filter} onValueChange={(value) => setFilter(value as typeof filter)}>
+          <TabsList className="grid w-full max-w-3xl grid-cols-4">
+            <TabsTrigger value="ALL">Todos</TabsTrigger>
+            <TabsTrigger value="SUPERADMINS">Superadmins</TabsTrigger>
+            <TabsTrigger value="WITHOUT_COMPANY">Sin empresa</TabsTrigger>
+            <TabsTrigger value="INACTIVE_MEMBERSHIPS">Con inactivas</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <div className="rounded-lg border bg-card">
           <Table>
             <TableHeader>
@@ -418,6 +446,7 @@ export default function UsersPage() {
                         <div className="flex items-center gap-2 font-medium">
                           <User2 className="h-4 w-4 text-muted-foreground" />
                           {user.full_name?.trim() || "Sin nombre cargado"}
+                          {(user.companies?.length ?? 0) === 0 ? <Badge variant="outline">Sin empresa</Badge> : null}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Mail className="h-4 w-4" />
@@ -449,6 +478,11 @@ export default function UsersPage() {
                                 <Badge variant={company.status === "ACTIVE" ? "outline" : "destructive"}>
                                   {company.status === "ACTIVE" ? "Activa" : "Inactiva"}
                                 </Badge>
+                                {company.roles?.[0] ? (
+                                  <Badge variant="secondary" className="hidden sm:inline-flex">
+                                    {company.roles[0]}
+                                  </Badge>
+                                ) : null}
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -555,6 +589,15 @@ export default function UsersPage() {
                       </div>
                       <p className="mt-2 text-2xl font-bold">
                         {selectedUser.companies?.filter((company) => company.status === "ACTIVE").length ?? 0}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        <Shield className="h-3.5 w-3.5" />
+                        Roles empresa
+                      </div>
+                      <p className="mt-2 text-2xl font-bold">
+                        {selectedUser.companies?.reduce((sum, company) => sum + (company.roles?.length ?? 0), 0) ?? 0}
                       </p>
                     </div>
                   </CardContent>
@@ -705,6 +748,27 @@ export default function UsersPage() {
                 </p>
               </div>
 
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Card className="border-emerald-200/70 bg-emerald-50/60 shadow-none">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-emerald-900">Heredados</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-bold text-emerald-950">{inheritedPermissionCount}</CardContent>
+                </Card>
+                <Card className="border-sky-200/70 bg-sky-50/60 shadow-none">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-sky-900">Permitir</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-bold text-sky-950">{overrideStats.allow}</CardContent>
+                </Card>
+                <Card className="border-rose-200/70 bg-rose-50/60 shadow-none">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-rose-900">Denegar</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-bold text-rose-950">{overrideStats.deny}</CardContent>
+                </Card>
+              </div>
+
               <div className="max-h-[320px] space-y-4 overflow-y-auto rounded-2xl border bg-muted/10 p-4">
                 {Object.entries(permissionsByModule).map(([moduleName, modulePermissions]) => (
                   <div key={moduleName} className="space-y-3">
@@ -727,6 +791,8 @@ export default function UsersPage() {
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="font-medium">{permission.description ?? permission.code}</p>
                                 {inherited ? <Badge variant="outline">Heredado por rol</Badge> : null}
+                                {overrideValue === "ALLOW" ? <Badge className="bg-sky-600 hover:bg-sky-600">Permitido</Badge> : null}
+                                {overrideValue === "DENY" ? <Badge variant="destructive">Denegado</Badge> : null}
                               </div>
                               <p className="mt-1 text-xs text-muted-foreground">{permission.code}</p>
                             </div>
