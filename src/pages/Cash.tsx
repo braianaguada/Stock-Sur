@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { getErrorMessage } from "@/lib/errors";
 import { currency } from "@/lib/formatters";
 import { canAttachCashReceipt, canCancelCashSale, canCloseCash, canCreateCashSale } from "@/lib/permissions";
 import { openPrintWindow } from "@/lib/print";
@@ -26,10 +27,10 @@ import { CashSummaryCards } from "@/features/cash/components/CashSummaryCards";
 import { useCashData } from "@/features/cash/hooks/useCashData";
 import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
 import type { CashPendingReceiptState, CashSaleFormState, CashSaleRow, PaymentMethod, ReceiptKind, SituationFilter } from "@/features/cash/types";
-import { buildCashClosurePrintHtml, todayDateInputValue } from "@/features/cash/utils";
+import { buildCashClosurePrintHtml, formatRemitoOptionLabel, todayDateInputValue } from "@/features/cash/utils";
 
 export default function CashPage() {
-  const { roles } = useAuth();
+  const { roles, currentCompany } = useAuth();
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
   const [businessDate, setBusinessDate] = useState(todayDateInputValue());
@@ -80,6 +81,7 @@ export default function CashPage() {
     detailDocumentId: detailSale?.document_id ?? null,
     selectedClosureId,
     situationFilter,
+    currentCompanyId: currentCompany?.id ?? null,
   });
 
   useEffect(() => {
@@ -130,6 +132,7 @@ export default function CashPage() {
   };
 
   const { createSaleMutation, attachReceiptMutation, cancelSaleMutation, closeClosureMutation } = useCashMutations({
+    currentCompanyId: currentCompany?.id ?? null,
     businessDate,
     customers,
     remitos,

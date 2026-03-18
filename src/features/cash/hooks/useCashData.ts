@@ -47,11 +47,13 @@ export function useCashData({
   });
 
   const salesQuery = useQuery({
-    queryKey: ["cash-sales", businessDate],
+    queryKey: ["cash-sales", currentCompanyId ?? "no-company", businessDate],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cash_sales")
         .select("id, business_date, sold_at, amount_total, payment_method, receipt_kind, status, document_id, closure_id, receipt_reference, customer_name_snapshot, notes")
+        .eq("company_id", currentCompanyId!)
         .eq("business_date", businessDate)
         .order("sold_at", { ascending: false })
         .limit(150);
@@ -81,9 +83,13 @@ export function useCashData({
   });
 
   const closureQuery = useQuery({
-    queryKey: ["cash-closure", businessDate],
+    queryKey: ["cash-closure", currentCompanyId ?? "no-company", businessDate],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_or_create_cash_closure", { p_business_date: businessDate });
+      const { data, error } = await supabase.rpc("get_or_create_cash_closure", {
+        p_business_date: businessDate,
+        p_company_id: currentCompanyId!,
+      });
       if (error) throw error;
       const row = Array.isArray(data) ? data[0] : data;
       if (!row) throw new Error("No se encontro el cierre del dia");
@@ -140,11 +146,13 @@ export function useCashData({
   });
 
   const closuresHistoryQuery = useQuery({
-    queryKey: ["cash-closures-history"],
+    queryKey: ["cash-closures-history", currentCompanyId ?? "no-company"],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cash_closures")
         .select("id, business_date, status, expected_sales_total, expected_cash_to_render, expected_point_sales_total, expected_transfer_sales_total, counted_cash_total, counted_point_total, counted_transfer_total, cash_difference, point_difference, transfer_difference, notes, closed_at")
+        .eq("company_id", currentCompanyId!)
         .order("business_date", { ascending: false })
         .limit(30);
 
@@ -154,13 +162,14 @@ export function useCashData({
   });
 
   const selectedClosureSalesQuery = useQuery({
-    queryKey: ["cash-closure-sales", selectedClosureId],
-    enabled: Boolean(selectedClosureId),
+    queryKey: ["cash-closure-sales", currentCompanyId ?? "no-company", selectedClosureId],
+    enabled: Boolean(selectedClosureId && currentCompanyId),
     queryFn: async () => {
       if (!selectedClosureId) return [];
       const { data, error } = await supabase
         .from("cash_sales")
         .select("id, sold_at, business_date, amount_total, payment_method, receipt_kind, status, document_id, closure_id, receipt_reference, customer_name_snapshot, notes")
+        .eq("company_id", currentCompanyId!)
         .eq("closure_id", selectedClosureId)
         .order("sold_at", { ascending: true });
 
@@ -197,10 +206,10 @@ export function useCashData({
 
   const refreshCash = async () => {
     await Promise.all([
-      qc.invalidateQueries({ queryKey: ["cash-sales", businessDate] }),
-      qc.invalidateQueries({ queryKey: ["cash-closure", businessDate] }),
-      qc.invalidateQueries({ queryKey: ["cash-remitos", businessDate] }),
-      qc.invalidateQueries({ queryKey: ["cash-closures-history"] }),
+      qc.invalidateQueries({ queryKey: ["cash-sales", currentCompanyId ?? "no-company", businessDate] }),
+      qc.invalidateQueries({ queryKey: ["cash-closure", currentCompanyId ?? "no-company", businessDate] }),
+      qc.invalidateQueries({ queryKey: ["cash-remitos", currentCompanyId ?? "no-company", businessDate] }),
+      qc.invalidateQueries({ queryKey: ["cash-closures-history", currentCompanyId ?? "no-company"] }),
       salesQuery.refetch(),
       closureQuery.refetch(),
       remitosQuery.refetch(),

@@ -13,6 +13,7 @@ import type {
 } from "../types";
 
 type MutationDeps = {
+  currentCompanyId: string | null;
   businessDate: string;
   customers: CustomerOption[];
   remitos: RemitoOption[];
@@ -26,6 +27,7 @@ type MutationDeps = {
 };
 
 export function useCashMutations({
+  currentCompanyId,
   businessDate,
   customers,
   remitos,
@@ -39,6 +41,10 @@ export function useCashMutations({
 }: MutationDeps) {
   const createSaleMutation = useMutation({
     mutationFn: async (form: CashSaleFormState) => {
+      if (!currentCompanyId) {
+        throw new Error("Selecciona una empresa para registrar la venta");
+      }
+
       const parsedAmount = Number(form.amount.replace(",", "."));
       if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
         throw new Error("Ingresa un importe valido");
@@ -60,6 +66,7 @@ export function useCashMutations({
       const selectedRemito = remitos.find((remito) => remito.id === form.selectedRemitoId);
 
       const payload = {
+        company_id: currentCompanyId,
         business_date: businessDate,
         amount_total: parsedAmount,
         payment_method: form.paymentMethod as PaymentMethod,
@@ -152,6 +159,7 @@ export function useCashMutations({
 
   const closeClosureMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompanyId) throw new Error("Selecciona una empresa para operar caja");
       if (closureError instanceof Error) throw closureError;
       if (!closure) throw new Error("No se encontro el cierre del dia");
 
