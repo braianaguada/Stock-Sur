@@ -4,32 +4,33 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Eye, FileDown, Send, Copy, Ban, Pencil } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { getErrorMessage } from "@/lib/errors";
 import {
+  CUSTOMER_KIND_LABEL,
   DOC_LABEL,
-  DOC_TYPE_CLASS,
   EMPTY_LINE,
+  INTERNAL_REMITO_LABEL,
   STATUS_LABEL,
-  STATUS_VARIANT,
 } from "@/features/documents/constants";
 import type {
+  CustomerKind,
   DocLineRow,
   DocRow,
   DocStatus,
   DocType,
   DocumentFormState,
+  InternalRemitoType,
   LineDraft,
 } from "@/features/documents/types";
 import { formatNumber } from "@/features/documents/utils";
 import { useDocumentsData } from "@/features/documents/hooks/useDocumentsData";
 import { useDocumentsMutations } from "@/features/documents/hooks/useDocumentsMutations";
 import { DocumentsEditorDialog } from "@/features/documents/components/DocumentsEditorDialog";
+import { DocumentsList } from "@/features/documents/components/DocumentsList";
 import { DocumentsPreviewDialog } from "@/features/documents/components/DocumentsPreviewDialog";
 
 export default function DocumentsPage() {
@@ -399,112 +400,19 @@ export default function DocumentsPage() {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Numero</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="w-[260px]">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
-              ) : documents.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Sin documentos</TableCell></TableRow>
-              ) : documents.map((doc) => (
-                <TableRow key={doc.id}>
-                  <TableCell>
-                    <Badge variant="outline" className={DOC_TYPE_CLASS[doc.doc_type]}>
-                      {DOC_LABEL[doc.doc_type]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono">{formatNumber(doc.document_number, doc.point_of_sale)}</TableCell>
-                  <TableCell className="font-medium">{doc.customer_name ?? "Cliente ocasional"}</TableCell>
-                  <TableCell><Badge variant={STATUS_VARIANT[doc.status]}>{STATUS_LABEL[doc.status]}</Badge></TableCell>
-                  <TableCell className="text-right font-mono">${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell>{new Date(doc.issue_date).toLocaleDateString("es-AR")}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => { setSelectedDocId(doc.id); setDetailOpen(true); }} title="Ver">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => printDocument(doc)} title="Imprimir / PDF">
-                        <FileDown className="h-4 w-4" />
-                      </Button>
-                      {doc.status === "BORRADOR" && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(doc.id)} title="Editar borrador">
-                            <Pencil className="h-4 w-4 text-blue-600" />
-                          </Button>
-                        </>
-                      )}
-                      {doc.doc_type === "PRESUPUESTO" && doc.status === "BORRADOR" && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ENVIADO" })} title="Marcar como enviado">
-                            <Send className="h-4 w-4 text-blue-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "APROBADO" })} title="Aprobar">
-                            <Send className="h-4 w-4 text-emerald-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "RECHAZADO" })} title="Rechazar">
-                            <Ban className="h-4 w-4 text-amber-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular">
-                            <Ban className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {doc.doc_type === "PRESUPUESTO" && doc.status === "ENVIADO" && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "APROBADO" })} title="Aprobar">
-                            <Send className="h-4 w-4 text-emerald-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "RECHAZADO" })} title="Rechazar">
-                            <Ban className="h-4 w-4 text-amber-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular">
-                            <Ban className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {doc.doc_type === "REMITO" && doc.status === "BORRADOR" && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => issueMutation.mutate(doc.id)} title="Emitir remito">
-                            <Send className="h-4 w-4 text-emerald-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular borrador">
-                            <Ban className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {doc.doc_type === "PRESUPUESTO" && doc.status === "APROBADO" && (
-                        <Button variant="ghost" size="icon" onClick={() => cloneAsRemitoMutation.mutate(doc.id)} title="Convertir a remito">
-                          <Copy className="h-4 w-4 text-blue-600" />
-                        </Button>
-                      )}
-                      {doc.doc_type === "PRESUPUESTO" && doc.status === "APROBADO" && (
-                        <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular">
-                          <Ban className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                      {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && (
-                        <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular remito">
-                          <Ban className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DocumentsList
+          documents={documents}
+          isLoading={isLoading}
+          onOpenDetail={(documentId) => {
+            setSelectedDocId(documentId);
+            setDetailOpen(true);
+          }}
+          onPrint={printDocument}
+          onEditDraft={openEditDialog}
+          onTransition={(documentId, targetStatus) => transitionMutation.mutate({ documentId, targetStatus })}
+          onIssueRemito={(documentId) => issueMutation.mutate(documentId)}
+          onCloneAsRemito={(documentId) => cloneAsRemitoMutation.mutate(documentId)}
+        />
       </div>
 
       <DocumentsEditorDialog
