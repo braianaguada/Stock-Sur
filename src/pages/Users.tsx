@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, ShieldCheck, Building2, Mail, User2 } from "lucide-react";
+import { Search, ShieldCheck, Building2, Mail, User2, Eye, Shield, BadgeCheck } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -13,6 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { canManageUsers } from "@/lib/permissions";
@@ -38,6 +46,7 @@ interface UserAccessRow {
 export default function UsersPage() {
   const { roles } = useAuth();
   const [search, setSearch] = useState("");
+  const [selectedUser, setSelectedUser] = useState<UserAccessRow | null>(null);
 
   const { data = [], isLoading, error } = useQuery({
     queryKey: ["users-access-list"],
@@ -138,24 +147,25 @@ export default function UsersPage() {
                 <TableHead>Usuario</TableHead>
                 <TableHead>Roles globales</TableHead>
                 <TableHead>Empresas</TableHead>
+                <TableHead className="w-[96px] text-right">Detalle</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
                     Cargando usuarios...
                   </TableCell>
                 </TableRow>
               ) : error ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="py-8 text-center text-destructive">
+                  <TableCell colSpan={4} className="py-8 text-center text-destructive">
                     {getErrorMessage(error)}
                   </TableCell>
                 </TableRow>
               ) : filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
                     No se encontraron usuarios con ese filtro.
                   </TableCell>
                 </TableRow>
@@ -217,6 +227,11 @@ export default function UsersPage() {
                         )}
                       </div>
                     </TableCell>
+                    <TableCell className="text-right align-top">
+                      <Button variant="ghost" size="icon" onClick={() => setSelectedUser(user)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -224,6 +239,120 @@ export default function UsersPage() {
           </Table>
         </div>
       </div>
+
+      <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Detalle de usuario</DialogTitle>
+            <DialogDescription>
+              Vista previa de membresías, roles globales y acceso por empresa.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedUser ? (
+            <div className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+                <Card className="border-primary/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Identidad</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                        <User2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{selectedUser.full_name?.trim() || "Sin nombre cargado"}</p>
+                        <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedUser.global_roles?.length ? (
+                        selectedUser.global_roles.map((role) => (
+                          <Badge key={role} variant={role === "superadmin" ? "default" : "secondary"}>
+                            {role}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Sin roles globales asignados.</span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-primary/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Resumen operativo</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        <Building2 className="h-3.5 w-3.5" />
+                        Empresas
+                      </div>
+                      <p className="mt-2 text-2xl font-bold">{selectedUser.companies?.length ?? 0}</p>
+                    </div>
+                    <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        <Shield className="h-3.5 w-3.5" />
+                        Roles globales
+                      </div>
+                      <p className="mt-2 text-2xl font-bold">{selectedUser.global_roles?.length ?? 0}</p>
+                    </div>
+                    <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        <BadgeCheck className="h-3.5 w-3.5" />
+                        Membresías activas
+                      </div>
+                      <p className="mt-2 text-2xl font-bold">
+                        {selectedUser.companies?.filter((company) => company.status === "ACTIVE").length ?? 0}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="border-primary/10">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Acceso por empresa</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {selectedUser.companies?.length ? (
+                    selectedUser.companies.map((company) => (
+                      <div key={company.companyUserId} className="rounded-2xl border bg-muted/10 p-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold">{company.companyName}</p>
+                          <Badge variant={company.status === "ACTIVE" ? "outline" : "destructive"}>
+                            {company.status === "ACTIVE" ? "Membresía activa" : "Membresía inactiva"}
+                          </Badge>
+                          <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                            {company.companySlug}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {company.roles?.length ? (
+                            company.roles.map((role) => (
+                              <Badge key={`${company.companyUserId}-${role}`} variant="secondary">
+                                {role}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Sin rol base asignado en esta empresa.</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
+                      Este usuario todavía no tiene empresas asignadas.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
