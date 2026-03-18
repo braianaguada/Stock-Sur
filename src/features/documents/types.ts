@@ -12,6 +12,23 @@ export interface LineDraft {
   unit_price: number;
 }
 
+export interface DocumentFormState {
+  doc_type: DocType;
+  point_of_sale: number;
+  customer_id: string;
+  customer_name: string;
+  customer_tax_condition: string;
+  customer_tax_id: string;
+  customer_kind: CustomerKind;
+  internal_remito_type: InternalRemitoType | "";
+  payment_terms: string;
+  delivery_address: string;
+  salesperson: string;
+  valid_until: string;
+  price_list_id: string;
+  notes: string;
+}
+
 export interface DocRow {
   id: string;
   doc_type: DocType;
