@@ -1280,6 +1280,7 @@ export type Database = {
       }
       quote_lines: {
         Row: {
+          company_id: string
           created_by: string | null
           description: string
           id: string
@@ -1290,6 +1291,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          company_id: string
           created_by?: string | null
           description: string
           id?: string
@@ -1300,6 +1302,7 @@ export type Database = {
           unit_price?: number
         }
         Update: {
+          company_id?: string
           created_by?: string | null
           description?: string
           id?: string
@@ -1310,6 +1313,13 @@ export type Database = {
           unit_price?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "quote_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quote_lines_item_id_fkey"
             columns: ["item_id"]
@@ -1328,6 +1338,7 @@ export type Database = {
       }
       quotes: {
         Row: {
+          company_id: string
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -1340,6 +1351,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id: string
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -1352,6 +1364,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -1364,6 +1377,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "quotes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quotes_customer_id_fkey"
             columns: ["customer_id"]

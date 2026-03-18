@@ -13,13 +13,14 @@ import {
   ChevronLeft,
   Settings,
   Wallet,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
-import { canViewSettings } from "@/lib/permissions";
+import { canManageUsers, canViewSettings } from "@/lib/permissions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const navItems = [
@@ -33,6 +34,7 @@ const navItems = [
   { title: "Documentos", url: "/documents", icon: FileText },
   { title: "Caja", url: "/cash", icon: Wallet },
   { title: "Clientes", url: "/customers", icon: Users },
+  { title: "Usuarios", url: "/users", icon: ShieldCheck, requiresSuperadmin: true },
   { title: "Configuracion", url: "/settings", icon: Settings, requiresAdmin: true },
 ];
 
@@ -41,7 +43,11 @@ export function AppSidebar() {
   const { signOut, user, roles, companies, currentCompany, setCurrentCompanyId } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const { settings } = useCompanyBrand();
-  const visibleNavItems = navItems.filter((item) => !item.requiresAdmin || canViewSettings(roles));
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.requiresSuperadmin) return canManageUsers(roles);
+    if (item.requiresAdmin) return canViewSettings(roles);
+    return true;
+  });
 
   return (
     <aside

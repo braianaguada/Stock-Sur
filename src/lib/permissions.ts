@@ -20,6 +20,10 @@ export function canViewSettings(roles: AppRole[]) {
   return canManageSettings(roles);
 }
 
+export function canManageUsers(roles: AppRole[]) {
+  return isSuperAdmin(roles);
+}
+
 export function canCreateCashSale(roles: AppRole[]) {
   return hasAnyRole(roles);
 }

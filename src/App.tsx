@@ -20,6 +20,7 @@ const PendingPage = lazy(() => import("./pages/Pending"));
 const QuotesPage = lazy(() => import("./pages/Quotes"));
 const DocumentsPage = lazy(() => import("./pages/Documents"));
 const CustomersPage = lazy(() => import("./pages/Customers"));
+const UsersPage = lazy(() => import("./pages/Users"));
 const LegacyCatalogImportPage = lazy(() => import("./pages/LegacyCatalogImport"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const CashPage = lazy(() => import("./pages/Cash"));
@@ -66,6 +67,7 @@ const App = () => (
                 <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
                 <Route path="/cash" element={<ProtectedRoute><CashPage /></ProtectedRoute>} />
                 <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
+                <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                 <Route path="/items/catalog/import-legacy" element={<ProtectedRoute><LegacyCatalogImportPage /></ProtectedRoute>} />
                 <Route path="/legacy-catalog-import" element={<Navigate to="/items/catalog/import-legacy" replace />} />
