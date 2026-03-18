@@ -21,6 +21,7 @@ import {
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { PriceListItemsDialog } from "@/components/price-lists/PriceListItemsDialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Search, Trash2, Link2 } from "lucide-react";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { getErrorMessage } from "@/lib/errors";
@@ -97,6 +98,7 @@ const parseNullableNonNegative = (value: string): number | null => {
 const sanitizeNonNegativeDraft = (value: string) => value.replace(",", ".").replace(/-/g, "");
 
 export default function PriceListsPage() {
+  const { currentCompany } = useAuth();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [itemsDialogOpen, setItemsDialogOpen] = useState(false);
@@ -143,12 +145,13 @@ export default function PriceListsPage() {
   });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["price-list-items-catalog", itemSearch],
-    enabled: itemsDialogOpen,
+    queryKey: ["price-list-items-catalog", currentCompany?.id ?? "no-company", itemSearch],
+    enabled: itemsDialogOpen && Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase
         .from("items")
         .select("id, sku, name, unit")
+        .eq("company_id", currentCompany!.id)
         .eq("is_active", true)
         .order("name")
         .limit(150);

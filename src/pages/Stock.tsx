@@ -62,13 +62,14 @@ export default function StockPage() {
   const [form, setForm] = useState({ item_id: "", type: "IN" as MovementType, quantity: "", reference: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, currentCompany } = useAuth();
 
   // Items for select
   const { data: items = [] } = useQuery({
-    queryKey: ["items-list"],
+    queryKey: ["items-list", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { data, error } = await supabase.from("items").select("id, name, sku, unit").eq("is_active", true).order("name");
+      const { data, error } = await supabase.from("items").select("id, name, sku, unit").eq("company_id", currentCompany!.id).eq("is_active", true).order("name");
       if (error) throw error;
       return data;
     },
@@ -76,9 +77,10 @@ export default function StockPage() {
 
   // Current stock calculated from movements
   const { data: stockRows = [], isLoading: loadingStock } = useQuery({
-    queryKey: ["stock-current", search],
+    queryKey: ["stock-current", currentCompany?.id ?? "no-company", search],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { data: movements, error } = await supabase.from("stock_movements").select("item_id, type, quantity, created_at, items(name, sku, unit, demand_profile, demand_monthly_estimate)");
+      const { data: movements, error } = await supabase.from("stock_movements").select("item_id, type, quantity, created_at, items(name, sku, unit, demand_profile, demand_monthly_estimate)").eq("company_id", currentCompany!.id);
       if (error) throw error;
 
       const last30DaysTs = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -212,11 +214,13 @@ export default function StockPage() {
 
   // Movements history
   const { data: movements = [], isLoading: loadingMovements } = useQuery({
-    queryKey: ["stock-movements"],
+    queryKey: ["stock-movements", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("stock_movements")
         .select("id, item_id, type, quantity, reference, created_at, created_by, items(name, sku)")
+        .eq("company_id", currentCompany!.id)
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -242,9 +246,11 @@ export default function StockPage() {
     mutationFn: async () => {
       if (!form.item_id) throw new Error("Seleccioná un ítem");
 
+      if (!currentCompany) throw new Error("Selecciona una empresa para registrar stock");
       const qty = parseFloat(form.quantity);
       if (isNaN(qty) || !Number.isFinite(qty) || qty <= 0) throw new Error("La cantidad debe ser mayor a 0");
       const { error } = await supabase.from("stock_movements").insert({
+        company_id: currentCompany.id,
         item_id: form.item_id,
         type: form.type,
         quantity: qty,

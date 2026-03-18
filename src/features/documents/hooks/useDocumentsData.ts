@@ -45,9 +45,15 @@ export function useDocumentsData({
   });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["documents-items"],
+    queryKey: ["documents-items", currentCompanyId ?? "no-company"],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
-      const { data, error } = await supabase.from("items").select("id, sku, name, unit").eq("is_active", true).order("name");
+      const { data, error } = await supabase
+        .from("items")
+        .select("id, sku, name, unit")
+        .eq("company_id", currentCompanyId!)
+        .eq("is_active", true)
+        .order("name");
       if (error) throw error;
       return data ?? [];
     },

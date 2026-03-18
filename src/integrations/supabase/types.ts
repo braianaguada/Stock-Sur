@@ -896,6 +896,7 @@ export type Database = {
       item_aliases: {
         Row: {
           alias: string
+          company_id: string
           created_at: string
           created_by: string | null
           id: string
@@ -904,6 +905,7 @@ export type Database = {
         }
         Insert: {
           alias: string
+          company_id: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -912,6 +914,7 @@ export type Database = {
         }
         Update: {
           alias?: string
+          company_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -919,6 +922,13 @@ export type Database = {
           item_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "item_aliases_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "item_aliases_item_id_fkey"
             columns: ["item_id"]
@@ -932,6 +942,7 @@ export type Database = {
         Row: {
           brand: string | null
           category: string | null
+          company_id: string
           created_at: string
           created_by: string | null
           demand_monthly_estimate: number | null
@@ -946,6 +957,7 @@ export type Database = {
         Insert: {
           brand?: string | null
           category?: string | null
+          company_id: string
           created_at?: string
           created_by?: string | null
           demand_monthly_estimate?: number | null
@@ -960,6 +972,7 @@ export type Database = {
         Update: {
           brand?: string | null
           category?: string | null
+          company_id?: string
           created_at?: string
           created_by?: string | null
           demand_monthly_estimate?: number | null
@@ -971,7 +984,15 @@ export type Database = {
           unit?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       permissions: {
         Row: {
@@ -1374,6 +1395,7 @@ export type Database = {
       }
       stock_movements: {
         Row: {
+          company_id: string
           created_at: string
           created_by: string | null
           id: string
@@ -1384,6 +1406,7 @@ export type Database = {
           type: Database["public"]["Enums"]["movement_type"]
         }
         Insert: {
+          company_id: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1394,6 +1417,7 @@ export type Database = {
           type: Database["public"]["Enums"]["movement_type"]
         }
         Update: {
+          company_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1404,6 +1428,13 @@ export type Database = {
           type?: Database["public"]["Enums"]["movement_type"]
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_movements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stock_movements_item_id_fkey"
             columns: ["item_id"]

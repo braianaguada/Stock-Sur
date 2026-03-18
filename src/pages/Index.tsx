@@ -4,13 +4,16 @@ import { Package, Warehouse, FileText, Truck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
   const { settings } = useCompanyBrand();
+  const { currentCompany } = useAuth();
   const { data: itemCount } = useQuery({
-    queryKey: ["items-count"],
+    queryKey: ["items-count", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { count } = await supabase.from("items").select("*", { count: "exact", head: true });
+      const { count } = await supabase.from("items").select("*", { count: "exact", head: true }).eq("company_id", currentCompany!.id);
       return count ?? 0;
     },
   });

@@ -11,6 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { Search, Link2 } from "lucide-react";
 import { buildSuggestedAlias } from "@/lib/matching";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +33,7 @@ type PendingLine = {
 };
 
 export default function PendingPage() {
+  const { currentCompany } = useAuth();
   const [search, setSearch] = useState("");
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [aliasDialogOpen, setAliasDialogOpen] = useState(false);
@@ -61,10 +63,10 @@ export default function PendingPage() {
   });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["items-search", itemSearch],
-    enabled: assignDialogOpen,
+    queryKey: ["items-search", currentCompany?.id ?? "no-company", itemSearch],
+    enabled: assignDialogOpen && Boolean(currentCompany),
     queryFn: async () => {
-      let q = supabase.from("items").select("id, name, sku").eq("is_active", true).order("name").limit(50);
+      let q = supabase.from("items").select("id, name, sku").eq("company_id", currentCompany!.id).eq("is_active", true).order("name").limit(50);
       if (itemSearch) q = q.or(`name.ilike.%${itemSearch}%,sku.ilike.%${itemSearch}%`);
       const { data, error } = await q;
       if (error) throw error;
@@ -96,9 +98,9 @@ export default function PendingPage() {
     const cleanAlias = alias.trim();
     if (!cleanAlias) return;
 
-    const { error } = await supabase
-      .from("item_aliases")
-      .insert({ item_id: itemId, alias: cleanAlias, is_supplier_code: isSupplierCode });
+      const { error } = await supabase
+        .from("item_aliases")
+        .insert({ company_id: currentCompany!.id, item_id: itemId, alias: cleanAlias, is_supplier_code: isSupplierCode });
 
     if (error) throw error;
   };
@@ -153,7 +155,7 @@ export default function PendingPage() {
 
       const { data: createdItem, error: itemError } = await supabase
         .from("items")
-        .insert({ name: itemName, is_active: true })
+        .insert({ company_id: currentCompany!.id, name: itemName, is_active: true })
         .select("id")
         .single();
       if (itemError) throw itemError;
