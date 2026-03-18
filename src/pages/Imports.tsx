@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { Upload, Check } from "lucide-react";
 import { parseImportFile, parsePrice, type ParsedRow, isRowEmpty } from "@/lib/importParser";
 import { matchImportLine } from "@/lib/matching";
@@ -21,6 +22,7 @@ type Step = "upload" | "map" | "preview" | "done";
 
 
 export default function ImportsPage() {
+  const { currentCompany } = useAuth();
   const [step, setStep] = useState<Step>("upload");
   const [rawRows, setRawRows] = useState<ParsedRow[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -31,9 +33,10 @@ export default function ImportsPage() {
   const qc = useQueryClient();
 
   const { data: priceLists = [] } = useQuery({
-    queryKey: ["price-lists-simple"],
+    queryKey: ["price-lists-simple", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { data, error } = await supabase.from("price_lists").select("id, name").order("name");
+      const { data, error } = await supabase.from("price_lists").select("id, name").eq("company_id", currentCompany!.id).order("name");
       if (error) throw error;
       return data;
     },
@@ -100,7 +103,7 @@ export default function ImportsPage() {
       // Create version
       const { data: version, error: vErr } = await supabase
         .from("price_list_versions")
-        .insert({ price_list_id: selectedPriceListId, notes: notes || null })
+        .insert({ company_id: currentCompany!.id, price_list_id: selectedPriceListId, notes: notes || null })
         .select("id")
         .single();
       if (vErr) throw vErr;
@@ -108,7 +111,8 @@ export default function ImportsPage() {
       // Fetch aliases for matching
       const { data: aliases, error: aliasesError } = await supabase
         .from("item_aliases")
-        .select("item_id, alias, is_supplier_code");
+        .select("item_id, alias, is_supplier_code")
+        .eq("company_id", currentCompany!.id);
       if (aliasesError) throw aliasesError;
 
       const allLines = validRows.map((row) => {
@@ -128,6 +132,7 @@ export default function ImportsPage() {
         const match_status: "MATCHED" | "PENDING" | "NEW" = item_id ? "MATCHED" : "PENDING";
 
         return {
+          company_id: currentCompany!.id,
           version_id: version.id,
           supplier_code: supplierCode || null,
           raw_description: rawDesc,

@@ -47,11 +47,13 @@ export default function PendingPage() {
   const qc = useQueryClient();
 
   const { data: pendingLines = [], isLoading } = useQuery({
-    queryKey: ["pending-lines", search],
+    queryKey: ["pending-lines", currentCompany?.id ?? "no-company", search],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase
         .from("price_list_lines")
         .select("*, price_list_versions(version_date, price_lists(name, suppliers(name)))")
+        .eq("company_id", currentCompany!.id)
         .eq("match_status", "PENDING")
         .order("created_at", { ascending: false })
         .limit(200);
@@ -89,6 +91,7 @@ export default function PendingPage() {
     const { error } = await supabase
       .from("price_list_lines")
       .update({ item_id: itemId, match_status: "MATCHED" as const })
+      .eq("company_id", currentCompany!.id)
       .eq("id", lineId);
 
     if (error) throw error;

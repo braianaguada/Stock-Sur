@@ -60,11 +60,13 @@ export function useDocumentsData({
   });
 
   const { data: priceLists = [] } = useQuery({
-    queryKey: ["documents-price-lists"],
+    queryKey: ["documents-price-lists", currentCompanyId ?? "no-company"],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_lists")
         .select("id, name, flete_pct, utilidad_pct, impuesto_pct, round_mode, round_to")
+        .eq("company_id", currentCompanyId!)
         .order("name");
       if (error) throw error;
       return (data ?? []) as PriceListRow[];
@@ -72,12 +74,13 @@ export function useDocumentsData({
   });
 
   const { data: priceListItems = [] } = useQuery({
-    queryKey: ["documents-price-list-items", selectedPriceListId],
-    enabled: !!selectedPriceListId,
+    queryKey: ["documents-price-list-items", currentCompanyId ?? "no-company", selectedPriceListId],
+    enabled: !!selectedPriceListId && Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
         .select("item_id, is_active, base_cost, flete_pct, utilidad_pct, impuesto_pct, final_price_override, items(id, sku, name, unit)")
+        .eq("company_id", currentCompanyId!)
         .eq("price_list_id", selectedPriceListId)
         .eq("is_active", true);
       if (error) throw error;

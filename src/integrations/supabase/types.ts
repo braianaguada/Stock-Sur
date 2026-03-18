@@ -1024,6 +1024,7 @@ export type Database = {
       price_list_items: {
         Row: {
           base_cost: number
+          company_id: string
           created_at: string
           created_by: string | null
           final_price_override: number | null
@@ -1037,6 +1038,7 @@ export type Database = {
         }
         Insert: {
           base_cost?: number
+          company_id: string
           created_at?: string
           created_by?: string | null
           final_price_override?: number | null
@@ -1050,6 +1052,7 @@ export type Database = {
         }
         Update: {
           base_cost?: number
+          company_id?: string
           created_at?: string
           created_by?: string | null
           final_price_override?: number | null
@@ -1062,6 +1065,13 @@ export type Database = {
           utilidad_pct?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "price_list_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "price_list_items_item_id_fkey"
             columns: ["item_id"]
@@ -1080,6 +1090,7 @@ export type Database = {
       }
       price_list_lines: {
         Row: {
+          company_id: string
           created_at: string
           created_by: string | null
           currency: string
@@ -1092,6 +1103,7 @@ export type Database = {
           version_id: string
         }
         Insert: {
+          company_id: string
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -1104,6 +1116,7 @@ export type Database = {
           version_id: string
         }
         Update: {
+          company_id?: string
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -1116,6 +1129,13 @@ export type Database = {
           version_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "price_list_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "price_list_lines_item_id_fkey"
             columns: ["item_id"]
@@ -1134,6 +1154,7 @@ export type Database = {
       }
       price_list_versions: {
         Row: {
+          company_id: string
           created_at: string
           created_by: string | null
           id: string
@@ -1143,6 +1164,7 @@ export type Database = {
           version_date: string
         }
         Insert: {
+          company_id: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1152,6 +1174,7 @@ export type Database = {
           version_date?: string
         }
         Update: {
+          company_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1161,6 +1184,13 @@ export type Database = {
           version_date?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "price_list_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "price_list_versions_price_list_id_fkey"
             columns: ["price_list_id"]
@@ -1172,6 +1202,7 @@ export type Database = {
       }
       price_lists: {
         Row: {
+          company_id: string
           created_at: string
           created_by: string | null
           flete_pct: number
@@ -1184,6 +1215,7 @@ export type Database = {
           utilidad_pct: number
         }
         Insert: {
+          company_id: string
           created_at?: string
           created_by?: string | null
           flete_pct?: number
@@ -1196,6 +1228,7 @@ export type Database = {
           utilidad_pct?: number
         }
         Update: {
+          company_id?: string
           created_at?: string
           created_by?: string | null
           flete_pct?: number
@@ -1208,6 +1241,13 @@ export type Database = {
           utilidad_pct?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "price_lists_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "price_lists_supplier_id_fkey"
             columns: ["supplier_id"]
@@ -1446,6 +1486,7 @@ export type Database = {
       }
       supplier_catalog_lines: {
         Row: {
+          company_id: string
           cost: number
           created_at: string
           created_by: string | null
@@ -1460,6 +1501,7 @@ export type Database = {
           supplier_code: string | null
         }
         Insert: {
+          company_id: string
           cost: number
           created_at?: string
           created_by?: string | null
@@ -1474,6 +1516,7 @@ export type Database = {
           supplier_code?: string | null
         }
         Update: {
+          company_id?: string
           cost?: number
           created_at?: string
           created_by?: string | null
@@ -1488,6 +1531,13 @@ export type Database = {
           supplier_code?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "supplier_catalog_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "supplier_catalog_lines_matched_item_id_fkey"
             columns: ["matched_item_id"]
@@ -1507,6 +1557,7 @@ export type Database = {
       supplier_catalog_versions: {
         Row: {
           catalog_id: string
+          company_id: string
           created_at: string
           created_by: string | null
           id: string
@@ -1518,6 +1569,7 @@ export type Database = {
         }
         Insert: {
           catalog_id: string
+          company_id: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1529,6 +1581,7 @@ export type Database = {
         }
         Update: {
           catalog_id?: string
+          company_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1544,6 +1597,13 @@ export type Database = {
             columns: ["catalog_id"]
             isOneToOne: false
             referencedRelation: "supplier_catalogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_catalog_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
@@ -1564,6 +1624,7 @@ export type Database = {
       }
       supplier_catalogs: {
         Row: {
+          company_id: string
           created_at: string
           created_by: string | null
           id: string
@@ -1572,6 +1633,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          company_id: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1580,6 +1642,7 @@ export type Database = {
           title: string
         }
         Update: {
+          company_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1588,6 +1651,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "supplier_catalogs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "supplier_catalogs_supplier_id_fkey"
             columns: ["supplier_id"]
@@ -1599,6 +1669,7 @@ export type Database = {
       }
       supplier_documents: {
         Row: {
+          company_id: string
           created_by: string | null
           file_name: string
           file_type: string
@@ -1610,6 +1681,7 @@ export type Database = {
           uploaded_at: string
         }
         Insert: {
+          company_id: string
           created_by?: string | null
           file_name: string
           file_type: string
@@ -1621,6 +1693,7 @@ export type Database = {
           uploaded_at?: string
         }
         Update: {
+          company_id?: string
           created_by?: string | null
           file_name?: string
           file_type?: string
@@ -1633,7 +1706,62 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "supplier_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "supplier_documents_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_import_mappings: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          file_type: string
+          id: string
+          mapping: Json
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string
+          file_type?: string
+          id?: string
+          mapping: Json
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          file_type?: string
+          id?: string
+          mapping?: Json
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_import_mappings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_import_mappings_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
@@ -1643,6 +1771,7 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          company_id: string
           contact_name: string | null
           created_at: string
           created_by: string | null
@@ -1655,6 +1784,7 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          company_id: string
           contact_name?: string | null
           created_at?: string
           created_by?: string | null
@@ -1667,6 +1797,7 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          company_id?: string
           contact_name?: string | null
           created_at?: string
           created_by?: string | null
@@ -1678,7 +1809,15 @@ export type Database = {
           phone?: string | null
           whatsapp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

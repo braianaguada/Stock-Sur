@@ -19,9 +19,10 @@ export default function Dashboard() {
   });
 
   const { data: supplierCount } = useQuery({
-    queryKey: ["suppliers-count"],
+    queryKey: ["suppliers-count", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { count } = await supabase.from("suppliers").select("*", { count: "exact", head: true });
+      const { count } = await supabase.from("suppliers").select("*", { count: "exact", head: true }).eq("company_id", currentCompany!.id);
       return count ?? 0;
     },
   });

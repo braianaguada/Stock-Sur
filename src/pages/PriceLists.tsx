@@ -116,11 +116,13 @@ export default function PriceListsPage() {
   const qc = useQueryClient();
 
   const { data: priceLists = [], isLoading } = useQuery({
-    queryKey: ["price-lists", search],
+    queryKey: ["price-lists", currentCompany?.id ?? "no-company", search],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase
         .from("price_lists")
         .select("id, name, created_at, flete_pct, utilidad_pct, impuesto_pct, round_mode, round_to")
+        .eq("company_id", currentCompany!.id)
         .order("name");
       if (search) q = q.ilike("name", `%${search}%`);
       const { data, error } = await q.limit(200);
@@ -130,12 +132,13 @@ export default function PriceListsPage() {
   });
 
   const { data: listItems = [] } = useQuery({
-    queryKey: ["price-list-items", selectedListId],
-    enabled: !!selectedListId,
+    queryKey: ["price-list-items", currentCompany?.id ?? "no-company", selectedListId],
+    enabled: !!selectedListId && Boolean(currentCompany),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
         .select("price_list_id, item_id, is_active, base_cost, flete_pct, utilidad_pct, impuesto_pct, final_price_override, items(id, name, sku, unit)")
+        .eq("company_id", currentCompany!.id)
         .eq("price_list_id", selectedListId!)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
@@ -231,7 +234,9 @@ export default function PriceListsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar listas");
       const { error } = await supabase.from("price_lists").insert({
+        company_id: currentCompany.id,
         name: form.name,
         flete_pct: parseNonNegative(form.flete_pct, 0),
         utilidad_pct: parseNonNegative(form.utilidad_pct, 0),
@@ -250,14 +255,17 @@ export default function PriceListsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { await deleteByStrategy({ table: "price_lists", id }); },
+    mutationFn: async (id: string) => {
+      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar listas");
+      await deleteByStrategy({ table: "price_lists", id, eq: { company_id: currentCompany.id } });
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["price-lists"] }); toast({ title: "Lista eliminada" }); },
   });
 
   const updateListConfigMutation = useMutation({
     mutationFn: async (payload: Partial<Pick<PriceList, "flete_pct" | "utilidad_pct" | "impuesto_pct" | "round_mode" | "round_to">>) => {
       if (!selectedListId) return;
-      const { error } = await supabase.from("price_lists").update(payload).eq("id", selectedListId);
+      const { error } = await supabase.from("price_lists").update(payload).eq("company_id", currentCompany!.id).eq("id", selectedListId);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["price-lists"] }); },
@@ -268,6 +276,7 @@ export default function PriceListsPage() {
     mutationFn: async () => {
       if (!selectedListId || !itemToAdd) throw new Error("Selecciona un item");
       const { error } = await supabase.from("price_list_items").upsert({
+        company_id: currentCompany!.id,
         price_list_id: selectedListId,
         item_id: itemToAdd,
         is_active: true,
@@ -287,6 +296,7 @@ export default function PriceListsPage() {
     mutationFn: async (itemIds: string[]) => {
       if (!selectedListId || itemIds.length === 0) throw new Error("No hay items seleccionados");
       const payload = itemIds.map((itemId) => ({
+        company_id: currentCompany!.id,
         price_list_id: selectedListId,
         item_id: itemId,
         is_active: true,
@@ -327,6 +337,7 @@ export default function PriceListsPage() {
       const { error } = await supabase
         .from("price_list_items")
         .update(payload)
+        .eq("company_id", currentCompany!.id)
         .eq("price_list_id", selectedListId!)
         .eq("item_id", itemId);
       if (error) throw error;
