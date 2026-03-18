@@ -15,147 +15,35 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Eye, FileDown, Send, Copy, Ban, Pencil, Trash2 } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { getErrorMessage } from "@/lib/errors";
-import { formatDocumentNumber } from "@/lib/formatters";
-
-type DocType = "PRESUPUESTO" | "REMITO";
-type DocStatus = "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO";
-type CustomerKind = "GENERAL" | "INTERNO" | "EMPRESA";
-type InternalRemitoType = "CUENTA_CORRIENTE" | "DESCUENTO_SUELDO";
-
-interface LineDraft {
-  item_id: string | null;
-  sku_snapshot: string;
-  description: string;
-  unit: string;
-  quantity: number;
-  unit_price: number;
-}
-
-interface DocRow {
-  id: string;
-  doc_type: DocType;
-  status: DocStatus;
-  point_of_sale: number;
-  document_number: number | null;
-  issue_date: string;
-  customer_id: string | null;
-  customer_name: string | null;
-  customer_tax_id: string | null;
-  customer_tax_condition: string | null;
-  customer_kind: CustomerKind;
-  internal_remito_type: InternalRemitoType | null;
-  payment_terms: string | null;
-  delivery_address: string | null;
-  salesperson: string | null;
-  valid_until: string | null;
-  price_list_id: string | null;
-  source_document_id: string | null;
-  source_document_type: DocType | null;
-  source_document_number_snapshot: string | null;
-  notes: string | null;
-  subtotal: number;
-  tax_total: number;
-  total: number;
-  created_at: string;
-}
-
-interface DocLineRow {
-  id: string;
-  item_id: string | null;
-  line_order: number;
-  description: string;
-  quantity: number;
-  unit: string | null;
-  unit_price: number;
-  line_total: number;
-  sku_snapshot: string | null;
-}
-
-interface DocEventRow {
-  id: string;
-  event_type: string;
-  payload: unknown;
-  created_at: string;
-}
-
-interface PriceListRow {
-  id: string;
-  name: string;
-  flete_pct: number | null;
-  utilidad_pct: number | null;
-  impuesto_pct: number | null;
-  round_mode: "none" | "integer" | "tens" | "hundreds" | "x99";
-  round_to: number | null;
-}
-
-interface PriceListItemRow {
-  item_id: string;
-  is_active: boolean;
-  base_cost: number;
-  flete_pct: number | null;
-  utilidad_pct: number | null;
-  impuesto_pct: number | null;
-  final_price_override: number | null;
-  items: {
-    id: string;
-    sku: string;
-    name: string;
-    unit: string;
-  } | null;
-}
-
-const DOC_LABEL: Record<DocType, string> = { PRESUPUESTO: "Presupuesto", REMITO: "Remito" };
-const STATUS_LABEL: Record<DocStatus, string> = {
-  BORRADOR: "Borrador",
-  ENVIADO: "Enviado",
-  APROBADO: "Aprobado",
-  RECHAZADO: "Rechazado",
-  EMITIDO: "Emitido",
-  ANULADO: "Anulado",
-};
-const STATUS_VARIANT: Record<DocStatus, "secondary" | "default" | "destructive" | "outline"> = {
-  BORRADOR: "secondary",
-  ENVIADO: "outline",
-  APROBADO: "default",
-  RECHAZADO: "destructive",
-  EMITIDO: "default",
-  ANULADO: "destructive",
-};
-const DOC_TYPE_CLASS: Record<DocType, string> = {
-  PRESUPUESTO: "border-blue-200 bg-blue-50 text-blue-700",
-  REMITO: "border-emerald-200 bg-emerald-50 text-emerald-700",
-};
-const CUSTOMER_KIND_LABEL: Record<CustomerKind, string> = {
-  GENERAL: "Cliente general",
-  INTERNO: "Personal / tecnico interno",
-  EMPRESA: "Empresa",
-};
-const INTERNAL_REMITO_LABEL: Record<InternalRemitoType, string> = {
-  CUENTA_CORRIENTE: "Cuenta corriente",
-  DESCUENTO_SUELDO: "Descuento de sueldo",
-};
-const HISTORY_TONE_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
-  neutral: "border-slate-200 bg-slate-50 text-slate-700",
-  info: "border-blue-200 bg-blue-50 text-blue-700",
-  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  warning: "border-amber-200 bg-amber-50 text-amber-700",
-  danger: "border-rose-200 bg-rose-50 text-rose-700",
-};
-const HISTORY_DOT_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
-  neutral: "bg-slate-400 shadow-slate-200",
-  info: "bg-blue-500 shadow-blue-200",
-  success: "bg-emerald-500 shadow-emerald-200",
-  warning: "bg-amber-500 shadow-amber-200",
-  danger: "bg-rose-500 shadow-rose-200",
-};
-
-const EMPTY_LINE: LineDraft = { item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 };
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const formatNumber = (n: number | null, pointOfSale: number) =>
-  n === null ? "BORRADOR" : formatDocumentNumber(pointOfSale, n);
+import {
+  CUSTOMER_KIND_LABEL,
+  DOC_LABEL,
+  DOC_TYPE_CLASS,
+  EMPTY_LINE,
+  HISTORY_DOT_CLASS,
+  HISTORY_TONE_CLASS,
+  INTERNAL_REMITO_LABEL,
+  STATUS_LABEL,
+  STATUS_VARIANT,
+} from "@/features/documents/constants";
+import type {
+  CustomerKind,
+  DocEventRow,
+  DocLineRow,
+  DocRow,
+  DocStatus,
+  DocType,
+  InternalRemitoType,
+  LineDraft,
+  PriceListItemRow,
+  PriceListRow,
+} from "@/features/documents/types";
+import {
+  applyPriceListRounding,
+  describeDocumentHistoryEvent,
+  formatNumber,
+  isRecord,
+} from "@/features/documents/utils";
 
 export default function DocumentsPage() {
   const { user } = useAuth();
@@ -239,25 +127,6 @@ export default function DocumentsPage() {
     [priceLists, form.price_list_id],
   );
 
-  const applyRounding = (value: number, roundMode: PriceListRow["round_mode"], roundTo: number | null) => {
-    switch (roundMode) {
-      case "integer":
-        return Math.round(value);
-      case "tens":
-        return Math.round(value / 10) * 10;
-      case "hundreds":
-        return Math.round(value / 100) * 100;
-      case "x99":
-        return value <= 0 ? 0 : Math.floor(value) + 0.99;
-      case "none":
-      default: {
-        const safeRoundTo = !roundTo || roundTo <= 0 ? 1 : roundTo;
-        if (safeRoundTo === 1) return value;
-        return Math.round(value / safeRoundTo) * safeRoundTo;
-      }
-    }
-  };
-
   const availableItems = useMemo(() => {
     if (!form.price_list_id) return items;
     return priceListItems
@@ -292,7 +161,7 @@ export default function DocumentsPage() {
       const utilidad = row.utilidad_pct ?? selectedPriceList.utilidad_pct ?? 0;
       const impuesto = row.impuesto_pct ?? selectedPriceList.impuesto_pct ?? 0;
       const computed = baseCost * (1 + flete / 100) * (1 + utilidad / 100) * (1 + impuesto / 100);
-      map.set(row.item_id, applyRounding(computed, selectedPriceList.round_mode, selectedPriceList.round_to));
+      map.set(row.item_id, applyPriceListRounding(computed, selectedPriceList.round_mode, selectedPriceList.round_to));
     }
     return map;
   }, [priceListItems, selectedPriceList]);
@@ -776,80 +645,6 @@ export default function DocumentsPage() {
       if (prev.length === 1) return [EMPTY_LINE];
       return prev.filter((_, lineIdx) => lineIdx !== idx);
     });
-  };
-
-  const describeEvent = (event: DocEventRow) => {
-    const payload = isRecord(event.payload) ? event.payload : null;
-
-    switch (event.event_type) {
-      case "CREATED": {
-        const source = typeof payload?.source === "string" ? payload.source : null;
-        const sourceNumber = typeof payload?.source_number === "string" ? payload.source_number : null;
-        const sourceDocType = typeof payload?.source_doc_type === "string" ? payload.source_doc_type : null;
-        return {
-          title: source === "budget_conversion" ? "Remito creado" : "Documento creado",
-          detail:
-            source === "budget_conversion"
-              ? `Creado a partir de ${sourceDocType === "PRESUPUESTO" ? "presupuesto" : "documento"} ${sourceNumber ?? ""}`.trim()
-              : "Borrador inicial",
-          tone: "neutral" as const,
-        };
-      }
-      case "UPDATED":
-        return {
-          title: "Borrador actualizado",
-          detail: "Se guardaron cambios",
-          tone: "info" as const,
-        };
-      case "STATUS_CHANGED": {
-        const from = typeof payload?.from === "string" ? payload.from : null;
-        const to = typeof payload?.to === "string" ? payload.to : null;
-        const fromLabel = from && from in STATUS_LABEL ? STATUS_LABEL[from as DocStatus] : from;
-        const toLabel = to && to in STATUS_LABEL ? STATUS_LABEL[to as DocStatus] : to;
-        const tone =
-          to === "APROBADO" || to === "EMITIDO"
-            ? "success"
-            : to === "RECHAZADO"
-              ? "warning"
-              : to === "ANULADO"
-                ? "danger"
-                : "info";
-        return {
-          title: "Cambio de estado",
-          detail: fromLabel && toLabel ? `${fromLabel} -> ${toLabel}` : "Estado actualizado",
-          tone,
-        };
-      }
-      case "REMITO_EMITIDO": {
-        const reference = typeof payload?.reference === "string" ? payload.reference : null;
-        return {
-          title: "Remito emitido",
-          detail: reference ? `Stock descontado (${reference})` : "Stock descontado automaticamente",
-          tone: "success" as const,
-        };
-      }
-      case "REMIO_CREATED_FROM_BUDGET":
-      case "REMITO_CREATED_FROM_BUDGET": {
-        const targetNumber = typeof payload?.target_number === "string" ? payload.target_number : null;
-        const sourceNumber = typeof payload?.source_number === "string" ? payload.source_number : null;
-        return {
-          title: "Convertido a remito",
-          detail:
-            targetNumber && sourceNumber
-              ? `Remito ${targetNumber} creado desde Presupuesto ${sourceNumber}`
-              : targetNumber
-                ? `Nuevo remito ${targetNumber}`
-                : "Nuevo remito borrador",
-          tone: "info" as const,
-        };
-      }
-      default:
-        return {
-          title: event.event_type,
-          detail: "Evento registrado",
-          tone: "neutral" as const,
-        };
-    }
   };
 
   const printDocument = async (doc: DocRow) => {
@@ -1482,7 +1277,7 @@ export default function DocumentsPage() {
                     <div className="absolute bottom-2 left-[11px] top-2 w-px rounded-full bg-gradient-to-b from-blue-200 via-emerald-200 to-slate-200" />
                     <div className="space-y-4">
                       {selectedEvents.map((event) => {
-                        const described = describeEvent(event);
+                        const described = describeDocumentHistoryEvent(event);
                         return (
                           <div key={event.id} className="relative">
                             <div className={`absolute left-[-21px] top-5 h-3.5 w-3.5 rounded-full ring-4 ring-white shadow-md ${HISTORY_DOT_CLASS[described.tone]}`} />
