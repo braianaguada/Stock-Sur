@@ -17,6 +17,7 @@ type CashClosureTabProps = {
   onCloseClosure: () => void;
   onOpenSummary: (closureId: string) => void;
   closePending: boolean;
+  canCloseCash: boolean;
 };
 
 export function CashClosureTab({
@@ -29,6 +30,7 @@ export function CashClosureTab({
   onCloseClosure,
   onOpenSummary,
   closePending,
+  canCloseCash,
 }: CashClosureTabProps) {
   return (
     <Card className="shadow-sm">
@@ -67,7 +69,7 @@ export function CashClosureTab({
                 rows={5}
                 value={closeNotes}
                 onChange={(event) => onCloseNotesChange(event.target.value)}
-                disabled={effectiveClosure?.status === "CERRADO"}
+                disabled={effectiveClosure?.status === "CERRADO" || !canCloseCash}
               />
             </div>
           </div>
@@ -91,7 +93,7 @@ export function CashClosureTab({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={onCloseClosure} disabled={closureLoading || closePending || effectiveClosure?.status === "CERRADO" || Boolean(closureError)}>
+          <Button onClick={onCloseClosure} disabled={closureLoading || closePending || effectiveClosure?.status === "CERRADO" || Boolean(closureError) || !canCloseCash}>
             {closePending ? "Cerrando..." : "Cerrar caja"}
           </Button>
           <Button variant="outline" onClick={onRecalculate}>
@@ -103,6 +105,7 @@ export function CashClosureTab({
             </Button>
           ) : null}
           {effectiveClosure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya esta bloqueado. Solo queda disponible para consulta.</p> : null}
+          {!canCloseCash ? <p className="text-sm text-muted-foreground">Solo administracion puede cerrar o modificar el cierre diario.</p> : null}
         </div>
       </CardContent>
     </Card>

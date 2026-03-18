@@ -9,8 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { currency } from "@/lib/formatters";
+import { canAttachCashReceipt, canCancelCashSale, canCloseCash, canCreateCashSale } from "@/lib/permissions";
 import { openPrintWindow } from "@/lib/print";
 import { STATUS_CLASS, STATUS_LABEL } from "@/features/cash/constants";
 import { CashClosureTab } from "@/features/cash/components/CashClosureTab";
@@ -27,6 +29,7 @@ import type { CashPendingReceiptState, CashSaleFormState, CashSaleRow, PaymentMe
 import { buildCashClosurePrintHtml, todayDateInputValue } from "@/features/cash/utils";
 
 export default function CashPage() {
+  const { roles } = useAuth();
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
   const [businessDate, setBusinessDate] = useState(todayDateInputValue());
@@ -140,6 +143,7 @@ export default function CashPage() {
   });
 
   const openReceiptDialog = (sale: CashSaleRow) => {
+    if (!canAttachCashReceipt(roles)) return;
     setSelectedSale(sale);
     setPendingReceiptKind("REMITO");
     setPendingRemitoId("__none__");
@@ -147,8 +151,10 @@ export default function CashPage() {
     setReceiptDialogOpen(true);
   };
 
-  const canCancelSale = (sale: CashSaleRow) => !sale.closure_id;
-  const canAttachReceipt = (sale: CashSaleRow) => sale.status === "PENDIENTE_COMPROBANTE";
+  const canCreateSale = canCreateCashSale(roles);
+  const canCloseCashAction = canCloseCash(roles);
+  const canCancelSale = (sale: CashSaleRow) => canCancelCashSale(roles) && !sale.closure_id;
+  const canAttachReceipt = (sale: CashSaleRow) => canAttachCashReceipt(roles) && sale.status === "PENDIENTE_COMPROBANTE";
   const openClosurePreview = (closureId: string) => {
     setSelectedClosureId(closureId);
     setClosurePreviewOpen(true);
@@ -218,6 +224,7 @@ export default function CashPage() {
                 className="space-y-4"
                 onSubmit={(event) => {
                   event.preventDefault();
+                  if (!canCreateSale) return;
                   createSaleMutation.mutate({
                     amount,
                     paymentMethod,
@@ -309,9 +316,10 @@ export default function CashPage() {
                   <Textarea id="notes" placeholder="Cliente, detalle rapido o algo util para revisar la venta despues" value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} />
                 </div>
 
-                <Button type="submit" className="w-full" disabled={createSaleMutation.isPending}>
+                <Button type="submit" className="w-full" disabled={createSaleMutation.isPending || !canCreateSale}>
                   {createSaleMutation.isPending ? "Guardando..." : "Registrar venta"}
                 </Button>
+                {!canCreateSale ? <p className="text-sm text-muted-foreground">Tu rol no tiene permiso para registrar ventas.</p> : null}
               </form>
             </CardContent>
           </Card>
@@ -332,7 +340,10 @@ export default function CashPage() {
                 onSituationFilterChange={setSituationFilter}
                 hasClosedClosureForDay={hasClosedClosureForDay}
                 onOpenDetail={openSaleDetail}
-                onCancelSale={(saleId) => cancelSaleMutation.mutate(saleId)}
+                onCancelSale={(saleId) => {
+                  if (!canCancelCashSale(roles)) return;
+                  cancelSaleMutation.mutate(saleId);
+                }}
                 canCancelSale={canCancelSale}
                 cancelPending={cancelSaleMutation.isPending}
               />
@@ -342,7 +353,10 @@ export default function CashPage() {
               <CashPendingTab
                 pendingSales={pendingSales}
                 onAssignReceipt={openReceiptDialog}
-                onCancelSale={(saleId) => cancelSaleMutation.mutate(saleId)}
+                onCancelSale={(saleId) => {
+                  if (!canCancelCashSale(roles)) return;
+                  cancelSaleMutation.mutate(saleId);
+                }}
                 onOpenDetail={openSaleDetail}
                 canAttachReceipt={canAttachReceipt}
                 canCancelSale={canCancelSale}
@@ -361,9 +375,13 @@ export default function CashPage() {
                   setCloseNotes(value);
                 }}
                 onRecalculate={() => void refreshCash()}
-                onCloseClosure={() => closeClosureMutation.mutate()}
+                onCloseClosure={() => {
+                  if (!canCloseCashAction) return;
+                  closeClosureMutation.mutate();
+                }}
                 onOpenSummary={openClosurePreview}
                 closePending={closeClosureMutation.isPending}
+                canCloseCash={canCloseCashAction}
               />
             </TabsContent>
 
@@ -387,6 +405,7 @@ export default function CashPage() {
         onPendingRemitoIdChange={setPendingRemitoId}
         onPendingReceiptReferenceChange={setPendingReceiptReference}
         onSave={(state) => attachReceiptMutation.mutate(state satisfies CashPendingReceiptState)}
+        canSave={canAttachCashReceipt(roles)}
       />
       <CashDocumentPreviewDialog
         open={detailDialogOpen}
@@ -403,7 +422,10 @@ export default function CashPage() {
         canAttachReceipt={canAttachReceipt}
         canCancelSale={canCancelSale}
         onAssignReceipt={openReceiptDialog}
-        onCancelSale={(saleId) => cancelSaleMutation.mutate(saleId)}
+        onCancelSale={(saleId) => {
+          if (!canCancelCashSale(roles)) return;
+          cancelSaleMutation.mutate(saleId);
+        }}
         cancelPending={cancelSaleMutation.isPending}
       />
 

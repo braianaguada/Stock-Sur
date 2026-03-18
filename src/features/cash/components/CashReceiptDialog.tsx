@@ -16,6 +16,7 @@ type CashReceiptDialogProps = {
   pendingReceiptReference: string;
   availableRemitos: RemitoOption[];
   saving: boolean;
+  canSave: boolean;
   onPendingReceiptKindChange: (value: ReceiptKind) => void;
   onPendingRemitoIdChange: (value: string) => void;
   onPendingReceiptReferenceChange: (value: string) => void;
@@ -31,6 +32,7 @@ export function CashReceiptDialog({
   pendingReceiptReference,
   availableRemitos,
   saving,
+  canSave,
   onPendingReceiptKindChange,
   onPendingRemitoIdChange,
   onPendingReceiptReferenceChange,
@@ -90,14 +92,14 @@ export function CashReceiptDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button
             onClick={() =>
-              onSave({
+            onSave({
                 selectedSale,
                 pendingReceiptKind,
                 pendingRemitoId,
                 pendingReceiptReference,
               })
             }
-            disabled={saving}
+            disabled={saving || !canSave}
           >
             {saving ? "Guardando..." : "Guardar comprobante"}
           </Button>

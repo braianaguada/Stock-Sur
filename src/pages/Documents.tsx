@@ -9,6 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { getErrorMessage } from "@/lib/errors";
+import {
+  canCloneBudgetToRemito,
+  canCreateDocumentDraft,
+  canEditDocumentDraft,
+  canIssueRemito,
+  canPrintDocument,
+  canTransitionDocumentTo,
+} from "@/lib/permissions";
 import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
 import {
   CUSTOMER_KIND_LABEL,
@@ -35,7 +43,7 @@ import { DocumentsList } from "@/features/documents/components/DocumentsList";
 import { DocumentsPreviewDialog } from "@/features/documents/components/DocumentsPreviewDialog";
 
 export default function DocumentsPage() {
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
 
@@ -119,11 +127,13 @@ export default function DocumentsPage() {
   };
 
   const openCreateDialog = () => {
+    if (!canCreateDocumentDraft(roles)) return;
     resetDraftForm();
     setDialogOpen(true);
   };
 
   const openEditDialog = async (docId: string) => {
+    if (!canEditDocumentDraft(roles)) return;
     const target = documents.find((d) => d.id === docId);
     if (!target || target.status !== "BORRADOR") return;
 
@@ -363,7 +373,7 @@ export default function DocumentsPage() {
             <h1 className="text-2xl font-bold tracking-tight">Documentos</h1>
             <p className="text-muted-foreground">Presupuestos y remitos rapidos</p>
           </div>
-          <Button onClick={openCreateDialog}>
+          <Button onClick={openCreateDialog} disabled={!canCreateDocumentDraft(roles)}>
             <Plus className="mr-2 h-4 w-4" /> Nuevo documento
           </Button>
         </div>
@@ -406,11 +416,32 @@ export default function DocumentsPage() {
             setSelectedDocId(documentId);
             setDetailOpen(true);
           }}
-          onPrint={printDocument}
+          onPrint={(document) => {
+            if (!canPrintDocument(roles)) return;
+            void printDocument(document);
+          }}
           onEditDraft={openEditDialog}
-          onTransition={(documentId, targetStatus) => transitionMutation.mutate({ documentId, targetStatus })}
-          onIssueRemito={(documentId) => issueMutation.mutate(documentId)}
-          onCloneAsRemito={(documentId) => cloneAsRemitoMutation.mutate(documentId)}
+          onTransition={(documentId, targetStatus) => {
+            if (!canTransitionDocumentTo(roles, targetStatus)) return;
+            transitionMutation.mutate({ documentId, targetStatus });
+          }}
+          onIssueRemito={(documentId) => {
+            if (!canIssueRemito(roles)) return;
+            issueMutation.mutate(documentId);
+          }}
+          onCloneAsRemito={(documentId) => {
+            if (!canCloneBudgetToRemito(roles)) return;
+            cloneAsRemitoMutation.mutate(documentId);
+          }}
+          canPrintDocument={canPrintDocument(roles)}
+          canEditDocumentDraft={canEditDocumentDraft(roles)}
+          canIssueRemito={canIssueRemito(roles)}
+          canCloneBudgetToRemito={canCloneBudgetToRemito(roles)}
+          canTransitionDocumentTo={(status) =>
+            status === "EMITIDO"
+              ? false
+              : canTransitionDocumentTo(roles, status as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO")
+          }
         />
       </div>
 
@@ -431,7 +462,7 @@ export default function DocumentsPage() {
         removeLine={removeLine}
         onSubmit={() => upsertDraftMutation.mutate()}
         onResetDraftForm={resetDraftForm}
-        isSubmitting={upsertDraftMutation.isPending}
+        isSubmitting={upsertDraftMutation.isPending || !canCreateDocumentDraft(roles)}
       />
 
       <DocumentsPreviewDialog
