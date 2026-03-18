@@ -19,6 +19,7 @@ type UseDocumentsDataParams = {
   statusFilter: DocStatus | "ALL";
   selectedDocId: string | null;
   selectedPriceListId: string;
+  currentCompanyId: string | null;
 };
 
 export function useDocumentsData({
@@ -27,11 +28,17 @@ export function useDocumentsData({
   statusFilter,
   selectedDocId,
   selectedPriceListId,
+  currentCompanyId,
 }: UseDocumentsDataParams) {
   const { data: customers = [] } = useQuery({
-    queryKey: ["documents-customers"],
+    queryKey: ["documents-customers", currentCompanyId ?? "no-company"],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
-      const { data, error } = await supabase.from("customers").select("id, name, cuit").order("name");
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name, cuit")
+        .eq("company_id", currentCompanyId!)
+        .order("name");
       if (error) throw error;
       return data ?? [];
     },

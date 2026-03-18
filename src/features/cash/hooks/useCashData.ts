@@ -18,6 +18,7 @@ type UseCashDataParams = {
   detailDocumentId: string | null;
   selectedClosureId: string | null;
   situationFilter: SituationFilter;
+  currentCompanyId: string | null;
 };
 
 export function useCashData({
@@ -25,15 +26,18 @@ export function useCashData({
   detailDocumentId,
   selectedClosureId,
   situationFilter,
+  currentCompanyId,
 }: UseCashDataParams) {
   const qc = useQueryClient();
 
   const customersQuery = useQuery({
-    queryKey: ["cash-customers"],
+    queryKey: ["cash-customers", currentCompanyId ?? "no-company"],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customers")
         .select("id, name, cuit")
+        .eq("company_id", currentCompanyId!)
         .order("name")
         .limit(200);
 

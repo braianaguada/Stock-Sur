@@ -68,12 +68,17 @@ export default function QuotesPage() {
   const [lines, setLines] = useState<QuoteLine[]>([{ description: "", quantity: 1, unit_price: 0, item_id: null }]);
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, currentCompany } = useAuth();
 
   const { data: customers = [] } = useQuery({
-    queryKey: ["customers-list"],
+    queryKey: ["customers-list", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany?.id),
     queryFn: async () => {
-      const { data, error } = await supabase.from("customers").select("id, name").order("name");
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("company_id", currentCompany!.id)
+        .order("name");
       if (error) throw error;
       return data;
     },

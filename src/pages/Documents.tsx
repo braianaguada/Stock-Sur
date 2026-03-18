@@ -43,7 +43,7 @@ import { DocumentsList } from "@/features/documents/components/DocumentsList";
 import { DocumentsPreviewDialog } from "@/features/documents/components/DocumentsPreviewDialog";
 
 export default function DocumentsPage() {
-  const { user, roles } = useAuth();
+  const { user, roles, currentCompany } = useAuth();
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
 
@@ -93,6 +93,7 @@ export default function DocumentsPage() {
     statusFilter,
     selectedDocId,
     selectedPriceListId: form.price_list_id,
+    currentCompanyId: currentCompany?.id ?? null,
   });
 
   const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
