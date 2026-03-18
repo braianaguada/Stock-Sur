@@ -2,6 +2,9 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole } from "@/lib/permissions";
+import { canManageSettings } from "@/lib/permissions";
+
+const SUPERADMIN_EMAILS = ["braianaguada@gmail.com"];
 
 interface AuthContextType {
   session: Session | null;
@@ -42,9 +45,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("user_id", userId);
 
       if (error) {
-        setRoles([]);
+        const fallbackRoles: AppRole[] = userId ? ["user"] : [];
+        setRoles(fallbackRoles);
       } else {
-        setRoles((data ?? []).map((row) => row.role as AppRole));
+        const nextRoles = new Set<AppRole>((data ?? []).map((row) => row.role as AppRole));
+        nextRoles.add("user");
+
+        const sessionUser = (await supabase.auth.getUser()).data.user;
+        if (sessionUser?.email && SUPERADMIN_EMAILS.includes(sessionUser.email.toLowerCase())) {
+          nextRoles.add("superadmin");
+          nextRoles.add("admin");
+        }
+
+        setRoles(Array.from(nextRoles));
       }
 
       setLoading(false);
@@ -71,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, roles, isAdmin: roles.includes("admin"), loading, signOut }}>
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, roles, isAdmin: canManageSettings(roles), loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

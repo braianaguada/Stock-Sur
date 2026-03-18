@@ -1,4 +1,8 @@
-export type AppRole = "admin" | "user";
+export type AppRole = "superadmin" | "admin" | "user";
+
+export function isSuperAdmin(roles: AppRole[]) {
+  return roles.includes("superadmin");
+}
 
 export function hasAnyRole(roles: AppRole[]) {
   return roles.length > 0;
@@ -9,7 +13,7 @@ export function hasRole(roles: AppRole[], role: AppRole) {
 }
 
 export function canManageSettings(roles: AppRole[]) {
-  return hasRole(roles, "admin");
+  return isSuperAdmin(roles) || hasRole(roles, "admin");
 }
 
 export function canViewSettings(roles: AppRole[]) {
@@ -25,11 +29,11 @@ export function canAttachCashReceipt(roles: AppRole[]) {
 }
 
 export function canCloseCash(roles: AppRole[]) {
-  return hasRole(roles, "admin");
+  return hasAnyRole(roles);
 }
 
 export function canCancelCashSale(roles: AppRole[]) {
-  return hasRole(roles, "admin");
+  return hasAnyRole(roles);
 }
 
 export function canViewCashHistory(roles: AppRole[]) {
@@ -57,7 +61,7 @@ export function canPrintDocument(roles: AppRole[]) {
 }
 
 export function canTransitionDocumentTo(roles: AppRole[], status: "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO") {
-  if (hasRole(roles, "admin")) return true;
-  if (status === "ENVIADO") return hasAnyRole(roles);
-  return false;
+  if (isSuperAdmin(roles) || hasRole(roles, "admin")) return true;
+  if (!hasAnyRole(roles)) return false;
+  return ["ENVIADO", "APROBADO", "RECHAZADO", "ANULADO"].includes(status);
 }
