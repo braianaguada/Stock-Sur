@@ -20,6 +20,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { canViewSettings } from "@/lib/permissions";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -37,7 +38,7 @@ const navItems = [
 
 export function AppSidebar() {
   const location = useLocation();
-  const { signOut, user, roles } = useAuth();
+  const { signOut, user, roles, companies, currentCompany, setCurrentCompanyId } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const { settings } = useCompanyBrand();
   const visibleNavItems = navItems.filter((item) => !item.requiresAdmin || canViewSettings(roles));
@@ -63,7 +64,9 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="min-w-0">
             <p className="truncate text-lg font-bold tracking-tight text-sidebar-accent-foreground">{settings.app_name}</p>
-            <p className="truncate text-[11px] uppercase tracking-[0.18em] text-sidebar-foreground/70">Panel operativo</p>
+            <p className="truncate text-[11px] uppercase tracking-[0.18em] text-sidebar-foreground/70">
+              {currentCompany?.name ?? "Panel operativo"}
+            </p>
           </div>
         )}
         <Button
@@ -78,6 +81,30 @@ export function AppSidebar() {
           <ChevronLeft className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
         </Button>
         </div>
+        {!collapsed && companies.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <p className="px-1 text-[11px] uppercase tracking-[0.18em] text-sidebar-foreground/60">Empresa actual</p>
+            {companies.length === 1 ? (
+              <div className="rounded-xl border border-sidebar-border/80 bg-sidebar-accent/50 px-3 py-2">
+                <p className="truncate text-sm font-medium text-sidebar-accent-foreground">{companies[0].name}</p>
+                <p className="truncate text-[11px] uppercase tracking-[0.18em] text-sidebar-foreground/60">{companies[0].slug}</p>
+              </div>
+            ) : (
+              <Select value={currentCompany?.id ?? undefined} onValueChange={setCurrentCompanyId}>
+                <SelectTrigger className="h-11 rounded-xl border-sidebar-border/80 bg-sidebar-accent/50 text-sidebar-accent-foreground">
+                  <SelectValue placeholder="Seleccionar empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
       </div>
 
       <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">

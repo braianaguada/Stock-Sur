@@ -14,6 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      companies: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          slug: string
+          status: Database["public"]["Enums"]["company_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          slug: string
+          status?: Database["public"]["Enums"]["company_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          slug?: string
+          status?: Database["public"]["Enums"]["company_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      company_user_permissions: {
+        Row: {
+          company_user_id: string
+          created_at: string
+          effect: Database["public"]["Enums"]["permission_effect"]
+          id: string
+          permission_id: string
+        }
+        Insert: {
+          company_user_id: string
+          created_at?: string
+          effect: Database["public"]["Enums"]["permission_effect"]
+          id?: string
+          permission_id: string
+        }
+        Update: {
+          company_user_id?: string
+          created_at?: string
+          effect?: Database["public"]["Enums"]["permission_effect"]
+          id?: string
+          permission_id?: string
+        }
+        Relationships: []
+      }
+      company_user_roles: {
+        Row: {
+          company_user_id: string
+          created_at: string
+          role_id: string
+        }
+        Insert: {
+          company_user_id: string
+          created_at?: string
+          role_id: string
+        }
+        Update: {
+          company_user_id?: string
+          created_at?: string
+          role_id?: string
+        }
+        Relationships: []
+      }
+      company_users: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          status: Database["public"]["Enums"]["company_user_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["company_user_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["company_user_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           accent_color: string
@@ -74,6 +176,24 @@ export type Database = {
         }
         Relationships: []
       }
+      global_user_roles: {
+        Row: {
+          created_at: string
+          role_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          role_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          role_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           created_at: string
@@ -101,6 +221,33 @@ export type Database = {
           is_occasional?: boolean
           name?: string
           phone?: string | null
+        }
+        Relationships: []
+      }
+      permissions: {
+        Row: {
+          action: string
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          module: string
+        }
+        Insert: {
+          action: string
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          module: string
+        }
+        Update: {
+          action?: string
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          module?: string
         }
         Relationships: []
       }
@@ -803,6 +950,51 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          created_at: string
+          permission_id: string
+          role_id: string
+        }
+        Insert: {
+          created_at?: string
+          permission_id: string
+          role_id: string
+        }
+        Update: {
+          created_at?: string
+          permission_id?: string
+          role_id?: string
+        }
+        Relationships: []
+      }
+      roles: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          scope: Database["public"]["Enums"]["role_scope"]
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          scope: Database["public"]["Enums"]["role_scope"]
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          scope?: Database["public"]["Enums"]["role_scope"]
+        }
+        Relationships: []
+      }
       supplier_catalog_lines: {
         Row: {
           cost: number
@@ -1155,6 +1347,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "superadmin"
+      company_status: "ACTIVE" | "INACTIVE"
+      company_user_status: "ACTIVE" | "INACTIVE"
       document_customer_kind: "GENERAL" | "INTERNO" | "EMPRESA"
       document_status: "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO"
       document_type: "PRESUPUESTO" | "REMITO"
@@ -1163,7 +1357,9 @@ export type Database = {
       match_reason: "SUPPLIER_CODE" | "ALIAS_TOKEN" | "ALIAS_CONTAINS" | "NONE"
       match_status: "MATCHED" | "PENDING" | "NEW"
       movement_type: "IN" | "OUT" | "ADJUSTMENT"
+      permission_effect: "ALLOW" | "DENY"
       quote_status: "DRAFT" | "SENT" | "ACCEPTED" | "REJECTED"
+      role_scope: "GLOBAL" | "COMPANY"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1292,6 +1488,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "superadmin"],
+      company_status: ["ACTIVE", "INACTIVE"],
+      company_user_status: ["ACTIVE", "INACTIVE"],
       document_customer_kind: ["GENERAL", "INTERNO", "EMPRESA"],
       document_status: ["BORRADOR", "ENVIADO", "APROBADO", "RECHAZADO", "EMITIDO", "ANULADO"],
       document_type: ["PRESUPUESTO", "REMITO"],
@@ -1299,7 +1497,9 @@ export const Constants = {
       item_demand_profile: ["LOW", "MEDIUM", "HIGH"],
       match_status: ["MATCHED", "PENDING", "NEW"],
       movement_type: ["IN", "OUT", "ADJUSTMENT"],
+      permission_effect: ["ALLOW", "DENY"],
       quote_status: ["DRAFT", "SENT", "ACCEPTED", "REJECTED"],
+      role_scope: ["GLOBAL", "COMPANY"],
     },
   },
 } as const
