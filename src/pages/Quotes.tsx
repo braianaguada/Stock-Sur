@@ -69,15 +69,16 @@ export default function QuotesPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { user, currentCompany } = useAuth();
+  const currentCompanyId = currentCompany?.id ?? null;
 
   const { data: customers = [] } = useQuery({
-    queryKey: ["customers-list", currentCompany?.id ?? "no-company"],
-    enabled: Boolean(currentCompany?.id),
+    queryKey: ["customers-list", currentCompanyId ?? "no-company"],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customers")
         .select("id, name")
-        .eq("company_id", currentCompany!.id)
+        .eq("company_id", currentCompanyId!)
         .order("name");
       if (error) throw error;
       return data;
@@ -85,9 +86,14 @@ export default function QuotesPage() {
   });
 
   const { data: quotes = [], isLoading } = useQuery({
-    queryKey: ["quotes", search],
+    queryKey: ["quotes", currentCompanyId ?? "no-company", search],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
-      let q = supabase.from("quotes").select("*, customers(name)").order("created_at", { ascending: false });
+      let q = supabase
+        .from("quotes")
+        .select("*, customers(name)")
+        .eq("company_id", currentCompanyId!)
+        .order("created_at", { ascending: false });
       if (search) q = q.or(`customer_name.ilike.%${search}%,quote_number.eq.${parseInt(search) || 0}`);
       const { data, error } = await q.limit(100);
       if (error) throw error;
@@ -96,10 +102,14 @@ export default function QuotesPage() {
   });
 
   const { data: quoteLines = [] } = useQuery({
-    queryKey: ["quote-lines", selectedQuoteId],
-    enabled: !!selectedQuoteId,
+    queryKey: ["quote-lines", currentCompanyId ?? "no-company", selectedQuoteId],
+    enabled: Boolean(currentCompanyId && selectedQuoteId),
     queryFn: async () => {
-      const { data, error } = await supabase.from("quote_lines").select("*, items(name, sku)").eq("quote_id", selectedQuoteId!);
+      const { data, error } = await supabase
+        .from("quote_lines")
+        .select("*, items(name, sku)")
+        .eq("company_id", currentCompanyId!)
+        .eq("quote_id", selectedQuoteId!);
       if (error) throw error;
       return (data ?? []) as QuoteLineRow[];
     },
@@ -107,6 +117,8 @@ export default function QuotesPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompanyId) throw new Error("Seleccioná una empresa antes de crear un presupuesto");
+
       const validLines = lines.filter((l) => l.description.trim());
       if (validLines.length === 0) throw new Error("AgregÃ¡ al menos una lÃ­nea");
 
@@ -118,6 +130,7 @@ export default function QuotesPage() {
       const { data: quote, error } = await supabase
         .from("quotes")
         .insert({
+          company_id: currentCompanyId,
           customer_id: form.customer_id || null,
           customer_name: customerName,
           notes: form.notes || null,
@@ -129,6 +142,7 @@ export default function QuotesPage() {
       if (error) throw error;
 
       const lineInserts = validLines.map((l) => ({
+        company_id: currentCompanyId,
         quote_id: quote.id,
         description: l.description,
         quantity: l.quantity,
@@ -140,7 +154,7 @@ export default function QuotesPage() {
       if (lErr) throw lErr;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["quotes", currentCompanyId ?? "no-company"] });
       setDialogOpen(false);
       toast({ title: "Presupuesto creado" });
     },
@@ -153,12 +167,16 @@ export default function QuotesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error: linesError } = await supabase.from("quote_lines").delete().eq("quote_id", id);
+      const { error: linesError } = await supabase
+        .from("quote_lines")
+        .delete()
+        .eq("company_id", currentCompanyId!)
+        .eq("quote_id", id);
       if (linesError) throw linesError;
       await deleteByStrategy({ table: "quotes", id });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["quotes", currentCompanyId ?? "no-company"] });
       toast({ title: "Presupuesto eliminado" });
     },
   });
@@ -172,11 +190,17 @@ export default function QuotesPage() {
   };
 
   const exportPDF = (quote: QuoteListRow) => {
+    if (!currentCompanyId) return;
     // Simple text-based export using a printable window
     const selectedQuote = quote;
     
     // Fetch lines for this quote
-    supabase.from("quote_lines").select("*").eq("quote_id", selectedQuote.id).then(({ data: ql }) => {
+    supabase
+      .from("quote_lines")
+      .select("*")
+      .eq("company_id", currentCompanyId)
+      .eq("quote_id", selectedQuote.id)
+      .then(({ data: ql }) => {
       const linesHtml = ((ql ?? []) as QuoteLineRow[]).map((l) =>
         `<tr><td>${escapeHtml(l.description)}</td><td style="text-align:right">${l.quantity}</td><td style="text-align:right">$${Number(l.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td><td style="text-align:right">$${Number(l.subtotal).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td></tr>`
       ).join("");
@@ -217,12 +241,18 @@ export default function QuotesPage() {
             <h1 className="text-2xl font-bold tracking-tight">Presupuestos</h1>
             <p className="text-muted-foreground">Crear y exportar presupuestos</p>
           </div>
-          <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto</Button>
+          <Button onClick={openCreate} disabled={!currentCompanyId}><Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto</Button>
         </div>
+
+        {!currentCompanyId ? (
+          <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+            Seleccioná una empresa activa para ver y crear presupuestos.
+          </div>
+        ) : null}
 
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por cliente o nÃºmero..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder="Buscar por cliente o nÃºmero..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} disabled={!currentCompanyId} />
         </div>
 
         <div className="rounded-lg border bg-card">
@@ -271,7 +301,7 @@ export default function QuotesPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Cliente registrado</Label>
-                <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
+                  <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v === "__none__" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar (opcional)" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Sin seleccionar</SelectItem>

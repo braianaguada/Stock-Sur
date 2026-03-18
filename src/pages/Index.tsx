@@ -28,9 +28,13 @@ export default function Dashboard() {
   });
 
   const { data: quoteCount } = useQuery({
-    queryKey: ["quotes-count"],
+    queryKey: ["quotes-count", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { count } = await supabase.from("quotes").select("*", { count: "exact", head: true });
+      const { count } = await supabase
+        .from("quotes")
+        .select("*", { count: "exact", head: true })
+        .eq("company_id", currentCompany!.id);
       return count ?? 0;
     },
   });
