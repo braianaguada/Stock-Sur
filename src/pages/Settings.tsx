@@ -15,7 +15,7 @@ import { canManageSettings } from "@/lib/permissions";
 
 export default function SettingsPage() {
   const { settings, isLoading } = useCompanyBrand();
-  const { roles } = useAuth();
+  const { roles, currentCompany } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -61,7 +61,7 @@ export default function SettingsPage() {
 
       if (logoFile) {
         const extension = logoFile.name.split(".").pop()?.toLowerCase() ?? "png";
-        const filePath = `company-logo.${extension}`;
+        const filePath = `${currentCompany!.id}/company-logo.${extension}`;
         const { error: uploadError } = await supabase.storage
           .from("branding-assets")
           .upload(filePath, logoFile, { upsert: true, contentType: logoFile.type || undefined });
@@ -72,7 +72,7 @@ export default function SettingsPage() {
       }
 
       const payload = {
-        id: 1,
+        company_id: currentCompany!.id,
         app_name: form.app_name.trim() || "Stock Sur",
         legal_name: form.legal_name.trim() || null,
         tax_id: form.tax_id.trim() || null,
@@ -89,12 +89,12 @@ export default function SettingsPage() {
         default_point_of_sale: Math.max(1, Number(form.default_point_of_sale) || 1),
       };
 
-      const { error } = await supabase.from("company_settings").upsert(payload);
+      const { error } = await supabase.from("company_settings").upsert(payload, { onConflict: "company_id" });
       if (error) throw error;
     },
     onSuccess: async () => {
       setLogoFile(null);
-      await qc.invalidateQueries({ queryKey: ["company-settings"] });
+      await qc.invalidateQueries({ queryKey: ["company-settings", currentCompany?.id ?? "default"] });
       toast({ title: "Configuracion guardada" });
     },
     onError: (error: unknown) => {
@@ -130,12 +130,25 @@ export default function SettingsPage() {
     );
   }
 
+  if (!currentCompany) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Configuracion</h1>
+            <p className="text-muted-foreground">Todavia no hay una empresa activa seleccionada.</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="space-y-6">
         <div className="rounded-3xl border bg-gradient-to-r from-[hsl(var(--accent))] via-card to-card p-6">
           <h1 className="text-2xl font-bold tracking-tight">Configuracion</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Empresa, identidad visual y encabezados de documentos. Todo lo que definas aca se refleja en menus, PDFs y branding compartido.</p>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Empresa, identidad visual y encabezados de documentos para {currentCompany.name}. Todo lo que definas aca se refleja en menus, PDFs y branding compartido.</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <div className="rounded-full border bg-background/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
               {form.app_name || "Nombre de la app"}

@@ -121,6 +121,7 @@ export type Database = {
           accent_color: string
           address: string | null
           app_name: string
+          company_id: string
           created_at: string
           default_point_of_sale: number
           document_footer: string | null
@@ -140,6 +141,7 @@ export type Database = {
           accent_color?: string
           address?: string | null
           app_name?: string
+          company_id: string
           created_at?: string
           default_point_of_sale?: number
           document_footer?: string | null
@@ -159,6 +161,7 @@ export type Database = {
           accent_color?: string
           address?: string | null
           app_name?: string
+          company_id?: string
           created_at?: string
           default_point_of_sale?: number
           document_footer?: string | null
