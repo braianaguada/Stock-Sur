@@ -43,6 +43,7 @@ import {
   buildAccessFormState,
   buildPermissionOverridesState,
   buildPermissionOverrideStats,
+  buildUsersOverviewStats,
   filterUsersAccessList,
   groupPermissionsByModule,
 } from "@/features/users/utils";
@@ -148,10 +149,7 @@ export default function UsersPage() {
 
   const filteredUsers = useMemo(() => filterUsersAccessList(data, filter, search), [data, filter, search]);
 
-  const totalCompaniesAssigned = useMemo(
-    () => data.reduce((sum, user) => sum + (user.companies?.length ?? 0), 0),
-    [data],
-  );
+  const overviewStats = useMemo(() => buildUsersOverviewStats(data), [data]);
   const usersById = useMemo(
     () => new Map(data.map((user) => [user.user_id, user])),
     [data],
@@ -209,21 +207,19 @@ export default function UsersPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-emerald-900">Usuarios totales</CardTitle>
             </CardHeader>
-            <CardContent className="text-3xl font-bold text-emerald-950">{data.length}</CardContent>
+            <CardContent className="text-3xl font-bold text-emerald-950">{overviewStats.totalUsers}</CardContent>
           </Card>
           <Card className="border-sky-200/70 bg-sky-50/60">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-sky-900">Empresas asignadas</CardTitle>
             </CardHeader>
-            <CardContent className="text-3xl font-bold text-sky-950">{totalCompaniesAssigned}</CardContent>
+            <CardContent className="text-3xl font-bold text-sky-950">{overviewStats.totalCompaniesAssigned}</CardContent>
           </Card>
           <Card className="border-violet-200/70 bg-violet-50/60">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-violet-900">Superadmins</CardTitle>
             </CardHeader>
-            <CardContent className="text-3xl font-bold text-violet-950">
-              {data.filter((user) => user.global_roles?.includes("superadmin")).length}
-            </CardContent>
+            <CardContent className="text-3xl font-bold text-violet-950">{overviewStats.totalSuperadmins}</CardContent>
           </Card>
         </div>
 

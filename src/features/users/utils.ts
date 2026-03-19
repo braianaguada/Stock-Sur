@@ -52,6 +52,14 @@ export function buildPermissionOverrideStats(permissionOverrides: PermissionOver
   };
 }
 
+export function buildUsersOverviewStats(users: UserAccessRow[]) {
+  return {
+    totalUsers: users.length,
+    totalCompaniesAssigned: users.reduce((sum, user) => sum + (user.companies?.length ?? 0), 0),
+    totalSuperadmins: users.filter((user) => user.global_roles?.includes("superadmin")).length,
+  };
+}
+
 export function buildPermissionOverridesState(
   permissionOptions: PermissionOption[],
   existingPermissionOverrides: Array<{ permission_id: string; effect: "ALLOW" | "DENY" | "INHERIT" }>,

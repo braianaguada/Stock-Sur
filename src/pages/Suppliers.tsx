@@ -73,10 +73,15 @@ import {
 import { formatSupplierDate } from "@/features/suppliers/utils";
 import { getErrorMessage } from "@/lib/errors";
 import {
+  addCatalogLineToOrder,
   buildSupplierFormState,
   buildSupplierOrderMessage,
   createCatalogDialogState,
   createEmptySupplierForm,
+  groupSupplierVersionsByCatalog,
+  normalizeSupplierQuantityInput,
+  removeOrderItemFromState,
+  updateOrderItemQuantity,
 } from "@/features/suppliers/state";
 
 export default function SuppliersPage() {
@@ -608,14 +613,7 @@ export default function SuppliersPage() {
     [catalogs],
   );
 
-  const versionsByCatalog = useMemo(() => {
-    const grouped: Record<string, SupplierCatalogVersion[]> = {};
-    catalogVersions.forEach((version) => {
-      if (!grouped[version.catalog_id]) grouped[version.catalog_id] = [];
-      grouped[version.catalog_id].push(version);
-    });
-    return grouped;
-  }, [catalogVersions]);
+  const versionsByCatalog = useMemo(() => groupSupplierVersionsByCatalog(catalogVersions), [catalogVersions]);
 
   const orderLines = useMemo(() => Object.values(orderItems), [orderItems]);
   const orderTotal = useMemo(
@@ -639,40 +637,23 @@ export default function SuppliersPage() {
   );
 
   const addToOrder = (line: CatalogLine) => {
-    const quantityToAdd = Math.max(1, Math.trunc(lineQuantities[line.id] ?? 1));
-    setOrderItems((prev) => {
-      const current = prev[line.id];
-      const quantity = current ? current.quantity + quantityToAdd : quantityToAdd;
-      return {
-        ...prev,
-        [line.id]: { ...line, quantity },
-      };
-    });
+    setOrderItems((prev) => addCatalogLineToOrder(prev, lineQuantities, line));
   };
 
   const updateLineQuantity = (lineId: string, value: string) => {
-    const qty = Number(value);
-    if (!Number.isFinite(qty)) return;
-    setLineQuantities((prev) => ({ ...prev, [lineId]: Math.max(1, Math.trunc(qty)) }));
+    const quantity = normalizeSupplierQuantityInput(value);
+    if (quantity === null) return;
+    setLineQuantities((prev) => ({ ...prev, [lineId]: quantity }));
   };
 
   const updateOrderQuantity = (lineId: string, value: string) => {
-    const qty = Number(value);
-    if (!Number.isFinite(qty)) return;
-    setOrderItems((prev) => {
-      if (!prev[lineId]) return prev;
-      return {
-        ...prev,
-        [lineId]: { ...prev[lineId], quantity: Math.max(1, Math.trunc(qty)) },
-      };
-    });
+    const quantity = normalizeSupplierQuantityInput(value);
+    if (quantity === null) return;
+    setOrderItems((prev) => updateOrderItemQuantity(prev, lineId, quantity));
   };
 
   const removeOrderItem = (lineId: string) => {
-    setOrderItems((prev) => {
-      const { [lineId]: _, ...rest } = prev;
-      return rest;
-    });
+    setOrderItems((prev) => removeOrderItemFromState(prev, lineId));
   };
 
   const copyOrderMessage = async () => {

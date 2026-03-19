@@ -1,4 +1,5 @@
 import type {
+  CatalogLine,
   NormalizeDiagnostics,
   OrderLine,
   ParsePdfProgress,
@@ -57,4 +58,51 @@ export function buildSupplierOrderMessage(params: {
     "Items:",
     ...rows,
   ].join("\n");
+}
+
+export function groupSupplierVersionsByCatalog(catalogVersions: SupplierCatalogVersion[]) {
+  return catalogVersions.reduce<Record<string, SupplierCatalogVersion[]>>((grouped, version) => {
+    if (!grouped[version.catalog_id]) grouped[version.catalog_id] = [];
+    grouped[version.catalog_id].push(version);
+    return grouped;
+  }, {});
+}
+
+export function addCatalogLineToOrder(
+  orderItems: Record<string, OrderLine>,
+  lineQuantities: Record<string, number>,
+  line: CatalogLine,
+) {
+  const quantityToAdd = Math.max(1, Math.trunc(lineQuantities[line.id] ?? 1));
+  const current = orderItems[line.id];
+  const quantity = current ? current.quantity + quantityToAdd : quantityToAdd;
+
+  return {
+    ...orderItems,
+    [line.id]: { ...line, quantity },
+  };
+}
+
+export function normalizeSupplierQuantityInput(value: string) {
+  const quantity = Number(value);
+  if (!Number.isFinite(quantity)) return null;
+  return Math.max(1, Math.trunc(quantity));
+}
+
+export function updateOrderItemQuantity(
+  orderItems: Record<string, OrderLine>,
+  lineId: string,
+  quantity: number,
+) {
+  if (!orderItems[lineId]) return orderItems;
+
+  return {
+    ...orderItems,
+    [lineId]: { ...orderItems[lineId], quantity },
+  };
+}
+
+export function removeOrderItemFromState(orderItems: Record<string, OrderLine>, lineId: string) {
+  const { [lineId]: _, ...rest } = orderItems;
+  return rest;
 }
