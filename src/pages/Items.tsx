@@ -1,4 +1,4 @@
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -159,10 +159,14 @@ export default function ItemsPage() {
       return data as ItemAlias[];
     },
   });
+  const itemsById = useMemo(
+    () => new Map(items.map((item) => [item.id, item])),
+    [items],
+  );
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar items");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       const name = cleanText(form.name);
       const sku = cleanText(form.sku).toUpperCase();
       const unit = cleanText(form.unit) || "un";
@@ -172,6 +176,9 @@ export default function ItemsPage() {
       }
 
       if (editingItem) {
+        if (!itemsById.has(editingItem.id)) {
+          throw new Error("El ítem que estás editando ya no está disponible. Recargá Ítems e intentá de nuevo");
+        }
         const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
         const { error } = await supabase
           .from("items")
@@ -218,7 +225,7 @@ export default function ItemsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar items");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       await deleteByStrategy({ table: "items", id, eq: { company_id: currentCompany.id } });
       const { error } = await supabase.from("price_list_items").update({ is_active: false }).eq("item_id", id);
       if (error) throw error;
@@ -233,7 +240,7 @@ export default function ItemsPage() {
 
   const restoreMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar items");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       const { error } = await supabase.from("items").update({ is_active: true }).eq("company_id", currentCompany.id).eq("id", id);
       if (error) throw error;
     },
@@ -248,6 +255,10 @@ export default function ItemsPage() {
   const addAliasMutation = useMutation({
     mutationFn: async (alias: string) => {
       if (!editingItem) throw new Error("Seleccioná un ítem antes de agregar alias");
+
+      if (!itemsById.has(editingItem.id)) {
+        throw new Error("El ítem seleccionado ya no está disponible. Recargá Ítems e intentá de nuevo");
+      }
 
       const { error } = await supabase
         .from("item_aliases")
@@ -274,7 +285,7 @@ export default function ItemsPage() {
 
   const bulkDemandProfileMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar items");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       if (selectedItemIds.length === 0) return;
       const { error } = await supabase
         .from("items")
@@ -294,7 +305,7 @@ export default function ItemsPage() {
 
   const deleteAliasMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar alias");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar alias");
       await deleteByStrategy({ table: "item_aliases", id, eq: { company_id: currentCompany.id } });
     },
     onSuccess: () => {
@@ -349,7 +360,7 @@ export default function ItemsPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para gestionar articulos, alias y catalogos de stock." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para gestionar artículos, alias y catálogos de stock." />
         ) : null}
         <div className="flex items-center justify-between">
           <div>

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type {
@@ -178,31 +179,60 @@ export function useCashData({
     },
   });
 
-  const sales = salesQuery.data ?? [];
-  const remitos = remitosQuery.data ?? [];
-  const closuresHistory = closuresHistoryQuery.data ?? [];
-  const summary = buildCashSummary(sales);
-  const pendingSales = sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE");
-  const closureHistoryForDate = closuresHistory.find((item) => item.business_date === businessDate) ?? null;
+  const sales = useMemo(() => salesQuery.data ?? [], [salesQuery.data]);
+  const remitos = useMemo(() => remitosQuery.data ?? [], [remitosQuery.data]);
+  const closuresHistory = useMemo(() => closuresHistoryQuery.data ?? [], [closuresHistoryQuery.data]);
+  const closuresById = useMemo(
+    () => new Map(closuresHistory.map((closure) => [closure.id, closure])),
+    [closuresHistory],
+  );
+  const closuresByBusinessDate = useMemo(
+    () => new Map(closuresHistory.map((closure) => [closure.business_date, closure])),
+    [closuresHistory],
+  );
+  const summary = useMemo(() => buildCashSummary(sales), [sales]);
+  const pendingSales = useMemo(
+    () => sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE"),
+    [sales],
+  );
+  const closureHistoryForDate = useMemo(
+    () => closuresByBusinessDate.get(businessDate) ?? null,
+    [closuresByBusinessDate, businessDate],
+  );
   const effectiveClosure = closureHistoryForDate ?? closureQuery.data ?? null;
   const hasClosedClosureForDay = effectiveClosure?.status === "CERRADO";
-  const assignedRemitoIds = new Set(
-    sales
-      .filter((sale) => sale.status !== "ANULADA" && sale.document_id)
-      .map((sale) => sale.document_id as string),
+  const assignedRemitoIds = useMemo(
+    () => new Set(
+      sales
+        .filter((sale) => sale.status !== "ANULADA" && sale.document_id)
+        .map((sale) => sale.document_id as string),
+    ),
+    [sales],
   );
-  const availableRemitos = remitos.filter((remito) => !assignedRemitoIds.has(remito.id));
-  const unclosedSalesAfterClosure = sales.filter((sale) => sale.status !== "ANULADA" && !sale.closure_id);
-  const filteredSales = sales.filter((sale) => {
-    if (situationFilter === "TODAS") return true;
-    if (situationFilter === "ANULADA") return sale.status === "ANULADA";
-    const situation = getClosureSituation(sale, hasClosedClosureForDay).label;
-    if (situationFilter === "PENDIENTE_CIERRE") return situation === "Pendiente de cierre";
-    if (situationFilter === "EN_CAJA_CERRADA") return situation === "En caja cerrada";
-    if (situationFilter === "POST_CIERRE") return situation === "Venta post cierre";
-    return true;
-  });
-  const selectedClosurePreview = closuresHistory.find((item) => item.id === selectedClosureId) ?? null;
+  const availableRemitos = useMemo(
+    () => remitos.filter((remito) => !assignedRemitoIds.has(remito.id)),
+    [remitos, assignedRemitoIds],
+  );
+  const unclosedSalesAfterClosure = useMemo(
+    () => sales.filter((sale) => sale.status !== "ANULADA" && !sale.closure_id),
+    [sales],
+  );
+  const filteredSales = useMemo(
+    () => sales.filter((sale) => {
+      if (situationFilter === "TODAS") return true;
+      if (situationFilter === "ANULADA") return sale.status === "ANULADA";
+      const situation = getClosureSituation(sale, hasClosedClosureForDay).label;
+      if (situationFilter === "PENDIENTE_CIERRE") return situation === "Pendiente de cierre";
+      if (situationFilter === "EN_CAJA_CERRADA") return situation === "En caja cerrada";
+      if (situationFilter === "POST_CIERRE") return situation === "Venta post cierre";
+      return true;
+    }),
+    [sales, situationFilter, hasClosedClosureForDay],
+  );
+  const selectedClosurePreview = useMemo(
+    () => (selectedClosureId ? closuresById.get(selectedClosureId) ?? null : null),
+    [closuresById, selectedClosureId],
+  );
 
   const refreshCash = async () => {
     await Promise.all([
@@ -210,9 +240,6 @@ export function useCashData({
       qc.invalidateQueries({ queryKey: ["cash-closure", currentCompanyId ?? "no-company", businessDate] }),
       qc.invalidateQueries({ queryKey: ["cash-remitos", currentCompanyId ?? "no-company", businessDate] }),
       qc.invalidateQueries({ queryKey: ["cash-closures-history", currentCompanyId ?? "no-company"] }),
-      salesQuery.refetch(),
-      closureQuery.refetch(),
-      remitosQuery.refetch(),
     ]);
   };
 

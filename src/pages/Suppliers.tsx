@@ -171,7 +171,9 @@ export default function SuppliersPage() {
   const xlsxMappingResolverRef = useRef<((value: MappingSelection | null) => void) | null>(null);
   const pdfMappingResolverRef = useRef<((value: PdfMappingSelection | null) => void) | null>(null);
   const deferredSearch = useDeferredValue(search);
+  const trimmedDeferredSearch = deferredSearch.trim();
   const deferredCatalogSearch = useDeferredValue(catalogSearch);
+  const trimmedDeferredCatalogSearch = deferredCatalogSearch.trim();
 
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -306,13 +308,13 @@ export default function SuppliersPage() {
   });
 
   const { data: suppliers = [], isLoading } = useQuery({
-    queryKey: ["suppliers", currentCompany?.id ?? "no-company", deferredSearch, statusFilter],
+    queryKey: ["suppliers", currentCompany?.id ?? "no-company", trimmedDeferredSearch, statusFilter],
     enabled: Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase.from("suppliers").select("*").eq("company_id", currentCompany!.id).order("name");
       if (statusFilter === "active") q = q.eq("is_active", true);
       if (statusFilter === "inactive") q = q.eq("is_active", false);
-      if (deferredSearch) q = q.or(`name.ilike.%${deferredSearch}%,contact_name.ilike.%${deferredSearch}%`);
+      if (trimmedDeferredSearch) q = q.or(`name.ilike.%${trimmedDeferredSearch}%,contact_name.ilike.%${trimmedDeferredSearch}%`);
       const { data, error } = await q.limit(200);
       if (error) throw error;
       return data as Supplier[];
@@ -388,7 +390,7 @@ export default function SuppliersPage() {
   });
 
       const { data: activeCatalogLines = [], isLoading: isCatalogLoading } = useQuery({
-    queryKey: ["supplier-catalog-lines", currentCompany?.id ?? "no-company", activeVersionId, deferredCatalogSearch],
+    queryKey: ["supplier-catalog-lines", currentCompany?.id ?? "no-company", activeVersionId, trimmedDeferredCatalogSearch],
     enabled: !!activeVersionId && Boolean(currentCompany),
     queryFn: async () => {
       let query = supabase
@@ -399,8 +401,8 @@ export default function SuppliersPage() {
         .order("row_index", { ascending: true, nullsFirst: false })
         .limit(250);
 
-      if (catalogSearch.trim()) {
-        const safe = catalogSearch.trim();
+      if (trimmedDeferredCatalogSearch) {
+        const safe = trimmedDeferredCatalogSearch;
         query = query.or(`raw_description.ilike.%${safe}%,supplier_code.ilike.%${safe}%`);
       }
 
@@ -460,9 +462,9 @@ export default function SuppliersPage() {
 
   const uploadCatalogMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para importar catalogos");
-      if (!selectedSupplier) throw new Error("Selecciona un proveedor");
-      if (!selectedFile) throw new Error("Selecciona un archivo");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para importar catálogos");
+      if (!selectedSupplier) throw new Error("Seleccioná un proveedor");
+      if (!selectedFile) throw new Error("Seleccioná un archivo");
 
       const { data: authData } = await supabase.auth.getUser();
       const userId = authData.user?.id ?? null;
@@ -475,6 +477,9 @@ export default function SuppliersPage() {
 
       const title = documentTitle.trim() || selectedFile.name;
       const requestedCatalogId = selectedCatalogId === "new" ? null : selectedCatalogId;
+      if (requestedCatalogId && !catalogsById.has(requestedCatalogId)) {
+        throw new Error("El listado seleccionado ya no está disponible. Recargá el historial e intentá de nuevo");
+      }
 
       console.log("[supplier-import] start", {
         userId,
@@ -708,10 +713,6 @@ export default function SuppliersPage() {
       setSelectedFile(null);
       toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
     },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["supplier-catalog-versions", selectedSupplier?.id] });
-      qc.invalidateQueries({ queryKey: ["supplier-catalog-lines"] });
-    },
   });
 
   const openCreate = () => {
@@ -746,16 +747,36 @@ export default function SuppliersPage() {
     setCatalogDialogOpen(true);
   };
 
+  const handleCatalogDialogOpenChange = (open: boolean) => {
+    setCatalogDialogOpen(open);
+    if (open) return;
+    setCatalogSearch("");
+    setActiveVersionId(null);
+    setOrderItems({});
+    setLineQuantities({});
+    setLastDiagnostics(null);
+    setPdfProgress(null);
+    setSelectedCatalogId("new");
+    setSelectedFile(null);
+  };
+
+  const catalogVersionsById = useMemo(
+    () => new Map(catalogVersions.map((version) => [version.id, version])),
+    [catalogVersions],
+  );
+  const catalogsById = useMemo(
+    () => new Map(catalogs.map((catalog) => [catalog.id, catalog])),
+    [catalogs],
+  );
   const activeVersion = useMemo(
-    () => catalogVersions.find((version) => version.id === activeVersionId) ?? null,
-    [catalogVersions, activeVersionId],
+    () => (activeVersionId ? catalogVersionsById.get(activeVersionId) ?? null : null),
+    [catalogVersionsById, activeVersionId],
   );
 
-  const catalogTitleById = useMemo(() => {
-    const map = new Map<string, string>();
-    catalogs.forEach((catalog) => map.set(catalog.id, catalog.title));
-    return map;
-  }, [catalogs]);
+  const catalogTitleById = useMemo(
+    () => new Map(catalogs.map((catalog) => [catalog.id, catalog.title])),
+    [catalogs],
+  );
 
   const versionsByCatalog = useMemo(() => {
     const grouped: Record<string, SupplierCatalogVersion[]> = {};
@@ -774,18 +795,21 @@ export default function SuppliersPage() {
 
   const orderMessage = useMemo(() => {
     if (!selectedSupplier || orderLines.length === 0) return "";
-    const versionDate = activeVersion ? formatDate(activeVersion.imported_at) : "Sin version";
+    const versionDate = activeVersion ? formatDate(activeVersion.imported_at) : "Sin versión";
     const catalogName = activeVersion ? catalogTitleById.get(activeVersion.catalog_id) ?? activeVersion.title ?? "Listado" : "Sin listado";
     const rows = orderLines.map((line) => `${line.supplier_code ?? "S/COD"} - ${line.raw_description} x ${line.quantity}`);
     return [
       `Proveedor: ${selectedSupplier.name}`,
-      `Listado/Version usada: ${catalogName} (${versionDate})`,
+      `Listado/Versión usada: ${catalogName} (${versionDate})`,
       "Items:",
       ...rows,
     ].join("\n");
   }, [selectedSupplier, activeVersion, catalogTitleById, orderLines]);
 
-  const waLink = buildWhatsAppLink(selectedSupplier?.whatsapp, orderMessage);
+  const waLink = useMemo(
+    () => buildWhatsAppLink(selectedSupplier?.whatsapp, orderMessage),
+    [selectedSupplier?.whatsapp, orderMessage],
+  );
 
   const addToOrder = (line: CatalogLine) => {
     const quantityToAdd = Math.max(1, Math.trunc(lineQuantities[line.id] ?? 1));
@@ -826,7 +850,7 @@ export default function SuppliersPage() {
 
   const copyOrderMessage = async () => {
     if (orderLines.length === 0) {
-      toast({ title: "Pedido vacio", description: "Agrega al menos un producto", variant: "destructive" });
+      toast({ title: "Pedido vacío", description: "Agregá al menos un producto", variant: "destructive" });
       return;
     }
 
@@ -836,12 +860,12 @@ export default function SuppliersPage() {
 
   const openWhatsApp = () => {
     if (orderLines.length === 0) {
-      toast({ title: "Pedido vacio", description: "Agrega al menos un producto", variant: "destructive" });
+      toast({ title: "Pedido vacío", description: "Agregá al menos un producto", variant: "destructive" });
       return;
     }
 
     if (!waLink) {
-      toast({ title: "Proveedor sin WhatsApp", description: "Completa el numero para abrir WhatsApp", variant: "destructive" });
+      toast({ title: "Proveedor sin WhatsApp", description: "Completá el número para abrir WhatsApp", variant: "destructive" });
       return;
     }
 
@@ -852,12 +876,12 @@ export default function SuppliersPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para trabajar con proveedores, catalogos e importaciones." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para trabajar con proveedores, catálogos e importaciones." />
         ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Proveedores</h1>
-            <p className="text-muted-foreground">Gestion de proveedores y catalogos</p>
+            <p className="text-muted-foreground">Gestión de proveedores y catálogos</p>
           </div>
           <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo proveedor</Button>
         </div>
@@ -907,7 +931,7 @@ export default function SuppliersPage() {
                   <TableCell><Badge variant={s.is_active ? "default" : "secondary"}>{s.is_active ? "Activo" : "Inactivo"}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openCatalog(s)} title="Catalogos"><Upload className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => openCatalog(s)} title="Catálogos"><Upload className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button>
                       {s.is_active ? (
                         <Button variant="ghost" size="icon" onClick={() => setSupplierToDelete(s)} title="Desactivar">
@@ -950,7 +974,7 @@ export default function SuppliersPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={catalogDialogOpen} onOpenChange={setCatalogDialogOpen}>
+      <Dialog open={catalogDialogOpen} onOpenChange={handleCatalogDialogOpenChange}>
         <DialogContent className="w-[96vw] max-w-[1400px] h-[92vh] overflow-hidden p-0">
           <Tabs
             value={catalogUiTab}
@@ -958,7 +982,7 @@ export default function SuppliersPage() {
             className="flex h-full min-h-0 flex-col"
           >
             <div className="sticky top-0 z-20 border-b bg-background p-4">
-              <DialogHeader><DialogTitle>Catalogos del proveedor: {selectedSupplier?.name}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Catálogos del proveedor: {selectedSupplier?.name}</DialogTitle></DialogHeader>
               <TabsList className="mt-3 grid w-full grid-cols-3">
                 <TabsTrigger value="carga">Subir archivo</TabsTrigger>
                 <TabsTrigger value="historial">Historial</TabsTrigger>
@@ -971,7 +995,7 @@ export default function SuppliersPage() {
                 <CardHeader><CardTitle className="text-base">Subir archivo</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div className="space-y-2">
-                    <Label>Titulo</Label>
+                    <Label>Título</Label>
                     <Input value={documentTitle} onChange={(e) => setDocumentTitle(e.target.value)} placeholder="Lista Febrero 2026 contado" />
                   </div>
                   <div className="space-y-2">
@@ -1056,7 +1080,7 @@ export default function SuppliersPage() {
                             className={`w-full rounded border p-2 text-left text-sm ${activeVersionId === version.id ? "border-primary bg-primary/5" : "border-border"}`}
                           >
                             <p className="font-medium">{version.title ?? catalog.title}</p>
-                            <p className="text-xs text-muted-foreground">{formatDate(version.imported_at)} - {version.file_name} - {version.file_type.toUpperCase()} - {version.line_count} lineas</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(version.imported_at)} - {version.file_name} - {version.file_type.toUpperCase()} - {version.line_count} líneas</p>
                           </button>
                         ))}
                       </div>
@@ -1070,19 +1094,19 @@ export default function SuppliersPage() {
               <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
                 <Card className="min-h-0 flex flex-col">
                   <CardHeader className="space-y-2">
-                    <CardTitle className="text-base">Buscar en catalogos</CardTitle>
+                    <CardTitle className="text-base">Buscar en catálogos</CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      {activeVersion ? `Version activa: ${activeVersion.title ?? catalogTitleById.get(activeVersion.catalog_id) ?? "Listado"} (${formatDate(activeVersion.imported_at)})` : "Selecciona una version en el Historial"}
+                      {activeVersion ? `Versión activa: ${activeVersion.title ?? catalogTitleById.get(activeVersion.catalog_id) ?? "Listado"} (${formatDate(activeVersion.imported_at)})` : "Seleccioná una versión en el historial"}
                     </p>
-                    <Input placeholder="Buscar por descripcion o codigo" value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} disabled={!activeVersionId} />
+                    <Input placeholder="Buscar por descripción o código" value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} disabled={!activeVersionId} />
                   </CardHeader>
                   <CardContent className="flex-1 min-h-0">
                     <div className="h-full min-h-0 overflow-auto rounded border">
                       <Table className="table-fixed min-w-[760px]">
                         <TableHeader className="sticky top-0 z-10 bg-background">
                           <TableRow>
-                            <TableHead className="w-[140px]">Codigo</TableHead>
-                            <TableHead>Descripcion</TableHead>
+                            <TableHead className="w-[140px]">Código</TableHead>
+                            <TableHead>Descripción</TableHead>
                             <TableHead className="w-[140px] text-right">Costo</TableHead>
                             <TableHead className="w-[110px]">Cantidad</TableHead>
                             <TableHead className="w-[120px]" />
@@ -1090,7 +1114,7 @@ export default function SuppliersPage() {
                         </TableHeader>
                         <TableBody>
                           {!activeVersionId ? (
-                            <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Selecciona una version para ver lineas</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Seleccioná una versión para ver líneas</TableCell></TableRow>
                           ) : isCatalogLoading ? (
                             <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Cargando...</TableCell></TableRow>
                           ) : activeCatalogLines.length === 0 ? (

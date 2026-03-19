@@ -75,51 +75,55 @@ export function CashSalesTab({
               ) : filteredSales.length === 0 ? (
                 <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Todavia no hay ventas registradas para esta fecha.</TableCell></TableRow>
               ) : (
-                filteredSales.map((sale) => (
-                  <TableRow key={sale.id}>
-                    <TableCell className="font-mono text-xs">{formatTime(sale.sold_at)}</TableCell>
-                    <TableCell className="text-right font-semibold whitespace-nowrap">{currency.format(Number(sale.amount_total))}</TableCell>
-                    <TableCell>
-                      <div className="max-w-[160px]">
-                        <p className="truncate text-sm font-medium">{sale.customer_name_snapshot ?? "Consumidor final"}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">{PAYMENT_LABEL[sale.payment_method]}</TableCell>
-                    <TableCell>
-                      <div className="min-w-0 text-sm">
-                        <p className="truncate">{RECEIPT_LABEL[sale.receipt_kind]}</p>
-                        <Badge variant="outline" className={`${STATUS_CLASS[sale.status]} mt-1 max-w-full`}>
-                          {STATUS_LABEL[sale.status]}
+                filteredSales.map((sale) => {
+                  const closureSituation = getClosureSituation(sale, hasClosedClosureForDay);
+
+                  return (
+                    <TableRow key={sale.id}>
+                      <TableCell className="font-mono text-xs">{formatTime(sale.sold_at)}</TableCell>
+                      <TableCell className="text-right font-semibold whitespace-nowrap">{currency.format(Number(sale.amount_total))}</TableCell>
+                      <TableCell>
+                        <div className="max-w-[160px]">
+                          <p className="truncate text-sm font-medium">{sale.customer_name_snapshot ?? "Consumidor final"}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{PAYMENT_LABEL[sale.payment_method]}</TableCell>
+                      <TableCell>
+                        <div className="min-w-0 text-sm">
+                          <p className="truncate">{RECEIPT_LABEL[sale.receipt_kind]}</p>
+                          <Badge variant="outline" className={`${STATUS_CLASS[sale.status]} mt-1 max-w-full`}>
+                            {STATUS_LABEL[sale.status]}
+                          </Badge>
+                          {sale.receipt_reference ? <p className="truncate font-mono text-xs text-muted-foreground">{sale.receipt_reference}</p> : null}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={closureSituation.className}>
+                          {closureSituation.label}
                         </Badge>
-                        {sale.receipt_reference ? <p className="truncate font-mono text-xs text-muted-foreground">{sale.receipt_reference}</p> : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getClosureSituation(sale, hasClosedClosureForDay).className}>
-                        {getClosureSituation(sale, hasClosedClosureForDay).label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => onOpenDetail(sale)}>
-                          <NotebookText className="h-4 w-4" />
-                        </Button>
-                        {sale.status !== "ANULADA" ? (
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => onCancelSale(sale.id)}
-                            disabled={cancelPending || !canCancelSale(sale)}
-                          >
-                            <Ban className="h-4 w-4" />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => onOpenDetail(sale)}>
+                            <NotebookText className="h-4 w-4" />
                           </Button>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          {sale.status !== "ANULADA" ? (
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => onCancelSale(sale.id)}
+                              disabled={cancelPending || !canCancelSale(sale)}
+                            >
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

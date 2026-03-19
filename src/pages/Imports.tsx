@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, Check } from "lucide-react";
+import { getErrorMessage } from "@/lib/errors";
 import { parseImportFile, parsePrice, type ParsedRow, isRowEmpty } from "@/lib/importParser";
 import { matchImportLine } from "@/lib/matching";
 
@@ -90,6 +91,7 @@ export default function ImportsPage() {
 
 
   const validRows = rawRows.filter((row) => !isRowEmpty(row));
+  const selectedPriceListStillExists = priceLists.some((priceList) => priceList.id === selectedPriceListId);
 
   const previewData = validRows.slice(0, 50).map((row) => ({
     supplier_code: mapping.supplier_code && mapping.supplier_code !== "__none__" ? row[mapping.supplier_code] ?? "" : "",
@@ -99,6 +101,13 @@ export default function ImportsPage() {
 
   const importMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompany) throw new Error("Seleccioná una empresa activa para importar");
+      if (!selectedPriceListStillExists) {
+        throw new Error("La lista seleccionada ya no está disponible. Recargá Importaciones e intentá de nuevo");
+      }
+      if (validRows.length === 0) {
+        throw new Error("No hay filas válidas para importar");
+      }
       if (!selectedPriceListId) throw new Error("Seleccioná una lista de precios");
 
       // Create version
@@ -160,7 +169,7 @@ export default function ImportsPage() {
     },
     onError: (e: unknown) => toast({
       title: "Error",
-      description: e instanceof Error ? e.message : "Error desconocido",
+      description: getErrorMessage(e),
       variant: "destructive",
     }),
   });
@@ -178,7 +187,7 @@ export default function ImportsPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para importar archivos y generar nuevas versiones de listas." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para importar archivos y generar nuevas versiones de listas." />
         ) : null}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Importaciones</h1>

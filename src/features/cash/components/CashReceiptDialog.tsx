@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,11 @@ export function CashReceiptDialog({
   onPendingReceiptReferenceChange,
   onSave,
 }: CashReceiptDialogProps) {
+  const remitoOptionLabels = useMemo(
+    () => new Map(availableRemitos.map((remito) => [remito.id, formatRemitoOptionLabel(remito)])),
+    [availableRemitos],
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -69,7 +75,7 @@ export function CashReceiptDialog({
                   <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
                   {availableRemitos.map((remito) => (
                     <SelectItem key={remito.id} value={remito.id}>
-                      {formatRemitoOptionLabel(remito)}
+                      {remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito)}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
@@ -44,10 +45,24 @@ export function useDocumentsMutations({
   toast,
 }: UseDocumentsMutationsParams) {
   const qc = useQueryClient();
+  const customersById = useMemo(
+    () => new Map(customers.map((customer) => [customer.id, customer])),
+    [customers],
+  );
+  const documentsById = useMemo(
+    () => new Map(documents.map((document) => [document.id, document])),
+    [documents],
+  );
 
   const upsertDraftMutation = useMutation({
     mutationFn: async () => {
       if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
+      if (form.customer_id && !customersById.has(form.customer_id)) {
+        throw new Error("El cliente seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+      if (editingDocId && !documentsById.has(editingDocId)) {
+        throw new Error("El borrador que intentas editar ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
       if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
       if (form.doc_type === "PRESUPUESTO" && form.customer_kind === "INTERNO") {
@@ -73,7 +88,7 @@ export function useDocumentsMutations({
         return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
       });
 
-      const pickedCustomer = form.customer_id ? customers.find((c) => c.id === form.customer_id) : null;
+      const pickedCustomer = form.customer_id ? customersById.get(form.customer_id) ?? null : null;
       const customerName = pickedCustomer?.name ?? form.customer_name ?? "Cliente ocasional";
       const customerTaxId = form.customer_tax_id || pickedCustomer?.cuit || null;
 
@@ -180,7 +195,10 @@ export function useDocumentsMutations({
 
   const issueMutation = useMutation({
     mutationFn: async (documentId: string) => {
-      const currentDocument = documents.find((row) => row.id === documentId);
+      const currentDocument = documentsById.get(documentId);
+      if (!currentDocument) {
+        throw new Error("El documento seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
       if (currentDocument?.doc_type !== "REMITO") {
         throw new Error("Solo los remitos se emiten");
       }
@@ -212,6 +230,9 @@ export function useDocumentsMutations({
 
   const transitionMutation = useMutation({
     mutationFn: async ({ documentId, targetStatus }: { documentId: string; targetStatus: DocStatus }) => {
+      if (!documentsById.has(documentId)) {
+        throw new Error("El documento seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
       const { error } = await supabase.rpc("transition_document_status", {
         p_document_id: documentId,
         p_target_status: targetStatus,
@@ -236,6 +257,9 @@ export function useDocumentsMutations({
   const cloneAsRemitoMutation = useMutation({
     mutationFn: async (sourceId: string) => {
       if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
+      if (!documentsById.has(sourceId)) {
+        throw new Error("El presupuesto seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
       const { data: src, error: srcErr } = await supabase
         .from("documents")
         .select("*")

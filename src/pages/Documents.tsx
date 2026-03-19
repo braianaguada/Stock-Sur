@@ -98,13 +98,22 @@ export default function DocumentsPage() {
     currentCompanyId: currentCompany?.id ?? null,
   });
 
+  const documentsById = useMemo(
+    () => new Map(documents.map((document) => [document.id, document])),
+    [documents],
+  );
+  const itemsById = useMemo(
+    () => new Map(items.map((item) => [item.id, item])),
+    [items],
+  );
   const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
 
   useEffect(() => {
     if (!form.price_list_id) return;
     setLines((prev) => prev.map((line) => {
       if (!line.item_id || !priceByItem.has(line.item_id)) return line;
-      return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
+      const nextPrice = priceByItem.get(line.item_id) ?? 0;
+      return line.unit_price === nextPrice ? line : { ...line, unit_price: nextPrice };
     }));
   }, [form.price_list_id, priceByItem]);
 
@@ -137,7 +146,7 @@ export default function DocumentsPage() {
 
   const openEditDialog = async (docId: string) => {
     if (!canEditDocumentDraft(roles)) return;
-    const target = documents.find((d) => d.id === docId);
+    const target = documentsById.get(docId);
     if (!target || target.status !== "BORRADOR") return;
 
     const { data: lineRows, error } = await supabase
@@ -200,7 +209,7 @@ export default function DocumentsPage() {
   });
 
   const onPickItem = (idx: number, itemId: string) => {
-    const item = items.find((row) => row.id === itemId);
+    const item = itemsById.get(itemId);
     if (!item) return;
     const next = [...lines];
     next[idx] = {
@@ -226,7 +235,7 @@ export default function DocumentsPage() {
 
     if (hasLoadedLines) {
       const confirmed = window.confirm(
-        "Cambiar la lista va a eliminar todas las lineas cargadas para evitar mezclar productos y precios. Queres continuar?",
+        "Cambiar la lista va a eliminar todas las líneas cargadas para evitar mezclar productos y precios. ¿Querés continuar?",
       );
       if (!confirmed) return;
     }
@@ -317,7 +326,7 @@ export default function DocumentsPage() {
           </div>
           <div>
             <p class="brand-name">${escapeHtml(companySettings.legal_name ?? companySettings.app_name)}</p>
-            <p class="muted">${escapeHtml(companySettings.document_tagline ?? "Documentacion comercial")}</p>
+            <p class="muted">${escapeHtml(companySettings.document_tagline ?? "Documentación comercial")}</p>
           </div>
         </div>
         <div class="docbox">
@@ -334,26 +343,26 @@ export default function DocumentsPage() {
           <p class="muted"><strong>Cliente:</strong> ${escapeHtml(doc.customer_name ?? "Cliente ocasional")}</p>
           <p class="muted"><strong>Tipo:</strong> ${escapeHtml(CUSTOMER_KIND_LABEL[doc.customer_kind])}</p>
           <p class="muted"><strong>CUIT:</strong> ${escapeHtml(doc.customer_tax_id ?? "-")}</p>
-          <p class="muted"><strong>Condicion fiscal:</strong> ${escapeHtml(doc.customer_tax_condition ?? "-")}</p>
+          <p class="muted"><strong>Condición fiscal:</strong> ${escapeHtml(doc.customer_tax_condition ?? "-")}</p>
         </div>
         <div class="meta-card">
           <p class="meta-title">Operacion</p>
           <p class="muted"><strong>Punto de venta:</strong> ${String(doc.point_of_sale).padStart(4, "0")}</p>
           <p class="muted"><strong>Tipo:</strong> ${escapeHtml(DOC_LABEL[doc.doc_type])}</p>
           <p class="muted"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[doc.status])}</p>
-          ${doc.payment_terms ? `<p class="muted"><strong>Condicion de venta:</strong> ${escapeHtml(doc.payment_terms)}</p>` : ""}
+          ${doc.payment_terms ? `<p class="muted"><strong>Condición de venta:</strong> ${escapeHtml(doc.payment_terms)}</p>` : ""}
           ${doc.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${escapeHtml(doc.salesperson)}</p>` : ""}
-          ${doc.valid_until ? `<p class="muted"><strong>Valido hasta:</strong> ${new Date(doc.valid_until).toLocaleDateString("es-AR")}</p>` : ""}
+          ${doc.valid_until ? `<p class="muted"><strong>Válido hasta:</strong> ${new Date(doc.valid_until).toLocaleDateString("es-AR")}</p>` : ""}
           ${doc.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${escapeHtml(doc.delivery_address)}</p>` : ""}
           ${doc.source_document_type && doc.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${escapeHtml(DOC_LABEL[doc.source_document_type])} ${escapeHtml(doc.source_document_number_snapshot)}</p>` : ""}
-          ${doc.internal_remito_type ? `<p class="muted"><strong>Imputacion:</strong> ${escapeHtml(INTERNAL_REMITO_LABEL[doc.internal_remito_type])}</p>` : ""}
+          ${doc.internal_remito_type ? `<p class="muted"><strong>Imputación:</strong> ${escapeHtml(INTERNAL_REMITO_LABEL[doc.internal_remito_type])}</p>` : ""}
           <p class="muted"><strong>Creado:</strong> ${new Date(doc.created_at).toLocaleString("es-AR")}</p>
         </div>
       </div>
 
       <table>
         <thead>
-          <tr><th>#</th><th>SKU</th><th>Descripcion</th><th>Cant.</th><th>Unidad</th><th>P.Unit.</th><th>Importe</th></tr>
+          <tr><th>#</th><th>SKU</th><th>Descripción</th><th>Cant.</th><th>Unidad</th><th>P.Unit.</th><th>Importe</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -378,7 +387,7 @@ export default function DocumentsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Documentos</h1>
-            <p className="text-muted-foreground">Presupuestos y remitos rapidos</p>
+            <p className="text-muted-foreground">Presupuestos y remitos rápidos</p>
           </div>
           <Button onClick={openCreateDialog} disabled={!canCreateDocumentDraft(roles)}>
             <Plus className="mr-2 h-4 w-4" /> Nuevo documento
@@ -388,7 +397,7 @@ export default function DocumentsPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar cliente o numero..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input placeholder="Buscar cliente o número..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="w-full md:w-52">
             <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as DocType | "ALL")}>
