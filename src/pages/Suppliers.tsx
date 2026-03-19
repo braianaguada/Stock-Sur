@@ -172,6 +172,7 @@ export default function SuppliersPage() {
   const pdfMappingResolverRef = useRef<((value: PdfMappingSelection | null) => void) | null>(null);
   const deferredSearch = useDeferredValue(search);
   const deferredCatalogSearch = useDeferredValue(catalogSearch);
+  const trimmedDeferredCatalogSearch = deferredCatalogSearch.trim();
 
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -388,7 +389,7 @@ export default function SuppliersPage() {
   });
 
       const { data: activeCatalogLines = [], isLoading: isCatalogLoading } = useQuery({
-    queryKey: ["supplier-catalog-lines", currentCompany?.id ?? "no-company", activeVersionId, deferredCatalogSearch],
+    queryKey: ["supplier-catalog-lines", currentCompany?.id ?? "no-company", activeVersionId, trimmedDeferredCatalogSearch],
     enabled: !!activeVersionId && Boolean(currentCompany),
     queryFn: async () => {
       let query = supabase
@@ -399,8 +400,8 @@ export default function SuppliersPage() {
         .order("row_index", { ascending: true, nullsFirst: false })
         .limit(250);
 
-      if (catalogSearch.trim()) {
-        const safe = catalogSearch.trim();
+      if (trimmedDeferredCatalogSearch) {
+        const safe = trimmedDeferredCatalogSearch;
         query = query.or(`raw_description.ilike.%${safe}%,supplier_code.ilike.%${safe}%`);
       }
 

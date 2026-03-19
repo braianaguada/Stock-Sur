@@ -104,7 +104,8 @@ export default function DocumentsPage() {
     if (!form.price_list_id) return;
     setLines((prev) => prev.map((line) => {
       if (!line.item_id || !priceByItem.has(line.item_id)) return line;
-      return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
+      const nextPrice = priceByItem.get(line.item_id) ?? 0;
+      return line.unit_price === nextPrice ? line : { ...line, unit_price: nextPrice };
     }));
   }, [form.price_list_id, priceByItem]);
 
