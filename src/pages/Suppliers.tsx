@@ -31,99 +31,39 @@ import {
   parseFlexibleNumber,
   parsePdfToLines,
   parseXlsxToRows,
-  type CatalogImportLine,
-  type NormalizeDiagnostics,
-  type ParsePdfProgress,
-  type ParsedSheetData,
 } from "@/lib/importers/catalogImporter";
 import {
   ColumnMappingModal,
   type MappingColumnOption,
   type MappingPreviewRow,
   type MappingSelection,
-} from "@/components/suppliers/ColumnMappingModal";
-import { PdfMappingModal, type PdfMappingSelection } from "@/components/suppliers/PdfMappingModal";
+} from "@/features/suppliers/components/ColumnMappingModal";
+import { PdfMappingModal, type PdfMappingSelection } from "@/features/suppliers/components/PdfMappingModal";
+import {
+  LOW_CONFIDENCE_THRESHOLD,
+  SHOULD_LOG_SUPPLIER_IMPORT,
+} from "@/features/suppliers/constants";
+import {
+  loadStoredSupplierImportMapping,
+  saveStoredSupplierImportMapping,
+  toSupplierCatalogRpcLinePayload,
+} from "@/features/suppliers/importPersistence";
+import {
+  type CatalogImportLine,
+  type CatalogLine,
+  type ImportMappingStored,
+  type NormalizeDiagnostics,
+  type OrderLine,
+  type ParsePdfProgress,
+  type ParsedSheetData,
+  type PdfImportMappingStored,
+  type Supplier,
+  type SupplierCatalog,
+  type SupplierCatalogLinePayload,
+  type SupplierCatalogVersion,
+} from "@/features/suppliers/types";
+import { formatSupplierDate } from "@/features/suppliers/utils";
 import { getErrorMessage } from "@/lib/errors";
-
-interface Supplier {
-  id: string;
-  name: string;
-  contact_name: string | null;
-  email: string | null;
-  phone: string | null;
-  whatsapp: string | null;
-  notes: string | null;
-  is_active: boolean;
-}
-
-interface SupplierCatalog {
-  id: string;
-  title: string;
-  created_at: string;
-}
-
-interface SupplierCatalogVersion {
-  id: string;
-  catalog_id: string;
-  title: string | null;
-  imported_at: string;
-  supplier_document_id: string;
-  file_name: string;
-  file_type: string;
-  line_count: number;
-}
-
-interface CatalogLine {
-  id: string;
-  supplier_code: string | null;
-  raw_description: string;
-  cost: number;
-  currency: string;
-}
-
-interface OrderLine extends CatalogLine {
-  quantity: number;
-}
-
-interface SupplierCatalogLinePayload {
-  supplier_code: string | null;
-  raw_description: string;
-  normalized_description: string | null;
-  cost: number;
-  currency: string;
-  row_index: number;
-  matched_item_id: string | null;
-  match_status: "MATCHED" | "PENDING" | "NEW";
-}
-
-interface ImportMappingStored {
-  descriptionColumn: string;
-  priceColumn: string;
-  currencyColumn?: string | null;
-  supplierCodeColumn?: string | null;
-}
-
-interface PdfImportMappingStored {
-  descriptionColumn: string;
-  priceColumn: string;
-  codeColumn?: string | null;
-  preferPriceAtEnd?: boolean;
-  filterRowsWithoutPrice?: boolean;
-}
-
-const LOW_CONFIDENCE_THRESHOLD = 0.24;
-const LOCAL_MAPPING_PREFIX = "supplier-import-mapping";
-const SHOULD_LOG_SUPPLIER_IMPORT = import.meta.env.DEV;
-
-function formatDate(date: string) {
-  return new Date(date).toLocaleString("es-AR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export default function SuppliersPage() {
   const { currentCompany } = useAuth();
@@ -196,53 +136,6 @@ export default function SuppliersPage() {
     console.error("[supplier-import]", { scope, error, ...extra });
   };
 
-  const localMappingKey = (supplierId: string, fileType: "xlsx" | "pdf") =>
-    `${LOCAL_MAPPING_PREFIX}:${supplierId}:${fileType}`;
-
-  const loadStoredMapping = async <T,>(supplierId: string, fileType: "xlsx" | "pdf"): Promise<T | null> => {
-    try {
-      const { data, error } = await supabase
-        .from("supplier_import_mappings")
-        .select("mapping")
-        .eq("company_id", currentCompany!.id)
-        .eq("supplier_id", supplierId)
-        .eq("file_type", fileType)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return (data?.mapping as T | undefined) ?? null;
-    } catch (error) {
-      const cached = localStorage.getItem(localMappingKey(supplierId, fileType));
-      if (!cached) return null;
-      try {
-        return JSON.parse(cached) as T;
-      } catch {
-        return null;
-      }
-    }
-  };
-
-  const saveStoredMapping = async <T,>(supplierId: string, fileType: "xlsx" | "pdf", mapping: T) => {
-    localStorage.setItem(localMappingKey(supplierId, fileType), JSON.stringify(mapping));
-    try {
-      const { error } = await supabase
-        .from("supplier_import_mappings")
-        .upsert(
-            {
-              company_id: currentCompany!.id,
-              supplier_id: supplierId,
-              file_type: fileType,
-              mapping,
-          },
-          { onConflict: "supplier_id,file_type" },
-        );
-      if (error) throw error;
-    } catch (error) {
-      logSupabaseError("save_mapping", error, { supplierId, fileType });
-    }
-  };
-
   const requestXlsxMapping = (params: {
     headers: string[];
     previewRows: string[][];
@@ -297,17 +190,6 @@ export default function SuppliersPage() {
     pdfMappingResolverRef.current?.(selection);
     pdfMappingResolverRef.current = null;
   };
-
-  const toRpcLinePayload = (line: CatalogImportLine): SupplierCatalogLinePayload => ({
-    supplier_code: line.supplier_code,
-    raw_description: line.raw_description,
-    normalized_description: line.normalized_description,
-    cost: line.cost,
-    currency: line.currency || "ARS",
-    row_index: line.row_index,
-    matched_item_id: null,
-    match_status: "PENDING",
-  });
 
   const { data: suppliers = [], isLoading } = useQuery({
     queryKey: ["suppliers", currentCompany?.id ?? "no-company", trimmedDeferredSearch, statusFilter],
@@ -540,7 +422,11 @@ export default function SuppliersPage() {
         }
 
         const detected = detectColumnsHeuristic(parsedSheet.headers, parsedSheet.rows);
-        const stored = await loadStoredMapping<ImportMappingStored>(selectedSupplier.id, "xlsx");
+        const stored = await loadStoredSupplierImportMapping<ImportMappingStored>(
+          currentCompany.id,
+          selectedSupplier.id,
+          "xlsx",
+        );
         const suggested = {
           descriptionColumn: stored?.descriptionColumn ?? detected.descriptionColumn,
           priceColumn: stored?.priceColumn ?? detected.priceColumn,
@@ -583,16 +469,20 @@ export default function SuppliersPage() {
           });
           diagnostics = normalized.diagnostics;
           if (mapping.remember) {
-            await saveStoredMapping(selectedSupplier.id, "xlsx", {
-              descriptionColumn: mapping.descriptionColumn,
-              priceColumn: mapping.priceColumn,
-              currencyColumn: mapping.currencyColumn,
-              supplierCodeColumn: mapping.supplierCodeColumn,
-            } satisfies ImportMappingStored);
+            try {
+              await saveStoredSupplierImportMapping(currentCompany.id, selectedSupplier.id, "xlsx", {
+                descriptionColumn: mapping.descriptionColumn,
+                priceColumn: mapping.priceColumn,
+                currencyColumn: mapping.currencyColumn,
+                supplierCodeColumn: mapping.supplierCodeColumn,
+              } satisfies ImportMappingStored);
+            } catch (error) {
+              logSupabaseError("save_mapping", error, { supplierId: selectedSupplier.id, fileType: "xlsx" });
+            }
           }
         }
 
-        lines = normalized.lines.map(toRpcLinePayload);
+        lines = normalized.lines.map(toSupplierCatalogRpcLinePayload);
       } else if (isPdf) {
         const parseResult = await parsePdfToLines(
           selectedFile,
@@ -604,9 +494,13 @@ export default function SuppliersPage() {
         const tableRows = parseResult.table?.rows ?? [];
         if (tableHeaders.length === 0 || tableRows.length === 0) {
           if (parseResult.lines.length === 0) throw new Error("No se pudo extraer contenido del PDF");
-          lines = parseResult.lines.map(toRpcLinePayload);
+          lines = parseResult.lines.map(toSupplierCatalogRpcLinePayload);
         } else {
-          const stored = await loadStoredMapping<PdfImportMappingStored>(selectedSupplier.id, "pdf");
+          const stored = await loadStoredSupplierImportMapping<PdfImportMappingStored>(
+            currentCompany.id,
+            selectedSupplier.id,
+            "pdf",
+          );
           const suggested: Omit<PdfMappingSelection, "remember"> = {
             descriptionColumn: stored?.descriptionColumn ?? tableHeaders[0] ?? "col_1",
             priceColumn: stored?.priceColumn ?? tableHeaders[Math.min(1, tableHeaders.length - 1)] ?? "col_1",
@@ -649,13 +543,17 @@ export default function SuppliersPage() {
           });
           lines = parsedLines;
           if (selection.remember) {
-            await saveStoredMapping(selectedSupplier.id, "pdf", {
-              descriptionColumn: selection.descriptionColumn,
-              priceColumn: selection.priceColumn,
-              codeColumn: selection.codeColumn,
-              preferPriceAtEnd: selection.preferPriceAtEnd,
-              filterRowsWithoutPrice: selection.filterRowsWithoutPrice,
-            } satisfies PdfImportMappingStored);
+            try {
+              await saveStoredSupplierImportMapping(currentCompany.id, selectedSupplier.id, "pdf", {
+                descriptionColumn: selection.descriptionColumn,
+                priceColumn: selection.priceColumn,
+                codeColumn: selection.codeColumn,
+                preferPriceAtEnd: selection.preferPriceAtEnd,
+                filterRowsWithoutPrice: selection.filterRowsWithoutPrice,
+              } satisfies PdfImportMappingStored);
+            } catch (error) {
+              logSupabaseError("save_mapping", error, { supplierId: selectedSupplier.id, fileType: "pdf" });
+            }
           }
         }
       }
@@ -805,7 +703,7 @@ export default function SuppliersPage() {
 
   const orderMessage = useMemo(() => {
     if (!selectedSupplier || orderLines.length === 0) return "";
-    const versionDate = activeVersion ? formatDate(activeVersion.imported_at) : "Sin versión";
+    const versionDate = activeVersion ? formatSupplierDate(activeVersion.imported_at) : "Sin versión";
     const catalogName = activeVersion ? catalogTitleById.get(activeVersion.catalog_id) ?? activeVersion.title ?? "Listado" : "Sin listado";
     const rows = orderLines.map((line) => `${line.supplier_code ?? "S/COD"} - ${line.raw_description} x ${line.quantity}`);
     return [
@@ -1072,7 +970,7 @@ export default function SuppliersPage() {
                   ) : catalogs.map((catalog) => (
                     <div key={catalog.id} className="rounded border p-3">
                       <p className="font-medium">{catalog.title}</p>
-                      <p className="text-xs text-muted-foreground">Creado: {formatDate(catalog.created_at)}</p>
+                      <p className="text-xs text-muted-foreground">Creado: {formatSupplierDate(catalog.created_at)}</p>
                       <div className="mt-2 space-y-2">
                         {(versionsByCatalog[catalog.id] ?? []).length === 0 ? (
                           <p className="text-xs text-muted-foreground">Sin versiones</p>
@@ -1090,7 +988,7 @@ export default function SuppliersPage() {
                             className={`w-full rounded border p-2 text-left text-sm ${activeVersionId === version.id ? "border-primary bg-primary/5" : "border-border"}`}
                           >
                             <p className="font-medium">{version.title ?? catalog.title}</p>
-                            <p className="text-xs text-muted-foreground">{formatDate(version.imported_at)} - {version.file_name} - {version.file_type.toUpperCase()} - {version.line_count} líneas</p>
+                            <p className="text-xs text-muted-foreground">{formatSupplierDate(version.imported_at)} - {version.file_name} - {version.file_type.toUpperCase()} - {version.line_count} líneas</p>
                           </button>
                         ))}
                       </div>
@@ -1106,7 +1004,7 @@ export default function SuppliersPage() {
                   <CardHeader className="space-y-2">
                     <CardTitle className="text-base">Buscar en catálogos</CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      {activeVersion ? `Versión activa: ${activeVersion.title ?? catalogTitleById.get(activeVersion.catalog_id) ?? "Listado"} (${formatDate(activeVersion.imported_at)})` : "Seleccioná una versión en el historial"}
+                      {activeVersion ? `Versión activa: ${activeVersion.title ?? catalogTitleById.get(activeVersion.catalog_id) ?? "Listado"} (${formatSupplierDate(activeVersion.imported_at)})` : "Seleccioná una versión en el historial"}
                     </p>
                     <Input placeholder="Buscar por descripción o código" value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} disabled={!activeVersionId} />
                   </CardHeader>
