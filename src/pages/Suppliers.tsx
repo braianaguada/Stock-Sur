@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs } from "@/components/ui/tabs";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +39,7 @@ import {
   type MappingSelection,
 } from "@/features/suppliers/components/ColumnMappingModal";
 import { PdfMappingModal, type PdfMappingSelection } from "@/features/suppliers/components/PdfMappingModal";
+import { SupplierCatalogDialog } from "@/features/suppliers/components/SupplierCatalogDialog";
 import {
   LOW_CONFIDENCE_THRESHOLD,
   SHOULD_LOG_SUPPLIER_IMPORT,
@@ -782,213 +783,52 @@ export default function SuppliersPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={catalogDialogOpen} onOpenChange={handleCatalogDialogOpenChange}>
-        <DialogContent className="w-[96vw] max-w-[1400px] h-[92vh] overflow-hidden p-0">
-          <Tabs
-            value={catalogUiTab}
-            onValueChange={(value) => setCatalogUiTab(value as "carga" | "historial" | "catalogo")}
-            className="flex h-full min-h-0 flex-col"
-          >
-            <div className="sticky top-0 z-20 border-b bg-background p-4">
-              <DialogHeader><DialogTitle>Catálogos del proveedor: {selectedSupplier?.name}</DialogTitle></DialogHeader>
-              <TabsList className="mt-3 grid w-full grid-cols-3">
-                <TabsTrigger value="carga">Subir archivo</TabsTrigger>
-                <TabsTrigger value="historial">Historial</TabsTrigger>
-                <TabsTrigger value="catalogo">Buscar catalogo</TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent value="carga" className="mt-0 min-h-0 flex-1 overflow-auto p-4">
-              <Card className="mx-auto w-full max-w-3xl">
-                <CardHeader><CardTitle className="text-base">Subir archivo</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="space-y-2">
-                    <Label>Título</Label>
-                    <Input value={documentTitle} onChange={(e) => setDocumentTitle(e.target.value)} placeholder="Lista Febrero 2026 contado" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Agregar a listado existente (opcional)</Label>
-                    <Select value={selectedCatalogId} onValueChange={setSelectedCatalogId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Crear nuevo listado" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="new">Crear nuevo listado</SelectItem>
-                        {catalogs.map((catalog) => (
-                          <SelectItem key={catalog.id} value={catalog.id}>{catalog.title}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Notas</Label>
-                    <Input value={documentNotes} onChange={(e) => setDocumentNotes(e.target.value)} placeholder="Observaciones" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Archivo</Label>
-                    <Input
-                      type="file"
-                      accept=".xlsx,.xls,.csv,.txt,.tsv,.pdf"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-                    />
-                  </div>
-                  <Button onClick={() => uploadCatalogMutation.mutate()} disabled={uploadCatalogMutation.isPending || !selectedFile}>
-                    {uploadCatalogMutation.isPending ? "Procesando..." : "Subir archivo"}
-                  </Button>
-                  {pdfProgress && (
-                    <p className="text-xs text-muted-foreground">
-                      {pdfProgress.message}
-                    </p>
-                  )}
-                  {lastDiagnostics && (
-                    <div className="space-y-1 text-xs text-muted-foreground">
-                      <p>
-                        Filas: {lastDiagnostics.keptRows}/{lastDiagnostics.totalRows}. Descartadas por descripcion vacia: {lastDiagnostics.dropped_missingDesc}, precio invalido: {lastDiagnostics.dropped_invalidPrice}, precio {"<="} 0: {lastDiagnostics.dropped_priceLE0}.
-                      </p>
-                      {lastDiagnostics.keptRows < 10 && (
-                        <Button
-                          type="button"
-                          variant="link"
-                          className="h-auto p-0 text-xs"
-                          onClick={() => setDropDetailOpen(true)}
-                        >
-                          Ver detalle de filas descartadas
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="historial" className="mt-0 min-h-0 flex-1 overflow-auto p-4">
-              <Card className="mx-auto w-full max-w-5xl">
-                <CardHeader><CardTitle className="text-base">Historial</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  {isHistoryLoading ? <p className="text-sm text-muted-foreground">Cargando...</p> : catalogs.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Sin listados cargados</p>
-                  ) : catalogs.map((catalog) => (
-                    <div key={catalog.id} className="rounded border p-3">
-                      <p className="font-medium">{catalog.title}</p>
-                      <p className="text-xs text-muted-foreground">Creado: {formatSupplierDate(catalog.created_at)}</p>
-                      <div className="mt-2 space-y-2">
-                        {(versionsByCatalog[catalog.id] ?? []).length === 0 ? (
-                          <p className="text-xs text-muted-foreground">Sin versiones</p>
-                        ) : (versionsByCatalog[catalog.id] ?? []).map((version) => (
-                          <button
-                            type="button"
-                            key={version.id}
-                            onClick={() => {
-                              setActiveVersionId(version.id);
-                              setCatalogSearch("");
-                              setOrderItems({});
-                              setLineQuantities({});
-                              setCatalogUiTab("catalogo");
-                            }}
-                            className={`w-full rounded border p-2 text-left text-sm ${activeVersionId === version.id ? "border-primary bg-primary/5" : "border-border"}`}
-                          >
-                            <p className="font-medium">{version.title ?? catalog.title}</p>
-                            <p className="text-xs text-muted-foreground">{formatSupplierDate(version.imported_at)} - {version.file_name} - {version.file_type.toUpperCase()} - {version.line_count} líneas</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="catalogo" className="mt-0 min-h-0 flex-1 overflow-hidden p-4">
-              <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-                <Card className="min-h-0 flex flex-col">
-                  <CardHeader className="space-y-2">
-                    <CardTitle className="text-base">Buscar en catálogos</CardTitle>
-                    <p className="text-xs text-muted-foreground">
-                      {activeVersion ? `Versión activa: ${activeVersion.title ?? catalogTitleById.get(activeVersion.catalog_id) ?? "Listado"} (${formatSupplierDate(activeVersion.imported_at)})` : "Seleccioná una versión en el historial"}
-                    </p>
-                    <Input placeholder="Buscar por descripción o código" value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} disabled={!activeVersionId} />
-                  </CardHeader>
-                  <CardContent className="flex-1 min-h-0">
-                    <div className="h-full min-h-0 overflow-auto rounded border">
-                      <Table className="table-fixed min-w-[760px]">
-                        <TableHeader className="sticky top-0 z-10 bg-background">
-                          <TableRow>
-                            <TableHead className="w-[140px]">Código</TableHead>
-                            <TableHead>Descripción</TableHead>
-                            <TableHead className="w-[140px] text-right">Costo</TableHead>
-                            <TableHead className="w-[110px]">Cantidad</TableHead>
-                            <TableHead className="w-[120px]" />
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {!activeVersionId ? (
-                            <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Seleccioná una versión para ver líneas</TableCell></TableRow>
-                          ) : isCatalogLoading ? (
-                            <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Cargando...</TableCell></TableRow>
-                          ) : activeCatalogLines.length === 0 ? (
-                            <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Sin resultados</TableCell></TableRow>
-                          ) : activeCatalogLines.map((line) => (
-                            <TableRow key={line.id}>
-                              <TableCell className="font-mono text-xs truncate" title={line.supplier_code ?? "-"}>{line.supplier_code ?? "-"}</TableCell>
-                              <TableCell className="text-sm truncate" title={line.raw_description}>{line.raw_description}</TableCell>
-                              <TableCell className="text-right font-mono">{Number(line.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  step={1}
-                                  value={lineQuantities[line.id] ?? 1}
-                                  onChange={(e) => updateLineQuantity(line.id, e.target.value)}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Button size="sm" onClick={() => addToOrder(line)}>Agregar</Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="min-h-0 flex flex-col">
-                  <CardHeader><CardTitle className="text-base">Pedido actual</CardTitle></CardHeader>
-                  <CardContent className="space-y-3 overflow-auto">
-                    <div className="max-h-[42vh] space-y-2 overflow-auto">
-                      {orderLines.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Sin productos seleccionados</p>
-                      ) : orderLines.map((line) => (
-                        <div key={line.id} className="rounded border p-2 text-sm">
-                          <p className="font-medium">{line.supplier_code ?? "S/COD"} - {line.raw_description}</p>
-                          <div className="mt-1 flex items-center gap-2">
-                            <Input type="number" min={1} step={1} value={line.quantity} onChange={(e) => updateOrderQuantity(line.id, e.target.value)} className="h-8" />
-                            <p className="text-muted-foreground">${Number(line.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
-                            <p className="font-medium">Subtotal: ${(line.cost * line.quantity).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
-                            <Button variant="ghost" size="sm" onClick={() => removeOrderItem(line.id)} className="ml-auto">Quitar</Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <p className="text-sm font-semibold">Total: ${orderTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
-
-                    {!selectedSupplier?.whatsapp && (
-                      <p className="text-sm text-amber-600">Este proveedor no tiene WhatsApp configurado.</p>
-                    )}
-
-                    <div className="grid gap-2">
-                      <Button variant="outline" onClick={copyOrderMessage}><Copy className="mr-2 h-4 w-4" /> Copiar mensaje</Button>
-                      <Button onClick={openWhatsApp}><MessageCircle className="mr-2 h-4 w-4" /> Abrir WhatsApp</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
-
+      <SupplierCatalogDialog
+        open={catalogDialogOpen}
+        onOpenChange={handleCatalogDialogOpenChange}
+        selectedSupplier={selectedSupplier}
+        catalogUiTab={catalogUiTab}
+        onCatalogUiTabChange={setCatalogUiTab}
+        documentTitle={documentTitle}
+        onDocumentTitleChange={setDocumentTitle}
+        documentNotes={documentNotes}
+        onDocumentNotesChange={setDocumentNotes}
+        selectedCatalogId={selectedCatalogId}
+        onSelectedCatalogIdChange={setSelectedCatalogId}
+        selectedFile={selectedFile}
+        onSelectedFileChange={setSelectedFile}
+        onUpload={() => uploadCatalogMutation.mutate()}
+        isUploading={uploadCatalogMutation.isPending}
+        pdfProgress={pdfProgress}
+        lastDiagnostics={lastDiagnostics}
+        onOpenDropDetail={() => setDropDetailOpen(true)}
+        catalogs={catalogs}
+        isHistoryLoading={isHistoryLoading}
+        versionsByCatalog={versionsByCatalog}
+        activeVersionId={activeVersionId}
+        onSelectVersion={(versionId) => {
+          setActiveVersionId(versionId);
+          setCatalogSearch("");
+          setOrderItems({});
+          setLineQuantities({});
+          setCatalogUiTab("catalogo");
+        }}
+        activeVersion={activeVersion}
+        catalogTitleById={catalogTitleById}
+        catalogSearch={catalogSearch}
+        onCatalogSearchChange={setCatalogSearch}
+        isCatalogLoading={isCatalogLoading}
+        activeCatalogLines={activeCatalogLines}
+        lineQuantities={lineQuantities}
+        onLineQuantityChange={updateLineQuantity}
+        onAddToOrder={addToOrder}
+        orderLines={orderLines}
+        orderTotal={orderTotal}
+        onOrderQuantityChange={updateOrderQuantity}
+        onRemoveOrderItem={removeOrderItem}
+        onCopyOrderMessage={copyOrderMessage}
+        onOpenWhatsApp={openWhatsApp}
+      />
       <ConfirmDeleteDialog
         open={!!supplierToDelete}
         onOpenChange={(open) => {
