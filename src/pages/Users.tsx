@@ -205,6 +205,16 @@ export default function UsersPage() {
       if (!accessForm.companyId) throw new Error("Seleccioná una empresa");
       if (!accessForm.roleId) throw new Error("Seleccioná un rol");
 
+      if (!usersById.has(selectedUser.user_id)) {
+        throw new Error("El usuario seleccionado ya no está disponible. Recargá Usuarios e intentá de nuevo");
+      }
+      if (!companyOptionsById.has(accessForm.companyId)) {
+        throw new Error("La empresa seleccionada ya no está disponible. Recargá Usuarios e intentá de nuevo");
+      }
+      if (!companyRolesById.has(accessForm.roleId)) {
+        throw new Error("El rol seleccionado ya no está disponible. Recargá Usuarios e intentá de nuevo");
+      }
+
       let companyUserId = accessForm.companyUserId;
 
       if (companyUserId) {
@@ -304,6 +314,18 @@ export default function UsersPage() {
   const totalCompaniesAssigned = useMemo(
     () => data.reduce((sum, user) => sum + (user.companies?.length ?? 0), 0),
     [data],
+  );
+  const usersById = useMemo(
+    () => new Map(data.map((user) => [user.user_id, user])),
+    [data],
+  );
+  const companyOptionsById = useMemo(
+    () => new Map(companyOptions.map((company) => [company.id, company])),
+    [companyOptions],
+  );
+  const companyRolesById = useMemo(
+    () => new Map(companyRoleOptions.map((role) => [role.id, role])),
+    [companyRoleOptions],
   );
 
   const permissionsByModule = useMemo(() => {
