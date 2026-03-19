@@ -14,15 +14,14 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs } from "@/components/ui/tabs";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Search, Pencil, Trash2, Upload, MessageCircle, Copy, ChevronDown, RotateCcw } from "lucide-react";
+import { Plus, Search, MessageCircle, Copy } from "lucide-react";
 import { parseImportFile } from "@/lib/importParser";
-import { buildWhatsAppLink, normalizeWhatsappNumber } from "@/lib/whatsapp";
+import { buildWhatsAppLink } from "@/lib/whatsapp";
 import {
   DEFAULT_PDF_OPTIONS,
   detectColumnsHeuristic,
@@ -39,6 +38,8 @@ import {
 } from "@/features/suppliers/components/ColumnMappingModal";
 import { PdfMappingModal, type PdfMappingSelection } from "@/features/suppliers/components/PdfMappingModal";
 import { SupplierCatalogDialog } from "@/features/suppliers/components/SupplierCatalogDialog";
+import { SupplierFormDialog } from "@/features/suppliers/components/SupplierFormDialog";
+import { SuppliersTable } from "@/features/suppliers/components/SuppliersTable";
 import { deleteSupplier, restoreSupplier, saveSupplier } from "@/features/suppliers/mutations";
 import {
   LOW_CONFIDENCE_THRESHOLD,
@@ -693,74 +694,27 @@ export default function SuppliersPage() {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Contacto</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>WhatsApp</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="w-[180px]">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Cargando...</TableCell></TableRow>
-              ) : suppliers.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No se encontraron proveedores</TableCell></TableRow>
-              ) : suppliers.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell className="font-medium">{s.name}</TableCell>
-                  <TableCell>{s.contact_name ?? "-"}</TableCell>
-                  <TableCell>{s.email ?? "-"}</TableCell>
-                  <TableCell>{s.whatsapp ? `+${normalizeWhatsappNumber(s.whatsapp)}` : "-"}</TableCell>
-                  <TableCell><Badge variant={s.is_active ? "default" : "secondary"}>{s.is_active ? "Activo" : "Inactivo"}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openCatalog(s)} title="Catálogos"><Upload className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button>
-                      {s.is_active ? (
-                        <Button variant="ghost" size="icon" onClick={() => setSupplierToDelete(s)} title="Desactivar">
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      ) : (
-                        <Button variant="ghost" size="icon" onClick={() => restoreMutation.mutate(s.id)} title="Reactivar">
-                          <RotateCcw className="h-4 w-4 text-emerald-600" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <SuppliersTable
+          suppliers={suppliers}
+          isLoading={isLoading}
+          onOpenCatalog={openCatalog}
+          onOpenEdit={openEdit}
+          onDelete={setSupplierToDelete}
+          onRestore={(supplierId) => restoreMutation.mutate(supplierId)}
+        />
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? "Editar proveedor" : "Nuevo proveedor"}</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
-            <div className="space-y-2"><Label>Nombre *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
-            <div className="space-y-2"><Label>WhatsApp (opcional)</Label><Input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="2991234567 o +542991234567" /></div>
-            <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
-              <CollapsibleTrigger asChild>
-                <Button type="button" variant="ghost" className="px-0 text-muted-foreground">
-                  Campos avanzados <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-4 pt-2">
-                <div className="space-y-2"><Label>Contacto</Label><Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Notas</Label><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-              </CollapsibleContent>
-            </Collapsible>
-            <DialogFooter><Button type="submit" disabled={saveMutation.isPending}>{saveMutation.isPending ? "Guardando..." : "Guardar"}</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <SupplierFormDialog
+        open={dialogOpen}
+        editingName={editing?.name}
+        form={form}
+        showAdvanced={showAdvanced}
+        isSaving={saveMutation.isPending}
+        onOpenChange={setDialogOpen}
+        onShowAdvancedChange={setShowAdvanced}
+        onFormChange={setForm}
+        onSubmit={() => saveMutation.mutate()}
+      />
 
       <SupplierCatalogDialog
         open={catalogDialogOpen}
@@ -892,5 +846,6 @@ export default function SuppliersPage() {
     </AppLayout>
   );
 }
+
 
 
