@@ -43,3 +43,4 @@ export interface PermissionOption {
 }
 
 export type PermissionOverrideState = Record<string, "ALLOW" | "DENY" | "INHERIT">;
+export type UsersFilter = "ALL" | "SUPERADMINS" | "WITHOUT_COMPANY" | "INACTIVE_MEMBERSHIPS";

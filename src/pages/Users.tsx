@@ -37,12 +37,20 @@ import {
   type PermissionOption,
   type PermissionOverrideState,
   type UserAccessRow,
+  type UserCompanyAccess,
+  type UsersFilter,
 } from "@/features/users/types";
+import {
+  buildAccessFormState,
+  buildPermissionOverrideStats,
+  filterUsersAccessList,
+  groupPermissionsByModule,
+} from "@/features/users/utils";
 
 export default function UsersPage() {
   const { roles } = useAuth();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"ALL" | "SUPERADMINS" | "WITHOUT_COMPANY" | "INACTIVE_MEMBERSHIPS">("ALL");
+  const [filter, setFilter] = useState<UsersFilter>("ALL");
   const [selectedUser, setSelectedUser] = useState<UserAccessRow | null>(null);
   const [accessDialogOpen, setAccessDialogOpen] = useState(false);
   const [accessForm, setAccessForm] = useState<AccessFormState>({
@@ -248,30 +256,7 @@ export default function UsersPage() {
       }),
   });
 
-  const filteredUsers = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    return data.filter((user) => {
-      const matchesFilter =
-        filter === "ALL" ||
-        (filter === "SUPERADMINS" && user.global_roles?.includes("superadmin")) ||
-        (filter === "WITHOUT_COMPANY" && (user.companies?.length ?? 0) === 0) ||
-        (filter === "INACTIVE_MEMBERSHIPS" && (user.companies ?? []).some((company) => company.status === "INACTIVE"));
-
-      if (!matchesFilter) return false;
-      if (!normalizedSearch) return true;
-
-      const haystack = [
-        user.full_name ?? "",
-        user.email ?? "",
-        ...(user.global_roles ?? []),
-        ...(user.companies ?? []).flatMap((company) => [company.companyName, company.companySlug, ...(company.roles ?? [])]),
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(normalizedSearch);
-    });
-  }, [data, filter, search]);
+  const filteredUsers = useMemo(() => filterUsersAccessList(data, filter, search), [data, filter, search]);
 
   const totalCompaniesAssigned = useMemo(
     () => data.reduce((sum, user) => sum + (user.companies?.length ?? 0), 0),
@@ -290,37 +275,15 @@ export default function UsersPage() {
     [companyRoleOptions],
   );
 
-  const permissionsByModule = useMemo(() => {
-    return permissionOptions.reduce<Record<string, PermissionOption[]>>((groups, permission) => {
-      const moduleKey = permission.module;
-      if (!groups[moduleKey]) groups[moduleKey] = [];
-      groups[moduleKey].push(permission);
-      return groups;
-    }, {});
-  }, [permissionOptions]);
+  const permissionsByModule = useMemo(() => groupPermissionsByModule(permissionOptions), [permissionOptions]);
 
-  const overrideStats = useMemo(() => {
-    const values = Object.values(permissionOverrides);
-    return {
-      allow: values.filter((value) => value === "ALLOW").length,
-      deny: values.filter((value) => value === "DENY").length,
-    };
-  }, [permissionOverrides]);
+  const overrideStats = useMemo(() => buildPermissionOverrideStats(permissionOverrides), [permissionOverrides]);
 
   const inheritedPermissionCount = inheritedRolePermissionIds.length;
 
   const openAccessDialog = (user: UserAccessRow, company?: UserCompanyAccess) => {
-    const matchingRole = company?.roles?.[0]
-      ? companyRoleOptions.find((role) => role.code === company.roles[0])
-      : companyRoleOptions[0];
-
     setSelectedUser(user);
-    setAccessForm({
-      companyUserId: company?.companyUserId ?? null,
-      companyId: company?.companyId ?? "",
-      roleId: matchingRole?.id ?? "",
-      status: (company?.status as "ACTIVE" | "INACTIVE" | undefined) ?? "ACTIVE",
-    });
+    setAccessForm(buildAccessFormState(companyRoleOptions, company));
     setPermissionOverrides({});
     setAccessDialogOpen(true);
   };
