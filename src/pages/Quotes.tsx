@@ -23,39 +23,8 @@ import { Plus, Search, Eye, Trash2, FileDown, X } from "lucide-react";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
-
-interface QuoteLine {
-  description: string;
-  quantity: number;
-  unit_price: number;
-  item_id: string | null;
-}
-
-interface QuoteListRow {
-  id: string;
-  quote_number: number;
-  customer_name: string | null;
-  status: string;
-  total: number;
-  notes: string | null;
-  created_at: string;
-  customers?: {
-    name?: string | null;
-  } | null;
-}
-
-interface QuoteLineRow {
-  id: string;
-  description: string;
-  quantity: number;
-  unit_price: number;
-  subtotal: number;
-}
-
-const STATUS_LABELS: Record<string, string> = { DRAFT: "Borrador", SENT: "Enviado", ACCEPTED: "Aceptado", REJECTED: "Rechazado" };
-const STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  DRAFT: "secondary", SENT: "default", ACCEPTED: "default", REJECTED: "destructive",
-};
+import { QUOTE_STATUS_LABELS, QUOTE_STATUS_VARIANTS } from "@/features/quotes/constants";
+import { type QuoteLine, type QuoteLineRow, type QuoteListRow } from "@/features/quotes/types";
 
 export default function QuotesPage() {
   const { settings } = useCompanyBrand();
@@ -277,7 +246,7 @@ export default function QuotesPage() {
                 <TableRow key={q.id}>
                   <TableCell className="font-mono">{q.quote_number}</TableCell>
                   <TableCell className="font-medium">{q.customer_name ?? q.customers?.name ?? "—"}</TableCell>
-                  <TableCell><Badge variant={STATUS_VARIANTS[q.status] ?? "secondary"}>{STATUS_LABELS[q.status] ?? q.status}</Badge></TableCell>
+                  <TableCell><Badge variant={QUOTE_STATUS_VARIANTS[q.status] ?? "secondary"}>{QUOTE_STATUS_LABELS[q.status] ?? q.status}</Badge></TableCell>
                   <TableCell className="text-right font-mono">${Number(q.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{new Date(q.created_at).toLocaleDateString("es-AR")}</TableCell>
                   <TableCell>
