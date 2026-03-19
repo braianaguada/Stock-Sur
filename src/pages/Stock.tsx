@@ -248,7 +248,7 @@ export default function StockPage() {
     mutationFn: async () => {
       if (!form.item_id) throw new Error("Seleccioná un ítem");
 
-      if (!currentCompany) throw new Error("Selecciona una empresa para registrar stock");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para registrar stock");
       const qty = parseFloat(form.quantity);
       if (isNaN(qty) || !Number.isFinite(qty) || qty <= 0) throw new Error("La cantidad debe ser mayor a 0");
       const { error } = await supabase.from("stock_movements").insert({
@@ -386,7 +386,7 @@ export default function StockPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para ver existencias y registrar movimientos de stock." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para ver existencias y registrar movimientos de stock." />
         ) : null}
         <div className="flex items-center justify-between">
           <div>

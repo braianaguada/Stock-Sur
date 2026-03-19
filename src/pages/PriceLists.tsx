@@ -235,7 +235,7 @@ export default function PriceListsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar listas");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar listas");
       const { error } = await supabase.from("price_lists").insert({
         company_id: currentCompany.id,
         name: form.name,
@@ -257,7 +257,7 @@ export default function PriceListsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar listas");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar listas");
       await deleteByStrategy({ table: "price_lists", id, eq: { company_id: currentCompany.id } });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["price-lists"] }); toast({ title: "Lista eliminada" }); },
@@ -275,7 +275,7 @@ export default function PriceListsPage() {
 
   const addItemMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedListId || !itemToAdd) throw new Error("Selecciona un item");
+      if (!selectedListId || !itemToAdd) throw new Error("Seleccioná un ítem");
       const { error } = await supabase.from("price_list_items").upsert({
         company_id: currentCompany!.id,
         price_list_id: selectedListId,
@@ -354,7 +354,7 @@ export default function PriceListsPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para crear listas de precios y relacionarlas con tu catalogo." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para crear listas de precios y relacionarlas con tu catálogo." />
         ) : null}
         <div className="flex items-center justify-between">
           <div>

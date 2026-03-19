@@ -162,7 +162,7 @@ export default function ItemsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar items");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       const name = cleanText(form.name);
       const sku = cleanText(form.sku).toUpperCase();
       const unit = cleanText(form.unit) || "un";
@@ -218,7 +218,7 @@ export default function ItemsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar items");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       await deleteByStrategy({ table: "items", id, eq: { company_id: currentCompany.id } });
       const { error } = await supabase.from("price_list_items").update({ is_active: false }).eq("item_id", id);
       if (error) throw error;
@@ -233,7 +233,7 @@ export default function ItemsPage() {
 
   const restoreMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar items");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       const { error } = await supabase.from("items").update({ is_active: true }).eq("company_id", currentCompany.id).eq("id", id);
       if (error) throw error;
     },
@@ -274,7 +274,7 @@ export default function ItemsPage() {
 
   const bulkDemandProfileMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar items");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       if (selectedItemIds.length === 0) return;
       const { error } = await supabase
         .from("items")
@@ -294,7 +294,7 @@ export default function ItemsPage() {
 
   const deleteAliasMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar alias");
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar alias");
       await deleteByStrategy({ table: "item_aliases", id, eq: { company_id: currentCompany.id } });
     },
     onSuccess: () => {

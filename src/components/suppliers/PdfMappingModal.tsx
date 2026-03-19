@@ -66,7 +66,7 @@ export function PdfMappingModal({
 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
-            <Label>Descripcion *</Label>
+            <Label>Descripción *</Label>
             <Select value={descriptionColumn} onValueChange={setDescriptionColumn}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -84,7 +84,7 @@ export function PdfMappingModal({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Codigo (opcional)</Label>
+            <Label>Código (opcional)</Label>
             <Select value={codeColumn} onValueChange={setCodeColumn}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>

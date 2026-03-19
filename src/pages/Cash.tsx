@@ -189,7 +189,7 @@ export default function CashPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para registrar ventas, asociar comprobantes y cerrar caja." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para registrar ventas, asociar comprobantes y cerrar caja." />
         ) : null}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
@@ -282,7 +282,7 @@ export default function CashPage() {
                       <SelectItem value="__none__">Consumidor final</SelectItem>
                       {customers.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}{customer.cuit ? ` � ${customer.cuit}` : ""}
+                          {customer.name}{customer.cuit ? ` � ${customer.cuit}` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -293,9 +293,9 @@ export default function CashPage() {
                   <div className="space-y-2">
                     <Label>Remito emitido</Label>
                     <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
-                      <SelectTrigger><SelectValue placeholder="Seleccionar remito del dia" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Seleccionar remito del día" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
+                        <SelectItem value="__none__">Seleccionar remito del día</SelectItem>
                         {availableRemitos.map((remito) => (
                           <SelectItem key={remito.id} value={remito.id}>
                             {formatRemitoOptionLabel(remito)}
