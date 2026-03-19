@@ -22,7 +22,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Search, Pencil, Trash2, Upload, MessageCircle, Copy, ChevronDown, RotateCcw } from "lucide-react";
 import { parseImportFile } from "@/lib/importParser";
-import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { buildWhatsAppLink, normalizeWhatsappNumber } from "@/lib/whatsapp";
 import {
   DEFAULT_PDF_OPTIONS,
@@ -40,6 +39,7 @@ import {
 } from "@/features/suppliers/components/ColumnMappingModal";
 import { PdfMappingModal, type PdfMappingSelection } from "@/features/suppliers/components/PdfMappingModal";
 import { SupplierCatalogDialog } from "@/features/suppliers/components/SupplierCatalogDialog";
+import { deleteSupplier, restoreSupplier, saveSupplier } from "@/features/suppliers/mutations";
 import {
   LOW_CONFIDENCE_THRESHOLD,
   SHOULD_LOG_SUPPLIER_IMPORT,
@@ -227,23 +227,7 @@ export default function SuppliersPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const payload = {
-        name: form.name,
-        contact_name: form.contact_name || null,
-        email: form.email || null,
-        whatsapp: form.whatsapp || null,
-        phone: form.whatsapp || null,
-        notes: form.notes || null,
-      };
-      if (editing) {
-        const { error } = await supabase.from("suppliers").update(payload).eq("company_id", currentCompany!.id).eq("id", editing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("suppliers").insert({ company_id: currentCompany!.id, ...payload });
-        if (error) throw error;
-      }
-    },
+    mutationFn: () => saveSupplier({ companyId: currentCompany!.id, form, editingId: editing?.id }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
       setDialogOpen(false);
@@ -253,9 +237,7 @@ export default function SuppliersPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await deleteByStrategy({ table: "suppliers", id, eq: { company_id: currentCompany!.id } });
-    },
+    mutationFn: (id: string) => deleteSupplier(currentCompany!.id, id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
       toast({ title: "Proveedor desactivado" });
@@ -263,10 +245,7 @@ export default function SuppliersPage() {
   });
 
   const restoreMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("suppliers").update({ is_active: true }).eq("company_id", currentCompany!.id).eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => restoreSupplier(currentCompany!.id, id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
       toast({ title: "Proveedor reactivado" });
