@@ -30,6 +30,7 @@ export function useDocumentsData({
   selectedPriceListId,
   currentCompanyId,
 }: UseDocumentsDataParams) {
+  const trimmedSearch = search.trim();
   const { data: customers = [] } = useQuery({
     queryKey: ["documents-customers", currentCompanyId ?? "no-company"],
     enabled: Boolean(currentCompanyId),
@@ -133,7 +134,7 @@ export function useDocumentsData({
   }, [priceListItems, selectedPriceList]);
 
   const { data: documents = [], isLoading } = useQuery({
-    queryKey: ["documents", currentCompanyId ?? "no-company", search, typeFilter, statusFilter],
+    queryKey: ["documents", currentCompanyId ?? "no-company", trimmedSearch, typeFilter, statusFilter],
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       let q = supabase
@@ -143,9 +144,9 @@ export function useDocumentsData({
         .order("created_at", { ascending: false });
       if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
       if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
-      if (search.trim()) {
-        const n = Number.parseInt(search.trim(), 10);
-        const clauses = [`customer_name.ilike.%${search.trim()}%`];
+      if (trimmedSearch) {
+        const n = Number.parseInt(trimmedSearch, 10);
+        const clauses = [`customer_name.ilike.%${trimmedSearch}%`];
         if (Number.isFinite(n)) clauses.push(`document_number.eq.${n}`);
         q = q.or(clauses.join(","));
       }
