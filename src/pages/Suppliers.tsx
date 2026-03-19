@@ -48,6 +48,7 @@ import {
   saveStoredSupplierImportMapping,
   toSupplierCatalogRpcLinePayload,
 } from "@/features/suppliers/importPersistence";
+import { logSupplierImportError } from "@/features/suppliers/logging";
 import {
   fetchSupplierCatalogLines,
   fetchSupplierCatalogVersions,
@@ -124,23 +125,6 @@ export default function SuppliersPage() {
 
   const { toast } = useToast();
   const qc = useQueryClient();
-
-  const logSupabaseError = (scope: string, error: unknown, extra?: Record<string, unknown>) => {
-    if (!SHOULD_LOG_SUPPLIER_IMPORT) return;
-    if (error && typeof error === "object") {
-      const err = error as { code?: string; message?: string; details?: string; hint?: string };
-      console.error("[supplier-import]", {
-        scope,
-        code: err.code,
-        message: err.message,
-        details: err.details,
-        hint: err.hint,
-        ...extra,
-      });
-      return;
-    }
-    console.error("[supplier-import]", { scope, error, ...extra });
-  };
 
   const requestXlsxMapping = (params: {
     headers: string[];
@@ -321,7 +305,7 @@ export default function SuppliersPage() {
         .select("id")
         .single();
       if (docError) {
-        logSupabaseError("insert_document", docError, { userId, requestedCatalogId });
+        logSupplierImportError("insert_document", docError, { userId, requestedCatalogId });
         throw docError;
       }
 
@@ -410,7 +394,7 @@ export default function SuppliersPage() {
                 supplierCodeColumn: mapping.supplierCodeColumn,
               } satisfies ImportMappingStored);
             } catch (error) {
-              logSupabaseError("save_mapping", error, { supplierId: selectedSupplier.id, fileType: "xlsx" });
+              logSupplierImportError("save_mapping", error, { supplierId: selectedSupplier.id, fileType: "xlsx" });
             }
           }
         }
@@ -485,7 +469,7 @@ export default function SuppliersPage() {
                 filterRowsWithoutPrice: selection.filterRowsWithoutPrice,
               } satisfies PdfImportMappingStored);
             } catch (error) {
-              logSupabaseError("save_mapping", error, { supplierId: selectedSupplier.id, fileType: "pdf" });
+              logSupplierImportError("save_mapping", error, { supplierId: selectedSupplier.id, fileType: "pdf" });
             }
           }
         }
@@ -505,7 +489,7 @@ export default function SuppliersPage() {
         p_lines: lines,
       });
       if (rpcError) {
-        logSupabaseError("create_supplier_catalog_import", rpcError, {
+        logSupplierImportError("create_supplier_catalog_import", rpcError, {
           userId,
           requestedCatalogId,
           supplierDocumentId,

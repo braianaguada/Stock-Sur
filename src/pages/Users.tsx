@@ -42,6 +42,7 @@ import {
 } from "@/features/users/types";
 import {
   buildAccessFormState,
+  buildPermissionOverridesState,
   buildPermissionOverrideStats,
   filterUsersAccessList,
   groupPermissionsByModule,
@@ -117,17 +118,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     if (!accessDialogOpen) return;
-
-    const nextOverrides: PermissionOverrideState = {};
-    for (const permission of permissionOptions) {
-      nextOverrides[permission.id] = "INHERIT";
-    }
-
-    for (const row of existingPermissionOverrides) {
-      nextOverrides[row.permission_id] = row.effect;
-    }
-
-    setPermissionOverrides(nextOverrides);
+    setPermissionOverrides(buildPermissionOverridesState(permissionOptions, existingPermissionOverrides));
   }, [accessDialogOpen, existingPermissionOverrides, permissionOptions]);
 
   const saveAccessMutation = useMutation({

@@ -52,6 +52,23 @@ export function buildPermissionOverrideStats(permissionOverrides: PermissionOver
   };
 }
 
+export function buildPermissionOverridesState(
+  permissionOptions: PermissionOption[],
+  existingPermissionOverrides: Array<{ permission_id: string; effect: "ALLOW" | "DENY" | "INHERIT" }>,
+) {
+  const nextOverrides: PermissionOverrideState = {};
+
+  for (const permission of permissionOptions) {
+    nextOverrides[permission.id] = "INHERIT";
+  }
+
+  for (const row of existingPermissionOverrides) {
+    nextOverrides[row.permission_id] = row.effect;
+  }
+
+  return nextOverrides;
+}
+
 export function buildAccessFormState(
   companyRoleOptions: CompanyRoleOption[],
   company?: UserCompanyAccess,
