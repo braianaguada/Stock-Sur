@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
@@ -44,6 +45,14 @@ export function useDocumentsMutations({
   toast,
 }: UseDocumentsMutationsParams) {
   const qc = useQueryClient();
+  const customersById = useMemo(
+    () => new Map(customers.map((customer) => [customer.id, customer])),
+    [customers],
+  );
+  const documentsById = useMemo(
+    () => new Map(documents.map((document) => [document.id, document])),
+    [documents],
+  );
 
   const upsertDraftMutation = useMutation({
     mutationFn: async () => {
@@ -73,7 +82,7 @@ export function useDocumentsMutations({
         return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
       });
 
-      const pickedCustomer = form.customer_id ? customers.find((c) => c.id === form.customer_id) : null;
+      const pickedCustomer = form.customer_id ? customersById.get(form.customer_id) ?? null : null;
       const customerName = pickedCustomer?.name ?? form.customer_name ?? "Cliente ocasional";
       const customerTaxId = form.customer_tax_id || pickedCustomer?.cuit || null;
 
@@ -180,7 +189,7 @@ export function useDocumentsMutations({
 
   const issueMutation = useMutation({
     mutationFn: async (documentId: string) => {
-      const currentDocument = documents.find((row) => row.id === documentId);
+      const currentDocument = documentsById.get(documentId);
       if (currentDocument?.doc_type !== "REMITO") {
         throw new Error("Solo los remitos se emiten");
       }
