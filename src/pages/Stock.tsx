@@ -76,6 +76,10 @@ export default function StockPage() {
       return data;
     },
   });
+  const itemsById = useMemo(
+    () => new Map(items.map((item) => [item.id, item])),
+    [items],
+  );
 
   // Current stock calculated from movements
   const { data: stockRows = [], isLoading: loadingStock } = useQuery({
@@ -249,6 +253,9 @@ export default function StockPage() {
       if (!form.item_id) throw new Error("Seleccioná un ítem");
 
       if (!currentCompany) throw new Error("Seleccioná una empresa para registrar stock");
+      if (!itemsById.has(form.item_id)) {
+        throw new Error("El ítem seleccionado ya no está disponible. Recargá Stock e intentá de nuevo");
+      }
       const qty = parseFloat(form.quantity);
       if (isNaN(qty) || !Number.isFinite(qty) || qty <= 0) throw new Error("La cantidad debe ser mayor a 0");
       const { error } = await supabase.from("stock_movements").insert({
