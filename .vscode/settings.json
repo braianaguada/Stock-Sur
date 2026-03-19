@@ -1,0 +1,13 @@
+{
+  "files.exclude": {
+    "**/dist": true,
+    "**/node_modules": true,
+    "**/supabase/.temp": true,
+    ".env": true
+  },
+  "search.exclude": {
+    "**/dist": true,
+    "**/node_modules": true,
+    "**/supabase/.temp": true
+  }
+}
