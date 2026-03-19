@@ -66,7 +66,6 @@ export default function ImportsPage() {
       setMapping({ supplier_code: "", description: "", price: "" });
       setStep("map");
     } catch (error) {
-      console.error("Error leyendo archivo de importación", { fileName: file.name, error });
       toast({
         title: "No se pudo leer el archivo",
         description: error instanceof Error ? error.message : "Formato inválido o archivo corrupto",
