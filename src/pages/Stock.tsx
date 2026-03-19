@@ -21,40 +21,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, ArrowDownCircle, ArrowUpCircle, Settings2 } from "lucide-react";
-
-type MovementType = "IN" | "OUT" | "ADJUSTMENT";
-type StockHealth = "GREEN" | "YELLOW" | "RED" | "GRAY";
-type DemandProfile = "LOW" | "MEDIUM" | "HIGH";
-
-interface StockRow {
-  item_id: string;
-  item_name: string;
-  item_sku: string;
-  item_unit: string;
-  total: number;
-  avg_daily_out_30d: number;
-  avg_daily_out_90d: number;
-  avg_daily_out_365d: number;
-  demand_daily: number;
-  days_of_cover: number | null;
-  months_of_cover_low_rotation: number | null;
-  health: StockHealth;
-  low_rotation: boolean;
-  demand_profile: DemandProfile;
-  demand_monthly_estimate: number | null;
-}
-
-interface Movement {
-  id: string;
-  item_id: string;
-  type: MovementType;
-  quantity: number;
-  reference: string | null;
-  created_by: string | null;
-  created_by_name?: string;
-  created_at: string;
-  items?: { name: string; sku: string } | null;
-}
+import {
+  type DemandProfile,
+  type Movement,
+  type MovementType,
+  type StockRow,
+} from "@/features/stock/types";
 
 export default function StockPage() {
   const [tab, setTab] = useState("current");
