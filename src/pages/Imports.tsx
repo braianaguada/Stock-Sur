@@ -17,18 +17,18 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, Check } from "lucide-react";
 import { getErrorMessage } from "@/lib/errors";
-import { parseImportFile, parsePrice, type ParsedRow, isRowEmpty } from "@/lib/importParser";
+import { parseImportFile, parsePrice, isRowEmpty } from "@/lib/importParser";
 import { matchImportLine } from "@/lib/matching";
-
-type Step = "upload" | "map" | "preview" | "done";
+import { type ImportMappingState, type ImportStep, type ParsedRow } from "@/features/imports/types";
+import { buildImportPreviewRows } from "@/features/imports/utils";
 
 
 export default function ImportsPage() {
   const { currentCompany } = useAuth();
-  const [step, setStep] = useState<Step>("upload");
+  const [step, setStep] = useState<ImportStep>("upload");
   const [rawRows, setRawRows] = useState<ParsedRow[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
-  const [mapping, setMapping] = useState({ supplier_code: "", description: "", price: "" });
+  const [mapping, setMapping] = useState<ImportMappingState>({ supplier_code: "", description: "", price: "" });
   const [selectedPriceListId, setSelectedPriceListId] = useState("");
   const [notes, setNotes] = useState("");
   const { toast } = useToast();
@@ -92,11 +92,7 @@ export default function ImportsPage() {
   const validRows = rawRows.filter((row) => !isRowEmpty(row));
   const selectedPriceListStillExists = priceLists.some((priceList) => priceList.id === selectedPriceListId);
 
-  const previewData = validRows.slice(0, 50).map((row) => ({
-    supplier_code: mapping.supplier_code && mapping.supplier_code !== "__none__" ? row[mapping.supplier_code] ?? "" : "",
-    raw_description: row[mapping.description] ?? "",
-    price: parsePrice(row[mapping.price] ?? "0"),
-  }));
+  const previewData = buildImportPreviewRows(validRows, mapping);
 
   const importMutation = useMutation({
     mutationFn: async () => {
