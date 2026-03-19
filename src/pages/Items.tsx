@@ -1,4 +1,4 @@
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -159,6 +159,10 @@ export default function ItemsPage() {
       return data as ItemAlias[];
     },
   });
+  const itemsById = useMemo(
+    () => new Map(items.map((item) => [item.id, item])),
+    [items],
+  );
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -172,6 +176,9 @@ export default function ItemsPage() {
       }
 
       if (editingItem) {
+        if (!itemsById.has(editingItem.id)) {
+          throw new Error("El ítem que estás editando ya no está disponible. Recargá Ítems e intentá de nuevo");
+        }
         const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
         const { error } = await supabase
           .from("items")
@@ -248,6 +255,10 @@ export default function ItemsPage() {
   const addAliasMutation = useMutation({
     mutationFn: async (alias: string) => {
       if (!editingItem) throw new Error("Seleccioná un ítem antes de agregar alias");
+
+      if (!itemsById.has(editingItem.id)) {
+        throw new Error("El ítem seleccionado ya no está disponible. Recargá Ítems e intentá de nuevo");
+      }
 
       const { error } = await supabase
         .from("item_aliases")
