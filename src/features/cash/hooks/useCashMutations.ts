@@ -75,6 +75,13 @@ export function useCashMutations({
       const selectedCustomer = customersById.get(form.customerId);
       const selectedRemito = remitosById.get(form.selectedRemitoId);
 
+      if (form.receiptKind === "REMITO" && !selectedRemito) {
+        throw new Error("El remito seleccionado ya no esta disponible. Recarga la caja e intenta de nuevo");
+      }
+      if (form.paymentMethod === "CUENTA_CORRIENTE" && form.customerId !== "__none__" && !selectedCustomer) {
+        throw new Error("El cliente seleccionado ya no esta disponible. Recarga la caja e intenta de nuevo");
+      }
+
       const payload = {
         company_id: currentCompanyId,
         business_date: businessDate,
@@ -122,6 +129,9 @@ export function useCashMutations({
       }
 
       const selectedRemito = remitosById.get(pendingState.pendingRemitoId);
+      if (pendingState.pendingReceiptKind === "REMITO" && !selectedRemito) {
+        throw new Error("El remito seleccionado ya no esta disponible. Recarga la caja e intenta de nuevo");
+      }
 
       const { error } = await supabase.rpc("attach_cash_sale_receipt", {
         p_sale_id: pendingState.selectedSale.id,
