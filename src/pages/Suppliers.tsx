@@ -49,6 +49,12 @@ import {
   toSupplierCatalogRpcLinePayload,
 } from "@/features/suppliers/importPersistence";
 import {
+  fetchSupplierCatalogLines,
+  fetchSupplierCatalogVersions,
+  fetchSupplierCatalogs,
+  fetchSuppliers,
+} from "@/features/suppliers/queries";
+import {
   type CatalogImportLine,
   type CatalogLine,
   type ImportMappingStored,
@@ -194,106 +200,33 @@ export default function SuppliersPage() {
   const { data: suppliers = [], isLoading } = useQuery({
     queryKey: ["suppliers", currentCompany?.id ?? "no-company", trimmedDeferredSearch, statusFilter],
     enabled: Boolean(currentCompany),
-    queryFn: async () => {
-      let q = supabase.from("suppliers").select("*").eq("company_id", currentCompany!.id).order("name");
-      if (statusFilter === "active") q = q.eq("is_active", true);
-      if (statusFilter === "inactive") q = q.eq("is_active", false);
-      if (trimmedDeferredSearch) q = q.or(`name.ilike.%${trimmedDeferredSearch}%,contact_name.ilike.%${trimmedDeferredSearch}%`);
-      const { data, error } = await q.limit(200);
-      if (error) throw error;
-      return data as Supplier[];
-    },
+    queryFn: () => fetchSuppliers({
+      companyId: currentCompany!.id,
+      statusFilter,
+      search: trimmedDeferredSearch,
+    }),
   });
 
   const { data: catalogs = [] } = useQuery({
     queryKey: ["supplier-catalogs", currentCompany?.id ?? "no-company", selectedSupplier?.id],
     enabled: !!selectedSupplier && Boolean(currentCompany),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("supplier_catalogs")
-        .select("id, title, created_at")
-        .eq("company_id", currentCompany!.id)
-        .eq("supplier_id", selectedSupplier!.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as SupplierCatalog[];
-    },
+    queryFn: () => fetchSupplierCatalogs(currentCompany!.id, selectedSupplier!.id),
   });
 
   const { data: catalogVersions = [], isLoading: isHistoryLoading } = useQuery({
     queryKey: ["supplier-catalog-versions", currentCompany?.id ?? "no-company", selectedSupplier?.id],
     enabled: !!selectedSupplier && Boolean(currentCompany),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("supplier_catalog_versions")
-        .select("id, catalog_id, title, imported_at, supplier_document_id")
-        .eq("company_id", currentCompany!.id)
-        .eq("supplier_id", selectedSupplier!.id)
-        .order("imported_at", { ascending: false });
-      if (error) throw error;
-
-      const versions = (data ?? []) as Array<{
-        id: string;
-        catalog_id: string;
-        title: string | null;
-        imported_at: string;
-        supplier_document_id: string;
-      }>;
-
-      if (versions.length === 0) return [];
-
-      const { data: docs, error: docsError } = await supabase
-        .from("supplier_documents")
-        .select("id, file_name, file_type")
-        .eq("company_id", currentCompany!.id)
-        .eq("supplier_id", selectedSupplier!.id);
-      if (docsError) throw docsError;
-      const docsById = new Map((docs ?? []).map((doc) => [doc.id, doc]));
-
-      const { data: lineCounts, error: lineCountError } = await supabase
-        .from("supplier_catalog_lines")
-        .select("supplier_catalog_version_id")
-        .in("supplier_catalog_version_id", versions.map((version) => version.id));
-      if (lineCountError) throw lineCountError;
-
-      const countMap = (lineCounts ?? []).reduce<Record<string, number>>((acc, row) => {
-        acc[row.supplier_catalog_version_id] = (acc[row.supplier_catalog_version_id] ?? 0) + 1;
-        return acc;
-      }, {});
-
-      return versions.map((version) => {
-        const doc = docsById.get(version.supplier_document_id);
-        return {
-          ...version,
-          file_name: doc?.file_name ?? "archivo",
-          file_type: doc?.file_type ?? "-",
-          line_count: countMap[version.id] ?? 0,
-        };
-      }) as SupplierCatalogVersion[];
-    },
+    queryFn: () => fetchSupplierCatalogVersions(currentCompany!.id, selectedSupplier!.id),
   });
 
       const { data: activeCatalogLines = [], isLoading: isCatalogLoading } = useQuery({
     queryKey: ["supplier-catalog-lines", currentCompany?.id ?? "no-company", activeVersionId, trimmedDeferredCatalogSearch],
     enabled: !!activeVersionId && Boolean(currentCompany),
-    queryFn: async () => {
-      let query = supabase
-        .from("supplier_catalog_lines")
-        .select("id, supplier_code, raw_description, cost, currency")
-        .eq("company_id", currentCompany!.id)
-        .eq("supplier_catalog_version_id", activeVersionId!)
-        .order("row_index", { ascending: true, nullsFirst: false })
-        .limit(250);
-
-      if (trimmedDeferredCatalogSearch) {
-        const safe = trimmedDeferredCatalogSearch;
-        query = query.or(`raw_description.ilike.%${safe}%,supplier_code.ilike.%${safe}%`);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data ?? []) as CatalogLine[];
-    },
+    queryFn: () => fetchSupplierCatalogLines({
+      companyId: currentCompany!.id,
+      versionId: activeVersionId!,
+      search: trimmedDeferredCatalogSearch,
+    }),
   });
 
   const saveMutation = useMutation({

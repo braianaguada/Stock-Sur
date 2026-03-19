@@ -46,6 +46,15 @@ import {
   filterUsersAccessList,
   groupPermissionsByModule,
 } from "@/features/users/utils";
+import {
+  listActiveCompanies,
+  listCompanyPermissionOverrides,
+  listCompanyRoles,
+  listPermissionOptions,
+  listRolePermissionIds,
+  listUsersWithAccess,
+  syncSelectedUserAccess,
+} from "@/features/users/queries";
 
 export default function UsersPage() {
   const { roles } = useAuth();
@@ -66,77 +75,37 @@ export default function UsersPage() {
   const { data = [], isLoading, error } = useQuery({
     queryKey: ["users-access-list"],
     enabled: canManageUsers(roles),
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("list_users_with_access");
-      if (error) throw error;
-      return (data ?? []) as unknown as UserAccessRow[];
-    },
+    queryFn: listUsersWithAccess,
   });
 
   const { data: companyOptions = [] } = useQuery({
     queryKey: ["users-company-options"],
     enabled: canManageUsers(roles),
-    queryFn: async () => {
-      const { data, error } = await supabase.from("companies").select("id,name,slug").eq("status", "ACTIVE").order("name");
-      if (error) throw error;
-      return (data ?? []) as CompanyOption[];
-    },
+    queryFn: listActiveCompanies,
   });
 
   const { data: companyRoleOptions = [] } = useQuery({
     queryKey: ["users-company-role-options"],
     enabled: canManageUsers(roles),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("roles")
-        .select("id,code,name")
-        .eq("scope", "COMPANY")
-        .in("code", ["admin", "operador", "consulta"])
-        .order("name");
-      if (error) throw error;
-      return (data ?? []) as CompanyRoleOption[];
-    },
+    queryFn: listCompanyRoles,
   });
 
   const { data: permissionOptions = [] } = useQuery({
     queryKey: ["users-permission-options"],
     enabled: canManageUsers(roles),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("permissions")
-        .select("id,code,module,action,description")
-        .neq("module", "users")
-        .order("module")
-        .order("action");
-      if (error) throw error;
-      return (data ?? []) as PermissionOption[];
-    },
+    queryFn: listPermissionOptions,
   });
 
   const { data: inheritedRolePermissionIds = [] } = useQuery({
     queryKey: ["users-role-permissions", accessForm.roleId || "no-role"],
     enabled: Boolean(accessDialogOpen && accessForm.roleId),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("role_permissions")
-        .select("permission_id")
-        .eq("role_id", accessForm.roleId);
-      if (error) throw error;
-      return (data ?? []).map((row) => row.permission_id);
-    },
+    queryFn: () => listRolePermissionIds(accessForm.roleId),
   });
 
   const { data: existingPermissionOverrides = [] } = useQuery({
     queryKey: ["users-company-permission-overrides", accessForm.companyUserId ?? "new-membership"],
     enabled: Boolean(accessDialogOpen && accessForm.companyUserId),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("company_user_permissions")
-        .select("permission_id,effect")
-        .eq("company_user_id", accessForm.companyUserId!);
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => listCompanyPermissionOverrides(accessForm.companyUserId!),
   });
 
   useEffect(() => {
@@ -160,14 +129,6 @@ export default function UsersPage() {
 
     setPermissionOverrides(nextOverrides);
   }, [accessDialogOpen, existingPermissionOverrides, permissionOptions]);
-
-  const syncSelectedUser = async (userId: string) => {
-    const { data, error } = await supabase.rpc("list_users_with_access");
-    if (error) throw error;
-    qc.setQueryData(["users-access-list"], data ?? []);
-    const refreshedUser = ((data ?? []) as unknown as UserAccessRow[]).find((user) => user.user_id === userId) ?? null;
-    setSelectedUser(refreshedUser);
-  };
 
   const saveAccessMutation = useMutation({
     mutationFn: async () => {
@@ -244,7 +205,8 @@ export default function UsersPage() {
     },
     onSuccess: async () => {
       if (!selectedUser) return;
-      await syncSelectedUser(selectedUser.user_id);
+      const refreshedUser = await syncSelectedUserAccess(qc, selectedUser.user_id);
+      setSelectedUser(refreshedUser);
       setAccessDialogOpen(false);
       toast({ title: "Acceso actualizado" });
     },
