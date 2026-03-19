@@ -167,7 +167,7 @@ export function PriceListItemsDialog({
               <div className="min-w-0">
                 <DialogTitle>Items asociados a la lista</DialogTitle>
                 <p className="truncate text-sm text-muted-foreground">
-                  {selectedList ? `Lista: ${selectedList.name}` : "Edita costos y margenes sin romper la vista"}
+                  {selectedList ? `Lista: ${selectedList.name}` : "Editá costos y márgenes sin romper la vista"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -192,7 +192,7 @@ export function PriceListItemsDialog({
               >
                 <div className="shrink-0 space-y-3 border-b p-4">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-medium">Agregar items</h3>
+                    <h3 className="font-medium">Agregar ítems</h3>
                     <Button variant="ghost" className="lg:hidden" onClick={() => setMobileAddPanelOpen(false)}>Cerrar</Button>
                   </div>
                   <Input
@@ -201,7 +201,7 @@ export function PriceListItemsDialog({
                     onChange={(e) => onItemSearchChange(e.target.value)}
                   />
                   <Select value={itemToAdd} onValueChange={onItemToAddChange}>
-                    <SelectTrigger><SelectValue placeholder="Seleccionar item" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar ítem" /></SelectTrigger>
                     <SelectContent>
                       {availableItems.map((it) => (
                         <SelectItem key={it.id} value={it.id}>
@@ -231,7 +231,7 @@ export function PriceListItemsDialog({
                       {availableItems.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={2} className="py-6 text-center text-muted-foreground">
-                            Sin items para agregar
+                            Sin ítems para agregar
                           </TableCell>
                         </TableRow>
                       ) : availableItems.map((it) => (
