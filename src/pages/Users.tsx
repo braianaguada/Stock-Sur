@@ -30,52 +30,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { canManageUsers } from "@/lib/permissions";
 import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/hooks/use-toast";
-
-interface UserCompanyAccess {
-  companyUserId: string;
-  companyId: string;
-  companyName: string;
-  companySlug: string;
-  status: string;
-  roles: string[];
-}
-
-interface UserAccessRow {
-  user_id: string;
-  email: string;
-  full_name: string | null;
-  global_roles: string[];
-  companies: UserCompanyAccess[];
-}
-
-interface CompanyOption {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-interface CompanyRoleOption {
-  id: string;
-  code: string;
-  name: string;
-}
-
-interface AccessFormState {
-  companyUserId: string | null;
-  companyId: string;
-  roleId: string;
-  status: "ACTIVE" | "INACTIVE";
-}
-
-interface PermissionOption {
-  id: string;
-  code: string;
-  module: string;
-  action: string;
-  description: string | null;
-}
-
-type PermissionOverrideState = Record<string, "ALLOW" | "DENY" | "INHERIT">;
+import {
+  type AccessFormState,
+  type CompanyOption,
+  type CompanyRoleOption,
+  type PermissionOption,
+  type PermissionOverrideState,
+  type UserAccessRow,
+} from "@/features/users/types";
 
 export default function UsersPage() {
   const { roles } = useAuth();
