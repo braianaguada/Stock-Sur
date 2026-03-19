@@ -18,16 +18,7 @@ import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { useAuth } from "@/contexts/AuthContext";
 import { getErrorMessage } from "@/lib/errors";
-
-interface Customer {
-  id: string;
-  company_id: string;
-  name: string;
-  cuit: string | null;
-  email: string | null;
-  phone: string | null;
-  is_occasional: boolean;
-}
+import { type Customer } from "@/features/customers/types";
 
 export default function CustomersPage() {
   const { currentCompany, user } = useAuth();
