@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,6 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { Search, Link2 } from "lucide-react";
 import { buildSuggestedAlias } from "@/lib/matching";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +34,7 @@ type PendingLine = {
 };
 
 export default function PendingPage() {
+  const { currentCompany } = useAuth();
   const [search, setSearch] = useState("");
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [aliasDialogOpen, setAliasDialogOpen] = useState(false);
@@ -45,11 +48,13 @@ export default function PendingPage() {
   const qc = useQueryClient();
 
   const { data: pendingLines = [], isLoading } = useQuery({
-    queryKey: ["pending-lines", search],
+    queryKey: ["pending-lines", currentCompany?.id ?? "no-company", search],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase
         .from("price_list_lines")
         .select("*, price_list_versions(version_date, price_lists(name, suppliers(name)))")
+        .eq("company_id", currentCompany!.id)
         .eq("match_status", "PENDING")
         .order("created_at", { ascending: false })
         .limit(200);
@@ -61,10 +66,10 @@ export default function PendingPage() {
   });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["items-search", itemSearch],
-    enabled: assignDialogOpen,
+    queryKey: ["items-search", currentCompany?.id ?? "no-company", itemSearch],
+    enabled: assignDialogOpen && Boolean(currentCompany),
     queryFn: async () => {
-      let q = supabase.from("items").select("id, name, sku").eq("is_active", true).order("name").limit(50);
+      let q = supabase.from("items").select("id, name, sku").eq("company_id", currentCompany!.id).eq("is_active", true).order("name").limit(50);
       if (itemSearch) q = q.or(`name.ilike.%${itemSearch}%,sku.ilike.%${itemSearch}%`);
       const { data, error } = await q;
       if (error) throw error;
@@ -87,6 +92,7 @@ export default function PendingPage() {
     const { error } = await supabase
       .from("price_list_lines")
       .update({ item_id: itemId, match_status: "MATCHED" as const })
+      .eq("company_id", currentCompany!.id)
       .eq("id", lineId);
 
     if (error) throw error;
@@ -96,9 +102,9 @@ export default function PendingPage() {
     const cleanAlias = alias.trim();
     if (!cleanAlias) return;
 
-    const { error } = await supabase
-      .from("item_aliases")
-      .insert({ item_id: itemId, alias: cleanAlias, is_supplier_code: isSupplierCode });
+      const { error } = await supabase
+        .from("item_aliases")
+        .insert({ company_id: currentCompany!.id, item_id: itemId, alias: cleanAlias, is_supplier_code: isSupplierCode });
 
     if (error) throw error;
   };
@@ -153,7 +159,7 @@ export default function PendingPage() {
 
       const { data: createdItem, error: itemError } = await supabase
         .from("items")
-        .insert({ name: itemName, is_active: true })
+        .insert({ company_id: currentCompany!.id, name: itemName, is_active: true })
         .select("id")
         .single();
       if (itemError) throw itemError;
@@ -202,6 +208,9 @@ export default function PendingPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitas una empresa activa para revisar pendientes de catalogos y vincularlos con articulos." />
+        ) : null}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Pendientes</h1>
           <p className="text-muted-foreground">Líneas de listas de precios sin asignar a un ítem</p>

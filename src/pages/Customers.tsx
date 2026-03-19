@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -16,9 +16,12 @@ import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
+import { useAuth } from "@/contexts/AuthContext";
+import { getErrorMessage } from "@/lib/errors";
 
 interface Customer {
   id: string;
+  company_id: string;
   name: string;
   cuit: string | null;
   email: string | null;
@@ -27,7 +30,9 @@ interface Customer {
 }
 
 export default function CustomersPage() {
+  const { currentCompany, user } = useAuth();
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
@@ -36,10 +41,11 @@ export default function CustomersPage() {
   const qc = useQueryClient();
 
   const { data: customers = [], isLoading } = useQuery({
-    queryKey: ["customers", search],
+    queryKey: ["customers", currentCompany?.id ?? "no-company", deferredSearch],
+    enabled: Boolean(currentCompany?.id),
     queryFn: async () => {
-      let q = supabase.from("customers").select("*").order("name");
-      if (search) q = q.or(`name.ilike.%${search}%,cuit.ilike.%${search}%`);
+      let q = supabase.from("customers").select("*").eq("company_id", currentCompany!.id).order("name");
+      if (deferredSearch) q = q.or(`name.ilike.%${deferredSearch}%,cuit.ilike.%${deferredSearch}%`);
       const { data, error } = await q.limit(200);
       if (error) throw error;
       return data as Customer[];
@@ -49,11 +55,13 @@ export default function CustomersPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload = {
+        company_id: currentCompany!.id,
         name: form.name,
         cuit: form.cuit || null,
         email: form.email || null,
         phone: form.phone || null,
         is_occasional: form.is_occasional,
+        created_by: user?.id ?? null,
       };
       if (editing) {
         const { error } = await supabase.from("customers").update(payload).eq("id", editing.id);
@@ -68,11 +76,12 @@ export default function CustomersPage() {
       setDialogOpen(false);
       toast({ title: editing ? "Cliente actualizado" : "Cliente creado" });
     },
-    onError: (e: unknown) => toast({
-      title: "Error",
-      description: e instanceof Error ? e.message : "Error desconocido",
-      variant: "destructive",
-    }),
+    onError: (e: unknown) =>
+      toast({
+        title: "Error",
+        description: getErrorMessage(e),
+        variant: "destructive",
+      }),
   });
 
   const deleteMutation = useMutation({
@@ -100,12 +109,19 @@ export default function CustomersPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Seleccioná una empresa para gestionar sus clientes.
+          </div>
+        ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Clientes</h1>
             <p className="text-muted-foreground">Gestión de clientes</p>
           </div>
-          <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo cliente</Button>
+          <Button onClick={openCreate} disabled={!currentCompany}>
+            <Plus className="mr-2 h-4 w-4" /> Nuevo cliente
+          </Button>
         </div>
 
         <div className="relative max-w-sm">

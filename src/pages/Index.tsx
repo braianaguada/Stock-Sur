@@ -1,32 +1,41 @@
 import { AppLayout } from "@/components/AppLayout";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Warehouse, FileText, Truck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
   const { settings } = useCompanyBrand();
+  const { currentCompany } = useAuth();
   const { data: itemCount } = useQuery({
-    queryKey: ["items-count"],
+    queryKey: ["items-count", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { count } = await supabase.from("items").select("*", { count: "exact", head: true });
+      const { count } = await supabase.from("items").select("*", { count: "exact", head: true }).eq("company_id", currentCompany!.id);
       return count ?? 0;
     },
   });
 
   const { data: supplierCount } = useQuery({
-    queryKey: ["suppliers-count"],
+    queryKey: ["suppliers-count", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { count } = await supabase.from("suppliers").select("*", { count: "exact", head: true });
+      const { count } = await supabase.from("suppliers").select("*", { count: "exact", head: true }).eq("company_id", currentCompany!.id);
       return count ?? 0;
     },
   });
 
   const { data: quoteCount } = useQuery({
-    queryKey: ["quotes-count"],
+    queryKey: ["quotes-count", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { count } = await supabase.from("quotes").select("*", { count: "exact", head: true });
+      const { count } = await supabase
+        .from("quotes")
+        .select("*", { count: "exact", head: true })
+        .eq("company_id", currentCompany!.id);
       return count ?? 0;
     },
   });
@@ -40,6 +49,9 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Tu cuenta todavia no tiene una empresa activa. Cuando el superadmin te asigne una, vas a ver aca el resumen de esa operacion." />
+        ) : null}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Resumen general de {settings.app_name}</p>

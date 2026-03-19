@@ -2,6 +2,7 @@ import { useEffect, useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CompanyBrandContext, DEFAULT_COMPANY_SETTINGS, type CompanySettings } from "@/contexts/company-brand-context";
+import { useAuth } from "@/contexts/AuthContext";
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -81,16 +82,29 @@ const applyCompanyTheme = (settings: CompanySettings) => {
 };
 
 export function CompanyBrandProvider({ children }: { children: ReactNode }) {
+  const { currentCompany, session } = useAuth();
   const query = useQuery({
-    queryKey: ["company-settings"],
+    queryKey: ["company-settings", currentCompany?.id ?? "default"],
+    enabled: Boolean(session?.user && currentCompany?.id),
     queryFn: async () => {
-      const { data, error } = await supabase.from("company_settings").select("*").eq("id", 1).maybeSingle();
+      const { data, error } = await supabase
+        .from("company_settings")
+        .select("*")
+        .eq("company_id", currentCompany!.id)
+        .maybeSingle();
       if (error) throw error;
-      return (data ?? DEFAULT_COMPANY_SETTINGS) as CompanySettings;
+      return (data ?? { ...DEFAULT_COMPANY_SETTINGS, company_id: currentCompany!.id }) as CompanySettings;
     },
   });
 
-  const settings = query.data ?? DEFAULT_COMPANY_SETTINGS;
+  const settings = useMemo(() => (
+    query.data ?? {
+      ...DEFAULT_COMPANY_SETTINGS,
+      app_name: currentCompany?.name ?? DEFAULT_COMPANY_SETTINGS.app_name,
+      legal_name: currentCompany?.name ?? DEFAULT_COMPANY_SETTINGS.legal_name,
+      company_id: currentCompany?.id ?? null,
+    }
+  ), [currentCompany?.id, currentCompany?.name, query.data]);
 
   useEffect(() => {
     applyCompanyTheme(settings);
