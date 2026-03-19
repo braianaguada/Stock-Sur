@@ -171,6 +171,7 @@ export default function SuppliersPage() {
   const xlsxMappingResolverRef = useRef<((value: MappingSelection | null) => void) | null>(null);
   const pdfMappingResolverRef = useRef<((value: PdfMappingSelection | null) => void) | null>(null);
   const deferredSearch = useDeferredValue(search);
+  const trimmedDeferredSearch = deferredSearch.trim();
   const deferredCatalogSearch = useDeferredValue(catalogSearch);
   const trimmedDeferredCatalogSearch = deferredCatalogSearch.trim();
 
@@ -307,13 +308,13 @@ export default function SuppliersPage() {
   });
 
   const { data: suppliers = [], isLoading } = useQuery({
-    queryKey: ["suppliers", currentCompany?.id ?? "no-company", deferredSearch, statusFilter],
+    queryKey: ["suppliers", currentCompany?.id ?? "no-company", trimmedDeferredSearch, statusFilter],
     enabled: Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase.from("suppliers").select("*").eq("company_id", currentCompany!.id).order("name");
       if (statusFilter === "active") q = q.eq("is_active", true);
       if (statusFilter === "inactive") q = q.eq("is_active", false);
-      if (deferredSearch) q = q.or(`name.ilike.%${deferredSearch}%,contact_name.ilike.%${deferredSearch}%`);
+      if (trimmedDeferredSearch) q = q.or(`name.ilike.%${trimmedDeferredSearch}%,contact_name.ilike.%${trimmedDeferredSearch}%`);
       const { data, error } = await q.limit(200);
       if (error) throw error;
       return data as Supplier[];
@@ -743,16 +744,19 @@ export default function SuppliersPage() {
     setCatalogDialogOpen(true);
   };
 
+  const catalogVersionsById = useMemo(
+    () => new Map(catalogVersions.map((version) => [version.id, version])),
+    [catalogVersions],
+  );
   const activeVersion = useMemo(
-    () => catalogVersions.find((version) => version.id === activeVersionId) ?? null,
-    [catalogVersions, activeVersionId],
+    () => (activeVersionId ? catalogVersionsById.get(activeVersionId) ?? null : null),
+    [catalogVersionsById, activeVersionId],
   );
 
-  const catalogTitleById = useMemo(() => {
-    const map = new Map<string, string>();
-    catalogs.forEach((catalog) => map.set(catalog.id, catalog.title));
-    return map;
-  }, [catalogs]);
+  const catalogTitleById = useMemo(
+    () => new Map(catalogs.map((catalog) => [catalog.id, catalog.title])),
+    [catalogs],
+  );
 
   const versionsByCatalog = useMemo(() => {
     const grouped: Record<string, SupplierCatalogVersion[]> = {};
