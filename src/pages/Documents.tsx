@@ -772,7 +772,7 @@ export default function DocumentsPage() {
 
     if (hasLoadedLines) {
       const confirmed = window.confirm(
-        "Cambiar la lista va a eliminar todas las lineas cargadas para evitar mezclar productos y precios. Â¿QuerÃ©s continuar?",
+        "Cambiar la lista va a eliminar todas las lineas cargadas para evitar mezclar productos y precios. ¿Querés continuar?",
       );
       if (!confirmed) return;
     }
