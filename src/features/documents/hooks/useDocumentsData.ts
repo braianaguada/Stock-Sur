@@ -89,9 +89,14 @@ export function useDocumentsData({
     },
   });
 
+  const priceListsById = useMemo(
+    () => new Map(priceLists.map((priceList) => [priceList.id, priceList])),
+    [priceLists],
+  );
+
   const selectedPriceList = useMemo(
-    () => priceLists.find((row) => row.id === selectedPriceListId) ?? null,
-    [priceLists, selectedPriceListId],
+    () => priceListsById.get(selectedPriceListId) ?? null,
+    [priceListsById, selectedPriceListId],
   );
 
   const availableItems = useMemo(() => {
@@ -156,6 +161,11 @@ export function useDocumentsData({
     },
   });
 
+  const documentsById = useMemo(
+    () => new Map(documents.map((document) => [document.id, document])),
+    [documents],
+  );
+
   const { data: selectedLines = [] } = useQuery({
     queryKey: ["document-lines", selectedDocId],
     enabled: !!selectedDocId,
@@ -185,13 +195,13 @@ export function useDocumentsData({
   });
 
   const selectedDocument = useMemo(
-    () => documents.find((row) => row.id === selectedDocId) ?? null,
-    [documents, selectedDocId],
+    () => (selectedDocId ? documentsById.get(selectedDocId) ?? null : null),
+    [documentsById, selectedDocId],
   );
 
   const sourceDocument = useMemo(
-    () => documents.find((row) => row.id === selectedDocument?.source_document_id) ?? null,
-    [documents, selectedDocument?.source_document_id],
+    () => (selectedDocument?.source_document_id ? documentsById.get(selectedDocument.source_document_id) ?? null : null),
+    [documentsById, selectedDocument?.source_document_id],
   );
 
   const sourceDocumentLabel = useMemo(() => {
