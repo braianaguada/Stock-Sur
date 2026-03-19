@@ -1,5 +1,9 @@
-import * as XLSX from "xlsx";
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
+type XlsxModule = typeof import("xlsx");
+type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
+type MergeRange = {
+  s: { r: number; c: number };
+  e: { r: number; c: number };
+};
 
 export type MatchStatus = "MATCHED" | "PENDING" | "NEW";
 
@@ -100,6 +104,8 @@ export const DEFAULT_PDF_OPTIONS: ParsePdfOptions = {
 
 const MAX_IMPORT_ROWS = 10000;
 const HEADER_COL_PREFIX = "col_";
+let xlsxModulePromise: Promise<XlsxModule> | null = null;
+let pdfJsModulePromise: Promise<PdfJsModule> | null = null;
 const DESCRIPTION_KEYWORDS = [
   "descripcion",
   "descripción",
@@ -120,10 +126,25 @@ const PRICE_KEYWORDS = ["precio", "costo", "cost", "importe", "lista", "price", 
 const CURRENCY_KEYWORDS = ["moneda", "currency", "curr", "divisa"];
 const CODE_KEYWORDS = ["codigo", "código", "cod", "sku", "ean", "upc", "ref", "referencia"];
 
-GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
+async function loadXlsx(): Promise<XlsxModule> {
+  if (!xlsxModulePromise) {
+    xlsxModulePromise = import("xlsx");
+  }
+  return xlsxModulePromise;
+}
+
+async function loadPdfJs(): Promise<PdfJsModule> {
+  if (!pdfJsModulePromise) {
+    pdfJsModulePromise = import("pdfjs-dist/legacy/build/pdf.mjs").then((module) => {
+      module.GlobalWorkerOptions.workerSrc = new URL(
+        "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+        import.meta.url,
+      ).toString();
+      return module;
+    });
+  }
+  return pdfJsModulePromise;
+}
 
 function sanitizeHeaderRow(rawHeaders: string[]): string[] {
   const used = new Set<string>();
@@ -162,7 +183,7 @@ function looksLikeHeaderRow(row: string[]): boolean {
   return alphaCells >= 2 && numericCells <= Math.floor(nonEmpty.length / 2);
 }
 
-function fillMergedCells(matrix: string[][], merges: XLSX.Range[] | undefined): string[][] {
+function fillMergedCells(matrix: string[][], merges: MergeRange[] | undefined): string[][] {
   if (!merges || merges.length === 0) return matrix;
   const out = matrix.map((row) => [...row]);
   merges.forEach((range) => {
@@ -303,6 +324,7 @@ export function detectColumnsHeuristic(headers: string[], rows: string[][]): Col
 }
 
 export async function parseXlsxToRows(file: File): Promise<ParsedSheetData> {
+  const XLSX = await loadXlsx();
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
   const firstSheetName = workbook.SheetNames[0];
@@ -310,7 +332,7 @@ export async function parseXlsxToRows(file: File): Promise<ParsedSheetData> {
   const sheet = workbook.Sheets[firstSheetName];
   const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, blankrows: false, defval: "" });
   const normalizedRows = matrix.map((row) => row.map(normalizeCellValue));
-  const mergedAwareRows = fillMergedCells(normalizedRows, sheet["!merges"] as XLSX.Range[] | undefined);
+  const mergedAwareRows = fillMergedCells(normalizedRows, sheet["!merges"] as MergeRange[] | undefined);
   const nonEmptyRows = mergedAwareRows.filter((row) => row.some((cell) => cell.trim().length > 0));
   if (nonEmptyRows.length === 0) throw new Error("Archivo vacio o sin datos");
   const maxColumns = nonEmptyRows.reduce((max, row) => Math.max(max, row.length), 0);
@@ -545,6 +567,7 @@ async function parsePdfTextMode(
   options: ParsePdfOptions,
   onProgress?: (progress: ParsePdfProgress) => void,
 ): Promise<{ lines: CatalogImportLine[]; chars: number; pages: number; tableRows: string[][] }> {
+  const { getDocument } = await loadPdfJs();
   const arrayBuffer = await file.arrayBuffer();
   const loadingTask = getDocument({ data: arrayBuffer });
   const pdf = await loadingTask.promise;
@@ -587,6 +610,7 @@ async function parsePdfOcrMode(
   options: ParsePdfOptions,
   onProgress?: (progress: ParsePdfProgress) => void,
 ): Promise<{ lines: CatalogImportLine[]; pages: number; tableRows: string[][] }> {
+  const { getDocument } = await loadPdfJs();
   const arrayBuffer = await file.arrayBuffer();
   const loadingTask = getDocument({ data: arrayBuffer });
   const pdf = await loadingTask.promise;
@@ -639,7 +663,6 @@ export async function parsePdfToLines(
   optionsInput?: Partial<ParsePdfOptions>,
   onProgress?: (progress: ParsePdfProgress) => void,
 ): Promise<{ lines: CatalogImportLine[]; meta: ParsePdfMeta; table: PdfTableCandidate | null }> {
-  console.log("[pdf] pdfjs loaded", typeof getDocument);
   const options: ParsePdfOptions = { ...DEFAULT_PDF_OPTIONS, ...(optionsInput ?? {}) };
   const textMode = await parsePdfTextMode(file, options, onProgress);
   const textMaxCols = textMode.tableRows.reduce((max, row) => Math.max(max, row.length), 0);

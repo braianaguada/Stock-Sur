@@ -120,7 +120,7 @@ export default function QuotesPage() {
       if (!currentCompanyId) throw new Error("Seleccioná una empresa antes de crear un presupuesto");
 
       const validLines = lines.filter((l) => l.description.trim());
-      if (validLines.length === 0) throw new Error("AgregÃ¡ al menos una lÃ­nea");
+      if (validLines.length === 0) throw new Error("Agrega al menos una linea");
 
       const total = validLines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0);
       const customerName = form.customer_id
@@ -214,11 +214,11 @@ export default function QuotesPage() {
         .total{font-size:1.2em;font-weight:bold;text-align:right;margin-top:20px}
         .meta{color:#64748b;margin:5px 0}
         @media print{button{display:none}}</style></head><body>
-        <h1>${escapeHtml(settings.app_name)} â€” Presupuesto #${selectedQuote.quote_number}</h1>
-        <p class="meta">Cliente: <strong>${escapeHtml(selectedQuote.customer_name ?? "â€”")}</strong></p>
+        <h1>${escapeHtml(settings.app_name)} - Presupuesto #${selectedQuote.quote_number}</h1>
+        <p class="meta">Cliente: <strong>${escapeHtml(selectedQuote.customer_name ?? "-")}</strong></p>
         <p class="meta">Fecha: ${new Date(selectedQuote.created_at).toLocaleDateString("es-AR")}</p>
         ${selectedQuote.notes ? `<p class="meta">Notas: ${escapeHtmlWithLineBreaks(selectedQuote.notes)}</p>` : ""}
-        <table><thead><tr><th>DescripciÃ³n</th><th style="text-align:right">Cant.</th><th style="text-align:right">P. Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
+        <table><thead><tr><th>Descripcion</th><th style="text-align:right">Cant.</th><th style="text-align:right">P. Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
         <tbody>${linesHtml}</tbody></table>
         <p class="total">Total: $${Number(selectedQuote.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
         <button onclick="window.print()" style="margin-top:20px;padding:8px 16px;cursor:pointer">Imprimir / Guardar PDF</button>
@@ -252,7 +252,7 @@ export default function QuotesPage() {
 
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por cliente o nÃºmero..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} disabled={!currentCompanyId} />
+          <Input placeholder="Buscar por cliente o numero..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} disabled={!currentCompanyId} />
         </div>
 
         <div className="rounded-lg border bg-card">
@@ -311,20 +311,20 @@ export default function QuotesPage() {
               </div>
               <div className="space-y-2">
                 <Label>Nombre cliente</Label>
-                <Input value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} placeholder="O escribÃ­ un nombre" />
+                <Input value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} placeholder="O escribi un nombre" />
               </div>
             </div>
             <div className="space-y-2"><Label>Notas</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>LÃ­neas</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addLine}><Plus className="h-3 w-3 mr-1" /> LÃ­nea</Button>
+                <Label>Lineas</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addLine}><Plus className="h-3 w-3 mr-1" /> Linea</Button>
               </div>
               <div className="space-y-2">
                 {lines.map((line, i) => (
                   <div key={i} className="flex gap-2 items-start">
-                    <Input className="flex-1" placeholder="DescripciÃ³n" value={line.description} onChange={(e) => updateLine(i, "description", e.target.value)} />
+                    <Input className="flex-1" placeholder="Descripcion" value={line.description} onChange={(e) => updateLine(i, "description", e.target.value)} />
                     <Input className="w-20" type="number" step="any" placeholder="Cant." value={line.quantity} onChange={(e) => updateLine(i, "quantity", parseFloat(e.target.value) || 0)} />
                     <Input className="w-28" type="number" step="any" placeholder="Precio" value={line.unit_price} onChange={(e) => updateLine(i, "unit_price", parseFloat(e.target.value) || 0)} />
                     <span className="text-sm text-muted-foreground w-24 text-right pt-2">${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
@@ -366,7 +366,7 @@ export default function QuotesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>DescripciÃ³n</TableHead>
+                <TableHead>Descripcion</TableHead>
                 <TableHead className="text-right">Cant.</TableHead>
                 <TableHead className="text-right">P. Unit.</TableHead>
                 <TableHead className="text-right">Subtotal</TableHead>

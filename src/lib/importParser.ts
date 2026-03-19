@@ -1,10 +1,18 @@
-import * as XLSX from "xlsx";
+type XlsxModule = typeof import("xlsx");
 
 export interface ParsedRow {
   [key: string]: string;
 }
 
 const EMPTY_HEADER_PREFIX = "column_";
+let xlsxModulePromise: Promise<XlsxModule> | null = null;
+
+async function loadXlsx(): Promise<XlsxModule> {
+  if (!xlsxModulePromise) {
+    xlsxModulePromise = import("xlsx");
+  }
+  return xlsxModulePromise;
+}
 
 export function normalizeNumberString(value: string): string {
   const trimmed = (value ?? "").trim();
@@ -131,6 +139,7 @@ export async function parseImportFile(file: File): Promise<{ headers: string[]; 
   const extension = file.name.split(".").pop()?.toLowerCase();
 
   if (["xlsx", "xls"].includes(extension ?? "")) {
+    const XLSX = await loadXlsx();
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: "array" });
     const firstSheetName = workbook.SheetNames[0];
