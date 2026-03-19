@@ -182,14 +182,22 @@ export function useCashData({
   const sales = useMemo(() => salesQuery.data ?? [], [salesQuery.data]);
   const remitos = useMemo(() => remitosQuery.data ?? [], [remitosQuery.data]);
   const closuresHistory = useMemo(() => closuresHistoryQuery.data ?? [], [closuresHistoryQuery.data]);
+  const closuresById = useMemo(
+    () => new Map(closuresHistory.map((closure) => [closure.id, closure])),
+    [closuresHistory],
+  );
+  const closuresByBusinessDate = useMemo(
+    () => new Map(closuresHistory.map((closure) => [closure.business_date, closure])),
+    [closuresHistory],
+  );
   const summary = useMemo(() => buildCashSummary(sales), [sales]);
   const pendingSales = useMemo(
     () => sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE"),
     [sales],
   );
   const closureHistoryForDate = useMemo(
-    () => closuresHistory.find((item) => item.business_date === businessDate) ?? null,
-    [closuresHistory, businessDate],
+    () => closuresByBusinessDate.get(businessDate) ?? null,
+    [closuresByBusinessDate, businessDate],
   );
   const effectiveClosure = closureHistoryForDate ?? closureQuery.data ?? null;
   const hasClosedClosureForDay = effectiveClosure?.status === "CERRADO";
@@ -222,8 +230,8 @@ export function useCashData({
     [sales, situationFilter, hasClosedClosureForDay],
   );
   const selectedClosurePreview = useMemo(
-    () => closuresHistory.find((item) => item.id === selectedClosureId) ?? null,
-    [closuresHistory, selectedClosureId],
+    () => (selectedClosureId ? closuresById.get(selectedClosureId) ?? null : null),
+    [closuresById, selectedClosureId],
   );
 
   const refreshCash = async () => {
