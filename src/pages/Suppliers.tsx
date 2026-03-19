@@ -709,10 +709,6 @@ export default function SuppliersPage() {
       setSelectedFile(null);
       toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
     },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["supplier-catalog-versions", selectedSupplier?.id] });
-      qc.invalidateQueries({ queryKey: ["supplier-catalog-lines"] });
-    },
   });
 
   const openCreate = () => {
@@ -786,7 +782,10 @@ export default function SuppliersPage() {
     ].join("\n");
   }, [selectedSupplier, activeVersion, catalogTitleById, orderLines]);
 
-  const waLink = buildWhatsAppLink(selectedSupplier?.whatsapp, orderMessage);
+  const waLink = useMemo(
+    () => buildWhatsAppLink(selectedSupplier?.whatsapp, orderMessage),
+    [selectedSupplier?.whatsapp, orderMessage],
+  );
 
   const addToOrder = (line: CatalogLine) => {
     const quantityToAdd = Math.max(1, Math.trunc(lineQuantities[line.id] ?? 1));
