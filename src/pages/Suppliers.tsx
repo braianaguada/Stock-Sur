@@ -113,6 +113,7 @@ interface PdfImportMappingStored {
 
 const LOW_CONFIDENCE_THRESHOLD = 0.24;
 const LOCAL_MAPPING_PREFIX = "supplier-import-mapping";
+const SHOULD_LOG_SUPPLIER_IMPORT = import.meta.env.DEV;
 
 function formatDate(date: string) {
   return new Date(date).toLocaleString("es-AR", {
@@ -179,6 +180,7 @@ export default function SuppliersPage() {
   const qc = useQueryClient();
 
   const logSupabaseError = (scope: string, error: unknown, extra?: Record<string, unknown>) => {
+    if (!SHOULD_LOG_SUPPLIER_IMPORT) return;
     if (error && typeof error === "object") {
       const err = error as { code?: string; message?: string; details?: string; hint?: string };
       console.error("[supplier-import]", {
@@ -481,13 +483,15 @@ export default function SuppliersPage() {
         throw new Error("El listado seleccionado ya no está disponible. Recargá el historial e intentá de nuevo");
       }
 
-      console.log("[supplier-import] start", {
-        userId,
-        supplierId: selectedSupplier.id,
-        requestedCatalogId,
-        fileName: selectedFile.name,
-        fileType,
-      });
+      if (SHOULD_LOG_SUPPLIER_IMPORT) {
+        console.log("[supplier-import] start", {
+          userId,
+          supplierId: selectedSupplier.id,
+          requestedCatalogId,
+          fileName: selectedFile.name,
+          fileType,
+        });
+      }
 
       const { data: document, error: docError } = await supabase
         .from("supplier_documents")
@@ -507,11 +511,13 @@ export default function SuppliersPage() {
       }
 
       const supplierDocumentId = document.id;
-      console.log("[supplier-import] document_created", {
-        userId,
-        requestedCatalogId,
-        supplierDocumentId,
-      });
+      if (SHOULD_LOG_SUPPLIER_IMPORT) {
+        console.log("[supplier-import] document_created", {
+          userId,
+          requestedCatalogId,
+          supplierDocumentId,
+        });
+      }
 
       let lines: SupplierCatalogLinePayload[] = [];
       let diagnostics: NormalizeDiagnostics | null = null;
@@ -551,14 +557,16 @@ export default function SuppliersPage() {
         const missingDescRatio = diagnostics.totalRows > 0 ? diagnostics.dropped_missingDesc / diagnostics.totalRows : 0;
         const needsManualMapping = detected.confidence < LOW_CONFIDENCE_THRESHOLD || diagnostics.keptRows < 10 || missingDescRatio > 0.5;
 
-        console.log("[supplier-import] xlsx_detected", {
-          userId,
-          requestedCatalogId,
-          supplierDocumentId,
-          confidence: detected.confidence,
-          suggested,
-          diagnostics,
-        });
+        if (SHOULD_LOG_SUPPLIER_IMPORT) {
+          console.log("[supplier-import] xlsx_detected", {
+            userId,
+            requestedCatalogId,
+            supplierDocumentId,
+            confidence: detected.confidence,
+            suggested,
+            diagnostics,
+          });
+        }
 
         if (needsManualMapping) {
           const mapping = await requestXlsxMapping({
@@ -676,13 +684,15 @@ export default function SuppliersPage() {
       }
 
       const response = (rpcResult ?? {}) as { version_id?: string; inserted_count?: number };
-      console.log("[supplier-import] rpc_done", {
-        userId,
-        requestedCatalogId,
-        supplierDocumentId,
-        insertedCount: response.inserted_count ?? lines.length,
-        versionId: response.version_id,
-      });
+      if (SHOULD_LOG_SUPPLIER_IMPORT) {
+        console.log("[supplier-import] rpc_done", {
+          userId,
+          requestedCatalogId,
+          supplierDocumentId,
+          insertedCount: response.inserted_count ?? lines.length,
+          versionId: response.version_id,
+        });
+      }
 
       return {
         total: response.inserted_count ?? lines.length,
