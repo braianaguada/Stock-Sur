@@ -27,27 +27,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Search, Pencil, Trash2, RotateCcw } from "lucide-react";
 import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
-
-interface Item {
-  id: string;
-  sku: string;
-  name: string;
-  brand: string | null;
-  unit: string;
-  category: string | null;
-  demand_profile: "LOW" | "MEDIUM" | "HIGH";
-  demand_monthly_estimate: number | null;
-  is_active: boolean;
-}
-
-interface ItemAlias {
-  id: string;
-  item_id: string;
-  alias: string;
-  is_supplier_code: boolean;
-}
-
-const UNIT_OPTIONS = ["un", "kg", "g", "lt", "ml", "m", "cm"] as const;
+import { ITEM_UNIT_OPTIONS } from "@/features/items/constants";
+import { type Item, type ItemAlias } from "@/features/items/types";
+import { generateItemSku } from "@/features/items/utils";
 
 export default function ItemsPage() {
   const { currentCompany } = useAuth();
@@ -73,18 +55,6 @@ export default function ItemsPage() {
   const [bulkDemandProfile, setBulkDemandProfile] = useState<Item["demand_profile"]>("LOW");
   const { toast } = useToast();
   const qc = useQueryClient();
-
-  const generateSku = (name: string) => {
-    const base = cleanText(name)
-      .toUpperCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^A-Z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 12);
-    const suffix = Date.now().toString().slice(-4);
-    return `${base || "ITEM"}-${suffix}`;
-  };
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["items", currentCompany?.id ?? "no-company", deferredSearch, categoryFilter, statusFilter],
@@ -199,7 +169,7 @@ export default function ItemsPage() {
           .from("items")
           .insert({
             company_id: currentCompany.id,
-            sku: sku || generateSku(name),
+            sku: sku || generateItemSku(name),
             name,
             unit,
             category: cleanText(form.category) || null,
@@ -545,7 +515,7 @@ export default function ItemsPage() {
               <Select value={form.unit || "un"} onValueChange={(value) => setForm({ ...form, unit: value })}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar unidad" /></SelectTrigger>
                 <SelectContent>
-                  {UNIT_OPTIONS.map((unit) => (
+                  {ITEM_UNIT_OPTIONS.map((unit) => (
                     <SelectItem key={unit} value={unit}>{unit}</SelectItem>
                   ))}
                 </SelectContent>
