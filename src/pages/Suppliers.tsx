@@ -19,7 +19,6 @@ import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Search, MessageCircle, Copy } from "lucide-react";
-import { buildWhatsAppLink } from "@/lib/whatsapp";
 import {
   ColumnMappingModal,
   type MappingColumnOption,
@@ -58,6 +57,11 @@ import {
   createEmptySupplierForm,
   groupSupplierVersionsByCatalog,
 } from "@/features/suppliers/state";
+
+const EMPTY_SUPPLIERS: Supplier[] = [];
+const EMPTY_CATALOGS: SupplierCatalog[] = [];
+const EMPTY_CATALOG_VERSIONS: SupplierCatalogVersion[] = [];
+const EMPTY_CATALOG_LINES: CatalogImportLine[] = [];
 
 export default function SuppliersPage() {
   const { currentCompany } = useAuth();
@@ -112,6 +116,45 @@ export default function SuppliersPage() {
 
   const { toast } = useToast();
   const qc = useQueryClient();
+
+  const suppliersQuery = useQuery({
+    queryKey: ["suppliers", currentCompany?.id ?? "no-company", trimmedDeferredSearch, statusFilter],
+    enabled: Boolean(currentCompany),
+    queryFn: () => fetchSuppliers({
+      companyId: currentCompany!.id,
+      statusFilter,
+      search: trimmedDeferredSearch,
+    }),
+  });
+  const suppliers = suppliersQuery.data ?? EMPTY_SUPPLIERS;
+  const isLoading = suppliersQuery.isLoading;
+
+  const catalogsQuery = useQuery({
+    queryKey: ["supplier-catalogs", currentCompany?.id ?? "no-company", selectedSupplier?.id],
+    enabled: !!selectedSupplier && Boolean(currentCompany),
+    queryFn: () => fetchSupplierCatalogs(currentCompany!.id, selectedSupplier!.id),
+  });
+  const catalogs = catalogsQuery.data ?? EMPTY_CATALOGS;
+
+  const catalogVersionsQuery = useQuery({
+    queryKey: ["supplier-catalog-versions", currentCompany?.id ?? "no-company", selectedSupplier?.id],
+    enabled: !!selectedSupplier && Boolean(currentCompany),
+    queryFn: () => fetchSupplierCatalogVersions(currentCompany!.id, selectedSupplier!.id),
+  });
+  const catalogVersions = catalogVersionsQuery.data ?? EMPTY_CATALOG_VERSIONS;
+  const isHistoryLoading = catalogVersionsQuery.isLoading;
+
+  const activeCatalogLinesQuery = useQuery({
+    queryKey: ["supplier-catalog-lines", currentCompany?.id ?? "no-company", activeVersionId, trimmedDeferredCatalogSearch],
+    enabled: !!activeVersionId && Boolean(currentCompany),
+    queryFn: () => fetchSupplierCatalogLines({
+      companyId: currentCompany!.id,
+      versionId: activeVersionId!,
+      search: trimmedDeferredCatalogSearch,
+    }),
+  });
+  const activeCatalogLines = activeCatalogLinesQuery.data ?? EMPTY_CATALOG_LINES;
+  const isCatalogLoading = activeCatalogLinesQuery.isLoading;
 
   const openCreate = () => {
     setEditing(null);
