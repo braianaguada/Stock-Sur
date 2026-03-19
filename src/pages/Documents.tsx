@@ -98,6 +98,14 @@ export default function DocumentsPage() {
     currentCompanyId: currentCompany?.id ?? null,
   });
 
+  const documentsById = useMemo(
+    () => new Map(documents.map((document) => [document.id, document])),
+    [documents],
+  );
+  const itemsById = useMemo(
+    () => new Map(items.map((item) => [item.id, item])),
+    [items],
+  );
   const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
 
   useEffect(() => {
@@ -138,7 +146,7 @@ export default function DocumentsPage() {
 
   const openEditDialog = async (docId: string) => {
     if (!canEditDocumentDraft(roles)) return;
-    const target = documents.find((d) => d.id === docId);
+    const target = documentsById.get(docId);
     if (!target || target.status !== "BORRADOR") return;
 
     const { data: lineRows, error } = await supabase
@@ -201,7 +209,7 @@ export default function DocumentsPage() {
   });
 
   const onPickItem = (idx: number, itemId: string) => {
-    const item = items.find((row) => row.id === itemId);
+    const item = itemsById.get(itemId);
     if (!item) return;
     const next = [...lines];
     next[idx] = {
