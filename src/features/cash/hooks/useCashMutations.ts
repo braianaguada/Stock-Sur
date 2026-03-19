@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
@@ -39,6 +40,15 @@ export function useCashMutations({
   onCreateSaleSuccess,
   onAttachReceiptSuccess,
 }: MutationDeps) {
+  const customersById = useMemo(
+    () => new Map(customers.map((customer) => [customer.id, customer])),
+    [customers],
+  );
+  const remitosById = useMemo(
+    () => new Map(remitos.map((remito) => [remito.id, remito])),
+    [remitos],
+  );
+
   const createSaleMutation = useMutation({
     mutationFn: async (form: CashSaleFormState) => {
       if (!currentCompanyId) {
@@ -62,8 +72,8 @@ export function useCashMutations({
         throw new Error("La cuenta corriente requiere cliente");
       }
 
-      const selectedCustomer = customers.find((customer) => customer.id === form.customerId);
-      const selectedRemito = remitos.find((remito) => remito.id === form.selectedRemitoId);
+      const selectedCustomer = customersById.get(form.customerId);
+      const selectedRemito = remitosById.get(form.selectedRemitoId);
 
       const payload = {
         company_id: currentCompanyId,
@@ -111,7 +121,7 @@ export function useCashMutations({
         throw new Error("Debes ingresar la referencia de la factura");
       }
 
-      const selectedRemito = remitos.find((remito) => remito.id === pendingState.pendingRemitoId);
+      const selectedRemito = remitosById.get(pendingState.pendingRemitoId);
 
       const { error } = await supabase.rpc("attach_cash_sale_receipt", {
         p_sale_id: pendingState.selectedSale.id,
