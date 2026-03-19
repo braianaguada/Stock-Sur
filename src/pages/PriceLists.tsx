@@ -19,10 +19,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { PriceListItemsDialog } from "@/components/price-lists/PriceListItemsDialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Search, Trash2, Link2 } from "lucide-react";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
+import { getErrorMessage } from "@/lib/errors";
 
 interface PriceList {
   id: string;
@@ -96,6 +99,7 @@ const parseNullableNonNegative = (value: string): number | null => {
 const sanitizeNonNegativeDraft = (value: string) => value.replace(",", ".").replace(/-/g, "");
 
 export default function PriceListsPage() {
+  const { currentCompany } = useAuth();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [itemsDialogOpen, setItemsDialogOpen] = useState(false);
@@ -112,23 +116,14 @@ export default function PriceListsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const getErrorMessage = (error: unknown) => {
-    if (error && typeof error === "object") {
-      const maybeMessage = "message" in error && typeof error.message === "string" ? error.message : "";
-      const maybeDetails = "details" in error && typeof error.details === "string" ? error.details : "";
-      const maybeHint = "hint" in error && typeof error.hint === "string" ? error.hint : "";
-      return [maybeMessage, maybeDetails, maybeHint].filter(Boolean).join(" | ") || "Error desconocido";
-    }
-    if (typeof error === "string") return error;
-    return "Error desconocido";
-  };
-
   const { data: priceLists = [], isLoading } = useQuery({
-    queryKey: ["price-lists", search],
+    queryKey: ["price-lists", currentCompany?.id ?? "no-company", search],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase
         .from("price_lists")
         .select("id, name, created_at, flete_pct, utilidad_pct, impuesto_pct, round_mode, round_to")
+        .eq("company_id", currentCompany!.id)
         .order("name");
       if (search) q = q.ilike("name", `%${search}%`);
       const { data, error } = await q.limit(200);
@@ -138,12 +133,13 @@ export default function PriceListsPage() {
   });
 
   const { data: listItems = [] } = useQuery({
-    queryKey: ["price-list-items", selectedListId],
-    enabled: !!selectedListId,
+    queryKey: ["price-list-items", currentCompany?.id ?? "no-company", selectedListId],
+    enabled: !!selectedListId && Boolean(currentCompany),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
         .select("price_list_id, item_id, is_active, base_cost, flete_pct, utilidad_pct, impuesto_pct, final_price_override, items(id, name, sku, unit)")
+        .eq("company_id", currentCompany!.id)
         .eq("price_list_id", selectedListId!)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
@@ -153,12 +149,13 @@ export default function PriceListsPage() {
   });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["price-list-items-catalog", itemSearch],
-    enabled: itemsDialogOpen,
+    queryKey: ["price-list-items-catalog", currentCompany?.id ?? "no-company", itemSearch],
+    enabled: itemsDialogOpen && Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase
         .from("items")
         .select("id, sku, name, unit")
+        .eq("company_id", currentCompany!.id)
         .eq("is_active", true)
         .order("name")
         .limit(150);
@@ -238,7 +235,9 @@ export default function PriceListsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar listas");
       const { error } = await supabase.from("price_lists").insert({
+        company_id: currentCompany.id,
         name: form.name,
         flete_pct: parseNonNegative(form.flete_pct, 0),
         utilidad_pct: parseNonNegative(form.utilidad_pct, 0),
@@ -257,14 +256,17 @@ export default function PriceListsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { await deleteByStrategy({ table: "price_lists", id }); },
+    mutationFn: async (id: string) => {
+      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar listas");
+      await deleteByStrategy({ table: "price_lists", id, eq: { company_id: currentCompany.id } });
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["price-lists"] }); toast({ title: "Lista eliminada" }); },
   });
 
   const updateListConfigMutation = useMutation({
     mutationFn: async (payload: Partial<Pick<PriceList, "flete_pct" | "utilidad_pct" | "impuesto_pct" | "round_mode" | "round_to">>) => {
       if (!selectedListId) return;
-      const { error } = await supabase.from("price_lists").update(payload).eq("id", selectedListId);
+      const { error } = await supabase.from("price_lists").update(payload).eq("company_id", currentCompany!.id).eq("id", selectedListId);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["price-lists"] }); },
@@ -275,6 +277,7 @@ export default function PriceListsPage() {
     mutationFn: async () => {
       if (!selectedListId || !itemToAdd) throw new Error("Selecciona un item");
       const { error } = await supabase.from("price_list_items").upsert({
+        company_id: currentCompany!.id,
         price_list_id: selectedListId,
         item_id: itemToAdd,
         is_active: true,
@@ -294,6 +297,7 @@ export default function PriceListsPage() {
     mutationFn: async (itemIds: string[]) => {
       if (!selectedListId || itemIds.length === 0) throw new Error("No hay items seleccionados");
       const payload = itemIds.map((itemId) => ({
+        company_id: currentCompany!.id,
         price_list_id: selectedListId,
         item_id: itemId,
         is_active: true,
@@ -334,6 +338,7 @@ export default function PriceListsPage() {
       const { error } = await supabase
         .from("price_list_items")
         .update(payload)
+        .eq("company_id", currentCompany!.id)
         .eq("price_list_id", selectedListId!)
         .eq("item_id", itemId);
       if (error) throw error;
@@ -348,6 +353,9 @@ export default function PriceListsPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitas una empresa activa para crear listas de precios y relacionarlas con tu catalogo." />
+        ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Listas de precios</h1>

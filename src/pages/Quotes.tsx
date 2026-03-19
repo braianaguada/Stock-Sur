@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +21,7 @@ import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Eye, Trash2, FileDown, X } from "lucide-react";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
+import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 
 interface QuoteLine {
@@ -65,24 +66,36 @@ export default function QuotesPage() {
   const [quoteToDelete, setQuoteToDelete] = useState<QuoteListRow | null>(null);
   const [form, setForm] = useState({ customer_id: "", customer_name: "", notes: "" });
   const [lines, setLines] = useState<QuoteLine[]>([{ description: "", quantity: 1, unit_price: 0, item_id: null }]);
+  const deferredSearch = useDeferredValue(search);
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, currentCompany } = useAuth();
+  const currentCompanyId = currentCompany?.id ?? null;
 
   const { data: customers = [] } = useQuery({
-    queryKey: ["customers-list"],
+    queryKey: ["customers-list", currentCompanyId ?? "no-company"],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
-      const { data, error } = await supabase.from("customers").select("id, name").order("name");
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("company_id", currentCompanyId!)
+        .order("name");
       if (error) throw error;
       return data;
     },
   });
 
   const { data: quotes = [], isLoading } = useQuery({
-    queryKey: ["quotes", search],
+    queryKey: ["quotes", currentCompanyId ?? "no-company", deferredSearch],
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
-      let q = supabase.from("quotes").select("*, customers(name)").order("created_at", { ascending: false });
-      if (search) q = q.or(`customer_name.ilike.%${search}%,quote_number.eq.${parseInt(search) || 0}`);
+      let q = supabase
+        .from("quotes")
+        .select("*, customers(name)")
+        .eq("company_id", currentCompanyId!)
+        .order("created_at", { ascending: false });
+      if (deferredSearch) q = q.or(`customer_name.ilike.%${deferredSearch}%,quote_number.eq.${parseInt(deferredSearch) || 0}`);
       const { data, error } = await q.limit(100);
       if (error) throw error;
       return (data ?? []) as QuoteListRow[];
@@ -90,10 +103,14 @@ export default function QuotesPage() {
   });
 
   const { data: quoteLines = [] } = useQuery({
-    queryKey: ["quote-lines", selectedQuoteId],
-    enabled: !!selectedQuoteId,
+    queryKey: ["quote-lines", currentCompanyId ?? "no-company", selectedQuoteId],
+    enabled: Boolean(currentCompanyId && selectedQuoteId),
     queryFn: async () => {
-      const { data, error } = await supabase.from("quote_lines").select("*, items(name, sku)").eq("quote_id", selectedQuoteId!);
+      const { data, error } = await supabase
+        .from("quote_lines")
+        .select("*, items(name, sku)")
+        .eq("company_id", currentCompanyId!)
+        .eq("quote_id", selectedQuoteId!);
       if (error) throw error;
       return (data ?? []) as QuoteLineRow[];
     },
@@ -101,8 +118,10 @@ export default function QuotesPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompanyId) throw new Error("Seleccioná una empresa antes de crear un presupuesto");
+
       const validLines = lines.filter((l) => l.description.trim());
-      if (validLines.length === 0) throw new Error("Agregá al menos una línea");
+      if (validLines.length === 0) throw new Error("Agrega al menos una linea");
 
       const total = validLines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0);
       const customerName = form.customer_id
@@ -112,6 +131,7 @@ export default function QuotesPage() {
       const { data: quote, error } = await supabase
         .from("quotes")
         .insert({
+          company_id: currentCompanyId,
           customer_id: form.customer_id || null,
           customer_name: customerName,
           notes: form.notes || null,
@@ -123,6 +143,7 @@ export default function QuotesPage() {
       if (error) throw error;
 
       const lineInserts = validLines.map((l) => ({
+        company_id: currentCompanyId,
         quote_id: quote.id,
         description: l.description,
         quantity: l.quantity,
@@ -134,7 +155,7 @@ export default function QuotesPage() {
       if (lErr) throw lErr;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["quotes", currentCompanyId ?? "no-company"] });
       setDialogOpen(false);
       toast({ title: "Presupuesto creado" });
     },
@@ -147,12 +168,16 @@ export default function QuotesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error: linesError } = await supabase.from("quote_lines").delete().eq("quote_id", id);
+      const { error: linesError } = await supabase
+        .from("quote_lines")
+        .delete()
+        .eq("company_id", currentCompanyId!)
+        .eq("quote_id", id);
       if (linesError) throw linesError;
       await deleteByStrategy({ table: "quotes", id });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["quotes", currentCompanyId ?? "no-company"] });
       toast({ title: "Presupuesto eliminado" });
     },
   });
@@ -166,18 +191,22 @@ export default function QuotesPage() {
   };
 
   const exportPDF = (quote: QuoteListRow) => {
+    if (!currentCompanyId) return;
     // Simple text-based export using a printable window
     const selectedQuote = quote;
-    const w = window.open("", "_blank");
-    if (!w) return;
     
     // Fetch lines for this quote
-    supabase.from("quote_lines").select("*").eq("quote_id", selectedQuote.id).then(({ data: ql }) => {
+    supabase
+      .from("quote_lines")
+      .select("*")
+      .eq("company_id", currentCompanyId)
+      .eq("quote_id", selectedQuote.id)
+      .then(({ data: ql }) => {
       const linesHtml = ((ql ?? []) as QuoteLineRow[]).map((l) =>
-        `<tr><td>${l.description}</td><td style="text-align:right">${l.quantity}</td><td style="text-align:right">$${Number(l.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td><td style="text-align:right">$${Number(l.subtotal).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td></tr>`
+        `<tr><td>${escapeHtml(l.description)}</td><td style="text-align:right">${l.quantity}</td><td style="text-align:right">$${Number(l.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td><td style="text-align:right">$${Number(l.subtotal).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td></tr>`
       ).join("");
       
-      w.document.write(`<!DOCTYPE html><html><head><title>Presupuesto #${selectedQuote.quote_number}</title>
+      const w = openPrintWindow(`<!DOCTYPE html><html><head><title>Presupuesto #${selectedQuote.quote_number}</title>
         <style>body{font-family:Arial,sans-serif;padding:40px;max-width:800px;margin:0 auto}
         h1{color:#1e293b;border-bottom:3px solid #d97706;padding-bottom:10px}
         table{width:100%;border-collapse:collapse;margin-top:20px}
@@ -186,16 +215,16 @@ export default function QuotesPage() {
         .total{font-size:1.2em;font-weight:bold;text-align:right;margin-top:20px}
         .meta{color:#64748b;margin:5px 0}
         @media print{button{display:none}}</style></head><body>
-        <h1>${settings.app_name} — Presupuesto #${selectedQuote.quote_number}</h1>
-        <p class="meta">Cliente: <strong>${selectedQuote.customer_name ?? "—"}</strong></p>
+        <h1>${escapeHtml(settings.app_name)} - Presupuesto #${selectedQuote.quote_number}</h1>
+        <p class="meta">Cliente: <strong>${escapeHtml(selectedQuote.customer_name ?? "-")}</strong></p>
         <p class="meta">Fecha: ${new Date(selectedQuote.created_at).toLocaleDateString("es-AR")}</p>
-        ${selectedQuote.notes ? `<p class="meta">Notas: ${selectedQuote.notes}</p>` : ""}
-        <table><thead><tr><th>Descripción</th><th style="text-align:right">Cant.</th><th style="text-align:right">P. Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
+        ${selectedQuote.notes ? `<p class="meta">Notas: ${escapeHtmlWithLineBreaks(selectedQuote.notes)}</p>` : ""}
+        <table><thead><tr><th>Descripcion</th><th style="text-align:right">Cant.</th><th style="text-align:right">P. Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
         <tbody>${linesHtml}</tbody></table>
         <p class="total">Total: $${Number(selectedQuote.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
         <button onclick="window.print()" style="margin-top:20px;padding:8px 16px;cursor:pointer">Imprimir / Guardar PDF</button>
         </body></html>`);
-      w.document.close();
+      if (!w) return;
     });
   };
 
@@ -213,12 +242,18 @@ export default function QuotesPage() {
             <h1 className="text-2xl font-bold tracking-tight">Presupuestos</h1>
             <p className="text-muted-foreground">Crear y exportar presupuestos</p>
           </div>
-          <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto</Button>
+          <Button onClick={openCreate} disabled={!currentCompanyId}><Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto</Button>
         </div>
+
+        {!currentCompanyId ? (
+          <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+            Seleccioná una empresa activa para ver y crear presupuestos.
+          </div>
+        ) : null}
 
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por cliente o número..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder="Buscar por cliente o numero..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} disabled={!currentCompanyId} />
         </div>
 
         <div className="rounded-lg border bg-card">
@@ -241,7 +276,7 @@ export default function QuotesPage() {
               ) : quotes.map((q) => (
                 <TableRow key={q.id}>
                   <TableCell className="font-mono">{q.quote_number}</TableCell>
-                  <TableCell className="font-medium">{q.customer_name ?? q.customers?.name ?? "—"}</TableCell>
+                  <TableCell className="font-medium">{q.customer_name ?? q.customers?.name ?? "â€”"}</TableCell>
                   <TableCell><Badge variant={STATUS_VARIANTS[q.status] ?? "secondary"}>{STATUS_LABELS[q.status] ?? q.status}</Badge></TableCell>
                   <TableCell className="text-right font-mono">${Number(q.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{new Date(q.created_at).toLocaleDateString("es-AR")}</TableCell>
@@ -267,7 +302,7 @@ export default function QuotesPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Cliente registrado</Label>
-                <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
+                  <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v === "__none__" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar (opcional)" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Sin seleccionar</SelectItem>
@@ -277,20 +312,20 @@ export default function QuotesPage() {
               </div>
               <div className="space-y-2">
                 <Label>Nombre cliente</Label>
-                <Input value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} placeholder="O escribí un nombre" />
+                <Input value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} placeholder="O escribi un nombre" />
               </div>
             </div>
             <div className="space-y-2"><Label>Notas</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Líneas</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addLine}><Plus className="h-3 w-3 mr-1" /> Línea</Button>
+                <Label>Lineas</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addLine}><Plus className="h-3 w-3 mr-1" /> Linea</Button>
               </div>
               <div className="space-y-2">
                 {lines.map((line, i) => (
                   <div key={i} className="flex gap-2 items-start">
-                    <Input className="flex-1" placeholder="Descripción" value={line.description} onChange={(e) => updateLine(i, "description", e.target.value)} />
+                    <Input className="flex-1" placeholder="Descripcion" value={line.description} onChange={(e) => updateLine(i, "description", e.target.value)} />
                     <Input className="w-20" type="number" step="any" placeholder="Cant." value={line.quantity} onChange={(e) => updateLine(i, "quantity", parseFloat(e.target.value) || 0)} />
                     <Input className="w-28" type="number" step="any" placeholder="Precio" value={line.unit_price} onChange={(e) => updateLine(i, "unit_price", parseFloat(e.target.value) || 0)} />
                     <span className="text-sm text-muted-foreground w-24 text-right pt-2">${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
@@ -332,7 +367,7 @@ export default function QuotesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Descripción</TableHead>
+                <TableHead>Descripcion</TableHead>
                 <TableHead className="text-right">Cant.</TableHead>
                 <TableHead className="text-right">P. Unit.</TableHead>
                 <TableHead className="text-right">Subtotal</TableHead>
@@ -354,3 +389,4 @@ export default function QuotesPage() {
     </AppLayout>
   );
 }
+

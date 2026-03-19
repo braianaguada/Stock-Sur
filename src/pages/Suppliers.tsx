@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -17,7 +17,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Search, Pencil, Trash2, Upload, MessageCircle, Copy, ChevronDown, RotateCcw } from "lucide-react";
 import { parseImportFile } from "@/lib/importParser";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
@@ -41,6 +43,7 @@ import {
   type MappingSelection,
 } from "@/components/suppliers/ColumnMappingModal";
 import { PdfMappingModal, type PdfMappingSelection } from "@/components/suppliers/PdfMappingModal";
+import { getErrorMessage } from "@/lib/errors";
 
 interface Supplier {
   id: string;
@@ -122,6 +125,7 @@ function formatDate(date: string) {
 }
 
 export default function SuppliersPage() {
+  const { currentCompany } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -166,20 +170,11 @@ export default function SuppliersPage() {
   const [pdfProgress, setPdfProgress] = useState<ParsePdfProgress | null>(null);
   const xlsxMappingResolverRef = useRef<((value: MappingSelection | null) => void) | null>(null);
   const pdfMappingResolverRef = useRef<((value: PdfMappingSelection | null) => void) | null>(null);
+  const deferredSearch = useDeferredValue(search);
+  const deferredCatalogSearch = useDeferredValue(catalogSearch);
 
   const { toast } = useToast();
   const qc = useQueryClient();
-
-  const getErrorMessage = (error: unknown) => {
-    if (error && typeof error === "object") {
-      const maybeMessage = "message" in error && typeof error.message === "string" ? error.message : "";
-      const maybeDetails = "details" in error && typeof error.details === "string" ? error.details : "";
-      const maybeHint = "hint" in error && typeof error.hint === "string" ? error.hint : "";
-      return [maybeMessage, maybeDetails, maybeHint].filter(Boolean).join(" | ") || "Error desconocido";
-    }
-    if (typeof error === "string") return error;
-    return "Error desconocido";
-  };
 
   const logSupabaseError = (scope: string, error: unknown, extra?: Record<string, unknown>) => {
     if (error && typeof error === "object") {
@@ -205,6 +200,7 @@ export default function SuppliersPage() {
       const { data, error } = await supabase
         .from("supplier_import_mappings")
         .select("mapping")
+        .eq("company_id", currentCompany!.id)
         .eq("supplier_id", supplierId)
         .eq("file_type", fileType)
         .order("updated_at", { ascending: false })
@@ -229,10 +225,11 @@ export default function SuppliersPage() {
       const { error } = await supabase
         .from("supplier_import_mappings")
         .upsert(
-          {
-            supplier_id: supplierId,
-            file_type: fileType,
-            mapping,
+            {
+              company_id: currentCompany!.id,
+              supplier_id: supplierId,
+              file_type: fileType,
+              mapping,
           },
           { onConflict: "supplier_id,file_type" },
         );
@@ -309,12 +306,13 @@ export default function SuppliersPage() {
   });
 
   const { data: suppliers = [], isLoading } = useQuery({
-    queryKey: ["suppliers", search, statusFilter],
+    queryKey: ["suppliers", currentCompany?.id ?? "no-company", deferredSearch, statusFilter],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      let q = supabase.from("suppliers").select("*").order("name");
+      let q = supabase.from("suppliers").select("*").eq("company_id", currentCompany!.id).order("name");
       if (statusFilter === "active") q = q.eq("is_active", true);
       if (statusFilter === "inactive") q = q.eq("is_active", false);
-      if (search) q = q.or(`name.ilike.%${search}%,contact_name.ilike.%${search}%`);
+      if (deferredSearch) q = q.or(`name.ilike.%${deferredSearch}%,contact_name.ilike.%${deferredSearch}%`);
       const { data, error } = await q.limit(200);
       if (error) throw error;
       return data as Supplier[];
@@ -322,12 +320,13 @@ export default function SuppliersPage() {
   });
 
   const { data: catalogs = [] } = useQuery({
-    queryKey: ["supplier-catalogs", selectedSupplier?.id],
-    enabled: !!selectedSupplier,
+    queryKey: ["supplier-catalogs", currentCompany?.id ?? "no-company", selectedSupplier?.id],
+    enabled: !!selectedSupplier && Boolean(currentCompany),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("supplier_catalogs")
         .select("id, title, created_at")
+        .eq("company_id", currentCompany!.id)
         .eq("supplier_id", selectedSupplier!.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -336,12 +335,13 @@ export default function SuppliersPage() {
   });
 
   const { data: catalogVersions = [], isLoading: isHistoryLoading } = useQuery({
-    queryKey: ["supplier-catalog-versions", selectedSupplier?.id],
-    enabled: !!selectedSupplier,
+    queryKey: ["supplier-catalog-versions", currentCompany?.id ?? "no-company", selectedSupplier?.id],
+    enabled: !!selectedSupplier && Boolean(currentCompany),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("supplier_catalog_versions")
         .select("id, catalog_id, title, imported_at, supplier_document_id")
+        .eq("company_id", currentCompany!.id)
         .eq("supplier_id", selectedSupplier!.id)
         .order("imported_at", { ascending: false });
       if (error) throw error;
@@ -359,6 +359,7 @@ export default function SuppliersPage() {
       const { data: docs, error: docsError } = await supabase
         .from("supplier_documents")
         .select("id, file_name, file_type")
+        .eq("company_id", currentCompany!.id)
         .eq("supplier_id", selectedSupplier!.id);
       if (docsError) throw docsError;
       const docsById = new Map((docs ?? []).map((doc) => [doc.id, doc]));
@@ -386,13 +387,14 @@ export default function SuppliersPage() {
     },
   });
 
-  const { data: activeCatalogLines = [], isLoading: isCatalogLoading } = useQuery({
-    queryKey: ["supplier-catalog-lines", activeVersionId, catalogSearch],
-    enabled: !!activeVersionId,
+      const { data: activeCatalogLines = [], isLoading: isCatalogLoading } = useQuery({
+    queryKey: ["supplier-catalog-lines", currentCompany?.id ?? "no-company", activeVersionId, deferredCatalogSearch],
+    enabled: !!activeVersionId && Boolean(currentCompany),
     queryFn: async () => {
       let query = supabase
         .from("supplier_catalog_lines")
         .select("id, supplier_code, raw_description, cost, currency")
+        .eq("company_id", currentCompany!.id)
         .eq("supplier_catalog_version_id", activeVersionId!)
         .order("row_index", { ascending: true, nullsFirst: false })
         .limit(250);
@@ -419,10 +421,10 @@ export default function SuppliersPage() {
         notes: form.notes || null,
       };
       if (editing) {
-        const { error } = await supabase.from("suppliers").update(payload).eq("id", editing.id);
+        const { error } = await supabase.from("suppliers").update(payload).eq("company_id", currentCompany!.id).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("suppliers").insert(payload);
+        const { error } = await supabase.from("suppliers").insert({ company_id: currentCompany!.id, ...payload });
         if (error) throw error;
       }
     },
@@ -436,7 +438,7 @@ export default function SuppliersPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await deleteByStrategy({ table: "suppliers", id });
+      await deleteByStrategy({ table: "suppliers", id, eq: { company_id: currentCompany!.id } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
@@ -446,7 +448,7 @@ export default function SuppliersPage() {
 
   const restoreMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("suppliers").update({ is_active: true }).eq("id", id);
+      const { error } = await supabase.from("suppliers").update({ is_active: true }).eq("company_id", currentCompany!.id).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -458,6 +460,7 @@ export default function SuppliersPage() {
 
   const uploadCatalogMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompany) throw new Error("Selecciona una empresa para importar catalogos");
       if (!selectedSupplier) throw new Error("Selecciona un proveedor");
       if (!selectedFile) throw new Error("Selecciona un archivo");
 
@@ -484,6 +487,7 @@ export default function SuppliersPage() {
       const { data: document, error: docError } = await supabase
         .from("supplier_documents")
         .insert({
+          company_id: currentCompany.id,
           supplier_id: selectedSupplier.id,
           title,
           file_name: selectedFile.name,
@@ -847,6 +851,9 @@ export default function SuppliersPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitas una empresa activa para trabajar con proveedores, catalogos e importaciones." />
+        ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Proveedores</h1>

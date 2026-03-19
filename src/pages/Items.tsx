@@ -21,7 +21,9 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Search, Pencil, Trash2, RotateCcw } from "lucide-react";
 import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
@@ -48,6 +50,7 @@ interface ItemAlias {
 const UNIT_OPTIONS = ["un", "kg", "g", "lt", "ml", "m", "cm"] as const;
 
 export default function ItemsPage() {
+  const { currentCompany } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -83,7 +86,8 @@ export default function ItemsPage() {
   };
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ["items", search, categoryFilter, statusFilter],
+    queryKey: ["items", currentCompany?.id ?? "no-company", search, categoryFilter, statusFilter],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
       const searchTerm = search.trim();
       let matchingItemIdsFromAlias: string[] = [];
@@ -92,13 +96,14 @@ export default function ItemsPage() {
         const { data: aliasMatches, error: aliasError } = await supabase
           .from("item_aliases")
           .select("item_id")
+          .eq("company_id", currentCompany!.id)
           .ilike("alias", `%${searchTerm}%`)
           .limit(200);
         if (aliasError) throw aliasError;
         matchingItemIdsFromAlias = [...new Set((aliasMatches ?? []).map((a) => a.item_id))];
       }
 
-      let q = supabase.from("items").select("*").order("created_at", { ascending: false });
+      let q = supabase.from("items").select("*").eq("company_id", currentCompany!.id).order("created_at", { ascending: false });
       if (statusFilter === "active") q = q.eq("is_active", true);
       if (statusFilter === "inactive") q = q.eq("is_active", false);
 
@@ -126,9 +131,10 @@ export default function ItemsPage() {
   });
 
   const { data: categories = [] } = useQuery({
-    queryKey: ["items-categories", statusFilter],
+    queryKey: ["items-categories", currentCompany?.id ?? "no-company", statusFilter],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      let q = supabase.from("items").select("category").not("category", "is", null);
+      let q = supabase.from("items").select("category").eq("company_id", currentCompany!.id).not("category", "is", null);
       if (statusFilter === "active") q = q.eq("is_active", true);
       if (statusFilter === "inactive") q = q.eq("is_active", false);
       const { data, error } = await q;
@@ -139,12 +145,13 @@ export default function ItemsPage() {
   });
 
   const { data: aliases = [] } = useQuery({
-    queryKey: ["item-aliases", editingItem?.id],
-    enabled: !!editingItem,
+    queryKey: ["item-aliases", currentCompany?.id ?? "no-company", editingItem?.id],
+    enabled: !!editingItem && Boolean(currentCompany),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("item_aliases")
         .select("*")
+        .eq("company_id", currentCompany!.id)
         .eq("item_id", editingItem!.id)
         .order("created_at");
       if (error) throw error;
@@ -154,6 +161,7 @@ export default function ItemsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar items");
       const name = cleanText(form.name);
       const sku = cleanText(form.sku).toUpperCase();
       const unit = cleanText(form.unit) || "un";
@@ -174,6 +182,7 @@ export default function ItemsPage() {
             demand_profile: form.demand_profile,
             demand_monthly_estimate: Number.isFinite(monthlyEstimate) ? monthlyEstimate : null,
           })
+          .eq("company_id", currentCompany.id)
           .eq("id", editingItem.id);
         if (error) throw error;
       } else {
@@ -181,6 +190,7 @@ export default function ItemsPage() {
         const { error } = await supabase
           .from("items")
           .insert({
+            company_id: currentCompany.id,
             sku: sku || generateSku(name),
             name,
             unit,
@@ -207,7 +217,8 @@ export default function ItemsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await deleteByStrategy({ table: "items", id });
+      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar items");
+      await deleteByStrategy({ table: "items", id, eq: { company_id: currentCompany.id } });
       const { error } = await supabase.from("price_list_items").update({ is_active: false }).eq("item_id", id);
       if (error) throw error;
     },
@@ -221,7 +232,8 @@ export default function ItemsPage() {
 
   const restoreMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("items").update({ is_active: true }).eq("id", id);
+      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar items");
+      const { error } = await supabase.from("items").update({ is_active: true }).eq("company_id", currentCompany.id).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -238,7 +250,7 @@ export default function ItemsPage() {
 
       const { error } = await supabase
         .from("item_aliases")
-        .insert({ item_id: editingItem.id, alias, is_supplier_code: isSupplierCode });
+        .insert({ company_id: currentCompany!.id, item_id: editingItem.id, alias, is_supplier_code: isSupplierCode });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -261,10 +273,12 @@ export default function ItemsPage() {
 
   const bulkDemandProfileMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar items");
       if (selectedItemIds.length === 0) return;
       const { error } = await supabase
         .from("items")
         .update({ demand_profile: bulkDemandProfile })
+        .eq("company_id", currentCompany.id)
         .in("id", selectedItemIds);
       if (error) throw error;
     },
@@ -279,7 +293,8 @@ export default function ItemsPage() {
 
   const deleteAliasMutation = useMutation({
     mutationFn: async (id: string) => {
-      await deleteByStrategy({ table: "item_aliases", id });
+      if (!currentCompany) throw new Error("Selecciona una empresa para gestionar alias");
+      await deleteByStrategy({ table: "item_aliases", id, eq: { company_id: currentCompany.id } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["item-aliases", editingItem?.id] });
@@ -332,6 +347,9 @@ export default function ItemsPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitas una empresa activa para gestionar articulos, alias y catalogos de stock." />
+        ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Ítems</h1>
