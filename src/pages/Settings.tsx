@@ -95,7 +95,7 @@ export default function SettingsPage() {
     onSuccess: async () => {
       setLogoFile(null);
       await qc.invalidateQueries({ queryKey: ["company-settings", currentCompany?.id ?? "default"] });
-      toast({ title: "Configuracion guardada" });
+      toast({ title: "Configuración guardada" });
     },
     onError: (error: unknown) => {
       toast({ title: "No se pudo guardar", description: getErrorMessage(error), variant: "destructive" });
@@ -115,14 +115,14 @@ export default function SettingsPage() {
       <AppLayout>
         <div className="space-y-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Configuracion</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
             <p className="text-muted-foreground">Acceso restringido a usuarios administradores.</p>
           </div>
 
           <Card className="max-w-2xl rounded-3xl border-amber-200 bg-amber-50/80">
             <CardHeader>
               <CardTitle>Sin permisos</CardTitle>
-              <CardDescription>La configuracion global de empresa y branding solo puede modificarla un administrador.</CardDescription>
+              <CardDescription>La configuración global de empresa y branding solo puede modificarla un administrador.</CardDescription>
             </CardHeader>
           </Card>
         </div>
@@ -135,8 +135,8 @@ export default function SettingsPage() {
       <AppLayout>
         <div className="space-y-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Configuracion</h1>
-            <p className="text-muted-foreground">Todavia no hay una empresa activa seleccionada.</p>
+            <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
+            <p className="text-muted-foreground">Todavía no hay una empresa activa seleccionada.</p>
           </div>
         </div>
       </AppLayout>
@@ -147,8 +147,8 @@ export default function SettingsPage() {
     <AppLayout>
       <div className="space-y-6">
         <div className="rounded-3xl border bg-gradient-to-r from-[hsl(var(--accent))] via-card to-card p-6">
-          <h1 className="text-2xl font-bold tracking-tight">Configuracion</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Empresa, identidad visual y encabezados de documentos para {currentCompany.name}. Todo lo que definas aca se refleja en menus, PDFs y branding compartido.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Empresa, identidad visual y encabezados de documentos para {currentCompany.name}. Todo lo que definas acá se refleja en menús, PDFs y branding compartido.</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <div className="rounded-full border bg-background/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
               {form.app_name || "Nombre de la app"}
@@ -174,10 +174,10 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Nombre visible de la app</Label>
-                  <Input value={form.app_name} onChange={(e) => setForm((prev) => ({ ...prev, app_name: e.target.value }))} placeholder="Alpataco Refrigeracion" />
+                  <Input value={form.app_name} onChange={(e) => setForm((prev) => ({ ...prev, app_name: e.target.value }))} placeholder="Alpataco Refrigeración" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Razon social</Label>
+                  <Label>Razón social</Label>
                   <Input value={form.legal_name} onChange={(e) => setForm((prev) => ({ ...prev, legal_name: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
@@ -189,11 +189,11 @@ export default function SettingsPage() {
                   <Input type="number" min={1} value={form.default_point_of_sale} onChange={(e) => setForm((prev) => ({ ...prev, default_point_of_sale: e.target.value }))} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Direccion</Label>
+                  <Label>Dirección</Label>
                   <Input value={form.address} onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Telefono</Label>
+                  <Label>Teléfono</Label>
                   <Input value={form.phone} onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
@@ -206,7 +206,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Tagline del documento</Label>
-                  <Input value={form.document_tagline} onChange={(e) => setForm((prev) => ({ ...prev, document_tagline: e.target.value }))} placeholder="Documentacion comercial" />
+                  <Input value={form.document_tagline} onChange={(e) => setForm((prev) => ({ ...prev, document_tagline: e.target.value }))} placeholder="Documentación comercial" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Pie de documento</Label>

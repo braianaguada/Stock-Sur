@@ -349,7 +349,7 @@ export default function ItemsPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para gestionar articulos, alias y catalogos de stock." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para gestionar artículos, alias y catálogos de stock." />
         ) : null}
         <div className="flex items-center justify-between">
           <div>
