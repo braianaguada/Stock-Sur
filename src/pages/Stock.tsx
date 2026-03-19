@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -59,6 +59,7 @@ interface Movement {
 export default function StockPage() {
   const [tab, setTab] = useState("current");
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ item_id: "", type: "IN" as MovementType, quantity: "", reference: "" });
   const { toast } = useToast();
@@ -78,7 +79,7 @@ export default function StockPage() {
 
   // Current stock calculated from movements
   const { data: stockRows = [], isLoading: loadingStock } = useQuery({
-    queryKey: ["stock-current", currentCompany?.id ?? "no-company", search],
+    queryKey: ["stock-current", currentCompany?.id ?? "no-company", deferredSearch],
     enabled: Boolean(currentCompany),
     queryFn: async () => {
       const { data: movements, error } = await supabase.from("stock_movements").select("item_id, type, quantity, created_at, items(name, sku, unit, demand_profile, demand_monthly_estimate)").eq("company_id", currentCompany!.id);

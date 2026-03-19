@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -52,6 +52,7 @@ const UNIT_OPTIONS = ["un", "kg", "g", "lt", "ml", "m", "cm"] as const;
 export default function ItemsPage() {
   const { currentCompany } = useAuth();
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -86,10 +87,10 @@ export default function ItemsPage() {
   };
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ["items", currentCompany?.id ?? "no-company", search, categoryFilter, statusFilter],
+    queryKey: ["items", currentCompany?.id ?? "no-company", deferredSearch, categoryFilter, statusFilter],
     enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const searchTerm = search.trim();
+      const searchTerm = deferredSearch.trim();
       let matchingItemIdsFromAlias: string[] = [];
 
       if (searchTerm) {
