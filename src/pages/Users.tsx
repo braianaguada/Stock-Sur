@@ -25,7 +25,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { canManageUsers } from "@/lib/permissions";
 import { getErrorMessage } from "@/lib/errors";
@@ -56,6 +55,7 @@ import {
   listUsersWithAccess,
   syncSelectedUserAccess,
 } from "@/features/users/queries";
+import { saveUserCompanyAccess } from "@/features/users/mutations";
 
 export default function UsersPage() {
   const { roles } = useAuth();
@@ -122,78 +122,15 @@ export default function UsersPage() {
   }, [accessDialogOpen, existingPermissionOverrides, permissionOptions]);
 
   const saveAccessMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedUser) throw new Error("Seleccioná un usuario");
-      if (!accessForm.companyId) throw new Error("Seleccioná una empresa");
-      if (!accessForm.roleId) throw new Error("Seleccioná un rol");
-
-      if (!usersById.has(selectedUser.user_id)) {
-        throw new Error("El usuario seleccionado ya no está disponible. Recargá Usuarios e intentá de nuevo");
-      }
-      if (!companyOptionsById.has(accessForm.companyId)) {
-        throw new Error("La empresa seleccionada ya no está disponible. Recargá Usuarios e intentá de nuevo");
-      }
-      if (!companyRolesById.has(accessForm.roleId)) {
-        throw new Error("El rol seleccionado ya no está disponible. Recargá Usuarios e intentá de nuevo");
-      }
-
-      let companyUserId = accessForm.companyUserId;
-
-      if (companyUserId) {
-        const { error } = await supabase
-          .from("company_users")
-          .update({ status: accessForm.status })
-          .eq("id", companyUserId);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from("company_users")
-          .upsert(
-            {
-              company_id: accessForm.companyId,
-              user_id: selectedUser.user_id,
-              status: accessForm.status,
-            },
-            { onConflict: "company_id,user_id" },
-          )
-          .select("id")
-          .single();
-        if (error) throw error;
-        companyUserId = data.id;
-      }
-
-      const { error: deleteRolesError } = await supabase
-        .from("company_user_roles")
-        .delete()
-        .eq("company_user_id", companyUserId);
-      if (deleteRolesError) throw deleteRolesError;
-
-      const { error: insertRoleError } = await supabase
-        .from("company_user_roles")
-        .insert({ company_user_id: companyUserId, role_id: accessForm.roleId });
-      if (insertRoleError) throw insertRoleError;
-
-      const { error: deleteOverridesError } = await supabase
-        .from("company_user_permissions")
-        .delete()
-        .eq("company_user_id", companyUserId);
-      if (deleteOverridesError) throw deleteOverridesError;
-
-      const overrideRows = Object.entries(permissionOverrides)
-        .filter(([, effect]) => effect !== "INHERIT")
-        .map(([permissionId, effect]) => ({
-          company_user_id: companyUserId,
-          permission_id: permissionId,
-          effect,
-        }));
-
-      if (overrideRows.length > 0) {
-        const { error: insertOverridesError } = await supabase
-          .from("company_user_permissions")
-          .insert(overrideRows);
-        if (insertOverridesError) throw insertOverridesError;
-      }
-    },
+    mutationFn: () =>
+      saveUserCompanyAccess({
+        selectedUser,
+        accessForm,
+        permissionOverrides,
+        hasSelectedUser: Boolean(selectedUser && usersById.has(selectedUser.user_id)),
+        hasCompany: companyOptionsById.has(accessForm.companyId),
+        hasRole: companyRolesById.has(accessForm.roleId),
+      }),
     onSuccess: async () => {
       if (!selectedUser) return;
       const refreshedUser = await syncSelectedUserAccess(qc, selectedUser.user_id);
@@ -737,3 +674,5 @@ export default function UsersPage() {
     </AppLayout>
   );
 }
+
+

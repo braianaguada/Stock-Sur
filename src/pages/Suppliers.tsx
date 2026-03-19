@@ -68,9 +68,16 @@ import {
   type SupplierCatalog,
   type SupplierCatalogLinePayload,
   type SupplierCatalogVersion,
+  type SupplierFormState,
 } from "@/features/suppliers/types";
 import { formatSupplierDate } from "@/features/suppliers/utils";
 import { getErrorMessage } from "@/lib/errors";
+import {
+  buildSupplierFormState,
+  buildSupplierOrderMessage,
+  createCatalogDialogState,
+  createEmptySupplierForm,
+} from "@/features/suppliers/state";
 
 export default function SuppliersPage() {
   const { currentCompany } = useAuth();
@@ -85,7 +92,7 @@ export default function SuppliersPage() {
   const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
   const [orderItems, setOrderItems] = useState<Record<string, OrderLine>>({});
   const [lineQuantities, setLineQuantities] = useState<Record<string, number>>({});
-  const [form, setForm] = useState({ name: "", contact_name: "", email: "", whatsapp: "", notes: "" });
+  const [form, setForm] = useState<SupplierFormState>(createEmptySupplierForm);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [documentTitle, setDocumentTitle] = useState("");
@@ -542,47 +549,45 @@ export default function SuppliersPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", contact_name: "", email: "", whatsapp: "", notes: "" });
+    setForm(createEmptySupplierForm());
     setShowAdvanced(false);
     setDialogOpen(true);
   };
 
   const openEdit = (s: Supplier) => {
     setEditing(s);
-    setForm({
-      name: s.name,
-      contact_name: s.contact_name ?? "",
-      email: s.email ?? "",
-      whatsapp: s.whatsapp ?? s.phone ?? "",
-      notes: s.notes ?? "",
-    });
+    setForm(buildSupplierFormState(s));
     setDialogOpen(true);
   };
 
   const openCatalog = (supplier: Supplier) => {
+    const nextState = createCatalogDialogState();
     setSelectedSupplier(supplier);
-    setCatalogSearch("");
-    setActiveVersionId(null);
-    setOrderItems({});
-    setLineQuantities({});
-    setLastDiagnostics(null);
-    setPdfProgress(null);
-    setSelectedCatalogId("new");
-    setCatalogUiTab("catalogo");
+    setCatalogSearch(nextState.catalogSearch);
+    setActiveVersionId(nextState.activeVersionId);
+    setOrderItems(nextState.orderItems);
+    setLineQuantities(nextState.lineQuantities);
+    setLastDiagnostics(nextState.lastDiagnostics);
+    setPdfProgress(nextState.pdfProgress);
+    setSelectedCatalogId(nextState.selectedCatalogId);
+    setSelectedFile(nextState.selectedFile);
+    setCatalogUiTab(nextState.catalogUiTab);
     setCatalogDialogOpen(true);
   };
 
   const handleCatalogDialogOpenChange = (open: boolean) => {
     setCatalogDialogOpen(open);
     if (open) return;
-    setCatalogSearch("");
-    setActiveVersionId(null);
-    setOrderItems({});
-    setLineQuantities({});
-    setLastDiagnostics(null);
-    setPdfProgress(null);
-    setSelectedCatalogId("new");
-    setSelectedFile(null);
+    const nextState = createCatalogDialogState();
+    setCatalogSearch(nextState.catalogSearch);
+    setActiveVersionId(nextState.activeVersionId);
+    setOrderItems(nextState.orderItems);
+    setLineQuantities(nextState.lineQuantities);
+    setLastDiagnostics(nextState.lastDiagnostics);
+    setPdfProgress(nextState.pdfProgress);
+    setSelectedCatalogId(nextState.selectedCatalogId);
+    setSelectedFile(nextState.selectedFile);
+    setCatalogUiTab(nextState.catalogUiTab);
   };
 
   const catalogVersionsById = useMemo(
@@ -618,18 +623,15 @@ export default function SuppliersPage() {
     [orderLines],
   );
 
-  const orderMessage = useMemo(() => {
-    if (!selectedSupplier || orderLines.length === 0) return "";
-    const versionDate = activeVersion ? formatSupplierDate(activeVersion.imported_at) : "Sin versión";
-    const catalogName = activeVersion ? catalogTitleById.get(activeVersion.catalog_id) ?? activeVersion.title ?? "Listado" : "Sin listado";
-    const rows = orderLines.map((line) => `${line.supplier_code ?? "S/COD"} - ${line.raw_description} x ${line.quantity}`);
-    return [
-      `Proveedor: ${selectedSupplier.name}`,
-      `Listado/Versión usada: ${catalogName} (${versionDate})`,
-      "Items:",
-      ...rows,
-    ].join("\n");
-  }, [selectedSupplier, activeVersion, catalogTitleById, orderLines]);
+  const orderMessage = useMemo(() =>
+    buildSupplierOrderMessage({
+      selectedSupplier,
+      orderLines,
+      activeVersion,
+      catalogTitleById,
+    }),
+  [selectedSupplier, activeVersion, catalogTitleById, orderLines]);
+
 
   const waLink = useMemo(
     () => buildWhatsAppLink(selectedSupplier?.whatsapp, orderMessage),
@@ -1090,3 +1092,5 @@ export default function SuppliersPage() {
     </AppLayout>
   );
 }
+
+
