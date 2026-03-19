@@ -477,6 +477,9 @@ export default function SuppliersPage() {
 
       const title = documentTitle.trim() || selectedFile.name;
       const requestedCatalogId = selectedCatalogId === "new" ? null : selectedCatalogId;
+      if (requestedCatalogId && !catalogsById.has(requestedCatalogId)) {
+        throw new Error("El listado seleccionado ya no está disponible. Recargá el historial e intentá de nuevo");
+      }
 
       console.log("[supplier-import] start", {
         userId,
@@ -744,9 +747,26 @@ export default function SuppliersPage() {
     setCatalogDialogOpen(true);
   };
 
+  const handleCatalogDialogOpenChange = (open: boolean) => {
+    setCatalogDialogOpen(open);
+    if (open) return;
+    setCatalogSearch("");
+    setActiveVersionId(null);
+    setOrderItems({});
+    setLineQuantities({});
+    setLastDiagnostics(null);
+    setPdfProgress(null);
+    setSelectedCatalogId("new");
+    setSelectedFile(null);
+  };
+
   const catalogVersionsById = useMemo(
     () => new Map(catalogVersions.map((version) => [version.id, version])),
     [catalogVersions],
+  );
+  const catalogsById = useMemo(
+    () => new Map(catalogs.map((catalog) => [catalog.id, catalog])),
+    [catalogs],
   );
   const activeVersion = useMemo(
     () => (activeVersionId ? catalogVersionsById.get(activeVersionId) ?? null : null),
@@ -954,7 +974,7 @@ export default function SuppliersPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={catalogDialogOpen} onOpenChange={setCatalogDialogOpen}>
+      <Dialog open={catalogDialogOpen} onOpenChange={handleCatalogDialogOpenChange}>
         <DialogContent className="w-[96vw] max-w-[1400px] h-[92vh] overflow-hidden p-0">
           <Tabs
             value={catalogUiTab}
