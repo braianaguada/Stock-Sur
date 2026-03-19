@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -49,6 +49,7 @@ export default function DocumentsPage() {
   const { settings: companySettings } = useCompanyBrand();
 
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [typeFilter, setTypeFilter] = useState<DocType | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<DocStatus | "ALL">("ALL");
 
@@ -89,7 +90,7 @@ export default function DocumentsPage() {
     selectedDocument,
     sourceDocumentLabel,
   } = useDocumentsData({
-    search,
+    search: deferredSearch,
     typeFilter,
     statusFilter,
     selectedDocId,

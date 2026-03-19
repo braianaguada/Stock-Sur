@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -170,6 +170,8 @@ export default function SuppliersPage() {
   const [pdfProgress, setPdfProgress] = useState<ParsePdfProgress | null>(null);
   const xlsxMappingResolverRef = useRef<((value: MappingSelection | null) => void) | null>(null);
   const pdfMappingResolverRef = useRef<((value: PdfMappingSelection | null) => void) | null>(null);
+  const deferredSearch = useDeferredValue(search);
+  const deferredCatalogSearch = useDeferredValue(catalogSearch);
 
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -304,13 +306,13 @@ export default function SuppliersPage() {
   });
 
   const { data: suppliers = [], isLoading } = useQuery({
-    queryKey: ["suppliers", currentCompany?.id ?? "no-company", search, statusFilter],
+    queryKey: ["suppliers", currentCompany?.id ?? "no-company", deferredSearch, statusFilter],
     enabled: Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase.from("suppliers").select("*").eq("company_id", currentCompany!.id).order("name");
       if (statusFilter === "active") q = q.eq("is_active", true);
       if (statusFilter === "inactive") q = q.eq("is_active", false);
-      if (search) q = q.or(`name.ilike.%${search}%,contact_name.ilike.%${search}%`);
+      if (deferredSearch) q = q.or(`name.ilike.%${deferredSearch}%,contact_name.ilike.%${deferredSearch}%`);
       const { data, error } = await q.limit(200);
       if (error) throw error;
       return data as Supplier[];
@@ -386,7 +388,7 @@ export default function SuppliersPage() {
   });
 
       const { data: activeCatalogLines = [], isLoading: isCatalogLoading } = useQuery({
-    queryKey: ["supplier-catalog-lines", currentCompany?.id ?? "no-company", activeVersionId, catalogSearch],
+    queryKey: ["supplier-catalog-lines", currentCompany?.id ?? "no-company", activeVersionId, deferredCatalogSearch],
     enabled: !!activeVersionId && Boolean(currentCompany),
     queryFn: async () => {
       let query = supabase

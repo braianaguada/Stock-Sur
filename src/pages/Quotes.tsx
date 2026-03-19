@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,6 +66,7 @@ export default function QuotesPage() {
   const [quoteToDelete, setQuoteToDelete] = useState<QuoteListRow | null>(null);
   const [form, setForm] = useState({ customer_id: "", customer_name: "", notes: "" });
   const [lines, setLines] = useState<QuoteLine[]>([{ description: "", quantity: 1, unit_price: 0, item_id: null }]);
+  const deferredSearch = useDeferredValue(search);
   const { toast } = useToast();
   const qc = useQueryClient();
   const { user, currentCompany } = useAuth();
@@ -86,7 +87,7 @@ export default function QuotesPage() {
   });
 
   const { data: quotes = [], isLoading } = useQuery({
-    queryKey: ["quotes", currentCompanyId ?? "no-company", search],
+    queryKey: ["quotes", currentCompanyId ?? "no-company", deferredSearch],
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       let q = supabase
@@ -94,7 +95,7 @@ export default function QuotesPage() {
         .select("*, customers(name)")
         .eq("company_id", currentCompanyId!)
         .order("created_at", { ascending: false });
-      if (search) q = q.or(`customer_name.ilike.%${search}%,quote_number.eq.${parseInt(search) || 0}`);
+      if (deferredSearch) q = q.or(`customer_name.ilike.%${deferredSearch}%,quote_number.eq.${parseInt(deferredSearch) || 0}`);
       const { data, error } = await q.limit(100);
       if (error) throw error;
       return (data ?? []) as QuoteListRow[];
