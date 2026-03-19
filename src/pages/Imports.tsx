@@ -178,7 +178,7 @@ export default function ImportsPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para importar archivos y generar nuevas versiones de listas." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para importar archivos y generar nuevas versiones de listas." />
         ) : null}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Importaciones</h1>

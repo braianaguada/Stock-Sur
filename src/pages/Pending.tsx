@@ -209,7 +209,7 @@ export default function PendingPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para revisar pendientes de catalogos y vincularlos con articulos." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para revisar pendientes de catálogos y vincularlos con artículos." />
         ) : null}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Pendientes</h1>
