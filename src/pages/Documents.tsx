@@ -346,7 +346,7 @@ export default function DocumentsPage() {
           <p class="muted"><strong>Condición fiscal:</strong> ${escapeHtml(doc.customer_tax_condition ?? "-")}</p>
         </div>
         <div class="meta-card">
-          <p class="meta-title">Operacion</p>
+          <p class="meta-title">Operación</p>
           <p class="muted"><strong>Punto de venta:</strong> ${String(doc.point_of_sale).padStart(4, "0")}</p>
           <p class="muted"><strong>Tipo:</strong> ${escapeHtml(DOC_LABEL[doc.doc_type])}</p>
           <p class="muted"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[doc.status])}</p>

@@ -197,7 +197,7 @@ export function DocumentsEditorDialog({
           {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" && (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="space-y-2">
-                <Label>Imputacion del remito</Label>
+                <Label>Imputación del remito</Label>
                 <Select
                   value={form.internal_remito_type || "__none__"}
                   onValueChange={(v) => setForm((prev) => ({ ...prev, internal_remito_type: v === "__none__" ? "" : (v as InternalRemitoType) }))}
@@ -225,7 +225,7 @@ export function DocumentsEditorDialog({
               </Button>
             </div>
             {form.price_list_id && (
-              <p className="text-xs text-muted-foreground">Con lista activa, solo aparecen items de esa lista y el precio unitario se toma automaticamente.</p>
+              <p className="text-xs text-muted-foreground">Con lista activa, solo aparecen ítems de esa lista y el precio unitario se toma automáticamente.</p>
             )}
             <div className="space-y-2">
               {lines.map((line, idx) => {
@@ -235,7 +235,7 @@ export function DocumentsEditorDialog({
                   <div key={idx} className="grid grid-cols-12 gap-2">
                     <div className="col-span-3">
                       <Select value={line.item_id ?? "__none__"} onValueChange={(v) => onPickItem(idx, v === "__none__" ? "" : v)}>
-                        <SelectTrigger><SelectValue placeholder="Item" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Ítem" /></SelectTrigger>
                         <SelectContent>
                           {!form.price_list_id && <SelectItem value="__none__">Manual</SelectItem>}
                           {availableItems.map((it) => <SelectItem key={it.id} value={it.id}>{it.sku} - {it.name}</SelectItem>)}
@@ -244,7 +244,7 @@ export function DocumentsEditorDialog({
                     </div>
                     <Input
                       className="col-span-4"
-                      placeholder="Descripcion"
+                      placeholder="Descripción"
                       value={line.description}
                       disabled={lockDescription}
                       onChange={(e) => {
