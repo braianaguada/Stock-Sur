@@ -86,7 +86,7 @@ export function useQuotesFlow(params: {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear un presupuesto");
+      if (!currentCompanyId) throw new Error("Seleccioná una empresa antes de crear un presupuesto");
 
       const validLines = lines.filter((line) => line.description.trim());
       if (validLines.length === 0) throw new Error("Agregá al menos una línea");

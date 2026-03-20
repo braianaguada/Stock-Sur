@@ -90,14 +90,14 @@ export function useImportsFlow(params: {
 
   const importMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompanyId) throw new Error("Selecciona una empresa activa para importar");
+      if (!currentCompanyId) throw new Error("Seleccioná una empresa activa para importar");
       if (!selectedPriceListStillExists) {
         throw new Error("La lista seleccionada ya no está disponible. Recargá Importaciones e intentá de nuevo");
       }
       if (validRows.length === 0) {
         throw new Error("No hay filas válidas para importar");
       }
-      if (!selectedPriceListId) throw new Error("Selecciona una lista de precios");
+      if (!selectedPriceListId) throw new Error("Seleccioná una lista de precios");
 
       const { data: version, error: vErr } = await supabase
         .from("price_list_versions")

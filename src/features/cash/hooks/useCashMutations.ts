@@ -52,20 +52,20 @@ export function useCashMutations({
   const createSaleMutation = useMutation({
     mutationFn: async (form: CashSaleFormState) => {
       if (!currentCompanyId) {
-        throw new Error("Selecciona una empresa para registrar la venta");
+        throw new Error("Seleccioná una empresa para registrar la venta");
       }
 
       const parsedAmount = Number(form.amount.replace(",", "."));
       if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-        throw new Error("Ingresa un importe valido");
+        throw new Error("Ingresá un importe válido");
       }
 
       if (form.receiptKind === "REMITO" && form.selectedRemitoId === "__none__") {
-        throw new Error("Selecciona un remito emitido");
+        throw new Error("Seleccioná un remito emitido");
       }
 
       if (form.receiptKind === "FACTURA" && !form.receiptReference.trim()) {
-        throw new Error("La factura necesita una referencia o numero");
+        throw new Error("La factura necesita una referencia o número");
       }
 
       if (form.paymentMethod === "CUENTA_CORRIENTE" && form.customerId === "__none__") {
@@ -76,10 +76,10 @@ export function useCashMutations({
       const selectedRemito = remitosById.get(form.selectedRemitoId);
 
       if (form.receiptKind === "REMITO" && !selectedRemito) {
-        throw new Error("El remito seleccionado ya no esta disponible. Recarga la caja e intenta de nuevo");
+        throw new Error("El remito seleccionado ya no está disponible. Recargá la caja e intentá de nuevo");
       }
       if (form.paymentMethod === "CUENTA_CORRIENTE" && form.customerId !== "__none__" && !selectedCustomer) {
-        throw new Error("El cliente seleccionado ya no esta disponible. Recarga la caja e intenta de nuevo");
+        throw new Error("El cliente seleccionado ya no está disponible. Recargá la caja e intentá de nuevo");
       }
 
       const payload = {
@@ -119,10 +119,10 @@ export function useCashMutations({
 
   const attachReceiptMutation = useMutation({
     mutationFn: async (pendingState: CashPendingReceiptState) => {
-      if (!pendingState.selectedSale) throw new Error("Selecciona una venta pendiente");
+      if (!pendingState.selectedSale) throw new Error("Seleccioná una venta pendiente");
       if (pendingState.pendingReceiptKind === "PENDIENTE") throw new Error("Debes elegir remito o factura");
       if (pendingState.pendingReceiptKind === "REMITO" && pendingState.pendingRemitoId === "__none__") {
-        throw new Error("Selecciona un remito emitido");
+        throw new Error("Seleccioná un remito emitido");
       }
       if (pendingState.pendingReceiptKind === "FACTURA" && !pendingState.pendingReceiptReference.trim()) {
         throw new Error("Debes ingresar la referencia de la factura");
@@ -130,7 +130,7 @@ export function useCashMutations({
 
       const selectedRemito = remitosById.get(pendingState.pendingRemitoId);
       if (pendingState.pendingReceiptKind === "REMITO" && !selectedRemito) {
-        throw new Error("El remito seleccionado ya no esta disponible. Recarga la caja e intenta de nuevo");
+        throw new Error("El remito seleccionado ya no está disponible. Recargá la caja e intentá de nuevo");
       }
 
       const { error } = await supabase.rpc("attach_cash_sale_receipt", {
@@ -179,9 +179,9 @@ export function useCashMutations({
 
   const closeClosureMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompanyId) throw new Error("Selecciona una empresa para operar caja");
+      if (!currentCompanyId) throw new Error("Seleccioná una empresa para operar caja");
       if (closureError instanceof Error) throw closureError;
-      if (!closure) throw new Error("No se encontro el cierre del dia");
+      if (!closure) throw new Error("No se encontró el cierre del día");
 
       const { error } = await supabase.rpc("close_cash_closure", {
         p_closure_id: closure.id,

@@ -56,15 +56,15 @@ export function useDocumentsMutations({
 
   const upsertDraftMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
+      if (!currentCompanyId) throw new Error("Seleccioná una empresa antes de crear documentos");
       if (form.customer_id && !customersById.has(form.customer_id)) {
-        throw new Error("El cliente seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+        throw new Error("El cliente seleccionado ya no está disponible. Recargá Documentos e intentá de nuevo");
       }
       if (editingDocId && !documentsById.has(editingDocId)) {
-        throw new Error("El borrador que intentas editar ya no esta disponible. Recarga Documentos e intenta de nuevo");
+        throw new Error("El borrador que intentás editar ya no está disponible. Recargá Documentos e intentá de nuevo");
       }
       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
-      if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
+      if (valid.length === 0) throw new Error("Agregá al menos una línea válida");
       if (form.doc_type === "PRESUPUESTO" && form.customer_kind === "INTERNO") {
         throw new Error("Los presupuestos no aplican a personal interno");
       }
@@ -77,13 +77,13 @@ export function useDocumentsMutations({
 
       if (form.price_list_id) {
         const missingItem = valid.some((line) => !line.item_id);
-        if (missingItem) throw new Error("Con lista de precios activa, todas las lineas deben tener item");
+        if (missingItem) throw new Error("Con lista de precios activa, todas las líneas deben tener ítem");
       }
 
       const normalizedLines = valid.map((line) => {
         if (!form.price_list_id || !line.item_id) return line;
         if (!priceByItem.has(line.item_id)) {
-          throw new Error("Hay items sin precio en la lista seleccionada");
+          throw new Error("Hay ítems sin precio en la lista seleccionada");
         }
         return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
       });
@@ -197,7 +197,7 @@ export function useDocumentsMutations({
     mutationFn: async (documentId: string) => {
       const currentDocument = documentsById.get(documentId);
       if (!currentDocument) {
-        throw new Error("El documento seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+        throw new Error("El documento seleccionado ya no está disponible. Recargá Documentos e intentá de nuevo");
       }
       if (currentDocument?.doc_type !== "REMITO") {
         throw new Error("Solo los remitos se emiten");
@@ -208,7 +208,7 @@ export function useDocumentsMutations({
         .eq("document_id", documentId);
       if (linesError) throw linesError;
       if ((remitoLines ?? []).some((line) => !line.item_id)) {
-        throw new Error("El remito tiene lineas sin item asociado y no se puede emitir");
+        throw new Error("El remito tiene líneas sin ítem asociado y no se puede emitir");
       }
       const { error } = await supabase.rpc("issue_document", { p_document_id: documentId });
       if (error) throw error;
@@ -231,7 +231,7 @@ export function useDocumentsMutations({
   const transitionMutation = useMutation({
     mutationFn: async ({ documentId, targetStatus }: { documentId: string; targetStatus: DocStatus }) => {
       if (!documentsById.has(documentId)) {
-        throw new Error("El documento seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+        throw new Error("El documento seleccionado ya no está disponible. Recargá Documentos e intentá de nuevo");
       }
       const { error } = await supabase.rpc("transition_document_status", {
         p_document_id: documentId,
@@ -256,9 +256,9 @@ export function useDocumentsMutations({
 
   const cloneAsRemitoMutation = useMutation({
     mutationFn: async (sourceId: string) => {
-      if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
+      if (!currentCompanyId) throw new Error("Seleccioná una empresa antes de crear documentos");
       if (!documentsById.has(sourceId)) {
-        throw new Error("El presupuesto seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+        throw new Error("El presupuesto seleccionado ya no está disponible. Recargá Documentos e intentá de nuevo");
       }
       const { data: src, error: srcErr } = await supabase
         .from("documents")
@@ -281,7 +281,7 @@ export function useDocumentsMutations({
         throw new Error("Solo se puede convertir a remito un presupuesto aprobado");
       }
       if ((srcLines ?? []).some((line) => !line.item_id)) {
-        throw new Error("El presupuesto tiene lineas sin item asociado. Completa los items antes de convertir a remito");
+        throw new Error("El presupuesto tiene líneas sin ítem asociado. Completá los ítems antes de convertir a remito");
       }
 
         const { data: newDoc, error: newDocErr } = await supabase
