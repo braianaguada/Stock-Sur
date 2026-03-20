@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,65 +21,44 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, ArrowDownCircle, ArrowUpCircle, Settings2 } from "lucide-react";
-
-type MovementType = "IN" | "OUT" | "ADJUSTMENT";
-type StockHealth = "GREEN" | "YELLOW" | "RED" | "GRAY";
-type DemandProfile = "LOW" | "MEDIUM" | "HIGH";
-
-interface StockRow {
-  item_id: string;
-  item_name: string;
-  item_sku: string;
-  item_unit: string;
-  total: number;
-  avg_daily_out_30d: number;
-  avg_daily_out_90d: number;
-  avg_daily_out_365d: number;
-  demand_daily: number;
-  days_of_cover: number | null;
-  months_of_cover_low_rotation: number | null;
-  health: StockHealth;
-  low_rotation: boolean;
-  demand_profile: DemandProfile;
-  demand_monthly_estimate: number | null;
-}
-
-interface Movement {
-  id: string;
-  item_id: string;
-  type: MovementType;
-  quantity: number;
-  reference: string | null;
-  created_by: string | null;
-  created_by_name?: string;
-  created_at: string;
-  items?: { name: string; sku: string } | null;
-}
+import {
+  type DemandProfile,
+  type Movement,
+  type MovementType,
+  type StockRow,
+} from "@/features/stock/types";
 
 export default function StockPage() {
   const [tab, setTab] = useState("current");
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ item_id: "", type: "IN" as MovementType, quantity: "", reference: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, currentCompany } = useAuth();
 
   // Items for select
   const { data: items = [] } = useQuery({
-    queryKey: ["items-list"],
+    queryKey: ["items-list", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { data, error } = await supabase.from("items").select("id, name, sku, unit").eq("is_active", true).order("name");
+      const { data, error } = await supabase.from("items").select("id, name, sku, unit").eq("company_id", currentCompany!.id).eq("is_active", true).order("name");
       if (error) throw error;
       return data;
     },
   });
+  const itemsById = useMemo(
+    () => new Map(items.map((item) => [item.id, item])),
+    [items],
+  );
 
   // Current stock calculated from movements
   const { data: stockRows = [], isLoading: loadingStock } = useQuery({
-    queryKey: ["stock-current", search],
+    queryKey: ["stock-current", currentCompany?.id ?? "no-company", deferredSearch],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { data: movements, error } = await supabase.from("stock_movements").select("item_id, type, quantity, created_at, items(name, sku, unit, demand_profile, demand_monthly_estimate)");
+      const { data: movements, error } = await supabase.from("stock_movements").select("item_id, type, quantity, created_at, items(name, sku, unit, demand_profile, demand_monthly_estimate)").eq("company_id", currentCompany!.id);
       if (error) throw error;
 
       const last30DaysTs = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -212,11 +192,13 @@ export default function StockPage() {
 
   // Movements history
   const { data: movements = [], isLoading: loadingMovements } = useQuery({
-    queryKey: ["stock-movements"],
+    queryKey: ["stock-movements", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("stock_movements")
         .select("id, item_id, type, quantity, reference, created_at, created_by, items(name, sku)")
+        .eq("company_id", currentCompany!.id)
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -242,9 +224,14 @@ export default function StockPage() {
     mutationFn: async () => {
       if (!form.item_id) throw new Error("Seleccioná un ítem");
 
+      if (!currentCompany) throw new Error("Seleccioná una empresa para registrar stock");
+      if (!itemsById.has(form.item_id)) {
+        throw new Error("El ítem seleccionado ya no está disponible. Recargá Stock e intentá de nuevo");
+      }
       const qty = parseFloat(form.quantity);
       if (isNaN(qty) || !Number.isFinite(qty) || qty <= 0) throw new Error("La cantidad debe ser mayor a 0");
       const { error } = await supabase.from("stock_movements").insert({
+        company_id: currentCompany.id,
         item_id: form.item_id,
         type: form.type,
         quantity: qty,
@@ -287,8 +274,8 @@ export default function StockPage() {
   };
   const alertToneLabel: Record<StockHealth, string> = {
     GREEN: "OK",
-    YELLOW: "Atencion",
-    RED: "Critico",
+    YELLOW: "Atención",
+    RED: "Crítico",
     GRAY: "Info",
   };
   const alertRowClass: Record<StockHealth, string> = {
@@ -304,9 +291,9 @@ export default function StockPage() {
     GRAY: "bg-slate-600 text-white border-slate-700",
   };
   const demandProfileLabel: Record<DemandProfile, string> = {
-    LOW: "Rotacion baja",
-    MEDIUM: "Rotacion media",
-    HIGH: "Rotacion alta",
+    LOW: "Rotación baja",
+    MEDIUM: "Rotación media",
+    HIGH: "Rotación alta",
   };
   const demandProfileClass: Record<DemandProfile, string> = {
     LOW: "bg-slate-100 text-slate-700 border-slate-200",
@@ -320,10 +307,10 @@ export default function StockPage() {
       .map((r) => ({
         id: `critical-${r.item_id}`,
         tone: "RED" as const,
-        title: `${r.item_name} en riesgo critico`,
+        title: `${r.item_name} en riesgo crítico`,
         detail: r.total <= 0
-          ? "Sin stock o en negativo. Reposicion urgente."
-          : `Cobertura estimada: ${Math.max(0, r.days_of_cover ?? 0).toFixed(1)} dias.`,
+          ? "Sin stock o en negativo. Reposición urgente."
+          : `Cobertura estimada: ${Math.max(0, r.days_of_cover ?? 0).toFixed(1)} días.`,
       }));
     const low = stockRows
       .filter((r) => r.health === "YELLOW")
@@ -332,7 +319,7 @@ export default function StockPage() {
         id: `low-${r.item_id}`,
         tone: "YELLOW" as const,
         title: `${r.item_name} con cobertura baja`,
-        detail: `Cobertura estimada: ${(r.days_of_cover ?? 0).toFixed(1)} dias.`,
+        detail: `Cobertura estimada: ${(r.days_of_cover ?? 0).toFixed(1)} días.`,
       }));
     const overstock = stockRows
       .filter((r) => !r.low_rotation && r.days_of_cover !== null && r.days_of_cover > 90)
@@ -341,7 +328,7 @@ export default function StockPage() {
         id: `over-${r.item_id}`,
         tone: "GRAY" as const,
         title: `${r.item_name} con posible sobrestock`,
-        detail: `Cobertura estimada: ${r.days_of_cover!.toFixed(1)} dias.`,
+        detail: `Cobertura estimada: ${r.days_of_cover!.toFixed(1)} días.`,
       }));
     const lowRotationInfo = stockRows
       .filter((r) => r.low_rotation && r.total > 0)
@@ -352,17 +339,17 @@ export default function StockPage() {
           return {
             id: `slow-over-${r.item_id}`,
             tone: "YELLOW" as const,
-            title: `${r.item_name} con sobrestock en baja rotacion`,
+            title: `${r.item_name} con sobrestock en baja rotación`,
             detail: `Cobertura estimada: ${m.toFixed(1)} meses. Revisar compras futuras.`,
           };
         }
         return {
           id: `slow-${r.item_id}`,
           tone: "GRAY" as const,
-          title: `${r.item_name} con rotacion baja`,
+          title: `${r.item_name} con rotación baja`,
           detail: m !== null
-            ? `Cobertura estimada en baja rotacion: ${m < 0.1 ? "<0.1" : m.toFixed(1)} meses.`
-            : "Demanda muy baja/irregular: el semaforo prioriza stock disponible.",
+            ? `Cobertura estimada en baja rotación: ${m < 0.1 ? "<0.1" : m.toFixed(1)} meses.`
+            : "Demanda muy baja/irregular: el semáforo prioriza stock disponible.",
         };
       });
     return [...critical, ...low, ...overstock, ...lowRotationInfo];
@@ -377,6 +364,9 @@ export default function StockPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitás una empresa activa para ver existencias y registrar movimientos de stock." />
+        ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Stock</h1>
@@ -413,7 +403,7 @@ export default function StockPage() {
               </Card>
             </div>
             <p className="text-xs text-muted-foreground">
-              Semaforo automatico: combina consumo de 30, 90 y 365 dias, con tratamiento especial para rotacion baja.
+              Semáforo automático: combina consumo de 30, 90 y 365 días, con tratamiento especial para rotación baja.
             </p>
             {alerts.length > 0 && (
               <Card>

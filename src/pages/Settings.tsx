@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,18 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
-const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error !== null && "message" in error) {
-    const maybeMessage = (error as { message?: unknown }).message;
-    if (typeof maybeMessage === "string" && maybeMessage.trim()) return maybeMessage;
-  }
-  return "Error desconocido";
-};
+import { getErrorMessage } from "@/lib/errors";
+import { canManageSettings } from "@/lib/permissions";
 
 export default function SettingsPage() {
   const { settings, isLoading } = useCompanyBrand();
+  const { roles, currentCompany } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -66,7 +61,7 @@ export default function SettingsPage() {
 
       if (logoFile) {
         const extension = logoFile.name.split(".").pop()?.toLowerCase() ?? "png";
-        const filePath = `company-logo.${extension}`;
+        const filePath = `${currentCompany!.id}/company-logo.${extension}`;
         const { error: uploadError } = await supabase.storage
           .from("branding-assets")
           .upload(filePath, logoFile, { upsert: true, contentType: logoFile.type || undefined });
@@ -77,7 +72,7 @@ export default function SettingsPage() {
       }
 
       const payload = {
-        id: 1,
+        company_id: currentCompany!.id,
         app_name: form.app_name.trim() || "Stock Sur",
         legal_name: form.legal_name.trim() || null,
         tax_id: form.tax_id.trim() || null,
@@ -94,13 +89,13 @@ export default function SettingsPage() {
         default_point_of_sale: Math.max(1, Number(form.default_point_of_sale) || 1),
       };
 
-      const { error } = await supabase.from("company_settings").upsert(payload);
+      const { error } = await supabase.from("company_settings").upsert(payload, { onConflict: "company_id" });
       if (error) throw error;
     },
     onSuccess: async () => {
       setLogoFile(null);
-      await qc.invalidateQueries({ queryKey: ["company-settings"] });
-      toast({ title: "Configuracion guardada" });
+      await qc.invalidateQueries({ queryKey: ["company-settings", currentCompany?.id ?? "default"] });
+      toast({ title: "Configuración guardada" });
     },
     onError: (error: unknown) => {
       toast({ title: "No se pudo guardar", description: getErrorMessage(error), variant: "destructive" });
@@ -115,12 +110,45 @@ export default function SettingsPage() {
     setLogoPreview(preview);
   };
 
+  if (!canManageSettings(roles)) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
+            <p className="text-muted-foreground">Acceso restringido a usuarios administradores.</p>
+          </div>
+
+          <Card className="max-w-2xl rounded-3xl border-amber-200 bg-amber-50/80">
+            <CardHeader>
+              <CardTitle>Sin permisos</CardTitle>
+              <CardDescription>La configuración global de empresa y branding solo puede modificarla un administrador.</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!currentCompany) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
+            <p className="text-muted-foreground">Todavía no hay una empresa activa seleccionada.</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="space-y-6">
         <div className="rounded-3xl border bg-gradient-to-r from-[hsl(var(--accent))] via-card to-card p-6">
-          <h1 className="text-2xl font-bold tracking-tight">Configuracion</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Empresa, identidad visual y encabezados de documentos. Todo lo que definas aca se refleja en menus, PDFs y branding compartido.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Empresa, identidad visual y encabezados de documentos para {currentCompany.name}. Todo lo que definas acá se refleja en menús, PDFs y branding compartido.</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <div className="rounded-full border bg-background/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
               {form.app_name || "Nombre de la app"}
@@ -146,10 +174,10 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Nombre visible de la app</Label>
-                  <Input value={form.app_name} onChange={(e) => setForm((prev) => ({ ...prev, app_name: e.target.value }))} placeholder="Alpataco Refrigeracion" />
+                  <Input value={form.app_name} onChange={(e) => setForm((prev) => ({ ...prev, app_name: e.target.value }))} placeholder="Alpataco Refrigeración" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Razon social</Label>
+                  <Label>Razón social</Label>
                   <Input value={form.legal_name} onChange={(e) => setForm((prev) => ({ ...prev, legal_name: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
@@ -161,11 +189,11 @@ export default function SettingsPage() {
                   <Input type="number" min={1} value={form.default_point_of_sale} onChange={(e) => setForm((prev) => ({ ...prev, default_point_of_sale: e.target.value }))} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Direccion</Label>
+                  <Label>Dirección</Label>
                   <Input value={form.address} onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Telefono</Label>
+                  <Label>Teléfono</Label>
                   <Input value={form.phone} onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
@@ -178,7 +206,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Tagline del documento</Label>
-                  <Input value={form.document_tagline} onChange={(e) => setForm((prev) => ({ ...prev, document_tagline: e.target.value }))} placeholder="Documentacion comercial" />
+                  <Input value={form.document_tagline} onChange={(e) => setForm((prev) => ({ ...prev, document_tagline: e.target.value }))} placeholder="Documentación comercial" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Pie de documento</Label>
@@ -239,7 +267,7 @@ export default function SettingsPage() {
                       </div>
                       <div className="rounded-2xl border bg-white/80 p-4">
                         <p className="text-sm font-semibold" style={{ color: form.primary_color }}>Panel con acento</p>
-                        <p className="mt-1 text-sm text-slate-600">Este fondo usa el color de acento como superficie suave para hover, seleccion y paneles destacados.</p>
+                        <p className="mt-1 text-sm text-slate-600">Este fondo usa el color de acento como superficie suave para hover, selección y paneles destacados.</p>
                       </div>
                     </div>
                     <div className="overflow-hidden rounded-3xl border">
@@ -254,7 +282,7 @@ export default function SettingsPage() {
                           <div className="rounded-2xl border bg-white p-4 shadow-sm">
                             <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Preview de interfaz</p>
                             <p className="mt-2 text-lg font-bold" style={{ color: form.primary_color }}>{form.app_name || "Tu empresa"}</p>
-                            <p className="mt-1 text-sm text-slate-600">Asi se perciben juntos los tres colores dentro de la app.</p>
+                            <p className="mt-1 text-sm text-slate-600">Así se perciben juntos los tres colores dentro de la app.</p>
                           </div>
                         </div>
                       </div>
@@ -262,7 +290,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || isLoading} className="w-full">
-                  {saveMutation.isPending ? "Guardando..." : "Guardar configuracion"}
+                  {saveMutation.isPending ? "Guardando..." : "Guardar configuración"}
                 </Button>
               </CardContent>
             </Card>

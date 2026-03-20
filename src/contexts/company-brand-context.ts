@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 
 export interface CompanySettings {
   id: number;
+  company_id: string | null;
   app_name: string;
   legal_name: string | null;
   tax_id: string | null;
@@ -20,6 +21,7 @@ export interface CompanySettings {
 
 export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   id: 1,
+  company_id: null,
   app_name: "Stock Sur",
   legal_name: "Stock Sur",
   tax_id: null,

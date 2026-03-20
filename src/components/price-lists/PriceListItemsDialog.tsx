@@ -165,9 +165,9 @@ export function PriceListItemsDialog({
           <DialogHeader className="sticky top-0 z-20 shrink-0 border-b bg-background px-4 py-3 lg:px-6">
             <div className="flex w-full items-center justify-between gap-3">
               <div className="min-w-0">
-                <DialogTitle>Items asociados a la lista</DialogTitle>
+                <DialogTitle>Ítems asociados a la lista</DialogTitle>
                 <p className="truncate text-sm text-muted-foreground">
-                  {selectedList ? `Lista: ${selectedList.name}` : "Edita costos y margenes sin romper la vista"}
+                  {selectedList ? `Lista: ${selectedList.name}` : "Editá costos y márgenes sin romper la vista"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -192,7 +192,7 @@ export function PriceListItemsDialog({
               >
                 <div className="shrink-0 space-y-3 border-b p-4">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-medium">Agregar items</h3>
+                    <h3 className="font-medium">Agregar ítems</h3>
                     <Button variant="ghost" className="lg:hidden" onClick={() => setMobileAddPanelOpen(false)}>Cerrar</Button>
                   </div>
                   <Input
@@ -201,7 +201,7 @@ export function PriceListItemsDialog({
                     onChange={(e) => onItemSearchChange(e.target.value)}
                   />
                   <Select value={itemToAdd} onValueChange={onItemToAddChange}>
-                    <SelectTrigger><SelectValue placeholder="Seleccionar item" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar ítem" /></SelectTrigger>
                     <SelectContent>
                       {availableItems.map((it) => (
                         <SelectItem key={it.id} value={it.id}>
@@ -231,7 +231,7 @@ export function PriceListItemsDialog({
                       {availableItems.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={2} className="py-6 text-center text-muted-foreground">
-                            Sin items para agregar
+                            Sin ítems para agregar
                           </TableCell>
                         </TableRow>
                       ) : availableItems.map((it) => (
@@ -342,7 +342,7 @@ export function PriceListItemsDialog({
                 <div className="flex items-center justify-between border-b px-4 py-2">
                   <h3 className="text-sm font-semibold">Items en la lista ({listItems.length})</h3>
                   <p className="text-xs text-muted-foreground">
-                    Pagina {page} de {totalPages}
+                    Página {page} de {totalPages}
                   </p>
                 </div>
 
@@ -361,7 +361,7 @@ export function PriceListItemsDialog({
                       {pageItems.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
-                            Sin items asociados
+                            Sin ítems asociados
                           </TableCell>
                         </TableRow>
                       ) : pageItems.map((li) => {
@@ -458,7 +458,7 @@ export function PriceListItemsDialog({
 
                 <div className="flex shrink-0 items-center justify-between border-t px-4 py-2">
                   <p className="text-xs text-muted-foreground">
-                    Mostrando {pageItems.length} de {listItems.length} items
+                    Mostrando {pageItems.length} de {listItems.length} ítems
                   </p>
                   <div className="flex items-center gap-2">
                     <Button
