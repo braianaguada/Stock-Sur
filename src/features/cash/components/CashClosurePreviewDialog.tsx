@@ -25,7 +25,7 @@ export function CashClosurePreviewDialog({
       <DialogContent className="flex max-h-[90vh] max-w-5xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Resumen del cierre</DialogTitle>
-          <DialogDescription>Vista previa del cierre diario guardado para control e impresion.</DialogDescription>
+          <DialogDescription>Vista previa del cierre diario guardado para control e impresión.</DialogDescription>
         </DialogHeader>
         {selectedClosurePreview ? (
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">

@@ -29,7 +29,7 @@ export function CashPendingTab({
     <Card className="shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4" /> Pendientes de comprobante</CardTitle>
-        <CardDescription>Ventas registradas que ya impactan en caja pero todavia no tienen remito o factura asignada.</CardDescription>
+        <CardDescription>Ventas registradas que ya impactan en caja pero todavía no tienen remito o factura asignada.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="max-h-[560px] overflow-auto rounded-lg border">

@@ -63,7 +63,7 @@ export function CashDocumentPreviewDialog({
                             <p className="text-2xl font-black tracking-[0.12em] text-primary">{companyBrand.appName}</p>
                           )}
                           <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            {companyBrand.documentTagline ?? "Documentacion comercial"}
+                            {companyBrand.documentTagline ?? "Documentación comercial"}
                           </p>
                         </div>
                       </div>
@@ -79,7 +79,7 @@ export function CashDocumentPreviewDialog({
                         <p className="mt-2 font-semibold">{linkedDocument.customer_name ?? "Cliente ocasional"}</p>
                       </div>
                       <div className="rounded-2xl border bg-white/80 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operación</p>
                         <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(linkedDocument.issue_date).toLocaleDateString("es-AR")}</p>
                         <p className="text-sm"><span className="font-semibold">Estado:</span> {DOC_STATUS_LABEL[linkedDocument.status]}</p>
                         <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(linkedDocument.point_of_sale).padStart(4, "0")}</p>
@@ -106,7 +106,7 @@ export function CashDocumentPreviewDialog({
                     <TableHeader>
                       <TableRow>
                         <TableHead>#</TableHead>
-                        <TableHead>Descripcion</TableHead>
+                        <TableHead>Descripción</TableHead>
                         <TableHead className="text-right">Cant.</TableHead>
                         <TableHead>Unidad</TableHead>
                         <TableHead className="text-right">P.Unit.</TableHead>
@@ -137,7 +137,7 @@ export function CashDocumentPreviewDialog({
 
                 {linkedDocumentEvents.length === 0 ? (
                   <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
-                    Todavia no hay eventos registrados para este documento.
+                    Todavía no hay eventos registrados para este documento.
                   </div>
                 ) : (
                   <div className="relative pl-7">
@@ -172,7 +172,7 @@ export function CashDocumentPreviewDialog({
             </>
           ) : (
             <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
-              Esta venta todavia no tiene un documento asociado para previsualizar.
+              Esta venta todavía no tiene un documento asociado para previsualizar.
             </div>
           )}
         </div>
