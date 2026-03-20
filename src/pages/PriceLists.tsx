@@ -19,83 +19,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { PriceListItemsDialog } from "@/components/price-lists/PriceListItemsDialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Search, Trash2, Link2 } from "lucide-react";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
-
-interface PriceList {
-  id: string;
-  name: string;
-  created_at: string;
-  flete_pct: number;
-  utilidad_pct: number;
-  impuesto_pct: number;
-  round_mode: "none" | "integer" | "tens" | "hundreds" | "x99";
-  round_to: number;
-}
-
-interface CatalogItem {
-  id: string;
-  sku: string | null;
-  name: string;
-  unit: string | null;
-}
-
-interface PriceListItem {
-  price_list_id: string;
-  item_id: string;
-  is_active: boolean;
-  base_cost: number;
-  flete_pct: number | null;
-  utilidad_pct: number | null;
-  impuesto_pct: number | null;
-  final_price_override: number | null;
-  items: CatalogItem | null;
-}
-
-type LineDraft = {
-  base_cost: string;
-  flete_pct: string;
-  utilidad_pct: string;
-  impuesto_pct: string;
-  final_price_override: string;
-};
-
-type ListConfigDraft = {
-  flete_pct: string;
-  utilidad_pct: string;
-  impuesto_pct: string;
-  round_mode: PriceList["round_mode"];
-  round_to: string;
-};
-
-const DEFAULT_FORM = {
-  name: "",
-  flete_pct: "10",
-  utilidad_pct: "55",
-  impuesto_pct: "21",
-  round_mode: "none" as PriceList["round_mode"],
-  round_to: "1",
-};
-
-const parseNonNegative = (value: string, fallback = 0) => {
-  const parsed = Number(value.replace(",", "."));
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(0, parsed);
-};
-
-const parseNullableNonNegative = (value: string): number | null => {
-  const trimmed = value.trim();
-  if (trimmed === "") return null;
-  const parsed = Number(trimmed.replace(",", "."));
-  if (!Number.isFinite(parsed)) return null;
-  return Math.max(0, parsed);
-};
-
-const sanitizeNonNegativeDraft = (value: string) => value.replace(",", ".").replace(/-/g, "");
+import { getErrorMessage } from "@/lib/errors";
+import { DEFAULT_PRICE_LIST_FORM } from "@/features/price-lists/constants";
+import {
+  type CatalogItem,
+  type LineDraft,
+  type ListConfigDraft,
+  type PriceList,
+  type PriceListItem,
+} from "@/features/price-lists/types";
+import {
+  parseNonNegative,
+  parseNullableNonNegative,
+  sanitizeNonNegativeDraft,
+} from "@/features/price-lists/utils";
 
 export default function PriceListsPage() {
+  const { currentCompany } = useAuth();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [itemsDialogOpen, setItemsDialogOpen] = useState(false);
@@ -105,30 +51,21 @@ export default function PriceListsPage() {
   const [itemSearch, setItemSearch] = useState("");
   const [itemToAdd, setItemToAdd] = useState<string>("");
   const [selectedCatalogItems, setSelectedCatalogItems] = useState<Record<string, boolean>>({});
-  const [form, setForm] = useState(DEFAULT_FORM);
+  const [form, setForm] = useState(DEFAULT_PRICE_LIST_FORM);
   const [lineDrafts, setLineDrafts] = useState<Record<string, LineDraft>>({});
   const [listConfigDraft, setListConfigDraft] = useState<ListConfigDraft | null>(null);
 
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const getErrorMessage = (error: unknown) => {
-    if (error && typeof error === "object") {
-      const maybeMessage = "message" in error && typeof error.message === "string" ? error.message : "";
-      const maybeDetails = "details" in error && typeof error.details === "string" ? error.details : "";
-      const maybeHint = "hint" in error && typeof error.hint === "string" ? error.hint : "";
-      return [maybeMessage, maybeDetails, maybeHint].filter(Boolean).join(" | ") || "Error desconocido";
-    }
-    if (typeof error === "string") return error;
-    return "Error desconocido";
-  };
-
   const { data: priceLists = [], isLoading } = useQuery({
-    queryKey: ["price-lists", search],
+    queryKey: ["price-lists", currentCompany?.id ?? "no-company", search],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase
         .from("price_lists")
         .select("id, name, created_at, flete_pct, utilidad_pct, impuesto_pct, round_mode, round_to")
+        .eq("company_id", currentCompany!.id)
         .order("name");
       if (search) q = q.ilike("name", `%${search}%`);
       const { data, error } = await q.limit(200);
@@ -138,12 +75,13 @@ export default function PriceListsPage() {
   });
 
   const { data: listItems = [] } = useQuery({
-    queryKey: ["price-list-items", selectedListId],
-    enabled: !!selectedListId,
+    queryKey: ["price-list-items", currentCompany?.id ?? "no-company", selectedListId],
+    enabled: !!selectedListId && Boolean(currentCompany),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
         .select("price_list_id, item_id, is_active, base_cost, flete_pct, utilidad_pct, impuesto_pct, final_price_override, items(id, name, sku, unit)")
+        .eq("company_id", currentCompany!.id)
         .eq("price_list_id", selectedListId!)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
@@ -153,12 +91,13 @@ export default function PriceListsPage() {
   });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["price-list-items-catalog", itemSearch],
-    enabled: itemsDialogOpen,
+    queryKey: ["price-list-items-catalog", currentCompany?.id ?? "no-company", itemSearch],
+    enabled: itemsDialogOpen && Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase
         .from("items")
         .select("id, sku, name, unit")
+        .eq("company_id", currentCompany!.id)
         .eq("is_active", true)
         .order("name")
         .limit(150);
@@ -172,6 +111,8 @@ export default function PriceListsPage() {
     },
   });
   const associatedItemIds = useMemo(() => new Set(listItems.map((li) => li.item_id)), [listItems]);
+  const priceListsById = useMemo(() => new Map(priceLists.map((priceList) => [priceList.id, priceList])), [priceLists]);
+  const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const selectedList = useMemo(() => priceLists.find((pl) => pl.id === selectedListId) ?? null, [priceLists, selectedListId]);
   const availableItems = useMemo(() => items.filter((it) => !associatedItemIds.has(it.id)), [items, associatedItemIds]);
   const selectedCatalogItemIds = useMemo(() => Object.entries(selectedCatalogItems).filter(([, checked]) => checked).map(([id]) => id), [selectedCatalogItems]);
@@ -238,7 +179,9 @@ export default function PriceListsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar listas");
       const { error } = await supabase.from("price_lists").insert({
+        company_id: currentCompany.id,
         name: form.name,
         flete_pct: parseNonNegative(form.flete_pct, 0),
         utilidad_pct: parseNonNegative(form.utilidad_pct, 0),
@@ -257,14 +200,18 @@ export default function PriceListsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { await deleteByStrategy({ table: "price_lists", id }); },
+    mutationFn: async (id: string) => {
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar listas");
+      await deleteByStrategy({ table: "price_lists", id, eq: { company_id: currentCompany.id } });
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["price-lists"] }); toast({ title: "Lista eliminada" }); },
   });
 
   const updateListConfigMutation = useMutation({
     mutationFn: async (payload: Partial<Pick<PriceList, "flete_pct" | "utilidad_pct" | "impuesto_pct" | "round_mode" | "round_to">>) => {
       if (!selectedListId) return;
-      const { error } = await supabase.from("price_lists").update(payload).eq("id", selectedListId);
+      if (!priceListsById.has(selectedListId)) throw new Error("La lista seleccionada ya no está disponible. Recargá Listas e intentá de nuevo");
+      const { error } = await supabase.from("price_lists").update(payload).eq("company_id", currentCompany!.id).eq("id", selectedListId);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["price-lists"] }); },
@@ -273,8 +220,11 @@ export default function PriceListsPage() {
 
   const addItemMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedListId || !itemToAdd) throw new Error("Selecciona un item");
+      if (!selectedListId || !itemToAdd) throw new Error("Seleccioná un ítem");
+      if (!priceListsById.has(selectedListId)) throw new Error("La lista seleccionada ya no está disponible. Recargá Listas e intentá de nuevo");
+      if (!itemsById.has(itemToAdd)) throw new Error("El ítem seleccionado ya no está disponible. Recargá la lista e intentá de nuevo");
       const { error } = await supabase.from("price_list_items").upsert({
+        company_id: currentCompany!.id,
         price_list_id: selectedListId,
         item_id: itemToAdd,
         is_active: true,
@@ -286,14 +236,17 @@ export default function PriceListsPage() {
     onSuccess: () => {
       setItemToAdd("");
       qc.invalidateQueries({ queryKey: ["price-list-items", selectedListId] });
-      toast({ title: "Item asociado" });
+      toast({ title: "Ítem asociado" });
     },
     onError: (e: unknown) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
   const addItemsBulkMutation = useMutation({
     mutationFn: async (itemIds: string[]) => {
-      if (!selectedListId || itemIds.length === 0) throw new Error("No hay items seleccionados");
+      if (!selectedListId || itemIds.length === 0) throw new Error("No hay ítems seleccionados");
+      if (!priceListsById.has(selectedListId)) throw new Error("La lista seleccionada ya no está disponible. Recargá Listas e intentá de nuevo");
+      if (itemIds.some((itemId) => !itemsById.has(itemId))) throw new Error("Hay ítems seleccionados que ya no están disponibles. Recargá la lista e intentá de nuevo");
       const payload = itemIds.map((itemId) => ({
+        company_id: currentCompany!.id,
         price_list_id: selectedListId,
         item_id: itemId,
         is_active: true,
@@ -306,7 +259,7 @@ export default function PriceListsPage() {
     onSuccess: (_data, itemIds) => {
       setSelectedCatalogItems({});
       qc.invalidateQueries({ queryKey: ["price-list-items", selectedListId] });
-      toast({ title: `${itemIds.length} items agregados` });
+      toast({ title: `${itemIds.length} ítems agregados` });
     },
     onError: (e: unknown) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
@@ -317,7 +270,7 @@ export default function PriceListsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["price-list-items", selectedListId] });
-      toast({ title: "Item quitado" });
+      toast({ title: "Ítem quitado" });
     },
   });
 
@@ -334,6 +287,7 @@ export default function PriceListsPage() {
       const { error } = await supabase
         .from("price_list_items")
         .update(payload)
+        .eq("company_id", currentCompany!.id)
         .eq("price_list_id", selectedListId!)
         .eq("item_id", itemId);
       if (error) throw error;
@@ -348,12 +302,15 @@ export default function PriceListsPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitás una empresa activa para crear listas de precios y relacionarlas con tu catálogo." />
+        ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Listas de precios</h1>
-            <p className="text-muted-foreground">Listas internas con asignacion de items</p>
+            <p className="text-muted-foreground">Listas internas con asignación de ítems</p>
           </div>
-          <Button onClick={() => { setForm(DEFAULT_FORM); setDialogOpen(true); }}>
+          <Button onClick={() => { setForm(DEFAULT_PRICE_LIST_FORM); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Nueva lista
           </Button>
         </div>
@@ -394,7 +351,7 @@ export default function PriceListsPage() {
                           setItemsDialogOpen(true);
                         }}
                       >
-                        <Link2 className="mr-1 h-3.5 w-3.5" /> Items
+                        <Link2 className="mr-1 h-3.5 w-3.5" /> Ítems
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => setListToDelete(pl)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -468,9 +425,9 @@ export default function PriceListsPage() {
         onSaveAndClose={() => setItemsDialogOpen(false)}
       />
 
-      <ConfirmDeleteDialog open={!!listToDelete} onOpenChange={(open) => { if (!open) setListToDelete(null); }} title="Eliminar lista" description={listToDelete ? `Esta accion eliminara la lista "${listToDelete.name}" de forma permanente.` : ""} isPending={deleteMutation.isPending} onConfirm={() => { if (!listToDelete) return; deleteMutation.mutate(listToDelete.id); setListToDelete(null); }} />
+      <ConfirmDeleteDialog open={!!listToDelete} onOpenChange={(open) => { if (!open) setListToDelete(null); }} title="Eliminar lista" description={listToDelete ? `Esta acción eliminará la lista "${listToDelete.name}" de forma permanente.` : ""} isPending={deleteMutation.isPending} onConfirm={() => { if (!listToDelete) return; deleteMutation.mutate(listToDelete.id); setListToDelete(null); }} />
 
-      <ConfirmDeleteDialog open={!!listItemToRemove} onOpenChange={(open) => { if (!open) setListItemToRemove(null); }} title="Quitar item de la lista" description={listItemToRemove ? `Se quitara "${listItemToRemove.items?.name ?? "item"}" de esta lista de precios.` : ""} isPending={removeItemMutation.isPending} confirmLabel="Quitar" onConfirm={() => { if (!listItemToRemove) return; removeItemMutation.mutate(listItemToRemove.item_id); setListItemToRemove(null); }} />
+      <ConfirmDeleteDialog open={!!listItemToRemove} onOpenChange={(open) => { if (!open) setListItemToRemove(null); }} title="Quitar ítem de la lista" description={listItemToRemove ? `Se quitará "${listItemToRemove.items?.name ?? "ítem"}" de esta lista de precios.` : ""} isPending={removeItemMutation.isPending} confirmLabel="Quitar" onConfirm={() => { if (!listItemToRemove) return; removeItemMutation.mutate(listItemToRemove.item_id); setListItemToRemove(null); }} />
     </AppLayout>
   );
 }

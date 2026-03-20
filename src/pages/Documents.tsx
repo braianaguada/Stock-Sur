@@ -1,179 +1,55 @@
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Eye, FileDown, Send, Copy, Ban, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
-
-type DocType = "PRESUPUESTO" | "REMITO";
-type DocStatus = "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO";
-type CustomerKind = "GENERAL" | "INTERNO" | "EMPRESA";
-type InternalRemitoType = "CUENTA_CORRIENTE" | "DESCUENTO_SUELDO";
-
-interface LineDraft {
-  item_id: string | null;
-  sku_snapshot: string;
-  description: string;
-  unit: string;
-  quantity: number;
-  unit_price: number;
-}
-
-interface DocRow {
-  id: string;
-  doc_type: DocType;
-  status: DocStatus;
-  point_of_sale: number;
-  document_number: number | null;
-  issue_date: string;
-  customer_id: string | null;
-  customer_name: string | null;
-  customer_tax_id: string | null;
-  customer_tax_condition: string | null;
-  customer_kind: CustomerKind;
-  internal_remito_type: InternalRemitoType | null;
-  payment_terms: string | null;
-  delivery_address: string | null;
-  salesperson: string | null;
-  valid_until: string | null;
-  price_list_id: string | null;
-  source_document_id: string | null;
-  source_document_type: DocType | null;
-  source_document_number_snapshot: string | null;
-  notes: string | null;
-  subtotal: number;
-  tax_total: number;
-  total: number;
-  created_at: string;
-}
-
-interface DocLineRow {
-  id: string;
-  item_id: string | null;
-  line_order: number;
-  description: string;
-  quantity: number;
-  unit: string | null;
-  unit_price: number;
-  line_total: number;
-  sku_snapshot: string | null;
-}
-
-interface DocEventRow {
-  id: string;
-  event_type: string;
-  payload: unknown;
-  created_at: string;
-}
-
-interface PriceListRow {
-  id: string;
-  name: string;
-  flete_pct: number | null;
-  utilidad_pct: number | null;
-  impuesto_pct: number | null;
-  round_mode: "none" | "integer" | "tens" | "hundreds" | "x99";
-  round_to: number | null;
-}
-
-interface PriceListItemRow {
-  item_id: string;
-  is_active: boolean;
-  base_cost: number;
-  flete_pct: number | null;
-  utilidad_pct: number | null;
-  impuesto_pct: number | null;
-  final_price_override: number | null;
-  items: {
-    id: string;
-    sku: string;
-    name: string;
-    unit: string;
-  } | null;
-}
-
-const DOC_LABEL: Record<DocType, string> = { PRESUPUESTO: "Presupuesto", REMITO: "Remito" };
-const STATUS_LABEL: Record<DocStatus, string> = {
-  BORRADOR: "Borrador",
-  ENVIADO: "Enviado",
-  APROBADO: "Aprobado",
-  RECHAZADO: "Rechazado",
-  EMITIDO: "Emitido",
-  ANULADO: "Anulado",
-};
-const STATUS_VARIANT: Record<DocStatus, "secondary" | "default" | "destructive" | "outline"> = {
-  BORRADOR: "secondary",
-  ENVIADO: "outline",
-  APROBADO: "default",
-  RECHAZADO: "destructive",
-  EMITIDO: "default",
-  ANULADO: "destructive",
-};
-const DOC_TYPE_CLASS: Record<DocType, string> = {
-  PRESUPUESTO: "border-blue-200 bg-blue-50 text-blue-700",
-  REMITO: "border-emerald-200 bg-emerald-50 text-emerald-700",
-};
-const CUSTOMER_KIND_LABEL: Record<CustomerKind, string> = {
-  GENERAL: "Cliente general",
-  INTERNO: "Personal / tecnico interno",
-  EMPRESA: "Empresa",
-};
-const INTERNAL_REMITO_LABEL: Record<InternalRemitoType, string> = {
-  CUENTA_CORRIENTE: "Cuenta corriente",
-  DESCUENTO_SUELDO: "Descuento de sueldo",
-};
-const HISTORY_TONE_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
-  neutral: "border-slate-200 bg-slate-50 text-slate-700",
-  info: "border-blue-200 bg-blue-50 text-blue-700",
-  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  warning: "border-amber-200 bg-amber-50 text-amber-700",
-  danger: "border-rose-200 bg-rose-50 text-rose-700",
-};
-const HISTORY_DOT_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
-  neutral: "bg-slate-400 shadow-slate-200",
-  info: "bg-blue-500 shadow-blue-200",
-  success: "bg-emerald-500 shadow-emerald-200",
-  warning: "bg-amber-500 shadow-amber-200",
-  danger: "bg-rose-500 shadow-rose-200",
-};
-
-const EMPTY_LINE: LineDraft = { item_id: null, sku_snapshot: "", description: "", unit: "un", quantity: 1, unit_price: 0 };
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error !== null && "message" in error) {
-    const maybeMessage = (error as { message?: unknown }).message;
-    if (typeof maybeMessage === "string" && maybeMessage.trim()) return maybeMessage;
-  }
-  if (typeof error === "string" && error.trim()) return error;
-  return "Error desconocido";
-};
-
-const formatNumber = (n: number | null, pointOfSale: number) => {
-  if (n === null) return "BORRADOR";
-  return `${String(pointOfSale).padStart(4, "0")}-${String(n).padStart(8, "0")}`;
-};
+import { getErrorMessage } from "@/lib/errors";
+import {
+  canCloneBudgetToRemito,
+  canCreateDocumentDraft,
+  canEditDocumentDraft,
+  canIssueRemito,
+  canPrintDocument,
+  canTransitionDocumentTo,
+} from "@/lib/permissions";
+import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
+import {
+  CUSTOMER_KIND_LABEL,
+  DOC_LABEL,
+  EMPTY_LINE,
+  INTERNAL_REMITO_LABEL,
+  STATUS_LABEL,
+} from "@/features/documents/constants";
+import type {
+  CustomerKind,
+  DocLineRow,
+  DocRow,
+  DocStatus,
+  DocType,
+  DocumentFormState,
+  InternalRemitoType,
+  LineDraft,
+} from "@/features/documents/types";
+import { formatNumber } from "@/features/documents/utils";
+import { useDocumentsData } from "@/features/documents/hooks/useDocumentsData";
+import { useDocumentsMutations } from "@/features/documents/hooks/useDocumentsMutations";
+import { DocumentsEditorDialog } from "@/features/documents/components/DocumentsEditorDialog";
+import { DocumentsList } from "@/features/documents/components/DocumentsList";
+import { DocumentsPreviewDialog } from "@/features/documents/components/DocumentsPreviewDialog";
 
 export default function DocumentsPage() {
-  const { user } = useAuth();
+  const { user, roles, currentCompany } = useAuth();
   const { toast } = useToast();
-  const qc = useQueryClient();
   const { settings: companySettings } = useCompanyBrand();
 
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [typeFilter, setTypeFilter] = useState<DocType | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<DocStatus | "ALL">("ALL");
 
@@ -182,7 +58,7 @@ export default function DocumentsPage() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<DocumentFormState>({
     doc_type: "PRESUPUESTO" as DocType,
     point_of_sale: companySettings.default_point_of_sale ?? 1,
     customer_id: "",
@@ -200,188 +76,44 @@ export default function DocumentsPage() {
   });
   const [lines, setLines] = useState<LineDraft[]>([EMPTY_LINE]);
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ["documents-customers"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("customers").select("id, name, cuit").order("name");
-      if (error) throw error;
-      return data ?? [];
-    },
+  const {
+    customers,
+    items,
+    priceLists,
+    selectedPriceList,
+    availableItems,
+    priceByItem,
+    documents,
+    isLoading,
+    selectedLines,
+    selectedEvents,
+    selectedDocument,
+    sourceDocumentLabel,
+  } = useDocumentsData({
+    search: deferredSearch,
+    typeFilter,
+    statusFilter,
+    selectedDocId,
+    selectedPriceListId: form.price_list_id,
+    currentCompanyId: currentCompany?.id ?? null,
   });
 
-  const { data: items = [] } = useQuery({
-    queryKey: ["documents-items"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("items").select("id, sku, name, unit").eq("is_active", true).order("name");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const { data: priceLists = [] } = useQuery({
-    queryKey: ["documents-price-lists"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("price_lists")
-        .select("id, name, flete_pct, utilidad_pct, impuesto_pct, round_mode, round_to")
-        .order("name");
-      if (error) throw error;
-      return (data ?? []) as PriceListRow[];
-    },
-  });
-
-  const { data: priceListItems = [] } = useQuery({
-    queryKey: ["documents-price-list-items", form.price_list_id],
-    enabled: !!form.price_list_id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("price_list_items")
-        .select("item_id, is_active, base_cost, flete_pct, utilidad_pct, impuesto_pct, final_price_override, items(id, sku, name, unit)")
-        .eq("price_list_id", form.price_list_id)
-        .eq("is_active", true);
-      if (error) throw error;
-      return (data ?? []) as PriceListItemRow[];
-    },
-  });
-
-  const selectedPriceList = useMemo(
-    () => priceLists.find((row) => row.id === form.price_list_id) ?? null,
-    [priceLists, form.price_list_id],
+  const documentsById = useMemo(
+    () => new Map(documents.map((document) => [document.id, document])),
+    [documents],
   );
-
-  const applyRounding = (value: number, roundMode: PriceListRow["round_mode"], roundTo: number | null) => {
-    switch (roundMode) {
-      case "integer":
-        return Math.round(value);
-      case "tens":
-        return Math.round(value / 10) * 10;
-      case "hundreds":
-        return Math.round(value / 100) * 100;
-      case "x99":
-        return value <= 0 ? 0 : Math.floor(value) + 0.99;
-      case "none":
-      default: {
-        const safeRoundTo = !roundTo || roundTo <= 0 ? 1 : roundTo;
-        if (safeRoundTo === 1) return value;
-        return Math.round(value / safeRoundTo) * safeRoundTo;
-      }
-    }
-  };
-
-  const availableItems = useMemo(() => {
-    if (!form.price_list_id) return items;
-    return priceListItems
-      .filter((row) => row.items)
-      .map((row) => ({
-        id: row.items!.id,
-        sku: row.items!.sku,
-        name: row.items!.name,
-        unit: row.items!.unit,
-      }));
-  }, [items, form.price_list_id, priceListItems]);
-
-  const priceByItem = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const row of priceListItems) {
-      if (row.final_price_override !== null && Number(row.final_price_override) > 0) {
-        map.set(row.item_id, Number(row.final_price_override));
-        continue;
-      }
-      if (!selectedPriceList) {
-        map.set(row.item_id, 0);
-        continue;
-      }
-
-      const baseCost = Number(row.base_cost) || 0;
-      if (baseCost <= 0) {
-        map.set(row.item_id, 0);
-        continue;
-      }
-
-      const flete = row.flete_pct ?? selectedPriceList.flete_pct ?? 0;
-      const utilidad = row.utilidad_pct ?? selectedPriceList.utilidad_pct ?? 0;
-      const impuesto = row.impuesto_pct ?? selectedPriceList.impuesto_pct ?? 0;
-      const computed = baseCost * (1 + flete / 100) * (1 + utilidad / 100) * (1 + impuesto / 100);
-      map.set(row.item_id, applyRounding(computed, selectedPriceList.round_mode, selectedPriceList.round_to));
-    }
-    return map;
-  }, [priceListItems, selectedPriceList]);
-
-  const { data: documents = [], isLoading } = useQuery({
-    queryKey: ["documents", search, typeFilter, statusFilter],
-    queryFn: async () => {
-      let q = supabase
-        .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, notes, subtotal, tax_total, total, created_at")
-        .order("created_at", { ascending: false });
-      if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
-      if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
-      if (search.trim()) {
-        const n = Number.parseInt(search.trim(), 10);
-        const clauses = [`customer_name.ilike.%${search.trim()}%`];
-        if (Number.isFinite(n)) clauses.push(`document_number.eq.${n}`);
-        q = q.or(clauses.join(","));
-      }
-      const { data, error } = await q.limit(300);
-      if (error) throw error;
-      return (data ?? []) as DocRow[];
-    },
-  });
-
-  const { data: selectedLines = [] } = useQuery({
-    queryKey: ["document-lines", selectedDocId],
-    enabled: !!selectedDocId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("document_lines")
-        .select("id, item_id, line_order, description, quantity, unit, unit_price, line_total, sku_snapshot")
-        .eq("document_id", selectedDocId!)
-        .order("line_order");
-      if (error) throw error;
-      return (data ?? []) as DocLineRow[];
-    },
-  });
-
-  const { data: selectedEvents = [] } = useQuery({
-    queryKey: ["document-events", selectedDocId],
-    enabled: !!selectedDocId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("document_events")
-        .select("id, event_type, payload, created_at")
-        .eq("document_id", selectedDocId!)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as DocEventRow[];
-    },
-  });
-
-  const selectedDocument = useMemo(
-    () => documents.find((row) => row.id === selectedDocId) ?? null,
-    [documents, selectedDocId],
+  const itemsById = useMemo(
+    () => new Map(items.map((item) => [item.id, item])),
+    [items],
   );
-
-  const sourceDocument = useMemo(
-    () => documents.find((row) => row.id === selectedDocument?.source_document_id) ?? null,
-    [documents, selectedDocument?.source_document_id],
-  );
-
-  const sourceDocumentLabel = useMemo(() => {
-    if (!selectedDocument?.source_document_id) return null;
-    const sourceType = selectedDocument.source_document_type ?? sourceDocument?.doc_type ?? null;
-    const sourceNumber = selectedDocument.source_document_number_snapshot
-      ?? (sourceDocument ? formatNumber(sourceDocument.document_number, sourceDocument.point_of_sale) : null);
-    if (!sourceType || !sourceNumber) return null;
-    return `${DOC_LABEL[sourceType]} ${sourceNumber}`;
-  }, [selectedDocument, sourceDocument]);
-
   const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
 
   useEffect(() => {
     if (!form.price_list_id) return;
     setLines((prev) => prev.map((line) => {
       if (!line.item_id || !priceByItem.has(line.item_id)) return line;
-      return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
+      const nextPrice = priceByItem.get(line.item_id) ?? 0;
+      return line.unit_price === nextPrice ? line : { ...line, unit_price: nextPrice };
     }));
   }, [form.price_list_id, priceByItem]);
 
@@ -407,12 +139,14 @@ export default function DocumentsPage() {
   };
 
   const openCreateDialog = () => {
+    if (!canCreateDocumentDraft(roles)) return;
     resetDraftForm();
     setDialogOpen(true);
   };
 
   const openEditDialog = async (docId: string) => {
-    const target = documents.find((d) => d.id === docId);
+    if (!canEditDocumentDraft(roles)) return;
+    const target = documentsById.get(docId);
     if (!target || target.status !== "BORRADOR") return;
 
     const { data: lineRows, error } = await supabase
@@ -454,299 +188,28 @@ export default function DocumentsPage() {
     setDialogOpen(true);
   };
 
-  const upsertDraftMutation = useMutation({
-    mutationFn: async () => {
-      const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
-      if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
-      if (form.doc_type === "PRESUPUESTO" && form.customer_kind === "INTERNO") {
-        throw new Error("Los presupuestos no aplican a personal interno");
-      }
-      if (form.doc_type === "REMITO" && form.customer_kind === "INTERNO" && !form.internal_remito_type) {
-        throw new Error("El remito interno requiere definir si va a cuenta corriente o descuento de sueldo");
-      }
-      if (form.customer_kind !== "INTERNO" && form.internal_remito_type) {
-        throw new Error("El tipo de remito interno solo aplica a remitos del personal interno");
-      }
-
-      if (form.price_list_id) {
-        const missingItem = valid.some((line) => !line.item_id);
-        if (missingItem) throw new Error("Con lista de precios activa, todas las lineas deben tener item");
-      }
-
-      const normalizedLines = valid.map((line) => {
-        if (!form.price_list_id || !line.item_id) return line;
-        if (!priceByItem.has(line.item_id)) {
-          throw new Error("Hay items sin precio en la lista seleccionada");
-        }
-        return { ...line, unit_price: priceByItem.get(line.item_id) ?? 0 };
-      });
-
-      const pickedCustomer = form.customer_id ? customers.find((c) => c.id === form.customer_id) : null;
-      const customerName = pickedCustomer?.name ?? form.customer_name ?? "Cliente ocasional";
-      const customerTaxId = form.customer_tax_id || pickedCustomer?.cuit || null;
-
-      let documentId = editingDocId;
-      if (!documentId) {
-        const { data: doc, error: docErr } = await supabase
-          .from("documents")
-          .insert({
-            doc_type: form.doc_type,
-            status: "BORRADOR",
-            point_of_sale: form.point_of_sale,
-            customer_id: form.customer_id || null,
-            customer_name: customerName || null,
-            customer_tax_condition: form.customer_tax_condition || null,
-            customer_tax_id: customerTaxId,
-            customer_kind: form.customer_kind,
-            internal_remito_type: form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? form.internal_remito_type || null : null,
-            payment_terms: form.payment_terms || null,
-            delivery_address: form.delivery_address || null,
-            salesperson: form.salesperson || null,
-            valid_until: form.doc_type === "PRESUPUESTO" ? form.valid_until || null : null,
-            price_list_id: form.price_list_id || null,
-            notes: form.notes || null,
-            subtotal: totalDraft,
-            tax_total: 0,
-            total: totalDraft,
-            created_by: user?.id,
-          })
-          .select("id")
-          .single();
-        if (docErr) throw docErr;
-        documentId = doc.id;
-      } else {
-        const { error: updErr } = await supabase
-          .from("documents")
-          .update({
-            doc_type: form.doc_type,
-            point_of_sale: form.point_of_sale,
-            customer_id: form.customer_id || null,
-            customer_name: customerName || null,
-            customer_tax_condition: form.customer_tax_condition || null,
-            customer_tax_id: customerTaxId,
-            customer_kind: form.customer_kind,
-            internal_remito_type: form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? form.internal_remito_type || null : null,
-            payment_terms: form.payment_terms || null,
-            delivery_address: form.delivery_address || null,
-            salesperson: form.salesperson || null,
-            valid_until: form.doc_type === "PRESUPUESTO" ? form.valid_until || null : null,
-            price_list_id: form.price_list_id || null,
-            notes: form.notes || null,
-            subtotal: totalDraft,
-            tax_total: 0,
-            total: totalDraft,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", documentId)
-          .eq("status", "BORRADOR");
-        if (updErr) throw updErr;
-
-        const { error: delErr } = await supabase
-          .from("document_lines")
-          .delete()
-          .eq("document_id", documentId);
-        if (delErr) throw delErr;
-      }
-
-      const payload = normalizedLines.map((line, index) => ({
-        document_id: documentId,
-        line_order: index + 1,
-        item_id: line.item_id,
-        sku_snapshot: line.sku_snapshot || null,
-        description: line.description,
-        unit: line.unit || null,
-        quantity: line.quantity,
-        unit_price: line.unit_price,
-        line_total: line.quantity * line.unit_price,
-        created_by: user?.id,
-      }));
-      const { error: lineErr } = await supabase.from("document_lines").insert(payload);
-      if (lineErr) throw lineErr;
-
-      await supabase.from("document_events").insert({
-        document_id: documentId,
-        event_type: editingDocId ? "UPDATED" : "CREATED",
-        payload: { source: "ui" },
-        created_by: user?.id,
-      });
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["documents"] });
-      setDialogOpen(false);
-      resetDraftForm();
-      toast({ title: editingDocId ? "Borrador actualizado" : "Borrador guardado" });
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: "Error",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
-    },
-  });
-
-  const issueMutation = useMutation({
-    mutationFn: async (documentId: string) => {
-      const currentDocument = documents.find((row) => row.id === documentId);
-      if (currentDocument?.doc_type !== "REMITO") {
-        throw new Error("Solo los remitos se emiten");
-      }
-      const { data: remitoLines, error: linesError } = await supabase
-        .from("document_lines")
-        .select("item_id")
-        .eq("document_id", documentId);
-      if (linesError) throw linesError;
-      if ((remitoLines ?? []).some((line) => !line.item_id)) {
-        throw new Error("El remito tiene lineas sin item asociado y no se puede emitir");
-      }
-      const { error } = await supabase.rpc("issue_document", { p_document_id: documentId });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["documents"] });
-      qc.invalidateQueries({ queryKey: ["stock-current"] });
-      qc.invalidateQueries({ queryKey: ["stock-movements"] });
-      toast({ title: "Documento emitido" });
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: "Error al emitir",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
-    },
-  });
-
-  const transitionMutation = useMutation({
-    mutationFn: async ({ documentId, targetStatus }: { documentId: string; targetStatus: DocStatus }) => {
-      const { error } = await supabase.rpc("transition_document_status", {
-        p_document_id: documentId,
-        p_target_status: targetStatus,
-      });
-      if (error) throw error;
-    },
-    onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ["documents"] });
-      qc.invalidateQueries({ queryKey: ["stock-current"] });
-      qc.invalidateQueries({ queryKey: ["stock-movements"] });
-      toast({ title: `Documento ${STATUS_LABEL[variables.targetStatus].toLowerCase()}` });
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: "No se pudo cambiar el estado",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
-    },
-  });
-
-  const cloneAsRemitoMutation = useMutation({
-    mutationFn: async (sourceId: string) => {
-      const { data: src, error: srcErr } = await supabase
-        .from("documents")
-        .select("*")
-        .eq("id", sourceId)
-        .single();
-      if (srcErr) throw srcErr;
-
-      const { data: srcLines, error: lineErr } = await supabase
-        .from("document_lines")
-        .select("*")
-        .eq("document_id", sourceId)
-        .order("line_order");
-      if (lineErr) throw lineErr;
-
-      if (src.status === "ANULADO") {
-        throw new Error("No se puede convertir a remito un presupuesto anulado");
-      }
-      if (src.status !== "APROBADO") {
-        throw new Error("Solo se puede convertir a remito un presupuesto aprobado");
-      }
-      if ((srcLines ?? []).some((line) => !line.item_id)) {
-        throw new Error("El presupuesto tiene lineas sin item asociado. Completa los items antes de convertir a remito");
-      }
-
-      const { data: newDoc, error: newDocErr } = await supabase
-        .from("documents")
-        .insert({
-          doc_type: "REMITO",
-          status: "BORRADOR",
-          point_of_sale: src.point_of_sale,
-          customer_id: src.customer_id,
-          customer_name: src.customer_name,
-          customer_tax_condition: src.customer_tax_condition,
-          customer_tax_id: src.customer_tax_id,
-          customer_kind: src.customer_kind,
-          internal_remito_type: src.internal_remito_type,
-          payment_terms: src.payment_terms,
-          delivery_address: src.delivery_address,
-          salesperson: src.salesperson,
-          price_list_id: src.price_list_id,
-          source_document_id: src.id,
-          source_document_type: src.doc_type,
-          source_document_number_snapshot: formatNumber(src.document_number, src.point_of_sale),
-          notes: src.notes,
-          subtotal: 0,
-          tax_total: 0,
-          total: 0,
-          created_by: user?.id,
-        })
-        .select("id")
-        .single();
-      if (newDocErr) throw newDocErr;
-
-      const linesPayload = (srcLines ?? []).map((line) => ({
-        document_id: newDoc.id,
-        line_order: line.line_order,
-        item_id: line.item_id,
-        sku_snapshot: line.sku_snapshot,
-        description: line.description,
-        unit: line.unit,
-        quantity: line.quantity,
-        unit_price: line.unit_price,
-        discount_pct: line.discount_pct,
-        line_total: line.line_total,
-        created_by: user?.id,
-      }));
-      const { error: insErr } = await supabase.from("document_lines").insert(linesPayload);
-      if (insErr) throw insErr;
-
-      const remitoNumberLabel = formatNumber(null, src.point_of_sale);
-      await supabase.from("document_events").insert([
-        {
-          document_id: newDoc.id,
-          event_type: "CREATED",
-          payload: {
-            source: "budget_conversion",
-            source_document_id: src.id,
-            source_doc_type: src.doc_type,
-            source_number: formatNumber(src.document_number, src.point_of_sale),
-          },
-          created_by: user?.id,
-        },
-        {
-          document_id: src.id,
-          event_type: "REMITO_CREATED_FROM_BUDGET",
-          payload: {
-            target_document_id: newDoc.id,
-            target_number: remitoNumberLabel,
-            source_number: formatNumber(src.document_number, src.point_of_sale),
-          },
-          created_by: user?.id,
-        },
-      ]);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["documents"] });
-      toast({ title: "Remito borrador creado" });
-    },
-    onError: (error: unknown) => {
-      toast({ title: "No se pudo convertir a remito", description: getErrorMessage(error), variant: "destructive" });
-    },
+  const {
+    upsertDraftMutation,
+    issueMutation,
+    transitionMutation,
+    cloneAsRemitoMutation,
+  } = useDocumentsMutations({
+    currentCompanyId: currentCompany?.id ?? null,
+    userId: user?.id,
+    documents,
+    customers,
+    lines,
+    form,
+    totalDraft,
+    editingDocId,
+    priceByItem,
+    resetDraftForm,
+    setDialogOpen,
+    toast,
   });
 
   const onPickItem = (idx: number, itemId: string) => {
-    const item = items.find((row) => row.id === itemId);
+    const item = itemsById.get(itemId);
     if (!item) return;
     const next = [...lines];
     next[idx] = {
@@ -772,7 +235,7 @@ export default function DocumentsPage() {
 
     if (hasLoadedLines) {
       const confirmed = window.confirm(
-        "Cambiar la lista va a eliminar todas las lineas cargadas para evitar mezclar productos y precios. ¿Querés continuar?",
+        "Cambiar la lista va a eliminar todas las líneas cargadas para evitar mezclar productos y precios. ¿Querés continuar?",
       );
       if (!confirmed) return;
     }
@@ -786,80 +249,6 @@ export default function DocumentsPage() {
       if (prev.length === 1) return [EMPTY_LINE];
       return prev.filter((_, lineIdx) => lineIdx !== idx);
     });
-  };
-
-  const describeEvent = (event: DocEventRow) => {
-    const payload = isRecord(event.payload) ? event.payload : null;
-
-    switch (event.event_type) {
-      case "CREATED": {
-        const source = typeof payload?.source === "string" ? payload.source : null;
-        const sourceNumber = typeof payload?.source_number === "string" ? payload.source_number : null;
-        const sourceDocType = typeof payload?.source_doc_type === "string" ? payload.source_doc_type : null;
-        return {
-          title: source === "budget_conversion" ? "Remito creado" : "Documento creado",
-          detail:
-            source === "budget_conversion"
-              ? `Creado a partir de ${sourceDocType === "PRESUPUESTO" ? "presupuesto" : "documento"} ${sourceNumber ?? ""}`.trim()
-              : "Borrador inicial",
-          tone: "neutral" as const,
-        };
-      }
-      case "UPDATED":
-        return {
-          title: "Borrador actualizado",
-          detail: "Se guardaron cambios",
-          tone: "info" as const,
-        };
-      case "STATUS_CHANGED": {
-        const from = typeof payload?.from === "string" ? payload.from : null;
-        const to = typeof payload?.to === "string" ? payload.to : null;
-        const fromLabel = from && from in STATUS_LABEL ? STATUS_LABEL[from as DocStatus] : from;
-        const toLabel = to && to in STATUS_LABEL ? STATUS_LABEL[to as DocStatus] : to;
-        const tone =
-          to === "APROBADO" || to === "EMITIDO"
-            ? "success"
-            : to === "RECHAZADO"
-              ? "warning"
-              : to === "ANULADO"
-                ? "danger"
-                : "info";
-        return {
-          title: "Cambio de estado",
-          detail: fromLabel && toLabel ? `${fromLabel} -> ${toLabel}` : "Estado actualizado",
-          tone,
-        };
-      }
-      case "REMITO_EMITIDO": {
-        const reference = typeof payload?.reference === "string" ? payload.reference : null;
-        return {
-          title: "Remito emitido",
-          detail: reference ? `Stock descontado (${reference})` : "Stock descontado automaticamente",
-          tone: "success" as const,
-        };
-      }
-      case "REMIO_CREATED_FROM_BUDGET":
-      case "REMITO_CREATED_FROM_BUDGET": {
-        const targetNumber = typeof payload?.target_number === "string" ? payload.target_number : null;
-        const sourceNumber = typeof payload?.source_number === "string" ? payload.source_number : null;
-        return {
-          title: "Convertido a remito",
-          detail:
-            targetNumber && sourceNumber
-              ? `Remito ${targetNumber} creado desde Presupuesto ${sourceNumber}`
-              : targetNumber
-                ? `Nuevo remito ${targetNumber}`
-                : "Nuevo remito borrador",
-          tone: "info" as const,
-        };
-      }
-      default:
-        return {
-          title: event.event_type,
-          detail: "Evento registrado",
-          tone: "neutral" as const,
-        };
-    }
   };
 
   const printDocument = async (doc: DocRow) => {
@@ -876,22 +265,20 @@ export default function DocumentsPage() {
     const rows = printableLines.map((line) => `
       <tr>
         <td>${line.line_order}</td>
-        <td>${line.sku_snapshot ?? "-"}</td>
-        <td>${line.description}</td>
+        <td>${escapeHtml(line.sku_snapshot ?? "-")}</td>
+        <td>${escapeHtml(line.description)}</td>
         <td style="text-align:right">${Number(line.quantity).toLocaleString("es-AR")}</td>
-        <td>${line.unit ?? "un"}</td>
+        <td>${escapeHtml(line.unit ?? "un")}</td>
         <td style="text-align:right">$${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
         <td style="text-align:right">$${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
       </tr>
     `).join("");
 
-    const win = window.open("", "_blank");
-    if (!win) return;
     const logoBlock = companySettings.logo_url
-      ? `<img src="${companySettings.logo_url}" alt="${companySettings.app_name}" style="max-height:110px;max-width:320px;object-fit:contain;filter:drop-shadow(0 10px 20px rgba(15,23,42,.10))" />`
-      : `<div style="font-size:30px;font-weight:800;letter-spacing:.05em;color:#0f172a">${companySettings.app_name.toUpperCase()}</div>`;
+      ? `<img src="${escapeHtml(companySettings.logo_url)}" alt="${escapeHtml(companySettings.app_name)}" style="max-height:110px;max-width:320px;object-fit:contain;filter:drop-shadow(0 10px 20px rgba(15,23,42,.10))" />`
+      : `<div style="font-size:30px;font-weight:800;letter-spacing:.05em;color:#0f172a">${escapeHtml(companySettings.app_name.toUpperCase())}</div>`;
 
-    win.document.write(`<!doctype html><html><head><title>${DOC_LABEL[doc.doc_type]} ${formatNumber(doc.document_number, doc.point_of_sale)}</title>
+    const win = openPrintWindow(`<!doctype html><html><head><title>${escapeHtml(DOC_LABEL[doc.doc_type])} ${escapeHtml(formatNumber(doc.document_number, doc.point_of_sale))}</title>
       <style>
       @page{size:A4 portrait;margin:10mm}
       html,body{margin:0;padding:0}
@@ -934,72 +321,75 @@ export default function DocumentsPage() {
       <div class="head">
         <div class="brand">
           <div class="brand-copy">
-            <span class="eyebrow">${DOC_LABEL[doc.doc_type]}</span>
+            <span class="eyebrow">${escapeHtml(DOC_LABEL[doc.doc_type])}</span>
             ${logoBlock}
           </div>
           <div>
-            <p class="brand-name">${companySettings.legal_name ?? companySettings.app_name}</p>
-            <p class="muted">${companySettings.document_tagline ?? "Documentacion comercial"}</p>
+            <p class="brand-name">${escapeHtml(companySettings.legal_name ?? companySettings.app_name)}</p>
+            <p class="muted">${escapeHtml(companySettings.document_tagline ?? "Documentación comercial")}</p>
           </div>
         </div>
         <div class="docbox">
-          <h2>${DOC_LABEL[doc.doc_type]}</h2>
-          <p class="docline"><strong>Nro:</strong> ${formatNumber(doc.document_number, doc.point_of_sale)}</p>
+          <h2>${escapeHtml(DOC_LABEL[doc.doc_type])}</h2>
+          <p class="docline"><strong>Nro:</strong> ${escapeHtml(formatNumber(doc.document_number, doc.point_of_sale))}</p>
           <p class="docline"><strong>Fecha:</strong> ${new Date(doc.issue_date).toLocaleDateString("es-AR")}</p>
-          <p class="docline"><strong>Estado:</strong> ${STATUS_LABEL[doc.status]}</p>
+          <p class="docline"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[doc.status])}</p>
         </div>
       </div>
 
       <div class="meta-grid">
         <div class="meta-card">
           <p class="meta-title">Cliente</p>
-          <p class="muted"><strong>Cliente:</strong> ${doc.customer_name ?? "Cliente ocasional"}</p>
-          <p class="muted"><strong>Tipo:</strong> ${CUSTOMER_KIND_LABEL[doc.customer_kind]}</p>
-          <p class="muted"><strong>CUIT:</strong> ${doc.customer_tax_id ?? "-"}</p>
-          <p class="muted"><strong>Condicion fiscal:</strong> ${doc.customer_tax_condition ?? "-"}</p>
+          <p class="muted"><strong>Cliente:</strong> ${escapeHtml(doc.customer_name ?? "Cliente ocasional")}</p>
+          <p class="muted"><strong>Tipo:</strong> ${escapeHtml(CUSTOMER_KIND_LABEL[doc.customer_kind])}</p>
+          <p class="muted"><strong>CUIT:</strong> ${escapeHtml(doc.customer_tax_id ?? "-")}</p>
+          <p class="muted"><strong>Condición fiscal:</strong> ${escapeHtml(doc.customer_tax_condition ?? "-")}</p>
         </div>
         <div class="meta-card">
-          <p class="meta-title">Operacion</p>
+          <p class="meta-title">Operación</p>
           <p class="muted"><strong>Punto de venta:</strong> ${String(doc.point_of_sale).padStart(4, "0")}</p>
-          <p class="muted"><strong>Tipo:</strong> ${DOC_LABEL[doc.doc_type]}</p>
-          <p class="muted"><strong>Estado:</strong> ${STATUS_LABEL[doc.status]}</p>
-          ${doc.payment_terms ? `<p class="muted"><strong>Condicion de venta:</strong> ${doc.payment_terms}</p>` : ""}
-          ${doc.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${doc.salesperson}</p>` : ""}
-          ${doc.valid_until ? `<p class="muted"><strong>Valido hasta:</strong> ${new Date(doc.valid_until).toLocaleDateString("es-AR")}</p>` : ""}
-          ${doc.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${doc.delivery_address}</p>` : ""}
-          ${doc.source_document_type && doc.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${DOC_LABEL[doc.source_document_type]} ${doc.source_document_number_snapshot}</p>` : ""}
-          ${doc.internal_remito_type ? `<p class="muted"><strong>Imputacion:</strong> ${INTERNAL_REMITO_LABEL[doc.internal_remito_type]}</p>` : ""}
+          <p class="muted"><strong>Tipo:</strong> ${escapeHtml(DOC_LABEL[doc.doc_type])}</p>
+          <p class="muted"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[doc.status])}</p>
+          ${doc.payment_terms ? `<p class="muted"><strong>Condición de venta:</strong> ${escapeHtml(doc.payment_terms)}</p>` : ""}
+          ${doc.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${escapeHtml(doc.salesperson)}</p>` : ""}
+          ${doc.valid_until ? `<p class="muted"><strong>Válido hasta:</strong> ${new Date(doc.valid_until).toLocaleDateString("es-AR")}</p>` : ""}
+          ${doc.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${escapeHtml(doc.delivery_address)}</p>` : ""}
+          ${doc.source_document_type && doc.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${escapeHtml(DOC_LABEL[doc.source_document_type])} ${escapeHtml(doc.source_document_number_snapshot)}</p>` : ""}
+          ${doc.internal_remito_type ? `<p class="muted"><strong>Imputación:</strong> ${escapeHtml(INTERNAL_REMITO_LABEL[doc.internal_remito_type])}</p>` : ""}
           <p class="muted"><strong>Creado:</strong> ${new Date(doc.created_at).toLocaleString("es-AR")}</p>
         </div>
       </div>
 
       <table>
         <thead>
-          <tr><th>#</th><th>SKU</th><th>Descripcion</th><th>Cant.</th><th>Unidad</th><th>P.Unit.</th><th>Importe</th></tr>
+          <tr><th>#</th><th>SKU</th><th>Descripción</th><th>Cant.</th><th>Unidad</th><th>P.Unit.</th><th>Importe</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
 
       <div class="totals"><div class="totals-box"><div class="totals-label">Total documento</div><div class="totals-value">$${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div></div></div>
-      <div class="notes"><strong>Notas:</strong> ${doc.notes ?? "-"}</div>
+      <div class="notes"><strong>Notas:</strong> ${escapeHtmlWithLineBreaks(doc.notes ?? "-")}</div>
 
-      <div class="foot"><span>Generado por ${companySettings.app_name}</span><span>${companySettings.document_footer ?? "Este documento no reemplaza comprobantes fiscales"}</span></div>
+      <div class="foot"><span>Generado por ${escapeHtml(companySettings.app_name)}</span><span>${escapeHtml(companySettings.document_footer ?? "Este documento no reemplaza comprobantes fiscales")}</span></div>
       </div>
       </div>
       <button class="print-action" onclick="window.print()">Imprimir / Guardar PDF</button>
       </body></html>`);
-    win.document.close();
+    if (!win) return;
   };
 
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitás una empresa activa para crear documentos, emitir remitos y revisar su historial." />
+        ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Documentos</h1>
-            <p className="text-muted-foreground">Presupuestos y remitos rapidos</p>
+            <p className="text-muted-foreground">Presupuestos y remitos rápidos</p>
           </div>
-          <Button onClick={openCreateDialog}>
+          <Button onClick={openCreateDialog} disabled={!canCreateDocumentDraft(roles)}>
             <Plus className="mr-2 h-4 w-4" /> Nuevo documento
           </Button>
         </div>
@@ -1007,7 +397,7 @@ export default function DocumentsPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar cliente o numero..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input placeholder="Buscar cliente o número..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="w-full md:w-52">
             <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as DocType | "ALL")}>
@@ -1035,494 +425,73 @@ export default function DocumentsPage() {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Numero</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="w-[260px]">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
-              ) : documents.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Sin documentos</TableCell></TableRow>
-              ) : documents.map((doc) => (
-                <TableRow key={doc.id}>
-                  <TableCell>
-                    <Badge variant="outline" className={DOC_TYPE_CLASS[doc.doc_type]}>
-                      {DOC_LABEL[doc.doc_type]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono">{formatNumber(doc.document_number, doc.point_of_sale)}</TableCell>
-                  <TableCell className="font-medium">{doc.customer_name ?? "Cliente ocasional"}</TableCell>
-                  <TableCell><Badge variant={STATUS_VARIANT[doc.status]}>{STATUS_LABEL[doc.status]}</Badge></TableCell>
-                  <TableCell className="text-right font-mono">${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell>{new Date(doc.issue_date).toLocaleDateString("es-AR")}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => { setSelectedDocId(doc.id); setDetailOpen(true); }} title="Ver">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => printDocument(doc)} title="Imprimir / PDF">
-                        <FileDown className="h-4 w-4" />
-                      </Button>
-                      {doc.status === "BORRADOR" && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(doc.id)} title="Editar borrador">
-                            <Pencil className="h-4 w-4 text-blue-600" />
-                          </Button>
-                        </>
-                      )}
-                      {doc.doc_type === "PRESUPUESTO" && doc.status === "BORRADOR" && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ENVIADO" })} title="Marcar como enviado">
-                            <Send className="h-4 w-4 text-blue-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "APROBADO" })} title="Aprobar">
-                            <Send className="h-4 w-4 text-emerald-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "RECHAZADO" })} title="Rechazar">
-                            <Ban className="h-4 w-4 text-amber-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular">
-                            <Ban className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {doc.doc_type === "PRESUPUESTO" && doc.status === "ENVIADO" && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "APROBADO" })} title="Aprobar">
-                            <Send className="h-4 w-4 text-emerald-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "RECHAZADO" })} title="Rechazar">
-                            <Ban className="h-4 w-4 text-amber-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular">
-                            <Ban className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {doc.doc_type === "REMITO" && doc.status === "BORRADOR" && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => issueMutation.mutate(doc.id)} title="Emitir remito">
-                            <Send className="h-4 w-4 text-emerald-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular borrador">
-                            <Ban className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {doc.doc_type === "PRESUPUESTO" && doc.status === "APROBADO" && (
-                        <Button variant="ghost" size="icon" onClick={() => cloneAsRemitoMutation.mutate(doc.id)} title="Convertir a remito">
-                          <Copy className="h-4 w-4 text-blue-600" />
-                        </Button>
-                      )}
-                      {doc.doc_type === "PRESUPUESTO" && doc.status === "APROBADO" && (
-                        <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular">
-                          <Ban className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                      {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && (
-                        <Button variant="ghost" size="icon" onClick={() => transitionMutation.mutate({ documentId: doc.id, targetStatus: "ANULADO" })} title="Anular remito">
-                          <Ban className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DocumentsList
+          documents={documents}
+          isLoading={isLoading}
+          onOpenDetail={(documentId) => {
+            setSelectedDocId(documentId);
+            setDetailOpen(true);
+          }}
+          onPrint={(document) => {
+            if (!canPrintDocument(roles)) return;
+            void printDocument(document);
+          }}
+          onEditDraft={openEditDialog}
+          onTransition={(documentId, targetStatus) => {
+            if (!canTransitionDocumentTo(roles, targetStatus)) return;
+            transitionMutation.mutate({ documentId, targetStatus });
+          }}
+          onIssueRemito={(documentId) => {
+            if (!canIssueRemito(roles)) return;
+            issueMutation.mutate(documentId);
+          }}
+          onCloneAsRemito={(documentId) => {
+            if (!canCloneBudgetToRemito(roles)) return;
+            cloneAsRemitoMutation.mutate(documentId);
+          }}
+          canPrintDocument={canPrintDocument(roles)}
+          canEditDocumentDraft={canEditDocumentDraft(roles)}
+          canIssueRemito={canIssueRemito(roles)}
+          canCloneBudgetToRemito={canCloneBudgetToRemito(roles)}
+          canTransitionDocumentTo={(status) =>
+            status === "EMITIDO"
+              ? false
+              : canTransitionDocumentTo(roles, status as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO")
+          }
+        />
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetDraftForm(); }}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
-          <DialogHeader><DialogTitle>{editingDocId ? "Editar borrador" : "Nuevo documento"}</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); upsertDraftMutation.mutate(); }} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <Label>Tipo *</Label>
-                <Select
-                  value={form.doc_type}
-                  onValueChange={(v) =>
-                    setForm((prev) => {
-                      const nextDocType = v as DocType;
-                      const nextCustomerKind = nextDocType === "PRESUPUESTO" && prev.customer_kind === "INTERNO" ? "GENERAL" : prev.customer_kind;
-                      return {
-                        ...prev,
-                        doc_type: nextDocType,
-                        customer_kind: nextCustomerKind,
-                        internal_remito_type: nextDocType === "REMITO" && nextCustomerKind === "INTERNO" ? prev.internal_remito_type : "",
-                      };
-                    })
-                  }
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PRESUPUESTO">Presupuesto</SelectItem>
-                    <SelectItem value="REMITO">Remito</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Punto de venta</Label>
-                <Input type="number" min={1} value={form.point_of_sale} onChange={(e) => setForm((prev) => ({ ...prev, point_of_sale: Math.max(1, Number(e.target.value) || 1) }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Lista de precios</Label>
-                <Select value={form.price_list_id || "__none__"} onValueChange={(v) => onPriceListChange(v === "__none__" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin lista</SelectItem>
-                    {priceLists.map((pl) => <SelectItem key={pl.id} value={pl.id}>{pl.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+      <DocumentsEditorDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        editingDocId={editingDocId}
+        form={form}
+        setForm={setForm}
+        lines={lines}
+        setLines={setLines}
+        totalDraft={totalDraft}
+        customers={customers}
+        priceLists={priceLists}
+        availableItems={availableItems}
+        onPriceListChange={onPriceListChange}
+        onPickItem={onPickItem}
+        removeLine={removeLine}
+        onSubmit={() => upsertDraftMutation.mutate()}
+        onResetDraftForm={resetDraftForm}
+        isSubmitting={upsertDraftMutation.isPending || !canCreateDocumentDraft(roles)}
+      />
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div className="space-y-2">
-                <Label>Tipo de cliente</Label>
-                <Select
-                  value={form.customer_kind}
-                  onValueChange={(v) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      customer_kind: v as CustomerKind,
-                      internal_remito_type: v === "INTERNO" && prev.doc_type === "REMITO" ? prev.internal_remito_type : "",
-                    }))
-                  }
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="GENERAL">Cliente general</SelectItem>
-                    {form.doc_type === "REMITO" && <SelectItem value="INTERNO">Personal / tecnico interno</SelectItem>}
-                    <SelectItem value="EMPRESA">Empresa</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Cliente registrado</Label>
-                <Select value={form.customer_id || "__none__"} onValueChange={(v) => setForm((prev) => ({ ...prev, customer_id: v === "__none__" ? "" : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin seleccionar</SelectItem>
-                    {customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Nombre cliente</Label>
-                <Input value={form.customer_name} onChange={(e) => setForm((prev) => ({ ...prev, customer_name: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>CUIT</Label>
-                <Input value={form.customer_tax_id} onChange={(e) => setForm((prev) => ({ ...prev, customer_tax_id: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Condicion fiscal</Label>
-                <Input value={form.customer_tax_condition} onChange={(e) => setForm((prev) => ({ ...prev, customer_tax_condition: e.target.value }))} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Condicion de venta</Label>
-                <Input value={form.payment_terms} onChange={(e) => setForm((prev) => ({ ...prev, payment_terms: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Vendedor</Label>
-                <Input value={form.salesperson} onChange={(e) => setForm((prev) => ({ ...prev, salesperson: e.target.value }))} />
-              </div>
-              {form.doc_type === "PRESUPUESTO" && (
-                <div className="space-y-2">
-                  <Label>Valido hasta</Label>
-                  <Input type="date" value={form.valid_until} onChange={(e) => setForm((prev) => ({ ...prev, valid_until: e.target.value }))} />
-                </div>
-              )}
-            </div>
-
-            {form.doc_type === "REMITO" && (
-              <div className="space-y-2">
-                <Label>Domicilio de entrega</Label>
-                <Input value={form.delivery_address} onChange={(e) => setForm((prev) => ({ ...prev, delivery_address: e.target.value }))} />
-              </div>
-            )}
-
-            {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="space-y-2">
-                  <Label>Imputacion del remito</Label>
-                  <Select
-                    value={form.internal_remito_type || "__none__"}
-                    onValueChange={(v) => setForm((prev) => ({ ...prev, internal_remito_type: v === "__none__" ? "" : (v as InternalRemitoType) }))}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
-                      <SelectItem value="DESCUENTO_SUELDO">Descuento de sueldo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label>Notas</Label>
-              <Textarea value={form.notes} onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))} />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Lineas</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLines((prev) => [...prev, EMPTY_LINE])}
-                >
-                  <Plus className="h-3 w-3 mr-1" /> Linea
-                </Button>
-              </div>
-              {form.price_list_id && (
-                <p className="text-xs text-muted-foreground">Con lista activa, solo aparecen items de esa lista y el precio unitario se toma automaticamente.</p>
-              )}
-              <div className="space-y-2">
-                {lines.map((line, idx) => {
-                  const lockPrice = !!form.price_list_id && !!line.item_id;
-                  const lockDescription = !!line.item_id;
-                  return (
-                    <div key={idx} className="grid grid-cols-12 gap-2">
-                      <div className="col-span-3">
-                        <Select value={line.item_id ?? "__none__"} onValueChange={(v) => onPickItem(idx, v === "__none__" ? "" : v)}>
-                          <SelectTrigger><SelectValue placeholder="Item" /></SelectTrigger>
-                          <SelectContent>
-                            {!form.price_list_id && <SelectItem value="__none__">Manual</SelectItem>}
-                            {availableItems.map((it) => <SelectItem key={it.id} value={it.id}>{it.sku} - {it.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Input className="col-span-4" placeholder="Descripcion" value={line.description} disabled={lockDescription} onChange={(e) => {
-                        const next = [...lines];
-                        next[idx] = { ...next[idx], description: e.target.value };
-                        setLines(next);
-                      }} />
-                      <Input className="col-span-1" type="number" min={0.001} step="any" value={line.quantity} onChange={(e) => {
-                        const next = [...lines];
-                        next[idx] = { ...next[idx], quantity: Number(e.target.value) || 0 };
-                        setLines(next);
-                      }} />
-                      <Input
-                        className="col-span-2"
-                        type="number"
-                        min={0}
-                        step="any"
-                        value={line.unit_price}
-                        disabled={lockPrice}
-                        onChange={(e) => {
-                          const next = [...lines];
-                          next[idx] = { ...next[idx], unit_price: Number(e.target.value) || 0 };
-                          setLines(next);
-                        }}
-                      />
-                      <div className="col-span-2 flex items-center justify-end text-sm font-mono">
-                        ${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                      </div>
-                      <div className="col-span-12 flex justify-end md:col-span-12">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-muted-foreground hover:text-destructive"
-                          onClick={() => removeLine(idx)}
-                          title="Eliminar linea"
-                        >
-                          <Trash2 className="mr-1 h-4 w-4" /> Eliminar linea
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-right font-bold">Total: ${totalDraft.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
-            </div>
-
-            <DialogFooter>
-              <Button type="submit" disabled={upsertDraftMutation.isPending}>
-                {upsertDraftMutation.isPending ? "Guardando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
-          <DialogHeader><DialogTitle>Vista previa del documento</DialogTitle></DialogHeader>
-          {selectedDocument && (
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-              <div className="min-w-0 max-h-[72vh] space-y-4 overflow-y-auto pr-1">
-                <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-                  <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-[hsl(var(--accent))]/70 p-5">
-                    <div className="mb-4 flex items-start justify-between gap-4">
-                      <div className="space-y-3">
-                        <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
-                          {DOC_LABEL[selectedDocument.doc_type]}
-                        </Badge>
-                        <div>
-                          {companySettings.logo_url ? (
-                            <img src={companySettings.logo_url} alt={companySettings.app_name} className="h-16 w-auto max-w-[220px] object-contain" />
-                          ) : (
-                            <p className="text-2xl font-black tracking-[0.12em] text-primary">{companySettings.app_name}</p>
-                          )}
-                          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            {companySettings.document_tagline ?? "Documentacion comercial"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right text-white shadow-sm">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300">Documento</p>
-                        <p className="mt-1 text-lg font-bold">{DOC_LABEL[selectedDocument.doc_type]}</p>
-                        <p className="mt-2 text-xs text-slate-300">{formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}</p>
-                      </div>
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div className="rounded-2xl border bg-white/80 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
-                        <p className="mt-2 font-semibold">{selectedDocument.customer_name ?? "Cliente ocasional"}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">Tipo: {CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">CUIT: {selectedDocument.customer_tax_id ?? "-"}</p>
-                        <p className="text-sm text-muted-foreground">Condicion fiscal: {selectedDocument.customer_tax_condition ?? "-"}</p>
-                      </div>
-                      <div className="rounded-2xl border bg-white/80 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
-                        <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(selectedDocument.issue_date).toLocaleDateString("es-AR")}</p>
-                        <p className="text-sm"><span className="font-semibold">Estado:</span> {STATUS_LABEL[selectedDocument.status]}</p>
-                        <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(selectedDocument.point_of_sale).padStart(4, "0")}</p>
-                        {selectedDocument.payment_terms && (
-                          <p className="text-sm"><span className="font-semibold">Condicion de venta:</span> {selectedDocument.payment_terms}</p>
-                        )}
-                        {selectedDocument.salesperson && (
-                          <p className="text-sm"><span className="font-semibold">Vendedor:</span> {selectedDocument.salesperson}</p>
-                        )}
-                        {selectedDocument.valid_until && (
-                          <p className="text-sm"><span className="font-semibold">Valido hasta:</span> {new Date(selectedDocument.valid_until).toLocaleDateString("es-AR")}</p>
-                        )}
-                        {selectedDocument.delivery_address && (
-                          <p className="text-sm"><span className="font-semibold">Entrega:</span> {selectedDocument.delivery_address}</p>
-                        )}
-                        {selectedDocument.internal_remito_type && (
-                          <p className="text-sm"><span className="font-semibold">Imputacion:</span> {INTERNAL_REMITO_LABEL[selectedDocument.internal_remito_type]}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="rounded-3xl border bg-card p-5">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Resumen</p>
-                    <div className="mt-4 space-y-3">
-                      <div className="rounded-2xl border bg-[hsl(var(--accent))]/50 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total documento</p>
-                        <p className="mt-2 text-3xl font-black text-primary">
-                          ${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-dashed p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Notas</p>
-                        <p className="mt-2 text-sm text-muted-foreground">{selectedDocument.notes ?? "Sin observaciones cargadas."}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto rounded-3xl border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>#</TableHead>
-                        <TableHead>SKU</TableHead>
-                        <TableHead>Descripcion</TableHead>
-                        <TableHead className="text-right">Cant.</TableHead>
-                        <TableHead>Unidad</TableHead>
-                        <TableHead className="text-right">P.Unit.</TableHead>
-                        <TableHead className="text-right">Importe</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedLines.map((line) => (
-                        <TableRow key={line.id}>
-                          <TableCell>{line.line_order}</TableCell>
-                          <TableCell className="font-mono text-xs">{line.sku_snapshot ?? "-"}</TableCell>
-                          <TableCell className="font-medium">{line.description}</TableCell>
-                          <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
-                          <TableCell>{line.unit ?? "un"}</TableCell>
-                          <TableCell className="text-right font-mono">${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                          <TableCell className="text-right font-mono">${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-
-              <aside className="rounded-3xl border bg-card p-5 lg:max-h-[72vh] lg:overflow-y-auto">
-                <div className="mb-5">
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Historial</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Linea de tiempo del documento.</p>
-                  {sourceDocumentLabel && (
-                    <Badge variant="outline" className="mt-3 border-slate-200 bg-slate-50 text-slate-700">
-                      Origen: {sourceDocumentLabel}
-                    </Badge>
-                  )}
-                </div>
-
-                {selectedEvents.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
-                    Todavia no hay eventos registrados para este documento.
-                  </div>
-                ) : (
-                  <div className="relative pl-7">
-                    <div className="absolute bottom-2 left-[11px] top-2 w-px rounded-full bg-gradient-to-b from-blue-200 via-emerald-200 to-slate-200" />
-                    <div className="space-y-4">
-                      {selectedEvents.map((event) => {
-                        const described = describeEvent(event);
-                        return (
-                          <div key={event.id} className="relative">
-                            <div className={`absolute left-[-21px] top-5 h-3.5 w-3.5 rounded-full ring-4 ring-white shadow-md ${HISTORY_DOT_CLASS[described.tone]}`} />
-                            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <p className="text-sm font-semibold leading-5 text-slate-900">{described.title}</p>
-                                  <p className="mt-1 text-sm leading-5 text-slate-500">{described.detail}</p>
-                                </div>
-                                <div className="shrink-0 text-right">
-                                  <Badge variant="outline" className={HISTORY_TONE_CLASS[described.tone]}>
-                                    {new Date(event.created_at).toLocaleDateString("es-AR")}
-                                  </Badge>
-                                  <p className="mt-2 text-xs text-slate-400">
-                                    {new Date(event.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </aside>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <DocumentsPreviewDialog
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        selectedDocument={selectedDocument}
+        selectedLines={selectedLines}
+        selectedEvents={selectedEvents}
+        sourceDocumentLabel={sourceDocumentLabel}
+        companySettings={companySettings}
+      />
     </AppLayout>
   );
 }
+
+

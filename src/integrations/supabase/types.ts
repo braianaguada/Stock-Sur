@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -12,13 +12,366 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
+      cash_closures: {
+        Row: {
+          business_date: string
+          cash_difference: number | null
+          closed_at: string | null
+          company_id: string
+          counted_cash_total: number | null
+          counted_point_total: number | null
+          counted_transfer_total: number | null
+          created_at: string
+          created_by: string
+          expected_account_expenses_total: number
+          expected_account_sales_total: number
+          expected_cash_expenses_total: number
+          expected_cash_sales_total: number
+          expected_cash_to_render: number
+          expected_non_cash_total: number
+          expected_point_sales_total: number
+          expected_sales_total: number
+          expected_transfer_sales_total: number
+          id: string
+          notes: string | null
+          point_difference: number | null
+          responsible_id: string
+          status: Database["public"]["Enums"]["cash_closure_status"]
+          transfer_difference: number | null
+          updated_at: string
+        }
+        Insert: {
+          business_date: string
+          cash_difference?: number | null
+          closed_at?: string | null
+          company_id: string
+          counted_cash_total?: number | null
+          counted_point_total?: number | null
+          counted_transfer_total?: number | null
+          created_at?: string
+          created_by?: string
+          expected_account_expenses_total?: number
+          expected_account_sales_total?: number
+          expected_cash_expenses_total?: number
+          expected_cash_sales_total?: number
+          expected_cash_to_render?: number
+          expected_non_cash_total?: number
+          expected_point_sales_total?: number
+          expected_sales_total?: number
+          expected_transfer_sales_total?: number
+          id?: string
+          notes?: string | null
+          point_difference?: number | null
+          responsible_id?: string
+          status?: Database["public"]["Enums"]["cash_closure_status"]
+          transfer_difference?: number | null
+          updated_at?: string
+        }
+        Update: {
+          business_date?: string
+          cash_difference?: number | null
+          closed_at?: string | null
+          company_id?: string
+          counted_cash_total?: number | null
+          counted_point_total?: number | null
+          counted_transfer_total?: number | null
+          created_at?: string
+          created_by?: string
+          expected_account_expenses_total?: number
+          expected_account_sales_total?: number
+          expected_cash_expenses_total?: number
+          expected_cash_sales_total?: number
+          expected_cash_to_render?: number
+          expected_non_cash_total?: number
+          expected_point_sales_total?: number
+          expected_sales_total?: number
+          expected_transfer_sales_total?: number
+          id?: string
+          notes?: string | null
+          point_difference?: number | null
+          responsible_id?: string
+          status?: Database["public"]["Enums"]["cash_closure_status"]
+          transfer_difference?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_closures_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_events: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["cash_event_entity_type"]
+          event_type: string
+          id: string
+          payload: Json | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["cash_event_entity_type"]
+          event_type: string
+          id?: string
+          payload?: Json | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["cash_event_entity_type"]
+          event_type?: string
+          id?: string
+          payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_expenses: {
+        Row: {
+          amount_total: number
+          business_date: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          closure_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          description: string
+          expense_kind: Database["public"]["Enums"]["cash_expense_kind"]
+          id: string
+          notes: string | null
+          receipt_reference: string | null
+          spent_at: string
+          updated_at: string
+        }
+        Insert: {
+          amount_total: number
+          business_date?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closure_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string
+          description: string
+          expense_kind?: Database["public"]["Enums"]["cash_expense_kind"]
+          id?: string
+          notes?: string | null
+          receipt_reference?: string | null
+          spent_at?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_total?: number
+          business_date?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closure_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string
+          expense_kind?: Database["public"]["Enums"]["cash_expense_kind"]
+          id?: string
+          notes?: string | null
+          receipt_reference?: string | null
+          spent_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_expenses_closure_id_fkey"
+            columns: ["closure_id"]
+            isOneToOne: false
+            referencedRelation: "cash_closures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_expenses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_sales: {
+        Row: {
+          amount_total: number
+          business_date: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          closure_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name_snapshot: string | null
+          document_id: string | null
+          id: string
+          notes: string | null
+          payment_method: Database["public"]["Enums"]["cash_payment_method"]
+          receipt_kind: Database["public"]["Enums"]["cash_receipt_kind"]
+          receipt_reference: string | null
+          sold_at: string
+          status: Database["public"]["Enums"]["cash_sale_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount_total: number
+          business_date?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closure_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          customer_name_snapshot?: string | null
+          document_id?: string | null
+          id?: string
+          notes?: string | null
+          payment_method: Database["public"]["Enums"]["cash_payment_method"]
+          receipt_kind?: Database["public"]["Enums"]["cash_receipt_kind"]
+          receipt_reference?: string | null
+          sold_at?: string
+          status?: Database["public"]["Enums"]["cash_sale_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount_total?: number
+          business_date?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closure_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          customer_name_snapshot?: string | null
+          document_id?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: Database["public"]["Enums"]["cash_payment_method"]
+          receipt_kind?: Database["public"]["Enums"]["cash_receipt_kind"]
+          receipt_reference?: string | null
+          sold_at?: string
+          status?: Database["public"]["Enums"]["cash_sale_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_sales_closure_id_fkey"
+            columns: ["closure_id"]
+            isOneToOne: false
+            referencedRelation: "cash_closures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_sales_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_sales_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          slug: string
+          status: Database["public"]["Enums"]["company_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          slug: string
+          status?: Database["public"]["Enums"]["company_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          slug?: string
+          status?: Database["public"]["Enums"]["company_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           accent_color: string
           address: string | null
           app_name: string
+          company_id: string
           created_at: string
           default_point_of_sale: number
           document_footer: string | null
@@ -38,6 +391,7 @@ export type Database = {
           accent_color?: string
           address?: string | null
           app_name?: string
+          company_id: string
           created_at?: string
           default_point_of_sale?: number
           document_footer?: string | null
@@ -57,6 +411,7 @@ export type Database = {
           accent_color?: string
           address?: string | null
           app_name?: string
+          company_id?: string
           created_at?: string
           default_point_of_sale?: number
           document_footer?: string | null
@@ -72,11 +427,131 @@ export type Database = {
           updated_at?: string
           whatsapp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_user_permissions: {
+        Row: {
+          company_user_id: string
+          created_at: string
+          effect: Database["public"]["Enums"]["permission_effect"]
+          id: string
+          permission_id: string
+        }
+        Insert: {
+          company_user_id: string
+          created_at?: string
+          effect: Database["public"]["Enums"]["permission_effect"]
+          id?: string
+          permission_id: string
+        }
+        Update: {
+          company_user_id?: string
+          created_at?: string
+          effect?: Database["public"]["Enums"]["permission_effect"]
+          id?: string
+          permission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_user_permissions_company_user_id_fkey"
+            columns: ["company_user_id"]
+            isOneToOne: false
+            referencedRelation: "company_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_user_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_user_roles: {
+        Row: {
+          company_user_id: string
+          created_at: string
+          role_id: string
+        }
+        Insert: {
+          company_user_id: string
+          created_at?: string
+          role_id: string
+        }
+        Update: {
+          company_user_id?: string
+          created_at?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_user_roles_company_user_id_fkey"
+            columns: ["company_user_id"]
+            isOneToOne: false
+            referencedRelation: "company_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_users: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          status: Database["public"]["Enums"]["company_user_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["company_user_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["company_user_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_users_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customers: {
         Row: {
+          company_id: string
           created_at: string
+          created_by: string | null
           cuit: string | null
           email: string | null
           id: string
@@ -85,7 +560,9 @@ export type Database = {
           phone: string | null
         }
         Insert: {
+          company_id: string
           created_at?: string
+          created_by?: string | null
           cuit?: string | null
           email?: string | null
           id?: string
@@ -94,7 +571,9 @@ export type Database = {
           phone?: string | null
         }
         Update: {
+          company_id?: string
           created_at?: string
+          created_by?: string | null
           cuit?: string | null
           email?: string | null
           id?: string
@@ -102,7 +581,15 @@ export type Database = {
           name?: string
           phone?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       document_events: {
         Row: {
@@ -210,6 +697,7 @@ export type Database = {
       }
       document_sequences: {
         Row: {
+          company_id: string
           doc_type: Database["public"]["Enums"]["document_type"]
           id: string
           last_number: number
@@ -217,6 +705,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id: string
           doc_type: Database["public"]["Enums"]["document_type"]
           id?: string
           last_number?: number
@@ -224,20 +713,30 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string
           doc_type?: Database["public"]["Enums"]["document_type"]
           id?: string
           last_number?: number
           point_of_sale?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "document_sequences_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documents: {
         Row: {
+          company_id: string
           created_at: string
           created_by: string
-          customer_kind: Database["public"]["Enums"]["document_customer_kind"]
           customer_id: string | null
+          customer_kind: Database["public"]["Enums"]["document_customer_kind"]
           customer_name: string | null
           customer_tax_condition: string | null
           customer_tax_id: string | null
@@ -246,8 +745,10 @@ export type Database = {
           doc_type: Database["public"]["Enums"]["document_type"]
           document_number: number | null
           id: string
+          internal_remito_type:
+            | Database["public"]["Enums"]["internal_remito_type"]
+            | null
           issue_date: string
-          internal_remito_type: Database["public"]["Enums"]["internal_remito_type"] | null
           notes: string | null
           payment_terms: string | null
           point_of_sale: number
@@ -255,7 +756,9 @@ export type Database = {
           salesperson: string | null
           source_document_id: string | null
           source_document_number_snapshot: string | null
-          source_document_type: Database["public"]["Enums"]["document_type"] | null
+          source_document_type:
+            | Database["public"]["Enums"]["document_type"]
+            | null
           status: Database["public"]["Enums"]["document_status"]
           subtotal: number
           tax_total: number
@@ -264,10 +767,11 @@ export type Database = {
           valid_until: string | null
         }
         Insert: {
+          company_id: string
           created_at?: string
           created_by?: string
-          customer_kind?: Database["public"]["Enums"]["document_customer_kind"]
           customer_id?: string | null
+          customer_kind?: Database["public"]["Enums"]["document_customer_kind"]
           customer_name?: string | null
           customer_tax_condition?: string | null
           customer_tax_id?: string | null
@@ -276,8 +780,10 @@ export type Database = {
           doc_type: Database["public"]["Enums"]["document_type"]
           document_number?: number | null
           id?: string
+          internal_remito_type?:
+            | Database["public"]["Enums"]["internal_remito_type"]
+            | null
           issue_date?: string
-          internal_remito_type?: Database["public"]["Enums"]["internal_remito_type"] | null
           notes?: string | null
           payment_terms?: string | null
           point_of_sale?: number
@@ -285,7 +791,9 @@ export type Database = {
           salesperson?: string | null
           source_document_id?: string | null
           source_document_number_snapshot?: string | null
-          source_document_type?: Database["public"]["Enums"]["document_type"] | null
+          source_document_type?:
+            | Database["public"]["Enums"]["document_type"]
+            | null
           status?: Database["public"]["Enums"]["document_status"]
           subtotal?: number
           tax_total?: number
@@ -294,10 +802,11 @@ export type Database = {
           valid_until?: string | null
         }
         Update: {
+          company_id?: string
           created_at?: string
           created_by?: string
-          customer_kind?: Database["public"]["Enums"]["document_customer_kind"]
           customer_id?: string | null
+          customer_kind?: Database["public"]["Enums"]["document_customer_kind"]
           customer_name?: string | null
           customer_tax_condition?: string | null
           customer_tax_id?: string | null
@@ -306,8 +815,10 @@ export type Database = {
           doc_type?: Database["public"]["Enums"]["document_type"]
           document_number?: number | null
           id?: string
+          internal_remito_type?:
+            | Database["public"]["Enums"]["internal_remito_type"]
+            | null
           issue_date?: string
-          internal_remito_type?: Database["public"]["Enums"]["internal_remito_type"] | null
           notes?: string | null
           payment_terms?: string | null
           point_of_sale?: number
@@ -315,7 +826,9 @@ export type Database = {
           salesperson?: string | null
           source_document_id?: string | null
           source_document_number_snapshot?: string | null
-          source_document_type?: Database["public"]["Enums"]["document_type"] | null
+          source_document_type?:
+            | Database["public"]["Enums"]["document_type"]
+            | null
           status?: Database["public"]["Enums"]["document_status"]
           subtotal?: number
           tax_total?: number
@@ -324,6 +837,13 @@ export type Database = {
           valid_until?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documents_customer_id_fkey"
             columns: ["customer_id"]
@@ -347,9 +867,36 @@ export type Database = {
           },
         ]
       }
+      global_user_roles: {
+        Row: {
+          created_at: string
+          role_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          role_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          role_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "global_user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       item_aliases: {
         Row: {
           alias: string
+          company_id: string
           created_at: string
           created_by: string | null
           id: string
@@ -358,6 +905,7 @@ export type Database = {
         }
         Insert: {
           alias: string
+          company_id: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -366,6 +914,7 @@ export type Database = {
         }
         Update: {
           alias?: string
+          company_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -373,6 +922,13 @@ export type Database = {
           item_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "item_aliases_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "item_aliases_item_id_fkey"
             columns: ["item_id"]
@@ -386,9 +942,11 @@ export type Database = {
         Row: {
           brand: string | null
           category: string | null
+          company_id: string
           created_at: string
-          demand_profile: Database["public"]["Enums"]["item_demand_profile"]
+          created_by: string | null
           demand_monthly_estimate: number | null
+          demand_profile: Database["public"]["Enums"]["item_demand_profile"]
           id: string
           is_active: boolean
           name: string
@@ -399,9 +957,11 @@ export type Database = {
         Insert: {
           brand?: string | null
           category?: string | null
+          company_id: string
           created_at?: string
-          demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
+          created_by?: string | null
           demand_monthly_estimate?: number | null
+          demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
           id?: string
           is_active?: boolean
           name: string
@@ -412,9 +972,11 @@ export type Database = {
         Update: {
           brand?: string | null
           category?: string | null
+          company_id?: string
           created_at?: string
-          demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
+          created_by?: string | null
           demand_monthly_estimate?: number | null
+          demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
           id?: string
           is_active?: boolean
           name?: string
@@ -422,15 +984,118 @@ export type Database = {
           unit?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permissions: {
+        Row: {
+          action: string
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          module: string
+        }
+        Insert: {
+          action: string
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          module: string
+        }
+        Update: {
+          action?: string
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          module?: string
+        }
         Relationships: []
+      }
+      price_list_items: {
+        Row: {
+          base_cost: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          final_price_override: number | null
+          flete_pct: number | null
+          impuesto_pct: number | null
+          is_active: boolean
+          item_id: string
+          price_list_id: string
+          price_override: number | null
+          utilidad_pct: number | null
+        }
+        Insert: {
+          base_cost?: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          final_price_override?: number | null
+          flete_pct?: number | null
+          impuesto_pct?: number | null
+          is_active?: boolean
+          item_id: string
+          price_list_id: string
+          price_override?: number | null
+          utilidad_pct?: number | null
+        }
+        Update: {
+          base_cost?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          final_price_override?: number | null
+          flete_pct?: number | null
+          impuesto_pct?: number | null
+          is_active?: boolean
+          item_id?: string
+          price_list_id?: string
+          price_override?: number | null
+          utilidad_pct?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_list_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_list_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_list_items_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "price_lists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       price_list_lines: {
         Row: {
+          company_id: string
           created_at: string
+          created_by: string | null
           currency: string
           id: string
           item_id: string | null
-          match_reason: Database["public"]["Enums"]["match_reason"]
           match_status: Database["public"]["Enums"]["match_status"]
           price: number
           raw_description: string
@@ -438,11 +1103,12 @@ export type Database = {
           version_id: string
         }
         Insert: {
+          company_id: string
           created_at?: string
+          created_by?: string | null
           currency?: string
           id?: string
           item_id?: string | null
-          match_reason?: Database["public"]["Enums"]["match_reason"]
           match_status?: Database["public"]["Enums"]["match_status"]
           price: number
           raw_description: string
@@ -450,11 +1116,12 @@ export type Database = {
           version_id: string
         }
         Update: {
+          company_id?: string
           created_at?: string
+          created_by?: string | null
           currency?: string
           id?: string
           item_id?: string | null
-          match_reason?: Database["public"]["Enums"]["match_reason"]
           match_status?: Database["public"]["Enums"]["match_status"]
           price?: number
           raw_description?: string
@@ -462,6 +1129,13 @@ export type Database = {
           version_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "price_list_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "price_list_lines_item_id_fkey"
             columns: ["item_id"]
@@ -480,7 +1154,9 @@ export type Database = {
       }
       price_list_versions: {
         Row: {
+          company_id: string
           created_at: string
+          created_by: string | null
           id: string
           notes: string | null
           original_file_url: string | null
@@ -488,7 +1164,9 @@ export type Database = {
           version_date: string
         }
         Insert: {
+          company_id: string
           created_at?: string
+          created_by?: string | null
           id?: string
           notes?: string | null
           original_file_url?: string | null
@@ -496,7 +1174,9 @@ export type Database = {
           version_date?: string
         }
         Update: {
+          company_id?: string
           created_at?: string
+          created_by?: string | null
           id?: string
           notes?: string | null
           original_file_url?: string | null
@@ -504,6 +1184,13 @@ export type Database = {
           version_date?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "price_list_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "price_list_versions_price_list_id_fkey"
             columns: ["price_list_id"]
@@ -515,7 +1202,9 @@ export type Database = {
       }
       price_lists: {
         Row: {
+          company_id: string
           created_at: string
+          created_by: string | null
           flete_pct: number
           id: string
           impuesto_pct: number
@@ -526,7 +1215,9 @@ export type Database = {
           utilidad_pct: number
         }
         Insert: {
+          company_id: string
           created_at?: string
+          created_by?: string | null
           flete_pct?: number
           id?: string
           impuesto_pct?: number
@@ -537,7 +1228,9 @@ export type Database = {
           utilidad_pct?: number
         }
         Update: {
+          company_id?: string
           created_at?: string
+          created_by?: string | null
           flete_pct?: number
           id?: string
           impuesto_pct?: number
@@ -549,67 +1242,17 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "price_lists_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "price_lists_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      price_list_items: {
-        Row: {
-          base_cost: number
-          created_at: string
-          created_by: string | null
-          final_price_override: number | null
-          flete_pct: number | null
-          impuesto_pct: number | null
-          is_active: boolean
-          item_id: string
-          price_list_id: string
-          price_override: number | null
-          utilidad_pct: number | null
-        }
-        Insert: {
-          base_cost?: number
-          created_at?: string
-          created_by?: string | null
-          final_price_override?: number | null
-          flete_pct?: number | null
-          impuesto_pct?: number | null
-          is_active?: boolean
-          item_id: string
-          price_list_id: string
-          price_override?: number | null
-          utilidad_pct?: number | null
-        }
-        Update: {
-          base_cost?: number
-          created_at?: string
-          created_by?: string | null
-          final_price_override?: number | null
-          flete_pct?: number | null
-          impuesto_pct?: number | null
-          is_active?: boolean
-          item_id?: string
-          price_list_id?: string
-          price_override?: number | null
-          utilidad_pct?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "price_list_items_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "price_list_items_price_list_id_fkey"
-            columns: ["price_list_id"]
-            isOneToOne: false
-            referencedRelation: "price_lists"
             referencedColumns: ["id"]
           },
         ]
@@ -637,6 +1280,8 @@ export type Database = {
       }
       quote_lines: {
         Row: {
+          company_id: string
+          created_by: string | null
           description: string
           id: string
           item_id: string | null
@@ -646,6 +1291,8 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          company_id: string
+          created_by?: string | null
           description: string
           id?: string
           item_id?: string | null
@@ -655,6 +1302,8 @@ export type Database = {
           unit_price?: number
         }
         Update: {
+          company_id?: string
+          created_by?: string | null
           description?: string
           id?: string
           item_id?: string | null
@@ -664,6 +1313,13 @@ export type Database = {
           unit_price?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "quote_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quote_lines_item_id_fkey"
             columns: ["item_id"]
@@ -682,6 +1338,7 @@ export type Database = {
       }
       quotes: {
         Row: {
+          company_id: string
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -694,6 +1351,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id: string
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -706,6 +1364,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -719,6 +1378,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "quotes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "quotes_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -727,8 +1393,69 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          created_at: string
+          permission_id: string
+          role_id: string
+        }
+        Insert: {
+          created_at?: string
+          permission_id: string
+          role_id: string
+        }
+        Update: {
+          created_at?: string
+          permission_id?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          scope: Database["public"]["Enums"]["role_scope"]
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          scope: Database["public"]["Enums"]["role_scope"]
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          scope?: Database["public"]["Enums"]["role_scope"]
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
+          company_id: string
           created_at: string
           created_by: string | null
           id: string
@@ -739,6 +1466,7 @@ export type Database = {
           type: Database["public"]["Enums"]["movement_type"]
         }
         Insert: {
+          company_id: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -749,6 +1477,7 @@ export type Database = {
           type: Database["public"]["Enums"]["movement_type"]
         }
         Update: {
+          company_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -760,6 +1489,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "stock_movements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "stock_movements_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
@@ -768,43 +1504,9 @@ export type Database = {
           },
         ]
       }
-      supplier_catalogs: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          notes: string | null
-          supplier_id: string
-          title: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          notes?: string | null
-          supplier_id: string
-          title: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          notes?: string | null
-          supplier_id?: string
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "supplier_catalogs_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       supplier_catalog_lines: {
         Row: {
+          company_id: string
           cost: number
           created_at: string
           created_by: string | null
@@ -819,6 +1521,7 @@ export type Database = {
           supplier_code: string | null
         }
         Insert: {
+          company_id: string
           cost: number
           created_at?: string
           created_by?: string | null
@@ -833,6 +1536,7 @@ export type Database = {
           supplier_code?: string | null
         }
         Update: {
+          company_id?: string
           cost?: number
           created_at?: string
           created_by?: string | null
@@ -847,6 +1551,13 @@ export type Database = {
           supplier_code?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "supplier_catalog_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "supplier_catalog_lines_matched_item_id_fkey"
             columns: ["matched_item_id"]
@@ -866,6 +1577,7 @@ export type Database = {
       supplier_catalog_versions: {
         Row: {
           catalog_id: string
+          company_id: string
           created_at: string
           created_by: string | null
           id: string
@@ -877,6 +1589,7 @@ export type Database = {
         }
         Insert: {
           catalog_id: string
+          company_id: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -888,6 +1601,7 @@ export type Database = {
         }
         Update: {
           catalog_id?: string
+          company_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -906,6 +1620,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "supplier_catalog_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "supplier_catalog_versions_supplier_document_id_fkey"
             columns: ["supplier_document_id"]
             isOneToOne: false
@@ -921,37 +1642,44 @@ export type Database = {
           },
         ]
       }
-      supplier_import_mappings: {
+      supplier_catalogs: {
         Row: {
+          company_id: string
           created_at: string
-          created_by: string
-          file_type: string
+          created_by: string | null
           id: string
-          mapping: Json
+          notes: string | null
           supplier_id: string
-          updated_at: string
+          title: string
         }
         Insert: {
+          company_id: string
           created_at?: string
-          created_by?: string
-          file_type?: string
+          created_by?: string | null
           id?: string
-          mapping: Json
+          notes?: string | null
           supplier_id: string
-          updated_at?: string
+          title: string
         }
         Update: {
+          company_id?: string
           created_at?: string
-          created_by?: string
-          file_type?: string
+          created_by?: string | null
           id?: string
-          mapping?: Json
+          notes?: string | null
           supplier_id?: string
-          updated_at?: string
+          title?: string
         }
         Relationships: [
           {
-            foreignKeyName: "supplier_import_mappings_supplier_id_fkey"
+            foreignKeyName: "supplier_catalogs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_catalogs_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
@@ -961,6 +1689,7 @@ export type Database = {
       }
       supplier_documents: {
         Row: {
+          company_id: string
           created_by: string | null
           file_name: string
           file_type: string
@@ -972,6 +1701,7 @@ export type Database = {
           uploaded_at: string
         }
         Insert: {
+          company_id: string
           created_by?: string | null
           file_name: string
           file_type: string
@@ -983,6 +1713,7 @@ export type Database = {
           uploaded_at?: string
         }
         Update: {
+          company_id?: string
           created_by?: string | null
           file_name?: string
           file_type?: string
@@ -995,7 +1726,62 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "supplier_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "supplier_documents_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_import_mappings: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          file_type: string
+          id: string
+          mapping: Json
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string
+          file_type?: string
+          id?: string
+          mapping: Json
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          file_type?: string
+          id?: string
+          mapping?: Json
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_import_mappings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_import_mappings_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
@@ -1005,8 +1791,10 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          company_id: string
           contact_name: string | null
           created_at: string
+          created_by: string | null
           email: string | null
           id: string
           is_active: boolean
@@ -1016,8 +1804,10 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          company_id: string
           contact_name?: string | null
           created_at?: string
+          created_by?: string | null
           email?: string | null
           id?: string
           is_active?: boolean
@@ -1027,8 +1817,10 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          company_id?: string
           contact_name?: string | null
           created_at?: string
+          created_by?: string | null
           email?: string | null
           id?: string
           is_active?: boolean
@@ -1037,7 +1829,15 @@ export type Database = {
           phone?: string | null
           whatsapp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -1062,88 +1862,173 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      attach_cash_sale_receipt: {
+        Args: {
+          p_document_id?: string
+          p_receipt_kind: Database["public"]["Enums"]["cash_receipt_kind"]
+          p_receipt_reference?: string
+          p_sale_id: string
+        }
+        Returns: {
+          amount_total: number
+          business_date: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          closure_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name_snapshot: string | null
+          document_id: string | null
+          id: string
+          notes: string | null
+          payment_method: Database["public"]["Enums"]["cash_payment_method"]
+          receipt_kind: Database["public"]["Enums"]["cash_receipt_kind"]
+          receipt_reference: string | null
+          sold_at: string
+          status: Database["public"]["Enums"]["cash_sale_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_sales"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cancel_cash_sale: {
+        Args: { p_reason?: string; p_sale_id: string }
+        Returns: {
+          amount_total: number
+          business_date: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          closure_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name_snapshot: string | null
+          document_id: string | null
+          id: string
+          notes: string | null
+          payment_method: Database["public"]["Enums"]["cash_payment_method"]
+          receipt_kind: Database["public"]["Enums"]["cash_receipt_kind"]
+          receipt_reference: string | null
+          sold_at: string
+          status: Database["public"]["Enums"]["cash_sale_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_sales"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      close_cash_closure: {
+        Args: {
+          p_closure_id: string
+          p_counted_cash_total: number
+          p_counted_point_total?: number
+          p_counted_transfer_total?: number
+          p_notes?: string
+        }
+        Returns: {
+          business_date: string
+          cash_difference: number | null
+          closed_at: string | null
+          company_id: string
+          counted_cash_total: number | null
+          counted_point_total: number | null
+          counted_transfer_total: number | null
+          created_at: string
+          created_by: string
+          expected_account_expenses_total: number
+          expected_account_sales_total: number
+          expected_cash_expenses_total: number
+          expected_cash_sales_total: number
+          expected_cash_to_render: number
+          expected_non_cash_total: number
+          expected_point_sales_total: number
+          expected_sales_total: number
+          expected_transfer_sales_total: number
+          id: string
+          notes: string | null
+          point_difference: number | null
+          responsible_id: string
+          status: Database["public"]["Enums"]["cash_closure_status"]
+          transfer_difference: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_closures"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_supplier_catalog_import: {
         Args: {
-          p_catalog_id?: string | null
-          p_catalog_notes?: string | null
-          p_catalog_title?: string | null
+          p_catalog_id?: string
+          p_catalog_notes?: string
+          p_catalog_title?: string
           p_lines?: Json
           p_supplier_document_id: string
           p_supplier_id: string
-          p_version_title?: string | null
+          p_version_title?: string
         }
         Returns: Json
       }
-      issue_document: {
-        Args: {
-          p_document_id: string
-        }
+      get_or_create_cash_closure: {
+        Args: { p_business_date: string; p_company_id: string }
         Returns: {
+          business_date: string
+          cash_difference: number | null
+          closed_at: string | null
+          company_id: string
+          counted_cash_total: number | null
+          counted_point_total: number | null
+          counted_transfer_total: number | null
           created_at: string
           created_by: string
-          customer_kind: Database["public"]["Enums"]["document_customer_kind"]
-          customer_id: string | null
-          customer_name: string | null
-          customer_tax_condition: string | null
-          customer_tax_id: string | null
-          delivery_address: string | null
-          discount_total: number
-          doc_type: Database["public"]["Enums"]["document_type"]
-          document_number: number | null
+          expected_account_expenses_total: number
+          expected_account_sales_total: number
+          expected_cash_expenses_total: number
+          expected_cash_sales_total: number
+          expected_cash_to_render: number
+          expected_non_cash_total: number
+          expected_point_sales_total: number
+          expected_sales_total: number
+          expected_transfer_sales_total: number
           id: string
-          issue_date: string
-          internal_remito_type: Database["public"]["Enums"]["internal_remito_type"] | null
           notes: string | null
-          payment_terms: string | null
-          point_of_sale: number
-          price_list_id: string | null
-          salesperson: string | null
-          source_document_id: string | null
-          source_document_number_snapshot: string | null
-          source_document_type: Database["public"]["Enums"]["document_type"] | null
-          status: Database["public"]["Enums"]["document_status"]
-          subtotal: number
-          tax_total: number
-          total: number
+          point_difference: number | null
+          responsible_id: string
+          status: Database["public"]["Enums"]["cash_closure_status"]
+          transfer_difference: number | null
           updated_at: string
-          valid_until: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_closures"
+          isOneToOne: true
+          isSetofReturn: false
         }
       }
-      transition_document_status: {
+      get_user_company_ids: { Args: { _user_id: string }; Returns: string[] }
+      has_company_permission: {
         Args: {
-          p_document_id: string
-          p_target_status: Database["public"]["Enums"]["document_status"]
+          _company_id: string
+          _permission_code: string
+          _user_id: string
         }
-        Returns: {
-          created_at: string
-          created_by: string
-          customer_kind: Database["public"]["Enums"]["document_customer_kind"]
-          customer_id: string | null
-          customer_name: string | null
-          customer_tax_condition: string | null
-          customer_tax_id: string | null
-          delivery_address: string | null
-          discount_total: number
-          doc_type: Database["public"]["Enums"]["document_type"]
-          document_number: number | null
-          id: string
-          issue_date: string
-          internal_remito_type: Database["public"]["Enums"]["internal_remito_type"] | null
-          notes: string | null
-          payment_terms: string | null
-          point_of_sale: number
-          price_list_id: string | null
-          salesperson: string | null
-          source_document_id: string | null
-          source_document_number_snapshot: string | null
-          source_document_type: Database["public"]["Enums"]["document_type"] | null
-          status: Database["public"]["Enums"]["document_status"]
-          subtotal: number
-          tax_total: number
-          total: number
-          updated_at: string
-          valid_until: string | null
-        }
+        Returns: boolean
+      }
+      has_company_role: {
+        Args: { _company_id: string; _role_code: string; _user_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
@@ -1152,18 +2037,173 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_company_member: {
+        Args: { _company_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_superadmin: { Args: { _user_id: string }; Returns: boolean }
+      issue_document: {
+        Args: { p_document_id: string }
+        Returns: {
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_kind: Database["public"]["Enums"]["document_customer_kind"]
+          customer_name: string | null
+          customer_tax_condition: string | null
+          customer_tax_id: string | null
+          delivery_address: string | null
+          discount_total: number
+          doc_type: Database["public"]["Enums"]["document_type"]
+          document_number: number | null
+          id: string
+          internal_remito_type:
+            | Database["public"]["Enums"]["internal_remito_type"]
+            | null
+          issue_date: string
+          notes: string | null
+          payment_terms: string | null
+          point_of_sale: number
+          price_list_id: string | null
+          salesperson: string | null
+          source_document_id: string | null
+          source_document_number_snapshot: string | null
+          source_document_type:
+            | Database["public"]["Enums"]["document_type"]
+            | null
+          status: Database["public"]["Enums"]["document_status"]
+          subtotal: number
+          tax_total: number
+          total: number
+          updated_at: string
+          valid_until: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "documents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      recalculate_cash_closure_totals: {
+        Args: { p_closure_id: string }
+        Returns: {
+          business_date: string
+          cash_difference: number | null
+          closed_at: string | null
+          company_id: string
+          counted_cash_total: number | null
+          counted_point_total: number | null
+          counted_transfer_total: number | null
+          created_at: string
+          created_by: string
+          expected_account_expenses_total: number
+          expected_account_sales_total: number
+          expected_cash_expenses_total: number
+          expected_cash_sales_total: number
+          expected_cash_to_render: number
+          expected_non_cash_total: number
+          expected_point_sales_total: number
+          expected_sales_total: number
+          expected_transfer_sales_total: number
+          id: string
+          notes: string | null
+          point_difference: number | null
+          responsible_id: string
+          status: Database["public"]["Enums"]["cash_closure_status"]
+          transfer_difference: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_closures"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      transition_document_status: {
+        Args: {
+          p_document_id: string
+          p_target_status: Database["public"]["Enums"]["document_status"]
+        }
+        Returns: {
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_kind: Database["public"]["Enums"]["document_customer_kind"]
+          customer_name: string | null
+          customer_tax_condition: string | null
+          customer_tax_id: string | null
+          delivery_address: string | null
+          discount_total: number
+          doc_type: Database["public"]["Enums"]["document_type"]
+          document_number: number | null
+          id: string
+          internal_remito_type:
+            | Database["public"]["Enums"]["internal_remito_type"]
+            | null
+          issue_date: string
+          notes: string | null
+          payment_terms: string | null
+          point_of_sale: number
+          price_list_id: string | null
+          salesperson: string | null
+          source_document_id: string | null
+          source_document_number_snapshot: string | null
+          source_document_type:
+            | Database["public"]["Enums"]["document_type"]
+            | null
+          status: Database["public"]["Enums"]["document_status"]
+          subtotal: number
+          tax_total: number
+          total: number
+          updated_at: string
+          valid_until: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "documents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "superadmin"
+      cash_closure_status: "ABIERTO" | "CERRADO"
+      cash_event_entity_type: "VENTA" | "GASTO" | "CIERRE"
+      cash_expense_kind: "CAJA" | "CUENTA_CORRIENTE"
+      cash_payment_method:
+        | "EFECTIVO"
+        | "POINT"
+        | "TRANSFERENCIA"
+        | "CUENTA_CORRIENTE"
+      cash_receipt_kind: "PENDIENTE" | "REMITO" | "FACTURA"
+      cash_sale_status:
+        | "REGISTRADA"
+        | "PENDIENTE_COMPROBANTE"
+        | "COMPROBANTADA"
+        | "ANULADA"
+      company_status: "ACTIVE" | "INACTIVE"
+      company_user_status: "ACTIVE" | "INACTIVE"
       document_customer_kind: "GENERAL" | "INTERNO" | "EMPRESA"
-      document_status: "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO"
+      document_status:
+        | "BORRADOR"
+        | "ENVIADO"
+        | "APROBADO"
+        | "RECHAZADO"
+        | "EMITIDO"
+        | "ANULADO"
       document_type: "PRESUPUESTO" | "REMITO"
       internal_remito_type: "CUENTA_CORRIENTE" | "DESCUENTO_SUELDO"
       item_demand_profile: "LOW" | "MEDIUM" | "HIGH"
-      match_reason: "SUPPLIER_CODE" | "ALIAS_TOKEN" | "ALIAS_CONTAINS" | "NONE"
       match_status: "MATCHED" | "PENDING" | "NEW"
       movement_type: "IN" | "OUT" | "ADJUSTMENT"
+      permission_effect: "ALLOW" | "DENY"
       quote_status: "DRAFT" | "SENT" | "ACCEPTED" | "REJECTED"
+      role_scope: "GLOBAL" | "COMPANY"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1289,17 +2329,47 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "superadmin"],
+      cash_closure_status: ["ABIERTO", "CERRADO"],
+      cash_event_entity_type: ["VENTA", "GASTO", "CIERRE"],
+      cash_expense_kind: ["CAJA", "CUENTA_CORRIENTE"],
+      cash_payment_method: [
+        "EFECTIVO",
+        "POINT",
+        "TRANSFERENCIA",
+        "CUENTA_CORRIENTE",
+      ],
+      cash_receipt_kind: ["PENDIENTE", "REMITO", "FACTURA"],
+      cash_sale_status: [
+        "REGISTRADA",
+        "PENDIENTE_COMPROBANTE",
+        "COMPROBANTADA",
+        "ANULADA",
+      ],
+      company_status: ["ACTIVE", "INACTIVE"],
+      company_user_status: ["ACTIVE", "INACTIVE"],
       document_customer_kind: ["GENERAL", "INTERNO", "EMPRESA"],
-      document_status: ["BORRADOR", "ENVIADO", "APROBADO", "RECHAZADO", "EMITIDO", "ANULADO"],
+      document_status: [
+        "BORRADOR",
+        "ENVIADO",
+        "APROBADO",
+        "RECHAZADO",
+        "EMITIDO",
+        "ANULADO",
+      ],
       document_type: ["PRESUPUESTO", "REMITO"],
       internal_remito_type: ["CUENTA_CORRIENTE", "DESCUENTO_SUELDO"],
       item_demand_profile: ["LOW", "MEDIUM", "HIGH"],
       match_status: ["MATCHED", "PENDING", "NEW"],
       movement_type: ["IN", "OUT", "ADJUSTMENT"],
+      permission_effect: ["ALLOW", "DENY"],
       quote_status: ["DRAFT", "SENT", "ACCEPTED", "REJECTED"],
+      role_scope: ["GLOBAL", "COMPANY"],
     },
   },
 } as const

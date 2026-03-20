@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,6 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { Search, Link2 } from "lucide-react";
 import { buildSuggestedAlias } from "@/lib/matching";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +34,7 @@ type PendingLine = {
 };
 
 export default function PendingPage() {
+  const { currentCompany } = useAuth();
   const [search, setSearch] = useState("");
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [aliasDialogOpen, setAliasDialogOpen] = useState(false);
@@ -45,11 +48,13 @@ export default function PendingPage() {
   const qc = useQueryClient();
 
   const { data: pendingLines = [], isLoading } = useQuery({
-    queryKey: ["pending-lines", search],
+    queryKey: ["pending-lines", currentCompany?.id ?? "no-company", search],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase
         .from("price_list_lines")
         .select("*, price_list_versions(version_date, price_lists(name, suppliers(name)))")
+        .eq("company_id", currentCompany!.id)
         .eq("match_status", "PENDING")
         .order("created_at", { ascending: false })
         .limit(200);
@@ -61,10 +66,10 @@ export default function PendingPage() {
   });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["items-search", itemSearch],
-    enabled: assignDialogOpen,
+    queryKey: ["items-search", currentCompany?.id ?? "no-company", itemSearch],
+    enabled: assignDialogOpen && Boolean(currentCompany),
     queryFn: async () => {
-      let q = supabase.from("items").select("id, name, sku").eq("is_active", true).order("name").limit(50);
+      let q = supabase.from("items").select("id, name, sku").eq("company_id", currentCompany!.id).eq("is_active", true).order("name").limit(50);
       if (itemSearch) q = q.or(`name.ilike.%${itemSearch}%,sku.ilike.%${itemSearch}%`);
       const { data, error } = await q;
       if (error) throw error;
@@ -87,6 +92,7 @@ export default function PendingPage() {
     const { error } = await supabase
       .from("price_list_lines")
       .update({ item_id: itemId, match_status: "MATCHED" as const })
+      .eq("company_id", currentCompany!.id)
       .eq("id", lineId);
 
     if (error) throw error;
@@ -98,7 +104,7 @@ export default function PendingPage() {
 
     const { error } = await supabase
       .from("item_aliases")
-      .insert({ item_id: itemId, alias: cleanAlias, is_supplier_code: isSupplierCode });
+      .insert({ company_id: currentCompany!.id, item_id: itemId, alias: cleanAlias, is_supplier_code: isSupplierCode });
 
     if (error) throw error;
   };
@@ -153,7 +159,7 @@ export default function PendingPage() {
 
       const { data: createdItem, error: itemError } = await supabase
         .from("items")
-        .insert({ name: itemName, is_active: true })
+        .insert({ company_id: currentCompany!.id, name: itemName, is_active: true })
         .select("id")
         .single();
       if (itemError) throw itemError;
@@ -202,6 +208,9 @@ export default function PendingPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitás una empresa activa para revisar pendientes de catálogos y vincularlos con artículos." />
+        ) : null}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Pendientes</h1>
           <p className="text-muted-foreground">Líneas de listas de precios sin asignar a un ítem</p>
@@ -227,7 +236,7 @@ export default function PendingPage() {
               {isLoading ? (
                 <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
               ) : pendingLines.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No hay líneas pendientes 🎉</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No hay líneas pendientes.</TableCell></TableRow>
               ) : pendingLines.map((l) => (
                 <TableRow key={l.id}>
                   <TableCell className="text-sm max-w-xs truncate">{l.raw_description}</TableCell>
@@ -238,7 +247,7 @@ export default function PendingPage() {
                   </TableCell>
                   <TableCell>
                     <Button variant="outline" size="sm" onClick={() => openAssign(l)}>
-                      <Link2 className="h-3 w-3 mr-1" /> Asignar
+                      <Link2 className="mr-1 h-3 w-3" /> Asignar
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -252,25 +261,25 @@ export default function PendingPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Asignar ítem</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="p-3 rounded-md bg-muted">
+            <div className="rounded-md bg-muted p-3">
               <p className="text-sm font-medium">{selectedLine?.raw_description}</p>
-              <p className="text-xs text-muted-foreground mt-1">Precio: ${Number(selectedLine?.price ?? 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Precio: ${Number(selectedLine?.price ?? 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
             </div>
             <div className="space-y-2">
               <Input placeholder="Buscar ítem..." value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} />
-              <div className="max-h-48 overflow-auto border rounded-md">
+              <div className="max-h-48 overflow-auto rounded-md border">
                 {items.map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => setSelectedItemId(item.id)}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${selectedItemId === item.id ? "bg-accent font-medium" : ""}`}
+                    className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-accent ${selectedItemId === item.id ? "bg-accent font-medium" : ""}`}
                   >
-                    <span className="font-mono text-xs text-muted-foreground mr-2">{item.sku}</span>
+                    <span className="mr-2 font-mono text-xs text-muted-foreground">{item.sku}</span>
                     {item.name}
                   </button>
                 ))}
-                {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Sin resultados</p>}
+                {items.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">Sin resultados</p>}
               </div>
             </div>
             <Button onClick={openAliasDialog} disabled={!selectedItemId} className="w-full">
@@ -296,7 +305,7 @@ export default function PendingPage() {
               </div>
             )}
 
-            <div className="space-y-2 border rounded-md p-3">
+            <div className="space-y-2 rounded-md border p-3">
               <Label htmlFor="new-item-name">Nuevo ítem (para crear ítem + alias)</Label>
               <Input id="new-item-name" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Nombre del nuevo ítem" />
             </div>

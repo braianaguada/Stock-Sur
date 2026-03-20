@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -21,34 +21,20 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Search, Pencil, Trash2, RotateCcw } from "lucide-react";
 import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
-
-interface Item {
-  id: string;
-  sku: string;
-  name: string;
-  brand: string | null;
-  unit: string;
-  category: string | null;
-  demand_profile: "LOW" | "MEDIUM" | "HIGH";
-  demand_monthly_estimate: number | null;
-  is_active: boolean;
-}
-
-interface ItemAlias {
-  id: string;
-  item_id: string;
-  alias: string;
-  is_supplier_code: boolean;
-}
-
-const UNIT_OPTIONS = ["un", "kg", "g", "lt", "ml", "m", "cm"] as const;
+import { ITEM_UNIT_OPTIONS } from "@/features/items/constants";
+import { type Item, type ItemAlias } from "@/features/items/types";
+import { generateItemSku } from "@/features/items/utils";
 
 export default function ItemsPage() {
+  const { currentCompany } = useAuth();
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -70,35 +56,25 @@ export default function ItemsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const generateSku = (name: string) => {
-    const base = cleanText(name)
-      .toUpperCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^A-Z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 12);
-    const suffix = Date.now().toString().slice(-4);
-    return `${base || "ITEM"}-${suffix}`;
-  };
-
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ["items", search, categoryFilter, statusFilter],
+    queryKey: ["items", currentCompany?.id ?? "no-company", deferredSearch, categoryFilter, statusFilter],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const searchTerm = search.trim();
+      const searchTerm = deferredSearch.trim();
       let matchingItemIdsFromAlias: string[] = [];
 
       if (searchTerm) {
         const { data: aliasMatches, error: aliasError } = await supabase
           .from("item_aliases")
           .select("item_id")
+          .eq("company_id", currentCompany!.id)
           .ilike("alias", `%${searchTerm}%`)
           .limit(200);
         if (aliasError) throw aliasError;
         matchingItemIdsFromAlias = [...new Set((aliasMatches ?? []).map((a) => a.item_id))];
       }
 
-      let q = supabase.from("items").select("*").order("created_at", { ascending: false });
+      let q = supabase.from("items").select("*").eq("company_id", currentCompany!.id).order("created_at", { ascending: false });
       if (statusFilter === "active") q = q.eq("is_active", true);
       if (statusFilter === "inactive") q = q.eq("is_active", false);
 
@@ -126,9 +102,10 @@ export default function ItemsPage() {
   });
 
   const { data: categories = [] } = useQuery({
-    queryKey: ["items-categories", statusFilter],
+    queryKey: ["items-categories", currentCompany?.id ?? "no-company", statusFilter],
+    enabled: Boolean(currentCompany),
     queryFn: async () => {
-      let q = supabase.from("items").select("category").not("category", "is", null);
+      let q = supabase.from("items").select("category").eq("company_id", currentCompany!.id).not("category", "is", null);
       if (statusFilter === "active") q = q.eq("is_active", true);
       if (statusFilter === "inactive") q = q.eq("is_active", false);
       const { data, error } = await q;
@@ -139,21 +116,27 @@ export default function ItemsPage() {
   });
 
   const { data: aliases = [] } = useQuery({
-    queryKey: ["item-aliases", editingItem?.id],
-    enabled: !!editingItem,
+    queryKey: ["item-aliases", currentCompany?.id ?? "no-company", editingItem?.id],
+    enabled: !!editingItem && Boolean(currentCompany),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("item_aliases")
         .select("*")
+        .eq("company_id", currentCompany!.id)
         .eq("item_id", editingItem!.id)
         .order("created_at");
       if (error) throw error;
       return data as ItemAlias[];
     },
   });
+  const itemsById = useMemo(
+    () => new Map(items.map((item) => [item.id, item])),
+    [items],
+  );
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       const name = cleanText(form.name);
       const sku = cleanText(form.sku).toUpperCase();
       const unit = cleanText(form.unit) || "un";
@@ -163,6 +146,9 @@ export default function ItemsPage() {
       }
 
       if (editingItem) {
+        if (!itemsById.has(editingItem.id)) {
+          throw new Error("El ítem que estás editando ya no está disponible. Recargá Ítems e intentá de nuevo");
+        }
         const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
         const { error } = await supabase
           .from("items")
@@ -174,6 +160,7 @@ export default function ItemsPage() {
             demand_profile: form.demand_profile,
             demand_monthly_estimate: Number.isFinite(monthlyEstimate) ? monthlyEstimate : null,
           })
+          .eq("company_id", currentCompany.id)
           .eq("id", editingItem.id);
         if (error) throw error;
       } else {
@@ -181,7 +168,8 @@ export default function ItemsPage() {
         const { error } = await supabase
           .from("items")
           .insert({
-            sku: sku || generateSku(name),
+            company_id: currentCompany.id,
+            sku: sku || generateItemSku(name),
             name,
             unit,
             category: cleanText(form.category) || null,
@@ -207,7 +195,8 @@ export default function ItemsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await deleteByStrategy({ table: "items", id });
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
+      await deleteByStrategy({ table: "items", id, eq: { company_id: currentCompany.id } });
       const { error } = await supabase.from("price_list_items").update({ is_active: false }).eq("item_id", id);
       if (error) throw error;
     },
@@ -221,7 +210,8 @@ export default function ItemsPage() {
 
   const restoreMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("items").update({ is_active: true }).eq("id", id);
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
+      const { error } = await supabase.from("items").update({ is_active: true }).eq("company_id", currentCompany.id).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -236,9 +226,13 @@ export default function ItemsPage() {
     mutationFn: async (alias: string) => {
       if (!editingItem) throw new Error("Seleccioná un ítem antes de agregar alias");
 
+      if (!itemsById.has(editingItem.id)) {
+        throw new Error("El ítem seleccionado ya no está disponible. Recargá Ítems e intentá de nuevo");
+      }
+
       const { error } = await supabase
         .from("item_aliases")
-        .insert({ item_id: editingItem.id, alias, is_supplier_code: isSupplierCode });
+        .insert({ company_id: currentCompany!.id, item_id: editingItem.id, alias, is_supplier_code: isSupplierCode });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -261,10 +255,12 @@ export default function ItemsPage() {
 
   const bulkDemandProfileMutation = useMutation({
     mutationFn: async () => {
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       if (selectedItemIds.length === 0) return;
       const { error } = await supabase
         .from("items")
         .update({ demand_profile: bulkDemandProfile })
+        .eq("company_id", currentCompany.id)
         .in("id", selectedItemIds);
       if (error) throw error;
     },
@@ -279,7 +275,8 @@ export default function ItemsPage() {
 
   const deleteAliasMutation = useMutation({
     mutationFn: async (id: string) => {
-      await deleteByStrategy({ table: "item_aliases", id });
+      if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar alias");
+      await deleteByStrategy({ table: "item_aliases", id, eq: { company_id: currentCompany.id } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["item-aliases", editingItem?.id] });
@@ -332,6 +329,9 @@ export default function ItemsPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {!currentCompany ? (
+          <CompanyAccessNotice description="Necesitás una empresa activa para gestionar artículos, alias y catálogos de stock." />
+        ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Ítems</h1>
@@ -515,7 +515,7 @@ export default function ItemsPage() {
               <Select value={form.unit || "un"} onValueChange={(value) => setForm({ ...form, unit: value })}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar unidad" /></SelectTrigger>
                 <SelectContent>
-                  {UNIT_OPTIONS.map((unit) => (
+                  {ITEM_UNIT_OPTIONS.map((unit) => (
                     <SelectItem key={unit} value={unit}>{unit}</SelectItem>
                   ))}
                 </SelectContent>
