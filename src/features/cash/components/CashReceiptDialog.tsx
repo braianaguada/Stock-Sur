@@ -49,7 +49,7 @@ export function CashReceiptDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Asignar comprobante</DialogTitle>
-          <DialogDescription>La venta ya cuenta en caja. Desde aca solo completas el comprobante faltante.</DialogDescription>
+          <DialogDescription>La venta ya cuenta en caja. Desde acá solo completás el comprobante faltante.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="rounded-xl border bg-muted/30 p-3 text-sm">
@@ -70,9 +70,9 @@ export function CashReceiptDialog({
             <div className="space-y-2">
               <Label>Remito emitido</Label>
               <Select value={pendingRemitoId} onValueChange={onPendingRemitoIdChange}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar remito del dia" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Seleccionar remito del día" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
+                  <SelectItem value="__none__">Seleccionar remito del día</SelectItem>
                   {availableRemitos.map((remito) => (
                     <SelectItem key={remito.id} value={remito.id}>
                       {remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito)}

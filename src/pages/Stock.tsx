@@ -274,8 +274,8 @@ export default function StockPage() {
   };
   const alertToneLabel: Record<StockHealth, string> = {
     GREEN: "OK",
-    YELLOW: "Atencion",
-    RED: "Critico",
+    YELLOW: "Atención",
+    RED: "Crítico",
     GRAY: "Info",
   };
   const alertRowClass: Record<StockHealth, string> = {
@@ -291,9 +291,9 @@ export default function StockPage() {
     GRAY: "bg-slate-600 text-white border-slate-700",
   };
   const demandProfileLabel: Record<DemandProfile, string> = {
-    LOW: "Rotacion baja",
-    MEDIUM: "Rotacion media",
-    HIGH: "Rotacion alta",
+    LOW: "Rotación baja",
+    MEDIUM: "Rotación media",
+    HIGH: "Rotación alta",
   };
   const demandProfileClass: Record<DemandProfile, string> = {
     LOW: "bg-slate-100 text-slate-700 border-slate-200",
@@ -307,10 +307,10 @@ export default function StockPage() {
       .map((r) => ({
         id: `critical-${r.item_id}`,
         tone: "RED" as const,
-        title: `${r.item_name} en riesgo critico`,
+        title: `${r.item_name} en riesgo crítico`,
         detail: r.total <= 0
-          ? "Sin stock o en negativo. Reposicion urgente."
-          : `Cobertura estimada: ${Math.max(0, r.days_of_cover ?? 0).toFixed(1)} dias.`,
+          ? "Sin stock o en negativo. Reposición urgente."
+          : `Cobertura estimada: ${Math.max(0, r.days_of_cover ?? 0).toFixed(1)} días.`,
       }));
     const low = stockRows
       .filter((r) => r.health === "YELLOW")
@@ -319,7 +319,7 @@ export default function StockPage() {
         id: `low-${r.item_id}`,
         tone: "YELLOW" as const,
         title: `${r.item_name} con cobertura baja`,
-        detail: `Cobertura estimada: ${(r.days_of_cover ?? 0).toFixed(1)} dias.`,
+        detail: `Cobertura estimada: ${(r.days_of_cover ?? 0).toFixed(1)} días.`,
       }));
     const overstock = stockRows
       .filter((r) => !r.low_rotation && r.days_of_cover !== null && r.days_of_cover > 90)
@@ -328,7 +328,7 @@ export default function StockPage() {
         id: `over-${r.item_id}`,
         tone: "GRAY" as const,
         title: `${r.item_name} con posible sobrestock`,
-        detail: `Cobertura estimada: ${r.days_of_cover!.toFixed(1)} dias.`,
+        detail: `Cobertura estimada: ${r.days_of_cover!.toFixed(1)} días.`,
       }));
     const lowRotationInfo = stockRows
       .filter((r) => r.low_rotation && r.total > 0)
@@ -339,17 +339,17 @@ export default function StockPage() {
           return {
             id: `slow-over-${r.item_id}`,
             tone: "YELLOW" as const,
-            title: `${r.item_name} con sobrestock en baja rotacion`,
+            title: `${r.item_name} con sobrestock en baja rotación`,
             detail: `Cobertura estimada: ${m.toFixed(1)} meses. Revisar compras futuras.`,
           };
         }
         return {
           id: `slow-${r.item_id}`,
           tone: "GRAY" as const,
-          title: `${r.item_name} con rotacion baja`,
+          title: `${r.item_name} con rotación baja`,
           detail: m !== null
-            ? `Cobertura estimada en baja rotacion: ${m < 0.1 ? "<0.1" : m.toFixed(1)} meses.`
-            : "Demanda muy baja/irregular: el semaforo prioriza stock disponible.",
+            ? `Cobertura estimada en baja rotación: ${m < 0.1 ? "<0.1" : m.toFixed(1)} meses.`
+            : "Demanda muy baja/irregular: el semáforo prioriza stock disponible.",
         };
       });
     return [...critical, ...low, ...overstock, ...lowRotationInfo];
@@ -403,7 +403,7 @@ export default function StockPage() {
               </Card>
             </div>
             <p className="text-xs text-muted-foreground">
-              Semaforo automatico: combina consumo de 30, 90 y 365 dias, con tratamiento especial para rotacion baja.
+              Semáforo automático: combina consumo de 30, 90 y 365 días, con tratamiento especial para rotación baja.
             </p>
             {alerts.length > 0 && (
               <Card>

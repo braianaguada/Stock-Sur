@@ -36,7 +36,7 @@ export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
       </Card>
       <Card className="border-slate-300 bg-slate-100">
         <CardHeader className="pb-3">
-          <CardDescription>Total del dia</CardDescription>
+          <CardDescription>Total del día</CardDescription>
           <CardTitle className="flex items-center gap-2 text-slate-900"><CircleDollarSign className="h-4 w-4" /> {currency.format(summary.total)}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">

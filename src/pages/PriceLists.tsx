@@ -236,13 +236,13 @@ export default function PriceListsPage() {
     onSuccess: () => {
       setItemToAdd("");
       qc.invalidateQueries({ queryKey: ["price-list-items", selectedListId] });
-      toast({ title: "Item asociado" });
+      toast({ title: "Ítem asociado" });
     },
     onError: (e: unknown) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
   const addItemsBulkMutation = useMutation({
     mutationFn: async (itemIds: string[]) => {
-      if (!selectedListId || itemIds.length === 0) throw new Error("No hay items seleccionados");
+      if (!selectedListId || itemIds.length === 0) throw new Error("No hay ítems seleccionados");
       if (!priceListsById.has(selectedListId)) throw new Error("La lista seleccionada ya no está disponible. Recargá Listas e intentá de nuevo");
       if (itemIds.some((itemId) => !itemsById.has(itemId))) throw new Error("Hay ítems seleccionados que ya no están disponibles. Recargá la lista e intentá de nuevo");
       const payload = itemIds.map((itemId) => ({
@@ -259,7 +259,7 @@ export default function PriceListsPage() {
     onSuccess: (_data, itemIds) => {
       setSelectedCatalogItems({});
       qc.invalidateQueries({ queryKey: ["price-list-items", selectedListId] });
-      toast({ title: `${itemIds.length} items agregados` });
+      toast({ title: `${itemIds.length} ítems agregados` });
     },
     onError: (e: unknown) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
@@ -270,7 +270,7 @@ export default function PriceListsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["price-list-items", selectedListId] });
-      toast({ title: "Item quitado" });
+      toast({ title: "Ítem quitado" });
     },
   });
 
@@ -308,9 +308,9 @@ export default function PriceListsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Listas de precios</h1>
-            <p className="text-muted-foreground">Listas internas con asignacion de items</p>
+            <p className="text-muted-foreground">Listas internas con asignación de ítems</p>
           </div>
-          <Button onClick={() => { setForm(DEFAULT_FORM); setDialogOpen(true); }}>
+          <Button onClick={() => { setForm(DEFAULT_PRICE_LIST_FORM); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Nueva lista
           </Button>
         </div>
@@ -351,7 +351,7 @@ export default function PriceListsPage() {
                           setItemsDialogOpen(true);
                         }}
                       >
-                        <Link2 className="mr-1 h-3.5 w-3.5" /> Items
+                        <Link2 className="mr-1 h-3.5 w-3.5" /> Ítems
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => setListToDelete(pl)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -425,9 +425,9 @@ export default function PriceListsPage() {
         onSaveAndClose={() => setItemsDialogOpen(false)}
       />
 
-      <ConfirmDeleteDialog open={!!listToDelete} onOpenChange={(open) => { if (!open) setListToDelete(null); }} title="Eliminar lista" description={listToDelete ? `Esta accion eliminara la lista "${listToDelete.name}" de forma permanente.` : ""} isPending={deleteMutation.isPending} onConfirm={() => { if (!listToDelete) return; deleteMutation.mutate(listToDelete.id); setListToDelete(null); }} />
+      <ConfirmDeleteDialog open={!!listToDelete} onOpenChange={(open) => { if (!open) setListToDelete(null); }} title="Eliminar lista" description={listToDelete ? `Esta acción eliminará la lista "${listToDelete.name}" de forma permanente.` : ""} isPending={deleteMutation.isPending} onConfirm={() => { if (!listToDelete) return; deleteMutation.mutate(listToDelete.id); setListToDelete(null); }} />
 
-      <ConfirmDeleteDialog open={!!listItemToRemove} onOpenChange={(open) => { if (!open) setListItemToRemove(null); }} title="Quitar item de la lista" description={listItemToRemove ? `Se quitara "${listItemToRemove.items?.name ?? "item"}" de esta lista de precios.` : ""} isPending={removeItemMutation.isPending} confirmLabel="Quitar" onConfirm={() => { if (!listItemToRemove) return; removeItemMutation.mutate(listItemToRemove.item_id); setListItemToRemove(null); }} />
+      <ConfirmDeleteDialog open={!!listItemToRemove} onOpenChange={(open) => { if (!open) setListItemToRemove(null); }} title="Quitar ítem de la lista" description={listItemToRemove ? `Se quitará "${listItemToRemove.items?.name ?? "ítem"}" de esta lista de precios.` : ""} isPending={removeItemMutation.isPending} confirmLabel="Quitar" onConfirm={() => { if (!listItemToRemove) return; removeItemMutation.mutate(listItemToRemove.item_id); setListItemToRemove(null); }} />
     </AppLayout>
   );
 }
