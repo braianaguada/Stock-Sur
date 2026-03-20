@@ -89,7 +89,7 @@ export function useQuotesFlow(params: {
       if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear un presupuesto");
 
       const validLines = lines.filter((line) => line.description.trim());
-      if (validLines.length === 0) throw new Error("Agrega al menos una linea");
+      if (validLines.length === 0) throw new Error("Agregá al menos una línea");
 
       const total = validLines.reduce((sum, line) => sum + line.quantity * line.unit_price, 0);
       const customerName = form.customer_id
@@ -184,7 +184,7 @@ export function useQuotesFlow(params: {
           <p class="meta">Cliente: <strong>${escapeHtml(quote.customer_name ?? "-")}</strong></p>
           <p class="meta">Fecha: ${new Date(quote.created_at).toLocaleDateString("es-AR")}</p>
           ${quote.notes ? `<p class="meta">Notas: ${escapeHtmlWithLineBreaks(quote.notes)}</p>` : ""}
-          <table><thead><tr><th>Descripcion</th><th style="text-align:right">Cant.</th><th style="text-align:right">P. Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
+          <table><thead><tr><th>Descripción</th><th style="text-align:right">Cant.</th><th style="text-align:right">P. Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
           <tbody>${linesHtml}</tbody></table>
           <p class="total">Total: $${Number(quote.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
           <button onclick="window.print()" style="margin-top:20px;padding:8px 16px;cursor:pointer">Imprimir / Guardar PDF</button>

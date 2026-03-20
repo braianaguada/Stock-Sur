@@ -20,7 +20,7 @@ export function QuoteDetailDialog({ lines, open, onOpenChange }: QuoteDetailDial
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Descripcion</TableHead>
+              <TableHead>Descripción</TableHead>
               <TableHead className="text-right">Cant.</TableHead>
               <TableHead className="text-right">P. Unit.</TableHead>
               <TableHead className="text-right">Subtotal</TableHead>

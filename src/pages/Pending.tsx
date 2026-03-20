@@ -102,9 +102,9 @@ export default function PendingPage() {
     const cleanAlias = alias.trim();
     if (!cleanAlias) return;
 
-      const { error } = await supabase
-        .from("item_aliases")
-        .insert({ company_id: currentCompany!.id, item_id: itemId, alias: cleanAlias, is_supplier_code: isSupplierCode });
+    const { error } = await supabase
+      .from("item_aliases")
+      .insert({ company_id: currentCompany!.id, item_id: itemId, alias: cleanAlias, is_supplier_code: isSupplierCode });
 
     if (error) throw error;
   };
@@ -236,7 +236,7 @@ export default function PendingPage() {
               {isLoading ? (
                 <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
               ) : pendingLines.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No hay líneas pendientes 🎉</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No hay líneas pendientes.</TableCell></TableRow>
               ) : pendingLines.map((l) => (
                 <TableRow key={l.id}>
                   <TableCell className="text-sm max-w-xs truncate">{l.raw_description}</TableCell>
@@ -247,7 +247,7 @@ export default function PendingPage() {
                   </TableCell>
                   <TableCell>
                     <Button variant="outline" size="sm" onClick={() => openAssign(l)}>
-                      <Link2 className="h-3 w-3 mr-1" /> Asignar
+                      <Link2 className="mr-1 h-3 w-3" /> Asignar
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -261,25 +261,25 @@ export default function PendingPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Asignar ítem</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="p-3 rounded-md bg-muted">
+            <div className="rounded-md bg-muted p-3">
               <p className="text-sm font-medium">{selectedLine?.raw_description}</p>
-              <p className="text-xs text-muted-foreground mt-1">Precio: ${Number(selectedLine?.price ?? 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Precio: ${Number(selectedLine?.price ?? 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
             </div>
             <div className="space-y-2">
               <Input placeholder="Buscar ítem..." value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} />
-              <div className="max-h-48 overflow-auto border rounded-md">
+              <div className="max-h-48 overflow-auto rounded-md border">
                 {items.map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => setSelectedItemId(item.id)}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${selectedItemId === item.id ? "bg-accent font-medium" : ""}`}
+                    className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-accent ${selectedItemId === item.id ? "bg-accent font-medium" : ""}`}
                   >
-                    <span className="font-mono text-xs text-muted-foreground mr-2">{item.sku}</span>
+                    <span className="mr-2 font-mono text-xs text-muted-foreground">{item.sku}</span>
                     {item.name}
                   </button>
                 ))}
-                {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Sin resultados</p>}
+                {items.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">Sin resultados</p>}
               </div>
             </div>
             <Button onClick={openAliasDialog} disabled={!selectedItemId} className="w-full">
@@ -305,7 +305,7 @@ export default function PendingPage() {
               </div>
             )}
 
-            <div className="space-y-2 border rounded-md p-3">
+            <div className="space-y-2 rounded-md border p-3">
               <Label htmlFor="new-item-name">Nuevo ítem (para crear ítem + alias)</Label>
               <Input id="new-item-name" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Nombre del nuevo ítem" />
             </div>

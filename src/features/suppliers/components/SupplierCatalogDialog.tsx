@@ -121,12 +121,12 @@ export function SupplierCatalogDialog(props: {
         >
           <div className="sticky top-0 z-20 border-b bg-background p-4">
             <DialogHeader>
-              <DialogTitle>Catalogos del proveedor: {selectedSupplier?.name}</DialogTitle>
+              <DialogTitle>Catálogos del proveedor: {selectedSupplier?.name}</DialogTitle>
             </DialogHeader>
             <TabsList className="mt-3 grid w-full grid-cols-3">
               <TabsTrigger value="carga">Subir archivo</TabsTrigger>
               <TabsTrigger value="historial">Historial</TabsTrigger>
-              <TabsTrigger value="catalogo">Buscar catalogo</TabsTrigger>
+              <TabsTrigger value="catalogo">Buscar catálogo</TabsTrigger>
             </TabsList>
           </div>
 
@@ -137,7 +137,7 @@ export function SupplierCatalogDialog(props: {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-2">
-                  <Label>Titulo</Label>
+                  <Label>Título</Label>
                   <Input value={documentTitle} onChange={(e) => onDocumentTitleChange(e.target.value)} placeholder="Lista Febrero 2026 contado" />
                 </div>
                 <div className="space-y-2">
@@ -175,7 +175,7 @@ export function SupplierCatalogDialog(props: {
                 {lastDiagnostics ? (
                   <div className="space-y-1 text-xs text-muted-foreground">
                     <p>
-                      Filas: {lastDiagnostics.keptRows}/{lastDiagnostics.totalRows}. Descartadas por descripcion vacia: {lastDiagnostics.dropped_missingDesc}, precio invalido: {lastDiagnostics.dropped_invalidPrice}, precio {"<="} 0: {lastDiagnostics.dropped_priceLE0}.
+                      Filas: {lastDiagnostics.keptRows}/{lastDiagnostics.totalRows}. Descartadas por descripción vacía: {lastDiagnostics.dropped_missingDesc}, precio inválido: {lastDiagnostics.dropped_invalidPrice}, precio {"<="} 0: {lastDiagnostics.dropped_priceLE0}.
                     </p>
                     {lastDiagnostics.keptRows < 10 ? (
                       <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={onOpenDropDetail}>
@@ -214,7 +214,7 @@ export function SupplierCatalogDialog(props: {
                               >
                                 <p className="font-medium">{version.title ?? catalog.title}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {formatSupplierDate(version.imported_at)} - {version.file_name} - {version.file_type.toUpperCase()} - {version.line_count} lineas
+                                  {formatSupplierDate(version.imported_at)} - {version.file_name} - {version.file_type.toUpperCase()} - {version.line_count} líneas
                                 </p>
                               </button>
                             ))
@@ -231,14 +231,14 @@ export function SupplierCatalogDialog(props: {
             <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
               <Card className="min-h-0 flex flex-col">
                 <CardHeader className="space-y-2">
-                  <CardTitle className="text-base">Buscar en catalogos</CardTitle>
+                  <CardTitle className="text-base">Buscar en catálogos</CardTitle>
                   <p className="text-xs text-muted-foreground">
                     {activeVersion
-                      ? `Version activa: ${activeVersion.title ?? catalogTitleById.get(activeVersion.catalog_id) ?? "Listado"} (${formatSupplierDate(activeVersion.imported_at)})`
-                      : "Selecciona una version en el historial"}
+                      ? `Versión activa: ${activeVersion.title ?? catalogTitleById.get(activeVersion.catalog_id) ?? "Listado"} (${formatSupplierDate(activeVersion.imported_at)})`
+                      : "Seleccioná una versión en el historial"}
                   </p>
                   <Input
-                    placeholder="Buscar por descripcion o codigo"
+                    placeholder="Buscar por descripción o código"
                     value={catalogSearch}
                     onChange={(e) => onCatalogSearchChange(e.target.value)}
                     disabled={!activeVersionId}
@@ -249,8 +249,8 @@ export function SupplierCatalogDialog(props: {
                     <Table className="table-fixed min-w-[760px]">
                       <TableHeader className="sticky top-0 z-10 bg-background">
                         <TableRow>
-                          <TableHead className="w-[140px]">Codigo</TableHead>
-                          <TableHead>Descripcion</TableHead>
+                          <TableHead className="w-[140px]">Código</TableHead>
+                          <TableHead>Descripción</TableHead>
                           <TableHead className="w-[140px] text-right">Costo</TableHead>
                           <TableHead className="w-[110px]">Cantidad</TableHead>
                           <TableHead className="w-[120px]" />
@@ -260,7 +260,7 @@ export function SupplierCatalogDialog(props: {
                         {!activeVersionId ? (
                           <TableRow>
                             <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
-                              Selecciona una version para ver lineas
+                              Seleccioná una versión para ver líneas
                             </TableCell>
                           </TableRow>
                         ) : null}

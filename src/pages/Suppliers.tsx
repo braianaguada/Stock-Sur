@@ -281,12 +281,12 @@ export default function SuppliersPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="NecesitÃ¡s una empresa activa para trabajar con proveedores, catÃ¡logos e importaciones." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para trabajar con proveedores, catálogos e importaciones." />
         ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Proveedores</h1>
-            <p className="text-muted-foreground">GestiÃ³n de proveedores y catÃ¡logos</p>
+            <p className="text-muted-foreground">Gestión de proveedores y catálogos</p>
           </div>
           <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo proveedor</Button>
         </div>
