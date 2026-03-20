@@ -1,5 +1,10 @@
 export type AppRole = "superadmin" | "admin" | "user";
 
+type CompanyAccessContext = {
+  companyRoleCodes?: string[];
+  companyPermissionCodes?: string[];
+};
+
 export function isSuperAdmin(roles: AppRole[]) {
   return roles.includes("superadmin");
 }
@@ -16,8 +21,20 @@ export function canManageSettings(roles: AppRole[]) {
   return isSuperAdmin(roles) || hasRole(roles, "admin");
 }
 
-export function canViewSettings(roles: AppRole[]) {
-  return canManageSettings(roles);
+export function canManageCompanySettings(roles: AppRole[], context?: CompanyAccessContext) {
+  if (canManageSettings(roles)) return true;
+
+  const companyRoleCodes = context?.companyRoleCodes ?? [];
+  const companyPermissionCodes = context?.companyPermissionCodes ?? [];
+
+  return companyRoleCodes.includes("admin") || companyPermissionCodes.includes("settings.manage");
+}
+
+export function canViewSettings(roles: AppRole[], context?: CompanyAccessContext) {
+  if (canManageCompanySettings(roles, context)) return true;
+
+  const companyPermissionCodes = context?.companyPermissionCodes ?? [];
+  return companyPermissionCodes.includes("settings.view");
 }
 
 export function canManageUsers(roles: AppRole[]) {
