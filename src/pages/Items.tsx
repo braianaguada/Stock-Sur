@@ -499,7 +499,7 @@ export default function ItemsPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setForm((prev) => ({ ...prev, sku: generateSku(prev.name || "item") }))}
+                  onClick={() => setForm((prev) => ({ ...prev, sku: generateItemSku(prev.name || "item") }))}
                 >
                   Autogenerar
                 </Button>

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CompanyBrandProvider } from "@/components/CompanyBrandProvider";
+import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 
 const queryClient = new QueryClient();
 const Index = lazy(() => import("./pages/Index"));
@@ -46,39 +47,41 @@ function AuthRedirect() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <CompanyBrandProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Suspense fallback={<RouteLoader />}>
-              <Routes>
-                <Route path="/auth" element={<AuthRedirect />} />
-                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-                <Route path="/items" element={<ProtectedRoute><ItemsPage /></ProtectedRoute>} />
-                <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
-                <Route path="/suppliers" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
-                <Route path="/price-lists" element={<ProtectedRoute><PriceListsPage /></ProtectedRoute>} />
-                <Route path="/imports" element={<ProtectedRoute><ImportsPage /></ProtectedRoute>} />
-                <Route path="/pending" element={<ProtectedRoute><PendingPage /></ProtectedRoute>} />
-                <Route path="/quotes" element={<ProtectedRoute><QuotesPage /></ProtectedRoute>} />
-                <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
-                <Route path="/cash" element={<ProtectedRoute><CashPage /></ProtectedRoute>} />
-                <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
-                <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-                <Route path="/items/catalog/import-legacy" element={<ProtectedRoute><LegacyCatalogImportPage /></ProtectedRoute>} />
-                <Route path="/legacy-catalog-import" element={<Navigate to="/items/catalog/import-legacy" replace />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </CompanyBrandProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <AppErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <CompanyBrandProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Suspense fallback={<RouteLoader />}>
+                <Routes>
+                  <Route path="/auth" element={<AuthRedirect />} />
+                  <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                  <Route path="/items" element={<ProtectedRoute><ItemsPage /></ProtectedRoute>} />
+                  <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
+                  <Route path="/suppliers" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
+                  <Route path="/price-lists" element={<ProtectedRoute><PriceListsPage /></ProtectedRoute>} />
+                  <Route path="/imports" element={<ProtectedRoute><ImportsPage /></ProtectedRoute>} />
+                  <Route path="/pending" element={<ProtectedRoute><PendingPage /></ProtectedRoute>} />
+                  <Route path="/quotes" element={<ProtectedRoute><QuotesPage /></ProtectedRoute>} />
+                  <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
+                  <Route path="/cash" element={<ProtectedRoute><CashPage /></ProtectedRoute>} />
+                  <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
+                  <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+                  <Route path="/items/catalog/import-legacy" element={<ProtectedRoute><LegacyCatalogImportPage /></ProtectedRoute>} />
+                  <Route path="/legacy-catalog-import" element={<Navigate to="/items/catalog/import-legacy" replace />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </CompanyBrandProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </AppErrorBoundary>
 );
 
 export default App;
