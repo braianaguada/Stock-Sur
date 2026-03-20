@@ -26,77 +26,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Search, Trash2, Link2 } from "lucide-react";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { getErrorMessage } from "@/lib/errors";
-
-interface PriceList {
-  id: string;
-  name: string;
-  created_at: string;
-  flete_pct: number;
-  utilidad_pct: number;
-  impuesto_pct: number;
-  round_mode: "none" | "integer" | "tens" | "hundreds" | "x99";
-  round_to: number;
-}
-
-interface CatalogItem {
-  id: string;
-  sku: string | null;
-  name: string;
-  unit: string | null;
-}
-
-interface PriceListItem {
-  price_list_id: string;
-  item_id: string;
-  is_active: boolean;
-  base_cost: number;
-  flete_pct: number | null;
-  utilidad_pct: number | null;
-  impuesto_pct: number | null;
-  final_price_override: number | null;
-  items: CatalogItem | null;
-}
-
-type LineDraft = {
-  base_cost: string;
-  flete_pct: string;
-  utilidad_pct: string;
-  impuesto_pct: string;
-  final_price_override: string;
-};
-
-type ListConfigDraft = {
-  flete_pct: string;
-  utilidad_pct: string;
-  impuesto_pct: string;
-  round_mode: PriceList["round_mode"];
-  round_to: string;
-};
-
-const DEFAULT_FORM = {
-  name: "",
-  flete_pct: "10",
-  utilidad_pct: "55",
-  impuesto_pct: "21",
-  round_mode: "none" as PriceList["round_mode"],
-  round_to: "1",
-};
-
-const parseNonNegative = (value: string, fallback = 0) => {
-  const parsed = Number(value.replace(",", "."));
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(0, parsed);
-};
-
-const parseNullableNonNegative = (value: string): number | null => {
-  const trimmed = value.trim();
-  if (trimmed === "") return null;
-  const parsed = Number(trimmed.replace(",", "."));
-  if (!Number.isFinite(parsed)) return null;
-  return Math.max(0, parsed);
-};
-
-const sanitizeNonNegativeDraft = (value: string) => value.replace(",", ".").replace(/-/g, "");
+import { DEFAULT_PRICE_LIST_FORM } from "@/features/price-lists/constants";
+import {
+  type CatalogItem,
+  type LineDraft,
+  type ListConfigDraft,
+  type PriceList,
+  type PriceListItem,
+} from "@/features/price-lists/types";
+import {
+  parseNonNegative,
+  parseNullableNonNegative,
+  sanitizeNonNegativeDraft,
+} from "@/features/price-lists/utils";
 
 export default function PriceListsPage() {
   const { currentCompany } = useAuth();
@@ -109,7 +51,7 @@ export default function PriceListsPage() {
   const [itemSearch, setItemSearch] = useState("");
   const [itemToAdd, setItemToAdd] = useState<string>("");
   const [selectedCatalogItems, setSelectedCatalogItems] = useState<Record<string, boolean>>({});
-  const [form, setForm] = useState(DEFAULT_FORM);
+  const [form, setForm] = useState(DEFAULT_PRICE_LIST_FORM);
   const [lineDrafts, setLineDrafts] = useState<Record<string, LineDraft>>({});
   const [listConfigDraft, setListConfigDraft] = useState<ListConfigDraft | null>(null);
 

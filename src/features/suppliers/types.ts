@@ -16,6 +16,14 @@ export interface Supplier {
   is_active: boolean;
 }
 
+export interface SupplierFormState {
+  name: string;
+  contact_name: string;
+  email: string;
+  whatsapp: string;
+  notes: string;
+}
+
 export interface SupplierCatalog {
   id: string;
   title: string;

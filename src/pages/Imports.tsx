@@ -1,6 +1,3 @@
-import { useState, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
@@ -16,177 +13,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, Check } from "lucide-react";
-import { getErrorMessage } from "@/lib/errors";
-import { parseImportFile, parsePrice, type ParsedRow, isRowEmpty } from "@/lib/importParser";
-import { matchImportLine } from "@/lib/matching";
-
-type Step = "upload" | "map" | "preview" | "done";
-
+import { useImportsFlow } from "@/features/imports/hooks/useImportsFlow";
 
 export default function ImportsPage() {
   const { currentCompany } = useAuth();
-  const [step, setStep] = useState<Step>("upload");
-  const [rawRows, setRawRows] = useState<ParsedRow[]>([]);
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [mapping, setMapping] = useState({ supplier_code: "", description: "", price: "" });
-  const [selectedPriceListId, setSelectedPriceListId] = useState("");
-  const [notes, setNotes] = useState("");
   const { toast } = useToast();
-  const qc = useQueryClient();
-
-  const { data: priceLists = [] } = useQuery({
-    queryKey: ["price-lists-simple", currentCompany?.id ?? "no-company"],
-    enabled: Boolean(currentCompany),
-    queryFn: async () => {
-      const { data, error } = await supabase.from("price_lists").select("id, name").eq("company_id", currentCompany!.id).order("name");
-      if (error) throw error;
-      return data;
-    },
+  const {
+    goPreview,
+    handleFileUpload,
+    headers,
+    importMutation,
+    mapping,
+    notes,
+    previewData,
+    priceLists,
+    reset,
+    selectedPriceListId,
+    setMapping,
+    setNotes,
+    setSelectedPriceListId,
+    setStep,
+    step,
+    validRows,
+  } = useImportsFlow({
+    currentCompanyId: currentCompany?.id ?? null,
+    toast,
   });
-
-  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const { headers: parsedHeaders, rows } = await parseImportFile(file);
-      const nonEmptyRows = rows.filter((row) => !isRowEmpty(row));
-
-      if (nonEmptyRows.length === 0) {
-        toast({
-          title: "Archivo sin filas válidas",
-          description: "El archivo no contiene datos para importar.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setHeaders(parsedHeaders);
-      setRawRows(rows);
-      setMapping({ supplier_code: "", description: "", price: "" });
-      setStep("map");
-    } catch (error) {
-      toast({
-        title: "No se pudo leer el archivo",
-        description: error instanceof Error ? error.message : "Formato inválido o archivo corrupto",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
-
-  const goPreview = () => {
-    if (!mapping.description || !mapping.price) {
-      toast({ title: "Mapea al menos descripción y precio", variant: "destructive" });
-      return;
-    }
-
-    if (validRows.length === 0) {
-      toast({ title: "No hay filas válidas", description: "Subí un archivo con datos para continuar.", variant: "destructive" });
-      return;
-    }
-
-    setStep("preview");
-  };
-
-
-  const validRows = rawRows.filter((row) => !isRowEmpty(row));
-  const selectedPriceListStillExists = priceLists.some((priceList) => priceList.id === selectedPriceListId);
-
-  const previewData = validRows.slice(0, 50).map((row) => ({
-    supplier_code: mapping.supplier_code && mapping.supplier_code !== "__none__" ? row[mapping.supplier_code] ?? "" : "",
-    raw_description: row[mapping.description] ?? "",
-    price: parsePrice(row[mapping.price] ?? "0"),
-  }));
-
-  const importMutation = useMutation({
-    mutationFn: async () => {
-      if (!currentCompany) throw new Error("Seleccioná una empresa activa para importar");
-      if (!selectedPriceListStillExists) {
-        throw new Error("La lista seleccionada ya no está disponible. Recargá Importaciones e intentá de nuevo");
-      }
-      if (validRows.length === 0) {
-        throw new Error("No hay filas válidas para importar");
-      }
-      if (!selectedPriceListId) throw new Error("Seleccioná una lista de precios");
-
-      // Create version
-      const { data: version, error: vErr } = await supabase
-        .from("price_list_versions")
-        .insert({ company_id: currentCompany!.id, price_list_id: selectedPriceListId, notes: notes || null })
-        .select("id")
-        .single();
-      if (vErr) throw vErr;
-
-      // Fetch aliases for matching
-      const { data: aliases, error: aliasesError } = await supabase
-        .from("item_aliases")
-        .select("item_id, alias, is_supplier_code")
-        .eq("company_id", currentCompany!.id);
-      if (aliasesError) throw aliasesError;
-
-      const allLines = validRows.map((row) => {
-        const supplierCode = mapping.supplier_code && mapping.supplier_code !== "__none__"
-          ? (row[mapping.supplier_code] ?? "").trim()
-          : "";
-        const rawDesc = (row[mapping.description] ?? "").trim();
-        const price = parsePrice(row[mapping.price] ?? "0");
-
-        const match = matchImportLine({
-          supplierCode,
-          rawDescription: rawDesc,
-          aliases: aliases ?? [],
-        });
-
-        const item_id = match.itemId;
-        const match_status: "MATCHED" | "PENDING" | "NEW" = item_id ? "MATCHED" : "PENDING";
-
-        return {
-          company_id: currentCompany!.id,
-          version_id: version.id,
-          supplier_code: supplierCode || null,
-          raw_description: rawDesc,
-          price,
-          item_id,
-          match_status,
-          match_reason: match.reason,
-        };
-      }).filter((l) => l.raw_description);
-
-      // Insert in batches of 500
-      for (let i = 0; i < allLines.length; i += 500) {
-        const batch = allLines.slice(i, i + 500);
-        const { error } = await supabase.from("price_list_lines").insert(batch);
-        if (error) throw error;
-      }
-
-      return { total: allLines.length, matched: allLines.filter((l) => l.match_status === "MATCHED").length };
-    },
-    onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: ["price-lists"] });
-      setStep("done");
-      toast({ title: `Importación completada: ${result.total} líneas, ${result.matched} matcheadas` });
-    },
-    onError: (e: unknown) => toast({
-      title: "Error",
-      description: getErrorMessage(e),
-      variant: "destructive",
-    }),
-  });
-
-  const reset = () => {
-    setStep("upload");
-    setRawRows([]);
-    setHeaders([]);
-    setMapping({ supplier_code: "", description: "", price: "" });
-    setSelectedPriceListId("");
-    setNotes("");
-  };
 
   return (
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitás una empresa activa para importar archivos y generar nuevas versiones de listas." />
+          <CompanyAccessNotice description="Necesitas una empresa activa para importar archivos y generar nuevas versiones de listas." />
         ) : null}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Importaciones</h1>
@@ -202,18 +60,20 @@ export default function ImportsPage() {
                 <Select value={selectedPriceListId} onValueChange={setSelectedPriceListId}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar lista" /></SelectTrigger>
                   <SelectContent>
-                    {priceLists.map((pl) => <SelectItem key={pl.id} value={pl.id}>{pl.name}</SelectItem>)}
+                    {priceLists.map((priceList) => (
+                      <SelectItem key={priceList.id} value={priceList.id}>{priceList.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Notas (opcional)</Label>
-                <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ej: Lista marzo 2026" />
+                <Input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ej: Lista marzo 2026" />
               </div>
-              <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground mb-3">Arrastrá o seleccioná un archivo CSV/XLSX</p>
-                <Input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" onChange={handleFileUpload} className="max-w-xs mx-auto" />
+              <div className="rounded-lg border-2 border-dashed p-8 text-center">
+                <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                <p className="mb-3 text-sm text-muted-foreground">Arrastra o selecciona un archivo CSV/XLSX</p>
+                <Input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" onChange={handleFileUpload} className="mx-auto max-w-xs" />
               </div>
             </CardContent>
           </Card>
@@ -223,30 +83,30 @@ export default function ImportsPage() {
           <Card className="max-w-lg">
             <CardHeader><CardTitle className="text-lg">Mapeo de columnas</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">{validRows.length} filas válidas detectadas. Mapeá las columnas:</p>
+              <p className="text-sm text-muted-foreground">{validRows.length} filas validas detectadas. Mapea las columnas:</p>
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label>Código proveedor (opcional)</Label>
-                  <Select value={mapping.supplier_code} onValueChange={(v) => setMapping({ ...mapping, supplier_code: v })}>
+                  <Label>Codigo proveedor (opcional)</Label>
+                  <Select value={mapping.supplier_code} onValueChange={(value) => setMapping({ ...mapping, supplier_code: value })}>
                     <SelectTrigger><SelectValue placeholder="No mapear" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">No mapear</SelectItem>
-                      {headers.map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+                      {headers.map((header) => <SelectItem key={header} value={header}>{header}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Descripción *</Label>
-                  <Select value={mapping.description} onValueChange={(v) => setMapping({ ...mapping, description: v })}>
+                  <Label>Descripcion *</Label>
+                  <Select value={mapping.description} onValueChange={(value) => setMapping({ ...mapping, description: value })}>
                     <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                    <SelectContent>{headers.map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent>
+                    <SelectContent>{headers.map((header) => <SelectItem key={header} value={header}>{header}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Precio *</Label>
-                  <Select value={mapping.price} onValueChange={(v) => setMapping({ ...mapping, price: v })}>
+                  <Select value={mapping.price} onValueChange={(value) => setMapping({ ...mapping, price: value })}>
                     <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                    <SelectContent>{headers.map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent>
+                    <SelectContent>{headers.map((header) => <SelectItem key={header} value={header}>{header}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
@@ -261,29 +121,31 @@ export default function ImportsPage() {
         {step === "preview" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Mostrando primeras {previewData.length} de {validRows.length} filas válidas</p>
+              <p className="text-sm text-muted-foreground">Mostrando primeras {previewData.length} de {validRows.length} filas validas</p>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep("map")}>Volver</Button>
                 <Button onClick={() => importMutation.mutate()} disabled={importMutation.isPending}>
-                  {importMutation.isPending ? "Importando..." : `Confirmar importación (${validRows.length} filas)`}
+                  {importMutation.isPending ? "Importando..." : `Confirmar importacion (${validRows.length} filas)`}
                 </Button>
               </div>
             </div>
-            <div className="rounded-lg border bg-card overflow-auto max-h-[60vh]">
+            <div className="max-h-[60vh] overflow-auto rounded-lg border bg-card">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Cód. Proveedor</TableHead>
-                    <TableHead>Descripción</TableHead>
+                    <TableHead>Cod. Proveedor</TableHead>
+                    <TableHead>Descripcion</TableHead>
                     <TableHead className="text-right">Precio</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {previewData.map((row, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-mono text-xs">{row.supplier_code || "—"}</TableCell>
+                  {previewData.map((row, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-mono text-xs">{row.supplier_code || "-"}</TableCell>
                       <TableCell className="text-sm">{row.raw_description}</TableCell>
-                      <TableCell className="text-right font-mono">{row.price.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {row.price.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -294,13 +156,13 @@ export default function ImportsPage() {
 
         {step === "done" && (
           <Card className="max-w-lg">
-            <CardContent className="py-12 text-center space-y-4">
-              <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+            <CardContent className="space-y-4 py-12 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
                 <Check className="h-8 w-8 text-green-600" />
               </div>
-              <h2 className="text-xl font-bold">Importación completada</h2>
-              <p className="text-muted-foreground">Las líneas fueron importadas. Revisá los pendientes en la sección correspondiente.</p>
-              <Button onClick={reset}>Nueva importación</Button>
+              <h2 className="text-xl font-bold">Importacion completada</h2>
+              <p className="text-muted-foreground">Las lineas fueron importadas. Revisa los pendientes en la seccion correspondiente.</p>
+              <Button onClick={reset}>Nueva importacion</Button>
             </CardContent>
           </Card>
         )}
