@@ -37,7 +37,7 @@ export function CashClosureTab({
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <CardTitle>Cierre diario</CardTitle>
-          <CardDescription>Cierre operativo del dia con los totales esperados y el resumen imprimible para control.</CardDescription>
+          <CardDescription>Cierre operativo del día con los totales esperados y el resumen imprimible para control.</CardDescription>
         </div>
         <Badge variant="outline" className={effectiveClosure?.status === "CERRADO" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}>
           {effectiveClosure?.status === "CERRADO" ? "Cerrado" : "Abierto"}
@@ -60,7 +60,7 @@ export function CashClosureTab({
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-4">
             <div className="rounded-2xl border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
-              El conteo fisico del efectivo se completa sobre el resumen impreso. Desde esta pantalla solo cerras la caja del sistema y dejas observaciones.
+              El conteo físico del efectivo se completa sobre el resumen impreso. Desde esta pantalla solo cerrás la caja del sistema y dejás observaciones.
             </div>
             <div className="space-y-2">
               <Label htmlFor="close-notes">Observaciones del cierre</Label>
@@ -86,7 +86,7 @@ export function CashClosureTab({
                 <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_sales_total ?? 0))}</span>
               </div>
               <div className="border-t pt-3">
-                <p className="text-xs text-muted-foreground">Estado del cierre: {effectiveClosure?.status === "CERRADO" ? `cerrado el ${formatDateTime(effectiveClosure.closed_at ?? null)}` : "todavia abierto"}</p>
+                <p className="text-xs text-muted-foreground">Estado del cierre: {effectiveClosure?.status === "CERRADO" ? `cerrado el ${formatDateTime(effectiveClosure.closed_at ?? null)}` : "todavía abierto"}</p>
               </div>
             </div>
           </div>
@@ -104,8 +104,8 @@ export function CashClosureTab({
               Ver resumen
             </Button>
           ) : null}
-          {effectiveClosure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya esta bloqueado. Solo queda disponible para consulta.</p> : null}
-          {!canCloseCash ? <p className="text-sm text-muted-foreground">Solo administracion puede cerrar o modificar el cierre diario.</p> : null}
+          {effectiveClosure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya está bloqueado. Solo queda disponible para consulta.</p> : null}
+          {!canCloseCash ? <p className="text-sm text-muted-foreground">Solo administración puede cerrar o modificar el cierre diario.</p> : null}
         </div>
       </CardContent>
     </Card>

@@ -165,9 +165,9 @@ export function useSupplierImportFlow(params: {
 
   const uploadCatalogMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompanyId) throw new Error("Selecciona una empresa para importar catalogos");
-      if (!selectedSupplier) throw new Error("Selecciona un proveedor");
-      if (!selectedFile) throw new Error("Selecciona un archivo");
+      if (!currentCompanyId) throw new Error("Seleccioná una empresa para importar catálogos");
+      if (!selectedSupplier) throw new Error("Seleccioná un proveedor");
+      if (!selectedFile) throw new Error("Seleccioná un archivo");
 
       const { data: authData } = await supabase.auth.getUser();
       const userId = authData.user?.id ?? null;
@@ -181,7 +181,7 @@ export function useSupplierImportFlow(params: {
       const title = documentTitle.trim() || selectedFile.name;
       const requestedCatalogId = selectedCatalogId === "new" ? null : selectedCatalogId;
       if (requestedCatalogId && !catalogsById.has(requestedCatalogId)) {
-        throw new Error("El listado seleccionado ya no esta disponible. Recarga el historial e intenta de nuevo");
+        throw new Error("El listado seleccionado ya no está disponible. Recargá el historial e intentá de nuevo");
       }
 
       if (SHOULD_LOG_SUPPLIER_IMPORT) {
@@ -258,7 +258,7 @@ export function useSupplierImportFlow(params: {
             suggested,
             confidence: detected.confidence,
           });
-          if (!mapping) throw new Error("Importacion cancelada por el usuario");
+          if (!mapping) throw new Error("Importación cancelada por el usuario");
           normalized = normalizeRowsToLines({
             headers: parsedSheet.headers,
             rows: parsedSheet.rows,
@@ -303,7 +303,7 @@ export function useSupplierImportFlow(params: {
             rows: tableRows,
             suggested,
           });
-          if (!selection) throw new Error("Importacion PDF cancelada por el usuario");
+          if (!selection) throw new Error("Importación PDF cancelada por el usuario");
 
           const indexByHeader = new Map(tableHeaders.map((header, index) => [header, index]));
           const descIndex = indexByHeader.get(selection.descriptionColumn);
@@ -351,7 +351,7 @@ export function useSupplierImportFlow(params: {
 
       setPdfProgress(null);
       setLastDiagnostics(diagnostics);
-      if (lines.length === 0) throw new Error("No se encontraron filas validas para importar");
+      if (lines.length === 0) throw new Error("No se encontraron filas válidas para importar");
 
       const { data: rpcResult, error: rpcError } = await supabase.rpc("create_supplier_catalog_import", {
         p_supplier_id: selectedSupplier.id,
@@ -393,7 +393,7 @@ export function useSupplierImportFlow(params: {
       setLineQuantities({});
       toast({
         title: "Documento cargado",
-        description: `Importados ${result.total} items`,
+        description: `Importados ${result.total} ítems`,
       });
     },
     onError: (error: unknown) => {

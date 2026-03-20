@@ -346,7 +346,7 @@ export default function DocumentsPage() {
           <p class="muted"><strong>Condición fiscal:</strong> ${escapeHtml(doc.customer_tax_condition ?? "-")}</p>
         </div>
         <div class="meta-card">
-          <p class="meta-title">Operacion</p>
+          <p class="meta-title">Operación</p>
           <p class="muted"><strong>Punto de venta:</strong> ${String(doc.point_of_sale).padStart(4, "0")}</p>
           <p class="muted"><strong>Tipo:</strong> ${escapeHtml(DOC_LABEL[doc.doc_type])}</p>
           <p class="muted"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[doc.status])}</p>
@@ -382,7 +382,7 @@ export default function DocumentsPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para crear documentos, emitir remitos y revisar su historial." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para crear documentos, emitir remitos y revisar su historial." />
         ) : null}
         <div className="flex items-center justify-between">
           <div>

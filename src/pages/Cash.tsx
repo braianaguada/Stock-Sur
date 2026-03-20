@@ -208,7 +208,7 @@ export default function CashPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Caja</h1>
-            <p className="text-muted-foreground">Carga rapida, pendientes de comprobante y cierre diario en una sola vista.</p>
+            <p className="text-muted-foreground">Carga rápida, pendientes de comprobante y cierre diario en una sola vista.</p>
           </div>
           <div className="w-full max-w-[155px]">
             <Label htmlFor="business-date">Fecha operativa</Label>
@@ -238,7 +238,7 @@ export default function CashPage() {
           <Card className="border-primary/10 shadow-sm">
             <CardHeader>
               <CardTitle>Nueva venta</CardTitle>
-              <CardDescription>Captura minima para registrar la operacion sin quedar bloqueado por el comprobante.</CardDescription>
+              <CardDescription>Captura mínima para registrar la operación sin quedar bloqueado por el comprobante.</CardDescription>
             </CardHeader>
             <CardContent>
               <form
@@ -280,7 +280,7 @@ export default function CashPage() {
                     <Select value={receiptKind} onValueChange={(value) => setReceiptKind(value as ReceiptKind)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="PENDIENTE">Definir despues</SelectItem>
+                        <SelectItem value="PENDIENTE">Definir después</SelectItem>
                         <SelectItem value="REMITO">Remito</SelectItem>
                         <SelectItem value="FACTURA">Factura</SelectItem>
                       </SelectContent>
@@ -334,7 +334,7 @@ export default function CashPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="notes">Observaciones</Label>
-                  <Textarea id="notes" placeholder="Cliente, detalle rapido o algo util para revisar la venta despues" value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} />
+                  <Textarea id="notes" placeholder="Cliente, detalle rápido o algo útil para revisar la venta después" value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} />
                 </div>
 
                 <Button type="submit" className="w-full" disabled={createSaleMutation.isPending || !canCreateSale}>
@@ -347,7 +347,7 @@ export default function CashPage() {
 
           <Tabs defaultValue="day" className="space-y-4">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="day">Caja del dia</TabsTrigger>
+              <TabsTrigger value="day">Caja del día</TabsTrigger>
               <TabsTrigger value="pending">Pendientes</TabsTrigger>
               <TabsTrigger value="closure">Cierre diario</TabsTrigger>
               <TabsTrigger value="history">Historial</TabsTrigger>

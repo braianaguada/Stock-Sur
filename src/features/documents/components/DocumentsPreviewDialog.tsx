@@ -56,7 +56,7 @@ export function DocumentsPreviewDialog({
                           <p className="text-2xl font-black tracking-[0.12em] text-primary">{companySettings.app_name}</p>
                         )}
                         <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                          {companySettings.document_tagline ?? "Documentacion comercial"}
+                          {companySettings.document_tagline ?? "Documentación comercial"}
                         </p>
                       </div>
                     </div>
@@ -75,24 +75,24 @@ export function DocumentsPreviewDialog({
                       <p className="text-sm text-muted-foreground">Condicion fiscal: {selectedDocument.customer_tax_condition ?? "-"}</p>
                     </div>
                     <div className="rounded-2xl border bg-white/80 p-4">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operación</p>
                       <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(selectedDocument.issue_date).toLocaleDateString("es-AR")}</p>
                       <p className="text-sm"><span className="font-semibold">Estado:</span> {STATUS_LABEL[selectedDocument.status]}</p>
                       <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(selectedDocument.point_of_sale).padStart(4, "0")}</p>
                       {selectedDocument.payment_terms && (
-                        <p className="text-sm"><span className="font-semibold">Condicion de venta:</span> {selectedDocument.payment_terms}</p>
+                        <p className="text-sm"><span className="font-semibold">Condición de venta:</span> {selectedDocument.payment_terms}</p>
                       )}
                       {selectedDocument.salesperson && (
                         <p className="text-sm"><span className="font-semibold">Vendedor:</span> {selectedDocument.salesperson}</p>
                       )}
                       {selectedDocument.valid_until && (
-                        <p className="text-sm"><span className="font-semibold">Valido hasta:</span> {new Date(selectedDocument.valid_until).toLocaleDateString("es-AR")}</p>
+                        <p className="text-sm"><span className="font-semibold">Válido hasta:</span> {new Date(selectedDocument.valid_until).toLocaleDateString("es-AR")}</p>
                       )}
                       {selectedDocument.delivery_address && (
                         <p className="text-sm"><span className="font-semibold">Entrega:</span> {selectedDocument.delivery_address}</p>
                       )}
                       {selectedDocument.internal_remito_type && (
-                        <p className="text-sm"><span className="font-semibold">Imputacion:</span> {INTERNAL_REMITO_LABEL[selectedDocument.internal_remito_type]}</p>
+                        <p className="text-sm"><span className="font-semibold">Imputación:</span> {INTERNAL_REMITO_LABEL[selectedDocument.internal_remito_type]}</p>
                       )}
                     </div>
                   </div>
@@ -120,7 +120,7 @@ export function DocumentsPreviewDialog({
                     <TableRow>
                       <TableHead>#</TableHead>
                       <TableHead>SKU</TableHead>
-                      <TableHead>Descripcion</TableHead>
+                      <TableHead>Descripción</TableHead>
                       <TableHead className="text-right">Cant.</TableHead>
                       <TableHead>Unidad</TableHead>
                       <TableHead className="text-right">P.Unit.</TableHead>
@@ -147,7 +147,7 @@ export function DocumentsPreviewDialog({
             <aside className="rounded-3xl border bg-card p-5 lg:max-h-[72vh] lg:overflow-y-auto">
               <div className="mb-5">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Historial</p>
-                <p className="mt-1 text-sm text-muted-foreground">Linea de tiempo del documento.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Línea de tiempo del documento.</p>
                 {sourceDocumentLabel && (
                   <Badge variant="outline" className="mt-3 border-slate-200 bg-slate-50 text-slate-700">
                     Origen: {sourceDocumentLabel}
@@ -157,7 +157,7 @@ export function DocumentsPreviewDialog({
 
               {selectedEvents.length === 0 ? (
                 <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
-                  Todavia no hay eventos registrados para este documento.
+                  Todavía no hay eventos registrados para este documento.
                 </div>
               ) : (
                 <div className="relative pl-7">

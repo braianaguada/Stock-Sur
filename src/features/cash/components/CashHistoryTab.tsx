@@ -15,7 +15,7 @@ export function CashHistoryTab({ closuresHistory, onOpenSummary }: CashHistoryTa
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <CardTitle>Historial de cierres</CardTitle>
-          <CardDescription>Resumenes diarios guardados para consulta e impresion.</CardDescription>
+          <CardDescription>Resúmenes diarios guardados para consulta e impresión.</CardDescription>
         </div>
         <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
           {closuresHistory.length} registro{closuresHistory.length === 1 ? "" : "s"}
@@ -24,7 +24,7 @@ export function CashHistoryTab({ closuresHistory, onOpenSummary }: CashHistoryTa
       <CardContent>
         <div className="space-y-3">
           {closuresHistory.length === 0 ? (
-            <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Todavia no hay cierres guardados.</div>
+            <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Todavía no hay cierres guardados.</div>
           ) : (
             closuresHistory.map((historyItem) => (
               <div key={historyItem.id} className="flex flex-col gap-3 rounded-xl border p-4 md:flex-row md:items-center md:justify-between">

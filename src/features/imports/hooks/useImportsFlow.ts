@@ -54,7 +54,7 @@ export function useImportsFlow(params: {
 
       if (nonEmptyRows.length === 0) {
         toast({
-          title: "Archivo sin filas validas",
+          title: "Archivo sin filas válidas",
           description: "El archivo no contiene datos para importar.",
           variant: "destructive",
         });
@@ -68,7 +68,7 @@ export function useImportsFlow(params: {
     } catch (error) {
       toast({
         title: "No se pudo leer el archivo",
-        description: error instanceof Error ? error.message : "Formato invalido o archivo corrupto",
+        description: error instanceof Error ? error.message : "Formato inválido o archivo corrupto",
         variant: "destructive",
       });
     }
@@ -76,12 +76,12 @@ export function useImportsFlow(params: {
 
   const goPreview = () => {
     if (!mapping.description || !mapping.price) {
-      toast({ title: "Mapea al menos descripcion y precio", variant: "destructive" });
+      toast({ title: "Mapeá al menos descripción y precio", variant: "destructive" });
       return;
     }
 
     if (validRows.length === 0) {
-      toast({ title: "No hay filas validas", description: "Subi un archivo con datos para continuar.", variant: "destructive" });
+      toast({ title: "No hay filas válidas", description: "Subí un archivo con datos para continuar.", variant: "destructive" });
       return;
     }
 
@@ -90,14 +90,14 @@ export function useImportsFlow(params: {
 
   const importMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompanyId) throw new Error("Selecciona una empresa activa para importar");
+      if (!currentCompanyId) throw new Error("Seleccioná una empresa activa para importar");
       if (!selectedPriceListStillExists) {
-        throw new Error("La lista seleccionada ya no esta disponible. Recarga Importaciones e intenta de nuevo");
+        throw new Error("La lista seleccionada ya no está disponible. Recargá Importaciones e intentá de nuevo");
       }
       if (validRows.length === 0) {
-        throw new Error("No hay filas validas para importar");
+        throw new Error("No hay filas válidas para importar");
       }
-      if (!selectedPriceListId) throw new Error("Selecciona una lista de precios");
+      if (!selectedPriceListId) throw new Error("Seleccioná una lista de precios");
 
       const { data: version, error: vErr } = await supabase
         .from("price_list_versions")
@@ -154,7 +154,7 @@ export function useImportsFlow(params: {
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["price-lists"] });
       setStep("done");
-      toast({ title: `Importacion completada: ${result.total} lineas, ${result.matched} matcheadas` });
+      toast({ title: `Importación completada: ${result.total} líneas, ${result.matched} matcheadas` });
     },
     onError: (error: unknown) => toast({
       title: "Error",

@@ -56,7 +56,7 @@ export function QuoteEditorDialog({
             </div>
             <div className="space-y-2">
               <Label>Nombre cliente</Label>
-              <Input value={form.customer_name} onChange={(event) => onFormChange({ ...form, customer_name: event.target.value })} placeholder="O escribi un nombre" />
+              <Input value={form.customer_name} onChange={(event) => onFormChange({ ...form, customer_name: event.target.value })} placeholder="O escribí un nombre" />
             </div>
           </div>
           <div className="space-y-2">
@@ -66,13 +66,13 @@ export function QuoteEditorDialog({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Lineas</Label>
-              <Button type="button" variant="outline" size="sm" onClick={onAddLine}><Plus className="mr-1 h-3 w-3" /> Linea</Button>
+              <Label>Líneas</Label>
+              <Button type="button" variant="outline" size="sm" onClick={onAddLine}><Plus className="mr-1 h-3 w-3" /> Línea</Button>
             </div>
             <div className="space-y-2">
               {lines.map((line, index) => (
                 <div key={index} className="flex items-start gap-2">
-                  <Input className="flex-1" placeholder="Descripcion" value={line.description} onChange={(event) => onLineChange(index, "description", event.target.value)} />
+                  <Input className="flex-1" placeholder="Descripción" value={line.description} onChange={(event) => onLineChange(index, "description", event.target.value)} />
                   <Input className="w-20" type="number" step="any" placeholder="Cant." value={line.quantity} onChange={(event) => onLineChange(index, "quantity", parseFloat(event.target.value) || 0)} />
                   <Input className="w-28" type="number" step="any" placeholder="Precio" value={line.unit_price} onChange={(event) => onLineChange(index, "unit_price", parseFloat(event.target.value) || 0)} />
                   <span className="w-24 pt-2 text-right text-sm text-muted-foreground">

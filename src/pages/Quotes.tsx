@@ -65,14 +65,14 @@ export default function QuotesPage() {
 
         {!currentCompanyId ? (
           <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-            Selecciona una empresa activa para ver y crear presupuestos.
+            Seleccioná una empresa activa para ver y crear presupuestos.
           </div>
         ) : null}
 
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar por cliente o numero..."
+            placeholder="Buscar por cliente o número..."
             className="pl-9"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -144,7 +144,7 @@ export default function QuotesPage() {
           if (!open) setQuoteToDelete(null);
         }}
         title="Eliminar presupuesto"
-        description={quoteToDelete ? `Esta accion eliminara el presupuesto #${quoteToDelete.quote_number} de forma permanente.` : ""}
+        description={quoteToDelete ? `Esta acción eliminará el presupuesto #${quoteToDelete.quote_number} de forma permanente.` : ""}
         isPending={deleteMutation.isPending}
         onConfirm={() => {
           if (!quoteToDelete) return;

@@ -36,8 +36,8 @@ export function CashSalesTab({
     <Card className="shadow-sm">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <CardTitle>Movimientos del dia</CardTitle>
-          <CardDescription>Vista rapida para controlar lo cargado y detectar pendientes antes del cierre.</CardDescription>
+          <CardTitle>Movimientos del día</CardTitle>
+          <CardDescription>Vista rápida para controlar lo cargado y detectar pendientes antes del cierre.</CardDescription>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="w-fit">{filteredSales.length} registros</Badge>
@@ -65,7 +65,7 @@ export function CashSalesTab({
                 <TableHead className="w-[170px]">Cliente</TableHead>
                 <TableHead className="w-[96px]">Pago</TableHead>
                 <TableHead className="w-[160px]">Comprobante</TableHead>
-                <TableHead className="w-[150px]">Situacion</TableHead>
+                <TableHead className="w-[150px]">Situación</TableHead>
                 <TableHead className="w-[92px] text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -73,7 +73,7 @@ export function CashSalesTab({
               {salesLoading ? (
                 <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Cargando ventas...</TableCell></TableRow>
               ) : filteredSales.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Todavia no hay ventas registradas para esta fecha.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Todavía no hay ventas registradas para esta fecha.</TableCell></TableRow>
               ) : (
                 filteredSales.map((sale) => {
                   const closureSituation = getClosureSituation(sale, hasClosedClosureForDay);

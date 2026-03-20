@@ -267,7 +267,7 @@ export default function SettingsPage() {
                       </div>
                       <div className="rounded-2xl border bg-white/80 p-4">
                         <p className="text-sm font-semibold" style={{ color: form.primary_color }}>Panel con acento</p>
-                        <p className="mt-1 text-sm text-slate-600">Este fondo usa el color de acento como superficie suave para hover, seleccion y paneles destacados.</p>
+                        <p className="mt-1 text-sm text-slate-600">Este fondo usa el color de acento como superficie suave para hover, selección y paneles destacados.</p>
                       </div>
                     </div>
                     <div className="overflow-hidden rounded-3xl border">
@@ -282,7 +282,7 @@ export default function SettingsPage() {
                           <div className="rounded-2xl border bg-white p-4 shadow-sm">
                             <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Preview de interfaz</p>
                             <p className="mt-2 text-lg font-bold" style={{ color: form.primary_color }}>{form.app_name || "Tu empresa"}</p>
-                            <p className="mt-1 text-sm text-slate-600">Asi se perciben juntos los tres colores dentro de la app.</p>
+                            <p className="mt-1 text-sm text-slate-600">Así se perciben juntos los tres colores dentro de la app.</p>
                           </div>
                         </div>
                       </div>
@@ -290,7 +290,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || isLoading} className="w-full">
-                  {saveMutation.isPending ? "Guardando..." : "Guardar configuracion"}
+                  {saveMutation.isPending ? "Guardando..." : "Guardar configuración"}
                 </Button>
               </CardContent>
             </Card>

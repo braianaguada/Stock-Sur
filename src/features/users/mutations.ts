@@ -15,12 +15,12 @@ export async function saveUserCompanyAccess(params: {
 }) {
   const { selectedUser, accessForm, permissionOverrides, hasSelectedUser, hasCompany, hasRole } = params;
 
-  if (!selectedUser) throw new Error("Selecciona un usuario");
-  if (!accessForm.companyId) throw new Error("Selecciona una empresa");
-  if (!accessForm.roleId) throw new Error("Selecciona un rol");
-  if (!hasSelectedUser) throw new Error("El usuario seleccionado ya no esta disponible. Recarga Usuarios e intenta de nuevo");
-  if (!hasCompany) throw new Error("La empresa seleccionada ya no esta disponible. Recarga Usuarios e intenta de nuevo");
-  if (!hasRole) throw new Error("El rol seleccionado ya no esta disponible. Recarga Usuarios e intenta de nuevo");
+  if (!selectedUser) throw new Error("Seleccioná un usuario");
+  if (!accessForm.companyId) throw new Error("Seleccioná una empresa");
+  if (!accessForm.roleId) throw new Error("Seleccioná un rol");
+  if (!hasSelectedUser) throw new Error("El usuario seleccionado ya no está disponible. Recargá Usuarios e intentá de nuevo");
+  if (!hasCompany) throw new Error("La empresa seleccionada ya no está disponible. Recargá Usuarios e intentá de nuevo");
+  if (!hasRole) throw new Error("El rol seleccionado ya no está disponible. Recargá Usuarios e intentá de nuevo");
 
   let companyUserId = accessForm.companyUserId;
 

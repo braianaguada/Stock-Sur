@@ -44,7 +44,7 @@ export default function ImportsPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para importar archivos y generar nuevas versiones de listas." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para importar archivos y generar nuevas versiones de listas." />
         ) : null}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Importaciones</h1>
@@ -83,10 +83,10 @@ export default function ImportsPage() {
           <Card className="max-w-lg">
             <CardHeader><CardTitle className="text-lg">Mapeo de columnas</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">{validRows.length} filas validas detectadas. Mapea las columnas:</p>
+              <p className="text-sm text-muted-foreground">{validRows.length} filas válidas detectadas. Mapeá las columnas:</p>
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label>Codigo proveedor (opcional)</Label>
+                  <Label>Código proveedor (opcional)</Label>
                   <Select value={mapping.supplier_code} onValueChange={(value) => setMapping({ ...mapping, supplier_code: value })}>
                     <SelectTrigger><SelectValue placeholder="No mapear" /></SelectTrigger>
                     <SelectContent>
@@ -96,7 +96,7 @@ export default function ImportsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Descripcion *</Label>
+                  <Label>Descripción *</Label>
                   <Select value={mapping.description} onValueChange={(value) => setMapping({ ...mapping, description: value })}>
                     <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                     <SelectContent>{headers.map((header) => <SelectItem key={header} value={header}>{header}</SelectItem>)}</SelectContent>
@@ -121,11 +121,11 @@ export default function ImportsPage() {
         {step === "preview" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Mostrando primeras {previewData.length} de {validRows.length} filas validas</p>
+              <p className="text-sm text-muted-foreground">Mostrando primeras {previewData.length} de {validRows.length} filas válidas</p>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep("map")}>Volver</Button>
                 <Button onClick={() => importMutation.mutate()} disabled={importMutation.isPending}>
-                  {importMutation.isPending ? "Importando..." : `Confirmar importacion (${validRows.length} filas)`}
+                  {importMutation.isPending ? "Importando..." : `Confirmar importación (${validRows.length} filas)`}
                 </Button>
               </div>
             </div>
@@ -134,7 +134,7 @@ export default function ImportsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Cod. Proveedor</TableHead>
-                    <TableHead>Descripcion</TableHead>
+                    <TableHead>Descripción</TableHead>
                     <TableHead className="text-right">Precio</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -160,9 +160,9 @@ export default function ImportsPage() {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
                 <Check className="h-8 w-8 text-green-600" />
               </div>
-              <h2 className="text-xl font-bold">Importacion completada</h2>
-              <p className="text-muted-foreground">Las lineas fueron importadas. Revisa los pendientes en la seccion correspondiente.</p>
-              <Button onClick={reset}>Nueva importacion</Button>
+              <h2 className="text-xl font-bold">Importación completada</h2>
+              <p className="text-muted-foreground">Las líneas fueron importadas. Revisá los pendientes en la sección correspondiente.</p>
+              <Button onClick={reset}>Nueva importación</Button>
             </CardContent>
           </Card>
         )}

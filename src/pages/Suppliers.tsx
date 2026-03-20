@@ -277,16 +277,78 @@ export default function SuppliersPage() {
     toast,
   });
 
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentCompany?.id) throw new Error("Necesitás una empresa activa para guardar proveedores.");
+      await saveSupplier({
+        companyId: currentCompany.id,
+        form,
+        editingId: editing?.id ?? null,
+      });
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["suppliers", currentCompany?.id ?? "no-company"] });
+      setDialogOpen(false);
+      setEditing(null);
+      setForm(createEmptySupplierForm());
+      setShowAdvanced(false);
+      toast({ title: editing ? "Proveedor actualizado" : "Proveedor creado" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo guardar el proveedor",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (supplierId: string) => {
+      if (!currentCompany?.id) throw new Error("Necesitás una empresa activa para eliminar proveedores.");
+      await deleteSupplier(currentCompany.id, supplierId);
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["suppliers", currentCompany?.id ?? "no-company"] });
+      toast({ title: "Proveedor eliminado" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo eliminar el proveedor",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: async (supplierId: string) => {
+      if (!currentCompany?.id) throw new Error("Necesitás una empresa activa para restaurar proveedores.");
+      await restoreSupplier(currentCompany.id, supplierId);
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["suppliers", currentCompany?.id ?? "no-company"] });
+      toast({ title: "Proveedor restaurado" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo restaurar el proveedor",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+      });
+    },
+  });
+
   return (
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="NecesitÃ¡s una empresa activa para trabajar con proveedores, catÃ¡logos e importaciones." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para trabajar con proveedores, catálogos e importaciones." />
         ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Proveedores</h1>
-            <p className="text-muted-foreground">GestiÃ³n de proveedores y catÃ¡logos</p>
+            <p className="text-muted-foreground">Gestión de proveedores y catálogos</p>
           </div>
           <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo proveedor</Button>
         </div>
