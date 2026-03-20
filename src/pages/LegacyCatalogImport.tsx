@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Upload } from "lucide-react";
+
+import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +15,6 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { parseImportFile, parsePrice, type ParsedRow } from "@/lib/importParser";
@@ -55,7 +56,7 @@ function extractLegacyRows(rows: ParsedRow[], headers: string[]): ExtractLegacyR
   const costoNumKey = map.get("costonum") ?? map.get("costo");
 
   if (!codigoKey || !articuloKey || !rubroKey || !costoNumKey) {
-    throw new Error("Faltan columnas requeridas: Código, Artículo, Rubro y Costo_num (o Costo)");
+    throw new Error("Faltan columnas requeridas: Codigo, Articulo, Rubro y Costo_num (o Costo)");
   }
 
   const parsedRows: Row[] = [];
@@ -91,21 +92,15 @@ function extractLegacyRows(rows: ParsedRow[], headers: string[]): ExtractLegacyR
   return { rows: parsedRows, skippedEmptyName };
 }
 
-
-async function itemsHaveCostField(): Promise<boolean> {
-  const { error } = await supabase.from("items").select("id, cost").limit(1);
-  if (!error) return true;
-  if (error.message.toLowerCase().includes("column") && error.message.toLowerCase().includes("cost")) {
-    return false;
-  }
-  throw error;
-}
-
-async function importSelectedRows(rows: Row[], selectedIds: Set<string>) {
+async function importSelectedRows(
+  rows: Row[],
+  selectedIds: Set<string>,
+  companyId: string,
+  userId: string | null,
+) {
   const selectedRows = rows.filter((row) => selectedIds.has(row.id));
-  if (selectedRows.length === 0) throw new Error("Seleccioná al menos una fila para importar");
+  if (selectedRows.length === 0) throw new Error("Selecciona al menos una fila para importar");
 
-  const supportsCost = await itemsHaveCostField();
   const selectedCodes = Array.from(new Set(selectedRows.map((row) => normalizeAlias(row.codigo)).filter(Boolean)));
 
   const existingCodes = new Set<string>();
@@ -114,6 +109,7 @@ async function importSelectedRows(rows: Row[], selectedIds: Set<string>) {
     const { data: existingAliases, error: aliasesErr } = await supabase
       .from("item_aliases")
       .select("alias")
+      .eq("company_id", companyId)
       .in("alias", chunk);
     if (aliasesErr) throw aliasesErr;
 
@@ -133,18 +129,15 @@ async function importSelectedRows(rows: Row[], selectedIds: Set<string>) {
   let created = 0;
   for (let i = 0; i < importableRows.length; i += 300) {
     const batch = importableRows.slice(i, i + 300);
-    const itemsPayload = batch.map((row) => {
-      const payload: Record<string, unknown> = {
-        name: cleanText(row.articulo),
-        unit: cleanText(row.medida) || "un",
-        category: cleanText(row.rubro) || null,
-        brand: cleanText(row.marca) || null,
-        is_active: true,
-      };
-
-      if (supportsCost) payload.cost = row.costo_num;
-      return payload;
-    });
+    const itemsPayload = batch.map((row) => ({
+      company_id: companyId,
+      name: cleanText(row.articulo),
+      unit: cleanText(row.medida) || "un",
+      category: cleanText(row.rubro) || null,
+      brand: cleanText(row.marca) || null,
+      is_active: true,
+      created_by: userId,
+    }));
 
     const { data: insertedItems, error: itemsErr } = await supabase
       .from("items")
@@ -153,9 +146,11 @@ async function importSelectedRows(rows: Row[], selectedIds: Set<string>) {
     if (itemsErr) throw itemsErr;
 
     const aliasPayload = (insertedItems ?? []).map((item, idx) => ({
+      company_id: companyId,
       item_id: item.id,
       alias: cleanText(batch[idx].codigo),
       is_supplier_code: true,
+      created_by: userId,
     }));
 
     const validAliasPayload = aliasPayload.filter((entry) => entry.alias !== "");
@@ -178,6 +173,7 @@ async function importSelectedRows(rows: Row[], selectedIds: Set<string>) {
 }
 
 export default function LegacyCatalogImportPage() {
+  const { currentCompany, user } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [rubroFilter, setRubroFilter] = useState("all");
@@ -201,10 +197,10 @@ export default function LegacyCatalogImportPage() {
 
   const importMutation = useMutation({
     mutationFn: async (variables: { rows: Row[]; selectedIds: Set<string> }) =>
-      importSelectedRows(variables.rows, variables.selectedIds),
+      importSelectedRows(variables.rows, variables.selectedIds, currentCompany!.id, user?.id ?? null),
     onSuccess: ({ selected, skipped, created }) => {
       toast({
-        title: "Importación completada",
+        title: "Importacion completada",
         description: `Seleccionadas: ${selected}. Creadas: ${created}. Omitidas: ${skipped}.`,
       });
     },
@@ -229,7 +225,7 @@ export default function LegacyCatalogImportPage() {
       if (skippedEmptyName > 0) {
         toast({
           title: "Filas omitidas",
-          description: `Se omitieron ${skippedEmptyName} fila(s) sin nombre válido.`,
+          description: `Se omitieron ${skippedEmptyName} fila(s) sin nombre valido.`,
           variant: "destructive",
         });
       }
@@ -239,7 +235,7 @@ export default function LegacyCatalogImportPage() {
         setSelectedIds(new Set());
         toast({
           title: "Archivo sin filas importables",
-          description: "No se encontraron filas válidas con Código y Artículo limpios.",
+          description: "No se encontraron filas validas con Codigo y Articulo limpios.",
           variant: "destructive",
         });
         return;
@@ -252,7 +248,7 @@ export default function LegacyCatalogImportPage() {
     } catch (error) {
       toast({
         title: "No se pudo procesar el archivo",
-        description: error instanceof Error ? error.message : "Verificá el formato del archivo",
+        description: error instanceof Error ? error.message : "Verifica el formato del archivo",
         variant: "destructive",
       });
     }
@@ -278,17 +274,26 @@ export default function LegacyCatalogImportPage() {
   const deselectAll = () => setSelectedIds(new Set());
 
   const importSelected = async () => {
+    if (!currentCompany) {
+      toast({
+        title: "Empresa no disponible",
+        description: "Selecciona una empresa antes de importar el catalogo legacy.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const rowsArray = Array.isArray(rows)
       ? rows
       : Array.isArray((rows as unknown as { rows?: Row[] })?.rows)
-      ? (rows as unknown as { rows: Row[] }).rows
-      : [];
+        ? (rows as unknown as { rows: Row[] }).rows
+        : [];
 
     const selected = rowsArray.filter((row) => selectedIds.has(row.id));
     if (selected.length === 0) {
       toast({
         title: "No hay filas seleccionadas",
-        description: "Seleccioná al menos una fila para importar.",
+        description: "Selecciona al menos una fila para importar.",
         variant: "destructive",
       });
       return;
@@ -301,8 +306,8 @@ export default function LegacyCatalogImportPage() {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Importador catálogo legacy</h1>
-          <p className="text-muted-foreground">Subí CSV/XLS/XLSX para crear ítems y códigos de proveedor.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Importador catalogo legacy</h1>
+          <p className="text-muted-foreground">Subi CSV/XLS/XLSX para crear items y codigos de proveedor.</p>
         </div>
 
         <Card>
@@ -310,10 +315,10 @@ export default function LegacyCatalogImportPage() {
             <CardTitle className="text-lg">Archivo fuente</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="border-2 border-dashed rounded-lg p-6 text-center space-y-3">
-              <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Columnas requeridas: Código, Artículo, Rubro, Costo_num (o Costo). Medida es opcional</p>
-              <Input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" className="max-w-xs mx-auto" onChange={onFileUpload} />
+            <div className="space-y-3 rounded-lg border-2 border-dashed p-6 text-center">
+              <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Columnas requeridas: Codigo, Articulo, Rubro, Costo_num (o Costo). Medida es opcional</p>
+              <Input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" className="mx-auto max-w-xs" onChange={onFileUpload} />
             </div>
           </CardContent>
         </Card>
@@ -321,11 +326,11 @@ export default function LegacyCatalogImportPage() {
         {rows.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Preview y selección</CardTitle>
+              <CardTitle className="text-lg">Preview y seleccion</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-3 items-end">
-                <div className="space-y-2 min-w-[220px]">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="min-w-[220px] space-y-2">
                   <Label>Filtrar por rubro</Label>
                   <Select value={rubroFilter} onValueChange={setRubroFilter}>
                     <SelectTrigger>
@@ -340,8 +345,8 @@ export default function LegacyCatalogImportPage() {
                   </Select>
                 </div>
 
-                <div className="space-y-2 min-w-[260px]">
-                  <Label>Buscar por artículo</Label>
+                <div className="min-w-[260px] space-y-2">
+                  <Label>Buscar por articulo</Label>
                   <Input
                     value={articleSearch}
                     onChange={(e) => setArticleSearch(e.target.value)}
@@ -362,13 +367,13 @@ export default function LegacyCatalogImportPage() {
                 </Button>
               </div>
 
-              <div className="rounded-lg border overflow-auto max-h-[60vh]">
+              <div className="max-h-[60vh] overflow-auto rounded-lg border">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[56px]">Sel.</TableHead>
-                      <TableHead>Código</TableHead>
-                      <TableHead>Artículo</TableHead>
+                      <TableHead>Codigo</TableHead>
+                      <TableHead>Articulo</TableHead>
                       <TableHead>Medida</TableHead>
                       <TableHead>Rubro</TableHead>
                       <TableHead className="text-right">Costo</TableHead>
@@ -386,7 +391,7 @@ export default function LegacyCatalogImportPage() {
                         <TableCell className="font-mono text-xs">{row.codigo}</TableCell>
                         <TableCell>{row.articulo}</TableCell>
                         <TableCell>{row.medida}</TableCell>
-                        <TableCell>{row.rubro || "—"}</TableCell>
+                        <TableCell>{row.rubro || "-"}</TableCell>
                         <TableCell className="text-right font-mono">{row.costo_num.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
                       </TableRow>
                     ))}

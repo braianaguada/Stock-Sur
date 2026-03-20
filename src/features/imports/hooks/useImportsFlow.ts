@@ -8,8 +8,37 @@ import { buildImportPreviewRows } from "@/features/imports/utils";
 import type { ImportMappingState, ImportStep, ParsedRow } from "@/features/imports/types";
 
 type ToastFn = (params: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
+type ImportLineInsert = {
+  company_id: string;
+  version_id: string;
+  supplier_code: string | null;
+  raw_description: string;
+  price: number;
+  item_id: string | null;
+  match_status: "MATCHED" | "PENDING" | "NEW";
+  match_reason: string;
+};
 
 const EMPTY_PRICE_LISTS: Array<{ id: string; name: string }> = [];
+
+function isMissingMatchReasonColumn(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const message = "message" in error && typeof error.message === "string" ? error.message : "";
+  return message.includes("match_reason") && message.includes("schema cache");
+}
+
+async function insertPriceListLines(batch: ImportLineInsert[]) {
+  const { error } = await supabase.from("price_list_lines").insert(batch);
+  if (!error) return;
+
+  if (!isMissingMatchReasonColumn(error)) {
+    throw error;
+  }
+
+  const fallbackBatch = batch.map(({ match_reason: _matchReason, ...line }) => line);
+  const { error: fallbackError } = await supabase.from("price_list_lines").insert(fallbackBatch);
+  if (fallbackError) throw fallbackError;
+}
 
 export function useImportsFlow(params: {
   currentCompanyId: string | null;
@@ -112,7 +141,7 @@ export function useImportsFlow(params: {
         .eq("company_id", currentCompanyId);
       if (aliasesError) throw aliasesError;
 
-      const allLines = validRows.map((row) => {
+      const allLines: ImportLineInsert[] = validRows.map((row) => {
         const supplierCode = mapping.supplier_code && mapping.supplier_code !== "__none__"
           ? (row[mapping.supplier_code] ?? "").trim()
           : "";
@@ -142,8 +171,7 @@ export function useImportsFlow(params: {
 
       for (let i = 0; i < allLines.length; i += 500) {
         const batch = allLines.slice(i, i + 500);
-        const { error } = await supabase.from("price_list_lines").insert(batch);
-        if (error) throw error;
+        await insertPriceListLines(batch);
       }
 
       return {

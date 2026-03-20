@@ -86,6 +86,7 @@ export function useCashData({
   const closureQuery = useQuery({
     queryKey: ["cash-closure", currentCompanyId ?? "no-company", businessDate],
     enabled: Boolean(currentCompanyId),
+    retry: false,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_or_create_cash_closure", {
         p_business_date: businessDate,
