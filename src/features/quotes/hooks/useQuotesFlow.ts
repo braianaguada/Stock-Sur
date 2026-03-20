@@ -3,19 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
-import type { QuoteLine, QuoteLineRow, QuoteListRow } from "@/features/quotes/types";
+import type { QuoteFormState, QuoteLine, QuoteLineRow, QuoteListRow } from "@/features/quotes/types";
 
 type ToastFn = (params: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
 
 interface QuoteCustomerOption {
   id: string;
   name: string;
-}
-
-interface QuoteFormState {
-  customer_id: string;
-  customer_name: string;
-  notes: string;
 }
 
 const EMPTY_CUSTOMERS: QuoteCustomerOption[] = [];

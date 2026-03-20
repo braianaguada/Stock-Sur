@@ -5,6 +5,12 @@ export interface QuoteLine {
   item_id: string | null;
 }
 
+export interface QuoteFormState {
+  customer_id: string;
+  customer_name: string;
+  notes: string;
+}
+
 export interface QuoteListRow {
   id: string;
   quote_number: number;
