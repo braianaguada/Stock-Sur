@@ -382,7 +382,7 @@ export default function DocumentsPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para crear documentos, emitir remitos y revisar su historial." />
+          <CompanyAccessNotice description="Necesitás una empresa activa para crear documentos, emitir remitos y revisar su historial." />
         ) : null}
         <div className="flex items-center justify-between">
           <div>
