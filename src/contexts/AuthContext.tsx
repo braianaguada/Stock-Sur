@@ -55,95 +55,98 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    const clearAuthState = () => {
+      setRoles([]);
+      setCompanies([]);
+      setCurrentCompanyIdState(null);
+      setCompanyRoleCodes([]);
+      setCompanyPermissionCodes([]);
+    };
+
     const loadAuthState = async (userId: string | null, userEmail: string | null) => {
-      if (!userId) {
-        setRoles([]);
-        setCompanies([]);
-        setCurrentCompanyIdState(null);
-        setCompanyRoleCodes([]);
-        setCompanyPermissionCodes([]);
-        setLoading(false);
-        return;
-      }
-
-      const globalRolesResult = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId);
-
-      let nextRoles: AppRole[];
-      if (globalRolesResult.error) {
-        nextRoles = userId ? ["user"] : [];
-      } else {
-        const roleSet = new Set<AppRole>((globalRolesResult.data ?? []).map((row) => row.role as AppRole));
-        roleSet.add("user");
-
-        if (userEmail && SUPERADMIN_EMAILS.includes(userEmail.toLowerCase())) {
-          roleSet.add("superadmin");
-          roleSet.add("admin");
+      try {
+        if (!userId) {
+          clearAuthState();
+          return;
         }
 
-        nextRoles = Array.from(roleSet);
-      }
+        const globalRolesResult = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId);
 
-      setRoles(nextRoles);
+        let nextRoles: AppRole[];
+        if (globalRolesResult.error) {
+          nextRoles = userId ? ["user"] : [];
+        } else {
+          const roleSet = new Set<AppRole>((globalRolesResult.data ?? []).map((row) => row.role as AppRole));
+          roleSet.add("user");
 
-      const membershipsResult = await supabase
-        .from("company_users")
-        .select("id,company_id")
-        .eq("user_id", userId)
-        .eq("status", "ACTIVE");
+          if (userEmail && SUPERADMIN_EMAILS.includes(userEmail.toLowerCase())) {
+            roleSet.add("superadmin");
+            roleSet.add("admin");
+          }
 
-      const membershipCompanyIds = (membershipsResult.data ?? []).map((row) => row.company_id);
-      const shouldLoadAllCompanies = nextRoles.includes("superadmin");
+          nextRoles = Array.from(roleSet);
+        }
 
-      const companiesQuery = supabase
-        .from("companies")
-        .select("id,name,slug,status")
-        .eq("status", "ACTIVE")
-        .order("name");
+        setRoles(nextRoles);
 
-      const companiesResult = shouldLoadAllCompanies
-        ? await companiesQuery
-        : membershipCompanyIds.length
-          ? await companiesQuery.in("id", membershipCompanyIds)
-          : { data: [], error: null };
+        const membershipsResult = await supabase
+          .from("company_users")
+          .select("id,company_id")
+          .eq("user_id", userId)
+          .eq("status", "ACTIVE");
 
-      if (companiesResult.error) {
-        setCompanies([]);
-        setCurrentCompanyIdState(null);
-        setCompanyRoleCodes([]);
-        setCompanyPermissionCodes([]);
+        const membershipCompanyIds = (membershipsResult.data ?? []).map((row) => row.company_id);
+        const shouldLoadAllCompanies = nextRoles.includes("superadmin");
+
+        const companiesQuery = supabase
+          .from("companies")
+          .select("id,name,slug,status")
+          .eq("status", "ACTIVE")
+          .order("name");
+
+        const companiesResult = shouldLoadAllCompanies
+          ? await companiesQuery
+          : membershipCompanyIds.length
+            ? await companiesQuery.in("id", membershipCompanyIds)
+            : { data: [], error: null };
+
+        if (companiesResult.error) {
+          clearAuthState();
+          return;
+        }
+
+        const nextCompanies = companiesResult.data ?? [];
+        setCompanies(nextCompanies);
+
+        const storedCompanyId = localStorage.getItem(CURRENT_COMPANY_STORAGE_KEY);
+        const resolvedCompanyId =
+          (storedCompanyId && nextCompanies.some((company) => company.id === storedCompanyId) ? storedCompanyId : null) ??
+          nextCompanies[0]?.id ??
+          null;
+
+        setCurrentCompanyIdState(resolvedCompanyId);
+
+        if (!resolvedCompanyId) {
+          setCompanyRoleCodes([]);
+          setCompanyPermissionCodes([]);
+        }
+      } catch {
+        clearAuthState();
+      } finally {
         setLoading(false);
-        return;
       }
-
-      const nextCompanies = companiesResult.data ?? [];
-      setCompanies(nextCompanies);
-
-      const storedCompanyId = localStorage.getItem(CURRENT_COMPANY_STORAGE_KEY);
-      const resolvedCompanyId =
-        (storedCompanyId && nextCompanies.some((company) => company.id === storedCompanyId) ? storedCompanyId : null) ??
-        nextCompanies[0]?.id ??
-        null;
-
-      setCurrentCompanyIdState(resolvedCompanyId);
-
-      if (!resolvedCompanyId) {
-        setCompanyRoleCodes([]);
-        setCompanyPermissionCodes([]);
-        setLoading(false);
-        return;
-      }
-
-      setLoading(false);
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         setSession(session);
         setLoading(true);
-        await loadAuthState(session?.user.id ?? null, session?.user.email ?? null);
+        window.setTimeout(() => {
+          void loadAuthState(session?.user.id ?? null, session?.user.email ?? null);
+        }, 0);
       }
     );
 

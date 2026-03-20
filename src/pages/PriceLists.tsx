@@ -40,6 +40,10 @@ import {
   sanitizeNonNegativeDraft,
 } from "@/features/price-lists/utils";
 
+const EMPTY_PRICE_LISTS: PriceList[] = [];
+const EMPTY_PRICE_LIST_ITEMS: PriceListItem[] = [];
+const EMPTY_CATALOG_ITEMS: CatalogItem[] = [];
+
 export default function PriceListsPage() {
   const { currentCompany } = useAuth();
   const [search, setSearch] = useState("");
@@ -58,7 +62,7 @@ export default function PriceListsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const { data: priceLists = [], isLoading } = useQuery({
+  const { data: priceLists = EMPTY_PRICE_LISTS, isLoading } = useQuery({
     queryKey: ["price-lists", currentCompany?.id ?? "no-company", search],
     enabled: Boolean(currentCompany),
     queryFn: async () => {
@@ -74,7 +78,7 @@ export default function PriceListsPage() {
     },
   });
 
-  const { data: listItems = [] } = useQuery({
+  const { data: listItems = EMPTY_PRICE_LIST_ITEMS } = useQuery({
     queryKey: ["price-list-items", currentCompany?.id ?? "no-company", selectedListId],
     enabled: !!selectedListId && Boolean(currentCompany),
     queryFn: async () => {
@@ -90,7 +94,7 @@ export default function PriceListsPage() {
     },
   });
 
-  const { data: items = [] } = useQuery({
+  const { data: items = EMPTY_CATALOG_ITEMS } = useQuery({
     queryKey: ["price-list-items-catalog", currentCompany?.id ?? "no-company", itemSearch],
     enabled: itemsDialogOpen && Boolean(currentCompany),
     queryFn: async () => {
