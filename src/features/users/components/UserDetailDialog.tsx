@@ -21,7 +21,7 @@ export function UserDetailDialog(props: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Detalle de usuario</DialogTitle>
           <DialogDescription>
@@ -30,7 +30,7 @@ export function UserDetailDialog(props: {
         </DialogHeader>
 
         {selectedUser ? (
-          <div className="space-y-5">
+          <div className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
             <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
               <Card className="border-primary/10">
                 <CardHeader className="pb-3">

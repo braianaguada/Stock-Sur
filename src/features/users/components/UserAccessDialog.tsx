@@ -57,7 +57,7 @@ export function UserAccessDialog(props: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-xl overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Gestionar acceso por empresa</DialogTitle>
           <DialogDescription>
@@ -65,7 +65,7 @@ export function UserAccessDialog(props: {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
           <div className="rounded-2xl border bg-muted/20 px-4 py-3">
             <p className="font-medium">{selectedUser?.full_name?.trim() || "Sin nombre cargado"}</p>
             <p className="text-sm text-muted-foreground">{selectedUser?.email}</p>

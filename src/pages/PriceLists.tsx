@@ -369,11 +369,11 @@ export default function PriceListsPage() {
         </div>
       </div>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="overflow-x-hidden">
           <DialogHeader><DialogTitle>Nueva lista de precios</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
             <div className="space-y-2"><Label>Nombre *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2"><Label>Flete %</Label><Input min={0} type="number" step="any" value={form.flete_pct} onChange={(e) => setForm({ ...form, flete_pct: e.target.value })} /></div>
               <div className="space-y-2"><Label>Utilidad %</Label><Input min={0} type="number" step="any" value={form.utilidad_pct} onChange={(e) => setForm({ ...form, utilidad_pct: e.target.value })} /></div>
               <div className="space-y-2"><Label>Impuesto %</Label><Input min={0} type="number" step="any" value={form.impuesto_pct} onChange={(e) => setForm({ ...form, impuesto_pct: e.target.value })} /></div>

@@ -113,7 +113,7 @@ export function SupplierCatalogDialog(props: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[92vh] w-[96vw] max-w-[1400px] overflow-hidden p-0">
+      <DialogContent className="h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-[1400px] overflow-hidden p-0">
         <Tabs
           value={catalogUiTab}
           onValueChange={(value) => onCatalogUiTabChange(value as "carga" | "historial" | "catalogo")}
