@@ -56,7 +56,7 @@ export function PdfMappingModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl">
+      <DialogContent className="max-w-6xl overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Mapeo PDF</DialogTitle>
           <DialogDescription>

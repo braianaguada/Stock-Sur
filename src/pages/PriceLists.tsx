@@ -40,6 +40,10 @@ import {
   sanitizeNonNegativeDraft,
 } from "@/features/price-lists/utils";
 
+const EMPTY_PRICE_LISTS: PriceList[] = [];
+const EMPTY_PRICE_LIST_ITEMS: PriceListItem[] = [];
+const EMPTY_CATALOG_ITEMS: CatalogItem[] = [];
+
 export default function PriceListsPage() {
   const { currentCompany } = useAuth();
   const [search, setSearch] = useState("");
@@ -58,7 +62,7 @@ export default function PriceListsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const { data: priceLists = [], isLoading } = useQuery({
+  const { data: priceLists = EMPTY_PRICE_LISTS, isLoading } = useQuery({
     queryKey: ["price-lists", currentCompany?.id ?? "no-company", search],
     enabled: Boolean(currentCompany),
     queryFn: async () => {
@@ -74,7 +78,7 @@ export default function PriceListsPage() {
     },
   });
 
-  const { data: listItems = [] } = useQuery({
+  const { data: listItems = EMPTY_PRICE_LIST_ITEMS } = useQuery({
     queryKey: ["price-list-items", currentCompany?.id ?? "no-company", selectedListId],
     enabled: !!selectedListId && Boolean(currentCompany),
     queryFn: async () => {
@@ -90,7 +94,7 @@ export default function PriceListsPage() {
     },
   });
 
-  const { data: items = [] } = useQuery({
+  const { data: items = EMPTY_CATALOG_ITEMS } = useQuery({
     queryKey: ["price-list-items-catalog", currentCompany?.id ?? "no-company", itemSearch],
     enabled: itemsDialogOpen && Boolean(currentCompany),
     queryFn: async () => {
@@ -365,11 +369,11 @@ export default function PriceListsPage() {
         </div>
       </div>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="overflow-x-hidden">
           <DialogHeader><DialogTitle>Nueva lista de precios</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
             <div className="space-y-2"><Label>Nombre *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2"><Label>Flete %</Label><Input min={0} type="number" step="any" value={form.flete_pct} onChange={(e) => setForm({ ...form, flete_pct: e.target.value })} /></div>
               <div className="space-y-2"><Label>Utilidad %</Label><Input min={0} type="number" step="any" value={form.utilidad_pct} onChange={(e) => setForm({ ...form, utilidad_pct: e.target.value })} /></div>
               <div className="space-y-2"><Label>Impuesto %</Label><Input min={0} type="number" step="any" value={form.impuesto_pct} onChange={(e) => setForm({ ...form, impuesto_pct: e.target.value })} /></div>

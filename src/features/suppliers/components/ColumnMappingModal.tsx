@@ -68,7 +68,7 @@ export function ColumnMappingModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl">
+      <DialogContent className="max-w-5xl overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Mapear columnas del archivo</DialogTitle>
           <DialogDescription>

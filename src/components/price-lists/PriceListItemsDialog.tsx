@@ -160,17 +160,17 @@ export function PriceListItemsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-screen w-screen max-w-none overflow-hidden p-0">
+      <DialogContent className="h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-[1400px] overflow-hidden p-0">
         <div className="flex h-full flex-col overflow-hidden">
           <DialogHeader className="sticky top-0 z-20 shrink-0 border-b bg-background px-4 py-3 lg:px-6">
-            <div className="flex w-full items-center justify-between gap-3">
+            <div className="flex w-full flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
               <div className="min-w-0">
                 <DialogTitle>Ítems asociados a la lista</DialogTitle>
                 <p className="truncate text-sm text-muted-foreground">
                   {selectedList ? `Lista: ${selectedList.name}` : "Editá costos y márgenes sin romper la vista"}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                 <Button variant="outline" className="lg:hidden" onClick={() => setMobileAddPanelOpen((v) => !v)}>
                   <PanelLeft className="mr-2 h-4 w-4" /> Agregar
                 </Button>
@@ -267,7 +267,7 @@ export function PriceListItemsDialog({
               <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border bg-card">
                 {selectedList && (
                   <div className="shrink-0 border-b p-4">
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
                       <div className="space-y-1">
                         <Label className="text-xs">Flete %</Label>
                         <Input
