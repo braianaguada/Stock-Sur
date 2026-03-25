@@ -508,7 +508,7 @@ export default function StockPage() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="overflow-x-hidden">
           <DialogHeader><DialogTitle>Nuevo movimiento</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
             <div className="space-y-2">
@@ -520,7 +520,7 @@ export default function StockPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Tipo *</Label>
                 <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as MovementType })}>

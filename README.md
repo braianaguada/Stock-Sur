@@ -199,3 +199,61 @@ Step 3 - deploy to production:
 ```sh
 npm run db:push:prod
 ```
+
+## Git workflow
+
+This repository uses a simple linear flow to avoid branch drift:
+
+- `main`: production only
+- `staging`: demo / QA / pre-production
+- `feat/*`, `fix/*`, `chore/*`: short-lived work branches created from `staging`
+
+### Daily flow
+
+1. Update `staging`
+
+```sh
+git checkout staging
+git pull origin staging
+```
+
+2. Create a short-lived branch from `staging`
+
+```sh
+git checkout -b feat/my-change
+```
+
+3. Work normally, commit, and push the branch
+
+```sh
+git push -u origin feat/my-change
+```
+
+4. Open a PR to `staging`
+
+- Prefer `Squash and merge` or `Rebase and merge`
+- Do not use merge commits
+
+5. After QA/demo approval, open a PR from `staging` to `main`
+
+- Keep the promotion linear
+- Do not merge `main` into `staging` manually
+
+### Rules
+
+- Do not work directly on `main`
+- Do not keep a permanent `dev` branch unless the team explicitly restores that model
+- Do not create sync branches like `sync/main-into-staging`
+- If production needs a hotfix, apply it through a short-lived branch and then bring it back to `staging` with a clean PR
+- After each promotion, update both local branches:
+
+```sh
+git checkout main
+git pull origin main
+git checkout staging
+git pull origin staging
+```
+
+### Why this flow
+
+`main` and `staging` may sometimes have different commit hashes even when the file content is the same. That is acceptable. The goal is to keep promotions predictable and the history linear so future PRs and merges stay clean.

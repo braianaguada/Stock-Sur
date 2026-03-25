@@ -16,8 +16,10 @@ import { Upload, Check } from "lucide-react";
 import { useImportsFlow } from "@/features/imports/hooks/useImportsFlow";
 
 export default function ImportsPage() {
-  const { currentCompany } = useAuth();
+  const { currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
   const { toast } = useToast();
+  const canCreateImports =
+    companyRoleCodes.includes("admin") || companyPermissionCodes.includes("imports.create");
   const {
     goPreview,
     handleFileUpload,
@@ -51,7 +53,11 @@ export default function ImportsPage() {
           <p className="text-muted-foreground">Importar listas de precios desde CSV o XLSX</p>
         </div>
 
-        {step === "upload" && (
+        {currentCompany && !canCreateImports ? (
+          <CompanyAccessNotice description="Tu usuario puede ver importaciones, pero no crear nuevas versiones. Pedile a un administrador acceso de edicion para continuar." />
+        ) : null}
+
+        {step === "upload" && canCreateImports && (
           <Card className="max-w-lg">
             <CardHeader><CardTitle className="text-lg">Subir archivo</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -79,7 +85,7 @@ export default function ImportsPage() {
           </Card>
         )}
 
-        {step === "map" && (
+        {step === "map" && canCreateImports && (
           <Card className="max-w-lg">
             <CardHeader><CardTitle className="text-lg">Mapeo de columnas</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -118,7 +124,7 @@ export default function ImportsPage() {
           </Card>
         )}
 
-        {step === "preview" && (
+        {step === "preview" && canCreateImports && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">Mostrando primeras {previewData.length} de {validRows.length} filas válidas</p>
@@ -154,7 +160,7 @@ export default function ImportsPage() {
           </div>
         )}
 
-        {step === "done" && (
+        {step === "done" && canCreateImports && (
           <Card className="max-w-lg">
             <CardContent className="space-y-4 py-12 text-center">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">

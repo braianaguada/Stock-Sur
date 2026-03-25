@@ -11,11 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
-import { canManageSettings } from "@/lib/permissions";
+import { canManageCompanySettings } from "@/lib/permissions";
 
 export default function SettingsPage() {
   const { settings, isLoading } = useCompanyBrand();
-  const { roles, currentCompany } = useAuth();
+  const { roles, currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -110,7 +110,7 @@ export default function SettingsPage() {
     setLogoPreview(preview);
   };
 
-  if (!canManageSettings(roles)) {
+  if (!canManageCompanySettings(roles, { companyRoleCodes, companyPermissionCodes })) {
     return (
       <AppLayout>
         <div className="space-y-6">

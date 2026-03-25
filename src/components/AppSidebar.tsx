@@ -40,13 +40,13 @@ const navItems = [
 
 export function AppSidebar() {
   const location = useLocation();
-  const { signOut, user, roles, companies, currentCompany, setCurrentCompanyId } = useAuth();
+  const { signOut, user, roles, companies, currentCompany, companyRoleCodes, companyPermissionCodes, setCurrentCompanyId } = useAuth();
   const { settings } = useCompanyBrand();
   const [collapsed, setCollapsed] = useState(false);
 
   const visibleNavItems = navItems.filter((item) => {
     if (item.requiresSuperadmin) return canManageUsers(roles);
-    if (item.requiresAdmin) return canViewSettings(roles);
+    if (item.requiresAdmin) return canViewSettings(roles, { companyRoleCodes, companyPermissionCodes });
     return true;
   });
 

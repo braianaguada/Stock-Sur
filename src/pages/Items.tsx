@@ -484,13 +484,13 @@ export default function ItemsPage() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="overflow-x-hidden sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingItem ? "Editar ítem" : "Nuevo ítem"}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }}
-            className="space-y-4"
+            className="space-y-4 overflow-x-hidden"
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -499,7 +499,7 @@ export default function ItemsPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setForm((prev) => ({ ...prev, sku: generateSku(prev.name || "item") }))}
+                  onClick={() => setForm((prev) => ({ ...prev, sku: generateItemSku(prev.name || "item") }))}
                 >
                   Autogenerar
                 </Button>
@@ -553,14 +553,14 @@ export default function ItemsPage() {
                   <h3 className="text-sm font-semibold">Alias/Códigos</h3>
                   <p className="text-xs text-muted-foreground">Administrá códigos alternativos del ítem.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <Input
                     placeholder="Nuevo alias..."
                     value={newAlias}
                     onChange={(e) => setNewAlias(e.target.value)}
                     className="flex-1"
                   />
-                  <label className="flex items-center gap-1.5 text-sm text-muted-foreground whitespace-nowrap">
+                  <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <input
                       type="checkbox"
                       checked={isSupplierCode}
