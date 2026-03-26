@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Upload } from "lucide-react";
 
@@ -21,6 +21,7 @@ import { parseImportFile, type ParsedRow } from "@/lib/importParser";
 import { cleanText, normalizeAlias } from "@/lib/clean";
 
 const LEGACY_IMPORT_DRAFT_KEY = "legacy-catalog-import-draft";
+const INITIAL_VISIBLE_ROWS = 200;
 
 type Row = {
   id: string;
@@ -30,6 +31,7 @@ type Row = {
   medida: string;
   rubro: string;
   marca: string;
+  searchText: string;
 };
 
 type ExtractLegacyRowsResult = {
@@ -92,6 +94,9 @@ function extractLegacyRows(rows: ParsedRow[], headers: string[]): ExtractLegacyR
       medida,
       rubro,
       marca,
+      searchText: [codigo, articulo, medida, rubro, marca]
+        .map((value) => value.toLowerCase())
+        .join(" "),
     });
   });
 
@@ -211,8 +216,10 @@ export default function LegacyCatalogImportPage() {
   const [rubroFilter, setRubroFilter] = useState(initialDraft?.rubroFilter ?? "all");
   const [articleSearch, setArticleSearch] = useState(initialDraft?.articleSearch ?? "");
   const [sourceFileName, setSourceFileName] = useState<string | null>(initialDraft?.sourceFileName ?? null);
+  const [visibleRowsCount, setVisibleRowsCount] = useState(INITIAL_VISIBLE_ROWS);
   const { toast } = useToast();
   const qc = useQueryClient();
+  const deferredArticleSearch = useDeferredValue(articleSearch);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -238,13 +245,22 @@ export default function LegacyCatalogImportPage() {
   }, [rows]);
 
   const filteredRows = useMemo(() => {
-    const term = articleSearch.trim().toLowerCase();
+    const term = deferredArticleSearch.trim().toLowerCase();
     return rows.filter((row) => {
       const byRubro = rubroFilter === "all" || row.rubro === rubroFilter;
-      const byArticle = !term || row.articulo.toLowerCase().includes(term);
+      const byArticle = !term || row.searchText.includes(term);
       return byRubro && byArticle;
     });
-  }, [rows, rubroFilter, articleSearch]);
+  }, [rows, rubroFilter, deferredArticleSearch]);
+
+  const visibleRows = useMemo(
+    () => filteredRows.slice(0, visibleRowsCount),
+    [filteredRows, visibleRowsCount],
+  );
+
+  useEffect(() => {
+    setVisibleRowsCount(INITIAL_VISIBLE_ROWS);
+  }, [deferredArticleSearch, rubroFilter, sourceFileName]);
 
   const importMutation = useMutation({
     mutationFn: async (variables: { rows: Row[]; selectedIds: Set<string> }) =>
@@ -304,6 +320,7 @@ export default function LegacyCatalogImportPage() {
       setRubroFilter("all");
       setArticleSearch("");
       setSourceFileName(file.name);
+      setVisibleRowsCount(INITIAL_VISIBLE_ROWS);
     } catch (error) {
       toast({
         title: "No se pudo procesar el archivo",
@@ -420,6 +437,7 @@ export default function LegacyCatalogImportPage() {
 
                 <div className="ml-auto text-sm text-muted-foreground">
                   Seleccionadas: {selectedIds.size} / {rows.length}
+                  {filteredRows.length !== rows.length ? ` · Filtradas: ${filteredRows.length}` : ""}
                 </div>
               </div>
 
@@ -443,7 +461,7 @@ export default function LegacyCatalogImportPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRows.map((row) => (
+                    {visibleRows.map((row) => (
                       <TableRow key={row.id}>
                         <TableCell>
                           <Checkbox
@@ -460,6 +478,21 @@ export default function LegacyCatalogImportPage() {
                   </TableBody>
                 </Table>
               </div>
+
+              {filteredRows.length > visibleRows.length ? (
+                <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+                  <p>
+                    Mostrando {visibleRows.length} de {filteredRows.length} filas filtradas.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setVisibleRowsCount((current) => current + INITIAL_VISIBLE_ROWS)}
+                  >
+                    Mostrar {Math.min(INITIAL_VISIBLE_ROWS, filteredRows.length - visibleRows.length)} mas
+                  </Button>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         )}
