@@ -55,6 +55,7 @@ export default function ItemsPage() {
   const [bulkDemandProfile, setBulkDemandProfile] = useState<Item["demand_profile"]>("LOW");
   const { toast } = useToast();
   const qc = useQueryClient();
+  const aliasQueryKey = ["item-aliases", currentCompany?.id ?? "no-company", editingItem?.id] as const;
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["items", currentCompany?.id ?? "no-company", deferredSearch, categoryFilter, statusFilter],
@@ -116,7 +117,7 @@ export default function ItemsPage() {
   });
 
   const { data: aliases = [] } = useQuery({
-    queryKey: ["item-aliases", currentCompany?.id ?? "no-company", editingItem?.id],
+    queryKey: aliasQueryKey,
     enabled: !!editingItem && Boolean(currentCompany),
     queryFn: async () => {
       const { data, error } = await supabase
@@ -230,13 +231,17 @@ export default function ItemsPage() {
         throw new Error("El ítem seleccionado ya no está disponible. Recargá Ítems e intentá de nuevo");
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("item_aliases")
-        .insert({ company_id: currentCompany!.id, item_id: editingItem.id, alias, is_supplier_code: isSupplierCode });
+        .insert({ company_id: currentCompany!.id, item_id: editingItem.id, alias, is_supplier_code: isSupplierCode })
+        .select("*")
+        .single();
       if (error) throw error;
+      return data as ItemAlias;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["item-aliases", editingItem?.id] });
+    onSuccess: (createdAlias) => {
+      qc.setQueryData<ItemAlias[]>(aliasQueryKey, (current = []) => [...current, createdAlias]);
+      qc.invalidateQueries({ queryKey: aliasQueryKey });
       qc.invalidateQueries({ queryKey: ["items"] });
       setNewAlias("");
       setIsSupplierCode(false);
@@ -277,9 +282,11 @@ export default function ItemsPage() {
     mutationFn: async (id: string) => {
       if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar alias");
       await deleteByStrategy({ table: "item_aliases", id, eq: { company_id: currentCompany.id } });
+      return id;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["item-aliases", editingItem?.id] });
+    onSuccess: (deletedAliasId) => {
+      qc.setQueryData<ItemAlias[]>(aliasQueryKey, (current = []) => current.filter((alias) => alias.id !== deletedAliasId));
+      qc.invalidateQueries({ queryKey: aliasQueryKey });
       qc.invalidateQueries({ queryKey: ["items"] });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
