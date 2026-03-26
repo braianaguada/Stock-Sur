@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Upload } from "lucide-react";
 
@@ -17,8 +17,10 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { parseImportFile, parsePrice, type ParsedRow } from "@/lib/importParser";
+import { parseImportFile, type ParsedRow } from "@/lib/importParser";
 import { cleanText, normalizeAlias } from "@/lib/clean";
+
+const LEGACY_IMPORT_DRAFT_KEY = "legacy-catalog-import-draft";
 
 type Row = {
   id: string;
@@ -28,12 +30,19 @@ type Row = {
   medida: string;
   rubro: string;
   marca: string;
-  costo_num: number;
 };
 
 type ExtractLegacyRowsResult = {
   rows: Row[];
   skippedEmptyName: number;
+};
+
+type LegacyImportDraft = {
+  rows: Row[];
+  selectedIds: string[];
+  rubroFilter: string;
+  articleSearch: string;
+  sourceFileName: string | null;
 };
 
 function normalizeHeader(value: string): string {
@@ -53,10 +62,9 @@ function extractLegacyRows(rows: ParsedRow[], headers: string[]): ExtractLegacyR
   const medidaKey = map.get("medida");
   const rubroKey = map.get("rubro");
   const marcaKey = map.get("marca");
-  const costoNumKey = map.get("costonum") ?? map.get("costo");
 
-  if (!codigoKey || !articuloKey || !rubroKey || !costoNumKey) {
-    throw new Error("Faltan columnas requeridas: Codigo, Articulo, Rubro y Costo_num (o Costo)");
+  if (!codigoKey || !articuloKey || !rubroKey) {
+    throw new Error("Faltan columnas requeridas: Codigo, Articulo y Rubro");
   }
 
   const parsedRows: Row[] = [];
@@ -68,7 +76,6 @@ function extractLegacyRows(rows: ParsedRow[], headers: string[]): ExtractLegacyR
     const medida = medidaKey ? cleanText(row[medidaKey]) : "";
     const rubro = rubroKey ? cleanText(row[rubroKey]) : "";
     const marca = marcaKey ? cleanText(row[marcaKey]) : "";
-    const costo = parsePrice(String(row[costoNumKey] ?? ""));
 
     if (!articulo) {
       skippedEmptyName += 1;
@@ -85,11 +92,35 @@ function extractLegacyRows(rows: ParsedRow[], headers: string[]): ExtractLegacyR
       medida,
       rubro,
       marca,
-      costo_num: costo,
     });
   });
 
   return { rows: parsedRows, skippedEmptyName };
+}
+
+function loadLegacyImportDraft(): LegacyImportDraft | null {
+  if (typeof window === "undefined") return null;
+
+  const raw = window.sessionStorage.getItem(LEGACY_IMPORT_DRAFT_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<LegacyImportDraft>;
+    return {
+      rows: Array.isArray(parsed.rows) ? parsed.rows : [],
+      selectedIds: Array.isArray(parsed.selectedIds) ? parsed.selectedIds : [],
+      rubroFilter: typeof parsed.rubroFilter === "string" ? parsed.rubroFilter : "all",
+      articleSearch: typeof parsed.articleSearch === "string" ? parsed.articleSearch : "",
+      sourceFileName: typeof parsed.sourceFileName === "string" ? parsed.sourceFileName : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearLegacyImportDraft() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(LEGACY_IMPORT_DRAFT_KEY);
 }
 
 async function importSelectedRows(
@@ -174,12 +205,32 @@ async function importSelectedRows(
 
 export default function LegacyCatalogImportPage() {
   const { currentCompany, user } = useAuth();
-  const [rows, setRows] = useState<Row[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [rubroFilter, setRubroFilter] = useState("all");
-  const [articleSearch, setArticleSearch] = useState("");
+  const initialDraft = loadLegacyImportDraft();
+  const [rows, setRows] = useState<Row[]>(() => initialDraft?.rows ?? []);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(initialDraft?.selectedIds ?? []));
+  const [rubroFilter, setRubroFilter] = useState(initialDraft?.rubroFilter ?? "all");
+  const [articleSearch, setArticleSearch] = useState(initialDraft?.articleSearch ?? "");
+  const [sourceFileName, setSourceFileName] = useState<string | null>(initialDraft?.sourceFileName ?? null);
   const { toast } = useToast();
   const qc = useQueryClient();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (rows.length === 0 && !sourceFileName) {
+      clearLegacyImportDraft();
+      return;
+    }
+
+    const draft: LegacyImportDraft = {
+      rows,
+      selectedIds: Array.from(selectedIds),
+      rubroFilter,
+      articleSearch,
+      sourceFileName,
+    };
+    window.sessionStorage.setItem(LEGACY_IMPORT_DRAFT_KEY, JSON.stringify(draft));
+  }, [articleSearch, rows, rubroFilter, selectedIds, sourceFileName]);
 
   const rubros = useMemo(() => {
     const all = new Set(rows.map((row) => row.rubro).filter(Boolean));
@@ -199,6 +250,12 @@ export default function LegacyCatalogImportPage() {
     mutationFn: async (variables: { rows: Row[]; selectedIds: Set<string> }) =>
       importSelectedRows(variables.rows, variables.selectedIds, currentCompany!.id, user?.id ?? null),
     onSuccess: ({ selected, skipped, created }) => {
+      clearLegacyImportDraft();
+      setRows([]);
+      setSelectedIds(new Set());
+      setRubroFilter("all");
+      setArticleSearch("");
+      setSourceFileName(null);
       toast({
         title: "Importacion completada",
         description: `Seleccionadas: ${selected}. Creadas: ${created}. Omitidas: ${skipped}.`,
@@ -233,6 +290,7 @@ export default function LegacyCatalogImportPage() {
       if (extractedRows.length === 0) {
         setRows([]);
         setSelectedIds(new Set());
+        setSourceFileName(file.name);
         toast({
           title: "Archivo sin filas importables",
           description: "No se encontraron filas validas con Codigo y Articulo limpios.",
@@ -245,6 +303,7 @@ export default function LegacyCatalogImportPage() {
       setSelectedIds(new Set(extractedRows.filter((row) => row.selected).map((row) => row.id)));
       setRubroFilter("all");
       setArticleSearch("");
+      setSourceFileName(file.name);
     } catch (error) {
       toast({
         title: "No se pudo procesar el archivo",
@@ -317,8 +376,13 @@ export default function LegacyCatalogImportPage() {
           <CardContent>
             <div className="space-y-3 rounded-lg border-2 border-dashed p-6 text-center">
               <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Columnas requeridas: Codigo, Articulo, Rubro, Costo_num (o Costo). Medida es opcional</p>
+              <p className="text-sm text-muted-foreground">Columnas requeridas: Codigo, Articulo y Rubro. Medida y Marca son opcionales</p>
               <Input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" className="mx-auto max-w-xs" onChange={onFileUpload} />
+              {sourceFileName ? (
+                <p className="text-xs text-muted-foreground">
+                  Archivo cargado en borrador: <span className="font-medium">{sourceFileName}</span>
+                </p>
+              ) : null}
             </div>
           </CardContent>
         </Card>
@@ -376,7 +440,6 @@ export default function LegacyCatalogImportPage() {
                       <TableHead>Articulo</TableHead>
                       <TableHead>Medida</TableHead>
                       <TableHead>Rubro</TableHead>
-                      <TableHead className="text-right">Costo</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -392,7 +455,6 @@ export default function LegacyCatalogImportPage() {
                         <TableCell>{row.articulo}</TableCell>
                         <TableCell>{row.medida}</TableCell>
                         <TableCell>{row.rubro || "-"}</TableCell>
-                        <TableCell className="text-right font-mono">{row.costo_num.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
