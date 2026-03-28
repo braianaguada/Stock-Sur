@@ -1,5 +1,5 @@
-import { useDeferredValue, useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -24,12 +24,54 @@ import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Search, Pencil, Trash2, RotateCcw } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { ITEM_UNIT_OPTIONS } from "@/features/items/constants";
 import { type Item, type ItemAlias } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
+
+const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
+
+type ItemSortField = "sku" | "name" | "brand" | "model" | "category" | "is_active" | "created_at";
+type SortDirection = "asc" | "desc";
+
+function SortableHead(props: {
+  label: string;
+  field: ItemSortField;
+  sortBy: ItemSortField;
+  sortDirection: SortDirection;
+  onSort: (field: ItemSortField) => void;
+  className?: string;
+}) {
+  const { label, field, sortBy, sortDirection, onSort, className } = props;
+  const active = sortBy === field;
+  const Icon = active ? (sortDirection === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+
+  return (
+    <TableHead className={className}>
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className="inline-flex items-center gap-1 font-medium text-left hover:text-foreground"
+      >
+        <span>{label}</span>
+        <Icon className="h-3.5 w-3.5" />
+      </button>
+    </TableHead>
+  );
+}
 
 export default function ItemsPage() {
   const { currentCompany } = useAuth();
@@ -41,9 +83,15 @@ export default function ItemsPage() {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
   const [aliasToDelete, setAliasToDelete] = useState<ItemAlias | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(50);
+  const [sortBy, setSortBy] = useState<ItemSortField>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [form, setForm] = useState({
     sku: "",
     name: "",
+    brand: "",
+    model: "",
     unit: "un",
     category: "",
     demand_profile: "LOW" as Item["demand_profile"],
@@ -57,9 +105,24 @@ export default function ItemsPage() {
   const qc = useQueryClient();
   const aliasQueryKey = ["item-aliases", currentCompany?.id ?? "no-company", editingItem?.id] as const;
 
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: ["items", currentCompany?.id ?? "no-company", deferredSearch, categoryFilter, statusFilter],
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearch, categoryFilter, statusFilter, pageSize, sortBy, sortDirection]);
+
+  const itemsQuery = useQuery({
+    queryKey: [
+      "items",
+      currentCompany?.id ?? "no-company",
+      deferredSearch,
+      categoryFilter,
+      statusFilter,
+      page,
+      pageSize,
+      sortBy,
+      sortDirection,
+    ],
     enabled: Boolean(currentCompany),
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const searchTerm = deferredSearch.trim();
       let matchingItemIdsFromAlias: string[] = [];
@@ -70,12 +133,15 @@ export default function ItemsPage() {
           .select("item_id")
           .eq("company_id", currentCompany!.id)
           .ilike("alias", `%${searchTerm}%`)
-          .limit(200);
+          .limit(500);
         if (aliasError) throw aliasError;
         matchingItemIdsFromAlias = [...new Set((aliasMatches ?? []).map((a) => a.item_id))];
       }
 
-      let q = supabase.from("items").select("*").eq("company_id", currentCompany!.id).order("created_at", { ascending: false });
+      let q = supabase
+        .from("items")
+        .select("*", { count: "exact" })
+        .eq("company_id", currentCompany!.id);
       if (statusFilter === "active") q = q.eq("is_active", true);
       if (statusFilter === "inactive") q = q.eq("is_active", false);
 
@@ -83,6 +149,8 @@ export default function ItemsPage() {
         const searchFilters = [
           `name.ilike.%${searchTerm}%`,
           `sku.ilike.%${searchTerm}%`,
+          `brand.ilike.%${searchTerm}%`,
+          `model.ilike.%${searchTerm}%`,
         ];
 
         if (matchingItemIdsFromAlias.length > 0) {
@@ -96,11 +164,25 @@ export default function ItemsPage() {
         q = q.eq("category", categoryFilter);
       }
 
-      const { data, error } = await q.limit(100);
+      q = q.order(sortBy, {
+        ascending: sortDirection === "asc",
+        nullsFirst: false,
+      });
+
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      const { data, error, count } = await q.range(from, to);
       if (error) throw error;
-      return data as Item[];
+      return {
+        rows: (data ?? []) as Item[],
+        total: count ?? 0,
+      };
     },
   });
+  const items = itemsQuery.data?.rows ?? [];
+  const totalItems = itemsQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const isLoading = itemsQuery.isLoading;
 
   const { data: categories = [] } = useQuery({
     queryKey: ["items-categories", currentCompany?.id ?? "no-company", statusFilter],
@@ -134,48 +216,64 @@ export default function ItemsPage() {
     () => new Map(items.map((item) => [item.id, item])),
     [items],
   );
+  const allVisibleSelected = items.length > 0 && items.every((item) => selectedItemIds.includes(item.id));
+  const rangeStart = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, totalItems);
+
+  const toggleSort = (field: ItemSortField) => {
+    if (sortBy === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortBy(field);
+    setSortDirection(field === "is_active" ? "desc" : "asc");
+  };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       const name = cleanText(form.name);
       const sku = cleanText(form.sku).toUpperCase();
+      const brand = cleanText(form.brand) || null;
+      const model = cleanText(form.model) || null;
       const unit = cleanText(form.unit) || "un";
 
       if (!name) {
         throw new Error("Nombre obligatorio");
       }
 
+      const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
+      const payload = {
+        name,
+        brand,
+        model,
+        unit,
+        category: cleanText(form.category) || null,
+        demand_profile: form.demand_profile,
+        demand_monthly_estimate: Number.isFinite(monthlyEstimate) ? monthlyEstimate : null,
+      };
+
       if (editingItem) {
         if (!itemsById.has(editingItem.id)) {
           throw new Error("El ítem que estás editando ya no está disponible. Recargá Ítems e intentá de nuevo");
         }
-        const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
         const { error } = await supabase
           .from("items")
           .update({
+            ...payload,
             sku: sku || editingItem.sku,
-            name,
-            unit,
-            category: cleanText(form.category) || null,
-            demand_profile: form.demand_profile,
-            demand_monthly_estimate: Number.isFinite(monthlyEstimate) ? monthlyEstimate : null,
           })
           .eq("company_id", currentCompany.id)
           .eq("id", editingItem.id);
         if (error) throw error;
       } else {
-        const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
         const { error } = await supabase
           .from("items")
           .insert({
             company_id: currentCompany.id,
+            ...payload,
             sku: sku || generateItemSku(name),
-            name,
-            unit,
-            category: cleanText(form.category) || null,
-            demand_profile: form.demand_profile,
-            demand_monthly_estimate: Number.isFinite(monthlyEstimate) ? monthlyEstimate : null,
             is_active: true,
           });
         if (error) throw error;
@@ -185,6 +283,8 @@ export default function ItemsPage() {
       qc.invalidateQueries({ queryKey: ["items"] });
       qc.invalidateQueries({ queryKey: ["items-categories"] });
       qc.invalidateQueries({ queryKey: ["stock-current"] });
+      qc.invalidateQueries({ queryKey: ["stock-item-search"] });
+      qc.invalidateQueries({ queryKey: ["stock-recent-items"] });
       setDialogOpen(false);
       setEditingItem(null);
       setNewAlias("");
@@ -296,7 +396,16 @@ export default function ItemsPage() {
     setEditingItem(null);
     setNewAlias("");
     setIsSupplierCode(false);
-    setForm({ sku: "", name: "", unit: "un", category: "", demand_profile: "LOW", demand_monthly_estimate: "" });
+    setForm({
+      sku: "",
+      name: "",
+      brand: "",
+      model: "",
+      unit: "un",
+      category: "",
+      demand_profile: "LOW",
+      demand_monthly_estimate: "",
+    });
     setDialogOpen(true);
   };
 
@@ -307,6 +416,8 @@ export default function ItemsPage() {
     setForm({
       sku: item.sku ?? "",
       name: item.name,
+      brand: item.brand ?? "",
+      model: item.model ?? "",
       unit: item.unit || "un",
       category: item.category ?? "",
       demand_profile: item.demand_profile ?? "LOW",
@@ -353,7 +464,7 @@ export default function ItemsPage() {
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por SKU, nombre o alias..."
+              placeholder="Buscar por SKU, nombre, marca, modelo o alias..."
               className="pl-9"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -374,10 +485,10 @@ export default function ItemsPage() {
           <div className="w-full md:w-64">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Filtrar por rubro" />
+                <SelectValue placeholder="Filtrar por categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos los rubros</SelectItem>
+                <SelectItem value="all">Todas las categorias</SelectItem>
                 {categories.map((category) => (
                   <SelectItem key={category} value={category}>{category}</SelectItem>
                 ))}
@@ -411,30 +522,32 @@ export default function ItemsPage() {
               <TableRow>
                 <TableHead className="w-[44px]">
                   <Checkbox
-                    checked={items.length > 0 && selectedItemIds.length === items.length}
+                    checked={allVisibleSelected}
                     onCheckedChange={(checked) => setSelectedItemIds(checked === true ? items.map((item) => item.id) : [])}
                     aria-label="Seleccionar todos"
                   />
                 </TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Rubro</TableHead>
+                <SortableHead label="SKU" field="sku" sortBy={sortBy} sortDirection={sortDirection} onSort={toggleSort} />
+                <SortableHead label="Nombre" field="name" sortBy={sortBy} sortDirection={sortDirection} onSort={toggleSort} />
+                <SortableHead label="Marca" field="brand" sortBy={sortBy} sortDirection={sortDirection} onSort={toggleSort} />
+                <SortableHead label="Modelo" field="model" sortBy={sortBy} sortDirection={sortDirection} onSort={toggleSort} />
+                <SortableHead label="Categoria" field="category" sortBy={sortBy} sortDirection={sortDirection} onSort={toggleSort} />
                 <TableHead>Unidad</TableHead>
                 <TableHead>Demanda</TableHead>
-                <TableHead>Activo</TableHead>
+                <SortableHead label="Activo" field="is_active" sortBy={sortBy} sortDirection={sortDirection} onSort={toggleSort} />
                 <TableHead className="w-[120px]">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     Cargando...
                   </TableCell>
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     No se encontraron ítems
                   </TableCell>
                 </TableRow>
@@ -454,6 +567,8 @@ export default function ItemsPage() {
                     </TableCell>
                     <TableCell className="font-mono text-xs">{item.sku}</TableCell>
                     <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell>{item.brand ?? "-"}</TableCell>
+                    <TableCell>{item.model ?? "-"}</TableCell>
                     <TableCell>{item.category ?? "—"}</TableCell>
                     <TableCell>{item.unit}</TableCell>
                     <TableCell>
@@ -488,6 +603,56 @@ export default function ItemsPage() {
             </TableBody>
           </Table>
         </div>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {rangeStart}-{rangeEnd} de {totalItems} items
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="items-page-size" className="text-sm text-muted-foreground">
+                Por pagina
+              </Label>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number])}
+              >
+                <SelectTrigger id="items-page-size" className="w-[96px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={String(option)}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={page <= 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="min-w-24 text-center text-sm text-muted-foreground">
+                Pagina {page} de {totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={page >= totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -517,20 +682,32 @@ export default function ItemsPage() {
               <Label>Nombre *</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </div>
-            <div className="space-y-2">
-              <Label>Unidad *</Label>
-              <Select value={form.unit || "un"} onValueChange={(value) => setForm({ ...form, unit: value })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar unidad" /></SelectTrigger>
-                <SelectContent>
-                  {ITEM_UNIT_OPTIONS.map((unit) => (
-                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Marca</Label>
+                <Input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Modelo</Label>
+                <Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Rubro</Label>
-              <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Unidad *</Label>
+                <Select value={form.unit || "un"} onValueChange={(value) => setForm({ ...form, unit: value })}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar unidad" /></SelectTrigger>
+                  <SelectContent>
+                    {ITEM_UNIT_OPTIONS.map((unit) => (
+                      <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Tipo de demanda *</Label>

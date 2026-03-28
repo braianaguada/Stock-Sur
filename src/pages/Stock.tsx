@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from "react";
+﻿import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,8 +25,18 @@ import {
   type DemandProfile,
   type Movement,
   type MovementType,
+  type StockHealth,
   type StockRow,
 } from "@/features/stock/types";
+
+type SearchableItem = {
+  id: string;
+  name: string;
+  sku: string;
+  unit: string | null;
+  brand?: string | null;
+  model?: string | null;
+};
 
 export default function StockPage() {
   const [tab, setTab] = useState("current");
@@ -34,23 +44,94 @@ export default function StockPage() {
   const deferredSearch = useDeferredValue(search);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ item_id: "", type: "IN" as MovementType, quantity: "", reference: "" });
+  const [itemSearch, setItemSearch] = useState("");
+  const deferredItemSearch = useDeferredValue(itemSearch);
+  const [selectedItem, setSelectedItem] = useState<SearchableItem | null>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
   const { user, currentCompany } = useAuth();
 
-  // Items for select
-  const { data: items = [] } = useQuery({
-    queryKey: ["items-list", currentCompany?.id ?? "no-company"],
-    enabled: Boolean(currentCompany),
+  const { data: recentItems = [] } = useQuery({
+    queryKey: ["stock-recent-items", currentCompany?.id ?? "no-company", user?.id ?? "no-user"],
+    enabled: Boolean(currentCompany && user),
     queryFn: async () => {
-      const { data, error } = await supabase.from("items").select("id, name, sku, unit").eq("company_id", currentCompany!.id).eq("is_active", true).order("name");
+      const { data, error } = await supabase
+        .from("stock_movements")
+        .select("item_id, created_at, items(id, name, sku, unit, brand, model, is_active)")
+        .eq("company_id", currentCompany!.id)
+        .eq("created_by", user!.id)
+        .order("created_at", { ascending: false })
+        .limit(30);
       if (error) throw error;
-      return data;
+
+      const deduped = new Map<string, SearchableItem>();
+      for (const row of data ?? []) {
+        const item = Array.isArray(row.items) ? row.items[0] : row.items;
+        if (!item || item.is_active === false || deduped.has(row.item_id)) continue;
+        deduped.set(row.item_id, {
+          id: item.id,
+          name: item.name,
+          sku: item.sku,
+          unit: item.unit,
+          brand: item.brand,
+          model: item.model,
+        });
+      }
+
+      return Array.from(deduped.values()).slice(0, 8);
     },
   });
+
+  const { data: searchedItems = [], isFetching: searchingItems } = useQuery({
+    queryKey: ["stock-item-search", currentCompany?.id ?? "no-company", deferredItemSearch],
+    enabled: Boolean(currentCompany && deferredItemSearch.trim()),
+    queryFn: async () => {
+      const searchTerm = deferredItemSearch.trim();
+      let matchingItemIdsFromAlias: string[] = [];
+
+      const { data: aliasMatches, error: aliasError } = await supabase
+        .from("item_aliases")
+        .select("item_id")
+        .eq("company_id", currentCompany!.id)
+        .ilike("alias", `%${searchTerm}%`)
+        .limit(200);
+      if (aliasError) throw aliasError;
+      matchingItemIdsFromAlias = [...new Set((aliasMatches ?? []).map((row) => row.item_id))];
+
+      let query = supabase
+        .from("items")
+        .select("id, name, sku, unit, brand, model")
+        .eq("company_id", currentCompany!.id)
+        .eq("is_active", true);
+
+      const searchFilters = [
+        `name.ilike.%${searchTerm}%`,
+        `sku.ilike.%${searchTerm}%`,
+        `brand.ilike.%${searchTerm}%`,
+        `model.ilike.%${searchTerm}%`,
+      ];
+      if (matchingItemIdsFromAlias.length > 0) {
+        searchFilters.push(`id.in.(${matchingItemIdsFromAlias.join(",")})`);
+      }
+      query = query.or(searchFilters.join(",")).order("name").limit(20);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data ?? []) as SearchableItem[];
+    },
+  });
+
+  const availableItems = useMemo(() => {
+    const map = new Map<string, SearchableItem>();
+    for (const item of recentItems) map.set(item.id, item);
+    for (const item of searchedItems) map.set(item.id, item);
+    if (selectedItem) map.set(selectedItem.id, selectedItem);
+    return Array.from(map.values());
+  }, [recentItems, searchedItems, selectedItem]);
+
   const itemsById = useMemo(
-    () => new Map(items.map((item) => [item.id, item])),
-    [items],
+    () => new Map(availableItems.map((item) => [item.id, item])),
+    [availableItems],
   );
 
   // Current stock calculated from movements
@@ -222,11 +303,11 @@ export default function StockPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!form.item_id) throw new Error("Seleccioná un ítem");
+      if (!form.item_id) throw new Error("SeleccionÃ¡ un Ã­tem");
 
-      if (!currentCompany) throw new Error("Seleccioná una empresa para registrar stock");
+      if (!currentCompany) throw new Error("SeleccionÃ¡ una empresa para registrar stock");
       if (!itemsById.has(form.item_id)) {
-        throw new Error("El ítem seleccionado ya no está disponible. Recargá Stock e intentá de nuevo");
+        throw new Error("El Ã­tem seleccionado ya no estÃ¡ disponible. RecargÃ¡ Stock e intentÃ¡ de nuevo");
       }
       const qty = parseFloat(form.quantity);
       if (isNaN(qty) || !Number.isFinite(qty) || qty <= 0) throw new Error("La cantidad debe ser mayor a 0");
@@ -243,7 +324,11 @@ export default function StockPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stock-current"] });
       qc.invalidateQueries({ queryKey: ["stock-movements"] });
+      qc.invalidateQueries({ queryKey: ["stock-recent-items"] });
+      qc.invalidateQueries({ queryKey: ["stock-item-search"] });
       setDialogOpen(false);
+      setSelectedItem(null);
+      setItemSearch("");
       toast({ title: "Movimiento registrado" });
     },
     onError: (e: unknown) => toast({
@@ -274,8 +359,8 @@ export default function StockPage() {
   };
   const alertToneLabel: Record<StockHealth, string> = {
     GREEN: "OK",
-    YELLOW: "Atención",
-    RED: "Crítico",
+    YELLOW: "AtenciÃ³n",
+    RED: "CrÃ­tico",
     GRAY: "Info",
   };
   const alertRowClass: Record<StockHealth, string> = {
@@ -291,9 +376,9 @@ export default function StockPage() {
     GRAY: "bg-slate-600 text-white border-slate-700",
   };
   const demandProfileLabel: Record<DemandProfile, string> = {
-    LOW: "Rotación baja",
-    MEDIUM: "Rotación media",
-    HIGH: "Rotación alta",
+    LOW: "RotaciÃ³n baja",
+    MEDIUM: "RotaciÃ³n media",
+    HIGH: "RotaciÃ³n alta",
   };
   const demandProfileClass: Record<DemandProfile, string> = {
     LOW: "bg-slate-100 text-slate-700 border-slate-200",
@@ -307,10 +392,10 @@ export default function StockPage() {
       .map((r) => ({
         id: `critical-${r.item_id}`,
         tone: "RED" as const,
-        title: `${r.item_name} en riesgo crítico`,
+        title: `${r.item_name} en riesgo crÃ­tico`,
         detail: r.total <= 0
-          ? "Sin stock o en negativo. Reposición urgente."
-          : `Cobertura estimada: ${Math.max(0, r.days_of_cover ?? 0).toFixed(1)} días.`,
+          ? "Sin stock o en negativo. ReposiciÃ³n urgente."
+          : `Cobertura estimada: ${Math.max(0, r.days_of_cover ?? 0).toFixed(1)} dÃ­as.`,
       }));
     const low = stockRows
       .filter((r) => r.health === "YELLOW")
@@ -319,7 +404,7 @@ export default function StockPage() {
         id: `low-${r.item_id}`,
         tone: "YELLOW" as const,
         title: `${r.item_name} con cobertura baja`,
-        detail: `Cobertura estimada: ${(r.days_of_cover ?? 0).toFixed(1)} días.`,
+        detail: `Cobertura estimada: ${(r.days_of_cover ?? 0).toFixed(1)} dÃ­as.`,
       }));
     const overstock = stockRows
       .filter((r) => !r.low_rotation && r.days_of_cover !== null && r.days_of_cover > 90)
@@ -328,7 +413,7 @@ export default function StockPage() {
         id: `over-${r.item_id}`,
         tone: "GRAY" as const,
         title: `${r.item_name} con posible sobrestock`,
-        detail: `Cobertura estimada: ${r.days_of_cover!.toFixed(1)} días.`,
+        detail: `Cobertura estimada: ${r.days_of_cover!.toFixed(1)} dÃ­as.`,
       }));
     const lowRotationInfo = stockRows
       .filter((r) => r.low_rotation && r.total > 0)
@@ -339,23 +424,23 @@ export default function StockPage() {
           return {
             id: `slow-over-${r.item_id}`,
             tone: "YELLOW" as const,
-            title: `${r.item_name} con sobrestock en baja rotación`,
+            title: `${r.item_name} con sobrestock en baja rotaciÃ³n`,
             detail: `Cobertura estimada: ${m.toFixed(1)} meses. Revisar compras futuras.`,
           };
         }
         return {
           id: `slow-${r.item_id}`,
           tone: "GRAY" as const,
-          title: `${r.item_name} con rotación baja`,
+          title: `${r.item_name} con rotaciÃ³n baja`,
           detail: m !== null
-            ? `Cobertura estimada en baja rotación: ${m < 0.1 ? "<0.1" : m.toFixed(1)} meses.`
-            : "Demanda muy baja/irregular: el semáforo prioriza stock disponible.",
+            ? `Cobertura estimada en baja rotaciÃ³n: ${m < 0.1 ? "<0.1" : m.toFixed(1)} meses.`
+            : "Demanda muy baja/irregular: el semÃ¡foro prioriza stock disponible.",
         };
       });
     return [...critical, ...low, ...overstock, ...lowRotationInfo];
   }, [stockRows]);
   const formatCoverage = (value: number | null, unit: "m" | "d") => {
-    if (value === null || !Number.isFinite(value)) return "—";
+    if (value === null || !Number.isFinite(value)) return "â€”";
     if (value <= 0) return `0 ${unit}`;
     if (value < 0.1) return `<0.1 ${unit}`;
     return `${value.toFixed(1)} ${unit}`;
@@ -365,14 +450,14 @@ export default function StockPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitás una empresa activa para ver existencias y registrar movimientos de stock." />
+          <CompanyAccessNotice description="NecesitÃ¡s una empresa activa para ver existencias y registrar movimientos de stock." />
         ) : null}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Stock</h1>
             <p className="text-muted-foreground">Movimientos y stock actual</p>
           </div>
-          <Button onClick={() => { setForm({ item_id: "", type: "IN", quantity: "", reference: "" }); setDialogOpen(true); }}>
+          <Button onClick={() => { setForm({ item_id: "", type: "IN", quantity: "", reference: "" }); setSelectedItem(null); setItemSearch(""); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Nuevo movimiento
           </Button>
         </div>
@@ -403,7 +488,7 @@ export default function StockPage() {
               </Card>
             </div>
             <p className="text-xs text-muted-foreground">
-              Semáforo automático: combina consumo de 30, 90 y 365 días, con tratamiento especial para rotación baja.
+              SemÃ¡foro automÃ¡tico: combina consumo de 30, 90 y 365 dÃ­as, con tratamiento especial para rotaciÃ³n baja.
             </p>
             {alerts.length > 0 && (
               <Card>
@@ -425,7 +510,7 @@ export default function StockPage() {
             )}
             <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar ítem..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input placeholder="Buscar Ã­tem..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <div className="rounded-lg border bg-card">
               <Table>
@@ -434,7 +519,7 @@ export default function StockPage() {
                     <TableHead>SKU</TableHead>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Unidad</TableHead>
-                    <TableHead>Semáforo</TableHead>
+                    <TableHead>SemÃ¡foro</TableHead>
                     <TableHead className="text-right">Cobertura</TableHead>
                     <TableHead className="text-right">Stock</TableHead>
                   </TableRow>
@@ -480,7 +565,7 @@ export default function StockPage() {
                     <TableHead>Fecha/Hora</TableHead>
                     <TableHead>Usuario</TableHead>
                     <TableHead>Tipo</TableHead>
-                    <TableHead>Ítem</TableHead>
+                    <TableHead>Ãtem</TableHead>
                     <TableHead className="text-right">Cantidad</TableHead>
                     <TableHead>Referencia</TableHead>
                   </TableRow>
@@ -495,9 +580,9 @@ export default function StockPage() {
                       <TableCell className="text-sm text-muted-foreground">{new Date(m.created_at).toLocaleString("es-AR")}</TableCell>
                       <TableCell className="text-sm">{m.created_by_name ?? "Sistema"}</TableCell>
                       <TableCell><div className="flex items-center gap-2">{typeIcon(m.type)}<span className="text-sm">{typeLabel[m.type]}</span></div></TableCell>
-                      <TableCell className="font-medium">{m.items?.name ?? "—"}</TableCell>
+                      <TableCell className="font-medium">{m.items?.name ?? "â€”"}</TableCell>
                       <TableCell className="text-right font-mono">{m.quantity}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{m.reference ?? "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{m.reference ?? "â€”"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -511,14 +596,81 @@ export default function StockPage() {
         <DialogContent className="overflow-x-hidden">
           <DialogHeader><DialogTitle>Nuevo movimiento</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Ítem *</Label>
-              <Select value={form.item_id} onValueChange={(v) => setForm({ ...form, item_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar ítem" /></SelectTrigger>
-                <SelectContent>
-                  {items.map((i) => <SelectItem key={i.id} value={i.id}>{i.sku} — {i.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Item *</Label>
+                <Input
+                  value={itemSearch}
+                  onChange={(e) => setItemSearch(e.target.value)}
+                  placeholder="Buscar por SKU, nombre, marca, modelo o alias..."
+                />
+              </div>
+              {selectedItem ? (
+                <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                  <p className="font-medium">{selectedItem.sku} - {selectedItem.name}</p>
+                  <p className="text-muted-foreground">
+                    {[selectedItem.brand, selectedItem.model].filter(Boolean).join(" / ") || "Sin marca/modelo"}
+                  </p>
+                </div>
+              ) : null}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Ultimos usados</p>
+                  <p className="text-xs text-muted-foreground">Solo tuyos</p>
+                </div>
+                {recentItems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Todavia no tenes productos recientes.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {recentItems.map((item) => (
+                      <Button
+                        key={item.id}
+                        type="button"
+                        variant={form.item_id === item.id ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setForm({ ...form, item_id: item.id });
+                          setSelectedItem(item);
+                        }}
+                      >
+                        {item.sku} - {item.name}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Resultados</p>
+                  {searchingItems ? <p className="text-xs text-muted-foreground">Buscando...</p> : null}
+                </div>
+                {!deferredItemSearch.trim() ? (
+                  <p className="text-sm text-muted-foreground">Empeza a escribir para buscar un producto.</p>
+                ) : searchedItems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No encontramos productos para esa busqueda.</p>
+                ) : (
+                  <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
+                    {searchedItems.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setForm({ ...form, item_id: item.id });
+                          setSelectedItem(item);
+                        }}
+                        className={`flex w-full flex-col rounded-md border px-3 py-2 text-left transition-colors ${
+                          form.item_id === item.id ? "border-primary bg-primary/5" : "hover:bg-muted"
+                        }`}
+                      >
+                        <span className="font-medium">{item.sku} - {item.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {[item.brand, item.model].filter(Boolean).join(" / ") || "Sin marca/modelo"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">

@@ -3,6 +3,7 @@ export interface Item {
   sku: string;
   name: string;
   brand: string | null;
+  model: string | null;
   unit: string;
   category: string | null;
   demand_profile: "LOW" | "MEDIUM" | "HIGH";

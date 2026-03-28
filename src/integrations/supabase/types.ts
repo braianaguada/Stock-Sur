@@ -949,6 +949,7 @@ export type Database = {
           demand_profile: Database["public"]["Enums"]["item_demand_profile"]
           id: string
           is_active: boolean
+          model: string | null
           name: string
           sku: string
           unit: string
@@ -964,6 +965,7 @@ export type Database = {
           demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
           id?: string
           is_active?: boolean
+          model?: string | null
           name: string
           sku: string
           unit?: string
@@ -979,6 +981,7 @@ export type Database = {
           demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
           id?: string
           is_active?: boolean
+          model?: string | null
           name?: string
           sku?: string
           unit?: string
