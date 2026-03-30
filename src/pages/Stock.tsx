@@ -459,7 +459,7 @@ export default function StockPage() {
     return [...critical, ...low, ...overstock, ...lowRotationInfo];
   }, [stockRows]);
   const formatCoverage = (value: number | null, unit: "m" | "d") => {
-    if (value === null || !Number.isFinite(value)) return "-";
+    if (value === null || !Number.isFinite(value)) return "Sin consumo";
     if (value <= 0) return `0 ${unit}`;
     if (value < 0.1) return `<0.1 ${unit}`;
     return `${value.toFixed(1)} ${unit}`;
