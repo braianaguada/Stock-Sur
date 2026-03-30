@@ -303,11 +303,11 @@ export default function StockPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!form.item_id) throw new Error("SeleccionÃ¡ un Ã­tem");
+      if (!form.item_id) throw new Error("Selecciona un item");
 
-      if (!currentCompany) throw new Error("SeleccionÃ¡ una empresa para registrar stock");
+      if (!currentCompany) throw new Error("Selecciona una empresa para registrar stock");
       if (!itemsById.has(form.item_id)) {
-        throw new Error("El Ã­tem seleccionado ya no estÃ¡ disponible. RecargÃ¡ Stock e intentÃ¡ de nuevo");
+        throw new Error("El item seleccionado ya no esta disponible. Recarga Stock e intenta de nuevo");
       }
       const qty = parseFloat(form.quantity);
       if (isNaN(qty) || !Number.isFinite(qty) || qty <= 0) throw new Error("La cantidad debe ser mayor a 0");
@@ -359,8 +359,8 @@ export default function StockPage() {
   };
   const alertToneLabel: Record<StockHealth, string> = {
     GREEN: "OK",
-    YELLOW: "AtenciÃ³n",
-    RED: "CrÃ­tico",
+    YELLOW: "Atencion",
+    RED: "Critico",
     GRAY: "Info",
   };
   const alertRowClass: Record<StockHealth, string> = {
@@ -376,9 +376,9 @@ export default function StockPage() {
     GRAY: "bg-slate-600 text-white border-slate-700",
   };
   const demandProfileLabel: Record<DemandProfile, string> = {
-    LOW: "RotaciÃ³n baja",
-    MEDIUM: "RotaciÃ³n media",
-    HIGH: "RotaciÃ³n alta",
+    LOW: "Rotacion baja",
+    MEDIUM: "Rotacion media",
+    HIGH: "Rotacion alta",
   };
   const demandProfileClass: Record<DemandProfile, string> = {
     LOW: "bg-slate-100 text-slate-700 border-slate-200",
@@ -392,10 +392,10 @@ export default function StockPage() {
       .map((r) => ({
         id: `critical-${r.item_id}`,
         tone: "RED" as const,
-        title: `${r.item_name} en riesgo crÃ­tico`,
+        title: `${r.item_name} en riesgo critico`,
         detail: r.total <= 0
-          ? "Sin stock o en negativo. ReposiciÃ³n urgente."
-          : `Cobertura estimada: ${Math.max(0, r.days_of_cover ?? 0).toFixed(1)} dÃ­as.`,
+          ? "Sin stock o en negativo. Reposicion urgente."
+          : `Cobertura estimada: ${Math.max(0, r.days_of_cover ?? 0).toFixed(1)} dias.`,
       }));
     const low = stockRows
       .filter((r) => r.health === "YELLOW")
@@ -404,7 +404,7 @@ export default function StockPage() {
         id: `low-${r.item_id}`,
         tone: "YELLOW" as const,
         title: `${r.item_name} con cobertura baja`,
-        detail: `Cobertura estimada: ${(r.days_of_cover ?? 0).toFixed(1)} dÃ­as.`,
+        detail: `Cobertura estimada: ${(r.days_of_cover ?? 0).toFixed(1)} dias.`,
       }));
     const overstock = stockRows
       .filter((r) => !r.low_rotation && r.days_of_cover !== null && r.days_of_cover > 90)
@@ -413,7 +413,7 @@ export default function StockPage() {
         id: `over-${r.item_id}`,
         tone: "GRAY" as const,
         title: `${r.item_name} con posible sobrestock`,
-        detail: `Cobertura estimada: ${r.days_of_cover!.toFixed(1)} dÃ­as.`,
+        detail: `Cobertura estimada: ${r.days_of_cover!.toFixed(1)} dias.`,
       }));
     const lowRotationInfo = stockRows
       .filter((r) => r.low_rotation && r.total > 0)
@@ -424,17 +424,17 @@ export default function StockPage() {
           return {
             id: `slow-over-${r.item_id}`,
             tone: "YELLOW" as const,
-            title: `${r.item_name} con sobrestock en baja rotaciÃ³n`,
+            title: `${r.item_name} con sobrestock en baja rotacion`,
             detail: `Cobertura estimada: ${m.toFixed(1)} meses. Revisar compras futuras.`,
           };
         }
         return {
           id: `slow-${r.item_id}`,
           tone: "GRAY" as const,
-          title: `${r.item_name} con rotaciÃ³n baja`,
+          title: `${r.item_name} con rotacion baja`,
           detail: m !== null
-            ? `Cobertura estimada en baja rotaciÃ³n: ${m < 0.1 ? "<0.1" : m.toFixed(1)} meses.`
-            : "Demanda muy baja/irregular: el semÃ¡foro prioriza stock disponible.",
+            ? `Cobertura estimada en baja rotacion: ${m < 0.1 ? "<0.1" : m.toFixed(1)} meses.`
+            : "Demanda muy baja/irregular: el semaforo prioriza stock disponible.",
         };
       });
     return [...critical, ...low, ...overstock, ...lowRotationInfo];
@@ -450,7 +450,7 @@ export default function StockPage() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="NecesitÃ¡s una empresa activa para ver existencias y registrar movimientos de stock." />
+          <CompanyAccessNotice description="Necesitas una empresa activa para ver existencias y registrar movimientos de stock." />
         ) : null}
         <div className="flex items-center justify-between">
           <div>
@@ -488,7 +488,7 @@ export default function StockPage() {
               </Card>
             </div>
             <p className="text-xs text-muted-foreground">
-              SemÃ¡foro automÃ¡tico: combina consumo de 30, 90 y 365 dÃ­as, con tratamiento especial para rotaciÃ³n baja.
+              Semaforo automatico: combina consumo de 30, 90 y 365 dias, con tratamiento especial para rotacion baja.
             </p>
             {alerts.length > 0 && (
               <Card>
@@ -510,7 +510,7 @@ export default function StockPage() {
             )}
             <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar Ã­tem..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input placeholder="Buscar item..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <div className="rounded-lg border bg-card">
               <Table>
@@ -519,7 +519,7 @@ export default function StockPage() {
                     <TableHead>SKU</TableHead>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Unidad</TableHead>
-                    <TableHead>SemÃ¡foro</TableHead>
+                    <TableHead>Semaforo</TableHead>
                     <TableHead className="text-right">Cobertura</TableHead>
                     <TableHead className="text-right">Stock</TableHead>
                   </TableRow>
@@ -565,7 +565,7 @@ export default function StockPage() {
                     <TableHead>Fecha/Hora</TableHead>
                     <TableHead>Usuario</TableHead>
                     <TableHead>Tipo</TableHead>
-                    <TableHead>Ãtem</TableHead>
+                    <TableHead>Item</TableHead>
                     <TableHead className="text-right">Cantidad</TableHead>
                     <TableHead>Referencia</TableHead>
                   </TableRow>
@@ -697,3 +697,5 @@ export default function StockPage() {
     </AppLayout>
   );
 }
+
+
