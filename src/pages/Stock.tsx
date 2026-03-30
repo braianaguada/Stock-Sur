@@ -38,6 +38,21 @@ type SearchableItem = {
   model?: string | null;
 };
 
+const INTEGER_ONLY_UNITS = new Set(["un"]);
+
+function formatQuantity(value: number, unit: string | null) {
+  if (!Number.isFinite(value)) return "-";
+  if (unit && INTEGER_ONLY_UNITS.has(unit)) {
+    return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 }).format(Math.round(value));
+  }
+
+  const rounded = Number(value.toFixed(3));
+  return new Intl.NumberFormat("es-AR", {
+    minimumFractionDigits: Number.isInteger(rounded) ? 0 : 1,
+    maximumFractionDigits: 3,
+  }).format(rounded);
+}
+
 export default function StockPage() {
   const [tab, setTab] = useState("current");
   const [search, setSearch] = useState("");
@@ -278,7 +293,7 @@ export default function StockPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("stock_movements")
-        .select("id, item_id, type, quantity, reference, created_at, created_by, items(name, sku)")
+        .select("id, item_id, type, quantity, reference, created_at, created_by, items(name, sku, unit)")
         .eq("company_id", currentCompany!.id)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -306,11 +321,15 @@ export default function StockPage() {
       if (!form.item_id) throw new Error("Selecciona un item");
 
       if (!currentCompany) throw new Error("Selecciona una empresa para registrar stock");
-      if (!itemsById.has(form.item_id)) {
+      const selected = itemsById.get(form.item_id);
+      if (!selected) {
         throw new Error("El item seleccionado ya no esta disponible. Recarga Stock e intenta de nuevo");
       }
       const qty = parseFloat(form.quantity);
       if (isNaN(qty) || !Number.isFinite(qty) || qty <= 0) throw new Error("La cantidad debe ser mayor a 0");
+      if (selected.unit && INTEGER_ONLY_UNITS.has(selected.unit) && !Number.isInteger(qty)) {
+        throw new Error("Este producto se mueve por unidad entera. Ingresa una cantidad sin decimales.");
+      }
       const { error } = await supabase.from("stock_movements").insert({
         company_id: currentCompany.id,
         item_id: form.item_id,
@@ -440,7 +459,7 @@ export default function StockPage() {
     return [...critical, ...low, ...overstock, ...lowRotationInfo];
   }, [stockRows]);
   const formatCoverage = (value: number | null, unit: "m" | "d") => {
-    if (value === null || !Number.isFinite(value)) return "â€”";
+    if (value === null || !Number.isFinite(value)) return "-";
     if (value <= 0) return `0 ${unit}`;
     if (value < 0.1) return `<0.1 ${unit}`;
     return `${value.toFixed(1)} ${unit}`;
@@ -510,7 +529,15 @@ export default function StockPage() {
             )}
             <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar item..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input
+                id="stock-search"
+                name="stock-search"
+                aria-label="Buscar item en stock"
+                placeholder="Buscar item..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
             <div className="rounded-lg border bg-card">
               <Table>
@@ -549,7 +576,7 @@ export default function StockPage() {
                           ? formatCoverage(r.months_of_cover_low_rotation, "m")
                           : formatCoverage(r.days_of_cover, "d")}
                       </TableCell>
-                      <TableCell className="text-right font-bold">{r.total}</TableCell>
+                      <TableCell className="text-right font-bold">{formatQuantity(r.total, r.item_unit)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -580,9 +607,9 @@ export default function StockPage() {
                       <TableCell className="text-sm text-muted-foreground">{new Date(m.created_at).toLocaleString("es-AR")}</TableCell>
                       <TableCell className="text-sm">{m.created_by_name ?? "Sistema"}</TableCell>
                       <TableCell><div className="flex items-center gap-2">{typeIcon(m.type)}<span className="text-sm">{typeLabel[m.type]}</span></div></TableCell>
-                      <TableCell className="font-medium">{m.items?.name ?? "â€”"}</TableCell>
-                      <TableCell className="text-right font-mono">{m.quantity}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{m.reference ?? "â€”"}</TableCell>
+                      <TableCell className="font-medium">{m.items?.name ?? "-"}</TableCell>
+                      <TableCell className="text-right font-mono">{formatQuantity(m.quantity, m.items?.unit ?? null)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{m.reference ?? "-"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -598,8 +625,10 @@ export default function StockPage() {
           <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Item *</Label>
+                <Label htmlFor="stock-item-search">Item *</Label>
                 <Input
+                  id="stock-item-search"
+                  name="stock-item-search"
                   value={itemSearch}
                   onChange={(e) => setItemSearch(e.target.value)}
                   placeholder="Buscar por SKU, nombre, marca, modelo o alias..."
@@ -613,32 +642,6 @@ export default function StockPage() {
                   </p>
                 </div>
               ) : null}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Ultimos usados</p>
-                  <p className="text-xs text-muted-foreground">Solo tuyos</p>
-                </div>
-                {recentItems.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Todavia no tenes productos recientes.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {recentItems.map((item) => (
-                      <Button
-                        key={item.id}
-                        type="button"
-                        variant={form.item_id === item.id ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => {
-                          setForm({ ...form, item_id: item.id });
-                          setSelectedItem(item);
-                        }}
-                      >
-                        {item.sku} - {item.name}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-              </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">Resultados</p>
@@ -671,12 +674,39 @@ export default function StockPage() {
                   </div>
                 )}
               </div>
+              <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-slate-700">Ultimos usados</p>
+                  <p className="text-xs text-muted-foreground">Solo tuyos</p>
+                </div>
+                {recentItems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Todavia no tenes productos recientes.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {recentItems.map((item) => (
+                      <Button
+                        key={item.id}
+                        type="button"
+                        variant={form.item_id === item.id ? "secondary" : "ghost"}
+                        size="sm"
+                        onClick={() => {
+                          setForm({ ...form, item_id: item.id });
+                          setSelectedItem(item);
+                        }}
+                        className="h-8 max-w-full border border-slate-200 bg-white text-xs text-slate-700 hover:bg-slate-100"
+                      >
+                        <span className="truncate">{item.sku} - {item.name}</span>
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Tipo *</Label>
+                <Label htmlFor="stock-movement-type">Tipo *</Label>
                 <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as MovementType })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="stock-movement-type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="IN">Entrada</SelectItem>
                     <SelectItem value="OUT">Salida</SelectItem>
@@ -685,12 +715,36 @@ export default function StockPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Cantidad *</Label>
-                <Input type="number" min={0.000001} step="any" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} required />
+                <Label htmlFor="stock-movement-quantity">Cantidad *</Label>
+                <Input
+                  id="stock-movement-quantity"
+                  name="stock-movement-quantity"
+                  type="number"
+                  min={selectedItem?.unit && INTEGER_ONLY_UNITS.has(selectedItem.unit) ? 1 : 0.000001}
+                  step={selectedItem?.unit && INTEGER_ONLY_UNITS.has(selectedItem.unit) ? 1 : "any"}
+                  value={form.quantity}
+                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                  required
+                />
+                {selectedItem?.unit && INTEGER_ONLY_UNITS.has(selectedItem.unit) ? (
+                  <p className="text-xs text-muted-foreground">Este producto se mueve solo en cantidades enteras.</p>
+                ) : null}
               </div>
             </div>
-            <div className="space-y-2"><Label>Referencia</Label><Input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} /></div>
-                        <DialogFooter><Button type="submit" disabled={saveMutation.isPending || !form.item_id}>{saveMutation.isPending ? "Guardando..." : "Registrar"}</Button></DialogFooter>
+            <div className="space-y-2">
+              <Label htmlFor="stock-movement-reference">Referencia</Label>
+              <Input
+                id="stock-movement-reference"
+                name="stock-movement-reference"
+                value={form.reference}
+                onChange={(e) => setForm({ ...form, reference: e.target.value })}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={saveMutation.isPending || !form.item_id}>
+                {saveMutation.isPending ? "Guardando..." : "Registrar"}
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
