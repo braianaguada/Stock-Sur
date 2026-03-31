@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, ArrowDownCircle, ArrowUpCircle, Settings2 } from "lucide-react";
+import { Plus, Search, ArrowDownCircle, ArrowUpCircle, Settings2, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   type DemandProfile,
   type Movement,
@@ -54,7 +54,7 @@ function formatQuantity(value: number, unit: string | null) {
 }
 
 export default function StockPage() {
-  const [tab, setTab] = useState("current");
+  const [tab, setTab] = useState("summary");
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -62,6 +62,8 @@ export default function StockPage() {
   const [itemSearch, setItemSearch] = useState("");
   const deferredItemSearch = useDeferredValue(itemSearch);
   const [selectedItem, setSelectedItem] = useState<SearchableItem | null>(null);
+  const [alertsPage, setAlertsPage] = useState(1);
+  const [stockPage, setStockPage] = useState(1);
   const { toast } = useToast();
   const qc = useQueryClient();
   const { user, currentCompany } = useAuth();
@@ -404,10 +406,10 @@ export default function StockPage() {
     MEDIUM: "bg-blue-100 text-blue-700 border-blue-200",
     HIGH: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
   };
+  const STOCK_PAGE_SIZE = 10;
   const alerts = useMemo(() => {
     const critical = stockRows
       .filter((r) => r.health === "RED")
-      .slice(0, 6)
       .map((r) => ({
         id: `critical-${r.item_id}`,
         tone: "RED" as const,
@@ -418,7 +420,6 @@ export default function StockPage() {
       }));
     const low = stockRows
       .filter((r) => r.health === "YELLOW")
-      .slice(0, 4)
       .map((r) => ({
         id: `low-${r.item_id}`,
         tone: "YELLOW" as const,
@@ -427,7 +428,6 @@ export default function StockPage() {
       }));
     const overstock = stockRows
       .filter((r) => !r.low_rotation && r.days_of_cover !== null && r.days_of_cover > 90)
-      .slice(0, 3)
       .map((r) => ({
         id: `over-${r.item_id}`,
         tone: "GRAY" as const,
@@ -436,7 +436,6 @@ export default function StockPage() {
       }));
     const lowRotationInfo = stockRows
       .filter((r) => r.low_rotation && r.total > 0)
-      .slice(0, 6)
       .map((r) => {
         const m = r.months_of_cover_low_rotation;
         if (m !== null && m >= 24) {
@@ -458,6 +457,31 @@ export default function StockPage() {
       });
     return [...critical, ...low, ...overstock, ...lowRotationInfo];
   }, [stockRows]);
+  const safeAlertsPage = Math.min(alertsPage, Math.max(1, Math.ceil(alerts.length / STOCK_PAGE_SIZE)));
+  const pagedAlerts = useMemo(() => {
+    const start = (safeAlertsPage - 1) * STOCK_PAGE_SIZE;
+    return alerts.slice(start, start + STOCK_PAGE_SIZE);
+  }, [alerts, safeAlertsPage]);
+  const alertsTotalPages = Math.max(1, Math.ceil(alerts.length / STOCK_PAGE_SIZE));
+  const sortedStockRows = useMemo(() => {
+    const priority: Record<StockHealth, number> = {
+      RED: 0,
+      YELLOW: 1,
+      GRAY: 2,
+      GREEN: 3,
+    };
+    return [...stockRows].sort((a, b) => {
+      const diff = priority[a.health] - priority[b.health];
+      if (diff !== 0) return diff;
+      return a.item_name.localeCompare(b.item_name);
+    });
+  }, [stockRows]);
+  const safeStockPage = Math.min(stockPage, Math.max(1, Math.ceil(sortedStockRows.length / STOCK_PAGE_SIZE)));
+  const pagedStockRows = useMemo(() => {
+    const start = (safeStockPage - 1) * STOCK_PAGE_SIZE;
+    return sortedStockRows.slice(start, start + STOCK_PAGE_SIZE);
+  }, [sortedStockRows, safeStockPage]);
+  const stockTotalPages = Math.max(1, Math.ceil(sortedStockRows.length / STOCK_PAGE_SIZE));
   const formatCoverage = (value: number | null, unit: "m" | "d") => {
     if (value === null || !Number.isFinite(value)) return "Sin consumo";
     if (value <= 0) return `0 ${unit}`;
@@ -483,11 +507,12 @@ export default function StockPage() {
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
-            <TabsTrigger value="current">Stock actual</TabsTrigger>
+            <TabsTrigger value="summary">Resumen</TabsTrigger>
+            <TabsTrigger value="current">Stock</TabsTrigger>
             <TabsTrigger value="movements">Movimientos</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="current" className="space-y-4">
+          <TabsContent value="summary" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-4">
               <Card className="border-red-500/70 bg-red-100">
                 <CardHeader className="pb-2"><CardTitle className="text-sm">En rojo</CardTitle></CardHeader>
@@ -513,7 +538,7 @@ export default function StockPage() {
               <Card>
                 <CardHeader><CardTitle className="text-base">Alertas inteligentes</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
-                  {alerts.map((a) => (
+                  {pagedAlerts.map((a) => (
                     <div key={a.id} className={`flex items-center justify-between rounded-md border p-2 text-sm ${alertRowClass[a.tone]}`}>
                       <div>
                         <p className="font-medium">{a.title}</p>
@@ -524,9 +549,26 @@ export default function StockPage() {
                       </Badge>
                     </div>
                   ))}
+                  <div className="flex items-center justify-between pt-2">
+                    <p className="text-sm text-muted-foreground">
+                      Mostrando {(safeAlertsPage - 1) * STOCK_PAGE_SIZE + (pagedAlerts.length === 0 ? 0 : 1)}-{Math.min(safeAlertsPage * STOCK_PAGE_SIZE, alerts.length)} de {alerts.length} alertas
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" size="icon" onClick={() => setAlertsPage((prev) => Math.max(1, prev - 1))} disabled={safeAlertsPage <= 1}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="min-w-24 text-center text-sm text-muted-foreground">Pagina {safeAlertsPage} de {alertsTotalPages}</span>
+                      <Button type="button" variant="outline" size="icon" onClick={() => setAlertsPage((prev) => Math.min(alertsTotalPages, prev + 1))} disabled={safeAlertsPage >= alertsTotalPages}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="current" className="space-y-4">
             <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -554,9 +596,9 @@ export default function StockPage() {
                 <TableBody>
                   {loadingStock ? (
                     <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
-                  ) : stockRows.length === 0 ? (
+                  ) : sortedStockRows.length === 0 ? (
                     <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Sin movimientos de stock</TableCell></TableRow>
-                  ) : stockRows.map((r) => (
+                  ) : pagedStockRows.map((r) => (
                     <TableRow key={r.item_id}>
                       <TableCell className="font-mono text-xs">{r.item_sku}</TableCell>
                       <TableCell className="font-medium">{r.item_name}</TableCell>
@@ -581,6 +623,18 @@ export default function StockPage() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">Mostrando {(safeStockPage - 1) * STOCK_PAGE_SIZE + (pagedStockRows.length === 0 ? 0 : 1)}-{Math.min(safeStockPage * STOCK_PAGE_SIZE, sortedStockRows.length)} de {sortedStockRows.length} productos</p>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" size="icon" onClick={() => setStockPage((prev) => Math.max(1, prev - 1))} disabled={safeStockPage <= 1}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="min-w-24 text-center text-sm text-muted-foreground">Pagina {safeStockPage} de {stockTotalPages}</span>
+                <Button type="button" variant="outline" size="icon" onClick={() => setStockPage((prev) => Math.min(stockTotalPages, prev + 1))} disabled={safeStockPage >= stockTotalPages}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </TabsContent>
 

@@ -84,7 +84,7 @@ export default function ItemsPage() {
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
   const [aliasToDelete, setAliasToDelete] = useState<ItemAlias | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(50);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(25);
   const [sortBy, setSortBy] = useState<ItemSortField>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [form, setForm] = useState({
@@ -541,20 +541,20 @@ export default function ItemsPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="py-6 text-center text-muted-foreground">
                     Cargando...
                   </TableCell>
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="py-6 text-center text-muted-foreground">
                     No se encontraron ítems
                   </TableCell>
                 </TableRow>
               ) : (
                 items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
+                  <TableRow key={item.id} className="h-11">
+                    <TableCell className="py-2">
                       <Checkbox
                         checked={selectedItemIds.includes(item.id)}
                         onCheckedChange={(checked) => setSelectedItemIds((prev) => (
@@ -565,33 +565,33 @@ export default function ItemsPage() {
                         aria-label={`Seleccionar ${item.name}`}
                       />
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{item.sku}</TableCell>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>{item.brand ?? "-"}</TableCell>
-                    <TableCell>{item.model ?? "-"}</TableCell>
+                    <TableCell className="py-2 font-mono text-[11px]">{item.sku}</TableCell>
+                    <TableCell className="py-2 font-medium">{item.name}</TableCell>
+                    <TableCell className="py-2 text-sm">{item.brand ?? "-"}</TableCell>
+                    <TableCell className="py-2 text-sm">{item.model ?? "-"}</TableCell>
                     <TableCell>{item.category ?? "—"}</TableCell>
-                    <TableCell>{item.unit}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
+                    <TableCell className="py-2 text-sm">{item.unit}</TableCell>
+                    <TableCell className="py-2">
+                      <Badge variant="outline" className="h-6 px-2 text-[11px]">
                         {item.demand_profile === "HIGH" ? "Alta" : item.demand_profile === "MEDIUM" ? "Media" : "Baja"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={item.is_active ? "default" : "secondary"}>
+                    <TableCell className="py-2">
+                      <Badge variant={item.is_active ? "default" : "secondary"} className="h-6 px-2 text-[11px]">
                         {item.is_active ? "Activo" : "Inactivo"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-2">
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
                         {item.is_active ? (
-                          <Button variant="ghost" size="icon" onClick={() => setItemToDelete(item)} title="Desactivar">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItemToDelete(item)} title="Desactivar">
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         ) : (
-                          <Button variant="ghost" size="icon" onClick={() => restoreMutation.mutate(item.id)} title="Reactivar">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => restoreMutation.mutate(item.id)} title="Reactivar">
                             <RotateCcw className="h-4 w-4 text-emerald-600" />
                           </Button>
                         )}
