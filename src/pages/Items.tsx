@@ -42,7 +42,7 @@ import { ITEM_UNIT_OPTIONS } from "@/features/items/constants";
 import { type Item, type ItemAlias } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
 
-const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 const NEW_ITEM_DRAFT_KEY = "items:new-item-draft";
 
 type ItemSortField = "sku" | "name" | "brand" | "model" | "category" | "is_active" | "created_at";
@@ -85,7 +85,7 @@ export default function ItemsPage() {
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
   const [aliasToDelete, setAliasToDelete] = useState<ItemAlias | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(25);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [sortBy, setSortBy] = useState<ItemSortField>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [form, setForm] = useState({
