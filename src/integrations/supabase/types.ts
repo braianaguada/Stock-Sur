@@ -628,6 +628,7 @@ export type Database = {
       }
       document_lines: {
         Row: {
+          base_cost_snapshot: number | null
           created_at: string
           created_by: string
           description: string
@@ -637,14 +638,23 @@ export type Database = {
           item_id: string | null
           line_order: number
           line_total: number
+          list_flete_pct_snapshot: number | null
+          list_impuesto_pct_snapshot: number | null
+          list_utilidad_pct_snapshot: number | null
+          manual_margin_pct: number | null
+          price_overridden_at: string | null
+          price_overridden_by: string | null
+          pricing_mode: string
           quantity: number
           sku_snapshot: string | null
+          suggested_unit_price: number
           tax_pct: number
           unit: string | null
           unit_price: number
           updated_at: string
         }
         Insert: {
+          base_cost_snapshot?: number | null
           created_at?: string
           created_by?: string
           description: string
@@ -654,14 +664,23 @@ export type Database = {
           item_id?: string | null
           line_order?: number
           line_total?: number
+          list_flete_pct_snapshot?: number | null
+          list_impuesto_pct_snapshot?: number | null
+          list_utilidad_pct_snapshot?: number | null
+          manual_margin_pct?: number | null
+          price_overridden_at?: string | null
+          price_overridden_by?: string | null
+          pricing_mode?: string
           quantity?: number
           sku_snapshot?: string | null
+          suggested_unit_price?: number
           tax_pct?: number
           unit?: string | null
           unit_price?: number
           updated_at?: string
         }
         Update: {
+          base_cost_snapshot?: number | null
           created_at?: string
           created_by?: string
           description?: string
@@ -671,8 +690,16 @@ export type Database = {
           item_id?: string | null
           line_order?: number
           line_total?: number
+          list_flete_pct_snapshot?: number | null
+          list_impuesto_pct_snapshot?: number | null
+          list_utilidad_pct_snapshot?: number | null
+          manual_margin_pct?: number | null
+          price_overridden_at?: string | null
+          price_overridden_by?: string | null
+          pricing_mode?: string
           quantity?: number
           sku_snapshot?: string | null
+          suggested_unit_price?: number
           tax_pct?: number
           unit?: string | null
           unit_price?: number

@@ -5,15 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { EMPTY_LINE } from "@/features/documents/constants";
+import { EMPTY_LINE, PRICING_MODE_LABEL } from "@/features/documents/constants";
 import type {
   CustomerKind,
   DocType,
   DocumentFormState,
   InternalRemitoType,
   LineDraft,
+  LinePricingMode,
   PriceListRow,
 } from "@/features/documents/types";
+import { calculatePriceFromCostBase } from "@/features/documents/utils";
 
 type CustomerOption = {
   id: string;
@@ -197,7 +199,7 @@ export function DocumentsEditorDialog({
           {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" && (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="space-y-2">
-                <Label>Imputación del remito</Label>
+                <Label>Imputacion del remito</Label>
                 <Select
                   value={form.internal_remito_type || "__none__"}
                   onValueChange={(v) => setForm((prev) => ({ ...prev, internal_remito_type: v === "__none__" ? "" : (v as InternalRemitoType) }))}
@@ -225,74 +227,194 @@ export function DocumentsEditorDialog({
               </Button>
             </div>
             {form.price_list_id && (
-              <p className="text-xs text-muted-foreground">Con lista activa, solo aparecen ítems de esa lista y el precio unitario se toma automáticamente.</p>
+              <p className="text-xs text-muted-foreground">Con lista activa, solo aparecen items de esa lista y cada linea puede usar precio de lista, margen manual o precio manual.</p>
             )}
             <div className="space-y-2">
               {lines.map((line, idx) => {
-                const lockPrice = !!form.price_list_id && !!line.item_id;
+                const hasPriceList = !!form.price_list_id && !!line.item_id;
+                const lockPrice = hasPriceList && line.pricing_mode === "LIST_PRICE";
                 const lockDescription = !!line.item_id;
                 return (
-                  <div key={idx} className="grid grid-cols-12 gap-2">
-                    <div className="col-span-3">
-                      <Select value={line.item_id ?? "__none__"} onValueChange={(v) => onPickItem(idx, v === "__none__" ? "" : v)}>
-                        <SelectTrigger><SelectValue placeholder="Ítem" /></SelectTrigger>
-                        <SelectContent>
-                          {!form.price_list_id && <SelectItem value="__none__">Manual</SelectItem>}
-                          {availableItems.map((it) => <SelectItem key={it.id} value={it.id}>{it.sku} - {it.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                  <div key={idx} className="space-y-2 rounded-lg border border-border/70 p-3">
+                    <div className="grid grid-cols-12 gap-2">
+                      <div className="col-span-12 md:col-span-3">
+                        <Select value={line.item_id ?? "__none__"} onValueChange={(v) => onPickItem(idx, v === "__none__" ? "" : v)}>
+                          <SelectTrigger><SelectValue placeholder="Item" /></SelectTrigger>
+                          <SelectContent>
+                            {!form.price_list_id && <SelectItem value="__none__">Manual</SelectItem>}
+                            {availableItems.map((it) => <SelectItem key={it.id} value={it.id}>{it.sku} - {it.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Input
+                        className="col-span-12 md:col-span-4"
+                        placeholder="Descripcion"
+                        value={line.description}
+                        disabled={lockDescription}
+                        onChange={(e) => {
+                          const next = [...lines];
+                          next[idx] = { ...next[idx], description: e.target.value };
+                          setLines(next);
+                        }}
+                      />
+                      <Input
+                        className="col-span-6 md:col-span-1"
+                        type="number"
+                        min={0.001}
+                        step="any"
+                        value={line.quantity}
+                        onChange={(e) => {
+                          const next = [...lines];
+                          next[idx] = { ...next[idx], quantity: Number(e.target.value) || 0 };
+                          setLines(next);
+                        }}
+                      />
+                      <Input
+                        className="col-span-6 md:col-span-2"
+                        type="number"
+                        min={0}
+                        step="any"
+                        value={line.unit_price}
+                        disabled={lockPrice}
+                        onChange={(e) => {
+                          const next = [...lines];
+                          next[idx] = {
+                            ...next[idx],
+                            unit_price: Number(e.target.value) || 0,
+                            price_overridden_at: hasPriceList ? new Date().toISOString() : next[idx].price_overridden_at,
+                          };
+                          setLines(next);
+                        }}
+                      />
+                      <div className="col-span-12 md:col-span-2 flex items-center justify-between gap-2 md:justify-end">
+                        <span className="text-xs text-muted-foreground">Total</span>
+                        <span className="text-sm font-mono">
+                          ${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
                     </div>
-                    <Input
-                      className="col-span-4"
-                      placeholder="Descripción"
-                      value={line.description}
-                      disabled={lockDescription}
-                      onChange={(e) => {
-                        const next = [...lines];
-                        next[idx] = { ...next[idx], description: e.target.value };
-                        setLines(next);
-                      }}
-                    />
-                    <Input
-                      className="col-span-1"
-                      type="number"
-                      min={0.001}
-                      step="any"
-                      value={line.quantity}
-                      onChange={(e) => {
-                        const next = [...lines];
-                        next[idx] = { ...next[idx], quantity: Number(e.target.value) || 0 };
-                        setLines(next);
-                      }}
-                    />
-                    <Input
-                      className="col-span-2"
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={line.unit_price}
-                      disabled={lockPrice}
-                      onChange={(e) => {
-                        const next = [...lines];
-                        next[idx] = { ...next[idx], unit_price: Number(e.target.value) || 0 };
-                        setLines(next);
-                      }}
-                    />
-                    <div className="col-span-2 flex items-center justify-end text-sm font-mono">
-                      ${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                    </div>
-                    <div className="col-span-12 flex justify-end md:col-span-12">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeLine(idx)}
-                        title="Eliminar linea"
-                      >
-                        <Trash2 className="mr-1 h-4 w-4" /> Eliminar linea
-                      </Button>
-                    </div>
+
+                    {hasPriceList && (
+                      <div className="grid grid-cols-12 gap-2">
+                        <div className="col-span-12 md:col-span-3 space-y-1">
+                          <Label className="text-xs text-muted-foreground">Modo de precio</Label>
+                          <Select
+                            value={line.pricing_mode}
+                            onValueChange={(value) => {
+                              const nextMode = value as LinePricingMode;
+                              const next = [...lines];
+                              if (nextMode === "LIST_PRICE") {
+                                next[idx] = {
+                                  ...next[idx],
+                                  pricing_mode: nextMode,
+                                  unit_price: next[idx].suggested_unit_price,
+                                  manual_margin_pct: null,
+                                  price_overridden_at: null,
+                                  price_overridden_by: null,
+                                };
+                              } else if (nextMode === "MANUAL_MARGIN") {
+                                const marginPct = next[idx].manual_margin_pct ?? next[idx].list_utilidad_pct_snapshot ?? 0;
+                                next[idx] = {
+                                  ...next[idx],
+                                  pricing_mode: nextMode,
+                                  manual_margin_pct: Number(marginPct),
+                                  unit_price: calculatePriceFromCostBase(
+                                    next[idx].base_cost_snapshot ?? 0,
+                                    next[idx].list_flete_pct_snapshot,
+                                    Number(marginPct),
+                                    next[idx].list_impuesto_pct_snapshot,
+                                  ),
+                                  price_overridden_at: new Date().toISOString(),
+                                };
+                              } else {
+                                next[idx] = {
+                                  ...next[idx],
+                                  pricing_mode: nextMode,
+                                  price_overridden_at: new Date().toISOString(),
+                                };
+                              }
+                              setLines(next);
+                            }}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="LIST_PRICE">{PRICING_MODE_LABEL.LIST_PRICE}</SelectItem>
+                              <SelectItem value="MANUAL_MARGIN">{PRICING_MODE_LABEL.MANUAL_MARGIN}</SelectItem>
+                              <SelectItem value="MANUAL_PRICE">{PRICING_MODE_LABEL.MANUAL_PRICE}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {line.pricing_mode === "MANUAL_MARGIN" ? (
+                          <div className="col-span-12 md:col-span-2 space-y-1">
+                            <Label className="text-xs text-muted-foreground">Margen %</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step="any"
+                              value={line.manual_margin_pct ?? ""}
+                              onChange={(e) => {
+                                const marginPct = e.target.value === "" ? 0 : Number(e.target.value);
+                                const next = [...lines];
+                                next[idx] = {
+                                  ...next[idx],
+                                  manual_margin_pct: marginPct,
+                                  unit_price: calculatePriceFromCostBase(
+                                    next[idx].base_cost_snapshot ?? 0,
+                                    next[idx].list_flete_pct_snapshot,
+                                    marginPct,
+                                    next[idx].list_impuesto_pct_snapshot,
+                                  ),
+                                  price_overridden_at: new Date().toISOString(),
+                                };
+                                setLines(next);
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="col-span-12 md:col-span-2" />
+                        )}
+
+                        <div className="col-span-12 md:col-span-5 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                          <div>Precio sugerido: ${line.suggested_unit_price.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div>
+                          {line.pricing_mode === "MANUAL_MARGIN" ? (
+                            <div>Margen manual aplicado sobre costo base y porcentajes de la lista.</div>
+                          ) : line.pricing_mode === "MANUAL_PRICE" ? (
+                            <div>Precio final manual. Se conserva el sugerido como referencia.</div>
+                          ) : (
+                            <div>La linea usa el precio calculado desde la lista seleccionada.</div>
+                          )}
+                        </div>
+
+                        <div className="col-span-12 md:col-span-2 flex items-end justify-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-muted-foreground hover:text-destructive"
+                            onClick={() => removeLine(idx)}
+                            title="Eliminar linea"
+                          >
+                            <Trash2 className="mr-1 h-4 w-4" /> Eliminar linea
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {!hasPriceList && (
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeLine(idx)}
+                          title="Eliminar linea"
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" /> Eliminar linea
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

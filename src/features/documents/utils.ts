@@ -27,6 +27,22 @@ export function applyPriceListRounding(value: number, roundMode: PriceListRow["r
   }
 }
 
+export function roundMoney(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+export function calculatePriceFromCostBase(
+  baseCost: number,
+  fletePct: number | null,
+  marginPct: number | null,
+  ivaPct: number | null,
+) {
+  const fleteMultiplier = 1 + (Number(fletePct) || 0) / 100;
+  const marginMultiplier = 1 + (Number(marginPct) || 0) / 100;
+  const ivaMultiplier = 1 + (Number(ivaPct) || 0) / 100;
+  return roundMoney(baseCost * fleteMultiplier * marginMultiplier * ivaMultiplier);
+}
+
 export function describeDocumentHistoryEvent(event: DocEventRow) {
   const payload = isRecord(event.payload) ? event.payload : null;
 

@@ -123,6 +123,11 @@ export function useDocumentsData({
     return map;
   }, [priceListItems]);
 
+  const priceListItemByItemId = useMemo(
+    () => new Map(priceListItems.map((row) => [row.item_id, row])),
+    [priceListItems],
+  );
+
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["documents", currentCompanyId ?? "no-company", trimmedSearch, typeFilter, statusFilter],
     enabled: Boolean(currentCompanyId),
@@ -157,7 +162,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("document_lines")
-        .select("id, item_id, line_order, description, quantity, unit, unit_price, line_total, sku_snapshot")
+        .select("id, item_id, line_order, description, quantity, unit, unit_price, line_total, sku_snapshot, pricing_mode, suggested_unit_price, base_cost_snapshot, list_flete_pct_snapshot, list_utilidad_pct_snapshot, list_impuesto_pct_snapshot, manual_margin_pct, price_overridden_by, price_overridden_at")
         .eq("document_id", selectedDocId!)
         .order("line_order");
       if (error) throw error;
@@ -206,6 +211,7 @@ export function useDocumentsData({
     selectedPriceList,
     availableItems,
     priceByItem,
+    priceListItemByItemId,
     documents,
     isLoading,
     selectedLines,

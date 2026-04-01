@@ -1,4 +1,4 @@
-import type { CustomerKind, DocStatus, DocType, InternalRemitoType, LineDraft } from "./types";
+import type { CustomerKind, DocStatus, DocType, InternalRemitoType, LineDraft, LinePricingMode } from "./types";
 
 export const DOC_LABEL: Record<DocType, string> = { PRESUPUESTO: "Presupuesto", REMITO: "Remito" };
 
@@ -36,6 +36,12 @@ export const INTERNAL_REMITO_LABEL: Record<InternalRemitoType, string> = {
   DESCUENTO_SUELDO: "Descuento de sueldo",
 };
 
+export const PRICING_MODE_LABEL: Record<LinePricingMode, string> = {
+  LIST_PRICE: "Precio lista",
+  MANUAL_MARGIN: "Margen manual",
+  MANUAL_PRICE: "Precio manual",
+};
+
 export const HISTORY_TONE_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
   neutral: "border-slate-200 bg-slate-50 text-slate-700",
   info: "border-blue-200 bg-blue-50 text-blue-700",
@@ -59,4 +65,13 @@ export const EMPTY_LINE: LineDraft = {
   unit: "un",
   quantity: 1,
   unit_price: 0,
+  pricing_mode: "MANUAL_PRICE",
+  suggested_unit_price: 0,
+  base_cost_snapshot: null,
+  list_flete_pct_snapshot: null,
+  list_utilidad_pct_snapshot: null,
+  list_impuesto_pct_snapshot: null,
+  manual_margin_pct: null,
+  price_overridden_by: null,
+  price_overridden_at: null,
 };
