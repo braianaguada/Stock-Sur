@@ -39,6 +39,39 @@ type SearchableItem = {
 };
 
 const INTEGER_ONLY_UNITS = new Set(["un"]);
+const NEW_STOCK_MOVEMENT_DRAFT_KEY = "stock:new-movement-draft";
+
+function readStockMovementDraft() {
+  if (typeof window === "undefined") return null;
+  const raw = sessionStorage.getItem(NEW_STOCK_MOVEMENT_DRAFT_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as {
+      open?: boolean;
+      form?: { item_id: string; type: MovementType; quantity: string; reference: string };
+      itemSearch?: string;
+      selectedItem?: SearchableItem | null;
+    };
+  } catch {
+    sessionStorage.removeItem(NEW_STOCK_MOVEMENT_DRAFT_KEY);
+    return null;
+  }
+}
+
+function writeStockMovementDraft(draft: {
+  open: boolean;
+  form: { item_id: string; type: MovementType; quantity: string; reference: string };
+  itemSearch: string;
+  selectedItem: SearchableItem | null;
+}) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(NEW_STOCK_MOVEMENT_DRAFT_KEY, JSON.stringify(draft));
+}
+
+function clearStockMovementDraft() {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(NEW_STOCK_MOVEMENT_DRAFT_KEY);
+}
 
 function formatQuantity(value: number, unit: string | null) {
   if (!Number.isFinite(value)) return "-";
@@ -54,19 +87,46 @@ function formatQuantity(value: number, unit: string | null) {
 }
 
 export default function StockPage() {
+  const stockDraft = readStockMovementDraft();
   const [tab, setTab] = useState("summary");
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ item_id: "", type: "IN" as MovementType, quantity: "", reference: "" });
-  const [itemSearch, setItemSearch] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(stockDraft?.open === true);
+  const [form, setForm] = useState(stockDraft?.form ?? { item_id: "", type: "IN" as MovementType, quantity: "", reference: "" });
+  const [itemSearch, setItemSearch] = useState(stockDraft?.itemSearch ?? "");
   const deferredItemSearch = useDeferredValue(itemSearch);
-  const [selectedItem, setSelectedItem] = useState<SearchableItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<SearchableItem | null>(stockDraft?.selectedItem ?? null);
   const [alertsPage, setAlertsPage] = useState(1);
   const [stockPage, setStockPage] = useState(1);
   const { toast } = useToast();
   const qc = useQueryClient();
   const { user, currentCompany } = useAuth();
+
+  const updateMovementDraft = (
+    nextForm: { item_id: string; type: MovementType; quantity: string; reference: string },
+    nextSearch = itemSearch,
+    nextSelected = selectedItem,
+    nextOpen = dialogOpen,
+  ) => {
+    setForm(nextForm);
+    setItemSearch(nextSearch);
+    setSelectedItem(nextSelected);
+    setDialogOpen(nextOpen);
+    if (nextOpen) {
+      writeStockMovementDraft({
+        open: nextOpen,
+        form: nextForm,
+        itemSearch: nextSearch,
+        selectedItem: nextSelected,
+      });
+    } else {
+      clearStockMovementDraft();
+    }
+  };
+
+  const openCreateMovement = () => {
+    updateMovementDraft({ item_id: "", type: "IN", quantity: "", reference: "" }, "", null, true);
+  };
 
   const { data: recentItems = [] } = useQuery({
     queryKey: ["stock-recent-items", currentCompany?.id ?? "no-company", user?.id ?? "no-user"],
@@ -347,7 +407,9 @@ export default function StockPage() {
       qc.invalidateQueries({ queryKey: ["stock-movements"] });
       qc.invalidateQueries({ queryKey: ["stock-recent-items"] });
       qc.invalidateQueries({ queryKey: ["stock-item-search"] });
+      clearStockMovementDraft();
       setDialogOpen(false);
+      setForm({ item_id: "", type: "IN", quantity: "", reference: "" });
       setSelectedItem(null);
       setItemSearch("");
       toast({ title: "Movimiento registrado" });
@@ -500,7 +562,7 @@ export default function StockPage() {
             <h1 className="text-2xl font-bold tracking-tight">Stock</h1>
             <p className="text-muted-foreground">Movimientos y stock actual</p>
           </div>
-          <Button onClick={() => { setForm({ item_id: "", type: "IN", quantity: "", reference: "" }); setSelectedItem(null); setItemSearch(""); setDialogOpen(true); }}>
+          <Button onClick={openCreateMovement}>
             <Plus className="mr-2 h-4 w-4" /> Nuevo movimiento
           </Button>
         </div>
@@ -673,8 +735,16 @@ export default function StockPage() {
         </Tabs>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="overflow-x-hidden">
+      <Dialog open={dialogOpen} onOpenChange={(open) => {
+        setDialogOpen(open);
+        if (!open) {
+          clearStockMovementDraft();
+          setForm({ item_id: "", type: "IN", quantity: "", reference: "" });
+          setSelectedItem(null);
+          setItemSearch("");
+        }
+      }}>
+        <DialogContent>
           <DialogHeader><DialogTitle>Nuevo movimiento</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
             <div className="space-y-4">
@@ -684,7 +754,7 @@ export default function StockPage() {
                   id="stock-item-search"
                   name="stock-item-search"
                   value={itemSearch}
-                  onChange={(e) => setItemSearch(e.target.value)}
+                  onChange={(e) => updateMovementDraft(form, e.target.value, selectedItem)}
                   placeholder="Buscar por SKU, nombre, marca, modelo o alias..."
                 />
               </div>
@@ -712,8 +782,7 @@ export default function StockPage() {
                         key={item.id}
                         type="button"
                         onClick={() => {
-                          setForm({ ...form, item_id: item.id });
-                          setSelectedItem(item);
+                          updateMovementDraft({ ...form, item_id: item.id }, itemSearch, item);
                         }}
                         className={`flex w-full flex-col rounded-md border px-3 py-2 text-left transition-colors ${
                           form.item_id === item.id ? "border-primary bg-primary/5" : "hover:bg-muted"
@@ -728,38 +797,11 @@ export default function StockPage() {
                   </div>
                 )}
               </div>
-              <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-slate-700">Ultimos usados</p>
-                  <p className="text-xs text-muted-foreground">Solo tuyos</p>
-                </div>
-                {recentItems.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Todavia no tenes productos recientes.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {recentItems.map((item) => (
-                      <Button
-                        key={item.id}
-                        type="button"
-                        variant={form.item_id === item.id ? "secondary" : "ghost"}
-                        size="sm"
-                        onClick={() => {
-                          setForm({ ...form, item_id: item.id });
-                          setSelectedItem(item);
-                        }}
-                        className="h-8 max-w-full border border-slate-200 bg-white text-xs text-slate-700 hover:bg-slate-100"
-                      >
-                        <span className="truncate">{item.sku} - {item.name}</span>
-                      </Button>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="stock-movement-type">Tipo *</Label>
-                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as MovementType })}>
+                <Select value={form.type} onValueChange={(v) => updateMovementDraft({ ...form, type: v as MovementType })}>
                   <SelectTrigger id="stock-movement-type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="IN">Entrada</SelectItem>
@@ -777,7 +819,7 @@ export default function StockPage() {
                   min={selectedItem?.unit && INTEGER_ONLY_UNITS.has(selectedItem.unit) ? 1 : 0.000001}
                   step={selectedItem?.unit && INTEGER_ONLY_UNITS.has(selectedItem.unit) ? 1 : "any"}
                   value={form.quantity}
-                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                  onChange={(e) => updateMovementDraft({ ...form, quantity: e.target.value })}
                   required
                 />
                 {selectedItem?.unit && INTEGER_ONLY_UNITS.has(selectedItem.unit) ? (
@@ -791,8 +833,34 @@ export default function StockPage() {
                 id="stock-movement-reference"
                 name="stock-movement-reference"
                 value={form.reference}
-                onChange={(e) => setForm({ ...form, reference: e.target.value })}
+                onChange={(e) => updateMovementDraft({ ...form, reference: e.target.value })}
               />
+            </div>
+            <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/70 p-2.5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-700">Ultimos usados</p>
+                <p className="text-[11px] text-muted-foreground">Solo tuyos</p>
+              </div>
+              {recentItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Todavia no tenes productos recientes.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {recentItems.map((item) => (
+                    <Button
+                      key={item.id}
+                      type="button"
+                      variant={form.item_id === item.id ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => {
+                        updateMovementDraft({ ...form, item_id: item.id }, itemSearch, item);
+                      }}
+                      className="h-7 max-w-full border border-slate-200 bg-white px-2 text-[11px] text-slate-700 hover:bg-slate-100"
+                    >
+                      <span className="truncate">{item.sku} - {item.name}</span>
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button type="submit" disabled={saveMutation.isPending || !form.item_id}>
