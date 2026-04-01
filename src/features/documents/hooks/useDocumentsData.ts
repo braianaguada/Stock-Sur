@@ -11,7 +11,7 @@ import type {
   PriceListItemRow,
   PriceListRow,
 } from "../types";
-import { applyPriceListRounding, formatNumber } from "../utils";
+import { formatNumber } from "../utils";
 
 type UseDocumentsDataParams = {
   search: string;
@@ -80,7 +80,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
-        .select("item_id, is_active, base_cost, flete_pct, utilidad_pct, impuesto_pct, final_price_override, items(id, sku, name, unit)")
+        .select("item_id, is_active, base_cost, calculated_price, flete_pct, utilidad_pct, impuesto_pct, final_price_override, items(id, sku, name, unit)")
         .eq("company_id", currentCompanyId!)
         .eq("price_list_id", selectedPriceListId)
         .eq("is_active", true);
@@ -118,25 +118,10 @@ export function useDocumentsData({
         map.set(row.item_id, Number(row.final_price_override));
         continue;
       }
-      if (!selectedPriceList) {
-        map.set(row.item_id, 0);
-        continue;
-      }
-
-      const baseCost = Number(row.base_cost) || 0;
-      if (baseCost <= 0) {
-        map.set(row.item_id, 0);
-        continue;
-      }
-
-      const flete = row.flete_pct ?? selectedPriceList.flete_pct ?? 0;
-      const utilidad = row.utilidad_pct ?? selectedPriceList.utilidad_pct ?? 0;
-      const impuesto = row.impuesto_pct ?? selectedPriceList.impuesto_pct ?? 0;
-      const computed = baseCost * (1 + flete / 100) * (1 + utilidad / 100) * (1 + impuesto / 100);
-      map.set(row.item_id, applyPriceListRounding(computed, selectedPriceList.round_mode, selectedPriceList.round_to));
+      map.set(row.item_id, Number(row.calculated_price) || 0);
     }
     return map;
-  }, [priceListItems, selectedPriceList]);
+  }, [priceListItems]);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["documents", currentCompanyId ?? "no-company", trimmedSearch, typeFilter, statusFilter],

@@ -1,45 +1,65 @@
-export interface PriceList {
+export type PriceListStatus = "PENDING" | "UPDATED";
+
+export interface BasePriceRow {
+  item_id: string;
+  sku: string | null;
+  name: string;
+  brand: string | null;
+  model: string | null;
+  category: string | null;
+  unit: string | null;
+  base_cost: number;
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
+export interface PriceListSummary {
   id: string;
   name: string;
-  created_at: string;
+  description: string | null;
   flete_pct: number;
   utilidad_pct: number;
   impuesto_pct: number;
-  round_mode: "none" | "integer" | "tens" | "hundreds" | "x99";
-  round_to: number;
+  status: PriceListStatus;
+  last_recalculated_at: string | null;
+  last_recalculated_by: string | null;
+  updated_at: string;
+  updated_by: string | null;
+  created_at: string;
+  created_by: string | null;
+  pending_items_count: number;
+  total_items_count: number;
 }
 
-export interface CatalogItem {
-  id: string;
+export interface PriceListProductRow {
+  item_id: string;
   sku: string | null;
   name: string;
+  brand: string | null;
+  model: string | null;
+  category: string | null;
   unit: string | null;
-}
-
-export interface PriceListItem {
-  price_list_id: string;
-  item_id: string;
-  is_active: boolean;
   base_cost: number;
-  flete_pct: number | null;
-  utilidad_pct: number | null;
-  impuesto_pct: number | null;
-  final_price_override: number | null;
-  items: CatalogItem | null;
+  calculated_price: number;
+  needs_recalculation: boolean;
+  last_calculated_at: string | null;
+  last_calculated_by: string | null;
 }
 
-export type LineDraft = {
-  base_cost: string;
-  flete_pct: string;
-  utilidad_pct: string;
-  impuesto_pct: string;
-  final_price_override: string;
-};
+export interface PriceListHistoryRow {
+  id: string;
+  event_type: string;
+  affected_items_count: number;
+  details: Record<string, unknown>;
+  created_at: string;
+  created_by: string | null;
+}
 
-export type ListConfigDraft = {
+export interface PriceListFormState {
+  name: string;
+  description: string;
   flete_pct: string;
   utilidad_pct: string;
   impuesto_pct: string;
-  round_mode: PriceList["round_mode"];
-  round_to: string;
-};
+}
+

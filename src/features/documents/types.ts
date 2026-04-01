@@ -90,6 +90,7 @@ export interface PriceListItemRow {
   item_id: string;
   is_active: boolean;
   base_cost: number;
+  calculated_price: number;
   flete_pct: number | null;
   utilidad_pct: number | null;
   impuesto_pct: number | null;

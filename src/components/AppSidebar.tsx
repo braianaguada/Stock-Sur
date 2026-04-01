@@ -28,7 +28,7 @@ const navItems = [
   { title: "Ítems", url: "/items", icon: Package },
   { title: "Stock", url: "/stock", icon: Warehouse },
   { title: "Proveedores", url: "/suppliers", icon: Truck },
-  { title: "Listas de precios", url: "/price-lists", icon: FileSpreadsheet },
+  { title: "Precios", url: "/price-lists", icon: FileSpreadsheet },
   { title: "Importar catálogo (sistema viejo)", url: "/items/catalog/import-legacy", icon: FolderUp },
   { title: "Pendientes", url: "/pending", icon: AlertCircle },
   { title: "Documentos", url: "/documents", icon: FileText },

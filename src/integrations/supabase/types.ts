@@ -1024,9 +1024,49 @@ export type Database = {
         }
         Relationships: []
       }
+      item_pricing_base: {
+        Row: {
+          base_cost: number
+          company_id: string
+          item_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          base_cost?: number
+          company_id: string
+          item_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          base_cost?: number
+          company_id?: string
+          item_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_pricing_base_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_pricing_base_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_list_items: {
         Row: {
           base_cost: number
+          calculated_price: number
           company_id: string
           created_at: string
           created_by: string | null
@@ -1035,12 +1075,16 @@ export type Database = {
           impuesto_pct: number | null
           is_active: boolean
           item_id: string
+          last_calculated_at: string | null
+          last_calculated_by: string | null
+          needs_recalculation: boolean
           price_list_id: string
           price_override: number | null
           utilidad_pct: number | null
         }
         Insert: {
           base_cost?: number
+          calculated_price?: number
           company_id: string
           created_at?: string
           created_by?: string | null
@@ -1049,12 +1093,16 @@ export type Database = {
           impuesto_pct?: number | null
           is_active?: boolean
           item_id: string
+          last_calculated_at?: string | null
+          last_calculated_by?: string | null
+          needs_recalculation?: boolean
           price_list_id: string
           price_override?: number | null
           utilidad_pct?: number | null
         }
         Update: {
           base_cost?: number
+          calculated_price?: number
           company_id?: string
           created_at?: string
           created_by?: string | null
@@ -1063,6 +1111,9 @@ export type Database = {
           impuesto_pct?: number | null
           is_active?: boolean
           item_id?: string
+          last_calculated_at?: string | null
+          last_calculated_by?: string | null
+          needs_recalculation?: boolean
           price_list_id?: string
           price_override?: number | null
           utilidad_pct?: number | null
@@ -1084,6 +1135,54 @@ export type Database = {
           },
           {
             foreignKeyName: "price_list_items_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "price_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_list_history: {
+        Row: {
+          affected_items_count: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          details: Json
+          event_type: string
+          id: string
+          price_list_id: string
+        }
+        Insert: {
+          affected_items_count?: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          details?: Json
+          event_type: string
+          id?: string
+          price_list_id: string
+        }
+        Update: {
+          affected_items_count?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          details?: Json
+          event_type?: string
+          id?: string
+          price_list_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_list_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_list_history_price_list_id_fkey"
             columns: ["price_list_id"]
             isOneToOne: false
             referencedRelation: "price_lists"
@@ -1208,39 +1307,57 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          description: string | null
           flete_pct: number
           id: string
           impuesto_pct: number
+          last_recalculated_at: string | null
+          last_recalculated_by: string | null
           name: string
           round_mode: string
           round_to: number
+          status: string
           supplier_id: string | null
+          updated_at: string
+          updated_by: string | null
           utilidad_pct: number
         }
         Insert: {
           company_id: string
           created_at?: string
           created_by?: string | null
+          description?: string | null
           flete_pct?: number
           id?: string
           impuesto_pct?: number
+          last_recalculated_at?: string | null
+          last_recalculated_by?: string | null
           name: string
           round_mode?: string
           round_to?: number
+          status?: string
           supplier_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
           utilidad_pct?: number
         }
         Update: {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          description?: string | null
           flete_pct?: number
           id?: string
           impuesto_pct?: number
+          last_recalculated_at?: string | null
+          last_recalculated_by?: string | null
           name?: string
           round_mode?: string
           round_to?: number
+          status?: string
           supplier_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
           utilidad_pct?: number
         }
         Relationships: [
