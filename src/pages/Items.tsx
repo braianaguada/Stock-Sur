@@ -42,7 +42,8 @@ import { ITEM_UNIT_OPTIONS } from "@/features/items/constants";
 import { type Item, type ItemAlias } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
 
-const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+const NEW_ITEM_DRAFT_KEY = "items:new-item-draft";
 
 type ItemSortField = "sku" | "name" | "brand" | "model" | "category" | "is_active" | "created_at";
 type SortDirection = "asc" | "desc";
@@ -84,7 +85,7 @@ export default function ItemsPage() {
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
   const [aliasToDelete, setAliasToDelete] = useState<ItemAlias | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(25);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [sortBy, setSortBy] = useState<ItemSortField>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [form, setForm] = useState({
@@ -108,6 +109,28 @@ export default function ItemsPage() {
   useEffect(() => {
     setPage(1);
   }, [deferredSearch, categoryFilter, statusFilter, pageSize, sortBy, sortDirection]);
+
+  useEffect(() => {
+    if (!currentCompany || editingItem) return;
+    const raw = sessionStorage.getItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
+    if (!raw) return;
+    try {
+      const draft = JSON.parse(raw) as { open?: boolean; form?: typeof form };
+      if (draft.form) setForm(draft.form);
+      if (draft.open) setDialogOpen(true);
+    } catch {
+      sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
+    }
+  }, [currentCompany, editingItem]);
+
+  useEffect(() => {
+    if (!currentCompany || editingItem) return;
+    if (!dialogOpen) return;
+    sessionStorage.setItem(
+      `${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`,
+      JSON.stringify({ open: true, form }),
+    );
+  }, [currentCompany, dialogOpen, editingItem, form]);
 
   const itemsQuery = useQuery({
     queryKey: [
@@ -285,6 +308,9 @@ export default function ItemsPage() {
       qc.invalidateQueries({ queryKey: ["stock-current"] });
       qc.invalidateQueries({ queryKey: ["stock-item-search"] });
       qc.invalidateQueries({ queryKey: ["stock-recent-items"] });
+      if (currentCompany && !editingItem) {
+        sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
+      }
       setDialogOpen(false);
       setEditingItem(null);
       setNewAlias("");
@@ -393,6 +419,9 @@ export default function ItemsPage() {
   });
 
   const openCreate = () => {
+    if (currentCompany) {
+      sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
+    }
     setEditingItem(null);
     setNewAlias("");
     setIsSupplierCode(false);
@@ -410,6 +439,9 @@ export default function ItemsPage() {
   };
 
   const openEdit = (item: Item) => {
+    if (currentCompany) {
+      sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
+    }
     setEditingItem(item);
     setNewAlias("");
     setIsSupplierCode(false);
@@ -553,8 +585,8 @@ export default function ItemsPage() {
                 </TableRow>
               ) : (
                 items.map((item) => (
-                  <TableRow key={item.id} className="h-11">
-                    <TableCell className="py-2">
+                  <TableRow key={item.id} className="h-9">
+                    <TableCell className="py-1.5">
                       <Checkbox
                         checked={selectedItemIds.includes(item.id)}
                         onCheckedChange={(checked) => setSelectedItemIds((prev) => (
@@ -565,34 +597,34 @@ export default function ItemsPage() {
                         aria-label={`Seleccionar ${item.name}`}
                       />
                     </TableCell>
-                    <TableCell className="py-2 font-mono text-[11px]">{item.sku}</TableCell>
-                    <TableCell className="py-2 font-medium">{item.name}</TableCell>
-                    <TableCell className="py-2 text-sm">{item.brand ?? "-"}</TableCell>
-                    <TableCell className="py-2 text-sm">{item.model ?? "-"}</TableCell>
-                    <TableCell>{item.category ?? "—"}</TableCell>
-                    <TableCell className="py-2 text-sm">{item.unit}</TableCell>
-                    <TableCell className="py-2">
-                      <Badge variant="outline" className="h-6 px-2 text-[11px]">
+                    <TableCell className="py-1.5 font-mono text-[11px]">{item.sku}</TableCell>
+                    <TableCell className="py-1.5 text-sm font-medium">{item.name}</TableCell>
+                    <TableCell className="py-1.5 text-xs">{item.brand ?? "-"}</TableCell>
+                    <TableCell className="py-1.5 text-xs">{item.model ?? "-"}</TableCell>
+                    <TableCell className="py-1.5 text-xs">{item.category ?? "—"}</TableCell>
+                    <TableCell className="py-1.5 text-xs">{item.unit}</TableCell>
+                    <TableCell className="py-1.5">
+                      <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
                         {item.demand_profile === "HIGH" ? "Alta" : item.demand_profile === "MEDIUM" ? "Media" : "Baja"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="py-2">
-                      <Badge variant={item.is_active ? "default" : "secondary"} className="h-6 px-2 text-[11px]">
+                    <TableCell className="py-1.5">
+                      <Badge variant={item.is_active ? "default" : "secondary"} className="h-5 px-1.5 text-[10px]">
                         {item.is_active ? "Activo" : "Inactivo"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="py-2">
+                    <TableCell className="py-1.5">
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
-                          <Pencil className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         {item.is_active ? (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItemToDelete(item)} title="Desactivar">
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setItemToDelete(item)} title="Desactivar">
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>
                         ) : (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => restoreMutation.mutate(item.id)} title="Reactivar">
-                            <RotateCcw className="h-4 w-4 text-emerald-600" />
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => restoreMutation.mutate(item.id)} title="Reactivar">
+                            <RotateCcw className="h-3.5 w-3.5 text-emerald-600" />
                           </Button>
                         )}
                       </div>
@@ -655,14 +687,19 @@ export default function ItemsPage() {
         </div>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="overflow-x-hidden sm:max-w-2xl">
+      <Dialog open={dialogOpen} onOpenChange={(open) => {
+        setDialogOpen(open);
+        if (!open && currentCompany && !editingItem) {
+          sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
+        }
+      }}>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingItem ? "Editar ítem" : "Nuevo ítem"}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }}
-            className="space-y-4 overflow-x-hidden"
+            className="space-y-4"
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between">
