@@ -5,6 +5,7 @@ import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +35,7 @@ export default function SettingsPage() {
     document_tagline: "",
     document_footer: "",
     default_point_of_sale: "1",
+    allow_issue_remitos_without_stock: false,
   });
 
   useEffect(() => {
@@ -51,6 +53,7 @@ export default function SettingsPage() {
       document_tagline: settings.document_tagline ?? "",
       document_footer: settings.document_footer ?? "",
       default_point_of_sale: String(settings.default_point_of_sale ?? 1),
+      allow_issue_remitos_without_stock: settings.allow_issue_remitos_without_stock ?? false,
     });
     setLogoPreview(settings.logo_url ?? "");
   }, [settings]);
@@ -87,6 +90,7 @@ export default function SettingsPage() {
         document_tagline: form.document_tagline.trim() || null,
         document_footer: form.document_footer.trim() || null,
         default_point_of_sale: Math.max(1, Number(form.default_point_of_sale) || 1),
+        allow_issue_remitos_without_stock: form.allow_issue_remitos_without_stock,
       };
 
       const { error } = await supabase.from("company_settings").upsert(payload, { onConflict: "company_id" });
@@ -187,6 +191,28 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <Label>Punto de venta por defecto</Label>
                   <Input type="number" min={1} value={form.default_point_of_sale} onChange={(e) => setForm((prev) => ({ ...prev, default_point_of_sale: e.target.value }))} />
+                </div>
+                <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 md:col-span-2">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="allow_issue_remitos_without_stock"
+                      checked={form.allow_issue_remitos_without_stock}
+                      onCheckedChange={(checked) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          allow_issue_remitos_without_stock: checked === true,
+                        }))
+                      }
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="allow_issue_remitos_without_stock" className="cursor-pointer">
+                        Permitir emitir remitos sin stock suficiente
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Si se activa, los remitos pueden emitirse aunque el stock no alcance. La salida igual se registra y el stock puede quedar negativo.
+                      </p>
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Dirección</Label>

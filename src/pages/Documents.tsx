@@ -35,8 +35,10 @@ import type {
   DocumentFormState,
   InternalRemitoType,
   LineDraft,
+  LinePricingMode,
+  PriceListItemRow,
 } from "@/features/documents/types";
-import { formatNumber } from "@/features/documents/utils";
+import { calculatePriceFromCostBase, formatNumber } from "@/features/documents/utils";
 import { useDocumentsData } from "@/features/documents/hooks/useDocumentsData";
 import { useDocumentsMutations } from "@/features/documents/hooks/useDocumentsMutations";
 import { DocumentsEditorDialog } from "@/features/documents/components/DocumentsEditorDialog";
@@ -80,9 +82,9 @@ export default function DocumentsPage() {
     customers,
     items,
     priceLists,
-    selectedPriceList,
     availableItems,
     priceByItem,
+    priceListItemByItemId,
     documents,
     isLoading,
     selectedLines,
@@ -108,14 +110,63 @@ export default function DocumentsPage() {
   );
   const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
 
+  const syncLineWithPriceList = (
+    line: LineDraft,
+    priceListRow: PriceListItemRow | undefined,
+    forceListPrice = false,
+  ): LineDraft => {
+    if (!priceListRow) return line;
+
+    const suggestedUnitPrice = priceByItem.get(priceListRow.item_id) ?? (Number(priceListRow.calculated_price) || 0);
+    const baseCost = Number(priceListRow.base_cost) || 0;
+    const listFlete = priceListRow.flete_pct !== null ? Number(priceListRow.flete_pct) : null;
+    const listUtilidad = priceListRow.utilidad_pct !== null ? Number(priceListRow.utilidad_pct) : null;
+    const listImpuesto = priceListRow.impuesto_pct !== null ? Number(priceListRow.impuesto_pct) : null;
+    const nextMode: LinePricingMode = forceListPrice
+      ? "LIST_PRICE"
+      : line.pricing_mode === "MANUAL_MARGIN" || line.pricing_mode === "MANUAL_PRICE"
+        ? line.pricing_mode
+        : "LIST_PRICE";
+
+    const nextLine: LineDraft = {
+      ...line,
+      pricing_mode: nextMode,
+      suggested_unit_price: suggestedUnitPrice,
+      base_cost_snapshot: baseCost,
+      list_flete_pct_snapshot: listFlete,
+      list_utilidad_pct_snapshot: listUtilidad,
+      list_impuesto_pct_snapshot: listImpuesto,
+    };
+
+    if (nextMode === "LIST_PRICE") {
+      return {
+        ...nextLine,
+        unit_price: suggestedUnitPrice,
+        manual_margin_pct: null,
+      };
+    }
+
+    if (nextMode === "MANUAL_MARGIN") {
+      const marginPct = nextLine.manual_margin_pct ?? listUtilidad ?? 0;
+      return {
+        ...nextLine,
+        manual_margin_pct: marginPct,
+        unit_price: calculatePriceFromCostBase(baseCost, listFlete, marginPct, listImpuesto),
+      };
+    }
+
+    return nextLine;
+  };
+
   useEffect(() => {
     if (!form.price_list_id) return;
-    setLines((prev) => prev.map((line) => {
-      if (!line.item_id || !priceByItem.has(line.item_id)) return line;
-      const nextPrice = priceByItem.get(line.item_id) ?? 0;
-      return line.unit_price === nextPrice ? line : { ...line, unit_price: nextPrice };
-    }));
-  }, [form.price_list_id, priceByItem]);
+    setLines((prev) =>
+      prev.map((line) => {
+        if (!line.item_id) return line;
+        return syncLineWithPriceList(line, priceListItemByItemId.get(line.item_id));
+      }),
+    );
+  }, [form.price_list_id, priceByItem, priceListItemByItemId]);
 
   const resetDraftForm = () => {
     setEditingDocId(null);
@@ -151,7 +202,7 @@ export default function DocumentsPage() {
 
     const { data: lineRows, error } = await supabase
       .from("document_lines")
-      .select("item_id, sku_snapshot, description, unit, quantity, unit_price")
+      .select("item_id, sku_snapshot, description, unit, quantity, unit_price, pricing_mode, suggested_unit_price, base_cost_snapshot, list_flete_pct_snapshot, list_utilidad_pct_snapshot, list_impuesto_pct_snapshot, manual_margin_pct, price_overridden_by, price_overridden_at")
       .eq("document_id", docId)
       .order("line_order");
     if (error) {
@@ -183,6 +234,15 @@ export default function DocumentsPage() {
       unit: line.unit ?? "un",
       quantity: Number(line.quantity) || 0,
       unit_price: Number(line.unit_price) || 0,
+      pricing_mode: line.pricing_mode ?? "MANUAL_PRICE",
+      suggested_unit_price: Number(line.suggested_unit_price) || Number(line.unit_price) || 0,
+      base_cost_snapshot: line.base_cost_snapshot !== null ? Number(line.base_cost_snapshot) : null,
+      list_flete_pct_snapshot: line.list_flete_pct_snapshot !== null ? Number(line.list_flete_pct_snapshot) : null,
+      list_utilidad_pct_snapshot: line.list_utilidad_pct_snapshot !== null ? Number(line.list_utilidad_pct_snapshot) : null,
+      list_impuesto_pct_snapshot: line.list_impuesto_pct_snapshot !== null ? Number(line.list_impuesto_pct_snapshot) : null,
+      manual_margin_pct: line.manual_margin_pct !== null ? Number(line.manual_margin_pct) : null,
+      price_overridden_by: line.price_overridden_by ?? null,
+      price_overridden_at: line.price_overridden_at ?? null,
     }));
     setLines(nextLines.length > 0 ? nextLines : [EMPTY_LINE]);
     setDialogOpen(true);
@@ -203,6 +263,7 @@ export default function DocumentsPage() {
     totalDraft,
     editingDocId,
     priceByItem,
+    priceListItemByItemId,
     resetDraftForm,
     setDialogOpen,
     toast,
@@ -212,7 +273,7 @@ export default function DocumentsPage() {
     const item = itemsById.get(itemId);
     if (!item) return;
     const next = [...lines];
-    next[idx] = {
+    const baseLine: LineDraft = {
       ...next[idx],
       item_id: itemId,
       sku_snapshot: item.sku,
@@ -220,6 +281,20 @@ export default function DocumentsPage() {
       unit: item.unit || "un",
       unit_price: form.price_list_id ? (priceByItem.get(itemId) ?? 0) : next[idx].unit_price,
     };
+    next[idx] = form.price_list_id
+      ? syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true)
+      : {
+          ...baseLine,
+          pricing_mode: "MANUAL_PRICE",
+          suggested_unit_price: baseLine.unit_price,
+          base_cost_snapshot: null,
+          list_flete_pct_snapshot: null,
+          list_utilidad_pct_snapshot: null,
+          list_impuesto_pct_snapshot: null,
+          manual_margin_pct: null,
+          price_overridden_by: null,
+          price_overridden_at: null,
+        };
     setLines(next);
   };
 

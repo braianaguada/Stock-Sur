@@ -2,7 +2,7 @@ import { Ban, Copy, Eye, FileDown, Pencil, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DOC_LABEL, DOC_TYPE_CLASS, STATUS_LABEL, STATUS_VARIANT } from "@/features/documents/constants";
+import { DOC_LABEL, DOC_TYPE_CLASS, STATUS_CLASS, STATUS_LABEL, STATUS_VARIANT } from "@/features/documents/constants";
 import type { DocRow, DocStatus } from "@/features/documents/types";
 import { formatNumber } from "@/features/documents/utils";
 
@@ -70,7 +70,9 @@ export function DocumentsList({
               <TableCell className="font-mono">{formatNumber(doc.document_number, doc.point_of_sale)}</TableCell>
               <TableCell className="font-medium">{doc.customer_name ?? "Cliente ocasional"}</TableCell>
               <TableCell>
-                <Badge variant={STATUS_VARIANT[doc.status]}>{STATUS_LABEL[doc.status]}</Badge>
+                <Badge variant={STATUS_VARIANT[doc.status]} className={STATUS_CLASS[doc.status]}>
+                  {STATUS_LABEL[doc.status]}
+                </Badge>
               </TableCell>
               <TableCell className="text-right font-mono">${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
               <TableCell>{new Date(doc.issue_date).toLocaleDateString("es-AR")}</TableCell>

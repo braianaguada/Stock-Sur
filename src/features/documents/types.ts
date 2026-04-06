@@ -2,6 +2,7 @@ export type DocType = "PRESUPUESTO" | "REMITO";
 export type DocStatus = "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO";
 export type CustomerKind = "GENERAL" | "INTERNO" | "EMPRESA";
 export type InternalRemitoType = "CUENTA_CORRIENTE" | "DESCUENTO_SUELDO";
+export type LinePricingMode = "LIST_PRICE" | "MANUAL_MARGIN" | "MANUAL_PRICE";
 
 export interface LineDraft {
   item_id: string | null;
@@ -10,6 +11,15 @@ export interface LineDraft {
   unit: string;
   quantity: number;
   unit_price: number;
+  pricing_mode: LinePricingMode;
+  suggested_unit_price: number;
+  base_cost_snapshot: number | null;
+  list_flete_pct_snapshot: number | null;
+  list_utilidad_pct_snapshot: number | null;
+  list_impuesto_pct_snapshot: number | null;
+  manual_margin_pct: number | null;
+  price_overridden_by: string | null;
+  price_overridden_at: string | null;
 }
 
 export interface DocumentFormState {
@@ -67,6 +77,15 @@ export interface DocLineRow {
   unit_price: number;
   line_total: number;
   sku_snapshot: string | null;
+  pricing_mode: LinePricingMode;
+  suggested_unit_price: number;
+  base_cost_snapshot: number | null;
+  list_flete_pct_snapshot: number | null;
+  list_utilidad_pct_snapshot: number | null;
+  list_impuesto_pct_snapshot: number | null;
+  manual_margin_pct: number | null;
+  price_overridden_by: string | null;
+  price_overridden_at: string | null;
 }
 
 export interface DocEventRow {
@@ -90,6 +109,7 @@ export interface PriceListItemRow {
   item_id: string;
   is_active: boolean;
   base_cost: number;
+  calculated_price: number;
   flete_pct: number | null;
   utilidad_pct: number | null;
   impuesto_pct: number | null;

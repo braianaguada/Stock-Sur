@@ -370,6 +370,7 @@ export type Database = {
         Row: {
           accent_color: string
           address: string | null
+          allow_issue_remitos_without_stock: boolean
           app_name: string
           company_id: string
           created_at: string
@@ -390,6 +391,7 @@ export type Database = {
         Insert: {
           accent_color?: string
           address?: string | null
+          allow_issue_remitos_without_stock?: boolean
           app_name?: string
           company_id: string
           created_at?: string
@@ -410,6 +412,7 @@ export type Database = {
         Update: {
           accent_color?: string
           address?: string | null
+          allow_issue_remitos_without_stock?: boolean
           app_name?: string
           company_id?: string
           created_at?: string
@@ -628,6 +631,7 @@ export type Database = {
       }
       document_lines: {
         Row: {
+          base_cost_snapshot: number | null
           created_at: string
           created_by: string
           description: string
@@ -637,14 +641,23 @@ export type Database = {
           item_id: string | null
           line_order: number
           line_total: number
+          list_flete_pct_snapshot: number | null
+          list_impuesto_pct_snapshot: number | null
+          list_utilidad_pct_snapshot: number | null
+          manual_margin_pct: number | null
+          price_overridden_at: string | null
+          price_overridden_by: string | null
+          pricing_mode: string
           quantity: number
           sku_snapshot: string | null
+          suggested_unit_price: number
           tax_pct: number
           unit: string | null
           unit_price: number
           updated_at: string
         }
         Insert: {
+          base_cost_snapshot?: number | null
           created_at?: string
           created_by?: string
           description: string
@@ -654,14 +667,23 @@ export type Database = {
           item_id?: string | null
           line_order?: number
           line_total?: number
+          list_flete_pct_snapshot?: number | null
+          list_impuesto_pct_snapshot?: number | null
+          list_utilidad_pct_snapshot?: number | null
+          manual_margin_pct?: number | null
+          price_overridden_at?: string | null
+          price_overridden_by?: string | null
+          pricing_mode?: string
           quantity?: number
           sku_snapshot?: string | null
+          suggested_unit_price?: number
           tax_pct?: number
           unit?: string | null
           unit_price?: number
           updated_at?: string
         }
         Update: {
+          base_cost_snapshot?: number | null
           created_at?: string
           created_by?: string
           description?: string
@@ -671,8 +693,16 @@ export type Database = {
           item_id?: string | null
           line_order?: number
           line_total?: number
+          list_flete_pct_snapshot?: number | null
+          list_impuesto_pct_snapshot?: number | null
+          list_utilidad_pct_snapshot?: number | null
+          manual_margin_pct?: number | null
+          price_overridden_at?: string | null
+          price_overridden_by?: string | null
+          pricing_mode?: string
           quantity?: number
           sku_snapshot?: string | null
+          suggested_unit_price?: number
           tax_pct?: number
           unit?: string | null
           unit_price?: number
@@ -1024,9 +1054,94 @@ export type Database = {
         }
         Relationships: []
       }
+      item_pricing_base: {
+        Row: {
+          base_cost: number
+          company_id: string
+          item_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          base_cost?: number
+          company_id: string
+          item_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          base_cost?: number
+          company_id?: string
+          item_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_pricing_base_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_pricing_base_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      item_pricing_base_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          company_id: string
+          id: string
+          item_id: string
+          new_base_cost: number
+          previous_base_cost: number
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id: string
+          id?: string
+          item_id: string
+          new_base_cost?: number
+          previous_base_cost?: number
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id?: string
+          id?: string
+          item_id?: string
+          new_base_cost?: number
+          previous_base_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_pricing_base_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_pricing_base_history_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_list_items: {
         Row: {
           base_cost: number
+          calculated_price: number
           company_id: string
           created_at: string
           created_by: string | null
@@ -1035,12 +1150,16 @@ export type Database = {
           impuesto_pct: number | null
           is_active: boolean
           item_id: string
+          last_calculated_at: string | null
+          last_calculated_by: string | null
+          needs_recalculation: boolean
           price_list_id: string
           price_override: number | null
           utilidad_pct: number | null
         }
         Insert: {
           base_cost?: number
+          calculated_price?: number
           company_id: string
           created_at?: string
           created_by?: string | null
@@ -1049,12 +1168,16 @@ export type Database = {
           impuesto_pct?: number | null
           is_active?: boolean
           item_id: string
+          last_calculated_at?: string | null
+          last_calculated_by?: string | null
+          needs_recalculation?: boolean
           price_list_id: string
           price_override?: number | null
           utilidad_pct?: number | null
         }
         Update: {
           base_cost?: number
+          calculated_price?: number
           company_id?: string
           created_at?: string
           created_by?: string | null
@@ -1063,6 +1186,9 @@ export type Database = {
           impuesto_pct?: number | null
           is_active?: boolean
           item_id?: string
+          last_calculated_at?: string | null
+          last_calculated_by?: string | null
+          needs_recalculation?: boolean
           price_list_id?: string
           price_override?: number | null
           utilidad_pct?: number | null
@@ -1084,6 +1210,54 @@ export type Database = {
           },
           {
             foreignKeyName: "price_list_items_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "price_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_list_history: {
+        Row: {
+          affected_items_count: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          details: Json
+          event_type: string
+          id: string
+          price_list_id: string
+        }
+        Insert: {
+          affected_items_count?: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          details?: Json
+          event_type: string
+          id?: string
+          price_list_id: string
+        }
+        Update: {
+          affected_items_count?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          details?: Json
+          event_type?: string
+          id?: string
+          price_list_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_list_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_list_history_price_list_id_fkey"
             columns: ["price_list_id"]
             isOneToOne: false
             referencedRelation: "price_lists"
@@ -1208,39 +1382,57 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          description: string | null
           flete_pct: number
           id: string
           impuesto_pct: number
+          last_recalculated_at: string | null
+          last_recalculated_by: string | null
           name: string
           round_mode: string
           round_to: number
+          status: string
           supplier_id: string | null
+          updated_at: string
+          updated_by: string | null
           utilidad_pct: number
         }
         Insert: {
           company_id: string
           created_at?: string
           created_by?: string | null
+          description?: string | null
           flete_pct?: number
           id?: string
           impuesto_pct?: number
+          last_recalculated_at?: string | null
+          last_recalculated_by?: string | null
           name: string
           round_mode?: string
           round_to?: number
+          status?: string
           supplier_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
           utilidad_pct?: number
         }
         Update: {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          description?: string | null
           flete_pct?: number
           id?: string
           impuesto_pct?: number
+          last_recalculated_at?: string | null
+          last_recalculated_by?: string | null
           name?: string
           round_mode?: string
           round_to?: number
+          status?: string
           supplier_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
           utilidad_pct?: number
         }
         Relationships: [
