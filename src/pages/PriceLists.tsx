@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -118,6 +118,8 @@ export default function PriceListsPage() {
   const [createForm, setCreateForm] = useState<PriceListFormState>(DEFAULT_PRICE_LIST_FORM);
   const [configDraft, setConfigDraft] = useState<PriceListFormState | null>(null);
   const [baseCostDrafts, setBaseCostDrafts] = useState<Record<string, string>>({});
+  const configTabRef = useRef<HTMLDivElement | null>(null);
+  const historyTabRef = useRef<HTMLDivElement | null>(null);
 
   const { data: catalogItems = [] } = useQuery({
     queryKey: ["pricing-catalog-items", currentCompany?.id ?? "no-company"],
@@ -367,6 +369,15 @@ export default function PriceListsPage() {
       impuesto_pct: String(selectedList.impuesto_pct ?? 0),
     });
   }, [selectedList]);
+
+  useEffect(() => {
+    if (detailTab === "config") {
+      configTabRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    }
+    if (detailTab === "history") {
+      historyTabRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [detailTab]);
 
   const selectedSnapshotsByItemId = useMemo(
     () => new Map(selectedListSnapshots.map((row) => [row.item_id, row])),
@@ -929,7 +940,7 @@ export default function PriceListsPage() {
               </div>
               </TabsContent>
 
-              <TabsContent value="config" className="mt-4 space-y-4 overflow-auto">
+              <TabsContent ref={configTabRef} value="config" className="mt-4 space-y-4 overflow-auto">
                 {configDraft ? (
                   <div className="mx-auto w-full max-w-4xl space-y-4">
                     <div className="space-y-2">
@@ -988,7 +999,7 @@ export default function PriceListsPage() {
                 ) : null}
               </TabsContent>
 
-              <TabsContent value="history" className="mt-4 space-y-3 overflow-auto">
+              <TabsContent ref={historyTabRef} value="history" className="mt-4 space-y-3 overflow-auto">
                 {selectedListHistory.length === 0 ? (
                   <Card>
                     <CardContent className="py-8 text-center text-muted-foreground">
