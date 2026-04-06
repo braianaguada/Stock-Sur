@@ -404,9 +404,9 @@ export function useDocumentsMutations({
           source_document_type: src.doc_type,
           source_document_number_snapshot: formatNumber(src.document_number, src.point_of_sale),
           notes: src.notes,
-          subtotal: 0,
-          tax_total: 0,
-          total: 0,
+          subtotal: src.subtotal ?? 0,
+          tax_total: src.tax_total ?? 0,
+          total: src.total ?? 0,
           created_by: userId,
         })
         .select("id")
