@@ -20,6 +20,15 @@ export const STATUS_VARIANT: Record<DocStatus, "secondary" | "default" | "destru
   ANULADO: "destructive",
 };
 
+export const STATUS_CLASS: Record<DocStatus, string> = {
+  BORRADOR: "",
+  ENVIADO: "border-blue-200 bg-blue-50 text-blue-700",
+  APROBADO: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  RECHAZADO: "",
+  EMITIDO: "border-slate-200 bg-slate-900 text-white",
+  ANULADO: "",
+};
+
 export const DOC_TYPE_CLASS: Record<DocType, string> = {
   PRESUPUESTO: "border-blue-200 bg-blue-50 text-blue-700",
   REMITO: "border-emerald-200 bg-emerald-50 text-emerald-700",
