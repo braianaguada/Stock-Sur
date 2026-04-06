@@ -36,7 +36,7 @@ export default function CashPage() {
   const { settings: companySettings } = useCompanyBrand();
   const [businessDate, setBusinessDate] = useState(todayDateInputValue());
   const [amount, setAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO_REMITO");
   const [receiptKind, setReceiptKind] = useState<ReceiptKind>("PENDIENTE");
   const [customerId, setCustomerId] = useState<string>("__none__");
   const [selectedRemitoId, setSelectedRemitoId] = useState<string>("__none__");
@@ -116,7 +116,7 @@ export default function CashPage() {
 
   const resetSaleForm = () => {
     setAmount("");
-    setPaymentMethod("EFECTIVO");
+    setPaymentMethod("EFECTIVO_REMITO");
     setReceiptKind("PENDIENTE");
     setCustomerId("__none__");
     setSelectedRemitoId("__none__");
@@ -268,7 +268,9 @@ export default function CashPage() {
                     <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="EFECTIVO">Efectivo</SelectItem>
+                        <SelectItem value="EFECTIVO_REMITO">Efectivo remito</SelectItem>
+                        <SelectItem value="EFECTIVO_FACTURABLE">Efectivo facturable</SelectItem>
+                        <SelectItem value="SERVICIOS_REMITO">Servicios / remito</SelectItem>
                         <SelectItem value="POINT">Point</SelectItem>
                         <SelectItem value="TRANSFERENCIA">Transferencia</SelectItem>
                         <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
@@ -325,7 +327,7 @@ export default function CashPage() {
                     <Label htmlFor="receipt-reference">Referencia de factura</Label>
                     <Input
                       id="receipt-reference"
-                      placeholder="Ej. 0009-00001782"
+                      placeholder="Ej. B 0009-00001782"
                       value={receiptReference}
                       onChange={(event) => setReceiptReference(event.target.value)}
                     />
@@ -336,6 +338,12 @@ export default function CashPage() {
                   <Label htmlFor="notes">Observaciones</Label>
                   <Textarea id="notes" placeholder="Cliente, detalle rápido o algo útil para revisar la venta después" value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} />
                 </div>
+
+                {paymentMethod === "SERVICIOS_REMITO" ? (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    Este movimiento impacta en el total del dÃ­a, pero no entra en el efectivo a rendir del cierre.
+                  </p>
+                ) : null}
 
                 <Button type="submit" className="w-full" disabled={createSaleMutation.isPending || !canCreateSale}>
                   {createSaleMutation.isPending ? "Guardando..." : "Registrar venta"}
