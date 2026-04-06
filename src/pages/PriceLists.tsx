@@ -84,6 +84,12 @@ type PriceListSnapshotDbRow = {
   last_calculated_by: string | null;
 };
 
+const pricingChipClass = {
+  flete: "border-blue-200 bg-blue-50 text-blue-700",
+  margen: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  iva: "border-amber-200 bg-amber-50 text-amber-700",
+} as const;
+
 export default function PriceListsPage() {
   const { currentCompany, user } = useAuth();
   const { toast } = useToast();
@@ -476,6 +482,24 @@ export default function PriceListsPage() {
     return profileNameByUserId.get(userId) ?? userId.slice(0, 8);
   };
 
+  const renderPricingSummary = (values: {
+    flete_pct: number | null;
+    utilidad_pct: number | null;
+    impuesto_pct: number | null;
+  }) => (
+    <div className="flex flex-wrap gap-2">
+      <Badge variant="outline" className={pricingChipClass.flete}>
+        Flete {values.flete_pct ?? 0}%
+      </Badge>
+      <Badge variant="outline" className={pricingChipClass.margen}>
+        Margen {values.utilidad_pct ?? 0}%
+      </Badge>
+      <Badge variant="outline" className={pricingChipClass.iva}>
+        IVA {values.impuesto_pct ?? 0}%
+      </Badge>
+    </div>
+  );
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -611,8 +635,8 @@ export default function PriceListsPage() {
                         {PRICE_LIST_STATUS_LABEL[priceList.status]}
                       </Badge>
                     </div>
-                    <div className="rounded-md border bg-muted/40 p-3 text-sm">
-                      Costo base x (1 + {priceList.flete_pct}% flete) x (1 + {priceList.utilidad_pct}% margen) x (1 + {priceList.impuesto_pct}% IVA)
+                    <div className="rounded-md border bg-muted/30 p-3">
+                      {renderPricingSummary(priceList)}
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
@@ -690,14 +714,14 @@ export default function PriceListsPage() {
             <DialogTitle>{selectedList?.name ?? "Detalle de lista"}</DialogTitle>
           </DialogHeader>
           {selectedList ? (
-            <Tabs value={detailTab} onValueChange={setDetailTab} className="flex h-full flex-col overflow-hidden">
-              <TabsList>
+            <Tabs value={detailTab} onValueChange={setDetailTab} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <TabsList className="w-full justify-start">
                 <TabsTrigger value="products">Productos</TabsTrigger>
                 <TabsTrigger value="config">Configuración</TabsTrigger>
                 <TabsTrigger value="history">Historial</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="products" className="space-y-4 overflow-hidden">
+              <TabsContent value="products" className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
                 <div className="relative max-w-sm">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -707,7 +731,7 @@ export default function PriceListsPage() {
                     onChange={(event) => { setDetailSearch(event.target.value); setDetailPage(1); }}
                   />
                 </div>
-                <div className="rounded-lg border">
+                <div className="min-h-0 flex-1 overflow-auto rounded-lg border">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -745,7 +769,7 @@ export default function PriceListsPage() {
                     </TableBody>
                   </Table>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex shrink-0 items-center justify-between border-t pt-3">
                   <p className="text-sm text-muted-foreground">
                     Mostrando {(safeDetailPage - 1) * LIST_PRODUCTS_PAGE_SIZE + (pagedSelectedListProducts.length === 0 ? 0 : 1)}-
                     {Math.min(safeDetailPage * LIST_PRODUCTS_PAGE_SIZE, filteredSelectedListProducts.length)} de {filteredSelectedListProducts.length} productos
@@ -762,7 +786,7 @@ export default function PriceListsPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="config" className="space-y-4">
+              <TabsContent value="config" className="mt-4 space-y-4 overflow-auto">
                 {configDraft ? (
                   <div className="space-y-4">
                     <div className="space-y-2">
@@ -787,7 +811,14 @@ export default function PriceListsPage() {
                         <Input type="number" min={0} step="any" value={configDraft.impuesto_pct} onChange={(event) => setConfigDraft((prev) => (prev ? { ...prev, impuesto_pct: event.target.value } : prev))} />
                       </div>
                     </div>
-                    <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                    <div className="rounded-md border bg-muted/30 p-3">
+                      {renderPricingSummary({
+                        flete_pct: parseNonNegative(configDraft.flete_pct, 0),
+                        utilidad_pct: parseNonNegative(configDraft.utilidad_pct, 0),
+                        impuesto_pct: parseNonNegative(configDraft.impuesto_pct, 0),
+                      })}
+                    </div>
+                    <div className="hidden rounded-md border bg-muted/40 p-3 text-sm">
                       Fórmula: costo base x (1 + flete%) x (1 + margen%) x (1 + IVA%). El resultado final se guarda redondeado a 2 decimales.
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -814,7 +845,7 @@ export default function PriceListsPage() {
                 ) : null}
               </TabsContent>
 
-              <TabsContent value="history" className="space-y-3 overflow-auto">
+              <TabsContent value="history" className="mt-4 space-y-3 overflow-auto">
                 {selectedListHistory.length === 0 ? (
                   <Card>
                     <CardContent className="py-8 text-center text-muted-foreground">
