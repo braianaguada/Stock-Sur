@@ -370,6 +370,7 @@ export type Database = {
         Row: {
           accent_color: string
           address: string | null
+          allow_issue_remitos_without_stock: boolean
           app_name: string
           company_id: string
           created_at: string
@@ -390,6 +391,7 @@ export type Database = {
         Insert: {
           accent_color?: string
           address?: string | null
+          allow_issue_remitos_without_stock?: boolean
           app_name?: string
           company_id: string
           created_at?: string
@@ -410,6 +412,7 @@ export type Database = {
         Update: {
           accent_color?: string
           address?: string | null
+          allow_issue_remitos_without_stock?: boolean
           app_name?: string
           company_id?: string
           created_at?: string
