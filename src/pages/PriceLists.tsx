@@ -606,7 +606,9 @@ export default function PriceListsPage() {
                     <TableHead>Marca</TableHead>
                     <TableHead>Modelo</TableHead>
                     <TableHead>Categoría</TableHead>
+                    <TableHead className="text-right">Costo anterior</TableHead>
                     <TableHead className="text-right">Costo base</TableHead>
+                    <TableHead className="text-right">Variación</TableHead>
                     <TableHead>Última actualización</TableHead>
                     <TableHead>Usuario</TableHead>
                   </TableRow>
@@ -614,7 +616,7 @@ export default function PriceListsPage() {
                 <TableBody>
                   {pagedBaseRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                      <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
                         No hay productos para mostrar.
                       </TableCell>
                     </TableRow>
@@ -625,6 +627,9 @@ export default function PriceListsPage() {
                       <TableCell>{row.brand ?? "-"}</TableCell>
                       <TableCell>{row.model ?? "-"}</TableCell>
                       <TableCell>{row.category ?? "-"}</TableCell>
+                      <TableCell className="text-right">
+                        {row.previous_base_cost !== null ? `$${formatMoney(row.previous_base_cost)}` : "-"}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Input
                           className="ml-auto w-28 text-right font-mono"
@@ -643,6 +648,17 @@ export default function PriceListsPage() {
                               baseCost: parseNonNegative(baseCostDrafts[row.item_id] ?? "0", 0),
                             })}
                         />
+                      </TableCell>
+                      <TableCell
+                        className={`text-right text-sm ${
+                          row.cost_variation_pct !== null && row.cost_variation_pct > 0
+                            ? "text-rose-600"
+                            : row.cost_variation_pct !== null && row.cost_variation_pct < 0
+                              ? "text-emerald-600"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        {formatPercentDelta(row.cost_variation_pct)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatDateTime(row.updated_at)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{renderUserName(row.updated_by)}</TableCell>
@@ -816,9 +832,6 @@ export default function PriceListsPage() {
                       <TableRow>
                         <TableHead>SKU</TableHead>
                         <TableHead>Nombre</TableHead>
-                        <TableHead className="text-right">Costo anterior</TableHead>
-                        <TableHead className="text-right">Costo base</TableHead>
-                        <TableHead className="text-right">Variación</TableHead>
                         <TableHead className="text-right">Precio lista</TableHead>
                         <TableHead>Estado</TableHead>
                       </TableRow>
@@ -834,21 +847,6 @@ export default function PriceListsPage() {
                         <TableRow key={row.item_id}>
                           <TableCell className="font-mono text-xs">{row.sku ?? "-"}</TableCell>
                           <TableCell className="font-medium">{row.name}</TableCell>
-                          <TableCell className="text-right">
-                            {row.previous_base_cost !== null ? `$${formatMoney(row.previous_base_cost)}` : "-"}
-                          </TableCell>
-                          <TableCell className="text-right">${formatMoney(row.base_cost)}</TableCell>
-                          <TableCell
-                            className={`text-right ${
-                              row.cost_variation_pct !== null && row.cost_variation_pct > 0
-                                ? "text-rose-600"
-                                : row.cost_variation_pct !== null && row.cost_variation_pct < 0
-                                  ? "text-emerald-600"
-                                  : "text-muted-foreground"
-                            }`}
-                          >
-                            {formatPercentDelta(row.cost_variation_pct)}
-                          </TableCell>
                           <TableCell className="text-right font-mono">${formatMoney(row.calculated_price)}</TableCell>
                           <TableCell>
                             <Badge
@@ -909,16 +907,6 @@ export default function PriceListsPage() {
                         <Label>IVA %</Label>
                         <Input type="number" min={0} step="any" value={configDraft.impuesto_pct} onChange={(event) => setConfigDraft((prev) => (prev ? { ...prev, impuesto_pct: event.target.value } : prev))} />
                       </div>
-                    </div>
-                    <div className="rounded-md border bg-muted/30 p-3">
-                      {renderPricingSummary({
-                        flete_pct: parseNonNegative(configDraft.flete_pct, 0),
-                        utilidad_pct: parseNonNegative(configDraft.utilidad_pct, 0),
-                        impuesto_pct: parseNonNegative(configDraft.impuesto_pct, 0),
-                      })}
-                    </div>
-                    <div className="hidden rounded-md border bg-muted/40 p-3 text-sm">
-                      Fórmula: costo base x (1 + flete%) x (1 + margen%) x (1 + IVA%). El resultado final se guarda redondeado a 2 decimales.
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-md border p-3">
