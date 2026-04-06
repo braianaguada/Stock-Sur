@@ -940,9 +940,9 @@ export default function PriceListsPage() {
               </div>
               </TabsContent>
 
-              <TabsContent ref={configTabRef} value="config" className="mt-4 space-y-4 overflow-auto">
+              <TabsContent ref={configTabRef} value="config" className="mt-4 min-h-0 flex-1 overflow-auto">
                 {configDraft ? (
-                  <div className="mx-auto w-full max-w-4xl space-y-4">
+                  <div className="mx-auto w-full max-w-4xl space-y-4 pt-1">
                     <div className="space-y-2">
                       <Label>Nombre</Label>
                       <Input value={configDraft.name} onChange={(event) => setConfigDraft((prev) => (prev ? { ...prev, name: event.target.value } : prev))} />
