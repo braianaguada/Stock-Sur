@@ -52,8 +52,12 @@ export function CashClosureTab({
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Efectivo a rendir</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_cash_to_render ?? 0))}</CardTitle></CardHeader></Card>
+          <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Efectivo remito</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_cash_remito_total ?? 0))}</CardTitle></CardHeader></Card>
+          <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Efectivo facturable</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_cash_facturable_total ?? 0))}</CardTitle></CardHeader></Card>
+          <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Servicios / remito</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_services_remito_total ?? 0))}</CardTitle></CardHeader></Card>
           <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Point esperado</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_point_sales_total ?? 0))}</CardTitle></CardHeader></Card>
           <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Transferencias esperadas</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_transfer_sales_total ?? 0))}</CardTitle></CardHeader></Card>
+          <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Cuenta corriente</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_account_sales_total ?? 0))}</CardTitle></CardHeader></Card>
           <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Total ventas</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_sales_total ?? 0))}</CardTitle></CardHeader></Card>
         </div>
 
@@ -80,6 +84,18 @@ export function CashClosureTab({
               <div className="flex items-center justify-between">
                 <span>Efectivo esperado</span>
                 <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_to_render ?? 0))}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Efectivo remito</span>
+                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_remito_total ?? 0))}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Efectivo facturable</span>
+                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_facturable_total ?? 0))}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Servicios / remito</span>
+                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_services_remito_total ?? 0))}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Total ventas</span>

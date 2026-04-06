@@ -51,8 +51,23 @@ export function CashClosurePreviewDialog({
                   <p className="text-sm text-muted-foreground">Movimientos: {selectedClosureSales.length}</p>
                 </div>
                 <div className="rounded-2xl border bg-emerald-50 p-4">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo esperado</p>
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo a rendir</p>
                   <p className="mt-2 text-xl font-bold text-emerald-700">{currency.format(Number(selectedClosurePreview.expected_cash_to_render))}</p>
+                </div>
+                <div className="rounded-2xl border bg-lime-50 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo remito</p>
+                  <p className="mt-2 text-xl font-bold text-lime-700">{currency.format(Number(selectedClosurePreview.expected_cash_remito_total))}</p>
+                </div>
+                <div className="rounded-2xl border bg-orange-50 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo facturable</p>
+                  <p className="mt-2 text-xl font-bold text-orange-700">{currency.format(Number(selectedClosurePreview.expected_cash_facturable_total))}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-3 md:grid-cols-4">
+                <div className="rounded-2xl border bg-amber-50 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Servicios / remito</p>
+                  <p className="mt-2 text-xl font-bold text-amber-700">{currency.format(Number(selectedClosurePreview.expected_services_remito_total))}</p>
                 </div>
                 <div className="rounded-2xl border bg-sky-50 p-4">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Point esperado</p>
@@ -61,6 +76,10 @@ export function CashClosurePreviewDialog({
                 <div className="rounded-2xl border bg-violet-50 p-4">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Transf. esperadas</p>
                   <p className="mt-2 text-xl font-bold text-violet-700">{currency.format(Number(selectedClosurePreview.expected_transfer_sales_total))}</p>
+                </div>
+                <div className="rounded-2xl border bg-slate-50 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cuenta corriente</p>
+                  <p className="mt-2 text-xl font-bold text-slate-700">{currency.format(Number(selectedClosurePreview.expected_account_sales_total))}</p>
                 </div>
               </div>
 

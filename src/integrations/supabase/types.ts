@@ -52,12 +52,15 @@ export type Database = {
           created_by: string
           expected_account_expenses_total: number
           expected_account_sales_total: number
+          expected_cash_facturable_total: number
           expected_cash_expenses_total: number
+          expected_cash_remito_total: number
           expected_cash_sales_total: number
           expected_cash_to_render: number
           expected_non_cash_total: number
           expected_point_sales_total: number
           expected_sales_total: number
+          expected_services_remito_total: number
           expected_transfer_sales_total: number
           id: string
           notes: string | null
@@ -79,12 +82,15 @@ export type Database = {
           created_by?: string
           expected_account_expenses_total?: number
           expected_account_sales_total?: number
+          expected_cash_facturable_total?: number
           expected_cash_expenses_total?: number
+          expected_cash_remito_total?: number
           expected_cash_sales_total?: number
           expected_cash_to_render?: number
           expected_non_cash_total?: number
           expected_point_sales_total?: number
           expected_sales_total?: number
+          expected_services_remito_total?: number
           expected_transfer_sales_total?: number
           id?: string
           notes?: string | null
@@ -106,12 +112,15 @@ export type Database = {
           created_by?: string
           expected_account_expenses_total?: number
           expected_account_sales_total?: number
+          expected_cash_facturable_total?: number
           expected_cash_expenses_total?: number
+          expected_cash_remito_total?: number
           expected_cash_sales_total?: number
           expected_cash_to_render?: number
           expected_non_cash_total?: number
           expected_point_sales_total?: number
           expected_sales_total?: number
+          expected_services_remito_total?: number
           expected_transfer_sales_total?: number
           id?: string
           notes?: string | null
@@ -2142,12 +2151,15 @@ export type Database = {
           created_by: string
           expected_account_expenses_total: number
           expected_account_sales_total: number
+          expected_cash_facturable_total: number
           expected_cash_expenses_total: number
+          expected_cash_remito_total: number
           expected_cash_sales_total: number
           expected_cash_to_render: number
           expected_non_cash_total: number
           expected_point_sales_total: number
           expected_sales_total: number
+          expected_services_remito_total: number
           expected_transfer_sales_total: number
           id: string
           notes: string | null
@@ -2190,12 +2202,15 @@ export type Database = {
           created_by: string
           expected_account_expenses_total: number
           expected_account_sales_total: number
+          expected_cash_facturable_total: number
           expected_cash_expenses_total: number
+          expected_cash_remito_total: number
           expected_cash_sales_total: number
           expected_cash_to_render: number
           expected_non_cash_total: number
           expected_point_sales_total: number
           expected_sales_total: number
+          expected_services_remito_total: number
           expected_transfer_sales_total: number
           id: string
           notes: string | null
@@ -2295,12 +2310,15 @@ export type Database = {
           created_by: string
           expected_account_expenses_total: number
           expected_account_sales_total: number
+          expected_cash_facturable_total: number
           expected_cash_expenses_total: number
+          expected_cash_remito_total: number
           expected_cash_sales_total: number
           expected_cash_to_render: number
           expected_non_cash_total: number
           expected_point_sales_total: number
           expected_sales_total: number
+          expected_services_remito_total: number
           expected_transfer_sales_total: number
           id: string
           notes: string | null
@@ -2372,6 +2390,9 @@ export type Database = {
       cash_expense_kind: "CAJA" | "CUENTA_CORRIENTE"
       cash_payment_method:
         | "EFECTIVO"
+        | "EFECTIVO_REMITO"
+        | "EFECTIVO_FACTURABLE"
+        | "SERVICIOS_REMITO"
         | "POINT"
         | "TRANSFERENCIA"
         | "CUENTA_CORRIENTE"
@@ -2535,6 +2556,9 @@ export const Constants = {
       cash_expense_kind: ["CAJA", "CUENTA_CORRIENTE"],
       cash_payment_method: [
         "EFECTIVO",
+        "EFECTIVO_REMITO",
+        "EFECTIVO_FACTURABLE",
+        "SERVICIOS_REMITO",
         "POINT",
         "TRANSFERENCIA",
         "CUENTA_CORRIENTE",

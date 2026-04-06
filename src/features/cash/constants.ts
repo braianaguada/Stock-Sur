@@ -7,6 +7,9 @@ import type {
 
 export const PAYMENT_LABEL: Record<PaymentMethod, string> = {
   EFECTIVO: "Efectivo",
+  EFECTIVO_REMITO: "Efectivo remito",
+  EFECTIVO_FACTURABLE: "Efectivo facturable",
+  SERVICIOS_REMITO: "Servicios / remito",
   POINT: "Point",
   TRANSFERENCIA: "Transferencia",
   CUENTA_CORRIENTE: "Cuenta corriente",

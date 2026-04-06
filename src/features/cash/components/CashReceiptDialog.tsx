@@ -89,7 +89,7 @@ export function CashReceiptDialog({
                 id="pending-receipt-reference"
                 value={pendingReceiptReference}
                 onChange={(event) => onPendingReceiptReferenceChange(event.target.value)}
-                placeholder="Ej. 0009-00001782"
+                placeholder="Ej. B 0009-00001782"
               />
             </div>
           ) : null}

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { currency, formatDocumentNumber } from "@/lib/formatters";
-import { DOC_STATUS_LABEL } from "../constants";
+import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL } from "../constants";
 import type { CashSaleRow, DocumentEventQuickRow, DocumentLineQuickRow, DocumentQuickRow } from "../types";
 import { describeDocumentEvent } from "../utils";
 
@@ -47,6 +47,26 @@ export function CashDocumentPreviewDialog({
           <DialogTitle>Vista previa del documento</DialogTitle>
           <DialogDescription>Documento asociado a la venta y su trazabilidad.</DialogDescription>
         </DialogHeader>
+        {detailSale ? (
+          <div className="grid gap-3 rounded-3xl border bg-slate-50 p-4 md:grid-cols-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+              <p className="mt-1 font-semibold">{detailSale.customer_name_snapshot ?? "Consumidor final"}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Pago</p>
+              <p className="mt-1 font-semibold">{PAYMENT_LABEL[detailSale.payment_method]}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Comprobante</p>
+              <p className="mt-1 font-semibold">{detailSale.receipt_reference ?? RECEIPT_LABEL[detailSale.receipt_kind]}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Importe</p>
+              <p className="mt-1 font-semibold">{currency.format(Number(detailSale.amount_total))}</p>
+            </div>
+          </div>
+        ) : null}
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
           {linkedDocument ? (
             <>
@@ -172,7 +192,7 @@ export function CashDocumentPreviewDialog({
             </>
           ) : (
             <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
-              Esta venta todavía no tiene un documento asociado para previsualizar.
+              Esta venta no tiene un documento interno para previsualizar. Si fue facturada por afuera del sistema, arriba queda visible la referencia cargada.
             </div>
           )}
         </div>

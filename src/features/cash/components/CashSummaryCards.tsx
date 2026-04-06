@@ -9,11 +9,23 @@ type CashSummaryCardsProps = {
 
 export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
       <Card className="border-emerald-300 bg-emerald-100">
         <CardHeader className="pb-3">
-          <CardDescription>Efectivo</CardDescription>
-          <CardTitle className="flex items-center gap-2 text-emerald-900"><Banknote className="h-4 w-4" /> {currency.format(summary.efectivo)}</CardTitle>
+          <CardDescription>Efectivo remito</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-emerald-900"><Banknote className="h-4 w-4" /> {currency.format(summary.efectivoRemito)}</CardTitle>
+        </CardHeader>
+      </Card>
+      <Card className="border-lime-300 bg-lime-100">
+        <CardHeader className="pb-3">
+          <CardDescription>Efectivo facturable</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-lime-900"><Banknote className="h-4 w-4" /> {currency.format(summary.efectivoFacturable)}</CardTitle>
+        </CardHeader>
+      </Card>
+      <Card className="border-orange-300 bg-orange-100">
+        <CardHeader className="pb-3">
+          <CardDescription>Servicios / remito</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-orange-900"><Receipt className="h-4 w-4" /> {currency.format(summary.serviciosRemito)}</CardTitle>
         </CardHeader>
       </Card>
       <Card className="border-sky-300 bg-sky-100">
