@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight, Plus, RefreshCcw, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, RefreshCcw, Search, Trash2 } from "lucide-react";
 import { DEFAULT_PRICE_LIST_FORM, PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
 import type {
   BasePriceRow,
@@ -111,6 +112,7 @@ export default function PriceListsPage() {
   const [detailPage, setDetailPage] = useState(1);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState("products");
   const [createForm, setCreateForm] = useState<PriceListFormState>(DEFAULT_PRICE_LIST_FORM);
@@ -531,6 +533,50 @@ export default function PriceListsPage() {
       toast({ title: "No se pudo recalcular la lista", description: getErrorMessage(error), variant: "destructive" }),
   });
 
+  const deleteListMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentCompany || !selectedListId || !selectedList) throw new Error("Seleccioná una lista");
+
+      const { count, error: documentsError } = await supabase
+        .from("documents")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", currentCompany.id)
+        .eq("price_list_id", selectedListId);
+      if (documentsError) throw documentsError;
+
+      if ((count ?? 0) > 0) {
+        throw new Error("No se puede eliminar porque la lista ya fue usada en documentos.");
+      }
+
+      const { error: historyError } = await supabase
+        .from("price_list_history")
+        .delete()
+        .eq("company_id", currentCompany.id)
+        .eq("price_list_id", selectedListId);
+      if (historyError) throw historyError;
+
+      const { error: deleteError } = await supabase
+        .from("price_lists")
+        .delete()
+        .eq("company_id", currentCompany.id)
+        .eq("id", selectedListId);
+      if (deleteError) throw deleteError;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["price-lists-v2"] });
+      qc.invalidateQueries({ queryKey: ["price-list-counts"] });
+      qc.invalidateQueries({ queryKey: ["price-list-products-v2"] });
+      qc.invalidateQueries({ queryKey: ["price-list-history"] });
+      qc.invalidateQueries({ queryKey: ["documents-price-list-items"] });
+      setDeleteDialogOpen(false);
+      setDetailDialogOpen(false);
+      setSelectedListId(null);
+      toast({ title: "Lista eliminada" });
+    },
+    onError: (error: unknown) =>
+      toast({ title: "No se pudo eliminar la lista", description: getErrorMessage(error), variant: "destructive" }),
+  });
+
   const openListDetail = (priceListId: string) => {
     setSelectedListId(priceListId);
     setDetailSearch("");
@@ -885,7 +931,7 @@ export default function PriceListsPage() {
 
               <TabsContent value="config" className="mt-4 space-y-4 overflow-auto">
                 {configDraft ? (
-                  <div className="space-y-4">
+                  <div className="mx-auto w-full max-w-4xl space-y-4">
                     <div className="space-y-2">
                       <Label>Nombre</Label>
                       <Input value={configDraft.name} onChange={(event) => setConfigDraft((prev) => (prev ? { ...prev, name: event.target.value } : prev))} />
@@ -920,12 +966,22 @@ export default function PriceListsPage() {
                         <p className="text-sm text-muted-foreground">{renderUserName(selectedList.last_recalculated_by)}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button onClick={() => updateListConfigMutation.mutate()} disabled={updateListConfigMutation.isPending}>
-                        Guardar configuración
-                      </Button>
-                      <Button variant="outline" onClick={() => recalculateMutation.mutate()} disabled={recalculateMutation.isPending}>
-                        <RefreshCcw className="mr-2 h-4 w-4" /> Recalcular pendientes
+                    <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button onClick={() => updateListConfigMutation.mutate()} disabled={updateListConfigMutation.isPending}>
+                          Guardar configuración
+                        </Button>
+                        <Button variant="outline" onClick={() => recalculateMutation.mutate()} disabled={recalculateMutation.isPending}>
+                          <RefreshCcw className="mr-2 h-4 w-4" /> Recalcular pendientes
+                        </Button>
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                        onClick={() => setDeleteDialogOpen(true)}
+                        disabled={deleteListMutation.isPending}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar lista
                       </Button>
                     </div>
                   </div>
@@ -962,6 +1018,20 @@ export default function PriceListsPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Eliminar lista de precios"
+        description={
+          selectedList
+            ? `Se eliminará la lista "${selectedList.name}". Si ya fue usada en documentos, el sistema no permitirá borrarla.`
+            : "Se eliminará la lista seleccionada."
+        }
+        confirmLabel="Eliminar lista"
+        isPending={deleteListMutation.isPending}
+        onConfirm={() => deleteListMutation.mutate()}
+      />
     </AppLayout>
   );
 }
