@@ -1093,6 +1093,51 @@ export type Database = {
           },
         ]
       }
+      item_pricing_base_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          company_id: string
+          id: string
+          item_id: string
+          new_base_cost: number
+          previous_base_cost: number
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id: string
+          id?: string
+          item_id: string
+          new_base_cost?: number
+          previous_base_cost?: number
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id?: string
+          id?: string
+          item_id?: string
+          new_base_cost?: number
+          previous_base_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_pricing_base_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_pricing_base_history_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_list_items: {
         Row: {
           base_cost: number

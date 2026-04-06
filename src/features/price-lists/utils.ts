@@ -13,3 +13,8 @@ export const formatMoney = (value: number) =>
 export const formatDateTime = (value: string | null) =>
   value ? new Date(value).toLocaleString("es-AR") : "-";
 
+export const formatPercentDelta = (value: number | null) => {
+  if (value === null || !Number.isFinite(value)) return "-";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+};

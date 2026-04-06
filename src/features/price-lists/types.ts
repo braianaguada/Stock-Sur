@@ -8,7 +8,9 @@ export interface BasePriceRow {
   model: string | null;
   category: string | null;
   unit: string | null;
+  previous_base_cost: number | null;
   base_cost: number;
+  cost_variation_pct: number | null;
   updated_at: string | null;
   updated_by: string | null;
 }
@@ -39,7 +41,9 @@ export interface PriceListProductRow {
   model: string | null;
   category: string | null;
   unit: string | null;
+  previous_base_cost: number | null;
   base_cost: number;
+  cost_variation_pct: number | null;
   calculated_price: number;
   needs_recalculation: boolean;
   last_calculated_at: string | null;
@@ -62,4 +66,3 @@ export interface PriceListFormState {
   utilidad_pct: string;
   impuesto_pct: string;
 }
-

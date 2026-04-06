@@ -36,7 +36,7 @@ import type {
   PriceListProductRow,
   PriceListSummary,
 } from "@/features/price-lists/types";
-import { formatDateTime, formatMoney, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
+import { formatDateTime, formatMoney, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
 import { getErrorMessage } from "@/lib/errors";
 
 const BASE_PAGE_SIZE = 10;
@@ -57,6 +57,14 @@ type PricingBaseDbRow = {
   base_cost: number;
   updated_at: string;
   updated_by: string | null;
+};
+
+type PricingBaseHistoryDbRow = {
+  item_id: string;
+  previous_base_cost: number;
+  new_base_cost: number;
+  changed_at: string;
+  changed_by: string | null;
 };
 
 type PriceListDbRow = {
@@ -138,6 +146,21 @@ export default function PriceListsPage() {
     },
   });
 
+  const { data: pricingBaseHistoryRows = [] } = useQuery({
+    queryKey: ["pricing-base-history", currentCompany?.id ?? "no-company"],
+    enabled: Boolean(currentCompany),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("item_pricing_base_history")
+        .select("item_id, previous_base_cost, new_base_cost, changed_at, changed_by")
+        .eq("company_id", currentCompany!.id)
+        .order("changed_at", { ascending: false })
+        .limit(5000);
+      if (error) throw error;
+      return (data ?? []) as PricingBaseHistoryDbRow[];
+    },
+  });
+
   const { data: priceListsRaw = [] } = useQuery({
     queryKey: ["price-lists-v2", currentCompany?.id ?? "no-company"],
     enabled: Boolean(currentCompany),
@@ -199,6 +222,7 @@ export default function PriceListsPage() {
   const userIds = useMemo(() => {
     const ids = new Set<string>();
     for (const row of pricingBaseRows) if (row.updated_by) ids.add(row.updated_by);
+    for (const row of pricingBaseHistoryRows) if (row.changed_by) ids.add(row.changed_by);
     for (const row of priceListsRaw) {
       if (row.created_by) ids.add(row.created_by);
       if (row.updated_by) ids.add(row.updated_by);
@@ -207,7 +231,7 @@ export default function PriceListsPage() {
     for (const row of selectedListSnapshots) if (row.last_calculated_by) ids.add(row.last_calculated_by);
     for (const row of selectedListHistory) if (row.created_by) ids.add(row.created_by);
     return Array.from(ids);
-  }, [pricingBaseRows, priceListsRaw, selectedListSnapshots, selectedListHistory]);
+  }, [pricingBaseRows, pricingBaseHistoryRows, priceListsRaw, selectedListSnapshots, selectedListHistory]);
 
   const { data: profiles = [] } = useQuery({
     queryKey: ["pricing-user-profiles", userIds],
@@ -232,9 +256,26 @@ export default function PriceListsPage() {
     [pricingBaseRows],
   );
 
+  const latestHistoryByItemId = useMemo(() => {
+    const map = new Map<string, PricingBaseHistoryDbRow>();
+    for (const row of pricingBaseHistoryRows) {
+      if (!map.has(row.item_id)) {
+        map.set(row.item_id, row);
+      }
+    }
+    return map;
+  }, [pricingBaseHistoryRows]);
+
   const baseRows = useMemo<BasePriceRow[]>(() => {
     return catalogItems.map((item) => {
       const base = basePricingByItemId.get(item.id);
+      const latestHistory = latestHistoryByItemId.get(item.id);
+      const previousBaseCost = latestHistory?.previous_base_cost ?? null;
+      const currentBaseCost = base?.base_cost ?? 0;
+      const costVariationPct =
+        previousBaseCost !== null && previousBaseCost > 0
+          ? ((currentBaseCost - previousBaseCost) / previousBaseCost) * 100
+          : null;
       return {
         item_id: item.id,
         sku: item.sku,
@@ -243,12 +284,14 @@ export default function PriceListsPage() {
         model: item.model,
         category: item.category,
         unit: item.unit,
-        base_cost: base?.base_cost ?? 0,
+        previous_base_cost: previousBaseCost,
+        base_cost: currentBaseCost,
+        cost_variation_pct: costVariationPct,
         updated_at: base?.updated_at ?? null,
         updated_by: base?.updated_by ?? null,
       };
     });
-  }, [catalogItems, basePricingByItemId]);
+  }, [catalogItems, basePricingByItemId, latestHistoryByItemId]);
 
   useEffect(() => {
     setBaseCostDrafts(
@@ -339,7 +382,9 @@ export default function PriceListsPage() {
         model: row.model,
         category: row.category,
         unit: row.unit,
+        previous_base_cost: row.previous_base_cost,
         base_cost: row.base_cost,
+        cost_variation_pct: row.cost_variation_pct,
         calculated_price: snapshot?.calculated_price ?? 0,
         needs_recalculation: snapshot?.needs_recalculation ?? true,
         last_calculated_at: snapshot?.last_calculated_at ?? null,
@@ -368,12 +413,28 @@ export default function PriceListsPage() {
   const updateBaseCostMutation = useMutation({
     mutationFn: async ({ itemId, baseCost }: { itemId: string; baseCost: number }) => {
       if (!currentCompany) throw new Error("Seleccioná una empresa activa");
+      const normalizedBaseCost = Math.max(0, baseCost);
+      const previousBaseCost = basePricingByItemId.get(itemId)?.base_cost ?? 0;
+
+      if (previousBaseCost !== normalizedBaseCost) {
+        const { error: historyError } = await supabase
+          .from("item_pricing_base_history")
+          .insert({
+            company_id: currentCompany.id,
+            item_id: itemId,
+            previous_base_cost: previousBaseCost,
+            new_base_cost: normalizedBaseCost,
+            changed_by: user?.id ?? null,
+          });
+        if (historyError) throw historyError;
+      }
+
       const { error } = await supabase
         .from("item_pricing_base")
         .upsert({
           company_id: currentCompany.id,
           item_id: itemId,
-          base_cost: Math.max(0, baseCost),
+          base_cost: normalizedBaseCost,
           updated_at: new Date().toISOString(),
           updated_by: user?.id ?? null,
         });
@@ -381,6 +442,7 @@ export default function PriceListsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pricing-base"] });
+      qc.invalidateQueries({ queryKey: ["pricing-base-history"] });
       qc.invalidateQueries({ queryKey: ["price-list-counts"] });
       qc.invalidateQueries({ queryKey: ["price-lists-v2"] });
       qc.invalidateQueries({ queryKey: ["price-list-products-v2"] });
@@ -645,10 +707,8 @@ export default function PriceListsPage() {
                       <span className="text-right">{priceList.total_items_count}</span>
                       <span>Pendientes</span>
                       <span className="text-right">{priceList.pending_items_count}</span>
-                      <span>Última actualización</span>
+                      <span>Últ. recálculo</span>
                       <span className="text-right">{formatDateTime(priceList.last_recalculated_at)}</span>
-                      <span>Recalculada por</span>
-                      <span className="text-right">{renderUserName(priceList.last_recalculated_by)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button onClick={() => openListDetail(priceList.id)}>Ver lista</Button>
@@ -709,8 +769,8 @@ export default function PriceListsPage() {
       </Dialog>
 
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-6xl overflow-hidden">
-          <DialogHeader>
+        <DialogContent className="flex h-[92vh] max-h-[92vh] max-w-6xl flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>{selectedList?.name ?? "Detalle de lista"}</DialogTitle>
           </DialogHeader>
           {selectedList ? (
@@ -721,8 +781,25 @@ export default function PriceListsPage() {
                 <TabsTrigger value="history">Historial</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="products" className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-                <div className="relative max-w-sm">
+              <TabsContent value="products" className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="shrink-0 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 px-4 py-3 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {renderPricingSummary(selectedList)}
+                      <Badge
+                        variant="outline"
+                        className={selectedList.status === "UPDATED"
+                          ? "border-teal-200 bg-teal-50 text-teal-700"
+                          : "border-rose-200 bg-rose-50 text-rose-700"}
+                      >
+                        {PRICE_LIST_STATUS_LABEL[selectedList.status]}
+                      </Badge>
+                    </div>
+                    <div className="text-muted-foreground">
+                      Último recálculo: {formatDateTime(selectedList.last_recalculated_at)} · {renderUserName(selectedList.last_recalculated_by)}
+                    </div>
+                  </div>
+                  <div className="relative max-w-sm">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Buscar producto..."
@@ -731,17 +808,19 @@ export default function PriceListsPage() {
                     onChange={(event) => { setDetailSearch(event.target.value); setDetailPage(1); }}
                   />
                 </div>
-                <div className="min-h-0 flex-1 overflow-auto rounded-lg border">
+                </div>
+                <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
+                  <div className="min-h-0 flex-1 overflow-auto">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 z-10 bg-background">
                       <TableRow>
                         <TableHead>SKU</TableHead>
                         <TableHead>Nombre</TableHead>
-                        <TableHead>Costo base</TableHead>
+                        <TableHead className="text-right">Costo anterior</TableHead>
+                        <TableHead className="text-right">Costo base</TableHead>
+                        <TableHead className="text-right">Variación</TableHead>
                         <TableHead className="text-right">Precio lista</TableHead>
                         <TableHead>Estado</TableHead>
-                        <TableHead>Últ. cálculo</TableHead>
-                        <TableHead>Usuario</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -755,22 +834,40 @@ export default function PriceListsPage() {
                         <TableRow key={row.item_id}>
                           <TableCell className="font-mono text-xs">{row.sku ?? "-"}</TableCell>
                           <TableCell className="font-medium">{row.name}</TableCell>
-                          <TableCell>${formatMoney(row.base_cost)}</TableCell>
+                          <TableCell className="text-right">
+                            {row.previous_base_cost !== null ? `$${formatMoney(row.previous_base_cost)}` : "-"}
+                          </TableCell>
+                          <TableCell className="text-right">${formatMoney(row.base_cost)}</TableCell>
+                          <TableCell
+                            className={`text-right ${
+                              row.cost_variation_pct !== null && row.cost_variation_pct > 0
+                                ? "text-rose-600"
+                                : row.cost_variation_pct !== null && row.cost_variation_pct < 0
+                                  ? "text-emerald-600"
+                                  : "text-muted-foreground"
+                            }`}
+                          >
+                            {formatPercentDelta(row.cost_variation_pct)}
+                          </TableCell>
                           <TableCell className="text-right font-mono">${formatMoney(row.calculated_price)}</TableCell>
                           <TableCell>
-                            <Badge variant={row.needs_recalculation ? "secondary" : "default"}>
+                            <Badge
+                              variant="outline"
+                              className={row.needs_recalculation
+                                ? "border-rose-200 bg-rose-50 text-rose-700"
+                                : "border-teal-200 bg-teal-50 text-teal-700"}
+                            >
                               {row.needs_recalculation ? "Pendiente" : "Actualizado"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{formatDateTime(row.last_calculated_at)}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{renderUserName(row.last_calculated_by)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
-                  </Table>
+                    </Table>
                 </div>
-                <div className="flex shrink-0 items-center justify-between border-t pt-3">
-                  <p className="text-sm text-muted-foreground">
+                <div className="shrink-0 border-t bg-background px-4 py-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
                     Mostrando {(safeDetailPage - 1) * LIST_PRODUCTS_PAGE_SIZE + (pagedSelectedListProducts.length === 0 ? 0 : 1)}-
                     {Math.min(safeDetailPage * LIST_PRODUCTS_PAGE_SIZE, filteredSelectedListProducts.length)} de {filteredSelectedListProducts.length} productos
                   </p>
@@ -783,7 +880,9 @@ export default function PriceListsPage() {
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
+                  </div>
                 </div>
+              </div>
               </TabsContent>
 
               <TabsContent value="config" className="mt-4 space-y-4 overflow-auto">
