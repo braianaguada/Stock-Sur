@@ -17,6 +17,7 @@ export interface CompanySettings {
   document_tagline: string | null;
   document_footer: string | null;
   default_point_of_sale: number;
+  allow_issue_remitos_without_stock: boolean;
 }
 
 export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
@@ -36,6 +37,7 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   document_tagline: "Documentacion comercial",
   document_footer: "Este documento no reemplaza comprobantes fiscales",
   default_point_of_sale: 1,
+  allow_issue_remitos_without_stock: false,
 };
 
 export interface CompanyBrandContextValue {

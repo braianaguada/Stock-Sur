@@ -1,4 +1,4 @@
-import type { CustomerKind, DocStatus, DocType, InternalRemitoType, LineDraft } from "./types";
+import type { CustomerKind, DocStatus, DocType, InternalRemitoType, LineDraft, LinePricingMode } from "./types";
 
 export const DOC_LABEL: Record<DocType, string> = { PRESUPUESTO: "Presupuesto", REMITO: "Remito" };
 
@@ -20,6 +20,15 @@ export const STATUS_VARIANT: Record<DocStatus, "secondary" | "default" | "destru
   ANULADO: "destructive",
 };
 
+export const STATUS_CLASS: Record<DocStatus, string> = {
+  BORRADOR: "",
+  ENVIADO: "border-blue-200 bg-blue-50 text-blue-700",
+  APROBADO: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  RECHAZADO: "",
+  EMITIDO: "border-slate-200 bg-slate-900 text-white",
+  ANULADO: "",
+};
+
 export const DOC_TYPE_CLASS: Record<DocType, string> = {
   PRESUPUESTO: "border-blue-200 bg-blue-50 text-blue-700",
   REMITO: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -34,6 +43,12 @@ export const CUSTOMER_KIND_LABEL: Record<CustomerKind, string> = {
 export const INTERNAL_REMITO_LABEL: Record<InternalRemitoType, string> = {
   CUENTA_CORRIENTE: "Cuenta corriente",
   DESCUENTO_SUELDO: "Descuento de sueldo",
+};
+
+export const PRICING_MODE_LABEL: Record<LinePricingMode, string> = {
+  LIST_PRICE: "Precio lista",
+  MANUAL_MARGIN: "Margen manual",
+  MANUAL_PRICE: "Precio manual",
 };
 
 export const HISTORY_TONE_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
@@ -59,4 +74,13 @@ export const EMPTY_LINE: LineDraft = {
   unit: "un",
   quantity: 1,
   unit_price: 0,
+  pricing_mode: "MANUAL_PRICE",
+  suggested_unit_price: 0,
+  base_cost_snapshot: null,
+  list_flete_pct_snapshot: null,
+  list_utilidad_pct_snapshot: null,
+  list_impuesto_pct_snapshot: null,
+  manual_margin_pct: null,
+  price_overridden_by: null,
+  price_overridden_at: null,
 };
