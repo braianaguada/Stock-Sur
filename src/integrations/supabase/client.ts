@@ -4,6 +4,7 @@ import type { Database } from "./types";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const IMPERSONATION_ACCESS_TOKEN_STORAGE_KEY = "stock-sur.impersonation-access-token";
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   throw new Error(
@@ -14,10 +15,41 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+const authClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
   },
 });
+
+const dataClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  accessToken: async () => {
+    const impersonationToken = sessionStorage.getItem(IMPERSONATION_ACCESS_TOKEN_STORAGE_KEY);
+    if (impersonationToken) {
+      return impersonationToken;
+    }
+
+    const { data } = await authClient.auth.getSession();
+    return data.session?.access_token ?? null;
+  },
+});
+
+export const supabase = {
+  auth: authClient.auth,
+  functions: authClient.functions,
+  storage: authClient.storage,
+  realtime: dataClient.realtime,
+  from: dataClient.from.bind(dataClient),
+  rpc: dataClient.rpc.bind(dataClient),
+  schema: dataClient.schema.bind(dataClient),
+  channel: dataClient.channel.bind(dataClient),
+  getChannels: dataClient.getChannels.bind(dataClient),
+  removeChannel: dataClient.removeChannel.bind(dataClient),
+  removeAllChannels: dataClient.removeAllChannels.bind(dataClient),
+} as typeof authClient;
+
+export {
+  authClient as supabaseAuth,
+  IMPERSONATION_ACCESS_TOKEN_STORAGE_KEY,
+};

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LogOut, Package } from "lucide-react";
+import { LogOut, Package, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,12 +26,16 @@ export function AppSidebar() {
   const {
     signOut,
     user,
+    actorUser,
     roles,
     companies,
     currentCompany,
     companyRoleCodes,
     companyPermissionCodes,
     setCurrentCompanyId,
+    isImpersonating,
+    impersonationMeta,
+    stopImpersonation,
   } = useAuth();
   const { settings } = useCompanyBrand();
 
@@ -47,6 +51,27 @@ export function AppSidebar() {
     <header className="sticky top-0 z-40 border-b border-border/55 bg-background/78 backdrop-blur-2xl">
       <div className="mx-auto max-w-[1720px] px-5 lg:px-8">
         <div className="flex flex-col gap-3 py-3">
+          {isImpersonating ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 rounded-full bg-amber-500/15 p-2 text-amber-700">
+                  <ShieldAlert className="h-4 w-4" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-semibold text-foreground">
+                    Estás operando como {impersonationMeta?.targetEmail ?? user?.email ?? "usuario impersonado"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Sesión real: {actorUser?.email ?? impersonationMeta?.actorEmail ?? "superadmin"}
+                  </p>
+                </div>
+              </div>
+              <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => void stopImpersonation()}>
+                Volver a mi sesión
+              </Button>
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
             <div className="flex min-w-0 items-center gap-3">
               {settings.logo_url ? (

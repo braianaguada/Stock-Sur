@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Building2, Eye, Mail, Pencil, User2 } from "lucide-react";
+import { Building2, Eye, LogIn, Mail, Pencil, User2 } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,9 @@ export function UsersAccessTable(props: {
   users: UserAccessRow[];
   onOpenUser: (user: UserAccessRow) => void;
   onOpenAccessDialog: (user: UserAccessRow, company?: UserCompanyAccess) => void;
+  onOpenImpersonation: (user: UserAccessRow) => void;
 }) {
-  const { isLoading, error, users, onOpenUser, onOpenAccessDialog } = props;
+  const { isLoading, error, users, onOpenUser, onOpenAccessDialog, onOpenImpersonation } = props;
 
   const columns = useMemo<ColumnDef<UserAccessRow, unknown>[]>(() => [
     {
@@ -122,20 +123,24 @@ export function UsersAccessTable(props: {
     },
     {
       id: "actions",
-      header: () => <div className="text-right">Detalle</div>,
+      header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
-        <div className="text-right">
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" className="h-9 rounded-full" onClick={() => onOpenImpersonation(row.original)}>
+            <LogIn className="mr-2 h-4 w-4" />
+            Impersonar
+          </Button>
           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => onOpenUser(row.original)}>
             <Eye className="h-4 w-4" />
           </Button>
         </div>
       ),
       meta: {
-        className: "w-[96px]",
+        className: "w-[200px]",
         cellClassName: "align-top",
       },
     },
-  ], [onOpenAccessDialog, onOpenUser]);
+  ], [onOpenAccessDialog, onOpenImpersonation, onOpenUser]);
 
   return (
     <DataCard>
