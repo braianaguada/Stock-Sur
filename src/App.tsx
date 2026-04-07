@@ -57,7 +57,7 @@ const App = () => (
           <CompanyBrandProvider>
             <Toaster />
             <Sonner />
-            <BrowserRouter>
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <Suspense fallback={<RouteLoader />}>
                 <Routes>
                   <Route path="/auth" element={<AuthRedirect />} />

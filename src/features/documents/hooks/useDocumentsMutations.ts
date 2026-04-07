@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
+import { invalidateDocumentQueries, invalidateStockQueries } from "@/lib/invalidate";
+import { queryKeys } from "@/lib/query-keys";
 import { STATUS_LABEL } from "../constants";
 import type {
   DocRow,
@@ -278,7 +280,7 @@ export function useDocumentsMutations({
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["documents"] });
+      void invalidateDocumentQueries(qc);
       setDialogOpen(false);
       resetDraftForm();
       toast({ title: editingDocId ? "Borrador actualizado" : "Borrador guardado" });
@@ -313,9 +315,10 @@ export function useDocumentsMutations({
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["documents"] });
-      qc.invalidateQueries({ queryKey: ["stock-current"] });
-      qc.invalidateQueries({ queryKey: ["stock-movements"] });
+      void Promise.all([
+        invalidateDocumentQueries(qc),
+        invalidateStockQueries(qc),
+      ]);
       toast({ title: "Documento emitido" });
     },
     onError: (error: unknown) => {
@@ -339,9 +342,10 @@ export function useDocumentsMutations({
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ["documents"] });
-      qc.invalidateQueries({ queryKey: ["stock-current"] });
-      qc.invalidateQueries({ queryKey: ["stock-movements"] });
+      void Promise.all([
+        invalidateDocumentQueries(qc),
+        invalidateStockQueries(qc),
+      ]);
       toast({ title: `Documento ${STATUS_LABEL[variables.targetStatus].toLowerCase()}` });
     },
     onError: (error: unknown) => {
@@ -464,7 +468,7 @@ export function useDocumentsMutations({
       ]);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["documents"] });
+      void invalidateDocumentQueries(qc);
       toast({ title: "Remito borrador creado" });
     },
     onError: (error: unknown) => {

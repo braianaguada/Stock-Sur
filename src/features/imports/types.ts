@@ -1,4 +1,4 @@
-import type { ParsedRow } from "@/lib/importParser";
+import type { ParsedRow } from "@/lib/importParserCore";
 
 export type ImportStep = "upload" | "map" | "preview" | "done";
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
@@ -6,31 +6,60 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { getErrorMessage } from "@/lib/errors";
-import { currency } from "@/lib/formatters";
 import { canAttachCashReceipt, canCancelCashSale, canCloseCash, canCreateCashSale } from "@/lib/permissions";
 import { openPrintWindow } from "@/lib/print";
 import { Plus } from "lucide-react";
-import { STATUS_CLASS, STATUS_LABEL } from "@/features/cash/constants";
 import { CashClosureTab } from "@/features/cash/components/CashClosureTab";
-import { CashClosurePreviewDialog } from "@/features/cash/components/CashClosurePreviewDialog";
-import { CashDocumentPreviewDialog } from "@/features/cash/components/CashDocumentPreviewDialog";
 import { CashHistoryTab } from "@/features/cash/components/CashHistoryTab";
 import { CashPendingTab } from "@/features/cash/components/CashPendingTab";
-import { CashReceiptDialog } from "@/features/cash/components/CashReceiptDialog";
 import { CashSalesTab } from "@/features/cash/components/CashSalesTab";
 import { CashSummaryCards } from "@/features/cash/components/CashSummaryCards";
 import { useCashData } from "@/features/cash/hooks/useCashData";
 import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
-import type { CashPendingReceiptState, CashSaleFormState, CashSaleRow, PaymentMethod, ReceiptKind, SituationFilter } from "@/features/cash/types";
-import { buildCashClosurePrintHtml, formatRemitoOptionLabel, todayDateInputValue } from "@/features/cash/utils";
+import type {
+  CashPendingReceiptState,
+  CashSaleFormState,
+  CashSaleRow,
+  PaymentMethod,
+  ReceiptKind,
+  SituationFilter,
+} from "@/features/cash/types";
+import {
+  buildCashClosurePrintHtml,
+  formatRemitoOptionLabel,
+  todayDateInputValue,
+} from "@/features/cash/utils";
 import { PageHeader } from "@/components/ui/page";
+
+const CashReceiptDialog = lazy(async () => {
+  const module = await import("@/features/cash/components/CashReceiptDialog");
+  return { default: module.CashReceiptDialog };
+});
+
+const CashDocumentPreviewDialog = lazy(async () => {
+  const module = await import("@/features/cash/components/CashDocumentPreviewDialog");
+  return { default: module.CashDocumentPreviewDialog };
+});
+
+const CashClosurePreviewDialog = lazy(async () => {
+  const module = await import("@/features/cash/components/CashClosurePreviewDialog");
+  return { default: module.CashClosurePreviewDialog };
+});
+
+function CashDialogLoader() {
+  return (
+    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+      Cargando detalle...
+    </div>
+  );
+}
 
 export default function CashPage() {
   const CLOSURE_HISTORY_PAGE_SIZE = 6;
@@ -60,6 +89,7 @@ export default function CashPage() {
   const [tab, setTab] = useState("day");
   const [historyPage, setHistoryPage] = useState(1);
   const saleFormRef = useRef<HTMLDivElement | null>(null);
+
   const {
     customers,
     remitos,
@@ -92,10 +122,8 @@ export default function CashPage() {
   });
 
   useEffect(() => {
-    if (!closure) return;
-    if (!isCloseNotesDirty) {
-      setCloseNotes(closure.notes ?? "");
-    }
+    if (!closure || isCloseNotesDirty) return;
+    setCloseNotes(closure.notes ?? "");
   }, [closure, isCloseNotesDirty]);
 
   useEffect(() => {
@@ -120,6 +148,10 @@ export default function CashPage() {
     }
   }, [pendingReceiptKind]);
 
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [closuresHistory.length]);
+
   const resetSaleForm = () => {
     setAmount("");
     setPaymentMethod("EFECTIVO_REMITO");
@@ -138,7 +170,12 @@ export default function CashPage() {
     setPendingReceiptReference("");
   };
 
-  const { createSaleMutation, attachReceiptMutation, cancelSaleMutation, closeClosureMutation } = useCashMutations({
+  const {
+    createSaleMutation,
+    attachReceiptMutation,
+    cancelSaleMutation,
+    closeClosureMutation,
+  } = useCashMutations({
     currentCompanyId: currentCompany?.id ?? null,
     businessDate,
     customers,
@@ -152,19 +189,6 @@ export default function CashPage() {
     onAttachReceiptSuccess: resetPendingReceiptForm,
   });
 
-  const openReceiptDialog = (sale: CashSaleRow) => {
-    if (!canAttachCashReceipt(roles)) return;
-    setSelectedSale(sale);
-    setPendingReceiptKind("REMITO");
-    setPendingRemitoId("__none__");
-    setPendingReceiptReference("");
-    setReceiptDialogOpen(true);
-  };
-
-  const canCreateSale = canCreateCashSale(roles);
-  const canCloseCashAction = canCloseCash(roles);
-  const canCancelSale = (sale: CashSaleRow) => canCancelCashSale(roles) && !sale.closure_id;
-  const canAttachReceipt = (sale: CashSaleRow) => canAttachCashReceipt(roles) && sale.status === "PENDIENTE_COMPROBANTE";
   const customerOptionLabels = useMemo(
     () =>
       new Map(
@@ -175,20 +199,33 @@ export default function CashPage() {
       ),
     [customers],
   );
+
   const remitoOptionLabels = useMemo(
     () => new Map(availableRemitos.map((remito) => [remito.id, formatRemitoOptionLabel(remito)])),
     [availableRemitos],
   );
-  const historyTotalPages = Math.max(1, Math.ceil(closuresHistory.length / CLOSURE_HISTORY_PAGE_SIZE));
-  const safeHistoryPage = Math.min(historyPage, historyTotalPages);
-  const pagedClosuresHistory = useMemo(() => {
-    const start = (safeHistoryPage - 1) * CLOSURE_HISTORY_PAGE_SIZE;
-    return closuresHistory.slice(start, start + CLOSURE_HISTORY_PAGE_SIZE);
-  }, [closuresHistory, safeHistoryPage]);
 
-  useEffect(() => {
-    setHistoryPage(1);
-  }, [closuresHistory.length]);
+  const historyPagination = usePaginationSlice({
+    items: closuresHistory,
+    page: historyPage,
+    pageSize: CLOSURE_HISTORY_PAGE_SIZE,
+  });
+
+  const canCreateSale = canCreateCashSale(roles);
+  const canCloseCashAction = canCloseCash(roles);
+  const canCancelSale = (sale: CashSaleRow) => canCancelCashSale(roles) && !sale.closure_id;
+  const canAttachReceipt = (sale: CashSaleRow) =>
+    canAttachCashReceipt(roles) && sale.status === "PENDIENTE_COMPROBANTE";
+
+  const openReceiptDialog = (sale: CashSaleRow) => {
+    if (!canAttachCashReceipt(roles)) return;
+    setSelectedSale(sale);
+    setPendingReceiptKind("REMITO");
+    setPendingRemitoId("__none__");
+    setPendingReceiptReference("");
+    setReceiptDialogOpen(true);
+  };
+
   const openClosurePreview = (closureId: string) => {
     setSelectedClosureId(closureId);
     setClosurePreviewOpen(true);
@@ -219,12 +256,13 @@ export default function CashPage() {
     <AppLayout>
       <div className="page-shell">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitás una empresa activa para registrar ventas, asociar comprobantes y cerrar caja." />
+          <CompanyAccessNotice description="Necesitas una empresa activa para registrar ventas, asociar comprobantes y cerrar caja." />
         ) : null}
+
         <PageHeader
           eyebrow="Caja y cierre diario"
           title="Caja"
-          subtitle="Carga rápida, pendientes y cierre diario en una sola vista. La mejora es visual y de jerarquía, sin tocar el flujo."
+          subtitle="Carga rapida, pendientes y cierre diario en una sola vista. La mejora es visual y de jerarquia, sin tocar el flujo."
           tabs={[
             { label: "Hoy", value: "day" },
             { label: "Pendientes", value: "pending" },
@@ -235,12 +273,21 @@ export default function CashPage() {
           onTabChange={setTab}
           actions={(
             <div className="flex flex-wrap items-end gap-3">
-              <Button onClick={() => saleFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+              <Button
+                onClick={() =>
+                  saleFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }
+              >
                 <Plus className="mr-2 h-4 w-4" /> Nueva venta
               </Button>
               <div className="w-full max-w-[180px]">
                 <Label htmlFor="business-date">Fecha operativa</Label>
-                <Input id="business-date" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} />
+                <Input
+                  id="business-date"
+                  type="date"
+                  value={businessDate}
+                  onChange={(event) => setBusinessDate(event.target.value)}
+                />
               </div>
             </div>
           )}
@@ -258,17 +305,25 @@ export default function CashPage() {
 
         {hasClosedClosureForDay && unclosedSalesAfterClosure.length > 0 ? (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-            Hay {unclosedSalesAfterClosure.length} movimiento{unclosedSalesAfterClosure.length === 1 ? "" : "s"} posterior{unclosedSalesAfterClosure.length === 1 ? "" : "es"} al cierre. No forman parte de la caja ya cerrada.
+            Hay {unclosedSalesAfterClosure.length} movimiento
+            {unclosedSalesAfterClosure.length === 1 ? "" : "s"} posterior
+            {unclosedSalesAfterClosure.length === 1 ? "" : "es"} al cierre. No forman parte de la
+            caja ya cerrada.
           </div>
         ) : null}
 
         <CashSummaryCards summary={summary} />
 
         <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <Card ref={saleFormRef} className="border-primary/8 bg-gradient-to-br from-card via-card to-primary/5 shadow-[var(--shadow-xs)]">
+          <Card
+            ref={saleFormRef}
+            className="border-primary/8 bg-gradient-to-br from-card via-card to-primary/5 shadow-[var(--shadow-xs)]"
+          >
             <CardHeader>
               <CardTitle>Nueva venta</CardTitle>
-              <CardDescription>Captura mínima para registrar la operación sin quedar bloqueado por el comprobante.</CardDescription>
+              <CardDescription>
+                Captura minima para registrar la operacion sin quedar bloqueado por el comprobante.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form
@@ -289,14 +344,25 @@ export default function CashPage() {
               >
                 <div className="space-y-2">
                   <Label htmlFor="amount">Importe</Label>
-                  <Input id="amount" inputMode="decimal" placeholder="0,00" value={amount} onChange={(event) => setAmount(event.target.value)} />
+                  <Input
+                    id="amount"
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
+                  />
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
                   <div className="space-y-2">
                     <Label>Medio de pago</Label>
-                    <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={paymentMethod}
+                      onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="EFECTIVO_REMITO">Efectivo remito</SelectItem>
                         <SelectItem value="EFECTIVO_FACTURABLE">Efectivo facturable</SelectItem>
@@ -307,12 +373,18 @@ export default function CashPage() {
                       </SelectContent>
                     </Select>
                   </div>
+
                   <div className="space-y-2">
                     <Label>Comprobante</Label>
-                    <Select value={receiptKind} onValueChange={(value) => setReceiptKind(value as ReceiptKind)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={receiptKind}
+                      onValueChange={(value) => setReceiptKind(value as ReceiptKind)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="PENDIENTE">Definir después</SelectItem>
+                        <SelectItem value="PENDIENTE">Definir despues</SelectItem>
                         <SelectItem value="REMITO">Remito</SelectItem>
                         <SelectItem value="FACTURA">Factura</SelectItem>
                       </SelectContent>
@@ -323,7 +395,9 @@ export default function CashPage() {
                 <div className="space-y-2">
                   <Label>Cliente</Label>
                   <Select value={customerId} onValueChange={setCustomerId}>
-                    <SelectTrigger><SelectValue placeholder="Consumidor final" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Consumidor final" />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Consumidor final</SelectItem>
                       {customers.map((customer) => (
@@ -335,13 +409,15 @@ export default function CashPage() {
                   </Select>
                 </div>
 
-                {receiptKind === "REMITO" && (
+                {receiptKind === "REMITO" ? (
                   <div className="space-y-2">
                     <Label>Remito emitido</Label>
                     <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
-                      <SelectTrigger><SelectValue placeholder="Seleccionar remito del día" /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar remito del dia" />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">Seleccionar remito del día</SelectItem>
+                        <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
                         {availableRemitos.map((remito) => (
                           <SelectItem key={remito.id} value={remito.id}>
                             {remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito)}
@@ -350,9 +426,9 @@ export default function CashPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                )}
+                ) : null}
 
-                {receiptKind === "FACTURA" && (
+                {receiptKind === "FACTURA" ? (
                   <div className="space-y-2">
                     <Label htmlFor="receipt-reference">Referencia de factura</Label>
                     <Input
@@ -362,23 +438,39 @@ export default function CashPage() {
                       onChange={(event) => setReceiptReference(event.target.value)}
                     />
                   </div>
-                )}
+                ) : null}
 
                 <div className="space-y-2">
                   <Label htmlFor="notes">Observaciones</Label>
-                  <Textarea id="notes" placeholder="Cliente, detalle rápido o algo útil para revisar la venta después" value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} />
+                  <Textarea
+                    id="notes"
+                    placeholder="Cliente, detalle rapido o algo util para revisar la venta despues"
+                    value={notes}
+                    onChange={(event) => setNotes(event.target.value)}
+                    rows={4}
+                  />
                 </div>
 
                 {paymentMethod === "SERVICIOS_REMITO" ? (
                   <p className="rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-sm text-warning">
-                    Este movimiento impacta en el total del día, pero no entra en el efectivo a rendir del cierre.
+                    Este movimiento impacta en el total del dia, pero no entra en el efectivo a rendir
+                    del cierre.
                   </p>
                 ) : null}
 
-                <Button type="submit" className="w-full" disabled={createSaleMutation.isPending || !canCreateSale}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={createSaleMutation.isPending || !canCreateSale}
+                >
                   {createSaleMutation.isPending ? "Guardando..." : "Registrar venta"}
                 </Button>
-                {!canCreateSale ? <p className="text-sm text-muted-foreground">Tu rol no tiene permiso para registrar ventas.</p> : null}
+
+                {!canCreateSale ? (
+                  <p className="text-sm text-muted-foreground">
+                    Tu rol no tiene permiso para registrar ventas.
+                  </p>
+                ) : null}
               </form>
             </CardContent>
           </Card>
@@ -439,12 +531,12 @@ export default function CashPage() {
 
             <TabsContent value="history">
               <CashHistoryTab
-                closuresHistory={pagedClosuresHistory}
+                closuresHistory={historyPagination.pagedItems}
+                totalItems={closuresHistory.length}
                 onOpenSummary={openClosurePreview}
-                page={safeHistoryPage}
-                totalPages={historyTotalPages}
-                onPrevPage={() => setHistoryPage((prev) => Math.max(1, prev - 1))}
-                onNextPage={() => setHistoryPage((prev) => Math.min(historyTotalPages, prev + 1))}
+                page={historyPagination.page}
+                totalPages={historyPagination.totalPages}
+                onPageChange={setHistoryPage}
                 pageSize={CLOSURE_HISTORY_PAGE_SIZE}
               />
             </TabsContent>
@@ -452,53 +544,63 @@ export default function CashPage() {
         </div>
       </div>
 
-      <CashReceiptDialog
-        open={receiptDialogOpen}
-        onOpenChange={setReceiptDialogOpen}
-        selectedSale={selectedSale}
-        pendingReceiptKind={pendingReceiptKind}
-        pendingRemitoId={pendingRemitoId}
-        pendingReceiptReference={pendingReceiptReference}
-        availableRemitos={availableRemitos}
-        saving={attachReceiptMutation.isPending}
-        onPendingReceiptKindChange={setPendingReceiptKind}
-        onPendingRemitoIdChange={setPendingRemitoId}
-        onPendingReceiptReferenceChange={setPendingReceiptReference}
-        onSave={(state) => attachReceiptMutation.mutate(state satisfies CashPendingReceiptState)}
-        canSave={canAttachCashReceipt(roles)}
-      />
-      <CashDocumentPreviewDialog
-        open={detailDialogOpen}
-        onOpenChange={setDetailDialogOpen}
-        detailSale={detailSale}
-        linkedDocument={linkedDocument}
-        linkedDocumentLines={linkedDocumentLines}
-        linkedDocumentEvents={linkedDocumentEvents}
-        companyBrand={{
-          appName: companySettings.app_name,
-          logoUrl: companySettings.logo_url,
-          documentTagline: companySettings.document_tagline,
-        }}
-        canAttachReceipt={canAttachReceipt}
-        canCancelSale={canCancelSale}
-        onAssignReceipt={openReceiptDialog}
-        onCancelSale={(saleId) => {
-          if (!canCancelCashSale(roles)) return;
-          cancelSaleMutation.mutate(saleId);
-        }}
-        cancelPending={cancelSaleMutation.isPending}
-      />
+      {receiptDialogOpen ? (
+        <Suspense fallback={<CashDialogLoader />}>
+          <CashReceiptDialog
+            open={receiptDialogOpen}
+            onOpenChange={setReceiptDialogOpen}
+            selectedSale={selectedSale}
+            pendingReceiptKind={pendingReceiptKind}
+            pendingRemitoId={pendingRemitoId}
+            pendingReceiptReference={pendingReceiptReference}
+            availableRemitos={availableRemitos}
+            saving={attachReceiptMutation.isPending}
+            onPendingReceiptKindChange={setPendingReceiptKind}
+            onPendingRemitoIdChange={setPendingRemitoId}
+            onPendingReceiptReferenceChange={setPendingReceiptReference}
+            onSave={(state) => attachReceiptMutation.mutate(state satisfies CashPendingReceiptState)}
+            canSave={canAttachCashReceipt(roles)}
+          />
+        </Suspense>
+      ) : null}
 
-      <CashClosurePreviewDialog
-        open={closurePreviewOpen}
-        onOpenChange={setClosurePreviewOpen}
-        selectedClosurePreview={selectedClosurePreview}
-        selectedClosureSales={selectedClosureSales}
-        onPrint={printClosurePreview}
-      />
+      {detailDialogOpen ? (
+        <Suspense fallback={<CashDialogLoader />}>
+          <CashDocumentPreviewDialog
+            open={detailDialogOpen}
+            onOpenChange={setDetailDialogOpen}
+            detailSale={detailSale}
+            linkedDocument={linkedDocument}
+            linkedDocumentLines={linkedDocumentLines}
+            linkedDocumentEvents={linkedDocumentEvents}
+            companyBrand={{
+              appName: companySettings.app_name,
+              logoUrl: companySettings.logo_url,
+              documentTagline: companySettings.document_tagline,
+            }}
+            canAttachReceipt={canAttachReceipt}
+            canCancelSale={canCancelSale}
+            onAssignReceipt={openReceiptDialog}
+            onCancelSale={(saleId) => {
+              if (!canCancelCashSale(roles)) return;
+              cancelSaleMutation.mutate(saleId);
+            }}
+            cancelPending={cancelSaleMutation.isPending}
+          />
+        </Suspense>
+      ) : null}
+
+      {closurePreviewOpen ? (
+        <Suspense fallback={<CashDialogLoader />}>
+          <CashClosurePreviewDialog
+            open={closurePreviewOpen}
+            onOpenChange={setClosurePreviewOpen}
+            selectedClosurePreview={selectedClosurePreview}
+            selectedClosureSales={selectedClosureSales}
+            onPrint={printClosurePreview}
+          />
+        </Suspense>
+      ) : null}
     </AppLayout>
   );
 }
-
-
-

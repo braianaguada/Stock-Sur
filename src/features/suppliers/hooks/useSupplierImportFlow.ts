@@ -1,15 +1,11 @@
 import type { MutableRefObject } from "react";
 import { useMutation, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { parseImportFile } from "@/lib/importParser";
-import {
-  DEFAULT_PDF_OPTIONS,
-  detectColumnsHeuristic,
-  normalizeRowsToLines,
-  parseFlexibleNumber,
-  parsePdfToLines,
-  parseXlsxToRows,
-} from "@/lib/importers/catalogImporter";
+import type {
+  NormalizeDiagnostics,
+  ParsePdfProgress,
+  ParsedSheetData,
+} from "@/features/suppliers/types";
 import { getErrorMessage } from "@/lib/errors";
 import {
   loadStoredSupplierImportMapping,
@@ -29,17 +25,18 @@ import type {
 import type { PdfMappingSelection } from "@/features/suppliers/components/PdfMappingModal";
 import type {
   ImportMappingStored,
-  NormalizeDiagnostics,
-  ParsedSheetData,
   PdfImportMappingStored,
-  ParsePdfProgress,
   OrderLine,
   Supplier,
   SupplierCatalog,
   SupplierCatalogLinePayload,
 } from "@/features/suppliers/types";
 
-type ToastFn = (params: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
+type ToastFn = (params: {
+  title: string;
+  description?: string;
+  variant?: "default" | "destructive";
+}) => void;
 
 export function useSupplierImportFlow(params: {
   currentCompanyId: string | null;
@@ -165,9 +162,9 @@ export function useSupplierImportFlow(params: {
 
   const uploadCatalogMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompanyId) throw new Error("Seleccioná una empresa para importar catálogos");
-      if (!selectedSupplier) throw new Error("Seleccioná un proveedor");
-      if (!selectedFile) throw new Error("Seleccioná un archivo");
+      if (!currentCompanyId) throw new Error("Selecciona una empresa para importar catalogos");
+      if (!selectedSupplier) throw new Error("Selecciona un proveedor");
+      if (!selectedFile) throw new Error("Selecciona un archivo");
 
       const { data: authData } = await supabase.auth.getUser();
       const userId = authData.user?.id ?? null;
@@ -181,7 +178,9 @@ export function useSupplierImportFlow(params: {
       const title = documentTitle.trim() || selectedFile.name;
       const requestedCatalogId = selectedCatalogId === "new" ? null : selectedCatalogId;
       if (requestedCatalogId && !catalogsById.has(requestedCatalogId)) {
-        throw new Error("El listado seleccionado ya no está disponible. Recargá el historial e intentá de nuevo");
+        throw new Error(
+          "El listado seleccionado ya no esta disponible. Recarga el historial e intenta de nuevo",
+        );
       }
 
       if (SHOULD_LOG_SUPPLIER_IMPORT) {
@@ -194,7 +193,7 @@ export function useSupplierImportFlow(params: {
         });
       }
 
-      const { data: document, error: docError } = await supabase
+      const { data: document, error: documentError } = await supabase
         .from("supplier_documents")
         .insert({
           company_id: currentCompanyId,
@@ -206,9 +205,9 @@ export function useSupplierImportFlow(params: {
         })
         .select("id")
         .single();
-      if (docError) {
-        logSupplierImportError("insert_document", docError, { userId, requestedCatalogId });
-        throw docError;
+      if (documentError) {
+        logSupplierImportError("insert_document", documentError, { userId, requestedCatalogId });
+        throw documentError;
       }
 
       const supplierDocumentId = document.id;
@@ -216,12 +215,19 @@ export function useSupplierImportFlow(params: {
       let diagnostics: NormalizeDiagnostics | null = null;
 
       if (isXlsx || isText) {
+        const { parseImportFile } = await import("@/lib/importParser");
+        const { detectColumnsHeuristic, normalizeRowsToLines, parseXlsxToRows } = await import(
+          "@/lib/importers/catalogImporter"
+        );
+
         let parsedSheet: ParsedSheetData;
         if (isXlsx) {
           parsedSheet = await parseXlsxToRows(selectedFile);
         } else {
           const parsed = await parseImportFile(selectedFile);
-          const rows = parsed.rows.map((row) => parsed.headers.map((header) => String(row[header] ?? "")));
+          const rows = parsed.rows.map((row) =>
+            parsed.headers.map((header) => String(row[header] ?? "")),
+          );
           parsedSheet = {
             sheetName: "text",
             headers: parsed.headers,
@@ -233,7 +239,11 @@ export function useSupplierImportFlow(params: {
         }
 
         const detected = detectColumnsHeuristic(parsedSheet.headers, parsedSheet.rows);
-        const stored = await loadStoredSupplierImportMapping<ImportMappingStored>(currentCompanyId, selectedSupplier.id, "xlsx");
+        const stored = await loadStoredSupplierImportMapping<ImportMappingStored>(
+          currentCompanyId,
+          selectedSupplier.id,
+          "xlsx",
+        );
         const suggested = {
           descriptionColumn: stored?.descriptionColumn ?? detected.descriptionColumn,
           priceColumn: stored?.priceColumn ?? detected.priceColumn,
@@ -247,9 +257,13 @@ export function useSupplierImportFlow(params: {
           mapping: suggested,
         });
         diagnostics = normalized.diagnostics;
-        const missingDescRatio = diagnostics.totalRows > 0 ? diagnostics.dropped_missingDesc / diagnostics.totalRows : 0;
+
+        const missingDescriptionRatio =
+          diagnostics.totalRows > 0 ? diagnostics.dropped_missingDesc / diagnostics.totalRows : 0;
         const needsManualMapping =
-          detected.confidence < LOW_CONFIDENCE_THRESHOLD || diagnostics.keptRows < 10 || missingDescRatio > 0.5;
+          detected.confidence < LOW_CONFIDENCE_THRESHOLD ||
+          diagnostics.keptRows < 10 ||
+          missingDescriptionRatio > 0.5;
 
         if (needsManualMapping) {
           const mapping = await requestXlsxMapping({
@@ -258,13 +272,15 @@ export function useSupplierImportFlow(params: {
             suggested,
             confidence: detected.confidence,
           });
-          if (!mapping) throw new Error("Importación cancelada por el usuario");
+          if (!mapping) throw new Error("Importacion cancelada por el usuario");
+
           normalized = normalizeRowsToLines({
             headers: parsedSheet.headers,
             rows: parsedSheet.rows,
             mapping,
           });
           diagnostics = normalized.diagnostics;
+
           if (mapping.remember) {
             try {
               await saveStoredSupplierImportMapping(currentCompanyId, selectedSupplier.id, "xlsx", {
@@ -274,14 +290,24 @@ export function useSupplierImportFlow(params: {
                 supplierCodeColumn: mapping.supplierCodeColumn,
               } satisfies ImportMappingStored);
             } catch (error) {
-              logSupplierImportError("save_mapping", error, { supplierId: selectedSupplier.id, fileType: "xlsx" });
+              logSupplierImportError("save_mapping", error, {
+                supplierId: selectedSupplier.id,
+                fileType: "xlsx",
+              });
             }
           }
         }
 
         lines = normalized.lines.map(toSupplierCatalogRpcLinePayload);
       } else if (isPdf) {
-        const parseResult = await parsePdfToLines(selectedFile, DEFAULT_PDF_OPTIONS, (progress) => setPdfProgress(progress));
+        const { DEFAULT_PDF_OPTIONS, parseFlexibleNumber, parsePdfToLines } = await import(
+          "@/lib/importers/catalogImporter"
+        );
+        const parseResult = await parsePdfToLines(
+          selectedFile,
+          DEFAULT_PDF_OPTIONS,
+          (progress) => setPdfProgress(progress),
+        );
         const tableHeaders = parseResult.table?.headers ?? [];
         const tableRows = parseResult.table?.rows ?? [];
 
@@ -289,10 +315,15 @@ export function useSupplierImportFlow(params: {
           if (parseResult.lines.length === 0) throw new Error("No se pudo extraer contenido del PDF");
           lines = parseResult.lines.map(toSupplierCatalogRpcLinePayload);
         } else {
-          const stored = await loadStoredSupplierImportMapping<PdfImportMappingStored>(currentCompanyId, selectedSupplier.id, "pdf");
+          const stored = await loadStoredSupplierImportMapping<PdfImportMappingStored>(
+            currentCompanyId,
+            selectedSupplier.id,
+            "pdf",
+          );
           const suggested: Omit<PdfMappingSelection, "remember"> = {
             descriptionColumn: stored?.descriptionColumn ?? tableHeaders[0] ?? "col_1",
-            priceColumn: stored?.priceColumn ?? tableHeaders[Math.min(1, tableHeaders.length - 1)] ?? "col_1",
+            priceColumn:
+              stored?.priceColumn ?? tableHeaders[Math.min(1, tableHeaders.length - 1)] ?? "col_1",
             codeColumn: stored?.codeColumn ?? null,
             preferPriceAtEnd: stored?.preferPriceAtEnd ?? true,
             filterRowsWithoutPrice: stored?.filterRowsWithoutPrice ?? true,
@@ -303,30 +334,38 @@ export function useSupplierImportFlow(params: {
             rows: tableRows,
             suggested,
           });
-          if (!selection) throw new Error("Importación PDF cancelada por el usuario");
+          if (!selection) throw new Error("Importacion PDF cancelada por el usuario");
 
           const indexByHeader = new Map(tableHeaders.map((header, index) => [header, index]));
-          const descIndex = indexByHeader.get(selection.descriptionColumn);
+          const descriptionIndex = indexByHeader.get(selection.descriptionColumn);
           const priceIndex = indexByHeader.get(selection.priceColumn);
-          const codeIndex = selection.codeColumn ? indexByHeader.get(selection.codeColumn) : undefined;
-          if (descIndex === undefined || priceIndex === undefined) throw new Error("Mapeo PDF invalido");
+          const codeIndex = selection.codeColumn
+            ? indexByHeader.get(selection.codeColumn)
+            : undefined;
+          if (descriptionIndex === undefined || priceIndex === undefined) {
+            throw new Error("Mapeo PDF invalido");
+          }
 
           const parsedLines: SupplierCatalogLinePayload[] = [];
-          tableRows.forEach((row, idx) => {
-            const rawDescription = String(row[descIndex] ?? "").replace(/\s+/g, " ").trim();
+          tableRows.forEach((row, index) => {
+            const rawDescription = String(row[descriptionIndex] ?? "")
+              .replace(/\s+/g, " ")
+              .trim();
             const priceRaw = String(row[priceIndex] ?? "").trim();
             const parsed = parseFlexibleNumber(priceRaw);
             if (!rawDescription) return;
             if (selection.filterRowsWithoutPrice && parsed === null) return;
             if (parsed === null || parsed <= 0) return;
-            const supplierCode = codeIndex !== undefined ? String(row[codeIndex] ?? "").trim() : "";
+
+            const supplierCode =
+              codeIndex !== undefined ? String(row[codeIndex] ?? "").trim() : "";
             parsedLines.push({
               supplier_code: supplierCode || null,
               raw_description: rawDescription,
               normalized_description: rawDescription.toLowerCase(),
               cost: parsed,
               currency: /usd|u\$s/i.test(priceRaw) ? "USD" : "ARS",
-              row_index: idx + 1,
+              row_index: index + 1,
               matched_item_id: null,
               match_status: "PENDING",
             });
@@ -343,7 +382,10 @@ export function useSupplierImportFlow(params: {
                 filterRowsWithoutPrice: selection.filterRowsWithoutPrice,
               } satisfies PdfImportMappingStored);
             } catch (error) {
-              logSupplierImportError("save_mapping", error, { supplierId: selectedSupplier.id, fileType: "pdf" });
+              logSupplierImportError("save_mapping", error, {
+                supplierId: selectedSupplier.id,
+                fileType: "pdf",
+              });
             }
           }
         }
@@ -351,17 +393,20 @@ export function useSupplierImportFlow(params: {
 
       setPdfProgress(null);
       setLastDiagnostics(diagnostics);
-      if (lines.length === 0) throw new Error("No se encontraron filas válidas para importar");
+      if (lines.length === 0) throw new Error("No se encontraron filas validas para importar");
 
-      const { data: rpcResult, error: rpcError } = await supabase.rpc("create_supplier_catalog_import", {
-        p_supplier_id: selectedSupplier.id,
-        p_supplier_document_id: supplierDocumentId,
-        p_catalog_id: requestedCatalogId,
-        p_catalog_title: requestedCatalogId ? null : title,
-        p_catalog_notes: documentNotes.trim() || null,
-        p_version_title: title,
-        p_lines: lines,
-      });
+      const { data: rpcResult, error: rpcError } = await supabase.rpc(
+        "create_supplier_catalog_import",
+        {
+          p_supplier_id: selectedSupplier.id,
+          p_supplier_document_id: supplierDocumentId,
+          p_catalog_id: requestedCatalogId,
+          p_catalog_title: requestedCatalogId ? null : title,
+          p_catalog_notes: documentNotes.trim() || null,
+          p_version_title: title,
+          p_lines: lines,
+        },
+      );
       if (rpcError) {
         logSupplierImportError("create_supplier_catalog_import", rpcError, {
           userId,
@@ -380,7 +425,9 @@ export function useSupplierImportFlow(params: {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["supplier-catalogs", selectedSupplier?.id] });
-      queryClient.invalidateQueries({ queryKey: ["supplier-catalog-versions", selectedSupplier?.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["supplier-catalog-versions", selectedSupplier?.id],
+      });
       queryClient.invalidateQueries({ queryKey: ["supplier-catalog-lines"] });
       setDocumentTitle("");
       setDocumentNotes("");
@@ -393,7 +440,7 @@ export function useSupplierImportFlow(params: {
       setLineQuantities({});
       toast({
         title: "Documento cargado",
-        description: `Importados ${result.total} ítems`,
+        description: `Importados ${result.total} items`,
       });
     },
     onError: (error: unknown) => {

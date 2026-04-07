@@ -1,5 +1,5 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EntityDialog } from "@/components/common/EntityDialog";
+import { SupplierDroppedRowsTable } from "@/features/suppliers/components/SupplierDroppedRowsTable";
 import type { NormalizeDiagnostics } from "@/features/suppliers/types";
 
 interface SupplierDropDetailDialogProps {
@@ -14,40 +14,15 @@ export function SupplierDropDetailDialog({
   diagnostics,
 }: SupplierDropDetailDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Filas descartadas</DialogTitle>
-        </DialogHeader>
-        <div className="max-h-[60vh] overflow-auto rounded border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fila</TableHead>
-                <TableHead>Motivo</TableHead>
-                <TableHead>Muestra</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {diagnostics?.sampleDropped?.length ? (
-                diagnostics.sampleDropped.map((row) => (
-                  <TableRow key={`${row.rowIndex}-${row.reason}`}>
-                    <TableCell>{row.rowIndex}</TableCell>
-                    <TableCell>{row.reason}</TableCell>
-                    <TableCell className="font-mono text-xs">{row.rowPreview.join(" | ")}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={3} className="py-4 text-center text-muted-foreground">
-                    Sin muestra disponible
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <EntityDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Filas descartadas"
+      contentClassName="max-w-3xl"
+    >
+      <div className="max-h-[60vh] overflow-auto rounded border">
+        <SupplierDroppedRowsTable rows={diagnostics?.sampleDropped ?? []} />
+      </div>
+    </EntityDialog>
   );
 }
