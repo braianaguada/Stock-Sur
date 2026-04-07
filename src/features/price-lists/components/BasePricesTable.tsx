@@ -3,7 +3,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Input } from "@/components/ui/input";
 import type { BasePriceRow } from "@/features/price-lists/types";
-import { formatDateTime, formatMoney, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
+import { formatDateTime, formatMoney, formatPercentDelta, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
 
 type BasePricesTableProps = {
   rows: BasePriceRow[];
@@ -11,7 +11,7 @@ type BasePricesTableProps = {
   isSaving: boolean;
   renderUserName: (userId: string | null) => string;
   onDraftChange: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
-  onSave: (itemId: string, baseCost: number) => void;
+  onSaveDraftValue: (itemId: string, draftValue: string) => void;
 };
 
 export function BasePricesTable({
@@ -19,7 +19,7 @@ export function BasePricesTable({
   baseCostDrafts,
   renderUserName,
   onDraftChange,
-  onSave,
+  onSaveDraftValue,
 }: BasePricesTableProps) {
   const columns = useMemo<ColumnDef<BasePriceRow, unknown>[]>(() => [
     {
@@ -78,7 +78,7 @@ export function BasePricesTable({
                 event.currentTarget.blur();
               }
             }}
-            onBlur={() => onSave(row.original.item_id, parseNonNegative(baseCostDrafts[row.original.item_id] ?? "0", 0))}
+            onBlur={(event) => onSaveDraftValue(row.original.item_id, event.currentTarget.value)}
           />
         </div>
       ),
@@ -110,7 +110,7 @@ export function BasePricesTable({
       header: () => "Usuario",
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{renderUserName(row.original.updated_by)}</span>,
     },
-  ], [baseCostDrafts, onDraftChange, onSave, renderUserName]);
+  ], [baseCostDrafts, onDraftChange, onSaveDraftValue, renderUserName]);
 
   return (
     <DataTable
