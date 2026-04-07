@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,73 @@ type BasePricesTableProps = {
   onDraftChange: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
   onSaveDraftValue: (itemId: string, draftValue: string) => void;
 };
+
+function BaseCostInputCell(props: {
+  itemId: string;
+  draftValue: string;
+  onDraftChange: (nextValue: string) => void;
+  onCommit: (draftValue: string) => void;
+}) {
+  const { itemId, draftValue, onDraftChange, onCommit } = props;
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [isFocused, setIsFocused] = useState(false);
+  const lastCommittedValueRef = useRef<string>(draftValue);
+
+  useEffect(() => {
+    lastCommittedValueRef.current = draftValue;
+  }, [draftValue]);
+
+  useEffect(() => {
+    if (!isFocused) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!wrapperRef.current?.contains(event.target as Node)) {
+        const nextValue = inputRef.current?.value ?? draftValue;
+        if (nextValue !== lastCommittedValueRef.current) {
+          lastCommittedValueRef.current = nextValue;
+          onCommit(nextValue);
+        }
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [draftValue, isFocused, onCommit]);
+
+  return (
+    <div ref={wrapperRef} className="text-right">
+      <Input
+        ref={inputRef}
+        key={itemId}
+        className="ml-auto h-9 w-20 rounded-2xl text-right font-mono"
+        type="number"
+        min={0}
+        step="any"
+        value={draftValue}
+        onFocus={() => setIsFocused(true)}
+        onChange={(event) => onDraftChange(sanitizeNonNegativeDraft(event.target.value))}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            const nextValue = event.currentTarget.value;
+            lastCommittedValueRef.current = nextValue;
+            onCommit(nextValue);
+            event.currentTarget.blur();
+          }
+        }}
+        onBlur={(event) => {
+          setIsFocused(false);
+          const nextValue = event.currentTarget.value;
+          if (nextValue !== lastCommittedValueRef.current) {
+            lastCommittedValueRef.current = nextValue;
+            onCommit(nextValue);
+          }
+        }}
+      />
+    </div>
+  );
+}
 
 export function BasePricesTable({
   rows,
@@ -60,27 +127,16 @@ export function BasePricesTable({
       accessorKey: "base_cost",
       header: () => <div className="text-right">Costo base</div>,
       cell: ({ row }) => (
-        <div className="text-right">
-          <Input
-            className="ml-auto h-9 w-20 rounded-2xl text-right font-mono"
-            type="number"
-            min={0}
-            step="any"
-            value={baseCostDrafts[row.original.item_id] ?? "0"}
-            onChange={(event) =>
-              onDraftChange((prev) => ({
-                ...prev,
-                [row.original.item_id]: sanitizeNonNegativeDraft(event.target.value),
-              }))}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                event.currentTarget.blur();
-              }
-            }}
-            onBlur={(event) => onSaveDraftValue(row.original.item_id, event.currentTarget.value)}
-          />
-        </div>
+        <BaseCostInputCell
+          itemId={row.original.item_id}
+          draftValue={baseCostDrafts[row.original.item_id] ?? "0"}
+          onDraftChange={(nextValue) =>
+            onDraftChange((prev) => ({
+              ...prev,
+              [row.original.item_id]: nextValue,
+            }))}
+          onCommit={(draftValue) => onSaveDraftValue(row.original.item_id, draftValue)}
+        />
       ),
     },
     {
