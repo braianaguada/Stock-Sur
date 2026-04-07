@@ -204,7 +204,7 @@ export default function ItemsPage() {
       };
     },
   });
-  const items = itemsQuery.data?.rows ?? [];
+  const items = useMemo(() => itemsQuery.data?.rows ?? [], [itemsQuery.data?.rows]);
   const totalItems = itemsQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const isLoading = itemsQuery.isLoading;
@@ -237,10 +237,6 @@ export default function ItemsPage() {
       return data as ItemAlias[];
     },
   });
-  const itemsById = useMemo(
-    () => new Map(items.map((item) => [item.id, item])),
-    [items],
-  );
   const allVisibleSelected = items.length > 0 && items.every((item) => selectedItemIds.includes(item.id));
   const rangeStart = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(page * pageSize, totalItems);
@@ -280,9 +276,6 @@ export default function ItemsPage() {
       };
 
       if (editingItem) {
-        if (!itemsById.has(editingItem.id)) {
-          throw new Error("El ítem que estás editando ya no está disponible. Recargá Ítems e intentá de nuevo");
-        }
         const { error } = await supabase
           .from("items")
           .update({
@@ -354,10 +347,6 @@ export default function ItemsPage() {
   const addAliasMutation = useMutation({
     mutationFn: async (alias: string) => {
       if (!editingItem) throw new Error("Seleccioná un ítem antes de agregar alias");
-
-      if (!itemsById.has(editingItem.id)) {
-        throw new Error("El ítem seleccionado ya no está disponible. Recargá Ítems e intentá de nuevo");
-      }
 
       const { data, error } = await supabase
         .from("item_aliases")
@@ -532,10 +521,10 @@ export default function ItemsPage() {
           <div className="w-full md:w-64">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Filtrar por categoria" />
+                <SelectValue placeholder="Filtrar por categoría" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas las categorias</SelectItem>
+                <SelectItem value="all">Todas las categorías</SelectItem>
                 {categories.map((category) => (
                   <SelectItem key={category} value={category}>{category}</SelectItem>
                 ))}
@@ -652,12 +641,12 @@ export default function ItemsPage() {
         </DataCard>
         <div className="flex flex-col gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-white/70 bg-card/90 px-4 py-3 shadow-[var(--shadow-xs)] md:flex-row md:items-center md:justify-between">
           <p className="text-sm text-muted-foreground">
-            Mostrando {rangeStart}-{rangeEnd} de {totalItems} items
+            Mostrando {rangeStart}-{rangeEnd} de {totalItems} ítems
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
               <Label htmlFor="items-page-size" className="text-sm text-muted-foreground">
-                Por pagina
+                Por página
               </Label>
               <Select
                 value={String(pageSize)}
@@ -686,7 +675,7 @@ export default function ItemsPage() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <span className="min-w-24 text-center text-sm text-muted-foreground">
-                Pagina {page} de {totalPages}
+                Página {page} de {totalPages}
               </span>
               <Button
                 type="button"
@@ -847,8 +836,8 @@ export default function ItemsPage() {
         onOpenChange={(open) => {
           if (!open) setItemToDelete(null);
         }}
-        title="Eliminar item"
-        description={itemToDelete ? `Esta accion eliminara "${itemToDelete.name}" de forma permanente.` : ""}
+        title="Eliminar ítem"
+        description={itemToDelete ? `Esta acción eliminará "${itemToDelete.name}" de forma permanente.` : ""}
         isPending={deleteMutation.isPending}
         onConfirm={() => {
           if (!itemToDelete) return;
@@ -863,7 +852,7 @@ export default function ItemsPage() {
           if (!open) setAliasToDelete(null);
         }}
         title="Eliminar alias"
-        description={aliasToDelete ? `Esta accion eliminara el alias "${aliasToDelete.alias}".` : ""}
+        description={aliasToDelete ? `Esta acción eliminará el alias "${aliasToDelete.alias}".` : ""}
         isPending={deleteAliasMutation.isPending}
         onConfirm={() => {
           if (!aliasToDelete) return;
