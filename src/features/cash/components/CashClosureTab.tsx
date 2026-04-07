@@ -24,6 +24,9 @@ const tileToneClasses = {
   success: "from-card via-card to-success/12 before:bg-success/75",
   warning: "from-card via-card to-warning/16 before:bg-warning/80",
   info: "from-card via-card to-info/12 before:bg-info/75",
+  lime: "from-card via-card to-lime-500/12 before:bg-lime-500/80",
+  amber: "from-card via-card to-amber-400/12 before:bg-amber-400/80",
+  slate: "from-card via-card to-slate-500/10 before:bg-slate-500/65",
 } as const;
 
 export function CashClosureTab({
@@ -45,6 +48,21 @@ export function CashClosureTab({
       tone: "success" as const,
     },
     {
+      label: "Efectivo remito",
+      value: Number(effectiveClosure?.expected_cash_remito_total ?? 0),
+      tone: "lime" as const,
+    },
+    {
+      label: "Efectivo facturable",
+      value: Number(effectiveClosure?.expected_cash_facturable_total ?? 0),
+      tone: "warning" as const,
+    },
+    {
+      label: "Servicios / remito",
+      value: Number(effectiveClosure?.expected_services_remito_total ?? 0),
+      tone: "amber" as const,
+    },
+    {
       label: "Point esperado",
       value: Number(effectiveClosure?.expected_point_sales_total ?? 0),
       tone: "info" as const,
@@ -53,6 +71,11 @@ export function CashClosureTab({
       label: "Transferencias esperadas",
       value: Number(effectiveClosure?.expected_transfer_sales_total ?? 0),
       tone: "info" as const,
+    },
+    {
+      label: "Cuenta corriente",
+      value: Number(effectiveClosure?.expected_account_sales_total ?? 0),
+      tone: "slate" as const,
     },
     {
       label: "Total ventas",
@@ -123,6 +146,18 @@ export function CashClosureTab({
               <div className="flex items-center justify-between">
                 <span>Efectivo esperado</span>
                 <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_to_render ?? 0))}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Efectivo remito</span>
+                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_remito_total ?? 0))}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Efectivo facturable</span>
+                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_facturable_total ?? 0))}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Servicios / remito</span>
+                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_services_remito_total ?? 0))}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Total ventas</span>

@@ -77,11 +77,13 @@ export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
       {cards.map((card) => {
         const formattedValue = currency.format(card.value);
         const valueClassName =
-          formattedValue.length >= 12
-            ? "text-[1.42rem] md:text-[1.55rem] 2xl:text-[1.48rem]"
-            : formattedValue.length >= 10
-              ? "text-[1.56rem] md:text-[1.7rem] 2xl:text-[1.6rem]"
-              : "text-[1.85rem]";
+          formattedValue.length >= 13
+            ? "text-[1.22rem] md:text-[1.35rem] 2xl:text-[1.28rem]"
+            : formattedValue.length >= 11
+              ? "text-[1.4rem] md:text-[1.52rem] 2xl:text-[1.42rem]"
+              : formattedValue.length >= 10
+                ? "text-[1.56rem] md:text-[1.7rem] 2xl:text-[1.58rem]"
+                : "text-[1.85rem]";
 
         return (
           <Card
@@ -101,7 +103,7 @@ export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
                       {card.label}
                     </p>
                     <div
-                      className={`max-w-full whitespace-nowrap font-bold leading-none tracking-[-0.045em] text-foreground [font-variant-numeric:tabular-nums] ${valueClassName}`}
+                      className={`mx-auto max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-bold leading-none tracking-[-0.045em] text-foreground [font-variant-numeric:tabular-nums] ${valueClassName}`}
                     >
                       {formattedValue}
                     </div>

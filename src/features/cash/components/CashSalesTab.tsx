@@ -63,7 +63,7 @@ export function CashSalesTab({
                 <TableHead className="w-[78px]">Hora</TableHead>
                 <TableHead className="w-[110px] text-right">Importe</TableHead>
                 <TableHead className="w-[170px]">Cliente</TableHead>
-                <TableHead className="w-[96px]">Pago</TableHead>
+                <TableHead className="w-[150px]">Pago</TableHead>
                 <TableHead className="w-[160px]">Comprobante</TableHead>
                 <TableHead className="w-[150px]">Situación</TableHead>
                 <TableHead className="w-[92px] text-right">Acciones</TableHead>

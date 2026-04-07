@@ -156,13 +156,25 @@ export function buildCashClosurePrintHtml({
             <div class="eyebrow">Resumen operativo</div>
             <div class="hero-grid">
               <div class="mini alt-green">
-                <div class="eyebrow">Efectivo esperado</div>
+                <div class="eyebrow">Efectivo a rendir</div>
                 <div class="big">${currency.format(Number(closure.expected_cash_to_render))}</div>
               </div>
               <div class="mini">
                 <div class="eyebrow">Total ventas</div>
                 <div class="big">${currency.format(Number(closure.expected_sales_total))}</div>
                 <div class="sub">Movimientos: ${sales.length}</div>
+              </div>
+              <div class="mini">
+                <div class="eyebrow">Efectivo remito</div>
+                <div class="big">${currency.format(Number(closure.expected_cash_remito_total))}</div>
+              </div>
+              <div class="mini">
+                <div class="eyebrow">Efectivo facturable</div>
+                <div class="big">${currency.format(Number(closure.expected_cash_facturable_total))}</div>
+              </div>
+              <div class="mini alt-blue">
+                <div class="eyebrow">Servicios / remito</div>
+                <div class="big">${currency.format(Number(closure.expected_services_remito_total))}</div>
               </div>
               <div class="mini alt-blue">
                 <div class="eyebrow">Point</div>

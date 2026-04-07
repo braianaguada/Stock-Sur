@@ -106,6 +106,7 @@ export type CashClosureHistoryRow = Pick<
   | "expected_cash_to_render"
   | "expected_point_sales_total"
   | "expected_transfer_sales_total"
+  | "expected_account_sales_total"
   | "counted_cash_total"
   | "counted_point_total"
   | "counted_transfer_total"
