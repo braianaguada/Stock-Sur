@@ -72,6 +72,12 @@ export function BasePricesTable({
                 ...prev,
                 [row.original.item_id]: sanitizeNonNegativeDraft(event.target.value),
               }))}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+              }
+            }}
             onBlur={() => onSave(row.original.item_id, parseNonNegative(baseCostDrafts[row.original.item_id] ?? "0", 0))}
           />
         </div>
