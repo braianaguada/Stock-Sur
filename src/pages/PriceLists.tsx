@@ -16,7 +16,7 @@ import { PriceListDetailDialog } from "@/features/price-lists/components/PriceLi
 import { DEFAULT_PRICE_LIST_FORM, PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
 import type { PriceListFormState } from "@/features/price-lists/types";
 import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
-import { formatDateTime } from "@/features/price-lists/utils";
+import { formatDateTime, parseNonNegative } from "@/features/price-lists/utils";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 
 const pricingChipClass = {
@@ -166,7 +166,8 @@ export default function PriceListsPage() {
                 isSaving={updateBaseCostMutation.isPending}
                 renderUserName={renderUserName}
                 onDraftChange={setBaseCostDrafts}
-                onSave={(itemId, baseCost) => updateBaseCostMutation.mutate({ itemId, baseCost })}
+                onSaveDraftValue={(itemId, draftValue) =>
+                  updateBaseCostMutation.mutate({ itemId, baseCost: parseNonNegative(draftValue, 0) })}
               />
             </DataCard>
             <DataTablePagination

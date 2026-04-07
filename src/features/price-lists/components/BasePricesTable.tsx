@@ -1,9 +1,9 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Input } from "@/components/ui/input";
 import type { BasePriceRow } from "@/features/price-lists/types";
-import { formatDateTime, formatMoney, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
+import { formatDateTime, formatMoney, formatPercentDelta, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
 
 type BasePricesTableProps = {
   rows: BasePriceRow[];
@@ -11,15 +11,82 @@ type BasePricesTableProps = {
   isSaving: boolean;
   renderUserName: (userId: string | null) => string;
   onDraftChange: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
-  onSave: (itemId: string, baseCost: number) => void;
+  onSaveDraftValue: (itemId: string, draftValue: string) => void;
 };
+
+function BaseCostInputCell(props: {
+  itemId: string;
+  draftValue: string;
+  onDraftChange: (nextValue: string) => void;
+  onCommit: (draftValue: string) => void;
+}) {
+  const { itemId, draftValue, onDraftChange, onCommit } = props;
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [isFocused, setIsFocused] = useState(false);
+  const lastCommittedValueRef = useRef<string>(draftValue);
+
+  useEffect(() => {
+    lastCommittedValueRef.current = draftValue;
+  }, [draftValue]);
+
+  useEffect(() => {
+    if (!isFocused) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!wrapperRef.current?.contains(event.target as Node)) {
+        const nextValue = inputRef.current?.value ?? draftValue;
+        if (nextValue !== lastCommittedValueRef.current) {
+          lastCommittedValueRef.current = nextValue;
+          onCommit(nextValue);
+        }
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [draftValue, isFocused, onCommit]);
+
+  return (
+    <div ref={wrapperRef} className="text-right">
+      <Input
+        ref={inputRef}
+        key={itemId}
+        className="ml-auto h-9 w-20 rounded-2xl text-right font-mono"
+        type="number"
+        min={0}
+        step="any"
+        value={draftValue}
+        onFocus={() => setIsFocused(true)}
+        onChange={(event) => onDraftChange(sanitizeNonNegativeDraft(event.target.value))}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            const nextValue = event.currentTarget.value;
+            lastCommittedValueRef.current = nextValue;
+            onCommit(nextValue);
+            event.currentTarget.blur();
+          }
+        }}
+        onBlur={(event) => {
+          setIsFocused(false);
+          const nextValue = event.currentTarget.value;
+          if (nextValue !== lastCommittedValueRef.current) {
+            lastCommittedValueRef.current = nextValue;
+            onCommit(nextValue);
+          }
+        }}
+      />
+    </div>
+  );
+}
 
 export function BasePricesTable({
   rows,
   baseCostDrafts,
   renderUserName,
   onDraftChange,
-  onSave,
+  onSaveDraftValue,
 }: BasePricesTableProps) {
   const columns = useMemo<ColumnDef<BasePriceRow, unknown>[]>(() => [
     {
@@ -60,21 +127,16 @@ export function BasePricesTable({
       accessorKey: "base_cost",
       header: () => <div className="text-right">Costo base</div>,
       cell: ({ row }) => (
-        <div className="text-right">
-          <Input
-            className="ml-auto h-9 w-20 rounded-2xl text-right font-mono"
-            type="number"
-            min={0}
-            step="any"
-            value={baseCostDrafts[row.original.item_id] ?? "0"}
-            onChange={(event) =>
-              onDraftChange((prev) => ({
-                ...prev,
-                [row.original.item_id]: sanitizeNonNegativeDraft(event.target.value),
-              }))}
-            onBlur={() => onSave(row.original.item_id, parseNonNegative(baseCostDrafts[row.original.item_id] ?? "0", 0))}
-          />
-        </div>
+        <BaseCostInputCell
+          itemId={row.original.item_id}
+          draftValue={baseCostDrafts[row.original.item_id] ?? "0"}
+          onDraftChange={(nextValue) =>
+            onDraftChange((prev) => ({
+              ...prev,
+              [row.original.item_id]: nextValue,
+            }))}
+          onCommit={(draftValue) => onSaveDraftValue(row.original.item_id, draftValue)}
+        />
       ),
     },
     {
@@ -104,7 +166,7 @@ export function BasePricesTable({
       header: () => "Usuario",
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{renderUserName(row.original.updated_by)}</span>,
     },
-  ], [baseCostDrafts, onDraftChange, onSave, renderUserName]);
+  ], [baseCostDrafts, onDraftChange, onSaveDraftValue, renderUserName]);
 
   return (
     <DataTable
