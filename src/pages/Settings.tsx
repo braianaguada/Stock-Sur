@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { canManageCompanySettings } from "@/lib/permissions";
+import { buildCompanyThemePayload, getThemePreviewState, inferThemePreset, THEME_OPTIONS, type CompanyThemePresetId } from "@/lib/companyTheme";
+import { PageHeader } from "@/components/ui/page";
 
 export default function SettingsPage() {
   const { settings, isLoading } = useCompanyBrand();
@@ -21,6 +23,7 @@ export default function SettingsPage() {
   const qc = useQueryClient();
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>("");
+  const [themePreset, setThemePreset] = useState<CompanyThemePresetId>("professional");
   const [form, setForm] = useState({
     app_name: "",
     legal_name: "",
@@ -39,6 +42,9 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
+    const preset = inferThemePreset(settings);
+    const derivedTheme = buildCompanyThemePayload(preset, settings.primary_color ?? "#1f4f99");
+    setThemePreset(preset);
     setForm({
       app_name: settings.app_name ?? "",
       legal_name: settings.legal_name ?? "",
@@ -47,9 +53,9 @@ export default function SettingsPage() {
       phone: settings.phone ?? "",
       whatsapp: settings.whatsapp ?? "",
       email: settings.email ?? "",
-      primary_color: settings.primary_color ?? "#1f4f99",
-      secondary_color: settings.secondary_color ?? "#c62828",
-      accent_color: settings.accent_color ?? "#eef3fb",
+      primary_color: derivedTheme.primary_color,
+      secondary_color: derivedTheme.secondary_color,
+      accent_color: derivedTheme.accent_color,
       document_tagline: settings.document_tagline ?? "",
       document_footer: settings.document_footer ?? "",
       default_point_of_sale: String(settings.default_point_of_sale ?? 1),
@@ -58,9 +64,15 @@ export default function SettingsPage() {
     setLogoPreview(settings.logo_url ?? "");
   }, [settings]);
 
+  const previewTheme = useMemo(
+    () => getThemePreviewState(themePreset, form.primary_color),
+    [form.primary_color, themePreset],
+  );
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       let logoUrl = settings.logo_url;
+      const themePayload = buildCompanyThemePayload(themePreset, form.primary_color);
 
       if (logoFile) {
         const extension = logoFile.name.split(".").pop()?.toLowerCase() ?? "png";
@@ -84,9 +96,9 @@ export default function SettingsPage() {
         whatsapp: form.whatsapp.trim() || null,
         email: form.email.trim() || null,
         logo_url: logoUrl ?? null,
-        primary_color: form.primary_color,
-        secondary_color: form.secondary_color,
-        accent_color: form.accent_color,
+        primary_color: themePayload.primary_color,
+        secondary_color: themePayload.secondary_color,
+        accent_color: themePayload.accent_color,
         document_tagline: form.document_tagline.trim() || null,
         document_footer: form.document_footer.trim() || null,
         default_point_of_sale: Math.max(1, Number(form.default_point_of_sale) || 1),
@@ -117,7 +129,7 @@ export default function SettingsPage() {
   if (!canManageCompanySettings(roles, { companyRoleCodes, companyPermissionCodes })) {
     return (
       <AppLayout>
-        <div className="space-y-6">
+        <div className="page-shell">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
             <p className="text-muted-foreground">Acceso restringido a usuarios administradores.</p>
@@ -137,7 +149,7 @@ export default function SettingsPage() {
   if (!currentCompany) {
     return (
       <AppLayout>
-        <div className="space-y-6">
+        <div className="page-shell">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
             <p className="text-muted-foreground">Todavía no hay una empresa activa seleccionada.</p>
@@ -149,8 +161,14 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="rounded-3xl border bg-gradient-to-r from-[hsl(var(--accent))] via-card to-card p-6">
+      <div className="page-shell">
+        <PageHeader
+          eyebrow="Branding y operación"
+          title="Configuración"
+          subtitle={`Empresa, identidad visual y encabezados de documentos para ${currentCompany.name}. Todo lo que definas acá se refleja en menús, PDFs y branding compartido.`}
+        />
+
+        <div className="hidden rounded-3xl border bg-gradient-to-r from-[hsl(var(--accent))] via-card to-card p-6">
           <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Empresa, identidad visual y encabezados de documentos para {currentCompany.name}. Todo lo que definas acá se refleja en menús, PDFs y branding compartido.</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -169,10 +187,10 @@ export default function SettingsPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
-          <Card className="rounded-3xl">
+          <Card>
             <CardHeader>
               <CardTitle>Datos de la empresa</CardTitle>
-              <CardDescription>Estos datos se reutilizan en la app, el sidebar y los PDFs.</CardDescription>
+              <CardDescription>Estos datos se reutilizan en la app, la navegación y los PDFs.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
@@ -243,7 +261,7 @@ export default function SettingsPage() {
           </Card>
 
           <div className="space-y-6">
-            <Card className="rounded-3xl">
+          <Card>
               <CardHeader>
                 <CardTitle>Marca visual</CardTitle>
                 <CardDescription>SVG es el formato ideal para logo. PNG funciona como respaldo. El color de acento se usa para fondos suaves, paneles seleccionados y superficies de apoyo.</CardDescription>
@@ -262,7 +280,91 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </div>
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-3">
+                  <Label>Tema visual</Label>
+                  <div className="grid gap-3">
+                    {THEME_OPTIONS.map((theme) => {
+                      const sample = buildCompanyThemePayload(theme.id, theme.defaultPrimary);
+                      return (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          onClick={() => {
+                            setThemePreset(theme.id);
+                            const next = buildCompanyThemePayload(theme.id, theme.defaultPrimary);
+                            setForm((prev) => ({ ...prev, ...next }));
+                          }}
+                          className={`flex items-start justify-between rounded-2xl border px-4 py-4 text-left transition-all ${
+                            themePreset === theme.id
+                              ? "border-primary bg-primary/5 shadow-[var(--shadow-xs)]"
+                              : "border-border/80 bg-background/70 hover:bg-accent/60"
+                          }`}
+                        >
+                          <div>
+                            <p className="font-semibold">{theme.name}</p>
+                            <p className="mt-1 text-sm text-muted-foreground">{theme.description}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-3 w-3 rounded-full border bg-white" style={{ backgroundColor: sample.primary_color }} />
+                            <span className="h-3 w-3 rounded-full border bg-white" style={{ backgroundColor: sample.secondary_color }} />
+                            <span className="h-3 w-3 rounded-full border bg-white" style={{ backgroundColor: sample.accent_color }} />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="grid gap-4 md:grid-cols-[1fr_180px]">
+                  <div className="space-y-2">
+                    <Label>Color principal</Label>
+                    <Input value={form.primary_color} onChange={(e) => setForm((prev) => ({ ...prev, primary_color: e.target.value }))} placeholder="#1f4f99" />
+                    <p className="text-xs text-muted-foreground">El sistema deriva automáticamente superficies, hover, topbar y tonos suaves a partir de este color.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Muestra rápida</Label>
+                    <Input type="color" value={form.primary_color} onChange={(e) => setForm((prev) => ({ ...prev, primary_color: e.target.value }))} className="h-12 p-2" />
+                  </div>
+                </div>
+                <div className="rounded-3xl border border-border/60 bg-[hsl(var(--panel))]/42 p-4">
+                  <p className="mb-3 text-sm font-medium">Vista previa del sistema</p>
+                  <div className="grid gap-4">
+                    <div className="rounded-2xl border p-4" style={{ backgroundColor: `hsl(${previewTheme.tokens.panel})` }}>
+                      <div className="mb-3 flex flex-wrap items-center gap-3">
+                        <div className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: previewTheme.primaryColor }}>
+                          Primario
+                        </div>
+                        <div className="rounded-lg px-4 py-2 text-sm font-semibold" style={{ backgroundColor: `hsl(${previewTheme.tokens["primary-soft"]})`, color: `hsl(${previewTheme.tokens.primary})` }}>
+                          Soft
+                        </div>
+                        <div className="rounded-lg border px-4 py-2 text-sm font-semibold" style={{ borderColor: `hsl(${previewTheme.tokens.border})`, backgroundColor: `hsl(${previewTheme.tokens.card})` }}>
+                          Superficie
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border p-4" style={{ borderColor: `hsl(${previewTheme.tokens.border})`, backgroundColor: `hsl(${previewTheme.tokens.card})` }}>
+                        <p className="text-sm font-semibold" style={{ color: `hsl(${previewTheme.tokens.primary})` }}>Panel con tono derivado</p>
+                        <p className="mt-1 text-sm" style={{ color: `hsl(${previewTheme.tokens["muted-foreground"]})` }}>El sistema usa tokens derivados para hover, selección, topbar, badges y acciones primarias.</p>
+                      </div>
+                    </div>
+                    <div className="overflow-hidden rounded-3xl border">
+                      <div className="flex min-h-[160px]">
+                        <div className="w-28 p-4 text-white" style={{ backgroundColor: `hsl(${previewTheme.tokens["sidebar-background"]})` }}>
+                          <div className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold">Top bar</div>
+                          <div className="mt-3 rounded-xl px-3 py-2 text-xs font-semibold" style={{ backgroundColor: `hsl(${previewTheme.tokens["sidebar-primary"]})`, color: `hsl(${previewTheme.tokens["sidebar-primary-foreground"]})` }}>
+                            Item activo
+                          </div>
+                        </div>
+                        <div className="flex-1 p-4" style={{ backgroundColor: `hsl(${previewTheme.tokens.background})` }}>
+                          <div className="rounded-2xl border p-4 shadow-sm" style={{ backgroundColor: `hsl(${previewTheme.tokens.card})`, borderColor: `hsl(${previewTheme.tokens.border})` }}>
+                            <p className="text-xs uppercase tracking-[0.18em]" style={{ color: `hsl(${previewTheme.tokens["muted-foreground"]})` }}>Preview de interfaz</p>
+                            <p className="mt-2 text-lg font-bold" style={{ color: `hsl(${previewTheme.tokens.primary})` }}>{form.app_name || "Tu empresa"}</p>
+                            <p className="mt-1 text-sm" style={{ color: `hsl(${previewTheme.tokens["muted-foreground"]})` }}>Así se perciben la barra superior, las cards y las superficies principales dentro de la app.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="hidden grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
                     <Label>Color primario</Label>
                     <Input type="color" value={form.primary_color} onChange={(e) => setForm((prev) => ({ ...prev, primary_color: e.target.value }))} className="h-12 p-2" />
@@ -276,7 +378,7 @@ export default function SettingsPage() {
                     <Input type="color" value={form.accent_color} onChange={(e) => setForm((prev) => ({ ...prev, accent_color: e.target.value }))} className="h-12 p-2" />
                   </div>
                 </div>
-                <div className="rounded-3xl border p-4">
+                <div className="hidden rounded-3xl border p-4">
                   <p className="mb-3 text-sm font-medium">Vista previa</p>
                   <div className="grid gap-4">
                     <div className="rounded-2xl border p-4" style={{ backgroundColor: form.accent_color }}>

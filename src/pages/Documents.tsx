@@ -44,8 +44,10 @@ import { useDocumentsMutations } from "@/features/documents/hooks/useDocumentsMu
 import { DocumentsEditorDialog } from "@/features/documents/components/DocumentsEditorDialog";
 import { DocumentsList } from "@/features/documents/components/DocumentsList";
 import { DocumentsPreviewDialog } from "@/features/documents/components/DocumentsPreviewDialog";
+import { FilterBar, PageHeader } from "@/components/ui/page";
 
 export default function DocumentsPage() {
+  const DOCUMENTS_PAGE_SIZE = 12;
   const { user, roles, currentCompany } = useAuth();
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
@@ -59,6 +61,7 @@ export default function DocumentsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [documentsPage, setDocumentsPage] = useState(1);
 
   const [form, setForm] = useState<DocumentFormState>({
     doc_type: "PRESUPUESTO" as DocType,
@@ -109,6 +112,16 @@ export default function DocumentsPage() {
     [items],
   );
   const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
+  const totalDocumentsPages = Math.max(1, Math.ceil(documents.length / DOCUMENTS_PAGE_SIZE));
+  const safeDocumentsPage = Math.min(documentsPage, totalDocumentsPages);
+  const pagedDocuments = useMemo(() => {
+    const start = (safeDocumentsPage - 1) * DOCUMENTS_PAGE_SIZE;
+    return documents.slice(start, start + DOCUMENTS_PAGE_SIZE);
+  }, [documents, safeDocumentsPage]);
+
+  useEffect(() => {
+    setDocumentsPage(1);
+  }, [deferredSearch, typeFilter, statusFilter]);
 
   const syncLineWithPriceList = (
     line: LineDraft,
@@ -455,21 +468,23 @@ export default function DocumentsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitás una empresa activa para crear documentos, emitir remitos y revisar su historial." />
         ) : null}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Documentos</h1>
-            <p className="text-muted-foreground">Presupuestos y remitos rápidos</p>
-          </div>
-          <Button onClick={openCreateDialog} disabled={!canCreateDocumentDraft(roles)}>
-            <Plus className="mr-2 h-4 w-4" /> Nuevo documento
-          </Button>
-        </div>
+        <PageHeader
+          eyebrow="Presupuestos y remitos"
+          title="Documentos"
+          subtitle="Presupuestos y remitos con mejor jerarquía visual, manteniendo la misma lógica de estados, impresión y transiciones."
+          actions={(
+            <Button onClick={openCreateDialog} disabled={!canCreateDocumentDraft(roles)}>
+              <Plus className="mr-2 h-4 w-4" /> Nuevo documento
+            </Button>
+          )}
+        />
 
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+
+        <FilterBar>
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Buscar cliente o número..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -498,10 +513,10 @@ export default function DocumentsPage() {
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </FilterBar>
 
         <DocumentsList
-          documents={documents}
+          documents={pagedDocuments}
           isLoading={isLoading}
           onOpenDetail={(documentId) => {
             setSelectedDocId(documentId);
@@ -534,6 +549,21 @@ export default function DocumentsPage() {
               : canTransitionDocumentTo(roles, status as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO")
           }
         />
+        <div className="flex flex-col gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-border/55 bg-card/72 px-4 py-3 shadow-[var(--shadow-xs)] md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {documents.length === 0 ? 0 : (safeDocumentsPage - 1) * DOCUMENTS_PAGE_SIZE + 1}-
+            {Math.min(safeDocumentsPage * DOCUMENTS_PAGE_SIZE, documents.length)} de {documents.length} documentos
+          </p>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setDocumentsPage((prev) => Math.max(1, prev - 1))} disabled={safeDocumentsPage <= 1}>
+              Anterior
+            </Button>
+            <span className="min-w-24 text-center text-sm text-muted-foreground">Página {safeDocumentsPage} de {totalDocumentsPages}</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => setDocumentsPage((prev) => Math.min(totalDocumentsPages, prev + 1))} disabled={safeDocumentsPage >= totalDocumentsPages}>
+              Siguiente
+            </Button>
+          </div>
+        </div>
       </div>
 
       <DocumentsEditorDialog

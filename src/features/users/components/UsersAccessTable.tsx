@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { getErrorMessage } from "@/lib/errors";
 import type { UserAccessRow, UserCompanyAccess } from "@/features/users/types";
+import { DataCard } from "@/components/ui/page";
 
 export function UsersAccessTable(props: {
   isLoading: boolean;
@@ -22,7 +23,7 @@ export function UsersAccessTable(props: {
   const { isLoading, error, users, onOpenUser, onOpenAccessDialog } = props;
 
   return (
-    <div className="rounded-lg border bg-card">
+    <DataCard>
       <Table>
         <TableHeader>
           <TableRow>
@@ -55,7 +56,7 @@ export function UsersAccessTable(props: {
             users.map((user) => (
               <TableRow key={user.user_id}>
                 <TableCell className="align-top">
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <div className="flex items-center gap-2 font-medium">
                       <User2 className="h-4 w-4 text-muted-foreground" />
                       {user.full_name?.trim() || "Sin nombre cargado"}
@@ -81,31 +82,40 @@ export function UsersAccessTable(props: {
                   </div>
                 </TableCell>
                 <TableCell className="align-top">
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {user.companies?.length ? (
                       user.companies.map((company) => (
-                        <div key={company.companyUserId} className="rounded-xl border bg-muted/20 px-3 py-2">
-                          <div className="flex items-center gap-2 font-medium">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
-                            {company.companyName}
-                            <Badge variant={company.status === "ACTIVE" ? "outline" : "destructive"}>
-                              {company.status === "ACTIVE" ? "Activa" : "Inactiva"}
-                            </Badge>
-                            {company.roles?.[0] ? (
-                              <Badge variant="secondary" className="hidden sm:inline-flex">
-                                {company.roles[0]}
-                              </Badge>
-                            ) : null}
+                        <div key={company.companyUserId} className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-card/78 p-3.5 shadow-[var(--shadow-xs)]">
+                          <div className="flex flex-wrap items-start gap-3">
+                            <div className="flex min-w-0 flex-1 items-start gap-3">
+                              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--panel))]/72 text-muted-foreground">
+                                <Building2 className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="truncate font-semibold text-foreground">{company.companyName}</p>
+                                  <Badge variant={company.status === "ACTIVE" ? "outline" : "destructive"}>
+                                    {company.status === "ACTIVE" ? "Activa" : "Inactiva"}
+                                  </Badge>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                                  <span>{company.companySlug}</span>
+                                  <span>•</span>
+                                  <span>{company.roles?.length ?? 0} roles</span>
+                                </div>
+                              </div>
+                            </div>
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              className="ml-auto h-8 w-8"
+                              variant="outline"
+                              size="sm"
+                              className="h-9 rounded-full"
                               onClick={() => onOpenAccessDialog(user, company)}
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
                             </Button>
                           </div>
-                          <div className="mt-1 flex flex-wrap gap-2">
+                          <div className="mt-3 flex flex-wrap gap-2">
                             {company.roles?.length ? (
                               company.roles.map((role) => (
                                 <Badge key={`${company.companyUserId}-${role}`} variant="secondary">
@@ -124,7 +134,7 @@ export function UsersAccessTable(props: {
                   </div>
                 </TableCell>
                 <TableCell className="text-right align-top">
-                  <Button variant="ghost" size="icon" onClick={() => onOpenUser(user)}>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => onOpenUser(user)}>
                     <Eye className="h-4 w-4" />
                   </Button>
                 </TableCell>
@@ -133,6 +143,6 @@ export function UsersAccessTable(props: {
           )}
         </TableBody>
       </Table>
-    </div>
+    </DataCard>
   );
 }

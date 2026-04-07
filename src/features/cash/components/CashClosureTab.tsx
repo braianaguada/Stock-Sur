@@ -20,6 +20,12 @@ type CashClosureTabProps = {
   canCloseCash: boolean;
 };
 
+const tileToneClasses = {
+  success: "from-card via-card to-success/12 before:bg-success/75",
+  warning: "from-card via-card to-warning/16 before:bg-warning/80",
+  info: "from-card via-card to-info/12 before:bg-info/75",
+} as const;
+
 export function CashClosureTab({
   effectiveClosure,
   closureLoading,
@@ -32,14 +38,42 @@ export function CashClosureTab({
   closePending,
   canCloseCash,
 }: CashClosureTabProps) {
+  const summaryTiles = [
+    {
+      label: "Efectivo a rendir",
+      value: Number(effectiveClosure?.expected_cash_to_render ?? 0),
+      tone: "success" as const,
+    },
+    {
+      label: "Point esperado",
+      value: Number(effectiveClosure?.expected_point_sales_total ?? 0),
+      tone: "info" as const,
+    },
+    {
+      label: "Transferencias esperadas",
+      value: Number(effectiveClosure?.expected_transfer_sales_total ?? 0),
+      tone: "info" as const,
+    },
+    {
+      label: "Total ventas",
+      value: Number(effectiveClosure?.expected_sales_total ?? 0),
+      tone: "warning" as const,
+    },
+  ];
+
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-[var(--shadow-sm)]">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <CardTitle>Cierre diario</CardTitle>
           <CardDescription>Cierre operativo del día con los totales esperados y el resumen imprimible para control.</CardDescription>
         </div>
-        <Badge variant="outline" className={effectiveClosure?.status === "CERRADO" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}>
+        <Badge
+          variant="outline"
+          className={effectiveClosure?.status === "CERRADO"
+            ? "border-success/18 bg-success/10 text-success"
+            : "border-warning/18 bg-warning/12 text-warning"}
+        >
           {effectiveClosure?.status === "CERRADO" ? "Cerrado" : "Abierto"}
         </Badge>
       </CardHeader>
@@ -51,15 +85,24 @@ export function CashClosureTab({
         ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Efectivo a rendir</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_cash_to_render ?? 0))}</CardTitle></CardHeader></Card>
-          <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Point esperado</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_point_sales_total ?? 0))}</CardTitle></CardHeader></Card>
-          <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Transferencias esperadas</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_transfer_sales_total ?? 0))}</CardTitle></CardHeader></Card>
-          <Card className="bg-slate-50/80"><CardHeader className="pb-2"><CardDescription>Total ventas</CardDescription><CardTitle className="text-lg">{closureLoading ? "..." : currency.format(Number(effectiveClosure?.expected_sales_total ?? 0))}</CardTitle></CardHeader></Card>
+          {summaryTiles.map((tile) => (
+            <Card
+              key={tile.label}
+              className={`relative overflow-hidden bg-gradient-to-br ${tileToneClasses[tile.tone]} before:absolute before:inset-x-5 before:top-0 before:h-px shadow-[var(--shadow-xs)]`}
+            >
+              <CardHeader className="gap-2 pb-4">
+                <CardDescription>{tile.label}</CardDescription>
+                <CardTitle className="text-2xl font-bold tracking-tight">
+                  {closureLoading ? "..." : currency.format(tile.value)}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+          ))}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-4">
-            <div className="rounded-2xl border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/40 p-4 text-sm leading-7 text-muted-foreground">
               El conteo físico del efectivo se completa sobre el resumen impreso. Desde esta pantalla solo cerrás la caja del sistema y dejás observaciones.
             </div>
             <div className="space-y-2">
@@ -74,7 +117,7 @@ export function CashClosureTab({
             </div>
           </div>
 
-          <div className="rounded-2xl border bg-muted/30 p-4">
+          <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/42 p-4">
             <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resumen operativo</h3>
             <div className="mt-4 space-y-3 text-sm">
               <div className="flex items-center justify-between">
@@ -85,8 +128,12 @@ export function CashClosureTab({
                 <span>Total ventas</span>
                 <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_sales_total ?? 0))}</span>
               </div>
-              <div className="border-t pt-3">
-                <p className="text-xs text-muted-foreground">Estado del cierre: {effectiveClosure?.status === "CERRADO" ? `cerrado el ${formatDateTime(effectiveClosure.closed_at ?? null)}` : "todavía abierto"}</p>
+              <div className="border-t border-border/50 pt-3">
+                <p className="text-xs text-muted-foreground">
+                  Estado del cierre: {effectiveClosure?.status === "CERRADO"
+                    ? `cerrado el ${formatDateTime(effectiveClosure.closed_at ?? null)}`
+                    : "todavía abierto"}
+                </p>
               </div>
             </div>
           </div>

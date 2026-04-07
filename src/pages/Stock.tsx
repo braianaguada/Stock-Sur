@@ -18,9 +18,11 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, ArrowDownCircle, ArrowUpCircle, Settings2, ChevronLeft, ChevronRight } from "lucide-react";
+import { DataCard, PageHeader, StatCard } from "@/components/ui/page";
+import { cn } from "@/lib/utils";
 import {
   type DemandProfile,
   type Movement,
@@ -442,31 +444,31 @@ export default function StockPage() {
   };
   const alertToneLabel: Record<StockHealth, string> = {
     GREEN: "OK",
-    YELLOW: "Atencion",
-    RED: "Critico",
+    YELLOW: "Atención",
+    RED: "Crítico",
     GRAY: "Info",
   };
   const alertRowClass: Record<StockHealth, string> = {
-    GREEN: "border-emerald-200 bg-emerald-50",
-    YELLOW: "border-amber-200 bg-amber-50",
-    RED: "border-red-200 bg-red-50",
-    GRAY: "border-slate-200 bg-slate-50",
+    GREEN: "border-success/18 bg-success/10 text-foreground",
+    YELLOW: "border-warning/18 bg-warning/10 text-foreground",
+    RED: "border-destructive/18 bg-destructive/10 text-foreground",
+    GRAY: "border-border/70 bg-[hsl(var(--panel))]/66 text-foreground",
   };
   const alertBadgeClass: Record<StockHealth, string> = {
-    GREEN: "bg-emerald-600 text-white border-emerald-700",
-    YELLOW: "bg-amber-500 text-black border-amber-600",
-    RED: "bg-red-600 text-white border-red-700",
-    GRAY: "bg-slate-600 text-white border-slate-700",
+    GREEN: "border-success/18 bg-success text-success-foreground",
+    YELLOW: "border-warning/18 bg-warning text-warning-foreground",
+    RED: "border-destructive/18 bg-destructive text-destructive-foreground",
+    GRAY: "border-border/70 bg-muted text-foreground",
   };
   const demandProfileLabel: Record<DemandProfile, string> = {
-    LOW: "Rotacion baja",
-    MEDIUM: "Rotacion media",
-    HIGH: "Rotacion alta",
+    LOW: "Rotación baja",
+    MEDIUM: "Rotación media",
+    HIGH: "Rotación alta",
   };
   const demandProfileClass: Record<DemandProfile, string> = {
-    LOW: "bg-slate-100 text-slate-700 border-slate-200",
-    MEDIUM: "bg-blue-100 text-blue-700 border-blue-200",
-    HIGH: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
+    LOW: "border-border/70 bg-muted text-foreground",
+    MEDIUM: "border-info/16 bg-info/10 text-info",
+    HIGH: "border-primary/16 bg-primary/10 text-primary",
   };
   const STOCK_PAGE_SIZE = 10;
   const alerts = useMemo(() => {
@@ -519,6 +521,10 @@ export default function StockPage() {
       });
     return [...critical, ...low, ...overstock, ...lowRotationInfo];
   }, [stockRows]);
+  const warningCount = useMemo(
+    () => alerts.filter((alert) => alert.tone === "YELLOW").length,
+    [alerts],
+  );
   const safeAlertsPage = Math.min(alertsPage, Math.max(1, Math.ceil(alerts.length / STOCK_PAGE_SIZE)));
   const pagedAlerts = useMemo(() => {
     const start = (safeAlertsPage - 1) * STOCK_PAGE_SIZE;
@@ -553,60 +559,52 @@ export default function StockPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitas una empresa activa para ver existencias y registrar movimientos de stock." />
         ) : null}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Stock</h1>
-            <p className="text-muted-foreground">Movimientos y stock actual</p>
-          </div>
-          <Button onClick={openCreateMovement}>
-            <Plus className="mr-2 h-4 w-4" /> Nuevo movimiento
-          </Button>
-        </div>
+        <PageHeader
+          eyebrow="Control de existencias"
+          title="Stock"
+          subtitle="Control de existencias, cobertura y movimientos con la misma lógica actual en una jerarquía más clara."
+          tabs={[
+            { label: "Resumen", value: "summary" },
+            { label: "Stock", value: "current" },
+            { label: "Movimientos", value: "movements" },
+          ]}
+          activeTab={tab}
+          onTabChange={setTab}
+          actions={(
+            <Button onClick={openCreateMovement}>
+              <Plus className="mr-2 h-4 w-4" /> Nuevo movimiento
+            </Button>
+          )}
+        />
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
-            <TabsTrigger value="summary">Resumen</TabsTrigger>
-            <TabsTrigger value="current">Stock</TabsTrigger>
-            <TabsTrigger value="movements">Movimientos</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="summary" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-4">
-              <Card className="border-red-500/70 bg-red-100">
-                <CardHeader className="pb-2"><CardTitle className="text-sm">En rojo</CardTitle></CardHeader>
-                <CardContent><p className="text-2xl font-bold">{stockRows.filter((r) => r.health === "RED").length}</p></CardContent>
-              </Card>
-              <Card className="border-amber-500/70 bg-amber-100">
-                <CardHeader className="pb-2"><CardTitle className="text-sm">En amarillo</CardTitle></CardHeader>
-                <CardContent><p className="text-2xl font-bold">{stockRows.filter((r) => r.health === "YELLOW").length}</p></CardContent>
-              </Card>
-              <Card className="border-slate-500/70 bg-slate-100">
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Sin datos</CardTitle></CardHeader>
-                <CardContent><p className="text-2xl font-bold">{stockRows.filter((r) => r.health === "GRAY").length}</p></CardContent>
-              </Card>
-              <Card className="border-emerald-500/70 bg-emerald-100">
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Alertas</CardTitle></CardHeader>
-                <CardContent><p className="text-2xl font-bold">{alerts.length}</p></CardContent>
-              </Card>
+          <TabsContent value="summary" className="space-y-6 pt-1">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <StatCard label="En rojo" value={stockRows.filter((r) => r.health === "RED").length} tone="danger" />
+              <StatCard label="En amarillo" value={warningCount} tone="warning" />
+              <StatCard label="Sin datos" value={stockRows.filter((r) => r.health === "GRAY").length} />
+              <StatCard label="Alertas" value={alerts.length} tone="success" />
             </div>
             <p className="text-xs text-muted-foreground">
-              Semaforo automatico: combina consumo de 30, 90 y 365 dias, con tratamiento especial para rotacion baja.
+              Semáforo automático: combina consumo de 30, 90 y 365 días, con tratamiento especial para rotación baja.
             </p>
             {alerts.length > 0 && (
-              <Card>
-                <CardHeader><CardTitle className="text-base">Alertas inteligentes</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
+              <Card className="overflow-hidden">
+                <CardHeader className="border-b border-border/70 bg-[hsl(var(--panel))]/55">
+                  <CardTitle className="text-lg">Alertas inteligentes</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 pt-7">
                   {pagedAlerts.map((a) => (
-                    <div key={a.id} className={`flex items-center justify-between rounded-md border p-2 text-sm ${alertRowClass[a.tone]}`}>
-                      <div>
-                        <p className="font-medium">{a.title}</p>
-                        <p className="text-muted-foreground">{a.detail}</p>
+                    <div key={a.id} className={`flex items-center justify-between gap-4 rounded-2xl border px-4 py-4.5 text-sm shadow-[var(--shadow-xs)] ${alertRowClass[a.tone]}`}>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-foreground">{a.title}</p>
+                        <p className="mt-1 text-muted-foreground">{a.detail}</p>
                       </div>
-                      <Badge variant="outline" className={alertBadgeClass[a.tone]}>
+                      <Badge variant="outline" className={cn("shrink-0", alertBadgeClass[a.tone])}>
                         {alertToneLabel[a.tone]}
                       </Badge>
                     </div>
@@ -630,7 +628,7 @@ export default function StockPage() {
             )}
           </TabsContent>
 
-          <TabsContent value="current" className="space-y-4">
+          <TabsContent value="current" className="space-y-5 pt-1">
             <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -643,14 +641,14 @@ export default function StockPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="rounded-lg border bg-card">
+            <DataCard>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>SKU</TableHead>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Unidad</TableHead>
-                    <TableHead>Semaforo</TableHead>
+                    <TableHead>Semáforo</TableHead>
                     <TableHead className="text-right">Cobertura</TableHead>
                     <TableHead className="text-right">Stock</TableHead>
                   </TableRow>
@@ -661,31 +659,31 @@ export default function StockPage() {
                   ) : sortedStockRows.length === 0 ? (
                     <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Sin movimientos de stock</TableCell></TableRow>
                   ) : pagedStockRows.map((r) => (
-                    <TableRow key={r.item_id}>
-                      <TableCell className="font-mono text-xs">{r.item_sku}</TableCell>
-                      <TableCell className="font-medium">{r.item_name}</TableCell>
-                      <TableCell>{r.item_unit}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={healthClass[r.health]}>
+                    <TableRow key={r.item_id} className="align-top">
+                      <TableCell className="py-4 font-mono text-xs">{r.item_sku}</TableCell>
+                      <TableCell className="py-4 text-sm font-semibold leading-6">{r.item_name}</TableCell>
+                      <TableCell className="py-4 text-sm">{r.item_unit}</TableCell>
+                      <TableCell className="py-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className={cn("px-2.5 py-0.5 text-[10px]", healthClass[r.health])}>
                             {healthLabel[r.health]}
                           </Badge>
-                          <Badge variant="outline" className={demandProfileClass[r.demand_profile]}>
+                          <Badge variant="outline" className={cn("px-2.5 py-0.5 text-[10px]", demandProfileClass[r.demand_profile])}>
                             {demandProfileLabel[r.demand_profile]}
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="py-4 text-right font-mono">
                         {r.low_rotation
                           ? formatCoverage(r.months_of_cover_low_rotation, "m")
                           : formatCoverage(r.days_of_cover, "d")}
                       </TableCell>
-                      <TableCell className="text-right font-bold">{formatQuantity(r.total, r.item_unit)}</TableCell>
+                      <TableCell className="py-4 text-right text-[15px] font-bold">{formatQuantity(r.total, r.item_unit)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </DataCard>
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">Mostrando {(safeStockPage - 1) * STOCK_PAGE_SIZE + (pagedStockRows.length === 0 ? 0 : 1)}-{Math.min(safeStockPage * STOCK_PAGE_SIZE, sortedStockRows.length)} de {sortedStockRows.length} productos</p>
               <div className="flex items-center gap-2">
@@ -701,7 +699,7 @@ export default function StockPage() {
           </TabsContent>
 
           <TabsContent value="movements">
-            <div className="rounded-lg border bg-card">
+            <DataCard>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -730,7 +728,7 @@ export default function StockPage() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </DataCard>
           </TabsContent>
         </Tabs>
       </div>
@@ -842,7 +840,7 @@ export default function StockPage() {
                 <p className="text-[11px] text-muted-foreground">Solo tuyos</p>
               </div>
               {recentItems.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Todavia no tenes productos recientes.</p>
+                <p className="text-sm text-muted-foreground">Todavía no tenés productos recientes.</p>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {recentItems.map((item) => (

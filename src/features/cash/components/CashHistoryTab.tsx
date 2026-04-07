@@ -7,9 +7,22 @@ import type { CashClosureHistoryRow } from "../types";
 type CashHistoryTabProps = {
   closuresHistory: CashClosureHistoryRow[];
   onOpenSummary: (closureId: string) => void;
+  page: number;
+  totalPages: number;
+  onPrevPage: () => void;
+  onNextPage: () => void;
+  pageSize: number;
 };
 
-export function CashHistoryTab({ closuresHistory, onOpenSummary }: CashHistoryTabProps) {
+export function CashHistoryTab({
+  closuresHistory,
+  onOpenSummary,
+  page,
+  totalPages,
+  onPrevPage,
+  onNextPage,
+  pageSize,
+}: CashHistoryTabProps) {
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -27,7 +40,7 @@ export function CashHistoryTab({ closuresHistory, onOpenSummary }: CashHistoryTa
             <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Todavía no hay cierres guardados.</div>
           ) : (
             closuresHistory.map((historyItem) => (
-              <div key={historyItem.id} className="flex flex-col gap-3 rounded-xl border p-4 md:flex-row md:items-center md:justify-between">
+              <div key={historyItem.id} className="flex flex-col gap-3 rounded-2xl border border-border/55 bg-background/68 p-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="font-semibold">{formatBusinessDate(historyItem.business_date)}</p>
                   <p className="text-sm text-muted-foreground">
@@ -55,6 +68,22 @@ export function CashHistoryTab({ closuresHistory, onOpenSummary }: CashHistoryTa
             ))
           )}
         </div>
+        {closuresHistory.length > 0 ? (
+          <div className="mt-5 flex items-center justify-between border-t border-border/45 pt-4">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {(page - 1) * pageSize + 1}-{(page - 1) * pageSize + closuresHistory.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={onPrevPage} disabled={page <= 1}>
+                Anterior
+              </Button>
+              <span className="min-w-24 text-center text-sm text-muted-foreground">Página {page} de {totalPages}</span>
+              <Button type="button" variant="outline" size="sm" onClick={onNextPage} disabled={page >= totalPages}>
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

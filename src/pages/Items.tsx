@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -41,6 +42,7 @@ import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { ITEM_UNIT_OPTIONS } from "@/features/items/constants";
 import { type Item, type ItemAlias } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
+import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 const NEW_ITEM_DRAFT_KEY = "items:new-item-draft";
@@ -478,21 +480,34 @@ export default function ItemsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitás una empresa activa para gestionar artículos, alias y catálogos de stock." />
         ) : null}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Ítems</h1>
-            <p className="text-muted-foreground">Catálogo maestro de productos</p>
-          </div>
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" /> Nuevo
-          </Button>
-        </div>
+        <PageHeader
+          eyebrow="Catálogo maestro"
+          title="Ítems"
+          subtitle="Gestioná productos, alias y demanda sin perder velocidad operativa. El rediseño mejora lectura y jerarquía sobre la misma lógica actual."
+          actions={(
+            <>
+              <Button asChild variant="outline">
+                <Link to="/items/catalog/import-legacy">Importar catálogo</Link>
+              </Button>
+              <Button onClick={openCreate}>
+                <Plus className="mr-2 h-4 w-4" /> Nuevo
+              </Button>
+            </>
+          )}
+          meta={(
+            <>
+              <Badge variant="outline">{totalItems} registrados</Badge>
+              <Badge variant="secondary">{selectedItemIds.length} seleccionados</Badge>
+            </>
+          )}
+        />
 
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+
+        <FilterBar>
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -546,9 +561,9 @@ export default function ItemsPage() {
           >
             Aplicar a seleccionados ({selectedItemIds.length})
           </Button>
-        </div>
+        </FilterBar>
 
-        <div className="rounded-lg border bg-card">
+        <DataCard>
           <Table>
             <TableHeader>
               <TableRow>
@@ -634,8 +649,8 @@ export default function ItemsPage() {
               )}
             </TableBody>
           </Table>
-        </div>
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        </DataCard>
+        <div className="flex flex-col gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-white/70 bg-card/90 px-4 py-3 shadow-[var(--shadow-xs)] md:flex-row md:items-center md:justify-between">
           <p className="text-sm text-muted-foreground">
             Mostrando {rangeStart}-{rangeEnd} de {totalItems} items
           </p>

@@ -62,7 +62,9 @@ export function buildCashSummary(sales: CashSaleRow[]): CashSummary {
     (acc, sale) => {
       if (sale.status !== "ANULADA") {
         acc.total += Number(sale.amount_total);
-        if (sale.payment_method === "EFECTIVO") acc.efectivo += Number(sale.amount_total);
+        if (sale.payment_method === "EFECTIVO" || sale.payment_method === "EFECTIVO_REMITO") acc.efectivoRemito += Number(sale.amount_total);
+        if (sale.payment_method === "EFECTIVO_FACTURABLE") acc.efectivoFacturable += Number(sale.amount_total);
+        if (sale.payment_method === "SERVICIOS_REMITO") acc.serviciosRemito += Number(sale.amount_total);
         if (sale.payment_method === "POINT") acc.point += Number(sale.amount_total);
         if (sale.payment_method === "TRANSFERENCIA") acc.transferencia += Number(sale.amount_total);
         if (sale.payment_method === "CUENTA_CORRIENTE") acc.cuentaCorriente += Number(sale.amount_total);
@@ -70,7 +72,16 @@ export function buildCashSummary(sales: CashSaleRow[]): CashSummary {
       if (sale.status === "PENDIENTE_COMPROBANTE") acc.pendientes += 1;
       return acc;
     },
-    { efectivo: 0, point: 0, transferencia: 0, cuentaCorriente: 0, total: 0, pendientes: 0 },
+    {
+      efectivoRemito: 0,
+      efectivoFacturable: 0,
+      serviciosRemito: 0,
+      point: 0,
+      transferencia: 0,
+      cuentaCorriente: 0,
+      total: 0,
+      pendientes: 0,
+    },
   );
 }
 
