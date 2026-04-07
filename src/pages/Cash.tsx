@@ -341,7 +341,7 @@ export default function CashPage() {
 
                 {paymentMethod === "SERVICIOS_REMITO" ? (
                   <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                    Este movimiento impacta en el total del dÃ­a, pero no entra en el efectivo a rendir del cierre.
+                    Este movimiento impacta en el total del día, pero no entra en el efectivo a rendir del cierre.
                   </p>
                 ) : null}
 

@@ -50,7 +50,7 @@ export default function Dashboard() {
     <AppLayout>
       <div className="space-y-6">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Tu cuenta todavia no tiene una empresa activa. Cuando el superadmin te asigne una, vas a ver aca el resumen de esa operacion." />
+          <CompanyAccessNotice description="Tu cuenta todavía no tiene una empresa activa. Cuando el superadmin te asigne una, vas a ver acá el resumen de esa operación." />
         ) : null}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>

@@ -13,7 +13,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
             <div>
               <p className="text-sm font-semibold tracking-[0.18em] text-primary/80 uppercase">{settings.app_name}</p>
-              <p className="text-xs text-muted-foreground">Sistema interno de gestion comercial y stock</p>
+              <p className="text-xs text-muted-foreground">Sistema interno de gestión comercial y stock</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-full border" style={{ backgroundColor: settings.primary_color }} />

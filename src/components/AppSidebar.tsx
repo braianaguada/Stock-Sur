@@ -80,6 +80,8 @@ export function AppSidebar() {
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed((prev) => !prev)}
+            aria-label={collapsed ? "Expandir menú lateral" : "Contraer menú lateral"}
+            title={collapsed ? "Expandir menú lateral" : "Contraer menú lateral"}
             className={cn(
               "ml-auto h-7 w-7 text-sidebar-foreground hover:bg-sidebar-accent",
               collapsed && "mx-auto ml-0",
@@ -125,6 +127,7 @@ export function AppSidebar() {
             <Link
               key={item.url}
               to={item.url}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
                 isActive

@@ -148,7 +148,7 @@ export function UserDetailDialog(props: {
                   ))
                 ) : (
                   <div className="rounded-2xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                    Este usuario todavia no tiene empresas asignadas.
+                    Este usuario todavía no tiene empresas asignadas.
                   </div>
                 )}
               </CardContent>

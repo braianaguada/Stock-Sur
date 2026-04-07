@@ -34,7 +34,7 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   primary_color: "#1f4f99",
   secondary_color: "#c62828",
   accent_color: "#eef3fb",
-  document_tagline: "Documentacion comercial",
+  document_tagline: "Documentación comercial",
   document_footer: "Este documento no reemplaza comprobantes fiscales",
   default_point_of_sale: 1,
   allow_issue_remitos_without_stock: false,

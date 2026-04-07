@@ -4,7 +4,7 @@ interface CompanyAccessNoticeProps {
 }
 
 const DEFAULT_TITLE = "Sin empresa asignada";
-const DEFAULT_DESCRIPTION = "Tu cuenta todavia no tiene una empresa habilitada. Registrate y despues pedile al superadmin que te asigne una empresa para empezar a operar.";
+const DEFAULT_DESCRIPTION = "Tu cuenta todavía no tiene una empresa habilitada. Registrate y después pedile al superadmin que te asigne una empresa para empezar a operar.";
 
 export function CompanyAccessNotice({
   title = DEFAULT_TITLE,
