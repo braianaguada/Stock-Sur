@@ -159,6 +159,8 @@ No es recomendable si termina derivando en generar links mágicos reutilizables 
 
 Para este proyecto, la opción más clara es B si tenés control sobre secrets de Supabase en la función.
 
+En Edge Functions conviene usar un secret propio como `JWT_SECRET`, no uno con prefijo `SUPABASE_`.
+
 ## Claims recomendadas
 
 Agregar claims al token impersonado:
