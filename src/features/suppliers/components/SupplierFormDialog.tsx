@@ -1,13 +1,7 @@
 import { ChevronDown } from "lucide-react";
+import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SupplierFormState } from "@/features/suppliers/types";
@@ -36,11 +30,11 @@ export function SupplierFormDialog(props: {
   } = props;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{editingName ? "Editar proveedor" : "Nuevo proveedor"}</DialogTitle>
-        </DialogHeader>
+    <EntityDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={editingName ? "Editar proveedor" : "Nuevo proveedor"}
+    >
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -95,13 +89,12 @@ export function SupplierFormDialog(props: {
               </div>
             </CollapsibleContent>
           </Collapsible>
-          <DialogFooter>
+          <div className="flex justify-end">
             <Button type="submit" disabled={isSaving}>
               {isSaving ? "Guardando..." : "Guardar"}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </EntityDialog>
   );
 }

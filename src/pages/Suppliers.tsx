@@ -1,355 +1,144 @@
-﻿import { useDeferredValue, useMemo, useRef, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Suspense, lazy } from "react";
+import { Plus, Search } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs } from "@/components/ui/tabs";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Search, MessageCircle, Copy } from "lucide-react";
-import {
-  ColumnMappingModal,
-  type MappingColumnOption,
-  type MappingPreviewRow,
-  type MappingSelection,
-} from "@/features/suppliers/components/ColumnMappingModal";
-import { PdfMappingModal, type PdfMappingSelection } from "@/features/suppliers/components/PdfMappingModal";
-import { SupplierCatalogDialog } from "@/features/suppliers/components/SupplierCatalogDialog";
-import { SupplierDropDetailDialog } from "@/features/suppliers/components/SupplierDropDetailDialog";
-import { SupplierFormDialog } from "@/features/suppliers/components/SupplierFormDialog";
-import { SuppliersTable } from "@/features/suppliers/components/SuppliersTable";
-import { useSupplierImportFlow } from "@/features/suppliers/hooks/useSupplierImportFlow";
-import { useSupplierOrderActions } from "@/features/suppliers/hooks/useSupplierOrderActions";
-import { deleteSupplier, restoreSupplier, saveSupplier } from "@/features/suppliers/mutations";
-import {
-  fetchSupplierCatalogLines,
-  fetchSupplierCatalogVersions,
-  fetchSupplierCatalogs,
-  fetchSuppliers,
-} from "@/features/suppliers/queries";
-import {
-  type CatalogImportLine,
-  type CatalogLine,
-  type NormalizeDiagnostics,
-  type OrderLine,
-  type ParsePdfProgress,
-  type Supplier,
-  type SupplierCatalog,
-  type SupplierCatalogVersion,
-  type SupplierFormState,
-} from "@/features/suppliers/types";
-import { formatSupplierDate } from "@/features/suppliers/utils";
-import {
-  buildSupplierFormState,
-  createCatalogDialogState,
-  createEmptySupplierForm,
-  groupSupplierVersionsByCatalog,
-} from "@/features/suppliers/state";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FilterBar, PageHeader } from "@/components/ui/page";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { SuppliersTable } from "@/features/suppliers/components/SuppliersTable";
+import { useSuppliersPage } from "@/features/suppliers/hooks/useSuppliersPage";
 
-const EMPTY_SUPPLIERS: Supplier[] = [];
-const EMPTY_CATALOGS: SupplierCatalog[] = [];
-const EMPTY_CATALOG_VERSIONS: SupplierCatalogVersion[] = [];
-const EMPTY_CATALOG_LINES: CatalogImportLine[] = [];
+const SupplierFormDialog = lazy(async () => {
+  const module = await import("@/features/suppliers/components/SupplierFormDialog");
+  return { default: module.SupplierFormDialog };
+});
+
+const SupplierCatalogDialog = lazy(async () => {
+  const module = await import("@/features/suppliers/components/SupplierCatalogDialog");
+  return { default: module.SupplierCatalogDialog };
+});
+
+const SupplierDropDetailDialog = lazy(async () => {
+  const module = await import("@/features/suppliers/components/SupplierDropDetailDialog");
+  return { default: module.SupplierDropDetailDialog };
+});
+
+const ColumnMappingModal = lazy(async () => {
+  const module = await import("@/features/suppliers/components/ColumnMappingModal");
+  return { default: module.ColumnMappingModal };
+});
+
+const PdfMappingModal = lazy(async () => {
+  const module = await import("@/features/suppliers/components/PdfMappingModal");
+  return { default: module.PdfMappingModal };
+});
+
+function SupplierDialogLoader() {
+  return (
+    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+      Cargando proveedor...
+    </div>
+  );
+}
 
 export default function SuppliersPage() {
   const { currentCompany } = useAuth();
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Supplier | null>(null);
-  const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
-  const [catalogDialogOpen, setCatalogDialogOpen] = useState(false);
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
-  const [catalogSearch, setCatalogSearch] = useState("");
-  const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
-  const [orderItems, setOrderItems] = useState<Record<string, OrderLine>>({});
-  const [lineQuantities, setLineQuantities] = useState<Record<string, number>>({});
-  const [form, setForm] = useState<SupplierFormState>(createEmptySupplierForm);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-
-  const [documentTitle, setDocumentTitle] = useState("");
-  const [documentNotes, setDocumentNotes] = useState("");
-  const [selectedCatalogId, setSelectedCatalogId] = useState("new");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [catalogUiTab, setCatalogUiTab] = useState<"carga" | "historial" | "catalogo">("catalogo");
-  const [dropDetailOpen, setDropDetailOpen] = useState(false);
-  const [lastDiagnostics, setLastDiagnostics] = useState<NormalizeDiagnostics | null>(null);
-  const [mappingModalOpen, setMappingModalOpen] = useState(false);
-  const [mappingModalColumns, setMappingModalColumns] = useState<MappingColumnOption[]>([]);
-  const [mappingModalPreviewRows, setMappingModalPreviewRows] = useState<MappingPreviewRow[]>([]);
-  const [mappingModalSuggested, setMappingModalSuggested] = useState<Omit<MappingSelection, "remember">>({
-    descriptionColumn: "",
-    priceColumn: "",
-    currencyColumn: null,
-    supplierCodeColumn: null,
-  });
-  const [mappingModalConfidence, setMappingModalConfidence] = useState(0);
-  const [pdfMappingOpen, setPdfMappingOpen] = useState(false);
-  const [pdfMappingHeaders, setPdfMappingHeaders] = useState<string[]>([]);
-  const [pdfMappingRows, setPdfMappingRows] = useState<string[][]>([]);
-  const [pdfMappingSuggested, setPdfMappingSuggested] = useState<Omit<PdfMappingSelection, "remember">>({
-    descriptionColumn: "col_1",
-    priceColumn: "col_2",
-    codeColumn: null,
-    preferPriceAtEnd: true,
-    filterRowsWithoutPrice: true,
-  });
-  const [pdfProgress, setPdfProgress] = useState<ParsePdfProgress | null>(null);
-  const xlsxMappingResolverRef = useRef<((value: MappingSelection | null) => void) | null>(null);
-  const pdfMappingResolverRef = useRef<((value: PdfMappingSelection | null) => void) | null>(null);
-  const deferredSearch = useDeferredValue(search);
-  const trimmedDeferredSearch = deferredSearch.trim();
-  const deferredCatalogSearch = useDeferredValue(catalogSearch);
-  const trimmedDeferredCatalogSearch = deferredCatalogSearch.trim();
-
   const { toast } = useToast();
-  const qc = useQueryClient();
-
-  const suppliersQuery = useQuery({
-    queryKey: ["suppliers", currentCompany?.id ?? "no-company", trimmedDeferredSearch, statusFilter],
-    enabled: Boolean(currentCompany),
-    queryFn: () => fetchSuppliers({
-      companyId: currentCompany!.id,
-      statusFilter,
-      search: trimmedDeferredSearch,
-    }),
-  });
-  const suppliers = suppliersQuery.data ?? EMPTY_SUPPLIERS;
-  const isLoading = suppliersQuery.isLoading;
-
-  const catalogsQuery = useQuery({
-    queryKey: ["supplier-catalogs", currentCompany?.id ?? "no-company", selectedSupplier?.id],
-    enabled: !!selectedSupplier && Boolean(currentCompany),
-    queryFn: () => fetchSupplierCatalogs(currentCompany!.id, selectedSupplier!.id),
-  });
-  const catalogs = catalogsQuery.data ?? EMPTY_CATALOGS;
-
-  const catalogVersionsQuery = useQuery({
-    queryKey: ["supplier-catalog-versions", currentCompany?.id ?? "no-company", selectedSupplier?.id],
-    enabled: !!selectedSupplier && Boolean(currentCompany),
-    queryFn: () => fetchSupplierCatalogVersions(currentCompany!.id, selectedSupplier!.id),
-  });
-  const catalogVersions = catalogVersionsQuery.data ?? EMPTY_CATALOG_VERSIONS;
-  const isHistoryLoading = catalogVersionsQuery.isLoading;
-
-  const activeCatalogLinesQuery = useQuery({
-    queryKey: ["supplier-catalog-lines", currentCompany?.id ?? "no-company", activeVersionId, trimmedDeferredCatalogSearch],
-    enabled: !!activeVersionId && Boolean(currentCompany),
-    queryFn: () => fetchSupplierCatalogLines({
-      companyId: currentCompany!.id,
-      versionId: activeVersionId!,
-      search: trimmedDeferredCatalogSearch,
-    }),
-  });
-  const activeCatalogLines = activeCatalogLinesQuery.data ?? EMPTY_CATALOG_LINES;
-  const isCatalogLoading = activeCatalogLinesQuery.isLoading;
-
-  const openCreate = () => {
-    setEditing(null);
-    setForm(createEmptySupplierForm());
-    setShowAdvanced(false);
-    setDialogOpen(true);
-  };
-
-  const openEdit = (s: Supplier) => {
-    setEditing(s);
-    setForm(buildSupplierFormState(s));
-    setDialogOpen(true);
-  };
-
-  const openCatalog = (supplier: Supplier) => {
-    const nextState = createCatalogDialogState();
-    setSelectedSupplier(supplier);
-    setCatalogSearch(nextState.catalogSearch);
-    setActiveVersionId(nextState.activeVersionId);
-    setOrderItems(nextState.orderItems);
-    setLineQuantities(nextState.lineQuantities);
-    setLastDiagnostics(nextState.lastDiagnostics);
-    setPdfProgress(nextState.pdfProgress);
-    setSelectedCatalogId(nextState.selectedCatalogId);
-    setSelectedFile(nextState.selectedFile);
-    setCatalogUiTab(nextState.catalogUiTab);
-    setCatalogDialogOpen(true);
-  };
-
-  const handleCatalogDialogOpenChange = (open: boolean) => {
-    setCatalogDialogOpen(open);
-    if (open) return;
-    const nextState = createCatalogDialogState();
-    setCatalogSearch(nextState.catalogSearch);
-    setActiveVersionId(nextState.activeVersionId);
-    setOrderItems(nextState.orderItems);
-    setLineQuantities(nextState.lineQuantities);
-    setLastDiagnostics(nextState.lastDiagnostics);
-    setPdfProgress(nextState.pdfProgress);
-    setSelectedCatalogId(nextState.selectedCatalogId);
-    setSelectedFile(nextState.selectedFile);
-    setCatalogUiTab(nextState.catalogUiTab);
-  };
-
-  const catalogVersionsById = useMemo(
-    () => new Map(catalogVersions.map((version) => [version.id, version])),
-    [catalogVersions],
-  );
-  const catalogsById = useMemo(
-    () => new Map(catalogs.map((catalog) => [catalog.id, catalog])),
-    [catalogs],
-  );
   const {
+    activeCatalogLines,
+    activeVersion,
+    activeVersionId,
+    addToOrder,
+    catalogDialogOpen,
+    catalogSearch,
+    catalogTitleById,
+    catalogUiTab,
+    catalogs,
     closeMappingModal,
     closePdfMappingModal,
     confirmMappingModal,
     confirmPdfMappingModal,
-    uploadCatalogMutation,
-  } = useSupplierImportFlow({
-    currentCompanyId: currentCompany?.id ?? null,
-    selectedSupplier,
-    selectedFile,
-    selectedCatalogId,
-    documentTitle,
+    deleteMutation,
+    dialogOpen,
     documentNotes,
-    catalogsById,
-    queryClient: qc,
-    setDocumentTitle,
-    setDocumentNotes,
-    setSelectedCatalogId,
-    setSelectedFile,
-    setPdfProgress,
-    setLastDiagnostics,
-    setActiveVersionId,
-    setCatalogUiTab,
-    setOrderItems,
-    setLineQuantities,
-    setMappingModalOpen,
-    setMappingModalColumns,
-    setMappingModalPreviewRows,
-    setMappingModalSuggested,
-    setMappingModalConfidence,
-    setPdfMappingOpen,
-    setPdfMappingHeaders,
-    setPdfMappingRows,
-    setPdfMappingSuggested,
-    xlsxMappingResolverRef,
-    pdfMappingResolverRef,
-    toast,
-  });
-  const activeVersion = useMemo(
-    () => (activeVersionId ? catalogVersionsById.get(activeVersionId) ?? null : null),
-    [catalogVersionsById, activeVersionId],
-  );
-
-  const catalogTitleById = useMemo(
-    () => new Map(catalogs.map((catalog) => [catalog.id, catalog.title])),
-    [catalogs],
-  );
-
-  const versionsByCatalog = useMemo(() => groupSupplierVersionsByCatalog(catalogVersions), [catalogVersions]);
-
-  const {
-    addToOrder,
-    copyOrderMessage,
-    openWhatsApp,
+    documentTitle,
+    dropDetailOpen,
+    editing,
+    form,
+    isCatalogLoading,
+    isHistoryLoading,
+    isLoading,
+    lastDiagnostics,
+    lineQuantities,
+    mappingModalColumns,
+    mappingModalConfidence,
+    mappingModalOpen,
+    mappingModalPreviewRows,
+    mappingModalSuggested,
+    onCatalogDialogOpenChange,
+    onCatalogVersionSelect,
+    onCopyOrderMessage,
+    onOpenWhatsApp,
+    onRemoveOrderItem,
+    onRestoreSupplier,
+    onUpdateLineQuantity,
+    onUpdateOrderQuantity,
+    openCatalog,
+    openCreate,
+    openEdit,
     orderLines,
     orderTotal,
-    removeOrderItem,
-    updateLineQuantity,
-    updateOrderQuantity,
-  } = useSupplierOrderActions({
+    pdfMappingHeaders,
+    pdfMappingOpen,
+    pdfMappingRows,
+    pdfMappingSuggested,
+    pdfProgress,
+    saveMutation,
+    search,
+    selectedCatalogId,
+    selectedFile,
     selectedSupplier,
-    activeVersion,
-    catalogTitleById,
-    orderItems,
-    lineQuantities,
-    setOrderItems,
-    setLineQuantities,
+    setCatalogSearch,
+    setCatalogUiTab,
+    setDialogOpen,
+    setDocumentNotes,
+    setDocumentTitle,
+    setDropDetailOpen,
+    setForm,
+    setMappingModalOpen,
+    setPdfMappingOpen,
+    setSearch,
+    setSelectedCatalogId,
+    setSelectedFile,
+    setShowAdvanced,
+    setStatusFilter,
+    setSupplierToDelete,
+    showAdvanced,
+    statusFilter,
+    supplierToDelete,
+    suppliers,
+    uploadCatalogMutation,
+    versionsByCatalog,
+  } = useSuppliersPage({
+    companyId: currentCompany?.id,
     toast,
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!currentCompany?.id) throw new Error("Necesitás una empresa activa para guardar proveedores.");
-      await saveSupplier({
-        companyId: currentCompany.id,
-        form,
-        editingId: editing?.id ?? null,
-      });
-    },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["suppliers", currentCompany?.id ?? "no-company"] });
-      setDialogOpen(false);
-      setEditing(null);
-      setForm(createEmptySupplierForm());
-      setShowAdvanced(false);
-      toast({ title: editing ? "Proveedor actualizado" : "Proveedor creado" });
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: "No se pudo guardar el proveedor",
-        description: error instanceof Error ? error.message : "Error desconocido",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (supplierId: string) => {
-      if (!currentCompany?.id) throw new Error("Necesitás una empresa activa para eliminar proveedores.");
-      await deleteSupplier(currentCompany.id, supplierId);
-    },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["suppliers", currentCompany?.id ?? "no-company"] });
-      toast({ title: "Proveedor eliminado" });
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: "No se pudo eliminar el proveedor",
-        description: error instanceof Error ? error.message : "Error desconocido",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const restoreMutation = useMutation({
-    mutationFn: async (supplierId: string) => {
-      if (!currentCompany?.id) throw new Error("Necesitás una empresa activa para restaurar proveedores.");
-      await restoreSupplier(currentCompany.id, supplierId);
-    },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["suppliers", currentCompany?.id ?? "no-company"] });
-      toast({ title: "Proveedor restaurado" });
-    },
-    onError: (error: unknown) => {
-      toast({
-        title: "No se pudo restaurar el proveedor",
-        description: error instanceof Error ? error.message : "Error desconocido",
-        variant: "destructive",
-      });
-    },
   });
 
   return (
     <AppLayout>
       <div className="page-shell">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitás una empresa activa para trabajar con proveedores, catálogos e importaciones." />
+          <CompanyAccessNotice description="Necesitas una empresa activa para trabajar con proveedores, catalogos e importaciones." />
         ) : null}
+
         <PageHeader
-          eyebrow="Compras y catálogos"
+          eyebrow="Compras y catalogos"
           title="Proveedores"
-          description="Gestión de proveedores, versiones de catálogos e importaciones. Se mejora jerarquía visual sin tocar el flujo de carga ni el matching."
+          description="Gestion de proveedores, versiones de catalogos e importaciones. Se mejora jerarquia visual sin tocar el flujo de carga ni el matching."
           actions={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo proveedor</Button>}
         />
 
@@ -378,68 +167,71 @@ export default function SuppliersPage() {
           onOpenCatalog={openCatalog}
           onOpenEdit={openEdit}
           onDelete={setSupplierToDelete}
-          onRestore={(supplierId) => restoreMutation.mutate(supplierId)}
+          onRestore={onRestoreSupplier}
         />
       </div>
 
-      <SupplierFormDialog
-        open={dialogOpen}
-        editingName={editing?.name}
-        form={form}
-        showAdvanced={showAdvanced}
-        isSaving={saveMutation.isPending}
-        onOpenChange={setDialogOpen}
-        onShowAdvancedChange={setShowAdvanced}
-        onFormChange={setForm}
-        onSubmit={() => saveMutation.mutate()}
-      />
+      {dialogOpen ? (
+        <Suspense fallback={<SupplierDialogLoader />}>
+          <SupplierFormDialog
+            open={dialogOpen}
+            editingName={editing?.name}
+            form={form}
+            showAdvanced={showAdvanced}
+            isSaving={saveMutation.isPending}
+            onOpenChange={setDialogOpen}
+            onShowAdvancedChange={setShowAdvanced}
+            onFormChange={setForm}
+            onSubmit={() => saveMutation.mutate()}
+          />
+        </Suspense>
+      ) : null}
 
-      <SupplierCatalogDialog
-        open={catalogDialogOpen}
-        onOpenChange={handleCatalogDialogOpenChange}
-        selectedSupplier={selectedSupplier}
-        catalogUiTab={catalogUiTab}
-        onCatalogUiTabChange={setCatalogUiTab}
-        documentTitle={documentTitle}
-        onDocumentTitleChange={setDocumentTitle}
-        documentNotes={documentNotes}
-        onDocumentNotesChange={setDocumentNotes}
-        selectedCatalogId={selectedCatalogId}
-        onSelectedCatalogIdChange={setSelectedCatalogId}
-        selectedFile={selectedFile}
-        onSelectedFileChange={setSelectedFile}
-        onUpload={() => uploadCatalogMutation.mutate()}
-        isUploading={uploadCatalogMutation.isPending}
-        pdfProgress={pdfProgress}
-        lastDiagnostics={lastDiagnostics}
-        onOpenDropDetail={() => setDropDetailOpen(true)}
-        catalogs={catalogs}
-        isHistoryLoading={isHistoryLoading}
-        versionsByCatalog={versionsByCatalog}
-        activeVersionId={activeVersionId}
-        onSelectVersion={(versionId) => {
-          setActiveVersionId(versionId);
-          setCatalogSearch("");
-          setOrderItems({});
-          setLineQuantities({});
-          setCatalogUiTab("catalogo");
-        }}
-        activeVersion={activeVersion}
-        catalogTitleById={catalogTitleById}
-        catalogSearch={catalogSearch}
-        onCatalogSearchChange={setCatalogSearch}
-        isCatalogLoading={isCatalogLoading}
-        activeCatalogLines={activeCatalogLines}
-        lineQuantities={lineQuantities}
-        onLineQuantityChange={updateLineQuantity}
-        onAddToOrder={addToOrder}
-        orderLines={orderLines}
-        orderTotal={orderTotal}
-        onOrderQuantityChange={updateOrderQuantity}
-        onRemoveOrderItem={removeOrderItem}
-        onCopyOrderMessage={copyOrderMessage}
-        onOpenWhatsApp={openWhatsApp}
-      />
+      {catalogDialogOpen ? (
+        <Suspense fallback={<SupplierDialogLoader />}>
+          <SupplierCatalogDialog
+            open={catalogDialogOpen}
+            onOpenChange={onCatalogDialogOpenChange}
+            selectedSupplier={selectedSupplier}
+            catalogUiTab={catalogUiTab}
+            onCatalogUiTabChange={setCatalogUiTab}
+            documentTitle={documentTitle}
+            onDocumentTitleChange={setDocumentTitle}
+            documentNotes={documentNotes}
+            onDocumentNotesChange={setDocumentNotes}
+            selectedCatalogId={selectedCatalogId}
+            onSelectedCatalogIdChange={setSelectedCatalogId}
+            selectedFile={selectedFile}
+            onSelectedFileChange={setSelectedFile}
+            onUpload={() => uploadCatalogMutation.mutate()}
+            isUploading={uploadCatalogMutation.isPending}
+            pdfProgress={pdfProgress}
+            lastDiagnostics={lastDiagnostics}
+            onOpenDropDetail={() => setDropDetailOpen(true)}
+            catalogs={catalogs}
+            isHistoryLoading={isHistoryLoading}
+            versionsByCatalog={versionsByCatalog}
+            activeVersionId={activeVersionId}
+            onSelectVersion={onCatalogVersionSelect}
+            activeVersion={activeVersion}
+            catalogTitleById={catalogTitleById}
+            catalogSearch={catalogSearch}
+            onCatalogSearchChange={setCatalogSearch}
+            isCatalogLoading={isCatalogLoading}
+            activeCatalogLines={activeCatalogLines}
+            lineQuantities={lineQuantities}
+            onLineQuantityChange={onUpdateLineQuantity}
+            onAddToOrder={addToOrder}
+            orderLines={orderLines}
+            orderTotal={orderTotal}
+            onOrderQuantityChange={onUpdateOrderQuantity}
+            onRemoveOrderItem={onRemoveOrderItem}
+            onCopyOrderMessage={onCopyOrderMessage}
+            onOpenWhatsApp={onOpenWhatsApp}
+          />
+        </Suspense>
+      ) : null}
+
       <ConfirmDeleteDialog
         open={!!supplierToDelete}
         onOpenChange={(open) => {
@@ -459,42 +251,50 @@ export default function SuppliersPage() {
         }}
       />
 
-      <ColumnMappingModal
-        open={mappingModalOpen}
-        onOpenChange={(open) => {
-          if (!open) closeMappingModal();
-          else setMappingModalOpen(true);
-        }}
-        columns={mappingModalColumns}
-        previewRows={mappingModalPreviewRows}
-        suggestedMapping={mappingModalSuggested}
-        confidence={mappingModalConfidence}
-        onConfirm={confirmMappingModal}
-        onCancel={closeMappingModal}
-      />
+      {mappingModalOpen ? (
+        <Suspense fallback={<SupplierDialogLoader />}>
+          <ColumnMappingModal
+            open={mappingModalOpen}
+            onOpenChange={(open) => {
+              if (!open) closeMappingModal();
+              else setMappingModalOpen(true);
+            }}
+            columns={mappingModalColumns}
+            previewRows={mappingModalPreviewRows}
+            suggestedMapping={mappingModalSuggested}
+            confidence={mappingModalConfidence}
+            onConfirm={confirmMappingModal}
+            onCancel={closeMappingModal}
+          />
+        </Suspense>
+      ) : null}
 
-      <PdfMappingModal
-        open={pdfMappingOpen}
-        onOpenChange={(open) => {
-          if (!open) closePdfMappingModal();
-          else setPdfMappingOpen(true);
-        }}
-        headers={pdfMappingHeaders}
-        rows={pdfMappingRows}
-        suggested={pdfMappingSuggested}
-        onApply={confirmPdfMappingModal}
-        onCancel={closePdfMappingModal}
-      />
+      {pdfMappingOpen ? (
+        <Suspense fallback={<SupplierDialogLoader />}>
+          <PdfMappingModal
+            open={pdfMappingOpen}
+            onOpenChange={(open) => {
+              if (!open) closePdfMappingModal();
+              else setPdfMappingOpen(true);
+            }}
+            headers={pdfMappingHeaders}
+            rows={pdfMappingRows}
+            suggested={pdfMappingSuggested}
+            onApply={confirmPdfMappingModal}
+            onCancel={closePdfMappingModal}
+          />
+        </Suspense>
+      ) : null}
 
-      <SupplierDropDetailDialog
-        open={dropDetailOpen}
-        onOpenChange={setDropDetailOpen}
-        diagnostics={lastDiagnostics}
-      />
+      {dropDetailOpen ? (
+        <Suspense fallback={<SupplierDialogLoader />}>
+          <SupplierDropDetailDialog
+            open={dropDetailOpen}
+            onOpenChange={setDropDetailOpen}
+            diagnostics={lastDiagnostics}
+          />
+        </Suspense>
+      ) : null}
     </AppLayout>
   );
 }
-
-
-
-

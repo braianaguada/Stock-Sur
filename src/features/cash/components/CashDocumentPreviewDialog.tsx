@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LineItemsTable } from "@/components/common/LineItemsTable";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { currency, formatDocumentNumber } from "@/lib/formatters";
 import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL } from "../constants";
 import type { CashSaleRow, DocumentEventQuickRow, DocumentLineQuickRow, DocumentQuickRow } from "../types";
@@ -83,7 +83,7 @@ export function CashDocumentPreviewDialog({
                             <p className="text-2xl font-black tracking-[0.12em] text-primary">{companyBrand.appName}</p>
                           )}
                           <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            {companyBrand.documentTagline ?? "Documentación comercial"}
+                            {companyBrand.documentTagline ?? "Documentacion comercial"}
                           </p>
                         </div>
                       </div>
@@ -99,7 +99,7 @@ export function CashDocumentPreviewDialog({
                         <p className="mt-2 font-semibold">{linkedDocument.customer_name ?? "Cliente ocasional"}</p>
                       </div>
                       <div className="rounded-2xl border bg-white/80 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operación</p>
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
                         <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(linkedDocument.issue_date).toLocaleDateString("es-AR")}</p>
                         <p className="text-sm"><span className="font-semibold">Estado:</span> {DOC_STATUS_LABEL[linkedDocument.status]}</p>
                         <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(linkedDocument.point_of_sale).padStart(4, "0")}</p>
@@ -122,30 +122,19 @@ export function CashDocumentPreviewDialog({
                 </div>
 
                 <div className="rounded-3xl border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>#</TableHead>
-                        <TableHead>Descripción</TableHead>
-                        <TableHead className="text-right">Cant.</TableHead>
-                        <TableHead>Unidad</TableHead>
-                        <TableHead className="text-right">P.Unit.</TableHead>
-                        <TableHead className="text-right">Importe</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {linkedDocumentLines.map((line) => (
-                        <TableRow key={line.id}>
-                          <TableCell>{line.line_order}</TableCell>
-                          <TableCell className="font-medium">{line.description}</TableCell>
-                          <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
-                          <TableCell>{line.unit ?? "un"}</TableCell>
-                          <TableCell className="text-right font-mono">{currency.format(Number(line.unit_price))}</TableCell>
-                          <TableCell className="text-right font-mono">{currency.format(Number(line.line_total))}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <LineItemsTable
+                    rows={linkedDocumentLines.map((line) => ({
+                      id: line.id,
+                      line_order: line.line_order,
+                      description: line.description,
+                      quantity: line.quantity,
+                      unit: line.unit,
+                      unit_price: line.unit_price,
+                      total: line.line_total,
+                    }))}
+                    showOrder
+                    currencyFormatter={(value) => currency.format(Number(value))}
+                  />
                 </div>
               </div>
 
@@ -157,7 +146,7 @@ export function CashDocumentPreviewDialog({
 
                 {linkedDocumentEvents.length === 0 ? (
                   <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
-                    Todavía no hay eventos registrados para este documento.
+                    Todavia no hay eventos registrados para este documento.
                   </div>
                 ) : (
                   <div className="relative pl-7">

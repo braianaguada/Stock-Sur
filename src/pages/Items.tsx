@@ -1,12 +1,10 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+﻿import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -14,67 +12,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
-  Pencil,
-  Plus,
-  RotateCcw,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
-import { ITEM_UNIT_OPTIONS } from "@/features/items/constants";
+import { invalidateItemQueries, invalidateStockQueries } from "@/lib/invalidate";
+import { queryKeys } from "@/lib/query-keys";
 import { type Item, type ItemAlias } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
+import { ItemFormDialog } from "@/features/items/components/ItemFormDialog";
+import {
+  ItemsDataTable,
+  type ItemSortField,
+  type SortDirection,
+} from "@/features/items/components/ItemsDataTable";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 const NEW_ITEM_DRAFT_KEY = "items:new-item-draft";
 
-type ItemSortField = "sku" | "name" | "brand" | "model" | "category" | "is_active" | "created_at";
-type SortDirection = "asc" | "desc";
-
-function SortableHead(props: {
-  label: string;
-  field: ItemSortField;
-  sortBy: ItemSortField;
-  sortDirection: SortDirection;
-  onSort: (field: ItemSortField) => void;
-  className?: string;
-}) {
-  const { label, field, sortBy, sortDirection, onSort, className } = props;
-  const active = sortBy === field;
-  const Icon = active ? (sortDirection === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
-
-  return (
-    <TableHead className={className}>
-      <button
-        type="button"
-        onClick={() => onSort(field)}
-        className="inline-flex items-center gap-1 font-medium text-left hover:text-foreground"
-      >
-        <span>{label}</span>
-        <Icon className="h-3.5 w-3.5" />
-      </button>
-    </TableHead>
-  );
-}
 
 export default function ItemsPage() {
   const { currentCompany } = useAuth();
@@ -106,7 +67,7 @@ export default function ItemsPage() {
   const [bulkDemandProfile, setBulkDemandProfile] = useState<Item["demand_profile"]>("LOW");
   const { toast } = useToast();
   const qc = useQueryClient();
-  const aliasQueryKey = ["item-aliases", currentCompany?.id ?? "no-company", editingItem?.id] as const;
+  const aliasQueryKey = queryKeys.items.aliases(currentCompany?.id ?? null, editingItem?.id);
 
   useEffect(() => {
     setPage(1);
@@ -135,17 +96,7 @@ export default function ItemsPage() {
   }, [currentCompany, dialogOpen, editingItem, form]);
 
   const itemsQuery = useQuery({
-    queryKey: [
-      "items",
-      currentCompany?.id ?? "no-company",
-      deferredSearch,
-      categoryFilter,
-      statusFilter,
-      page,
-      pageSize,
-      sortBy,
-      sortDirection,
-    ],
+    queryKey: queryKeys.items.list(currentCompany?.id ?? null, deferredSearch, categoryFilter, statusFilter, page, pageSize, sortBy, sortDirection),
     enabled: Boolean(currentCompany),
     placeholderData: keepPreviousData,
     queryFn: async () => {
@@ -210,7 +161,7 @@ export default function ItemsPage() {
   const isLoading = itemsQuery.isLoading;
 
   const { data: categories = [] } = useQuery({
-    queryKey: ["items-categories", currentCompany?.id ?? "no-company", statusFilter],
+    queryKey: queryKeys.items.categories(currentCompany?.id ?? null, statusFilter),
     enabled: Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase.from("items").select("category").eq("company_id", currentCompany!.id).not("category", "is", null);
@@ -237,7 +188,6 @@ export default function ItemsPage() {
       return data as ItemAlias[];
     },
   });
-  const allVisibleSelected = items.length > 0 && items.every((item) => selectedItemIds.includes(item.id));
   const rangeStart = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(page * pageSize, totalItems);
 
@@ -297,12 +247,8 @@ export default function ItemsPage() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["items"] });
-      qc.invalidateQueries({ queryKey: ["items-categories"] });
-      qc.invalidateQueries({ queryKey: ["stock-current"] });
-      qc.invalidateQueries({ queryKey: ["stock-item-search"] });
-      qc.invalidateQueries({ queryKey: ["stock-recent-items"] });
+    onSuccess: async () => {
+      await Promise.all([invalidateItemQueries(qc), invalidateStockQueries(qc)]);
       if (currentCompany && !editingItem) {
         sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
       }
@@ -322,9 +268,8 @@ export default function ItemsPage() {
       const { error } = await supabase.from("price_list_items").update({ is_active: false }).eq("item_id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["items"] });
-      qc.invalidateQueries({ queryKey: ["items-categories"] });
+    onSuccess: async () => {
+      await invalidateItemQueries(qc);
       toast({ title: "Ítem desactivado" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -336,9 +281,8 @@ export default function ItemsPage() {
       const { error } = await supabase.from("items").update({ is_active: true }).eq("company_id", currentCompany.id).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["items"] });
-      qc.invalidateQueries({ queryKey: ["items-categories"] });
+    onSuccess: async () => {
+      await invalidateItemQueries(qc);
       toast({ title: "Ítem reactivado" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -359,7 +303,7 @@ export default function ItemsPage() {
     onSuccess: (createdAlias) => {
       qc.setQueryData<ItemAlias[]>(aliasQueryKey, (current = []) => [...current, createdAlias]);
       qc.invalidateQueries({ queryKey: aliasQueryKey });
-      qc.invalidateQueries({ queryKey: ["items"] });
+      qc.invalidateQueries({ queryKey: queryKeys.items.all() });
       setNewAlias("");
       setIsSupplierCode(false);
     },
@@ -386,9 +330,11 @@ export default function ItemsPage() {
         .in("id", selectedItemIds);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["items"] });
-      qc.invalidateQueries({ queryKey: ["stock-current"] });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.items.all() }),
+        invalidateStockQueries(qc),
+      ]);
       setSelectedItemIds([]);
       toast({ title: "Tipo de demanda actualizado" });
     },
@@ -404,7 +350,7 @@ export default function ItemsPage() {
     onSuccess: (deletedAliasId) => {
       qc.setQueryData<ItemAlias[]>(aliasQueryKey, (current = []) => current.filter((alias) => alias.id !== deletedAliasId));
       qc.invalidateQueries({ queryKey: aliasQueryKey });
-      qc.invalidateQueries({ queryKey: ["items"] });
+      qc.invalidateQueries({ queryKey: queryKeys.items.all() });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -553,283 +499,55 @@ export default function ItemsPage() {
         </FilterBar>
 
         <DataCard>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[44px]">
-                  <Checkbox
-                    checked={allVisibleSelected}
-                    onCheckedChange={(checked) => setSelectedItemIds(checked === true ? items.map((item) => item.id) : [])}
-                    aria-label="Seleccionar todos"
-                  />
-                </TableHead>
-                <SortableHead label="SKU" field="sku" sortBy={sortBy} sortDirection={sortDirection} onSort={toggleSort} />
-                <SortableHead label="Nombre" field="name" sortBy={sortBy} sortDirection={sortDirection} onSort={toggleSort} />
-                <SortableHead label="Marca" field="brand" sortBy={sortBy} sortDirection={sortDirection} onSort={toggleSort} />
-                <SortableHead label="Modelo" field="model" sortBy={sortBy} sortDirection={sortDirection} onSort={toggleSort} />
-                <SortableHead label="Categoria" field="category" sortBy={sortBy} sortDirection={sortDirection} onSort={toggleSort} />
-                <TableHead>Unidad</TableHead>
-                <TableHead>Demanda</TableHead>
-                <SortableHead label="Activo" field="is_active" sortBy={sortBy} sortDirection={sortDirection} onSort={toggleSort} />
-                <TableHead className="w-[120px]">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={10} className="py-6 text-center text-muted-foreground">
-                    Cargando...
-                  </TableCell>
-                </TableRow>
-              ) : items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={10} className="py-6 text-center text-muted-foreground">
-                    No se encontraron ítems
-                  </TableCell>
-                </TableRow>
-              ) : (
-                items.map((item) => (
-                  <TableRow key={item.id} className="h-9">
-                    <TableCell className="py-1.5">
-                      <Checkbox
-                        checked={selectedItemIds.includes(item.id)}
-                        onCheckedChange={(checked) => setSelectedItemIds((prev) => (
-                          checked === true
-                            ? (prev.includes(item.id) ? prev : [...prev, item.id])
-                            : prev.filter((id) => id !== item.id)
-                        ))}
-                        aria-label={`Seleccionar ${item.name}`}
-                      />
-                    </TableCell>
-                    <TableCell className="py-1.5 font-mono text-[11px]">{item.sku}</TableCell>
-                    <TableCell className="py-1.5 text-sm font-medium">{item.name}</TableCell>
-                    <TableCell className="py-1.5 text-xs">{item.brand ?? "-"}</TableCell>
-                    <TableCell className="py-1.5 text-xs">{item.model ?? "-"}</TableCell>
-                    <TableCell className="py-1.5 text-xs">{item.category ?? "—"}</TableCell>
-                    <TableCell className="py-1.5 text-xs">{item.unit}</TableCell>
-                    <TableCell className="py-1.5">
-                      <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
-                        {item.demand_profile === "HIGH" ? "Alta" : item.demand_profile === "MEDIUM" ? "Media" : "Baja"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="py-1.5">
-                      <Badge variant={item.is_active ? "default" : "secondary"} className="h-5 px-1.5 text-[10px]">
-                        {item.is_active ? "Activo" : "Inactivo"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="py-1.5">
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        {item.is_active ? (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setItemToDelete(item)} title="Desactivar">
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        ) : (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => restoreMutation.mutate(item.id)} title="Reactivar">
-                            <RotateCcw className="h-3.5 w-3.5 text-emerald-600" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <ItemsDataTable
+            items={items}
+            isLoading={isLoading}
+            selectedItemIds={selectedItemIds}
+            sortBy={sortBy}
+            sortDirection={sortDirection}
+            onSort={toggleSort}
+            onSelectionChange={setSelectedItemIds}
+            onEdit={openEdit}
+            onDelete={setItemToDelete}
+            onRestore={(itemId) => restoreMutation.mutate(itemId)}
+          />
         </DataCard>
-        <div className="flex flex-col gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-white/70 bg-card/90 px-4 py-3 shadow-[var(--shadow-xs)] md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Mostrando {rangeStart}-{rangeEnd} de {totalItems} ítems
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="items-page-size" className="text-sm text-muted-foreground">
-                Por página
-              </Label>
-              <Select
-                value={String(pageSize)}
-                onValueChange={(value) => setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number])}
-              >
-                <SelectTrigger id="items-page-size" className="w-[96px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAGE_SIZE_OPTIONS.map((option) => (
-                    <SelectItem key={option} value={String(option)}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                disabled={page <= 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="min-w-24 text-center text-sm text-muted-foreground">
-                Página {page} de {totalPages}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-                disabled={page >= totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+        <DataTablePagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          pageSize={pageSize}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          onPageChange={setPage}
+          onPageSizeChange={(value) => setPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
+          itemLabel="ítems"
+        />
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={(open) => {
-        setDialogOpen(open);
-        if (!open && currentCompany && !editingItem) {
-          sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
-        }
-      }}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingItem ? "Editar ítem" : "Nuevo ítem"}</DialogTitle>
-          </DialogHeader>
-          <form
-            onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }}
-            className="space-y-4"
-          >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>SKU</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setForm((prev) => ({ ...prev, sku: generateItemSku(prev.name || "item") }))}
-                >
-                  Autogenerar
-                </Button>
-              </div>
-              <Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} placeholder="Ej: BOMBA-001" />
-            </div>
-            <div className="space-y-2">
-              <Label>Nombre *</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Marca</Label>
-                <Input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Modelo</Label>
-                <Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Unidad *</Label>
-                <Select value={form.unit || "un"} onValueChange={(value) => setForm({ ...form, unit: value })}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar unidad" /></SelectTrigger>
-                  <SelectContent>
-                    {ITEM_UNIT_OPTIONS.map((unit) => (
-                      <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Categoria</Label>
-                <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Tipo de demanda *</Label>
-              <Select value={form.demand_profile} onValueChange={(value) => setForm({ ...form, demand_profile: value as Item["demand_profile"] })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LOW">Baja rotación</SelectItem>
-                  <SelectItem value="MEDIUM">Rotación media</SelectItem>
-                  <SelectItem value="HIGH">Alta rotación</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Consumo mensual estimado (opcional)</Label>
-              <Input
-                type="number"
-                min={0}
-                step="any"
-                placeholder="Ej: 7"
-                value={form.demand_monthly_estimate}
-                onChange={(e) => setForm({ ...form, demand_monthly_estimate: e.target.value })}
-              />
-            </div>
-            {editingItem && (
-              <div className="space-y-3 rounded-md border p-3">
-                <div>
-                  <h3 className="text-sm font-semibold">Alias/Códigos</h3>
-                  <p className="text-xs text-muted-foreground">Administrá códigos alternativos del ítem.</p>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Input
-                    placeholder="Nuevo alias..."
-                    value={newAlias}
-                    onChange={(e) => setNewAlias(e.target.value)}
-                    className="flex-1"
-                  />
-                  <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={isSupplierCode}
-                      onChange={(e) => setIsSupplierCode(e.target.checked)}
-                      className="rounded"
-                    />
-                    Cód. proveedor
-                  </label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={addAlias}
-                  >
-                    Agregar
-                  </Button>
-                </div>
-                <div className="space-y-1">
-                  {aliases.length === 0 && (
-                    <p className="text-sm text-muted-foreground py-2 text-center">Sin alias</p>
-                  )}
-                  {aliases.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">{a.alias}</span>
-                        {a.is_supplier_code && (
-                          <Badge variant="outline" className="text-xs">código</Badge>
-                        )}
-                      </div>
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAliasToDelete(a)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            <DialogFooter>
-              <Button type="submit" disabled={saveMutation.isPending}>
-                {saveMutation.isPending ? "Guardando..." : "Guardar"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <ItemFormDialog
+        open={dialogOpen}
+        editingItem={editingItem}
+        form={form}
+        aliases={aliases}
+        newAlias={newAlias}
+        isSupplierCode={isSupplierCode}
+        isSaving={saveMutation.isPending}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open && currentCompany && !editingItem) {
+            sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
+          }
+        }}
+        onSubmit={() => saveMutation.mutate()}
+        onFormChange={setForm}
+        onGenerateSku={() => setForm((prev) => ({ ...prev, sku: generateItemSku(prev.name || "item") }))}
+        onNewAliasChange={setNewAlias}
+        onSupplierCodeChange={setIsSupplierCode}
+        onAddAlias={addAlias}
+        onDeleteAlias={setAliasToDelete}
+      />
 
       <ConfirmDeleteDialog
         open={!!itemToDelete}
@@ -863,4 +581,6 @@ export default function ItemsPage() {
     </AppLayout>
   );
 }
+
+
 

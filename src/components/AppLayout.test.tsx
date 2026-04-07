@@ -32,7 +32,10 @@ vi.mock("@/contexts/company-brand-context", () => ({
 describe("AppLayout", () => {
   const renderLayout = (initialPath = "/items", children: ReactNode = <div>contenido demo</div>) =>
     render(
-      <MemoryRouter initialEntries={[initialPath]}>
+      <MemoryRouter
+        initialEntries={[initialPath]}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <AppLayout>{children}</AppLayout>
       </MemoryRouter>,
     );

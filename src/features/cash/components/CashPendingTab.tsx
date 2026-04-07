@@ -1,7 +1,9 @@
+import { useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, ClipboardCheck, Eye } from "lucide-react";
+import { DataTable } from "@/components/data-table/DataTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { currency, formatTime } from "@/lib/formatters";
 import { PAYMENT_LABEL } from "../constants";
 import type { CashSaleRow } from "../types";
@@ -25,6 +27,58 @@ export function CashPendingTab({
   canCancelSale,
   cancelPending,
 }: CashPendingTabProps) {
+  const columns = useMemo<ColumnDef<CashSaleRow, unknown>[]>(() => [
+    {
+      accessorKey: "sold_at",
+      header: () => "Hora",
+      cell: ({ row }) => <span className="font-mono text-xs">{formatTime(row.original.sold_at)}</span>,
+      meta: { cellClassName: "py-2.5" },
+    },
+    {
+      accessorKey: "customer_name_snapshot",
+      header: () => "Cliente",
+      cell: ({ row }) => row.original.customer_name_snapshot ?? "Consumidor final",
+      meta: { cellClassName: "py-2.5" },
+    },
+    {
+      accessorKey: "payment_method",
+      header: () => "Pago",
+      cell: ({ row }) => PAYMENT_LABEL[row.original.payment_method],
+      meta: { cellClassName: "py-2.5" },
+    },
+    {
+      accessorKey: "amount_total",
+      header: () => <div className="text-right">Importe</div>,
+      cell: ({ row }) => <div className="text-right font-semibold">{currency.format(Number(row.original.amount_total))}</div>,
+      meta: { cellClassName: "py-2.5" },
+    },
+    {
+      id: "actions",
+      header: () => "Acciones",
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="icon" variant="outline" onClick={() => onAssignReceipt(row.original)} disabled={!canAttachReceipt(row.original)}>
+            <ClipboardCheck className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="text-destructive"
+            onClick={() => onCancelSale(row.original.id)}
+            disabled={cancelPending || !canCancelSale(row.original)}
+          >
+            <Ban className="h-4 w-4" />
+          </Button>
+          <Button type="button" size="icon" variant="ghost" onClick={() => onOpenDetail(row.original)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+      meta: { className: "w-[220px]", cellClassName: "py-2.5" },
+    },
+  ], [canAttachReceipt, canCancelSale, cancelPending, onAssignReceipt, onCancelSale, onOpenDetail]);
+
   return (
     <Card className="shadow-sm">
       <CardHeader>
@@ -33,51 +87,12 @@ export function CashPendingTab({
       </CardHeader>
       <CardContent>
         <div className="max-h-[560px] overflow-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Hora</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Pago</TableHead>
-                <TableHead className="text-right">Importe</TableHead>
-                <TableHead className="w-[220px]">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pendingSales.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No hay pendientes para esta fecha.</TableCell></TableRow>
-              ) : (
-                pendingSales.map((sale) => (
-                  <TableRow key={sale.id}>
-                    <TableCell className="font-mono text-xs">{formatTime(sale.sold_at)}</TableCell>
-                    <TableCell>{sale.customer_name_snapshot ?? "Consumidor final"}</TableCell>
-                    <TableCell>{PAYMENT_LABEL[sale.payment_method]}</TableCell>
-                    <TableCell className="text-right font-semibold">{currency.format(Number(sale.amount_total))}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        <Button type="button" size="icon" variant="outline" onClick={() => onAssignReceipt(sale)} disabled={!canAttachReceipt(sale)}>
-                          <ClipboardCheck className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="text-destructive"
-                          onClick={() => onCancelSale(sale.id)}
-                          disabled={cancelPending || !canCancelSale(sale)}
-                        >
-                          <Ban className="h-4 w-4" />
-                        </Button>
-                        <Button type="button" size="icon" variant="ghost" onClick={() => onOpenDetail(sale)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={columns}
+            data={pendingSales}
+            emptyMessage="No hay pendientes para esta fecha."
+            rowClassName="h-11"
+          />
         </div>
       </CardContent>
     </Card>

@@ -1,5 +1,6 @@
 type XlsxModule = typeof import("xlsx");
 type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
+import { loadPdfJs, loadTesseract, loadXlsx } from "@/lib/lazy-vendors";
 type MergeRange = {
   s: { r: number; c: number };
   e: { r: number; c: number };
@@ -104,8 +105,6 @@ export const DEFAULT_PDF_OPTIONS: ParsePdfOptions = {
 
 const MAX_IMPORT_ROWS = 10000;
 const HEADER_COL_PREFIX = "col_";
-let xlsxModulePromise: Promise<XlsxModule> | null = null;
-let pdfJsModulePromise: Promise<PdfJsModule> | null = null;
 const DESCRIPTION_KEYWORDS = [
   "descripcion",
   "descripción",
@@ -126,25 +125,6 @@ const PRICE_KEYWORDS = ["precio", "costo", "cost", "importe", "lista", "price", 
 const CURRENCY_KEYWORDS = ["moneda", "currency", "curr", "divisa"];
 const CODE_KEYWORDS = ["codigo", "código", "cod", "sku", "ean", "upc", "ref", "referencia"];
 
-async function loadXlsx(): Promise<XlsxModule> {
-  if (!xlsxModulePromise) {
-    xlsxModulePromise = import("xlsx");
-  }
-  return xlsxModulePromise;
-}
-
-async function loadPdfJs(): Promise<PdfJsModule> {
-  if (!pdfJsModulePromise) {
-    pdfJsModulePromise = import("pdfjs-dist/legacy/build/pdf.mjs").then((module) => {
-      module.GlobalWorkerOptions.workerSrc = new URL(
-        "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
-        import.meta.url,
-      ).toString();
-      return module;
-    });
-  }
-  return pdfJsModulePromise;
-}
 
 function sanitizeHeaderRow(rawHeaders: string[]): string[] {
   const used = new Set<string>();
@@ -615,7 +595,7 @@ async function parsePdfOcrMode(
   const loadingTask = getDocument({ data: arrayBuffer });
   const pdf = await loadingTask.promise;
   const totalPages = Math.min(pdf.numPages, options.maxPages);
-  const { createWorker } = await import("tesseract.js");
+  const { createWorker } = await loadTesseract();
   const worker = await createWorker("spa+eng");
   const lines: CatalogImportLine[] = [];
   const tableRows: string[][] = [];

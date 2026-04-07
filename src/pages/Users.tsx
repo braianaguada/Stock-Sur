@@ -1,11 +1,17 @@
+import { Suspense, lazy } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { UserAccessDialog } from "@/features/users/components/UserAccessDialog";
 import { UsersAccessTable } from "@/features/users/components/UsersAccessTable";
-import { UserDetailDialog } from "@/features/users/components/UserDetailDialog";
 import { UsersOverviewHeader } from "@/features/users/components/UsersOverviewHeader";
 import { useUsersAccessManagement } from "@/features/users/hooks/useUsersAccessManagement";
+
+const UserAccessDialog = lazy(() => import("@/features/users/components/UserAccessDialog").then((module) => ({ default: module.UserAccessDialog })));
+const UserDetailDialog = lazy(() => import("@/features/users/components/UserDetailDialog").then((module) => ({ default: module.UserDetailDialog })));
+
+function UsersDialogLoader() {
+  return <div className="py-8 text-center text-sm text-muted-foreground">Cargando panel de usuario...</div>;
+}
 
 export default function UsersPage() {
   const { roles } = useAuth();
@@ -70,32 +76,38 @@ export default function UsersPage() {
         />
       </div>
 
-      <UserDetailDialog
-        open={!!selectedUser}
-        selectedUser={selectedUser}
-        onOpenChange={(open) => !open && setSelectedUser(null)}
-        onOpenAccessDialog={openAccessDialog}
-      />
-      <UserAccessDialog
-        open={accessDialogOpen}
-        selectedUser={selectedUser}
-        accessForm={accessForm}
-        companyOptions={companyOptions}
-        companyRoleOptions={companyRoleOptions}
-        permissionOptionsByModule={permissionsByModule}
-        permissionOverrides={permissionOverrides}
-        inheritedRolePermissionIds={inheritedRolePermissionIds}
-        inheritedPermissionCount={inheritedPermissionCount}
-        overrideStats={overrideStats}
-        isSaving={saveAccessMutation.isPending}
-        onOpenChange={setAccessDialogOpen}
-        onAccessFormChange={(updater) => setAccessForm(updater)}
-        onPermissionOverrideChange={onPermissionOverrideChange}
-        onSave={() => saveAccessMutation.mutate()}
-      />
+      {selectedUser ? (
+        <Suspense fallback={<UsersDialogLoader />}>
+          <UserDetailDialog
+            open={!!selectedUser}
+            selectedUser={selectedUser}
+            onOpenChange={(open) => !open && setSelectedUser(null)}
+            onOpenAccessDialog={openAccessDialog}
+          />
+        </Suspense>
+      ) : null}
+
+      {accessDialogOpen ? (
+        <Suspense fallback={<UsersDialogLoader />}>
+          <UserAccessDialog
+            open={accessDialogOpen}
+            selectedUser={selectedUser}
+            accessForm={accessForm}
+            companyOptions={companyOptions}
+            companyRoleOptions={companyRoleOptions}
+            permissionOptionsByModule={permissionsByModule}
+            permissionOverrides={permissionOverrides}
+            inheritedRolePermissionIds={inheritedRolePermissionIds}
+            inheritedPermissionCount={inheritedPermissionCount}
+            overrideStats={overrideStats}
+            isSaving={saveAccessMutation.isPending}
+            onOpenChange={setAccessDialogOpen}
+            onAccessFormChange={(updater) => setAccessForm(updater)}
+            onPermissionOverrideChange={onPermissionOverrideChange}
+            onSave={() => saveAccessMutation.mutate()}
+          />
+        </Suspense>
+      ) : null}
     </AppLayout>
   );
 }
-
-
-

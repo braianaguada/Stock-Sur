@@ -1,14 +1,15 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { Plus, Search } from "lucide-react";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { useToast } from "@/hooks/use-toast";
+import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { getErrorMessage } from "@/lib/errors";
 import {
   canCloneBudgetToRemito,
@@ -19,6 +20,8 @@ import {
   canTransitionDocumentTo,
 } from "@/lib/permissions";
 import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
+import { Plus, Search } from "lucide-react";
+import { FilterBar, PageHeader } from "@/components/ui/page";
 import {
   CUSTOMER_KIND_LABEL,
   DOC_LABEL,
@@ -26,6 +29,10 @@ import {
   INTERNAL_REMITO_LABEL,
   STATUS_LABEL,
 } from "@/features/documents/constants";
+import { DocumentsDataTable } from "@/features/documents/components/DocumentsDataTable";
+import { useDocumentsData } from "@/features/documents/hooks/useDocumentsData";
+import { useDocumentDraftLoader } from "@/features/documents/hooks/useDocumentDraftLoader";
+import { useDocumentsMutations } from "@/features/documents/hooks/useDocumentsMutations";
 import type {
   CustomerKind,
   DocLineRow,
@@ -39,33 +46,31 @@ import type {
   PriceListItemRow,
 } from "@/features/documents/types";
 import { calculatePriceFromCostBase, formatNumber } from "@/features/documents/utils";
-import { useDocumentsData } from "@/features/documents/hooks/useDocumentsData";
-import { useDocumentsMutations } from "@/features/documents/hooks/useDocumentsMutations";
-import { DocumentsEditorDialog } from "@/features/documents/components/DocumentsEditorDialog";
-import { DocumentsList } from "@/features/documents/components/DocumentsList";
-import { DocumentsPreviewDialog } from "@/features/documents/components/DocumentsPreviewDialog";
-import { FilterBar, PageHeader } from "@/components/ui/page";
 
-export default function DocumentsPage() {
-  const DOCUMENTS_PAGE_SIZE = 12;
-  const { user, roles, currentCompany } = useAuth();
-  const { toast } = useToast();
-  const { settings: companySettings } = useCompanyBrand();
+const DOCUMENTS_PAGE_SIZE = 12;
 
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
-  const [typeFilter, setTypeFilter] = useState<DocType | "ALL">("ALL");
-  const [statusFilter, setStatusFilter] = useState<DocStatus | "ALL">("ALL");
+const DocumentsEditorDialog = lazy(async () => {
+  const module = await import("@/features/documents/components/DocumentsEditorDialog");
+  return { default: module.DocumentsEditorDialog };
+});
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-  const [editingDocId, setEditingDocId] = useState<string | null>(null);
-  const [documentsPage, setDocumentsPage] = useState(1);
+const DocumentsPreviewDialog = lazy(async () => {
+  const module = await import("@/features/documents/components/DocumentsPreviewDialog");
+  return { default: module.DocumentsPreviewDialog };
+});
 
-  const [form, setForm] = useState<DocumentFormState>({
-    doc_type: "PRESUPUESTO" as DocType,
-    point_of_sale: companySettings.default_point_of_sale ?? 1,
+function DocumentsDialogLoader() {
+  return (
+    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+      Cargando documento...
+    </div>
+  );
+}
+
+function buildEmptyDocumentForm(defaultPointOfSale: number): DocumentFormState {
+  return {
+    doc_type: "PRESUPUESTO",
+    point_of_sale: defaultPointOfSale,
     customer_id: "",
     customer_name: "",
     customer_tax_condition: "",
@@ -78,7 +83,25 @@ export default function DocumentsPage() {
     valid_until: "",
     price_list_id: "",
     notes: "",
-  });
+  };
+}
+
+export default function DocumentsPage() {
+  const { user, roles, currentCompany } = useAuth();
+  const { toast } = useToast();
+  const { settings: companySettings } = useCompanyBrand();
+  const defaultPointOfSale = companySettings.default_point_of_sale ?? 1;
+
+  const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
+  const [typeFilter, setTypeFilter] = useState<DocType | "ALL">("ALL");
+  const [statusFilter, setStatusFilter] = useState<DocStatus | "ALL">("ALL");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [documentsPage, setDocumentsPage] = useState(1);
+  const [form, setForm] = useState<DocumentFormState>(() => buildEmptyDocumentForm(defaultPointOfSale));
   const [lines, setLines] = useState<LineDraft[]>([EMPTY_LINE]);
 
   const {
@@ -107,74 +130,80 @@ export default function DocumentsPage() {
     () => new Map(documents.map((document) => [document.id, document])),
     [documents],
   );
-  const itemsById = useMemo(
-    () => new Map(items.map((item) => [item.id, item])),
-    [items],
+  const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
+  const totalDraft = useMemo(
+    () => lines.reduce((accumulator, line) => accumulator + line.quantity * line.unit_price, 0),
+    [lines],
   );
-  const totalDraft = useMemo(() => lines.reduce((acc, line) => acc + line.quantity * line.unit_price, 0), [lines]);
-  const totalDocumentsPages = Math.max(1, Math.ceil(documents.length / DOCUMENTS_PAGE_SIZE));
-  const safeDocumentsPage = Math.min(documentsPage, totalDocumentsPages);
-  const pagedDocuments = useMemo(() => {
-    const start = (safeDocumentsPage - 1) * DOCUMENTS_PAGE_SIZE;
-    return documents.slice(start, start + DOCUMENTS_PAGE_SIZE);
-  }, [documents, safeDocumentsPage]);
+  const documentsPagination = usePaginationSlice({
+    items: documents,
+    page: documentsPage,
+    pageSize: DOCUMENTS_PAGE_SIZE,
+  });
 
   useEffect(() => {
     setDocumentsPage(1);
   }, [deferredSearch, typeFilter, statusFilter]);
 
-  const syncLineWithPriceList = useCallback((
-    line: LineDraft,
-    priceListRow: PriceListItemRow | undefined,
-    forceListPrice = false,
-  ): LineDraft => {
-    if (!priceListRow) return line;
+  const syncLineWithPriceList = useCallback(
+    (
+      line: LineDraft,
+      priceListRow: PriceListItemRow | undefined,
+      forceListPrice = false,
+    ): LineDraft => {
+      if (!priceListRow) return line;
 
-    const suggestedUnitPrice = priceByItem.get(priceListRow.item_id) ?? (Number(priceListRow.calculated_price) || 0);
-    const baseCost = Number(priceListRow.base_cost) || 0;
-    const listFlete = priceListRow.flete_pct !== null ? Number(priceListRow.flete_pct) : null;
-    const listUtilidad = priceListRow.utilidad_pct !== null ? Number(priceListRow.utilidad_pct) : null;
-    const listImpuesto = priceListRow.impuesto_pct !== null ? Number(priceListRow.impuesto_pct) : null;
-    const nextMode: LinePricingMode = forceListPrice
-      ? "LIST_PRICE"
-      : line.pricing_mode === "MANUAL_MARGIN" || line.pricing_mode === "MANUAL_PRICE"
-        ? line.pricing_mode
-        : "LIST_PRICE";
+      const suggestedUnitPrice =
+        priceByItem.get(priceListRow.item_id) ?? (Number(priceListRow.calculated_price) || 0);
+      const baseCost = Number(priceListRow.base_cost) || 0;
+      const listFlete = priceListRow.flete_pct !== null ? Number(priceListRow.flete_pct) : null;
+      const listUtilidad =
+        priceListRow.utilidad_pct !== null ? Number(priceListRow.utilidad_pct) : null;
+      const listImpuesto =
+        priceListRow.impuesto_pct !== null ? Number(priceListRow.impuesto_pct) : null;
+      const nextMode: LinePricingMode = forceListPrice
+        ? "LIST_PRICE"
+        : line.pricing_mode === "MANUAL_MARGIN" || line.pricing_mode === "MANUAL_PRICE"
+          ? line.pricing_mode
+          : "LIST_PRICE";
 
-    const nextLine: LineDraft = {
-      ...line,
-      pricing_mode: nextMode,
-      suggested_unit_price: suggestedUnitPrice,
-      base_cost_snapshot: baseCost,
-      list_flete_pct_snapshot: listFlete,
-      list_utilidad_pct_snapshot: listUtilidad,
-      list_impuesto_pct_snapshot: listImpuesto,
-    };
-
-    if (nextMode === "LIST_PRICE") {
-      return {
-        ...nextLine,
-        unit_price: suggestedUnitPrice,
-        manual_margin_pct: null,
+      const nextLine: LineDraft = {
+        ...line,
+        pricing_mode: nextMode,
+        suggested_unit_price: suggestedUnitPrice,
+        base_cost_snapshot: baseCost,
+        list_flete_pct_snapshot: listFlete,
+        list_utilidad_pct_snapshot: listUtilidad,
+        list_impuesto_pct_snapshot: listImpuesto,
       };
-    }
 
-    if (nextMode === "MANUAL_MARGIN") {
-      const marginPct = nextLine.manual_margin_pct ?? listUtilidad ?? 0;
-      return {
-        ...nextLine,
-        manual_margin_pct: marginPct,
-        unit_price: calculatePriceFromCostBase(baseCost, listFlete, marginPct, listImpuesto),
-      };
-    }
+      if (nextMode === "LIST_PRICE") {
+        return {
+          ...nextLine,
+          unit_price: suggestedUnitPrice,
+          manual_margin_pct: null,
+        };
+      }
 
-    return nextLine;
-  }, [priceByItem]);
+      if (nextMode === "MANUAL_MARGIN") {
+        const marginPct = nextLine.manual_margin_pct ?? listUtilidad ?? 0;
+        return {
+          ...nextLine,
+          manual_margin_pct: marginPct,
+          unit_price: calculatePriceFromCostBase(baseCost, listFlete, marginPct, listImpuesto),
+        };
+      }
+
+      return nextLine;
+    },
+    [priceByItem],
+  );
 
   useEffect(() => {
     if (!form.price_list_id) return;
-    setLines((prev) =>
-      prev.map((line) => {
+
+    setLines((previousLines) =>
+      previousLines.map((line) => {
         if (!line.item_id) return line;
         return syncLineWithPriceList(line, priceListItemByItemId.get(line.item_id));
       }),
@@ -183,24 +212,11 @@ export default function DocumentsPage() {
 
   const resetDraftForm = () => {
     setEditingDocId(null);
-    setForm({
-      doc_type: "PRESUPUESTO",
-      point_of_sale: companySettings.default_point_of_sale ?? 1,
-      customer_id: "",
-      customer_name: "",
-      customer_tax_condition: "",
-      customer_tax_id: "",
-      customer_kind: "GENERAL",
-      internal_remito_type: "",
-      payment_terms: "",
-      delivery_address: "",
-      salesperson: "",
-      valid_until: "",
-      price_list_id: "",
-      notes: "",
-    });
+    setForm(buildEmptyDocumentForm(defaultPointOfSale));
     setLines([EMPTY_LINE]);
   };
+
+  const loadDraftForEditing = useDocumentDraftLoader({ documentsById });
 
   const openCreateDialog = () => {
     if (!canCreateDocumentDraft(roles)) return;
@@ -208,57 +224,18 @@ export default function DocumentsPage() {
     setDialogOpen(true);
   };
 
-  const openEditDialog = async (docId: string) => {
+  const openEditDialog = async (documentId: string) => {
     if (!canEditDocumentDraft(roles)) return;
-    const target = documentsById.get(docId);
-    if (!target || target.status !== "BORRADOR") return;
 
-    const { data: lineRows, error } = await supabase
-      .from("document_lines")
-      .select("item_id, sku_snapshot, description, unit, quantity, unit_price, pricing_mode, suggested_unit_price, base_cost_snapshot, list_flete_pct_snapshot, list_utilidad_pct_snapshot, list_impuesto_pct_snapshot, manual_margin_pct, price_overridden_by, price_overridden_at")
-      .eq("document_id", docId)
-      .order("line_order");
-    if (error) {
-      toast({ title: "Error", description: "No se pudo cargar el borrador", variant: "destructive" });
-      return;
+    try {
+      const draft = await loadDraftForEditing(documentId);
+      setEditingDocId(draft.editingDocId);
+      setForm(draft.form);
+      setLines(draft.lines.length > 0 ? draft.lines : [EMPTY_LINE]);
+      setDialogOpen(true);
+    } catch (error) {
+      toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
     }
-
-    setEditingDocId(docId);
-    setForm({
-      doc_type: target.doc_type,
-      point_of_sale: target.point_of_sale,
-      customer_id: target.customer_id ?? "",
-      customer_name: target.customer_name ?? "",
-      customer_tax_condition: target.customer_tax_condition ?? "",
-      customer_tax_id: target.customer_tax_id ?? "",
-      customer_kind: target.customer_kind ?? "GENERAL",
-      internal_remito_type: target.internal_remito_type ?? "",
-      payment_terms: target.payment_terms ?? "",
-      delivery_address: target.delivery_address ?? "",
-      salesperson: target.salesperson ?? "",
-      valid_until: target.valid_until ?? "",
-      price_list_id: target.price_list_id ?? "",
-      notes: target.notes ?? "",
-    });
-    const nextLines = (lineRows ?? []).map((line) => ({
-      item_id: line.item_id,
-      sku_snapshot: line.sku_snapshot ?? "",
-      description: line.description,
-      unit: line.unit ?? "un",
-      quantity: Number(line.quantity) || 0,
-      unit_price: Number(line.unit_price) || 0,
-      pricing_mode: line.pricing_mode ?? "MANUAL_PRICE",
-      suggested_unit_price: Number(line.suggested_unit_price) || Number(line.unit_price) || 0,
-      base_cost_snapshot: line.base_cost_snapshot !== null ? Number(line.base_cost_snapshot) : null,
-      list_flete_pct_snapshot: line.list_flete_pct_snapshot !== null ? Number(line.list_flete_pct_snapshot) : null,
-      list_utilidad_pct_snapshot: line.list_utilidad_pct_snapshot !== null ? Number(line.list_utilidad_pct_snapshot) : null,
-      list_impuesto_pct_snapshot: line.list_impuesto_pct_snapshot !== null ? Number(line.list_impuesto_pct_snapshot) : null,
-      manual_margin_pct: line.manual_margin_pct !== null ? Number(line.manual_margin_pct) : null,
-      price_overridden_by: line.price_overridden_by ?? null,
-      price_overridden_at: line.price_overridden_at ?? null,
-    }));
-    setLines(nextLines.length > 0 ? nextLines : [EMPTY_LINE]);
-    setDialogOpen(true);
   };
 
   const {
@@ -282,19 +259,21 @@ export default function DocumentsPage() {
     toast,
   });
 
-  const onPickItem = (idx: number, itemId: string) => {
+  const onPickItem = (index: number, itemId: string) => {
     const item = itemsById.get(itemId);
     if (!item) return;
-    const next = [...lines];
+
+    const nextLines = [...lines];
     const baseLine: LineDraft = {
-      ...next[idx],
+      ...nextLines[index],
       item_id: itemId,
       sku_snapshot: item.sku,
       description: item.name,
       unit: item.unit || "un",
-      unit_price: form.price_list_id ? (priceByItem.get(itemId) ?? 0) : next[idx].unit_price,
+      unit_price: form.price_list_id ? priceByItem.get(itemId) ?? 0 : nextLines[index].unit_price,
     };
-    next[idx] = form.price_list_id
+
+    nextLines[index] = form.price_list_id
       ? syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true)
       : {
           ...baseLine,
@@ -308,49 +287,62 @@ export default function DocumentsPage() {
           price_overridden_by: null,
           price_overridden_at: null,
         };
-    setLines(next);
+
+    setLines(nextLines);
   };
 
   const onPriceListChange = (priceListId: string) => {
     if (priceListId === form.price_list_id) return;
 
-    const hasLoadedLines = lines.some((line) =>
-      line.item_id !== null ||
-      line.description.trim() !== "" ||
-      line.quantity !== EMPTY_LINE.quantity ||
-      line.unit_price !== EMPTY_LINE.unit_price,
+    const hasLoadedLines = lines.some(
+      (line) =>
+        line.item_id !== null ||
+        line.description.trim() !== "" ||
+        line.quantity !== EMPTY_LINE.quantity ||
+        line.unit_price !== EMPTY_LINE.unit_price,
     );
 
     if (hasLoadedLines) {
       const confirmed = window.confirm(
-        "Cambiar la lista va a eliminar todas las líneas cargadas para evitar mezclar productos y precios. ¿Querés continuar?",
+        "Cambiar la lista va a eliminar todas las lineas cargadas para evitar mezclar productos y precios. Queres continuar?",
       );
       if (!confirmed) return;
     }
 
-    setForm((prev) => ({ ...prev, price_list_id: priceListId }));
+    setForm((previousForm) => ({ ...previousForm, price_list_id: priceListId }));
     setLines([EMPTY_LINE]);
   };
 
-  const removeLine = (idx: number) => {
-    setLines((prev) => {
-      if (prev.length === 1) return [EMPTY_LINE];
-      return prev.filter((_, lineIdx) => lineIdx !== idx);
+  const removeLine = (index: number) => {
+    setLines((previousLines) => {
+      if (previousLines.length === 1) return [EMPTY_LINE];
+      return previousLines.filter((_, lineIndex) => lineIndex !== index);
     });
   };
 
-  const printDocument = async (doc: DocRow) => {
+  const printDocument = async (document: DocRow) => {
     const { data: lineRows } = await supabase
       .from("document_lines")
       .select("line_order, sku_snapshot, description, unit, quantity, unit_price, line_total")
-      .eq("document_id", doc.id)
+      .eq("document_id", document.id)
       .order("line_order");
 
     const printableLines = (lineRows ?? []) as Array<
-      Pick<DocLineRow, "line_order" | "sku_snapshot" | "description" | "quantity" | "unit" | "unit_price" | "line_total">
+      Pick<
+        DocLineRow,
+        | "line_order"
+        | "sku_snapshot"
+        | "description"
+        | "quantity"
+        | "unit"
+        | "unit_price"
+        | "line_total"
+      >
     >;
 
-    const rows = printableLines.map((line) => `
+    const rows = printableLines
+      .map(
+        (line) => `
       <tr>
         <td>${line.line_order}</td>
         <td>${escapeHtml(line.sku_snapshot ?? "-")}</td>
@@ -360,13 +352,15 @@ export default function DocumentsPage() {
         <td style="text-align:right">$${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
         <td style="text-align:right">$${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
       </tr>
-    `).join("");
+    `,
+      )
+      .join("");
 
     const logoBlock = companySettings.logo_url
       ? `<img src="${escapeHtml(companySettings.logo_url)}" alt="${escapeHtml(companySettings.app_name)}" style="max-height:110px;max-width:320px;object-fit:contain;filter:drop-shadow(0 10px 20px rgba(15,23,42,.10))" />`
       : `<div style="font-size:30px;font-weight:800;letter-spacing:.05em;color:#0f172a">${escapeHtml(companySettings.app_name.toUpperCase())}</div>`;
 
-    const win = openPrintWindow(`<!doctype html><html><head><title>${escapeHtml(DOC_LABEL[doc.doc_type])} ${escapeHtml(formatNumber(doc.document_number, doc.point_of_sale))}</title>
+    const win = openPrintWindow(`<!doctype html><html><head><title>${escapeHtml(DOC_LABEL[document.doc_type])} ${escapeHtml(formatNumber(document.document_number, document.point_of_sale))}</title>
       <style>
       @page{size:A4 portrait;margin:10mm}
       html,body{margin:0;padding:0}
@@ -409,54 +403,54 @@ export default function DocumentsPage() {
       <div class="head">
         <div class="brand">
           <div class="brand-copy">
-            <span class="eyebrow">${escapeHtml(DOC_LABEL[doc.doc_type])}</span>
+            <span class="eyebrow">${escapeHtml(DOC_LABEL[document.doc_type])}</span>
             ${logoBlock}
           </div>
           <div>
             <p class="brand-name">${escapeHtml(companySettings.legal_name ?? companySettings.app_name)}</p>
-            <p class="muted">${escapeHtml(companySettings.document_tagline ?? "Documentación comercial")}</p>
+            <p class="muted">${escapeHtml(companySettings.document_tagline ?? "Documentacion comercial")}</p>
           </div>
         </div>
         <div class="docbox">
-          <h2>${escapeHtml(DOC_LABEL[doc.doc_type])}</h2>
-          <p class="docline"><strong>Nro:</strong> ${escapeHtml(formatNumber(doc.document_number, doc.point_of_sale))}</p>
-          <p class="docline"><strong>Fecha:</strong> ${new Date(doc.issue_date).toLocaleDateString("es-AR")}</p>
-          <p class="docline"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[doc.status])}</p>
+          <h2>${escapeHtml(DOC_LABEL[document.doc_type])}</h2>
+          <p class="docline"><strong>Nro:</strong> ${escapeHtml(formatNumber(document.document_number, document.point_of_sale))}</p>
+          <p class="docline"><strong>Fecha:</strong> ${new Date(document.issue_date).toLocaleDateString("es-AR")}</p>
+          <p class="docline"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[document.status])}</p>
         </div>
       </div>
 
       <div class="meta-grid">
         <div class="meta-card">
           <p class="meta-title">Cliente</p>
-          <p class="muted"><strong>Cliente:</strong> ${escapeHtml(doc.customer_name ?? "Cliente ocasional")}</p>
-          <p class="muted"><strong>Tipo:</strong> ${escapeHtml(CUSTOMER_KIND_LABEL[doc.customer_kind])}</p>
-          <p class="muted"><strong>CUIT:</strong> ${escapeHtml(doc.customer_tax_id ?? "-")}</p>
-          <p class="muted"><strong>Condición fiscal:</strong> ${escapeHtml(doc.customer_tax_condition ?? "-")}</p>
+          <p class="muted"><strong>Cliente:</strong> ${escapeHtml(document.customer_name ?? "Cliente ocasional")}</p>
+          <p class="muted"><strong>Tipo:</strong> ${escapeHtml(CUSTOMER_KIND_LABEL[document.customer_kind])}</p>
+          <p class="muted"><strong>CUIT:</strong> ${escapeHtml(document.customer_tax_id ?? "-")}</p>
+          <p class="muted"><strong>Condicion fiscal:</strong> ${escapeHtml(document.customer_tax_condition ?? "-")}</p>
         </div>
         <div class="meta-card">
-          <p class="meta-title">Operación</p>
-          <p class="muted"><strong>Punto de venta:</strong> ${String(doc.point_of_sale).padStart(4, "0")}</p>
-          <p class="muted"><strong>Tipo:</strong> ${escapeHtml(DOC_LABEL[doc.doc_type])}</p>
-          <p class="muted"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[doc.status])}</p>
-          ${doc.payment_terms ? `<p class="muted"><strong>Condición de venta:</strong> ${escapeHtml(doc.payment_terms)}</p>` : ""}
-          ${doc.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${escapeHtml(doc.salesperson)}</p>` : ""}
-          ${doc.valid_until ? `<p class="muted"><strong>Válido hasta:</strong> ${new Date(doc.valid_until).toLocaleDateString("es-AR")}</p>` : ""}
-          ${doc.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${escapeHtml(doc.delivery_address)}</p>` : ""}
-          ${doc.source_document_type && doc.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${escapeHtml(DOC_LABEL[doc.source_document_type])} ${escapeHtml(doc.source_document_number_snapshot)}</p>` : ""}
-          ${doc.internal_remito_type ? `<p class="muted"><strong>Imputación:</strong> ${escapeHtml(INTERNAL_REMITO_LABEL[doc.internal_remito_type])}</p>` : ""}
-          <p class="muted"><strong>Creado:</strong> ${new Date(doc.created_at).toLocaleString("es-AR")}</p>
+          <p class="meta-title">Operacion</p>
+          <p class="muted"><strong>Punto de venta:</strong> ${String(document.point_of_sale).padStart(4, "0")}</p>
+          <p class="muted"><strong>Tipo:</strong> ${escapeHtml(DOC_LABEL[document.doc_type])}</p>
+          <p class="muted"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[document.status])}</p>
+          ${document.payment_terms ? `<p class="muted"><strong>Condicion de venta:</strong> ${escapeHtml(document.payment_terms)}</p>` : ""}
+          ${document.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${escapeHtml(document.salesperson)}</p>` : ""}
+          ${document.valid_until ? `<p class="muted"><strong>Valido hasta:</strong> ${new Date(document.valid_until).toLocaleDateString("es-AR")}</p>` : ""}
+          ${document.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${escapeHtml(document.delivery_address)}</p>` : ""}
+          ${document.source_document_type && document.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${escapeHtml(DOC_LABEL[document.source_document_type])} ${escapeHtml(document.source_document_number_snapshot)}</p>` : ""}
+          ${document.internal_remito_type ? `<p class="muted"><strong>Imputacion:</strong> ${escapeHtml(INTERNAL_REMITO_LABEL[document.internal_remito_type])}</p>` : ""}
+          <p class="muted"><strong>Creado:</strong> ${new Date(document.created_at).toLocaleString("es-AR")}</p>
         </div>
       </div>
 
       <table>
         <thead>
-          <tr><th>#</th><th>SKU</th><th>Descripción</th><th>Cant.</th><th>Unidad</th><th>P.Unit.</th><th>Importe</th></tr>
+          <tr><th>#</th><th>SKU</th><th>Descripcion</th><th>Cant.</th><th>Unidad</th><th>P.Unit.</th><th>Importe</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
 
-      <div class="totals"><div class="totals-box"><div class="totals-label">Total documento</div><div class="totals-value">$${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div></div></div>
-      <div class="notes"><strong>Notas:</strong> ${escapeHtmlWithLineBreaks(doc.notes ?? "-")}</div>
+      <div class="totals"><div class="totals-box"><div class="totals-label">Total documento</div><div class="totals-value">$${Number(document.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div></div></div>
+      <div class="notes"><strong>Notas:</strong> ${escapeHtmlWithLineBreaks(document.notes ?? "-")}</div>
 
       <div class="foot"><span>Generado por ${escapeHtml(companySettings.app_name)}</span><span>${escapeHtml(companySettings.document_footer ?? "Este documento no reemplaza comprobantes fiscales")}</span></div>
       </div>
@@ -470,12 +464,13 @@ export default function DocumentsPage() {
     <AppLayout>
       <div className="page-shell">
         {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitás una empresa activa para crear documentos, emitir remitos y revisar su historial." />
+          <CompanyAccessNotice description="Necesitas una empresa activa para crear documentos, emitir remitos y revisar su historial." />
         ) : null}
+
         <PageHeader
           eyebrow="Presupuestos y remitos"
           title="Documentos"
-          subtitle="Presupuestos y remitos con mejor jerarquía visual, manteniendo la misma lógica de estados, impresión y transiciones."
+          subtitle="Presupuestos y remitos con mejor jerarquia visual, manteniendo la misma logica de estados, impresion y transiciones."
           actions={(
             <Button onClick={openCreateDialog} disabled={!canCreateDocumentDraft(roles)}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo documento
@@ -483,15 +478,22 @@ export default function DocumentsPage() {
           )}
         />
 
-
         <FilterBar>
           <div className="relative w-full md:max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar cliente o número..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar cliente o numero..."
+              className="pl-9"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
           </div>
+
           <div className="w-full md:w-52">
-            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as DocType | "ALL")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as DocType | "ALL")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos</SelectItem>
                 <SelectItem value="PRESUPUESTO">Presupuestos</SelectItem>
@@ -499,9 +501,15 @@ export default function DocumentsPage() {
               </SelectContent>
             </Select>
           </div>
+
           <div className="w-full md:w-52">
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as DocStatus | "ALL")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as DocStatus | "ALL")}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos</SelectItem>
                 <SelectItem value="BORRADOR">Borrador</SelectItem>
@@ -515,8 +523,8 @@ export default function DocumentsPage() {
           </div>
         </FilterBar>
 
-        <DocumentsList
-          documents={pagedDocuments}
+        <DocumentsDataTable
+          documents={documentsPagination.pagedItems}
           isLoading={isLoading}
           onOpenDetail={(documentId) => {
             setSelectedDocId(documentId);
@@ -546,57 +554,61 @@ export default function DocumentsPage() {
           canTransitionDocumentTo={(status) =>
             status === "EMITIDO"
               ? false
-              : canTransitionDocumentTo(roles, status as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO")
+              : canTransitionDocumentTo(
+                  roles,
+                  status as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO",
+                )
           }
         />
-        <div className="flex flex-col gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-border/55 bg-card/72 px-4 py-3 shadow-[var(--shadow-xs)] md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Mostrando {documents.length === 0 ? 0 : (safeDocumentsPage - 1) * DOCUMENTS_PAGE_SIZE + 1}-
-            {Math.min(safeDocumentsPage * DOCUMENTS_PAGE_SIZE, documents.length)} de {documents.length} documentos
-          </p>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setDocumentsPage((prev) => Math.max(1, prev - 1))} disabled={safeDocumentsPage <= 1}>
-              Anterior
-            </Button>
-            <span className="min-w-24 text-center text-sm text-muted-foreground">Página {safeDocumentsPage} de {totalDocumentsPages}</span>
-            <Button type="button" variant="outline" size="sm" onClick={() => setDocumentsPage((prev) => Math.min(totalDocumentsPages, prev + 1))} disabled={safeDocumentsPage >= totalDocumentsPages}>
-              Siguiente
-            </Button>
-          </div>
-        </div>
+
+        <DataTablePagination
+          page={documentsPagination.page}
+          totalPages={documentsPagination.totalPages}
+          totalItems={documents.length}
+          rangeStart={documentsPagination.rangeStart}
+          rangeEnd={documentsPagination.rangeEnd}
+          onPageChange={setDocumentsPage}
+          itemLabel="documentos"
+        />
       </div>
 
-      <DocumentsEditorDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        editingDocId={editingDocId}
-        form={form}
-        setForm={setForm}
-        lines={lines}
-        setLines={setLines}
-        totalDraft={totalDraft}
-        customers={customers}
-        priceLists={priceLists}
-        availableItems={availableItems}
-        onPriceListChange={onPriceListChange}
-        onPickItem={onPickItem}
-        removeLine={removeLine}
-        onSubmit={() => upsertDraftMutation.mutate()}
-        onResetDraftForm={resetDraftForm}
-        isSubmitting={upsertDraftMutation.isPending || !canCreateDocumentDraft(roles)}
-      />
+      {dialogOpen ? (
+        <Suspense fallback={<DocumentsDialogLoader />}>
+          <DocumentsEditorDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            editingDocId={editingDocId}
+            form={form}
+            setForm={setForm}
+            lines={lines}
+            setLines={setLines}
+            totalDraft={totalDraft}
+            customers={customers}
+            priceLists={priceLists}
+            availableItems={availableItems}
+            onPriceListChange={onPriceListChange}
+            onPickItem={onPickItem}
+            removeLine={removeLine}
+            onSubmit={() => upsertDraftMutation.mutate()}
+            onResetDraftForm={resetDraftForm}
+            isSubmitting={upsertDraftMutation.isPending || !canCreateDocumentDraft(roles)}
+          />
+        </Suspense>
+      ) : null}
 
-      <DocumentsPreviewDialog
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        selectedDocument={selectedDocument}
-        selectedLines={selectedLines}
-        selectedEvents={selectedEvents}
-        sourceDocumentLabel={sourceDocumentLabel}
-        companySettings={companySettings}
-      />
+      {detailOpen ? (
+        <Suspense fallback={<DocumentsDialogLoader />}>
+          <DocumentsPreviewDialog
+            open={detailOpen}
+            onOpenChange={setDetailOpen}
+            selectedDocument={selectedDocument}
+            selectedLines={selectedLines}
+            selectedEvents={selectedEvents}
+            sourceDocumentLabel={sourceDocumentLabel}
+            companySettings={companySettings}
+          />
+        </Suspense>
+      ) : null}
     </AppLayout>
   );
 }
-
-
