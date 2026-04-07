@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -123,7 +123,7 @@ export default function DocumentsPage() {
     setDocumentsPage(1);
   }, [deferredSearch, typeFilter, statusFilter]);
 
-  const syncLineWithPriceList = (
+  const syncLineWithPriceList = useCallback((
     line: LineDraft,
     priceListRow: PriceListItemRow | undefined,
     forceListPrice = false,
@@ -169,7 +169,7 @@ export default function DocumentsPage() {
     }
 
     return nextLine;
-  };
+  }, [priceByItem]);
 
   useEffect(() => {
     if (!form.price_list_id) return;
@@ -179,7 +179,7 @@ export default function DocumentsPage() {
         return syncLineWithPriceList(line, priceListItemByItemId.get(line.item_id));
       }),
     );
-  }, [form.price_list_id, priceByItem, priceListItemByItemId]);
+  }, [form.price_list_id, priceListItemByItemId, syncLineWithPriceList]);
 
   const resetDraftForm = () => {
     setEditingDocId(null);

@@ -100,6 +100,8 @@ export function AppSidebar() {
                   variant="ghost"
                   size="icon"
                   onClick={signOut}
+                  aria-label="Cerrar sesión"
+                  title="Cerrar sesión"
                   className="h-8 w-8 rounded-full text-muted-foreground hover:bg-accent/65 hover:text-foreground"
                 >
                   <LogOut className="h-4 w-4" />
@@ -119,6 +121,7 @@ export function AppSidebar() {
                   <Link
                     key={item.url}
                     to={item.url}
+                    aria-current={isActive ? "page" : undefined}
                     className={cn(
                       "relative rounded-full px-3.5 py-2 text-[13px] font-medium text-muted-foreground transition-all duration-200 hover:bg-accent/35 hover:text-foreground",
                       isActive && "text-foreground",
