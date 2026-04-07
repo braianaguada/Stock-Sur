@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
@@ -16,6 +16,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { currency } from "@/lib/formatters";
 import { canAttachCashReceipt, canCancelCashSale, canCloseCash, canCreateCashSale } from "@/lib/permissions";
 import { openPrintWindow } from "@/lib/print";
+import { Plus } from "lucide-react";
 import { STATUS_CLASS, STATUS_LABEL } from "@/features/cash/constants";
 import { CashClosureTab } from "@/features/cash/components/CashClosureTab";
 import { CashClosurePreviewDialog } from "@/features/cash/components/CashClosurePreviewDialog";
@@ -29,8 +30,10 @@ import { useCashData } from "@/features/cash/hooks/useCashData";
 import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
 import type { CashPendingReceiptState, CashSaleFormState, CashSaleRow, PaymentMethod, ReceiptKind, SituationFilter } from "@/features/cash/types";
 import { buildCashClosurePrintHtml, formatRemitoOptionLabel, todayDateInputValue } from "@/features/cash/utils";
+import { PageHeader } from "@/components/ui/page";
 
 export default function CashPage() {
+  const CLOSURE_HISTORY_PAGE_SIZE = 6;
   const { roles, currentCompany } = useAuth();
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
@@ -54,6 +57,9 @@ export default function CashPage() {
   const [closeNotes, setCloseNotes] = useState("");
   const [isCloseNotesDirty, setIsCloseNotesDirty] = useState(false);
   const [situationFilter, setSituationFilter] = useState<SituationFilter>("TODAS");
+  const [tab, setTab] = useState("day");
+  const [historyPage, setHistoryPage] = useState(1);
+  const saleFormRef = useRef<HTMLDivElement | null>(null);
   const {
     customers,
     remitos,
@@ -173,6 +179,16 @@ export default function CashPage() {
     () => new Map(availableRemitos.map((remito) => [remito.id, formatRemitoOptionLabel(remito)])),
     [availableRemitos],
   );
+  const historyTotalPages = Math.max(1, Math.ceil(closuresHistory.length / CLOSURE_HISTORY_PAGE_SIZE));
+  const safeHistoryPage = Math.min(historyPage, historyTotalPages);
+  const pagedClosuresHistory = useMemo(() => {
+    const start = (safeHistoryPage - 1) * CLOSURE_HISTORY_PAGE_SIZE;
+    return closuresHistory.slice(start, start + CLOSURE_HISTORY_PAGE_SIZE);
+  }, [closuresHistory, safeHistoryPage]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [closuresHistory.length]);
   const openClosurePreview = (closureId: string) => {
     setSelectedClosureId(closureId);
     setClosurePreviewOpen(true);
@@ -201,20 +217,34 @@ export default function CashPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitás una empresa activa para registrar ventas, asociar comprobantes y cerrar caja." />
         ) : null}
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Caja</h1>
-            <p className="text-muted-foreground">Carga rápida, pendientes de comprobante y cierre diario en una sola vista.</p>
-          </div>
-          <div className="w-full max-w-[155px]">
-            <Label htmlFor="business-date">Fecha operativa</Label>
-            <Input id="business-date" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} className="h-10" />
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="Caja y cierre diario"
+          title="Caja"
+          subtitle="Carga rápida, pendientes y cierre diario en una sola vista. La mejora es visual y de jerarquía, sin tocar el flujo."
+          tabs={[
+            { label: "Hoy", value: "day" },
+            { label: "Pendientes", value: "pending" },
+            { label: "Cierre", value: "closure" },
+            { label: "Historial", value: "history" },
+          ]}
+          activeTab={tab}
+          onTabChange={setTab}
+          actions={(
+            <div className="flex flex-wrap items-end gap-3">
+              <Button onClick={() => saleFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+                <Plus className="mr-2 h-4 w-4" /> Nueva venta
+              </Button>
+              <div className="w-full max-w-[180px]">
+                <Label htmlFor="business-date">Fecha operativa</Label>
+                <Input id="business-date" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} />
+              </div>
+            </div>
+          )}
+        />
 
         {salesError || remitosError ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
@@ -235,7 +265,7 @@ export default function CashPage() {
         <CashSummaryCards summary={summary} />
 
         <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <Card className="border-primary/10 shadow-sm">
+          <Card ref={saleFormRef} className="border-primary/8 bg-gradient-to-br from-card via-card to-primary/5 shadow-[var(--shadow-xs)]">
             <CardHeader>
               <CardTitle>Nueva venta</CardTitle>
               <CardDescription>Captura mínima para registrar la operación sin quedar bloqueado por el comprobante.</CardDescription>
@@ -327,7 +357,7 @@ export default function CashPage() {
                     <Label htmlFor="receipt-reference">Referencia de factura</Label>
                     <Input
                       id="receipt-reference"
-                      placeholder="Ej. B 0009-00001782"
+                      placeholder="Ej. 0009-00001782"
                       value={receiptReference}
                       onChange={(event) => setReceiptReference(event.target.value)}
                     />
@@ -340,8 +370,8 @@ export default function CashPage() {
                 </div>
 
                 {paymentMethod === "SERVICIOS_REMITO" ? (
-                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                    Este movimiento impacta en el total del dÃ­a, pero no entra en el efectivo a rendir del cierre.
+                  <p className="rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-sm text-warning">
+                    Este movimiento impacta en el total del día, pero no entra en el efectivo a rendir del cierre.
                   </p>
                 ) : null}
 
@@ -353,14 +383,7 @@ export default function CashPage() {
             </CardContent>
           </Card>
 
-          <Tabs defaultValue="day" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="day">Caja del día</TabsTrigger>
-              <TabsTrigger value="pending">Pendientes</TabsTrigger>
-              <TabsTrigger value="closure">Cierre diario</TabsTrigger>
-              <TabsTrigger value="history">Historial</TabsTrigger>
-            </TabsList>
-
+          <Tabs value={tab} onValueChange={setTab} className="space-y-4">
             <TabsContent value="day">
               <CashSalesTab
                 filteredSales={filteredSales}
@@ -415,7 +438,15 @@ export default function CashPage() {
             </TabsContent>
 
             <TabsContent value="history">
-              <CashHistoryTab closuresHistory={closuresHistory} onOpenSummary={openClosurePreview} />
+              <CashHistoryTab
+                closuresHistory={pagedClosuresHistory}
+                onOpenSummary={openClosurePreview}
+                page={safeHistoryPage}
+                totalPages={historyTotalPages}
+                onPrevPage={() => setHistoryPage((prev) => Math.max(1, prev - 1))}
+                onNextPage={() => setHistoryPage((prev) => Math.min(historyTotalPages, prev + 1))}
+                pageSize={CLOSURE_HISTORY_PAGE_SIZE}
+              />
             </TabsContent>
           </Tabs>
         </div>

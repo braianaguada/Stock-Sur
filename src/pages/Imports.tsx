@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, Check } from "lucide-react";
 import { useImportsFlow } from "@/features/imports/hooks/useImportsFlow";
+import { DataCard, PageHeader } from "@/components/ui/page";
 
 export default function ImportsPage() {
   const { currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
@@ -44,14 +45,15 @@ export default function ImportsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitás una empresa activa para importar archivos y generar nuevas versiones de listas." />
         ) : null}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Importaciones</h1>
-          <p className="text-muted-foreground">Importar listas de precios desde CSV o XLSX</p>
-        </div>
+        <PageHeader
+          eyebrow="Carga masiva"
+          title="Importaciones"
+          description="Importar listas de precios desde CSV o XLSX con una experiencia más clara, manteniendo el mismo flujo por pasos."
+        />
 
         {currentCompany && !canCreateImports ? (
           <CompanyAccessNotice description="Tu usuario puede ver importaciones, pero no crear nuevas versiones. Pedile a un administrador acceso de edicion para continuar." />
@@ -135,7 +137,7 @@ export default function ImportsPage() {
                 </Button>
               </div>
             </div>
-            <div className="max-h-[60vh] overflow-auto rounded-lg border bg-card">
+            <DataCard className="max-h-[60vh] overflow-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -156,7 +158,7 @@ export default function ImportsPage() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </DataCard>
           </div>
         )}
 

@@ -57,6 +57,7 @@ import {
   createEmptySupplierForm,
   groupSupplierVersionsByCatalog,
 } from "@/features/suppliers/state";
+import { FilterBar, PageHeader } from "@/components/ui/page";
 
 const EMPTY_SUPPLIERS: Supplier[] = [];
 const EMPTY_CATALOGS: SupplierCatalog[] = [];
@@ -341,19 +342,18 @@ export default function SuppliersPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitás una empresa activa para trabajar con proveedores, catálogos e importaciones." />
         ) : null}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Proveedores</h1>
-            <p className="text-muted-foreground">Gestión de proveedores y catálogos</p>
-          </div>
-          <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo proveedor</Button>
-        </div>
+        <PageHeader
+          eyebrow="Compras y catálogos"
+          title="Proveedores"
+          description="Gestión de proveedores, versiones de catálogos e importaciones. Se mejora jerarquía visual sin tocar el flujo de carga ni el matching."
+          actions={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo proveedor</Button>}
+        />
 
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <FilterBar>
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Buscar..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -370,7 +370,7 @@ export default function SuppliersPage() {
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </FilterBar>
 
         <SuppliersTable
           suppliers={suppliers}

@@ -53,8 +53,8 @@ export type Database = {
           expected_account_expenses_total: number
           expected_account_sales_total: number
           expected_cash_facturable_total: number
-          expected_cash_expenses_total: number
           expected_cash_remito_total: number
+          expected_cash_expenses_total: number
           expected_cash_sales_total: number
           expected_cash_to_render: number
           expected_non_cash_total: number
@@ -83,8 +83,8 @@ export type Database = {
           expected_account_expenses_total?: number
           expected_account_sales_total?: number
           expected_cash_facturable_total?: number
-          expected_cash_expenses_total?: number
           expected_cash_remito_total?: number
+          expected_cash_expenses_total?: number
           expected_cash_sales_total?: number
           expected_cash_to_render?: number
           expected_non_cash_total?: number
@@ -113,8 +113,8 @@ export type Database = {
           expected_account_expenses_total?: number
           expected_account_sales_total?: number
           expected_cash_facturable_total?: number
-          expected_cash_expenses_total?: number
           expected_cash_remito_total?: number
+          expected_cash_expenses_total?: number
           expected_cash_sales_total?: number
           expected_cash_to_render?: number
           expected_non_cash_total?: number
@@ -2151,15 +2151,12 @@ export type Database = {
           created_by: string
           expected_account_expenses_total: number
           expected_account_sales_total: number
-          expected_cash_facturable_total: number
           expected_cash_expenses_total: number
-          expected_cash_remito_total: number
           expected_cash_sales_total: number
           expected_cash_to_render: number
           expected_non_cash_total: number
           expected_point_sales_total: number
           expected_sales_total: number
-          expected_services_remito_total: number
           expected_transfer_sales_total: number
           id: string
           notes: string | null
@@ -2202,15 +2199,12 @@ export type Database = {
           created_by: string
           expected_account_expenses_total: number
           expected_account_sales_total: number
-          expected_cash_facturable_total: number
           expected_cash_expenses_total: number
-          expected_cash_remito_total: number
           expected_cash_sales_total: number
           expected_cash_to_render: number
           expected_non_cash_total: number
           expected_point_sales_total: number
           expected_sales_total: number
-          expected_services_remito_total: number
           expected_transfer_sales_total: number
           id: string
           notes: string | null
@@ -2310,15 +2304,12 @@ export type Database = {
           created_by: string
           expected_account_expenses_total: number
           expected_account_sales_total: number
-          expected_cash_facturable_total: number
           expected_cash_expenses_total: number
-          expected_cash_remito_total: number
           expected_cash_sales_total: number
           expected_cash_to_render: number
           expected_non_cash_total: number
           expected_point_sales_total: number
           expected_sales_total: number
-          expected_services_remito_total: number
           expected_transfer_sales_total: number
           id: string
           notes: string | null

@@ -39,6 +39,7 @@ import type {
 } from "@/features/price-lists/types";
 import { formatDateTime, formatMoney, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
 import { getErrorMessage } from "@/lib/errors";
+import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 
 const BASE_PAGE_SIZE = 10;
 const LIST_PRODUCTS_PAGE_SIZE = 10;
@@ -94,9 +95,9 @@ type PriceListSnapshotDbRow = {
 };
 
 const pricingChipClass = {
-  flete: "border-blue-200 bg-blue-50 text-blue-700",
-  margen: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  iva: "border-amber-200 bg-amber-50 text-amber-700",
+  flete: "border-blue-200/80 bg-blue-50/90 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200",
+  margen: "border-emerald-200/80 bg-emerald-50/90 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200",
+  iva: "border-amber-200/80 bg-amber-50/90 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100",
 } as const;
 
 export default function PriceListsPage() {
@@ -606,14 +607,14 @@ export default function PriceListsPage() {
     utilidad_pct: number | null;
     impuesto_pct: number | null;
   }) => (
-    <div className="flex flex-wrap gap-2">
-      <Badge variant="outline" className={pricingChipClass.flete}>
+    <div className="flex flex-wrap gap-1.5">
+      <Badge variant="outline" className={`px-2.5 py-0.5 text-[10px] ${pricingChipClass.flete}`}>
         Flete {values.flete_pct ?? 0}%
       </Badge>
-      <Badge variant="outline" className={pricingChipClass.margen}>
+      <Badge variant="outline" className={`px-2.5 py-0.5 text-[10px] ${pricingChipClass.margen}`}>
         Margen {values.utilidad_pct ?? 0}%
       </Badge>
-      <Badge variant="outline" className={pricingChipClass.iva}>
+      <Badge variant="outline" className={`px-2.5 py-0.5 text-[10px] ${pricingChipClass.iva}`}>
         IVA {values.impuesto_pct ?? 0}%
       </Badge>
     </div>
@@ -621,31 +622,32 @@ export default function PriceListsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitás una empresa activa para gestionar precios base y listas." />
         ) : null}
 
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Precios</h1>
-            <p className="text-muted-foreground">Gestioná costos base y listas de precios derivadas.</p>
-          </div>
-          {moduleTab === "lists" ? (
+        <PageHeader
+          eyebrow="Pricing operativo"
+          title="Precios"
+          subtitle="Gestioná costos base y listas de precios derivadas con una lectura más clara, manteniendo intactos cálculos, recálculos e historial."
+          tabs={[
+            { label: "Precios base", value: "base" },
+            { label: "Listas", value: "lists" },
+          ]}
+          activeTab={moduleTab}
+          onTabChange={setModuleTab}
+          actions={moduleTab === "lists" ? (
             <Button onClick={() => { setCreateForm(DEFAULT_PRICE_LIST_FORM); setCreateDialogOpen(true); }}>
               <Plus className="mr-2 h-4 w-4" /> Nueva lista
             </Button>
-          ) : null}
-        </div>
+          ) : undefined}
+        />
 
         <Tabs value={moduleTab} onValueChange={setModuleTab}>
-          <TabsList>
-            <TabsTrigger value="base">Precios base</TabsTrigger>
-            <TabsTrigger value="lists">Listas</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="base" className="space-y-4">
-            <div className="relative max-w-sm">
+          <TabsContent value="base" className="space-y-5 pt-1">
+            <FilterBar>
+              <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Buscar por SKU, nombre, marca, modelo o categoría..."
@@ -653,8 +655,9 @@ export default function PriceListsPage() {
                 value={baseSearch}
                 onChange={(event) => { setBaseSearch(event.target.value); setBasePage(1); }}
               />
-            </div>
-            <div className="rounded-lg border bg-card">
+              </div>
+            </FilterBar>
+            <DataCard>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -679,17 +682,17 @@ export default function PriceListsPage() {
                     </TableRow>
                   ) : pagedBaseRows.map((row) => (
                     <TableRow key={row.item_id}>
-                      <TableCell className="font-mono text-xs">{row.sku ?? "-"}</TableCell>
-                      <TableCell className="font-medium">{row.name}</TableCell>
-                      <TableCell>{row.brand ?? "-"}</TableCell>
-                      <TableCell>{row.model ?? "-"}</TableCell>
-                      <TableCell>{row.category ?? "-"}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="py-3 font-mono text-xs">{row.sku ?? "-"}</TableCell>
+                      <TableCell className="py-3 font-medium leading-6">{row.name}</TableCell>
+                      <TableCell className="py-3">{row.brand ?? "-"}</TableCell>
+                      <TableCell className="py-3">{row.model ?? "-"}</TableCell>
+                      <TableCell className="py-3">{row.category ?? "-"}</TableCell>
+                      <TableCell className="py-3 text-right">
                         {row.previous_base_cost !== null ? `$${formatMoney(row.previous_base_cost)}` : "-"}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="py-3 text-right">
                         <Input
-                          className="ml-auto w-28 text-right font-mono"
+                          className="ml-auto h-9 w-20 rounded-2xl text-right font-mono"
                           type="number"
                           min={0}
                           step="any"
@@ -707,7 +710,7 @@ export default function PriceListsPage() {
                         />
                       </TableCell>
                       <TableCell
-                        className={`text-right text-sm ${
+                        className={`py-3 text-right text-sm ${
                           row.cost_variation_pct !== null && row.cost_variation_pct > 0
                             ? "text-rose-600"
                             : row.cost_variation_pct !== null && row.cost_variation_pct < 0
@@ -717,13 +720,13 @@ export default function PriceListsPage() {
                       >
                         {formatPercentDelta(row.cost_variation_pct)}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{formatDateTime(row.updated_at)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{renderUserName(row.updated_by)}</TableCell>
+                      <TableCell className="py-3 text-sm text-muted-foreground">{formatDateTime(row.updated_at)}</TableCell>
+                      <TableCell className="py-3 text-sm text-muted-foreground">{renderUserName(row.updated_by)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </DataCard>
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
                 Mostrando {(safeBasePage - 1) * BASE_PAGE_SIZE + (pagedBaseRows.length === 0 ? 0 : 1)}-
@@ -741,8 +744,9 @@ export default function PriceListsPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="lists" className="space-y-4">
-            <div className="relative max-w-sm">
+          <TabsContent value="lists" className="space-y-5 pt-1">
+            <FilterBar>
+              <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Buscar lista..."
@@ -750,7 +754,8 @@ export default function PriceListsPage() {
                 value={listSearch}
                 onChange={(event) => setListSearch(event.target.value)}
               />
-            </div>
+              </div>
+            </FilterBar>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {priceLists.length === 0 ? (
                 <Card className="md:col-span-2 xl:col-span-3">
@@ -760,9 +765,9 @@ export default function PriceListsPage() {
                 </Card>
               ) : priceLists.map((priceList) => (
                 <Card key={priceList.id}>
-                  <CardHeader className="space-y-2">
+                  <CardHeader className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="space-y-1">
                         <CardTitle className="text-base">{priceList.name}</CardTitle>
                         <p className="text-sm text-muted-foreground">{priceList.description || "Sin descripción"}</p>
                       </div>
@@ -770,7 +775,7 @@ export default function PriceListsPage() {
                         {PRICE_LIST_STATUS_LABEL[priceList.status]}
                       </Badge>
                     </div>
-                    <div className="rounded-md border bg-muted/30 p-3">
+                    <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/45 p-3">
                       {renderPricingSummary(priceList)}
                     </div>
                   </CardHeader>
@@ -856,14 +861,14 @@ export default function PriceListsPage() {
 
               <TabsContent value="products" className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="shrink-0 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 px-4 py-3 text-sm">
-                    <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/42 px-4 py-3 text-sm">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {renderPricingSummary(selectedList)}
                       <Badge
                         variant="outline"
                         className={selectedList.status === "UPDATED"
-                          ? "border-teal-200 bg-teal-50 text-teal-700"
-                          : "border-rose-200 bg-rose-50 text-rose-700"}
+                          ? "px-2.5 py-0.5 text-[10px] border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200"
+                          : "px-2.5 py-0.5 text-[10px] border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200"}
                       >
                         {PRICE_LIST_STATUS_LABEL[selectedList.status]}
                       </Badge>
@@ -902,15 +907,15 @@ export default function PriceListsPage() {
                         </TableRow>
                       ) : pagedSelectedListProducts.map((row) => (
                         <TableRow key={row.item_id}>
-                          <TableCell className="font-mono text-xs">{row.sku ?? "-"}</TableCell>
-                          <TableCell className="font-medium">{row.name}</TableCell>
-                          <TableCell className="text-right font-mono">${formatMoney(row.calculated_price)}</TableCell>
-                          <TableCell>
+                          <TableCell className="py-3.5 font-mono text-xs">{row.sku ?? "-"}</TableCell>
+                          <TableCell className="py-3.5 font-medium">{row.name}</TableCell>
+                          <TableCell className="py-3.5 text-right font-mono">${formatMoney(row.calculated_price)}</TableCell>
+                          <TableCell className="py-3.5">
                             <Badge
                               variant="outline"
                               className={row.needs_recalculation
-                                ? "border-rose-200 bg-rose-50 text-rose-700"
-                                : "border-teal-200 bg-teal-50 text-teal-700"}
+                                ? "px-2.5 py-0.5 text-[10px] border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200"
+                                : "px-2.5 py-0.5 text-[10px] border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200"}
                             >
                               {row.needs_recalculation ? "Pendiente" : "Actualizado"}
                             </Badge>
@@ -999,7 +1004,7 @@ export default function PriceListsPage() {
                 ) : null}
               </TabsContent>
 
-              <TabsContent ref={historyTabRef} value="history" className="mt-4 space-y-3 overflow-auto">
+              <TabsContent ref={historyTabRef} value="history" className="mt-4 space-y-2 overflow-auto">
                 {selectedListHistory.length === 0 ? (
                   <Card>
                     <CardContent className="py-8 text-center text-muted-foreground">
@@ -1007,9 +1012,9 @@ export default function PriceListsPage() {
                     </CardContent>
                   </Card>
                 ) : selectedListHistory.map((row) => (
-                  <Card key={row.id}>
-                    <CardContent className="flex items-center justify-between gap-4 py-4">
-                      <div className="space-y-1">
+                  <Card key={row.id} className="border-border/60 bg-card/65 shadow-[var(--shadow-xs)]">
+                    <CardContent className="flex items-start justify-between gap-4 px-5 py-3.5">
+                      <div className="space-y-0.5">
                         <p className="font-medium">
                           {row.event_type === "LIST_CREATED" ? "Lista creada" : row.event_type === "RECALCULATED" ? "Lista recalculada" : "Configuración actualizada"}
                         </p>
@@ -1017,7 +1022,7 @@ export default function PriceListsPage() {
                           {row.affected_items_count} productos afectados
                         </p>
                       </div>
-                      <div className="text-right text-sm text-muted-foreground">
+                      <div className="shrink-0 text-right text-sm text-muted-foreground">
                         <p>{formatDateTime(row.created_at)}</p>
                         <p>{renderUserName(row.created_by)}</p>
                       </div>

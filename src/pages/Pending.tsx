@@ -1,22 +1,19 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Search, Link2 } from "lucide-react";
 import { buildSuggestedAlias } from "@/lib/matching";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 
 type PendingLine = {
   id: string;
@@ -111,7 +108,7 @@ export default function PendingPage() {
 
   const assignWithoutAliasMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedLine || !selectedItemId) throw new Error("Seleccioná una línea e ítem");
+      if (!selectedLine || !selectedItemId) throw new Error("Seleccioná una línea y un ítem");
       await assignLineToItem(selectedLine.id, selectedItemId);
     },
     onSuccess: () => {
@@ -128,7 +125,7 @@ export default function PendingPage() {
 
   const assignWithAliasMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedLine || !selectedItemId) throw new Error("Seleccioná una línea e ítem");
+      if (!selectedLine || !selectedItemId) throw new Error("Seleccioná una línea y un ítem");
 
       await assignLineToItem(selectedLine.id, selectedItemId);
       await createAliasForItem(selectedItemId, aliasValue, false);
@@ -207,26 +204,30 @@ export default function PendingPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitás una empresa activa para revisar pendientes de catálogos y vincularlos con artículos." />
         ) : null}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Pendientes</h1>
-          <p className="text-muted-foreground">Líneas de listas de precios sin asignar a un ítem</p>
-        </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar descripción..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
+        <PageHeader
+          eyebrow="Matching operativo"
+          title="Pendientes"
+          description="Líneas de listas de precios sin asignar a un ítem. Se prioriza lectura, contexto y acciones más claras sin tocar el flujo de asignación."
+        />
 
-        <div className="rounded-lg border bg-card">
+        <FilterBar>
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar descripción..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+        </FilterBar>
+
+        <DataCard>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Descripción</TableHead>
-                <TableHead>Cód. Prov.</TableHead>
+                <TableHead>Cód. prov.</TableHead>
                 <TableHead className="text-right">Precio</TableHead>
                 <TableHead>Lista / Proveedor</TableHead>
                 <TableHead className="w-[80px]">Acción</TableHead>
@@ -239,7 +240,12 @@ export default function PendingPage() {
                 <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No hay líneas pendientes.</TableCell></TableRow>
               ) : pendingLines.map((l) => (
                 <TableRow key={l.id}>
-                  <TableCell className="text-sm max-w-xs truncate">{l.raw_description}</TableCell>
+                  <TableCell className="max-w-xs text-sm">
+                    <div className="space-y-1">
+                      <p className="truncate font-medium">{l.raw_description}</p>
+                      <p className="text-xs text-muted-foreground">Pendiente de match manual</p>
+                    </div>
+                  </TableCell>
                   <TableCell className="font-mono text-xs">{l.supplier_code ?? "—"}</TableCell>
                   <TableCell className="text-right font-mono">{Number(l.price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
@@ -254,20 +260,20 @@ export default function PendingPage() {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </DataCard>
       </div>
 
       <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Asignar ítem</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="rounded-md bg-muted p-3">
+            <div className="rounded-2xl bg-muted/60 p-4">
               <p className="text-sm font-medium">{selectedLine?.raw_description}</p>
               <p className="mt-1 text-xs text-muted-foreground">Precio: ${Number(selectedLine?.price ?? 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
             </div>
             <div className="space-y-2">
               <Input placeholder="Buscar ítem..." value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} />
-              <div className="max-h-48 overflow-auto rounded-md border">
+              <div className="max-h-48 overflow-auto rounded-2xl border">
                 {items.map((item) => (
                   <button
                     key={item.id}
@@ -305,7 +311,7 @@ export default function PendingPage() {
               </div>
             )}
 
-            <div className="space-y-2 rounded-md border p-3">
+            <div className="space-y-2 rounded-2xl border p-3">
               <Label htmlFor="new-item-name">Nuevo ítem (para crear ítem + alias)</Label>
               <Input id="new-item-name" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Nombre del nuevo ítem" />
             </div>

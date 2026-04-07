@@ -38,7 +38,7 @@ export function DocumentsList({
   canTransitionDocumentTo,
 }: DocumentsListProps) {
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="data-panel">
       <Table>
         <TableHeader>
           <TableRow>
@@ -76,70 +76,70 @@ export function DocumentsList({
               </TableCell>
               <TableCell className="text-right font-mono">${Number(doc.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</TableCell>
               <TableCell>{new Date(doc.issue_date).toLocaleDateString("es-AR")}</TableCell>
-              <TableCell>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => onOpenDetail(doc.id)} title="Ver">
+              <TableCell className="py-3.5">
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onOpenDetail(doc.id)} title="Ver">
                     <Eye className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => onPrint(doc)} title="Imprimir / PDF" disabled={!canPrintDocument}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onPrint(doc)} title="Imprimir / PDF" disabled={!canPrintDocument}>
                     <FileDown className="h-4 w-4" />
                   </Button>
                   {doc.status === "BORRADOR" && canEditDocumentDraft ? (
-                    <Button variant="ghost" size="icon" onClick={() => onEditDraft(doc.id)} title="Editar borrador">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onEditDraft(doc.id)} title="Editar borrador">
                       <Pencil className="h-4 w-4 text-blue-600" />
                     </Button>
                   ) : null}
                   {doc.doc_type === "PRESUPUESTO" && doc.status === "BORRADOR" && (
                     <>
-                      <Button variant="ghost" size="icon" onClick={() => onTransition(doc.id, "ENVIADO")} title="Marcar como enviado" disabled={!canTransitionDocumentTo("ENVIADO")}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onTransition(doc.id, "ENVIADO")} title="Marcar como enviado" disabled={!canTransitionDocumentTo("ENVIADO")}>
                         <Send className="h-4 w-4 text-blue-600" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
                         <Send className="h-4 w-4 text-emerald-600" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
                         <Ban className="h-4 w-4 text-amber-600" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
                         <Ban className="h-4 w-4 text-destructive" />
                       </Button>
                     </>
                   )}
                   {doc.doc_type === "PRESUPUESTO" && doc.status === "ENVIADO" && (
                     <>
-                      <Button variant="ghost" size="icon" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
                         <Send className="h-4 w-4 text-emerald-600" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
                         <Ban className="h-4 w-4 text-amber-600" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
                         <Ban className="h-4 w-4 text-destructive" />
                       </Button>
                     </>
                   )}
                   {doc.doc_type === "REMITO" && doc.status === "BORRADOR" && (
                     <>
-                      <Button variant="ghost" size="icon" onClick={() => onIssueRemito(doc.id)} title="Emitir remito" disabled={!canIssueRemito}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onIssueRemito(doc.id)} title="Emitir remito" disabled={!canIssueRemito}>
                         <Send className="h-4 w-4 text-emerald-600" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular borrador" disabled={!canTransitionDocumentTo("ANULADO")}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular borrador" disabled={!canTransitionDocumentTo("ANULADO")}>
                         <Ban className="h-4 w-4 text-destructive" />
                       </Button>
                     </>
                   )}
                   {doc.doc_type === "PRESUPUESTO" && doc.status === "APROBADO" && (
                     <>
-                      <Button variant="ghost" size="icon" onClick={() => onCloneAsRemito(doc.id)} title="Convertir a remito" disabled={!canCloneBudgetToRemito}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onCloneAsRemito(doc.id)} title="Convertir a remito" disabled={!canCloneBudgetToRemito}>
                         <Copy className="h-4 w-4 text-blue-600" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
                         <Ban className="h-4 w-4 text-destructive" />
                       </Button>
                     </>
                   )}
                   {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && (
-                    <Button variant="ghost" size="icon" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular remito" disabled={!canTransitionDocumentTo("ANULADO")}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular remito" disabled={!canTransitionDocumentTo("ANULADO")}>
                       <Ban className="h-4 w-4 text-destructive" />
                     </Button>
                   )}

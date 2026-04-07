@@ -21,18 +21,18 @@ export function UserDetailDialog(props: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl overflow-x-hidden">
+      <DialogContent className="max-w-4xl overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Detalle de usuario</DialogTitle>
           <DialogDescription>
-            Vista previa de membresias, roles globales y acceso por empresa.
+            Vista previa de membresías, roles globales y acceso por empresa.
           </DialogDescription>
         </DialogHeader>
 
         {selectedUser ? (
           <div className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
             <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-              <Card className="border-primary/10">
+              <Card className="border-border/60 bg-card/86 shadow-[var(--shadow-xs)]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Identidad</CardTitle>
                 </CardHeader>
@@ -60,35 +60,35 @@ export function UserDetailDialog(props: {
                 </CardContent>
               </Card>
 
-              <Card className="border-primary/10">
+              <Card className="border-border/60 bg-card/86 shadow-[var(--shadow-xs)]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Resumen operativo</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+                  <div className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/52 px-4 py-3.5">
                     <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                       <Building2 className="h-3.5 w-3.5" />
                       Empresas
                     </div>
                     <p className="mt-2 text-2xl font-bold">{selectedUser.companies?.length ?? 0}</p>
                   </div>
-                  <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+                  <div className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/52 px-4 py-3.5">
                     <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                       <Shield className="h-3.5 w-3.5" />
                       Roles globales
                     </div>
                     <p className="mt-2 text-2xl font-bold">{selectedUser.global_roles?.length ?? 0}</p>
                   </div>
-                  <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+                  <div className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/52 px-4 py-3.5">
                     <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                       <BadgeCheck className="h-3.5 w-3.5" />
-                      Membresias activas
+                      Membresías activas
                     </div>
                     <p className="mt-2 text-2xl font-bold">
                       {selectedUser.companies?.filter((company) => company.status === "ACTIVE").length ?? 0}
                     </p>
                   </div>
-                  <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+                  <div className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/52 px-4 py-3.5">
                     <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                       <Shield className="h-3.5 w-3.5" />
                       Roles empresa
@@ -101,11 +101,11 @@ export function UserDetailDialog(props: {
               </Card>
             </div>
 
-            <Card className="border-primary/10">
+            <Card className="border-border/60 bg-card/86 shadow-[var(--shadow-xs)]">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Acceso por empresa</CardTitle>
-                  <Button size="sm" onClick={() => onOpenAccessDialog(selectedUser)}>
+                  <Button size="sm" className="rounded-full" onClick={() => onOpenAccessDialog(selectedUser)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Asignar empresa
                   </Button>
@@ -114,19 +114,28 @@ export function UserDetailDialog(props: {
               <CardContent className="space-y-3">
                 {selectedUser.companies?.length ? (
                   selectedUser.companies.map((company) => (
-                    <div key={company.companyUserId} className="rounded-2xl border bg-muted/10 p-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold">{company.companyName}</p>
-                        <Badge variant={company.status === "ACTIVE" ? "outline" : "destructive"}>
-                          {company.status === "ACTIVE" ? "Membresia activa" : "Membresia inactiva"}
-                        </Badge>
-                        <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                          {company.companySlug}
-                        </span>
+                    <div key={company.companyUserId} className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/46 p-4 shadow-[var(--shadow-xs)]">
+                      <div className="flex flex-wrap items-start gap-3">
+                        <div className="flex min-w-0 flex-1 items-start gap-3">
+                          <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-background/92 text-muted-foreground shadow-[var(--shadow-xs)]">
+                            <Building2 className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-semibold">{company.companyName}</p>
+                              <Badge variant={company.status === "ACTIVE" ? "outline" : "destructive"}>
+                                {company.status === "ACTIVE" ? "Membresía activa" : "Membresía inactiva"}
+                              </Badge>
+                            </div>
+                            <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                              {company.companySlug}
+                            </span>
+                          </div>
+                        </div>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="ml-auto"
+                          className="rounded-full"
                           onClick={() => onOpenAccessDialog(selectedUser, company)}
                         >
                           <Pencil className="mr-2 h-4 w-4" />
@@ -147,9 +156,9 @@ export function UserDetailDialog(props: {
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-2xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                    Este usuario todavia no tiene empresas asignadas.
-                  </div>
+                    <div className="rounded-2xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
+                    Este usuario todavía no tiene empresas asignadas.
+                    </div>
                 )}
               </CardContent>
             </Card>

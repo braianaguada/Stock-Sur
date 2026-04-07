@@ -41,8 +41,10 @@ export default function UsersPage() {
   if (!canManage) {
     return (
       <AppLayout>
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Solo el superadmin puede acceder al panel de usuarios y permisos.
+        <div className="page-shell">
+          <div className="surface-card-muted max-w-2xl px-5 py-4 text-sm text-foreground">
+            Solo el superadmin puede acceder al panel de usuarios y permisos.
+          </div>
         </div>
       </AppLayout>
     );
@@ -50,7 +52,7 @@ export default function UsersPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="page-shell">
         <UsersOverviewHeader
           filter={filter}
           overviewStats={overviewStats}

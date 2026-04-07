@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CompanyBrandProvider } from "@/components/CompanyBrandProvider";
@@ -30,10 +30,13 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 function RouteLoader() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
-      <div className="w-full max-w-sm rounded-3xl border bg-card p-8 text-center shadow-sm">
+      <div className="route-loader w-full max-w-sm rounded-3xl border bg-card p-8 text-center shadow-sm">
         <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Stock Sur</p>
         <p className="mt-3 text-base font-semibold text-foreground">Cargando módulo...</p>
         <p className="mt-2 text-sm text-muted-foreground">Estamos preparando la pantalla para seguir trabajando.</p>
+        <div className="mt-5 overflow-hidden rounded-full bg-muted/80">
+          <div className="route-loader-bar h-1.5 rounded-full bg-primary/80" />
+        </div>
       </div>
     </div>
   );
