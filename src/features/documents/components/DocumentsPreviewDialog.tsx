@@ -43,7 +43,7 @@ export function DocumentsPreviewDialog({
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
             <div className="min-w-0 max-h-[72vh] space-y-4 overflow-y-auto pr-1">
               <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-                <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-[hsl(var(--accent))]/70 p-5">
+                <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-100 p-5 text-slate-900 shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
                   <div className="mb-4 flex items-start justify-between gap-4">
                     <div className="space-y-3">
                       <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
@@ -55,7 +55,7 @@ export function DocumentsPreviewDialog({
                         ) : (
                           <p className="text-2xl font-black tracking-[0.12em] text-primary">{companySettings.app_name}</p>
                         )}
-                        <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
                           {companySettings.document_tagline ?? "Documentacion comercial"}
                         </p>
                       </div>
@@ -67,15 +67,15 @@ export function DocumentsPreviewDialog({
                     </div>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border bg-white/80 p-4">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/95 p-4">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Cliente</p>
                       <p className="mt-2 font-semibold">{selectedDocument.customer_name ?? "Cliente ocasional"}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Tipo: {CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">CUIT: {selectedDocument.customer_tax_id ?? "-"}</p>
-                      <p className="text-sm text-muted-foreground">Condicion fiscal: {selectedDocument.customer_tax_condition ?? "-"}</p>
+                      <p className="mt-1 text-sm text-slate-600">Tipo: {CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]}</p>
+                      <p className="mt-1 text-sm text-slate-600">CUIT: {selectedDocument.customer_tax_id ?? "-"}</p>
+                      <p className="text-sm text-slate-600">Condicion fiscal: {selectedDocument.customer_tax_condition ?? "-"}</p>
                     </div>
-                    <div className="rounded-2xl border bg-white/80 p-4">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/95 p-4">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Operacion</p>
                       <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(selectedDocument.issue_date).toLocaleDateString("es-AR")}</p>
                       <p className="text-sm"><span className="font-semibold">Estado:</span> {STATUS_LABEL[selectedDocument.status]}</p>
                       <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(selectedDocument.point_of_sale).padStart(4, "0")}</p>
