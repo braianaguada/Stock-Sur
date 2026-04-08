@@ -252,9 +252,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const {
-      data: { session: actorSession },
-    } = await supabaseAuth.auth.getSession();
+    const { data: refreshData, error: refreshError } = await supabaseAuth.auth.refreshSession();
+    if (refreshError) {
+      throw refreshError;
+    }
+
+    const actorSession = refreshData.session ?? (await supabaseAuth.auth.getSession()).data.session;
 
     if (!actorSession?.access_token) {
       await clearImpersonationState();
