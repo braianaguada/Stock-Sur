@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabaseAuth } from "@/integrations/supabase/client";
-import type { Tables } from "@/integrations/supabase/types";
 import type { AppRole } from "@/lib/permissions";
 import { canManageSettings } from "@/lib/permissions";
 import {
@@ -17,8 +16,14 @@ import {
   loadAuthStateSnapshot,
   loadCompanyAccessSnapshot,
 } from "@/contexts/auth-access-state";
-
-const CURRENT_COMPANY_STORAGE_KEY = "stock-sur.current-company-id";
+import {
+  clearAuthSessionArtifacts,
+  CURRENT_COMPANY_STORAGE_KEY,
+  persistCurrentCompanyId,
+  subscribeToAuthSession,
+  syncActorSession,
+} from "@/contexts/auth-session-effects";
+import type { Tables } from "@/integrations/supabase/types";
 
 export type CompanySummary = Pick<Tables<"companies">, "id" | "name" | "slug" | "status">;
 
@@ -85,9 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCompanyPermissionCodes([]);
   }, []);
 
-  const syncActorSession = useCallback(async () => {
-    const { data: { session: refreshedSession } } = await supabaseAuth.auth.getSession();
-    setSession(refreshedSession);
+  const syncCurrentActorSession = useCallback(async () => {
+    const refreshedSession = await syncActorSession(setSession);
     setEffectiveUser(refreshedSession?.user ?? null);
   }, []);
 
@@ -95,8 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearStoredImpersonation();
     setImpersonationMeta(null);
     setLoading(true);
-    await syncActorSession();
-  }, [syncActorSession]);
+    await syncCurrentActorSession();
+  }, [syncCurrentActorSession]);
 
   const loadAuthState = useCallback(async (actorSession: Session | null, nextImpersonationMeta: ImpersonationMeta | null) => {
     try {
@@ -129,22 +133,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setCurrentCompanyId = (companyId: string) => {
     setCurrentCompanyIdState(companyId);
-    localStorage.setItem(CURRENT_COMPANY_STORAGE_KEY, companyId);
+    persistCurrentCompanyId(companyId);
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabaseAuth.auth.onAuthStateChange(
-      (_event, nextSession) => {
-        setSession(nextSession);
-        setAuthHydrated(true);
-      },
-    );
-
-    supabaseAuth.auth.getSession().then(({ data: { session: nextSession } }) => {
-      setSession(nextSession);
-      setAuthHydrated(true);
+    const subscription = subscribeToAuthSession({
+      setAuthHydrated,
+      setSession,
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
@@ -186,15 +182,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [currentCompanyId, effectiveUser?.id]);
 
   useEffect(() => {
-    if (currentCompanyId) {
-      localStorage.setItem(CURRENT_COMPANY_STORAGE_KEY, currentCompanyId);
-    }
+    persistCurrentCompanyId(currentCompanyId);
   }, [currentCompanyId]);
 
   useEffect(() => {
     if (authHydrated && !session) {
-      clearStoredImpersonation();
-      setImpersonationMeta(null);
+      clearAuthSessionArtifacts({ setImpersonationMeta });
     }
   }, [authHydrated, session]);
 
@@ -231,8 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setImpersonationMeta(nextImpersonationMeta);
     setLoading(true);
 
-    const { data: { session: refreshedSession } } = await supabaseAuth.auth.getSession();
-    setSession(refreshedSession);
+    const refreshedSession = await syncActorSession(setSession);
     const userEmail = nextImpersonationMeta.targetEmail ?? session.user.email ?? null;
     const actorUser = refreshedSession?.user ?? session.user;
     const effective = {
@@ -255,8 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     localStorage.removeItem(CURRENT_COMPANY_STORAGE_KEY);
-    clearStoredImpersonation();
-    setImpersonationMeta(null);
+    clearAuthSessionArtifacts({ setImpersonationMeta });
     await supabaseAuth.auth.signOut();
   };
 
