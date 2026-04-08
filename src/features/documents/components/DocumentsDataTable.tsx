@@ -11,6 +11,7 @@ import { formatNumber } from "@/features/documents/utils";
 interface DocumentsDataTableProps {
   documents: DocRow[];
   isLoading: boolean;
+  pageSize: number;
   onOpenDetail: (documentId: string) => void;
   onPrint: (document: DocRow) => void;
   onEditDraft: (documentId: string) => void;
@@ -27,6 +28,7 @@ interface DocumentsDataTableProps {
 export function DocumentsDataTable({
   documents,
   isLoading,
+  pageSize,
   onOpenDetail,
   onPrint,
   onEditDraft,
@@ -55,7 +57,7 @@ export function DocumentsDataTable({
     },
     {
       accessorKey: "document_number",
-      header: () => "Numero",
+      header: () => "Número",
       cell: ({ row }) => (
         <span className="font-mono">{formatNumber(row.original.document_number, row.original.point_of_sale)}</span>
       ),
@@ -207,6 +209,7 @@ export function DocumentsDataTable({
         isLoading={isLoading}
         emptyMessage="Sin documentos"
         rowClassName="h-11"
+        reserveEmptyRows={pageSize}
       />
     </div>
   );

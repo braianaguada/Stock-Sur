@@ -9,6 +9,7 @@ type BasePricesTableProps = {
   rows: BasePriceRow[];
   baseCostDrafts: Record<string, string>;
   isSaving: boolean;
+  pageSize: number;
   renderUserName: (userId: string | null) => string;
   onDraftChange: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
   onSaveDraftValue: (itemId: string, draftValue: string) => void;
@@ -84,6 +85,7 @@ function BaseCostInputCell(props: {
 export function BasePricesTable({
   rows,
   baseCostDrafts,
+  pageSize,
   renderUserName,
   onDraftChange,
   onSaveDraftValue,
@@ -111,7 +113,7 @@ export function BasePricesTable({
     },
     {
       accessorKey: "category",
-      header: () => "Categoria",
+      header: () => "Categoría",
       cell: ({ row }) => row.original.category ?? "-",
     },
     {
@@ -141,7 +143,7 @@ export function BasePricesTable({
     },
     {
       accessorKey: "cost_variation_pct",
-      header: () => <div className="text-right">Variacion</div>,
+      header: () => <div className="text-right">Variación</div>,
       cell: ({ row }) => (
         <div
           className={`text-right text-sm ${
@@ -158,7 +160,7 @@ export function BasePricesTable({
     },
     {
       accessorKey: "updated_at",
-      header: () => "Ultima actualizacion",
+      header: () => "Última actualización",
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDateTime(row.original.updated_at)}</span>,
     },
     {
@@ -173,6 +175,7 @@ export function BasePricesTable({
       columns={columns}
       data={rows}
       emptyMessage="No hay productos para mostrar."
+      reserveEmptyRows={pageSize}
     />
   );
 }

@@ -164,6 +164,7 @@ export default function PriceListsPage() {
                 rows={pagedBaseRows}
                 baseCostDrafts={baseCostDrafts}
                 isSaving={updateBaseCostMutation.isPending}
+                pageSize={10}
                 renderUserName={renderUserName}
                 onDraftChange={setBaseCostDrafts}
                 onSaveDraftValue={(itemId, draftValue) =>

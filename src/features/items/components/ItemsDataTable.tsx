@@ -14,6 +14,7 @@ export type SortDirection = "asc" | "desc";
 type ItemsDataTableProps = {
   items: Item[];
   isLoading: boolean;
+  pageSize: number;
   selectedItemIds: string[];
   sortBy: ItemSortField;
   sortDirection: SortDirection;
@@ -36,6 +37,7 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
 export function ItemsDataTable({
   items,
   isLoading,
+  pageSize,
   selectedItemIds,
   sortBy,
   sortDirection,
@@ -221,6 +223,7 @@ export function ItemsDataTable({
       emptyMessage="No se encontraron ítems"
       sorting={sorting}
       rowClassName="h-9"
+      reserveEmptyRows={pageSize}
     />
   );
 }

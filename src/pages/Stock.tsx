@@ -307,6 +307,7 @@ export default function StockPage() {
               <StockCurrentTable
                 rows={stockPagination.pagedItems}
                 isLoading={loadingStock}
+                pageSize={STOCK_PAGE_SIZE}
                 formatCoverage={formatCoverage}
                 formatQuantity={formatQuantity}
                 healthLabel={healthLabel}
