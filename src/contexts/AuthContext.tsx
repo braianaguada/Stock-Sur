@@ -1,28 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
-import {
-  supabase,
-  supabaseAuth,
-  IMPERSONATION_ACCESS_TOKEN_STORAGE_KEY,
-} from "@/integrations/supabase/client";
+import { supabase, supabaseAuth } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import type { AppRole } from "@/lib/permissions";
 import { canManageSettings } from "@/lib/permissions";
-import { getErrorMessage } from "@/lib/errors";
+import {
+  clearStoredImpersonation,
+  ImpersonationMeta,
+  isImpersonationExpired,
+  persistImpersonation,
+  readStoredImpersonationMeta,
+  requestImpersonationStart,
+  requestImpersonationStop,
+} from "@/contexts/auth-impersonation";
 
 const CURRENT_COMPANY_STORAGE_KEY = "stock-sur.current-company-id";
-const IMPERSONATION_META_STORAGE_KEY = "stock-sur.impersonation-meta";
 
 export type CompanySummary = Pick<Tables<"companies">, "id" | "name" | "slug" | "status">;
-
-type ImpersonationMeta = {
-  impersonationId: string;
-  actorUserId: string;
-  actorEmail: string | null;
-  targetUserId: string;
-  targetEmail: string | null;
-  expiresAt: number | null;
-};
 
 interface AuthContextType {
   session: Session | null;
@@ -61,46 +55,6 @@ const AuthContext = createContext<AuthContextType>({
   stopImpersonation: async () => {},
   signOut: async () => {},
 });
-
-function parseJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const [, payload] = token.split(".");
-    if (!payload) return null;
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const decoded = window.atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="));
-    return JSON.parse(decoded) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
-function isImpersonationExpired(meta: ImpersonationMeta | null) {
-  if (!meta?.expiresAt) return false;
-  return meta.expiresAt <= Math.floor(Date.now() / 1000);
-}
-
-function readStoredImpersonationMeta() {
-  const raw = sessionStorage.getItem(IMPERSONATION_META_STORAGE_KEY);
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw) as ImpersonationMeta;
-    if (isImpersonationExpired(parsed)) {
-      clearStoredImpersonation();
-      return null;
-    }
-
-    return parsed;
-  } catch {
-    sessionStorage.removeItem(IMPERSONATION_META_STORAGE_KEY);
-    return null;
-  }
-}
-
-function clearStoredImpersonation() {
-  sessionStorage.removeItem(IMPERSONATION_META_STORAGE_KEY);
-  sessionStorage.removeItem(IMPERSONATION_ACCESS_TOKEN_STORAGE_KEY);
-}
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -360,34 +314,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Necesitás una sesión activa para impersonar.");
     }
 
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/impersonation-start`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ targetUserId, reason }),
+    const {
+      accessToken,
+      impersonationId,
+      expiresAt,
+      targetUserId: resolvedTargetUserId,
+      targetEmail: resolvedJwtTargetEmail,
+    } = await requestImpersonationStart({
+      actorAccessToken: session.access_token,
+      targetUserId,
+      reason,
     });
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(getErrorMessage(payload, "No se pudo iniciar la impersonación."));
-    }
-
-    const accessToken = typeof payload.accessToken === "string" ? payload.accessToken : "";
-    const impersonationId = typeof payload.impersonationId === "string" ? payload.impersonationId : "";
-    const expiresAt = typeof payload.expiresAt === "number" ? payload.expiresAt : null;
-
-    if (!accessToken || !impersonationId) {
-      throw new Error("La respuesta de impersonación no fue válida.");
-    }
-
-    const jwtPayload = parseJwtPayload(accessToken);
-    const resolvedTargetUserId =
-      (typeof jwtPayload?.sub === "string" ? jwtPayload.sub : null) ?? targetUserId;
-    const resolvedTargetEmail =
-      (typeof jwtPayload?.email === "string" ? jwtPayload.email : null) ?? targetEmail ?? null;
+    const resolvedTargetEmail = resolvedJwtTargetEmail ?? targetEmail ?? null;
 
     const nextImpersonationMeta: ImpersonationMeta = {
       impersonationId,
@@ -398,8 +336,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       expiresAt,
     };
 
-    sessionStorage.setItem(IMPERSONATION_ACCESS_TOKEN_STORAGE_KEY, accessToken);
-    sessionStorage.setItem(IMPERSONATION_META_STORAGE_KEY, JSON.stringify(nextImpersonationMeta));
+    persistImpersonation(nextImpersonationMeta, accessToken);
     setImpersonationMeta(nextImpersonationMeta);
     setLoading(true);
 
@@ -421,21 +358,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/impersonation-stop`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ impersonationId: impersonationMeta.impersonationId }),
-    });
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(getErrorMessage(payload, "No se pudo finalizar la impersonación."));
-    }
-
+    await requestImpersonationStop(session.access_token, impersonationMeta.impersonationId);
     await clearImpersonationState();
   };
 
