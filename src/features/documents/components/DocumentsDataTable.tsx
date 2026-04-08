@@ -59,17 +59,23 @@ export function DocumentsDataTable({
       accessorKey: "document_number",
       header: () => "Número",
       cell: ({ row }) => (
-        <span className="font-mono">{formatNumber(row.original.document_number, row.original.point_of_sale)}</span>
+        <span className="block truncate font-mono">
+          {formatNumber(row.original.document_number, row.original.point_of_sale)}
+        </span>
       ),
       meta: {
+        className: "w-[150px]",
         cellClassName: "py-2.5",
       },
     },
     {
       accessorKey: "customer_name",
       header: () => "Cliente",
-      cell: ({ row }) => <span className="font-medium">{row.original.customer_name ?? "Cliente ocasional"}</span>,
+      cell: ({ row }) => (
+        <span className="block truncate font-medium">{row.original.customer_name ?? "Cliente ocasional"}</span>
+      ),
       meta: {
+        className: "w-[220px]",
         cellClassName: "py-2.5",
       },
     },
@@ -109,11 +115,11 @@ export function DocumentsDataTable({
     },
     {
       id: "actions",
-      header: () => <div className="text-right">Acciones</div>,
+      header: () => "Acciones",
       cell: ({ row }) => {
         const doc = row.original;
         return (
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <div className="flex flex-nowrap items-center justify-start gap-1.5 overflow-hidden">
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onOpenDetail(doc.id)} title="Ver">
               <Eye className="h-4 w-4" />
             </Button>
@@ -183,7 +189,7 @@ export function DocumentsDataTable({
         );
       },
       meta: {
-        className: "w-[280px]",
+        className: "w-[320px]",
         cellClassName: "py-2.5",
       },
     },
@@ -208,7 +214,9 @@ export function DocumentsDataTable({
         data={documents}
         isLoading={isLoading}
         emptyMessage="Sin documentos"
+        className="table-fixed"
         rowClassName="h-11"
+        cellClassName="h-11 py-0"
         reserveEmptyRows={pageSize}
       />
     </div>

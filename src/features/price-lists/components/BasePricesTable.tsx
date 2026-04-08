@@ -94,27 +94,42 @@ export function BasePricesTable({
     {
       accessorKey: "sku",
       header: () => "SKU",
-      cell: ({ row }) => <span className="font-mono text-xs">{row.original.sku ?? "-"}</span>,
+      cell: ({ row }) => <span className="block truncate font-mono text-xs">{row.original.sku ?? "-"}</span>,
+      meta: {
+        className: "w-[130px]",
+      },
     },
     {
       accessorKey: "name",
       header: () => "Nombre",
-      cell: ({ row }) => <span className="font-medium leading-6">{row.original.name}</span>,
+      cell: ({ row }) => <span className="block truncate font-medium">{row.original.name}</span>,
+      meta: {
+        className: "w-[300px]",
+      },
     },
     {
       accessorKey: "brand",
       header: () => "Marca",
-      cell: ({ row }) => row.original.brand ?? "-",
+      cell: ({ row }) => <span className="block truncate">{row.original.brand ?? "-"}</span>,
+      meta: {
+        className: "w-[120px]",
+      },
     },
     {
       accessorKey: "model",
       header: () => "Modelo",
-      cell: ({ row }) => row.original.model ?? "-",
+      cell: ({ row }) => <span className="block truncate">{row.original.model ?? "-"}</span>,
+      meta: {
+        className: "w-[120px]",
+      },
     },
     {
       accessorKey: "category",
       header: () => "Categoría",
-      cell: ({ row }) => row.original.category ?? "-",
+      cell: ({ row }) => <span className="block truncate">{row.original.category ?? "-"}</span>,
+      meta: {
+        className: "w-[150px]",
+      },
     },
     {
       accessorKey: "previous_base_cost",
@@ -175,6 +190,9 @@ export function BasePricesTable({
       columns={columns}
       data={rows}
       emptyMessage="No hay productos para mostrar."
+      className="table-fixed"
+      rowClassName="h-12"
+      cellClassName="h-12 py-0"
       reserveEmptyRows={pageSize}
     />
   );

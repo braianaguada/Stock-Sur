@@ -27,6 +27,7 @@ type DataTableProps<TData> = {
   onSortingChange?: (sorting: SortingState) => void;
   columnVisibility?: VisibilityState;
   rowClassName?: string;
+  cellClassName?: string;
   reserveEmptyRows?: number;
 };
 
@@ -41,6 +42,7 @@ export function DataTable<TData>({
   onSortingChange,
   columnVisibility,
   rowClassName,
+  cellClassName,
   reserveEmptyRows = 0,
 }: DataTableProps<TData>) {
   const table = useReactTable({
@@ -98,7 +100,10 @@ export function DataTable<TData>({
         ) : rows.map((row) => (
           <TableRow key={row.id} className={rowClassName}>
             {row.getVisibleCells().map((cell) => (
-              <TableCell key={cell.id} className={cn(cell.column.columnDef.meta?.cellClassName)}>
+              <TableCell
+                key={cell.id}
+                className={cn(cellClassName, cell.column.columnDef.meta?.cellClassName)}
+              >
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
               </TableCell>
             ))}
@@ -111,7 +116,10 @@ export function DataTable<TData>({
             className={cn("pointer-events-none hover:bg-transparent", rowClassName)}
           >
             {Array.from({ length: visibleColumnCount }).map((__, cellIndex) => (
-              <TableCell key={`filler-cell-${index}-${cellIndex}`} className="select-none text-transparent">
+              <TableCell
+                key={`filler-cell-${index}-${cellIndex}`}
+                className={cn(cellClassName, "h-full py-0 select-none text-transparent")}
+              >
                 &nbsp;
               </TableCell>
             ))}
