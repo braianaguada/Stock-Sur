@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/errors";
 import { canManageUsers, canViewSettings } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +24,7 @@ const navItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const { toast } = useToast();
   const {
     signOut,
     user,
@@ -37,6 +40,22 @@ export function AppSidebar() {
     stopImpersonation,
   } = useAuth();
   const { settings } = useCompanyBrand();
+
+  const handleStopImpersonation = async () => {
+    try {
+      await stopImpersonation();
+      toast({
+        title: "Sesion restaurada",
+        description: `Volviste a operar como ${actorUser?.email ?? "tu usuario real"}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "No se pudo volver a tu sesion",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
+  };
 
   const visibleNavItems = navItems.filter((item) => {
     if (item.requiresSuperadmin) return canManageUsers(roles);
@@ -65,7 +84,7 @@ export function AppSidebar() {
                   </p>
                 </div>
               </div>
-              <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => void stopImpersonation()}>
+              <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => void handleStopImpersonation()}>
                 Volver a mi sesión
               </Button>
             </div>

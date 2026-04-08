@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabaseAuth } from "@/integrations/supabase/client";
 import type { AppRole } from "@/lib/permissions";
@@ -78,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [impersonationMeta, setImpersonationMeta] = useState<ImpersonationMeta | null>(readStoredImpersonationMeta);
   const [authHydrated, setAuthHydrated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const lastIdentityKeyRef = useRef<string | null>(null);
 
   const isImpersonating = Boolean(impersonationMeta);
 
@@ -145,9 +146,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
+    const nextIdentityKey = `${session?.user?.id ?? "anonymous"}:${impersonationMeta?.targetUserId ?? "self"}`;
+    const shouldBlockNavigation =
+      !authHydrated ||
+      lastIdentityKeyRef.current === null ||
+      lastIdentityKeyRef.current !== nextIdentityKey;
+
+    if (shouldBlockNavigation) {
+      setLoading(true);
+    }
+
+    lastIdentityKeyRef.current = nextIdentityKey;
     void loadAuthState(session, impersonationMeta);
-  }, [impersonationMeta, loadAuthState, session]);
+  }, [authHydrated, impersonationMeta, loadAuthState, session]);
 
   useEffect(() => {
     if (!impersonationMeta) return;
@@ -236,12 +247,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const stopImpersonation = async () => {
-    if (!impersonationMeta || !session?.access_token) {
+    if (!impersonationMeta) {
       await clearImpersonationState();
       return;
     }
 
-    await requestImpersonationStop(session.access_token, impersonationMeta.impersonationId);
+    const {
+      data: { session: actorSession },
+    } = await supabaseAuth.auth.getSession();
+
+    if (!actorSession?.access_token) {
+      await clearImpersonationState();
+      return;
+    }
+
+    await requestImpersonationStop(actorSession.access_token, impersonationMeta.impersonationId);
     await clearImpersonationState();
   };
 
