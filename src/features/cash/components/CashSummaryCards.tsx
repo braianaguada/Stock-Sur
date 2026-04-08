@@ -92,13 +92,13 @@ export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
           >
             <CardContent className="px-5 py-7 text-center">
               <div className="grid min-h-[156px] place-items-center">
-                <div className="flex w-full min-w-0 max-w-[16rem] flex-col items-center justify-center gap-3">
+                <div className="flex w-full min-w-0 max-w-[16rem] flex-col items-center justify-center">
                   <div
                     className={`mx-auto flex h-10 w-10 items-center justify-center rounded-2xl border shadow-[var(--shadow-xs)] ${iconClasses[card.tone]}`}
                   >
                     {card.icon}
                   </div>
-                  <div className="w-full space-y-1.5">
+                  <div className="mt-3 w-full space-y-1.5">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       {card.label}
                     </p>
@@ -108,9 +108,11 @@ export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
                       {formattedValue}
                     </div>
                   </div>
-                  {card.hint ? (
-                    <p className="max-w-[18ch] text-sm leading-5 text-muted-foreground">{card.hint}</p>
-                  ) : null}
+                  <div className="mt-3 flex min-h-[2.5rem] items-start justify-center">
+                    {card.hint ? (
+                      <p className="max-w-[18ch] text-sm leading-5 text-muted-foreground">{card.hint}</p>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </CardContent>
