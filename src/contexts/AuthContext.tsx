@@ -10,7 +10,6 @@ import type { AppRole } from "@/lib/permissions";
 import { canManageSettings } from "@/lib/permissions";
 import { getErrorMessage } from "@/lib/errors";
 
-const SUPERADMIN_EMAILS = ["braianaguada@gmail.com"];
 const CURRENT_COMPANY_STORAGE_KEY = "stock-sur.current-company-id";
 const IMPERSONATION_META_STORAGE_KEY = "stock-sur.impersonation-meta";
 
@@ -145,11 +144,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         const roleSet = new Set<AppRole>((globalRolesResult.data ?? []).map((row) => row.role as AppRole));
         roleSet.add("user");
-
-        if (!nextImpersonationMeta && userEmail && SUPERADMIN_EMAILS.includes(userEmail.toLowerCase())) {
-          roleSet.add("superadmin");
-          roleSet.add("admin");
-        }
 
         nextRoles = Array.from(roleSet);
       }
