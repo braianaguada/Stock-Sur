@@ -32,23 +32,32 @@ export function StockCurrentTable({
     {
       accessorKey: "item_sku",
       header: () => "SKU",
-      cell: ({ row }) => <span className="font-mono text-xs">{row.original.item_sku}</span>,
+      cell: ({ row }) => <span className="block truncate font-mono text-xs">{row.original.item_sku}</span>,
+      meta: {
+        className: "w-[140px]",
+      },
     },
     {
       accessorKey: "item_name",
       header: () => "Nombre",
-      cell: ({ row }) => <span className="text-sm font-semibold leading-6">{row.original.item_name}</span>,
+      cell: ({ row }) => <span className="block truncate text-sm font-semibold">{row.original.item_name}</span>,
+      meta: {
+        className: "w-[320px]",
+      },
     },
     {
       accessorKey: "item_unit",
       header: () => "Unidad",
       cell: ({ row }) => <span className="text-sm">{row.original.item_unit}</span>,
+      meta: {
+        className: "w-[90px]",
+      },
     },
     {
       id: "health",
       header: () => "Semáforo",
       cell: ({ row }) => (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-nowrap items-center gap-2 overflow-hidden">
           <Badge variant="outline" className={cn("px-2.5 py-0.5 text-[10px]", healthClass[row.original.health])}>
             {healthLabel[row.original.health]}
           </Badge>
@@ -57,6 +66,9 @@ export function StockCurrentTable({
           </Badge>
         </div>
       ),
+      meta: {
+        className: "w-[220px]",
+      },
     },
     {
       id: "coverage",
@@ -87,6 +99,9 @@ export function StockCurrentTable({
       isLoading={isLoading}
       loadingMessage="Cargando..."
       emptyMessage="Sin movimientos de stock"
+      className="table-fixed"
+      rowClassName="h-11"
+      cellClassName="h-11 py-0"
       reserveEmptyRows={pageSize}
     />
   );

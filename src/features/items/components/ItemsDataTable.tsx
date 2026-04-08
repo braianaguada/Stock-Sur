@@ -89,8 +89,9 @@ export function ItemsDataTable({
           onToggleSort={() => onSort("sku")}
         />
       ),
-      cell: ({ row }) => <span className="font-mono text-[11px]">{row.original.sku}</span>,
+      cell: ({ row }) => <span className="block truncate font-mono text-[11px]">{row.original.sku}</span>,
       meta: {
+        className: "w-[130px]",
         cellClassName: "py-1.5",
       },
     },
@@ -103,8 +104,9 @@ export function ItemsDataTable({
           onToggleSort={() => onSort("name")}
         />
       ),
-      cell: ({ row }) => <span className="text-sm font-medium">{row.original.name}</span>,
+      cell: ({ row }) => <span className="block truncate text-sm font-medium">{row.original.name}</span>,
       meta: {
+        className: "w-[360px]",
         cellClassName: "py-1.5",
       },
     },
@@ -117,8 +119,9 @@ export function ItemsDataTable({
           onToggleSort={() => onSort("brand")}
         />
       ),
-      cell: ({ row }) => <span className="text-xs">{row.original.brand ?? "-"}</span>,
+      cell: ({ row }) => <span className="block truncate text-xs">{row.original.brand ?? "-"}</span>,
       meta: {
+        className: "w-[120px]",
         cellClassName: "py-1.5",
       },
     },
@@ -131,8 +134,9 @@ export function ItemsDataTable({
           onToggleSort={() => onSort("model")}
         />
       ),
-      cell: ({ row }) => <span className="text-xs">{row.original.model ?? "-"}</span>,
+      cell: ({ row }) => <span className="block truncate text-xs">{row.original.model ?? "-"}</span>,
       meta: {
+        className: "w-[120px]",
         cellClassName: "py-1.5",
       },
     },
@@ -145,8 +149,9 @@ export function ItemsDataTable({
           onToggleSort={() => onSort("category")}
         />
       ),
-      cell: ({ row }) => <span className="text-xs">{row.original.category ?? "-"}</span>,
+      cell: ({ row }) => <span className="block truncate text-xs">{row.original.category ?? "-"}</span>,
       meta: {
+        className: "w-[150px]",
         cellClassName: "py-1.5",
       },
     },
@@ -221,8 +226,10 @@ export function ItemsDataTable({
       isLoading={isLoading}
       loadingMessage="Cargando..."
       emptyMessage="No se encontraron ítems"
+      className="table-fixed"
       sorting={sorting}
       rowClassName="h-9"
+      cellClassName="h-9 py-0"
       reserveEmptyRows={pageSize}
     />
   );
