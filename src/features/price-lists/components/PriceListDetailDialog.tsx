@@ -94,7 +94,12 @@ export function PriceListDetailDialog({
           <DialogTitle>{selectedList?.name ?? "Detalle de lista"}</DialogTitle>
         </DialogHeader>
         {selectedList ? (
-          <Tabs value={detailTab} onValueChange={onDetailTabChange} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <Tabs
+            key={`${selectedList.id}-${open ? "open" : "closed"}`}
+            value={detailTab}
+            onValueChange={onDetailTabChange}
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
             <TabsList className="w-full justify-start">
               <TabsTrigger value="products">Productos</TabsTrigger>
               <TabsTrigger value="config">Configuracion</TabsTrigger>
@@ -155,7 +160,7 @@ export function PriceListDetailDialog({
 
             <TabsContent ref={configTabRef} value="config" className="mt-4 min-h-0 flex-1 overflow-auto">
               {configDraft ? (
-                <div className="mx-auto w-full max-w-4xl space-y-4 pt-1">
+                <div className="mx-auto w-full max-w-4xl space-y-4 px-1 pb-6 pt-1">
                   <div className="space-y-2">
                     <Label>Nombre</Label>
                     <Input value={configDraft.name} onChange={(event) => onConfigDraftChange((prev) => (prev ? { ...prev, name: event.target.value } : prev))} />
@@ -212,31 +217,40 @@ export function PriceListDetailDialog({
               ) : null}
             </TabsContent>
 
-            <TabsContent ref={historyTabRef} value="history" className="mt-4 space-y-2 overflow-auto">
+            <TabsContent ref={historyTabRef} value="history" className="mt-4 min-h-0 flex-1 overflow-auto">
               {selectedListHistory.length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
                     Todavia no hay historial para esta lista.
                   </CardContent>
                 </Card>
-              ) : selectedListHistory.map((row) => (
-                <Card key={row.id} className="border-border/60 bg-card/65 shadow-[var(--shadow-xs)]">
-                  <CardContent className="flex items-start justify-between gap-4 px-5 py-3.5">
-                    <div className="space-y-0.5">
-                      <p className="font-medium">
-                        {row.event_type === "LIST_CREATED" ? "Lista creada" : row.event_type === "RECALCULATED" ? "Lista recalculada" : "Configuracion actualizada"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {row.affected_items_count} productos afectados
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right text-sm text-muted-foreground">
-                      <p>{formatDateTime(row.created_at)}</p>
-                      <p>{renderUserName(row.created_by)}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-border/60 bg-card/65 shadow-[var(--shadow-xs)]">
+                  <div className="hidden grid-cols-[minmax(0,1.4fr)_160px_180px] items-center gap-4 border-b border-border/60 bg-[hsl(var(--panel))]/45 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground md:grid">
+                    <span>Evento</span>
+                    <span className="text-right">Productos</span>
+                    <span className="text-right">Fecha y usuario</span>
+                  </div>
+                  <div className="divide-y divide-border/60">
+                    {selectedListHistory.map((row) => (
+                      <div key={row.id} className="grid gap-2 px-4 py-3 md:grid-cols-[minmax(0,1.4fr)_160px_180px] md:items-center md:gap-4">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium leading-none">
+                            {row.event_type === "LIST_CREATED" ? "Lista creada" : row.event_type === "RECALCULATED" ? "Lista recalculada" : "Configuracion actualizada"}
+                          </p>
+                        </div>
+                        <div className="text-sm text-muted-foreground md:text-right">
+                          {row.affected_items_count} productos afectados
+                        </div>
+                        <div className="text-sm text-muted-foreground md:text-right">
+                          <p>{formatDateTime(row.created_at)}</p>
+                          <p className="text-xs">{renderUserName(row.created_by)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         ) : null}
