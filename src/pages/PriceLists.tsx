@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -16,7 +16,7 @@ import { PriceListDetailDialog } from "@/features/price-lists/components/PriceLi
 import { DEFAULT_PRICE_LIST_FORM, PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
 import type { PriceListFormState } from "@/features/price-lists/types";
 import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
-import { formatDateTime, parseNonNegative } from "@/features/price-lists/utils";
+import { formatDateTime } from "@/features/price-lists/utils";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 
 const pricingChipClass = {
@@ -41,10 +41,7 @@ export default function PriceListsPage() {
   const [detailTab, setDetailTab] = useState("products");
   const [createForm, setCreateForm] = useState<PriceListFormState>(DEFAULT_PRICE_LIST_FORM);
   const [configDraft, setConfigDraft] = useState<PriceListFormState | null>(null);
-  const [baseCostDrafts, setBaseCostDrafts] = useState<Record<string, string>>({});
-
   const {
-    baseRows,
     pagedBaseRows,
     priceLists,
     profileNameByUserId,
@@ -66,12 +63,6 @@ export default function PriceListsPage() {
     listSearch,
     selectedListId,
   });
-
-  useEffect(() => {
-    setBaseCostDrafts(
-      Object.fromEntries(baseRows.map((row) => [row.item_id, String(row.base_cost ?? 0)])),
-    );
-  }, [baseRows]);
 
   useEffect(() => {
     if (!selectedList) {
@@ -96,10 +87,14 @@ export default function PriceListsPage() {
     setDetailDialogOpen(true);
   };
 
-  const renderUserName = (userId: string | null) => {
+  const renderUserName = useCallback((userId: string | null) => {
     if (!userId) return "-";
     return profileNameByUserId.get(userId) ?? userId.slice(0, 8);
-  };
+  }, [profileNameByUserId]);
+
+  const handleSaveBaseCost = useCallback((itemId: string, nextBaseCost: number) => {
+    updateBaseCostMutation.mutate({ itemId, baseCost: nextBaseCost });
+  }, [updateBaseCostMutation]);
 
   const renderPricingSummary = (values: {
     flete_pct: number | null;
@@ -162,13 +157,10 @@ export default function PriceListsPage() {
             <DataCard>
               <BasePricesTable
                 rows={pagedBaseRows}
-                baseCostDrafts={baseCostDrafts}
                 isSaving={updateBaseCostMutation.isPending}
                 pageSize={10}
                 renderUserName={renderUserName}
-                onDraftChange={setBaseCostDrafts}
-                onSaveDraftValue={(itemId, draftValue) =>
-                  updateBaseCostMutation.mutate({ itemId, baseCost: parseNonNegative(draftValue, 0) })}
+                onSaveDraftValue={handleSaveBaseCost}
               />
             </DataCard>
             <DataTablePagination

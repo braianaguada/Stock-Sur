@@ -1,92 +1,73 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Input } from "@/components/ui/input";
 import type { BasePriceRow } from "@/features/price-lists/types";
-import { formatDateTime, formatMoney, formatPercentDelta, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
+import { formatDateTime, formatMoney, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
 
 type BasePricesTableProps = {
   rows: BasePriceRow[];
-  baseCostDrafts: Record<string, string>;
   isSaving: boolean;
   pageSize: number;
   renderUserName: (userId: string | null) => string;
-  onDraftChange: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
-  onSaveDraftValue: (itemId: string, draftValue: string) => void;
+  onSaveDraftValue: (itemId: string, nextBaseCost: number) => void;
 };
 
 function BaseCostInputCell(props: {
-  itemId: string;
-  draftValue: string;
-  onDraftChange: (nextValue: string) => void;
-  onCommit: (draftValue: string) => void;
+  savedValue: number;
+  isSaving: boolean;
+  onCommit: (nextBaseCost: number) => void;
 }) {
-  const { itemId, draftValue, onDraftChange, onCommit } = props;
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const { savedValue, isSaving, onCommit } = props;
   const [isFocused, setIsFocused] = useState(false);
-  const [localValue, setLocalValue] = useState(draftValue);
-  const lastCommittedValueRef = useRef<string>(draftValue);
-
-  useEffect(() => {
-    lastCommittedValueRef.current = draftValue;
-  }, [draftValue]);
+  const [localValue, setLocalValue] = useState(() => String(savedValue));
 
   useEffect(() => {
     if (!isFocused) {
-      setLocalValue(draftValue);
+      setLocalValue(String(savedValue));
     }
-  }, [draftValue, isFocused]);
+  }, [savedValue, isFocused]);
 
-  useEffect(() => {
-    if (!isFocused) return;
+  const commitValue = () => {
+    const nextBaseCost = parseNonNegative(localValue, savedValue);
+    if (nextBaseCost === savedValue) {
+      setLocalValue(String(savedValue));
+      return;
+    }
 
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!wrapperRef.current?.contains(event.target as Node)) {
-        const nextValue = inputRef.current?.value ?? localValue;
-        if (nextValue !== lastCommittedValueRef.current) {
-          lastCommittedValueRef.current = nextValue;
-          onCommit(nextValue);
-        }
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown, true);
-    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
-  }, [isFocused, localValue, onCommit]);
+    onCommit(nextBaseCost);
+  };
 
   return (
-    <div ref={wrapperRef} className="text-right">
+    <div className="text-right">
       <Input
-        ref={inputRef}
-        key={itemId}
         className="ml-auto h-8 w-24 rounded-2xl px-3 text-right font-mono"
         type="number"
         min={0}
         step="any"
         value={localValue}
+        disabled={isSaving && !isFocused}
         onFocus={() => setIsFocused(true)}
         onChange={(event) => {
           const nextValue = sanitizeNonNegativeDraft(event.target.value);
           setLocalValue(nextValue);
-          onDraftChange(nextValue);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
-            const nextValue = event.currentTarget.value;
-            lastCommittedValueRef.current = nextValue;
-            onCommit(nextValue);
+            commitValue();
+            event.currentTarget.blur();
+          }
+
+          if (event.key === "Escape") {
+            event.preventDefault();
+            setLocalValue(String(savedValue));
             event.currentTarget.blur();
           }
         }}
-        onBlur={(event) => {
+        onBlur={() => {
           setIsFocused(false);
-          const nextValue = event.currentTarget.value;
-          if (nextValue !== lastCommittedValueRef.current) {
-            lastCommittedValueRef.current = nextValue;
-            onCommit(nextValue);
-          }
+          commitValue();
         }}
       />
     </div>
@@ -95,22 +76,12 @@ function BaseCostInputCell(props: {
 
 export function BasePricesTable({
   rows,
-  baseCostDrafts,
+  isSaving,
   pageSize,
   renderUserName,
-  onDraftChange,
   onSaveDraftValue,
 }: BasePricesTableProps) {
-  const tableRows = useMemo(
-    () =>
-      rows.map((row) => ({
-        ...row,
-        draftValue: baseCostDrafts[row.item_id] ?? "0",
-      })),
-    [baseCostDrafts, rows],
-  );
-
-  const columns = useMemo<ColumnDef<BasePriceRow & { draftValue: string }, unknown>[]>(() => [
+  const columns = useMemo<ColumnDef<BasePriceRow, unknown>[]>(() => [
     {
       accessorKey: "sku",
       header: () => "SKU",
@@ -165,14 +136,9 @@ export function BasePricesTable({
       header: () => <div className="text-right">Costo base</div>,
       cell: ({ row }) => (
         <BaseCostInputCell
-          itemId={row.original.item_id}
-          draftValue={row.original.draftValue}
-          onDraftChange={(nextValue) =>
-            onDraftChange((prev) => ({
-              ...prev,
-              [row.original.item_id]: nextValue,
-            }))}
-          onCommit={(draftValue) => onSaveDraftValue(row.original.item_id, draftValue)}
+          savedValue={row.original.base_cost}
+          isSaving={isSaving}
+          onCommit={(nextBaseCost) => onSaveDraftValue(row.original.item_id, nextBaseCost)}
         />
       ),
     },
@@ -203,14 +169,15 @@ export function BasePricesTable({
       header: () => "Usuario",
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{renderUserName(row.original.updated_by)}</span>,
     },
-  ], [onDraftChange, onSaveDraftValue, renderUserName]);
+  ], [isSaving, onSaveDraftValue, renderUserName]);
 
   return (
     <DataTable
       columns={columns}
-      data={tableRows}
+      data={rows}
       emptyMessage="No hay productos para mostrar."
       className="table-fixed"
+      getRowId={(row) => row.item_id}
       rowClassName="h-12"
       cellClassName="h-12 py-0"
       reserveEmptyRows={pageSize}

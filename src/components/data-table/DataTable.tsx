@@ -3,6 +3,7 @@ import {
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
+  type Row,
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table";
@@ -26,6 +27,7 @@ type DataTableProps<TData> = {
   sorting?: SortingState;
   onSortingChange?: (sorting: SortingState) => void;
   columnVisibility?: VisibilityState;
+  getRowId?: (originalRow: TData, index: number, parent?: Row<TData>) => string;
   rowClassName?: string;
   cellClassName?: string;
   reserveEmptyRows?: number;
@@ -41,6 +43,7 @@ export function DataTable<TData>({
   sorting,
   onSortingChange,
   columnVisibility,
+  getRowId,
   rowClassName,
   cellClassName,
   reserveEmptyRows = 0,
@@ -54,6 +57,7 @@ export function DataTable<TData>({
     },
     manualSorting: true,
     enableSortingRemoval: false,
+    getRowId,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: onSortingChange ? (updater) => {
       const nextSorting =
