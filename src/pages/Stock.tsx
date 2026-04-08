@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight, Plus, Search, Settings2 } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Plus, Search, Settings2 } from "lucide-react";
 import { DataCard, PageHeader, StatCard } from "@/components/ui/page";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,7 @@ import { useStockPage } from "@/features/stock/hooks/useStockPage";
 import type { DemandProfile, MovementType, StockHealth } from "@/features/stock/types";
 
 const INTEGER_ONLY_UNITS = new Set(["un"]);
-const STOCK_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 
 function formatQuantity(value: number, unit: string | null) {
   if (!Number.isFinite(value)) return "-";
@@ -44,6 +44,10 @@ export default function StockPage() {
   const [tab, setTab] = useState("summary");
   const [alertsPage, setAlertsPage] = useState(1);
   const [stockPage, setStockPage] = useState(1);
+  const [alertsPageSize, setAlertsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+  const [stockPageSize, setStockPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+  const [movementsPage, setMovementsPage] = useState(1);
+  const [movementsPageSize, setMovementsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const {
     currentCompany,
     dialogOpen,
@@ -139,38 +143,23 @@ export default function StockPage() {
         title: `${row.item_name} con cobertura baja`,
         detail: `Cobertura estimada: ${(row.days_of_cover ?? 0).toFixed(1)} dias.`,
       }));
-    const overstock = stockRows
-      .filter((row) => !row.low_rotation && row.days_of_cover !== null && row.days_of_cover > 90)
-      .map((row) => ({
-        id: `over-${row.item_id}`,
-        tone: "GRAY" as const,
-        title: `${row.item_name} con posible sobrestock`,
-        detail: `Cobertura estimada: ${row.days_of_cover!.toFixed(1)} dias.`,
-      }));
-    const lowRotationInfo = stockRows
+
+    const lowRotationAttention = stockRows
       .filter((row) => row.low_rotation && row.total > 0)
-      .map((row) => {
+      .flatMap((row) => {
         const months = row.months_of_cover_low_rotation;
         if (months !== null && months >= 24) {
-          return {
+          return [{
             id: `slow-over-${row.item_id}`,
             tone: "YELLOW" as const,
             title: `${row.item_name} con sobrestock en baja rotacion`,
             detail: `Cobertura estimada: ${months.toFixed(1)} meses. Revisar compras futuras.`,
-          };
+          }];
         }
-        return {
-          id: `slow-${row.item_id}`,
-          tone: "GRAY" as const,
-          title: `${row.item_name} con rotacion baja`,
-          detail:
-            months !== null
-              ? `Cobertura estimada en baja rotacion: ${months < 0.1 ? "<0.1" : months.toFixed(1)} meses.`
-              : "Demanda muy baja o irregular: el semaforo prioriza stock disponible.",
-        };
+        return [];
       });
 
-    return [...critical, ...low, ...overstock, ...lowRotationInfo];
+    return [...critical, ...low, ...lowRotationAttention];
   }, [stockRows]);
 
   const warningCount = useMemo(
@@ -180,7 +169,7 @@ export default function StockPage() {
   const alertsPagination = usePaginationSlice({
     items: alerts,
     page: alertsPage,
-    pageSize: STOCK_PAGE_SIZE,
+    pageSize: alertsPageSize,
   });
   const sortedStockRows = useMemo(() => {
     const priority: Record<StockHealth, number> = {
@@ -199,7 +188,12 @@ export default function StockPage() {
   const stockPagination = usePaginationSlice({
     items: sortedStockRows,
     page: stockPage,
-    pageSize: STOCK_PAGE_SIZE,
+    pageSize: stockPageSize,
+  });
+  const movementsPagination = usePaginationSlice({
+    items: movements,
+    page: movementsPage,
+    pageSize: movementsPageSize,
   });
 
   return (
@@ -228,11 +222,25 @@ export default function StockPage() {
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsContent value="summary" className="space-y-6 pt-1">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <StatCard label="En rojo" value={stockRows.filter((row) => row.health === "RED").length} tone="danger" />
-              <StatCard label="En amarillo" value={warningCount} tone="warning" />
-              <StatCard label="Sin datos" value={stockRows.filter((row) => row.health === "GRAY").length} />
-              <StatCard label="Alertas" value={alerts.length} tone="success" />
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <StatCard
+                label="En rojo"
+                value={stockRows.filter((row) => row.health === "RED").length}
+                tone="danger"
+                className="bg-[radial-gradient(circle_at_bottom_right,rgba(248,113,113,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(248,113,113,0.55)]"
+              />
+              <StatCard
+                label="En amarillo"
+                value={warningCount}
+                tone="warning"
+                className="shadow-[0_24px_50px_-28px_rgba(250,204,21,0.42)]"
+              />
+              <StatCard
+                label="Alertas"
+                value={alerts.length}
+                tone="success"
+                className="bg-[radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(16,185,129,0.55)]"
+              />
             </div>
             <p className="text-xs text-muted-foreground">
               Semaforo automatico: combina consumo de 30, 90 y 365 dias, con tratamiento especial para rotacion baja.
@@ -259,33 +267,22 @@ export default function StockPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="flex items-center justify-between pt-2">
-                    <p className="text-sm text-muted-foreground">
-                      Mostrando {alertsPagination.rangeStart}-{alertsPagination.rangeEnd} de {alerts.length} alertas
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setAlertsPage((prev) => Math.max(1, prev - 1))}
-                        disabled={alertsPagination.page <= 1}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <span className="min-w-24 text-center text-sm text-muted-foreground">
-                        Pagina {alertsPagination.page} de {alertsPagination.totalPages}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setAlertsPage((prev) => Math.min(alertsPagination.totalPages, prev + 1))}
-                        disabled={alertsPagination.page >= alertsPagination.totalPages}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
+                  <div className="pt-4">
+                    <DataTablePagination
+                      page={alertsPagination.page}
+                      totalPages={alertsPagination.totalPages}
+                      totalItems={alerts.length}
+                      rangeStart={alertsPagination.rangeStart}
+                      rangeEnd={alertsPagination.rangeEnd}
+                      pageSize={alertsPageSize}
+                      pageSizeOptions={PAGE_SIZE_OPTIONS}
+                      onPageChange={setAlertsPage}
+                      onPageSizeChange={(value) => {
+                        setAlertsPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number]);
+                        setAlertsPage(1);
+                      }}
+                      itemLabel="alertas"
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -309,7 +306,7 @@ export default function StockPage() {
               <StockCurrentTable
                 rows={stockPagination.pagedItems}
                 isLoading={loadingStock}
-                pageSize={STOCK_PAGE_SIZE}
+                pageSize={stockPageSize}
                 formatCoverage={formatCoverage}
                 formatQuantity={formatQuantity}
                 healthLabel={healthLabel}
@@ -324,21 +321,43 @@ export default function StockPage() {
               totalItems={sortedStockRows.length}
               rangeStart={stockPagination.rangeStart}
               rangeEnd={stockPagination.rangeEnd}
+              pageSize={stockPageSize}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
               onPageChange={setStockPage}
+              onPageSizeChange={(value) => {
+                setStockPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number]);
+                setStockPage(1);
+              }}
               itemLabel="productos"
             />
           </TabsContent>
 
-          <TabsContent value="movements">
+          <TabsContent value="movements" className="space-y-5 pt-1">
             <DataCard>
               <StockMovementsTable
-                movements={movements}
+                movements={movementsPagination.pagedItems}
                 isLoading={loadingMovements}
+                pageSize={movementsPageSize}
                 formatQuantity={formatQuantity}
                 typeIcon={typeIcon}
                 typeLabel={typeLabel}
               />
             </DataCard>
+            <DataTablePagination
+              page={movementsPagination.page}
+              totalPages={movementsPagination.totalPages}
+              totalItems={movements.length}
+              rangeStart={movementsPagination.rangeStart}
+              rangeEnd={movementsPagination.rangeEnd}
+              pageSize={movementsPageSize}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
+              onPageChange={setMovementsPage}
+              onPageSizeChange={(value) => {
+                setMovementsPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number]);
+                setMovementsPage(1);
+              }}
+              itemLabel="movimientos"
+            />
           </TabsContent>
         </Tabs>
       </div>

@@ -13,6 +13,8 @@ type CashHistoryTabProps = {
   totalPages: number;
   onPageChange: (page: number) => void;
   pageSize: number;
+  pageSizeOptions: readonly number[];
+  onPageSizeChange: (pageSize: number) => void;
 };
 
 export function CashHistoryTab({
@@ -23,6 +25,8 @@ export function CashHistoryTab({
   totalPages,
   onPageChange,
   pageSize,
+  pageSizeOptions,
+  onPageSizeChange,
 }: CashHistoryTabProps) {
   const fillerItems = Math.max(0, pageSize - closuresHistory.length);
   const historyRowClassName =
@@ -103,7 +107,10 @@ export function CashHistoryTab({
               totalItems={totalItems}
               rangeStart={totalItems === 0 ? 0 : (page - 1) * pageSize + 1}
               rangeEnd={totalItems === 0 ? 0 : Math.min(page * pageSize, totalItems)}
+              pageSize={pageSize}
+              pageSizeOptions={pageSizeOptions}
               onPageChange={onPageChange}
+              onPageSizeChange={onPageSizeChange}
               itemLabel="cierres"
             />
           </div>

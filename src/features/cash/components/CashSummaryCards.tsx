@@ -68,7 +68,6 @@ export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
       value: summary.total,
       icon: <CircleDollarSign className="h-4 w-4" />,
       tone: "total" as const,
-      hint: `${summary.pendientes} pendientes de comprobante`,
     },
   ];
 

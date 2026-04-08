@@ -62,7 +62,7 @@ function CashDialogLoader() {
 }
 
 export default function CashPage() {
-  const CLOSURE_HISTORY_PAGE_SIZE = 6;
+  const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
   const { roles, currentCompany } = useAuth();
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
@@ -88,6 +88,7 @@ export default function CashPage() {
   const [situationFilter, setSituationFilter] = useState<SituationFilter>("TODAS");
   const [tab, setTab] = useState("day");
   const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const saleFormRef = useRef<HTMLDivElement | null>(null);
 
   const {
@@ -150,7 +151,7 @@ export default function CashPage() {
 
   useEffect(() => {
     setHistoryPage(1);
-  }, [closuresHistory.length]);
+  }, [closuresHistory.length, historyPageSize]);
 
   const resetSaleForm = () => {
     setAmount("");
@@ -208,7 +209,7 @@ export default function CashPage() {
   const historyPagination = usePaginationSlice({
     items: closuresHistory,
     page: historyPage,
-    pageSize: CLOSURE_HISTORY_PAGE_SIZE,
+    pageSize: historyPageSize,
   });
 
   const canCreateSale = canCreateCashSale(roles);
@@ -537,7 +538,9 @@ export default function CashPage() {
                 page={historyPagination.page}
                 totalPages={historyPagination.totalPages}
                 onPageChange={setHistoryPage}
-                pageSize={CLOSURE_HISTORY_PAGE_SIZE}
+                pageSize={historyPageSize}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                onPageSizeChange={(value) => setHistoryPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
               />
             </TabsContent>
           </Tabs>

@@ -354,7 +354,7 @@ export function useStockPage() {
         .select("id, item_id, type, quantity, reference, created_at, created_by, items(name, sku, unit)")
         .eq("company_id", currentCompany!.id)
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(5000);
       if (error) throw error;
 
       const userIds = Array.from(

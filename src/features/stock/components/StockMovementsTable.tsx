@@ -6,6 +6,7 @@ import type { Movement, MovementType } from "@/features/stock/types";
 type StockMovementsTableProps = {
   movements: Movement[];
   isLoading: boolean;
+  pageSize: number;
   formatQuantity: (value: number, unit: string | null) => string;
   typeIcon: (type: MovementType) => JSX.Element;
   typeLabel: Record<MovementType, string>;
@@ -14,6 +15,7 @@ type StockMovementsTableProps = {
 export function StockMovementsTable({
   movements,
   isLoading,
+  pageSize,
   formatQuantity,
   typeIcon,
   typeLabel,
@@ -70,6 +72,7 @@ export function StockMovementsTable({
       data={movements}
       isLoading={isLoading}
       emptyMessage="Sin movimientos"
+      reserveEmptyRows={pageSize}
     />
   );
 }

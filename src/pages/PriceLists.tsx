@@ -19,6 +19,8 @@ import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
 import { formatDateTime } from "@/features/price-lists/utils";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 
+const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
+
 const pricingChipClass = {
   flete: "border-blue-200/80 bg-blue-50/90 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200",
   margen: "border-emerald-200/80 bg-emerald-50/90 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200",
@@ -31,9 +33,11 @@ export default function PriceListsPage() {
   const [moduleTab, setModuleTab] = useState("base");
   const [baseSearch, setBaseSearch] = useState("");
   const [basePage, setBasePage] = useState(1);
+  const [basePageSize, setBasePageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [listSearch, setListSearch] = useState("");
   const [detailSearch, setDetailSearch] = useState("");
   const [detailPage, setDetailPage] = useState(1);
+  const [detailPageSize, setDetailPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -57,12 +61,22 @@ export default function PriceListsPage() {
     detailPagination,
   } = usePriceListsData({
     basePage,
+    basePageSize,
     baseSearch,
     detailPage,
+    detailPageSize,
     detailSearch,
     listSearch,
     selectedListId,
   });
+
+  useEffect(() => {
+    setBasePage(1);
+  }, [baseSearch, basePageSize]);
+
+  useEffect(() => {
+    setDetailPage(1);
+  }, [detailSearch, detailPageSize]);
 
   useEffect(() => {
     if (!selectedList) {
@@ -158,7 +172,7 @@ export default function PriceListsPage() {
               <BasePricesTable
                 rows={pagedBaseRows}
                 isSaving={updateBaseCostMutation.isPending}
-                pageSize={10}
+                pageSize={basePageSize}
                 renderUserName={renderUserName}
                 onSaveDraftValue={handleSaveBaseCost}
               />
@@ -167,9 +181,12 @@ export default function PriceListsPage() {
               page={basePagination.page}
               totalPages={basePagination.totalPages}
               totalItems={basePagination.totalItems}
-              rangeStart={basePagination.totalItems === 0 ? 0 : (basePagination.page - 1) * 10 + 1}
-              rangeEnd={Math.min(basePagination.page * 10, basePagination.totalItems)}
+              rangeStart={basePagination.totalItems === 0 ? 0 : (basePagination.page - 1) * basePageSize + 1}
+              rangeEnd={Math.min(basePagination.page * basePageSize, basePagination.totalItems)}
+              pageSize={basePageSize}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
               onPageChange={setBasePage}
+              onPageSizeChange={(value) => setBasePageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
               itemLabel="productos"
             />
           </TabsContent>
