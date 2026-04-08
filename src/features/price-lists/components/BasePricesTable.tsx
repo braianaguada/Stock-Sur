@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Input } from "@/components/ui/input";
 import type { BasePriceRow } from "@/features/price-lists/types";
@@ -85,7 +86,7 @@ export function BasePricesTable({
     {
       accessorKey: "sku",
       header: () => "SKU",
-      cell: ({ row }) => <span className="block truncate font-mono text-xs">{row.original.sku ?? "-"}</span>,
+      cell: ({ row }) => <OverflowTooltip text={row.original.sku} className="block truncate font-mono text-xs" />,
       meta: {
         className: "w-[130px]",
       },
@@ -93,7 +94,7 @@ export function BasePricesTable({
     {
       accessorKey: "name",
       header: () => "Nombre",
-      cell: ({ row }) => <span className="block truncate font-medium">{row.original.name}</span>,
+      cell: ({ row }) => <OverflowTooltip text={row.original.name} className="block truncate font-medium" />,
       meta: {
         className: "w-[300px]",
       },
@@ -101,7 +102,7 @@ export function BasePricesTable({
     {
       accessorKey: "brand",
       header: () => "Marca",
-      cell: ({ row }) => <span className="block truncate">{row.original.brand ?? "-"}</span>,
+      cell: ({ row }) => <OverflowTooltip text={row.original.brand} className="block truncate" />,
       meta: {
         className: "w-[120px]",
       },
@@ -109,7 +110,7 @@ export function BasePricesTable({
     {
       accessorKey: "model",
       header: () => "Modelo",
-      cell: ({ row }) => <span className="block truncate">{row.original.model ?? "-"}</span>,
+      cell: ({ row }) => <OverflowTooltip text={row.original.model} className="block truncate" />,
       meta: {
         className: "w-[120px]",
       },
@@ -117,7 +118,7 @@ export function BasePricesTable({
     {
       accessorKey: "category",
       header: () => "Categoría",
-      cell: ({ row }) => <span className="block truncate">{row.original.category ?? "-"}</span>,
+      cell: ({ row }) => <OverflowTooltip text={row.original.category} className="block truncate" />,
       meta: {
         className: "w-[150px]",
       },

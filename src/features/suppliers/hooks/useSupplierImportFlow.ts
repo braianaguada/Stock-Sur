@@ -303,11 +303,43 @@ export function useSupplierImportFlow(params: {
         const { DEFAULT_PDF_OPTIONS, parseFlexibleNumber, parsePdfToLines } = await import(
           "@/lib/importers/catalogImporter"
         );
-        const parseResult = await parsePdfToLines(
+        const parseResultNative = await parsePdfToLines(
           selectedFile,
           DEFAULT_PDF_OPTIONS,
           (progress) => setPdfProgress(progress),
         );
+        let parseResult = parseResultNative;
+
+        const {
+          extractSupplierPdfWithAi,
+          scorePdfExtractionResult,
+          shouldTryAiPdfExtraction,
+        } = await import("@/features/suppliers/aiPdfExtraction");
+
+        if (shouldTryAiPdfExtraction(parseResultNative)) {
+          setPdfProgress({
+            phase: "ai",
+            currentPage: 1,
+            totalPages: 1,
+            message: "Probando extraccion asistida con IA para mejorar el PDF...",
+          });
+
+          try {
+            const aiResult = await extractSupplierPdfWithAi(selectedFile);
+            if (
+              aiResult &&
+              scorePdfExtractionResult(aiResult) > scorePdfExtractionResult(parseResultNative) * 1.1
+            ) {
+              parseResult = aiResult;
+            }
+          } catch (aiError) {
+            logSupplierImportError("pdf_ai_extract", aiError, {
+              supplierId: selectedSupplier.id,
+              fileName: selectedFile.name,
+            });
+          }
+        }
+
         const tableHeaders = parseResult.table?.headers ?? [];
         const tableRows = parseResult.table?.rows ?? [];
 

@@ -66,8 +66,10 @@ export interface MappingSelectionCore {
   supplierCodeColumn: string | null;
 }
 
+export type ParsePdfMode = "text" | "ocr" | "ai";
+
 export interface ParsePdfMeta {
-  mode: "text" | "ocr";
+  mode: ParsePdfMode;
   totalChars: number;
   parsedPages: number;
   confidence: number;
@@ -77,7 +79,7 @@ export interface PdfTableCandidate {
   headers: string[];
   rows: string[][];
   previewRows: string[][];
-  sourceMode: "text" | "ocr";
+  sourceMode: ParsePdfMode;
 }
 
 export interface ParsePdfOptions {
@@ -89,10 +91,16 @@ export interface ParsePdfOptions {
 }
 
 export interface ParsePdfProgress {
-  phase: "text" | "ocr";
+  phase: ParsePdfMode;
   currentPage: number;
   totalPages: number;
   message: string;
+}
+
+export interface ParsePdfResult {
+  lines: CatalogImportLine[];
+  meta: ParsePdfMeta;
+  table: PdfTableCandidate | null;
 }
 
 export const DEFAULT_PDF_OPTIONS: ParsePdfOptions = {
@@ -642,7 +650,7 @@ export async function parsePdfToLines(
   file: File,
   optionsInput?: Partial<ParsePdfOptions>,
   onProgress?: (progress: ParsePdfProgress) => void,
-): Promise<{ lines: CatalogImportLine[]; meta: ParsePdfMeta; table: PdfTableCandidate | null }> {
+): Promise<ParsePdfResult> {
   const options: ParsePdfOptions = { ...DEFAULT_PDF_OPTIONS, ...(optionsInput ?? {}) };
   const textMode = await parsePdfTextMode(file, options, onProgress);
   const textMaxCols = textMode.tableRows.reduce((max, row) => Math.max(max, row.length), 0);

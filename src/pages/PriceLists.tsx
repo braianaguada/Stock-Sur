@@ -20,6 +20,7 @@ import { formatDateTime } from "@/features/price-lists/utils";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
+const PRICE_LISTS_UI_STATE_KEY = "price-lists:ui-state";
 
 const pricingChipClass = {
   flete: "border-blue-200/80 bg-blue-50/90 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200",
@@ -29,6 +30,7 @@ const pricingChipClass = {
 
 export default function PriceListsPage() {
   const { currentCompany } = useAuth();
+  const storageKey = currentCompany ? `${PRICE_LISTS_UI_STATE_KEY}:${currentCompany.id}` : null;
 
   const [moduleTab, setModuleTab] = useState("base");
   const [baseSearch, setBaseSearch] = useState("");
@@ -69,6 +71,37 @@ export default function PriceListsPage() {
     listSearch,
     selectedListId,
   });
+
+  useEffect(() => {
+    if (!storageKey || typeof window === "undefined") return;
+
+    const rawState = sessionStorage.getItem(storageKey);
+    if (!rawState) return;
+
+    try {
+      const persistedState = JSON.parse(rawState) as {
+        baseSearch?: string;
+        listSearch?: string;
+        moduleTab?: string;
+      };
+
+      setBaseSearch(persistedState.baseSearch ?? "");
+      setListSearch(persistedState.listSearch ?? "");
+      setModuleTab(persistedState.moduleTab === "lists" ? "lists" : "base");
+    } catch {
+      sessionStorage.removeItem(storageKey);
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (!storageKey || typeof window === "undefined") return;
+
+    sessionStorage.setItem(storageKey, JSON.stringify({
+      moduleTab,
+      baseSearch,
+      listSearch,
+    }));
+  }, [baseSearch, listSearch, moduleTab, storageKey]);
 
   useEffect(() => {
     setBasePage(1);
