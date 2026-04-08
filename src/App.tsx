@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -41,6 +41,18 @@ function RouteLoader() {
   );
 }
 
+function DelayedRouteLoader() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(true), 180);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
+  return <RouteLoader />;
+}
+
 function AuthRedirect() {
   const { session, loading } = useAuth();
   if (loading) return null;
@@ -57,7 +69,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <Suspense fallback={<RouteLoader />}>
+              <Suspense fallback={<DelayedRouteLoader />}>
                 <Routes>
                   <Route path="/auth" element={<AuthRedirect />} />
                   <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />

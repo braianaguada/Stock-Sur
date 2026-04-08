@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import type { PriceListProductRow } from "@/features/price-lists/types";
@@ -14,12 +15,18 @@ export function PriceListProductsTable({ rows }: PriceListProductsTableProps) {
     {
       accessorKey: "sku",
       header: () => "SKU",
-      cell: ({ row }) => <span className="font-mono text-xs">{row.original.sku ?? "-"}</span>,
+      cell: ({ row }) => <OverflowTooltip text={row.original.sku} className="block truncate font-mono text-xs" />,
+      meta: {
+        className: "w-[130px]",
+      },
     },
     {
       accessorKey: "name",
       header: () => "Nombre",
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      cell: ({ row }) => <OverflowTooltip text={row.original.name} className="block truncate font-medium" />,
+      meta: {
+        className: "w-[320px]",
+      },
     },
     {
       accessorKey: "calculated_price",
@@ -47,6 +54,7 @@ export function PriceListProductsTable({ rows }: PriceListProductsTableProps) {
       columns={columns}
       data={rows}
       emptyMessage="No hay productos para mostrar."
+      className="table-fixed"
     />
   );
 }
