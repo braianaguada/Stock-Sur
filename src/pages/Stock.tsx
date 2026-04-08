@@ -227,7 +227,7 @@ export default function StockPage() {
                 label="En rojo"
                 value={stockRows.filter((row) => row.health === "RED").length}
                 tone="danger"
-                className="shadow-[0_24px_50px_-28px_rgba(248,113,113,0.55)]"
+                className="bg-[radial-gradient(circle_at_bottom_right,rgba(248,113,113,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(248,113,113,0.55)]"
               />
               <StatCard
                 label="En amarillo"
@@ -239,7 +239,7 @@ export default function StockPage() {
                 label="Alertas"
                 value={alerts.length}
                 tone="success"
-                className="shadow-[0_24px_50px_-28px_rgba(16,185,129,0.42)]"
+                className="bg-[radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(16,185,129,0.55)]"
               />
             </div>
             <p className="text-xs text-muted-foreground">
