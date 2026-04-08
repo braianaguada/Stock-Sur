@@ -102,7 +102,7 @@ export function DataTable<TData>({
             {row.getVisibleCells().map((cell) => (
               <TableCell
                 key={cell.id}
-                className={cn(cellClassName, cell.column.columnDef.meta?.cellClassName)}
+                className={cn(cell.column.columnDef.meta?.cellClassName, cellClassName)}
               >
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
               </TableCell>
@@ -115,10 +115,14 @@ export function DataTable<TData>({
             aria-hidden="true"
             className={cn("pointer-events-none hover:bg-transparent", rowClassName)}
           >
-            {Array.from({ length: visibleColumnCount }).map((__, cellIndex) => (
+            {table.getVisibleLeafColumns().map((column, cellIndex) => (
               <TableCell
                 key={`filler-cell-${index}-${cellIndex}`}
-                className={cn(cellClassName, "h-full py-0 select-none text-transparent")}
+                className={cn(
+                  column.columnDef.meta?.cellClassName,
+                  cellClassName,
+                  "h-full select-none text-transparent",
+                )}
               >
                 &nbsp;
               </TableCell>

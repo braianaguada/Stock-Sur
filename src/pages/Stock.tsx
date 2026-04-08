@@ -242,21 +242,23 @@ export default function StockPage() {
                 <CardHeader className="border-b border-border/70 bg-[hsl(var(--panel))]/55">
                   <CardTitle className="text-lg">Alertas inteligentes</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 pt-7">
-                  {alertsPagination.pagedItems.map((alert) => (
-                    <div
-                      key={alert.id}
-                      className={`flex items-center justify-between gap-4 rounded-2xl border px-4 py-4.5 text-sm shadow-[var(--shadow-xs)] ${alertRowClass[alert.tone]}`}
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-foreground">{alert.title}</p>
-                        <p className="mt-1 text-muted-foreground">{alert.detail}</p>
+                <CardContent className="pt-7">
+                  <div className="space-y-2.5 pt-4">
+                    {alertsPagination.pagedItems.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className={`flex items-center justify-between gap-4 rounded-2xl border px-4 py-4.5 text-sm shadow-[var(--shadow-xs)] ${alertRowClass[alert.tone]}`}
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-foreground">{alert.title}</p>
+                          <p className="mt-1 text-muted-foreground">{alert.detail}</p>
+                        </div>
+                        <Badge variant="outline" className={cn("shrink-0", alertBadgeClass[alert.tone])}>
+                          {alertToneLabel[alert.tone]}
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className={cn("shrink-0", alertBadgeClass[alert.tone])}>
-                        {alertToneLabel[alert.tone]}
-                      </Badge>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                   <div className="flex items-center justify-between pt-2">
                     <p className="text-sm text-muted-foreground">
                       Mostrando {alertsPagination.rangeStart}-{alertsPagination.rangeEnd} de {alerts.length} alertas
