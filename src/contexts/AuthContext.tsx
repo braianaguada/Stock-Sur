@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
-import { supabase, supabaseAuth } from "@/integrations/supabase/client";
+import { supabaseAuth } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import type { AppRole } from "@/lib/permissions";
 import { canManageSettings } from "@/lib/permissions";
@@ -13,6 +13,10 @@ import {
   requestImpersonationStart,
   requestImpersonationStop,
 } from "@/contexts/auth-impersonation";
+import {
+  loadAuthStateSnapshot,
+  loadCompanyAccessSnapshot,
+} from "@/contexts/auth-access-state";
 
 const CURRENT_COMPANY_STORAGE_KEY = "stock-sur.current-company-id";
 
@@ -96,76 +100,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadAuthState = useCallback(async (actorSession: Session | null, nextImpersonationMeta: ImpersonationMeta | null) => {
     try {
-      const actorUser = actorSession?.user ?? null;
-      const userId = nextImpersonationMeta?.targetUserId ?? actorUser?.id ?? null;
-      const userEmail = nextImpersonationMeta?.targetEmail ?? actorUser?.email ?? null;
+      const nextState = await loadAuthStateSnapshot({
+        actorSession,
+        currentCompanyStorageKey: CURRENT_COMPANY_STORAGE_KEY,
+        impersonationMeta: nextImpersonationMeta,
+      });
 
-      if (!userId) {
+      if (!nextState) {
         clearAuthState();
         return;
       }
 
-      setEffectiveUser({
-        ...(actorUser ?? { id: userId, app_metadata: {}, user_metadata: {}, aud: "authenticated", created_at: "" }),
-        id: userId,
-        email: userEmail ?? undefined,
-      } as User);
+      setEffectiveUser(nextState.effectiveUser);
+      setRoles(nextState.roles);
+      setCompanies(nextState.companies);
+      setCurrentCompanyIdState(nextState.currentCompanyId);
 
-      const globalRolesResult = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId);
-
-      let nextRoles: AppRole[];
-      if (globalRolesResult.error) {
-        nextRoles = userId ? ["user"] : [];
-      } else {
-        const roleSet = new Set<AppRole>((globalRolesResult.data ?? []).map((row) => row.role as AppRole));
-        roleSet.add("user");
-
-        nextRoles = Array.from(roleSet);
-      }
-
-      setRoles(nextRoles);
-
-      const membershipsResult = await supabase
-        .from("company_users")
-        .select("id,company_id")
-        .eq("user_id", userId)
-        .eq("status", "ACTIVE");
-
-      const membershipCompanyIds = (membershipsResult.data ?? []).map((row) => row.company_id);
-      const shouldLoadAllCompanies = nextRoles.includes("superadmin");
-
-      const companiesQuery = supabase
-        .from("companies")
-        .select("id,name,slug,status")
-        .eq("status", "ACTIVE")
-        .order("name");
-
-      const companiesResult = shouldLoadAllCompanies
-        ? await companiesQuery
-        : membershipCompanyIds.length
-          ? await companiesQuery.in("id", membershipCompanyIds)
-          : { data: [], error: null };
-
-      if (companiesResult.error) {
-        clearAuthState();
-        return;
-      }
-
-      const nextCompanies = companiesResult.data ?? [];
-      setCompanies(nextCompanies);
-
-      const storedCompanyId = localStorage.getItem(CURRENT_COMPANY_STORAGE_KEY);
-      const resolvedCompanyId =
-        (storedCompanyId && nextCompanies.some((company) => company.id === storedCompanyId) ? storedCompanyId : null) ??
-        nextCompanies[0]?.id ??
-        null;
-
-      setCurrentCompanyIdState(resolvedCompanyId);
-
-      if (!resolvedCompanyId) {
+      if (!nextState.currentCompanyId) {
         setCompanyRoleCodes([]);
         setCompanyPermissionCodes([]);
       }
@@ -222,73 +173,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const loadCompanyAccess = async () => {
-      const userId = effectiveUser?.id ?? null;
+      const nextAccess = await loadCompanyAccessSnapshot({
+        companyId: currentCompanyId,
+        userId: effectiveUser?.id ?? null,
+      });
 
-      if (!userId || !currentCompanyId) {
-        setCompanyRoleCodes([]);
-        setCompanyPermissionCodes([]);
-        return;
-      }
-
-      const { data: companyUser } = await supabase
-        .from("company_users")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("company_id", currentCompanyId)
-        .eq("status", "ACTIVE")
-        .maybeSingle();
-
-      if (!companyUser?.id) {
-        setCompanyRoleCodes([]);
-        setCompanyPermissionCodes([]);
-        return;
-      }
-
-      const [companyUserRolesResult, companyUserPermissionsResult] = await Promise.all([
-        supabase
-          .from("company_user_roles")
-          .select("role_id")
-          .eq("company_user_id", companyUser.id),
-        supabase
-          .from("company_user_permissions")
-          .select("permission_id,effect")
-          .eq("company_user_id", companyUser.id),
-      ]);
-
-      const roleIds = [...new Set((companyUserRolesResult.data ?? []).map((row) => row.role_id))];
-
-      const [rolesCatalogResult, rolePermissionsResult] = await Promise.all([
-        roleIds.length ? supabase.from("roles").select("id,code").in("id", roleIds) : Promise.resolve({ data: [] }),
-        roleIds.length
-          ? supabase.from("role_permissions").select("role_id, permission_id").in("role_id", roleIds)
-          : Promise.resolve({ data: [] }),
-      ]);
-
-      const allowedPermissionIds = new Set(
-        (companyUserPermissionsResult.data ?? [])
-          .filter((row) => row.effect === "ALLOW")
-          .map((row) => row.permission_id),
-      );
-      const deniedPermissionIds = new Set(
-        (companyUserPermissionsResult.data ?? [])
-          .filter((row) => row.effect === "DENY")
-          .map((row) => row.permission_id),
-      );
-      const inheritedPermissionIds = new Set((rolePermissionsResult.data ?? []).map((row) => row.permission_id));
-      const effectivePermissionIds = new Set(
-        [...inheritedPermissionIds, ...allowedPermissionIds].filter((permissionId) => !deniedPermissionIds.has(permissionId)),
-      );
-      const effectivePermissionIdList = [...effectivePermissionIds];
-      const permissionsCatalogResult = effectivePermissionIdList.length
-        ? await supabase.from("permissions").select("id,code").in("id", effectivePermissionIdList)
-        : { data: [] };
-
-      setCompanyRoleCodes((rolesCatalogResult.data ?? []).map((row) => row.code));
-      setCompanyPermissionCodes(
-        (permissionsCatalogResult.data ?? [])
-          .filter((row) => effectivePermissionIds.has(row.id))
-          .map((row) => row.code),
-      );
+      setCompanyRoleCodes(nextAccess.companyRoleCodes);
+      setCompanyPermissionCodes(nextAccess.companyPermissionCodes);
     };
 
     void loadCompanyAccess();
