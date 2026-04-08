@@ -526,6 +526,7 @@ export default function DocumentsPage() {
         <DocumentsDataTable
           documents={documentsPagination.pagedItems}
           isLoading={isLoading}
+          pageSize={DOCUMENTS_PAGE_SIZE}
           onOpenDetail={(documentId) => {
             setSelectedDocId(documentId);
             setDetailOpen(true);

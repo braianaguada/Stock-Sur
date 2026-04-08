@@ -502,6 +502,7 @@ export default function ItemsPage() {
           <ItemsDataTable
             items={items}
             isLoading={isLoading}
+            pageSize={pageSize}
             selectedItemIds={selectedItemIds}
             sortBy={sortBy}
             sortDirection={sortDirection}

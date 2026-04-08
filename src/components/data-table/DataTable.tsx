@@ -27,6 +27,7 @@ type DataTableProps<TData> = {
   onSortingChange?: (sorting: SortingState) => void;
   columnVisibility?: VisibilityState;
   rowClassName?: string;
+  reserveEmptyRows?: number;
 };
 
 export function DataTable<TData>({
@@ -40,6 +41,7 @@ export function DataTable<TData>({
   onSortingChange,
   columnVisibility,
   rowClassName,
+  reserveEmptyRows = 0,
 }: DataTableProps<TData>) {
   const table = useReactTable({
     data,
@@ -59,6 +61,11 @@ export function DataTable<TData>({
   });
 
   const visibleColumnCount = table.getVisibleLeafColumns().length || columns.length;
+  const rows = table.getRowModel().rows;
+  const emptyRowsToRender =
+    !isLoading && rows.length > 0 && reserveEmptyRows > rows.length
+      ? reserveEmptyRows - rows.length
+      : 0;
 
   return (
     <Table className={className}>
@@ -82,17 +89,30 @@ export function DataTable<TData>({
               {loadingMessage}
             </TableCell>
           </TableRow>
-        ) : table.getRowModel().rows.length === 0 ? (
+        ) : rows.length === 0 ? (
           <TableRow>
             <TableCell colSpan={visibleColumnCount} className="py-6 text-center text-muted-foreground">
               {emptyMessage}
             </TableCell>
           </TableRow>
-        ) : table.getRowModel().rows.map((row) => (
+        ) : rows.map((row) => (
           <TableRow key={row.id} className={rowClassName}>
             {row.getVisibleCells().map((cell) => (
               <TableCell key={cell.id} className={cn(cell.column.columnDef.meta?.cellClassName)}>
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
+        {Array.from({ length: emptyRowsToRender }).map((_, index) => (
+          <TableRow
+            key={`filler-row-${index}`}
+            aria-hidden="true"
+            className={cn("pointer-events-none hover:bg-transparent", rowClassName)}
+          >
+            {Array.from({ length: visibleColumnCount }).map((__, cellIndex) => (
+              <TableCell key={`filler-cell-${index}-${cellIndex}`} className="select-none text-transparent">
+                &nbsp;
               </TableCell>
             ))}
           </TableRow>

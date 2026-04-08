@@ -8,6 +8,7 @@ import type { DemandProfile, StockHealth, StockRow } from "@/features/stock/type
 type StockCurrentTableProps = {
   rows: StockRow[];
   isLoading: boolean;
+  pageSize: number;
   formatCoverage: (value: number | null, unit: "m" | "d") => string;
   formatQuantity: (value: number, unit: string | null) => string;
   healthLabel: Record<StockHealth, string>;
@@ -19,6 +20,7 @@ type StockCurrentTableProps = {
 export function StockCurrentTable({
   rows,
   isLoading,
+  pageSize,
   formatCoverage,
   formatQuantity,
   healthLabel,
@@ -85,6 +87,7 @@ export function StockCurrentTable({
       isLoading={isLoading}
       loadingMessage="Cargando..."
       emptyMessage="Sin movimientos de stock"
+      reserveEmptyRows={pageSize}
     />
   );
 }
