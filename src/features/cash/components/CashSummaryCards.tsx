@@ -90,15 +90,15 @@ export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
             key={card.label}
             className={`relative overflow-hidden bg-gradient-to-br ${toneClasses[card.tone]} before:absolute before:inset-x-5 before:top-0 before:h-px shadow-[var(--shadow-xs)] ${card.label === "Total del día" ? "xl:col-span-2 2xl:col-span-1" : ""}`}
           >
-            <CardContent className="px-5 py-7 text-center">
+            <CardContent className={`relative px-5 py-7 text-center ${card.hint ? "pb-16" : ""}`}>
               <div className="grid min-h-[156px] place-items-center">
-                <div className="flex w-full min-w-0 max-w-[16rem] flex-col items-center justify-center">
+                <div className="flex w-full min-w-0 max-w-[16rem] flex-col items-center justify-center gap-3">
                   <div
                     className={`mx-auto flex h-10 w-10 items-center justify-center rounded-2xl border shadow-[var(--shadow-xs)] ${iconClasses[card.tone]}`}
                   >
                     {card.icon}
                   </div>
-                  <div className="mt-3 w-full space-y-1.5">
+                  <div className="w-full space-y-1.5">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       {card.label}
                     </p>
@@ -108,13 +108,13 @@ export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
                       {formattedValue}
                     </div>
                   </div>
-                  <div className="mt-3 flex min-h-[2.5rem] items-start justify-center">
-                    {card.hint ? (
-                      <p className="max-w-[18ch] text-sm leading-5 text-muted-foreground">{card.hint}</p>
-                    ) : null}
-                  </div>
                 </div>
               </div>
+              {card.hint ? (
+                <p className="absolute inset-x-5 bottom-7 mx-auto max-w-[18ch] text-sm leading-5 text-muted-foreground">
+                  {card.hint}
+                </p>
+              ) : null}
             </CardContent>
           </Card>
         );
