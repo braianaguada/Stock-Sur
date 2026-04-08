@@ -102,7 +102,7 @@ export function DataTable<TData>({
             {row.getVisibleCells().map((cell) => (
               <TableCell
                 key={cell.id}
-                className={cn(cellClassName, cell.column.columnDef.meta?.cellClassName)}
+                className={cn(cell.column.columnDef.meta?.cellClassName, cellClassName)}
               >
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
               </TableCell>
@@ -119,8 +119,8 @@ export function DataTable<TData>({
               <TableCell
                 key={`filler-cell-${index}-${cellIndex}`}
                 className={cn(
-                  cellClassName,
                   column.columnDef.meta?.cellClassName,
+                  cellClassName,
                   "h-full select-none text-transparent",
                 )}
               >
