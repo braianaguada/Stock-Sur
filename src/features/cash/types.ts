@@ -1,4 +1,11 @@
-export type PaymentMethod = "EFECTIVO" | "POINT" | "TRANSFERENCIA" | "CUENTA_CORRIENTE";
+export type PaymentMethod =
+  | "EFECTIVO"
+  | "EFECTIVO_REMITO"
+  | "EFECTIVO_FACTURABLE"
+  | "SERVICIOS_REMITO"
+  | "POINT"
+  | "TRANSFERENCIA"
+  | "CUENTA_CORRIENTE";
 export type ReceiptKind = "PENDIENTE" | "REMITO" | "FACTURA";
 export type SaleStatus = "REGISTRADA" | "PENDIENTE_COMPROBANTE" | "COMPROBANTADA" | "ANULADA";
 export type ClosureStatus = "ABIERTO" | "CERRADO";
@@ -38,6 +45,9 @@ export type CashClosureRow = {
   id: string;
   business_date: string;
   status: ClosureStatus;
+  expected_cash_remito_total: number;
+  expected_cash_facturable_total: number;
+  expected_services_remito_total: number;
   expected_cash_sales_total: number;
   expected_point_sales_total: number;
   expected_transfer_sales_total: number;
@@ -89,10 +99,14 @@ export type CashClosureHistoryRow = Pick<
   | "id"
   | "business_date"
   | "status"
+  | "expected_cash_remito_total"
+  | "expected_cash_facturable_total"
+  | "expected_services_remito_total"
   | "expected_sales_total"
   | "expected_cash_to_render"
   | "expected_point_sales_total"
   | "expected_transfer_sales_total"
+  | "expected_account_sales_total"
   | "counted_cash_total"
   | "counted_point_total"
   | "counted_transfer_total"
@@ -104,7 +118,9 @@ export type CashClosureHistoryRow = Pick<
 >;
 
 export type CashSummary = {
-  efectivo: number;
+  efectivoRemito: number;
+  efectivoFacturable: number;
+  serviciosRemito: number;
   point: number;
   transferencia: number;
   cuentaCorriente: number;

@@ -34,7 +34,6 @@ vi.mock("./pages/Stock", () => ({ default: () => <div>route:stock</div> }));
 vi.mock("./pages/Suppliers", () => ({ default: () => <div>route:suppliers</div> }));
 vi.mock("./pages/PriceLists", () => ({ default: () => <div>route:price-lists</div> }));
 vi.mock("./pages/Imports", () => ({ default: () => <div>route:imports</div> }));
-vi.mock("./pages/Pending", () => ({ default: () => <div>route:pending</div> }));
 vi.mock("./pages/Quotes", () => ({ default: () => <div>route:quotes</div> }));
 vi.mock("./pages/Documents", () => ({ default: () => <div>route:documents</div> }));
 vi.mock("./pages/Cash", () => ({ default: () => <div>route:cash</div> }));
@@ -62,7 +61,6 @@ describe("App route smoke test", () => {
     ["/suppliers", "route:suppliers"],
     ["/price-lists", "route:price-lists"],
     ["/imports", "route:imports"],
-    ["/pending", "route:pending"],
     ["/quotes", "route:quotes"],
     ["/documents", "route:documents"],
     ["/cash", "route:cash"],
@@ -70,6 +68,7 @@ describe("App route smoke test", () => {
     ["/users", "route:users"],
     ["/settings", "route:settings"],
     ["/items/catalog/import-legacy", "route:legacy-import"],
+    ["/pending", "route:not-found"],
   ])("mounts %s without crashing", async (path, expectedText) => {
     window.history.pushState({}, "", path);
     render(<App />);

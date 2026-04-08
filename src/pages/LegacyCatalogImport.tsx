@@ -1,24 +1,20 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Upload } from "lucide-react";
-
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { LegacyCatalogTable } from "@/features/imports/components/LegacyCatalogTable";
 import { supabase } from "@/integrations/supabase/client";
-import { parseImportFile, type ParsedRow } from "@/lib/importParser";
 import { cleanText, normalizeAlias } from "@/lib/clean";
+import type { ParsedRow } from "@/lib/importParserCore";
 
 const LEGACY_IMPORT_DRAFT_KEY = "legacy-catalog-import-draft";
 const INITIAL_VISIBLE_ROWS = 200;
@@ -292,6 +288,7 @@ export default function LegacyCatalogImportPage() {
     if (!file) return;
 
     try {
+      const { parseImportFile } = await import("@/lib/importParser");
       const { headers, rows: parsedRows } = await parseImportFile(file);
       const { rows: extractedRows, skippedEmptyName } = extractLegacyRows(parsedRows, headers);
 
@@ -404,7 +401,7 @@ export default function LegacyCatalogImportPage() {
           </CardContent>
         </Card>
 
-        {rows.length > 0 && (
+        {rows.length > 0 ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Preview y seleccion</CardTitle>
@@ -437,7 +434,7 @@ export default function LegacyCatalogImportPage() {
 
                 <div className="ml-auto text-sm text-muted-foreground">
                   Seleccionadas: {selectedIds.size} / {rows.length}
-                  {filteredRows.length !== rows.length ? ` · Filtradas: ${filteredRows.length}` : ""}
+                  {filteredRows.length !== rows.length ? ` - Filtradas: ${filteredRows.length}` : ""}
                 </div>
               </div>
 
@@ -450,33 +447,11 @@ export default function LegacyCatalogImportPage() {
               </div>
 
               <div className="max-h-[60vh] overflow-auto rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[56px]">Sel.</TableHead>
-                      <TableHead>Codigo</TableHead>
-                      <TableHead>Articulo</TableHead>
-                      <TableHead>Medida</TableHead>
-                      <TableHead>Rubro</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {visibleRows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedIds.has(row.id)}
-                            onCheckedChange={(checked) => toggleSelection(row.id, checked === true)}
-                          />
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{row.codigo}</TableCell>
-                        <TableCell>{row.articulo}</TableCell>
-                        <TableCell>{row.medida}</TableCell>
-                        <TableCell>{row.rubro || "-"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <LegacyCatalogTable
+                  rows={visibleRows}
+                  selectedIds={selectedIds}
+                  onSelectionChange={toggleSelection}
+                />
               </div>
 
               {filteredRows.length > visibleRows.length ? (
@@ -495,7 +470,7 @@ export default function LegacyCatalogImportPage() {
               ) : null}
             </CardContent>
           </Card>
-        )}
+        ) : null}
       </div>
     </AppLayout>
   );

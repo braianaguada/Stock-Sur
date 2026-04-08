@@ -2,12 +2,17 @@ import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
-import { isRowEmpty, parseImportFile, parsePrice } from "@/lib/importParser";
+import { isRowEmpty, parsePrice } from "@/lib/importParserCore";
 import { matchImportLine } from "@/lib/matching";
 import { buildImportPreviewRows } from "@/features/imports/utils";
 import type { ImportMappingState, ImportStep, ParsedRow } from "@/features/imports/types";
 
-type ToastFn = (params: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
+type ToastFn = (params: {
+  title: string;
+  description?: string;
+  variant?: "default" | "destructive";
+}) => void;
+
 type ImportLineInsert = {
   company_id: string;
   version_id: string;
@@ -45,12 +50,16 @@ export function useImportsFlow(params: {
   toast: ToastFn;
 }) {
   const { currentCompanyId, toast } = params;
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
 
   const [step, setStep] = useState<ImportStep>("upload");
   const [rawRows, setRawRows] = useState<ParsedRow[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
-  const [mapping, setMapping] = useState<ImportMappingState>({ supplier_code: "", description: "", price: "" });
+  const [mapping, setMapping] = useState<ImportMappingState>({
+    supplier_code: "",
+    description: "",
+    price: "",
+  });
   const [selectedPriceListId, setSelectedPriceListId] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -67,50 +76,60 @@ export function useImportsFlow(params: {
       return data;
     },
   });
-  const priceLists = priceListsQuery.data ?? EMPTY_PRICE_LISTS;
 
+  const priceLists = priceListsQuery.data ?? EMPTY_PRICE_LISTS;
   const validRows = rawRows.filter((row) => !isRowEmpty(row));
-  const selectedPriceListStillExists = priceLists.some((priceList) => priceList.id === selectedPriceListId);
+  const selectedPriceListStillExists = priceLists.some(
+    (priceList) => priceList.id === selectedPriceListId,
+  );
   const previewData = buildImportPreviewRows(validRows, mapping);
 
-  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
 
-    try {
-      const { headers: parsedHeaders, rows } = await parseImportFile(file);
-      const nonEmptyRows = rows.filter((row) => !isRowEmpty(row));
+      try {
+        const { parseImportFile } = await import("@/lib/importParser");
+        const { headers: parsedHeaders, rows } = await parseImportFile(file);
+        const nonEmptyRows = rows.filter((row) => !isRowEmpty(row));
 
-      if (nonEmptyRows.length === 0) {
+        if (nonEmptyRows.length === 0) {
+          toast({
+            title: "Archivo sin filas validas",
+            description: "El archivo no contiene datos para importar.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setHeaders(parsedHeaders);
+        setRawRows(rows);
+        setMapping({ supplier_code: "", description: "", price: "" });
+        setStep("map");
+      } catch (error) {
         toast({
-          title: "Archivo sin filas válidas",
-          description: "El archivo no contiene datos para importar.",
+          title: "No se pudo leer el archivo",
+          description: error instanceof Error ? error.message : "Formato invalido o archivo corrupto",
           variant: "destructive",
         });
-        return;
       }
-
-      setHeaders(parsedHeaders);
-      setRawRows(rows);
-      setMapping({ supplier_code: "", description: "", price: "" });
-      setStep("map");
-    } catch (error) {
-      toast({
-        title: "No se pudo leer el archivo",
-        description: error instanceof Error ? error.message : "Formato inválido o archivo corrupto",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
+    },
+    [toast],
+  );
 
   const goPreview = () => {
     if (!mapping.description || !mapping.price) {
-      toast({ title: "Mapeá al menos descripción y precio", variant: "destructive" });
+      toast({ title: "Mapea al menos descripcion y precio", variant: "destructive" });
       return;
     }
 
     if (validRows.length === 0) {
-      toast({ title: "No hay filas válidas", description: "Subí un archivo con datos para continuar.", variant: "destructive" });
+      toast({
+        title: "No hay filas validas",
+        description: "Subi un archivo con datos para continuar.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -119,21 +138,27 @@ export function useImportsFlow(params: {
 
   const importMutation = useMutation({
     mutationFn: async () => {
-      if (!currentCompanyId) throw new Error("Seleccioná una empresa activa para importar");
+      if (!currentCompanyId) throw new Error("Selecciona una empresa activa para importar");
       if (!selectedPriceListStillExists) {
-        throw new Error("La lista seleccionada ya no está disponible. Recargá Importaciones e intentá de nuevo");
+        throw new Error(
+          "La lista seleccionada ya no esta disponible. Recarga Importaciones e intenta de nuevo",
+        );
       }
       if (validRows.length === 0) {
-        throw new Error("No hay filas válidas para importar");
+        throw new Error("No hay filas validas para importar");
       }
-      if (!selectedPriceListId) throw new Error("Seleccioná una lista de precios");
+      if (!selectedPriceListId) throw new Error("Selecciona una lista de precios");
 
-      const { data: version, error: vErr } = await supabase
+      const { data: version, error: versionError } = await supabase
         .from("price_list_versions")
-        .insert({ company_id: currentCompanyId, price_list_id: selectedPriceListId, notes: notes || null })
+        .insert({
+          company_id: currentCompanyId,
+          price_list_id: selectedPriceListId,
+          notes: notes || null,
+        })
         .select("id")
         .single();
-      if (vErr) throw vErr;
+      if (versionError) throw versionError;
 
       const { data: aliases, error: aliasesError } = await supabase
         .from("item_aliases")
@@ -141,36 +166,39 @@ export function useImportsFlow(params: {
         .eq("company_id", currentCompanyId);
       if (aliasesError) throw aliasesError;
 
-      const allLines: ImportLineInsert[] = validRows.map((row) => {
-        const supplierCode = mapping.supplier_code && mapping.supplier_code !== "__none__"
-          ? (row[mapping.supplier_code] ?? "").trim()
-          : "";
-        const rawDesc = (row[mapping.description] ?? "").trim();
-        const price = parsePrice(row[mapping.price] ?? "0");
+      const allLines: ImportLineInsert[] = validRows
+        .map((row) => {
+          const supplierCode =
+            mapping.supplier_code && mapping.supplier_code !== "__none__"
+              ? (row[mapping.supplier_code] ?? "").trim()
+              : "";
+          const rawDescription = (row[mapping.description] ?? "").trim();
+          const price = parsePrice(row[mapping.price] ?? "0");
 
-        const match = matchImportLine({
-          supplierCode,
-          rawDescription: rawDesc,
-          aliases: aliases ?? [],
-        });
+          const match = matchImportLine({
+            supplierCode,
+            rawDescription,
+            aliases: aliases ?? [],
+          });
 
-        const item_id = match.itemId;
-        const match_status: "MATCHED" | "PENDING" | "NEW" = item_id ? "MATCHED" : "PENDING";
+          const itemId = match.itemId;
+          const matchStatus: "MATCHED" | "PENDING" | "NEW" = itemId ? "MATCHED" : "PENDING";
 
-        return {
-          company_id: currentCompanyId,
-          version_id: version.id,
-          supplier_code: supplierCode || null,
-          raw_description: rawDesc,
-          price,
-          item_id,
-          match_status,
-          match_reason: match.reason,
-        };
-      }).filter((line) => line.raw_description);
+          return {
+            company_id: currentCompanyId,
+            version_id: version.id,
+            supplier_code: supplierCode || null,
+            raw_description: rawDescription,
+            price,
+            item_id: itemId,
+            match_status: matchStatus,
+            match_reason: match.reason,
+          };
+        })
+        .filter((line) => line.raw_description);
 
-      for (let i = 0; i < allLines.length; i += 500) {
-        const batch = allLines.slice(i, i + 500);
+      for (let index = 0; index < allLines.length; index += 500) {
+        const batch = allLines.slice(index, index + 500);
         await insertPriceListLines(batch);
       }
 
@@ -180,15 +208,18 @@ export function useImportsFlow(params: {
       };
     },
     onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: ["price-lists"] });
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
       setStep("done");
-      toast({ title: `Importación completada: ${result.total} líneas, ${result.matched} matcheadas` });
+      toast({
+        title: `Importacion completada: ${result.total} lineas, ${result.matched} matcheadas`,
+      });
     },
-    onError: (error: unknown) => toast({
-      title: "Error",
-      description: getErrorMessage(error),
-      variant: "destructive",
-    }),
+    onError: (error: unknown) =>
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      }),
   });
 
   const reset = () => {

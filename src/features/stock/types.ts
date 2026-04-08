@@ -31,3 +31,19 @@ export interface Movement {
   created_at: string;
   items?: { name: string; sku: string } | null;
 }
+
+export interface SearchableItem {
+  id: string;
+  name: string;
+  sku: string;
+  unit: string | null;
+  brand?: string | null;
+  model?: string | null;
+}
+
+export interface StockMovementForm {
+  item_id: string;
+  type: MovementType;
+  quantity: string;
+  reference: string;
+}

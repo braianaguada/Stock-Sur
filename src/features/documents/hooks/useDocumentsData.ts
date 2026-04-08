@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/query-keys";
 import { DOC_LABEL } from "../constants";
 import type {
   DocEventRow,
@@ -32,7 +33,7 @@ export function useDocumentsData({
 }: UseDocumentsDataParams) {
   const trimmedSearch = search.trim();
   const { data: customers = [] } = useQuery({
-    queryKey: ["documents-customers", currentCompanyId ?? "no-company"],
+    queryKey: queryKeys.documents.customers(currentCompanyId),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
@@ -46,7 +47,7 @@ export function useDocumentsData({
   });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["documents-items", currentCompanyId ?? "no-company"],
+    queryKey: queryKeys.documents.items(currentCompanyId),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
@@ -61,7 +62,7 @@ export function useDocumentsData({
   });
 
   const { data: priceLists = [] } = useQuery({
-    queryKey: ["documents-price-lists", currentCompanyId ?? "no-company"],
+    queryKey: queryKeys.documents.priceLists(currentCompanyId),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
@@ -75,7 +76,7 @@ export function useDocumentsData({
   });
 
   const { data: priceListItems = [] } = useQuery({
-    queryKey: ["documents-price-list-items", currentCompanyId ?? "no-company", selectedPriceListId],
+    queryKey: queryKeys.documents.priceListItems(currentCompanyId, selectedPriceListId),
     enabled: !!selectedPriceListId && Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
@@ -129,7 +130,7 @@ export function useDocumentsData({
   );
 
   const { data: documents = [], isLoading } = useQuery({
-    queryKey: ["documents", currentCompanyId ?? "no-company", trimmedSearch, typeFilter, statusFilter],
+    queryKey: queryKeys.documents.list(currentCompanyId, trimmedSearch, typeFilter, statusFilter),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       let q = supabase
@@ -157,7 +158,7 @@ export function useDocumentsData({
   );
 
   const { data: selectedLines = [] } = useQuery({
-    queryKey: ["document-lines", selectedDocId],
+    queryKey: queryKeys.documents.lines(selectedDocId),
     enabled: !!selectedDocId,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -171,7 +172,7 @@ export function useDocumentsData({
   });
 
   const { data: selectedEvents = [] } = useQuery({
-    queryKey: ["document-events", selectedDocId],
+    queryKey: queryKeys.documents.events(selectedDocId),
     enabled: !!selectedDocId,
     queryFn: async () => {
       const { data, error } = await supabase

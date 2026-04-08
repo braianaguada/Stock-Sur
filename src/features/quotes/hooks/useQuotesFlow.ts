@@ -2,6 +2,8 @@ import { useDeferredValue, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
+import { invalidateQuoteQueries } from "@/lib/invalidate";
+import { queryKeys } from "@/lib/query-keys";
 import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
 import type { QuoteFormState, QuoteLine, QuoteLineRow, QuoteListRow } from "@/features/quotes/types";
 
@@ -36,7 +38,7 @@ export function useQuotesFlow(params: {
   const deferredSearch = useDeferredValue(search);
 
   const customersQuery = useQuery({
-    queryKey: ["customers-list", currentCompanyId ?? "no-company"],
+    queryKey: queryKeys.quotes.customers(currentCompanyId),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
@@ -51,7 +53,7 @@ export function useQuotesFlow(params: {
   const customers = customersQuery.data ?? EMPTY_CUSTOMERS;
 
   const quotesQuery = useQuery({
-    queryKey: ["quotes", currentCompanyId ?? "no-company", deferredSearch],
+    queryKey: queryKeys.quotes.list(currentCompanyId, deferredSearch),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       let query = supabase
@@ -70,7 +72,7 @@ export function useQuotesFlow(params: {
   const quotes = quotesQuery.data ?? EMPTY_QUOTES;
 
   const quoteLinesQuery = useQuery({
-    queryKey: ["quote-lines", currentCompanyId ?? "no-company", selectedQuoteId],
+    queryKey: queryKeys.quotes.lines(currentCompanyId, selectedQuoteId),
     enabled: Boolean(currentCompanyId && selectedQuoteId),
     queryFn: async () => {
       const { data, error } = await supabase
@@ -123,7 +125,7 @@ export function useQuotesFlow(params: {
       if (linesError) throw linesError;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotes", currentCompanyId ?? "no-company"] });
+      invalidateQuoteQueries(qc);
       setDialogOpen(false);
       toast({ title: "Presupuesto creado" });
     },
@@ -145,7 +147,7 @@ export function useQuotesFlow(params: {
       await deleteByStrategy({ table: "quotes", id });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotes", currentCompanyId ?? "no-company"] });
+      invalidateQuoteQueries(qc);
       toast({ title: "Presupuesto eliminado" });
     },
   });

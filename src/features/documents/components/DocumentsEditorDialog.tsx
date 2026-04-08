@@ -1,6 +1,6 @@
 import { Plus, Trash2 } from "lucide-react";
+import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -68,17 +68,15 @@ export function DocumentsEditorDialog({
   isSubmitting,
 }: DocumentsEditorDialogProps) {
   return (
-    <Dialog
+    <EntityDialog
       open={open}
       onOpenChange={(nextOpen) => {
         onOpenChange(nextOpen);
         if (!nextOpen) onResetDraftForm();
       }}
+      title={editingDocId ? "Editar borrador" : "Nuevo documento"}
+      contentClassName="max-w-5xl max-h-[90vh] overflow-auto"
     >
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
-        <DialogHeader>
-          <DialogTitle>{editingDocId ? "Editar borrador" : "Nuevo documento"}</DialogTitle>
-        </DialogHeader>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -422,13 +420,12 @@ export function DocumentsEditorDialog({
             <p className="text-right font-bold">Total: ${totalDraft.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
           </div>
 
-          <DialogFooter>
+          <div className="flex justify-end">
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? "Guardando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </EntityDialog>
   );
 }

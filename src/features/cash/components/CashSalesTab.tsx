@@ -1,9 +1,11 @@
+import { useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, NotebookText } from "lucide-react";
+import { DataTable } from "@/components/data-table/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { currency, formatTime } from "@/lib/formatters";
 import { PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LABEL } from "../constants";
 import type { CashSaleRow, SituationFilter } from "../types";
@@ -32,6 +34,88 @@ export function CashSalesTab({
   canCancelSale,
   cancelPending,
 }: CashSalesTabProps) {
+  const columns = useMemo<ColumnDef<CashSaleRow, unknown>[]>(() => [
+    {
+      accessorKey: "sold_at",
+      header: () => "Hora",
+      cell: ({ row }) => <span className="font-mono text-xs">{formatTime(row.original.sold_at)}</span>,
+      meta: { className: "w-[78px]", cellClassName: "py-2.5" },
+    },
+    {
+      accessorKey: "amount_total",
+      header: () => <div className="text-right">Importe</div>,
+      cell: ({ row }) => <div className="text-right font-semibold whitespace-nowrap">{currency.format(Number(row.original.amount_total))}</div>,
+      meta: { className: "w-[110px]", cellClassName: "py-2.5" },
+    },
+    {
+      accessorKey: "customer_name_snapshot",
+      header: () => "Cliente",
+      cell: ({ row }) => (
+        <div className="max-w-[160px]">
+          <p className="truncate text-sm font-medium">{row.original.customer_name_snapshot ?? "Consumidor final"}</p>
+        </div>
+      ),
+      meta: { className: "w-[170px]", cellClassName: "py-2.5" },
+    },
+    {
+      accessorKey: "payment_method",
+      header: () => "Pago",
+      cell: ({ row }) => <span className="text-sm">{PAYMENT_LABEL[row.original.payment_method]}</span>,
+      meta: { className: "w-[150px]", cellClassName: "py-2.5" },
+    },
+    {
+      accessorKey: "receipt_kind",
+      header: () => "Comprobante",
+      cell: ({ row }) => (
+        <div className="min-w-0 text-sm">
+          <p className="truncate">{RECEIPT_LABEL[row.original.receipt_kind]}</p>
+          <Badge variant="outline" className={`${STATUS_CLASS[row.original.status]} mt-1 max-w-full`}>
+            {STATUS_LABEL[row.original.status]}
+          </Badge>
+          {row.original.receipt_reference ? <p className="truncate font-mono text-xs text-muted-foreground">{row.original.receipt_reference}</p> : null}
+        </div>
+      ),
+      meta: { className: "w-[160px]", cellClassName: "py-2.5" },
+    },
+    {
+      id: "closure_situation",
+      header: () => "Situación",
+      cell: ({ row }) => {
+        const closureSituation = getClosureSituation(row.original, hasClosedClosureForDay);
+        return (
+          <Badge variant="outline" className={closureSituation.className}>
+            {closureSituation.label}
+          </Badge>
+        );
+      },
+      meta: { className: "w-[150px]", cellClassName: "py-2.5" },
+    },
+    {
+      id: "actions",
+      header: () => <div className="text-right">Acciones</div>,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => onOpenDetail(row.original)}>
+            <NotebookText className="h-4 w-4" />
+          </Button>
+          {row.original.status !== "ANULADA" ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-destructive"
+              onClick={() => onCancelSale(row.original.id)}
+              disabled={cancelPending || !canCancelSale(row.original)}
+            >
+              <Ban className="h-4 w-4" />
+            </Button>
+          ) : null}
+        </div>
+      ),
+      meta: { className: "w-[92px]", cellClassName: "py-2.5" },
+    },
+  ], [cancelPending, canCancelSale, hasClosedClosureForDay, onCancelSale, onOpenDetail]);
+
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -57,76 +141,15 @@ export function CashSalesTab({
       </CardHeader>
       <CardContent>
         <div className="max-h-[560px] overflow-y-auto rounded-lg border">
-          <Table className="table-fixed">
-            <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
-              <TableRow>
-                <TableHead className="w-[78px]">Hora</TableHead>
-                <TableHead className="w-[110px] text-right">Importe</TableHead>
-                <TableHead className="w-[170px]">Cliente</TableHead>
-                <TableHead className="w-[96px]">Pago</TableHead>
-                <TableHead className="w-[160px]">Comprobante</TableHead>
-                <TableHead className="w-[150px]">Situación</TableHead>
-                <TableHead className="w-[92px] text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {salesLoading ? (
-                <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Cargando ventas...</TableCell></TableRow>
-              ) : filteredSales.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Todavía no hay ventas registradas para esta fecha.</TableCell></TableRow>
-              ) : (
-                filteredSales.map((sale) => {
-                  const closureSituation = getClosureSituation(sale, hasClosedClosureForDay);
-
-                  return (
-                    <TableRow key={sale.id}>
-                      <TableCell className="font-mono text-xs">{formatTime(sale.sold_at)}</TableCell>
-                      <TableCell className="text-right font-semibold whitespace-nowrap">{currency.format(Number(sale.amount_total))}</TableCell>
-                      <TableCell>
-                        <div className="max-w-[160px]">
-                          <p className="truncate text-sm font-medium">{sale.customer_name_snapshot ?? "Consumidor final"}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">{PAYMENT_LABEL[sale.payment_method]}</TableCell>
-                      <TableCell>
-                        <div className="min-w-0 text-sm">
-                          <p className="truncate">{RECEIPT_LABEL[sale.receipt_kind]}</p>
-                          <Badge variant="outline" className={`${STATUS_CLASS[sale.status]} mt-1 max-w-full`}>
-                            {STATUS_LABEL[sale.status]}
-                          </Badge>
-                          {sale.receipt_reference ? <p className="truncate font-mono text-xs text-muted-foreground">{sale.receipt_reference}</p> : null}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={closureSituation.className}>
-                          {closureSituation.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => onOpenDetail(sale)}>
-                            <NotebookText className="h-4 w-4" />
-                          </Button>
-                          {sale.status !== "ANULADA" ? (
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-destructive"
-                              onClick={() => onCancelSale(sale.id)}
-                              disabled={cancelPending || !canCancelSale(sale)}
-                            >
-                              <Ban className="h-4 w-4" />
-                            </Button>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={columns}
+            data={filteredSales}
+            isLoading={salesLoading}
+            loadingMessage="Cargando ventas..."
+            emptyMessage="Todavía no hay ventas registradas para esta fecha."
+            className="table-fixed"
+            rowClassName="h-11"
+          />
         </div>
       </CardContent>
     </Card>

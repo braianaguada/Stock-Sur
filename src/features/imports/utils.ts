@@ -1,4 +1,4 @@
-import { parsePrice } from "@/lib/importParser";
+import { parsePrice } from "@/lib/importParserCore";
 import type { ImportMappingState, ImportPreviewRow, ParsedRow } from "@/features/imports/types";
 
 export function buildImportPreviewRows(rows: ParsedRow[], mapping: ImportMappingState): ImportPreviewRow[] {

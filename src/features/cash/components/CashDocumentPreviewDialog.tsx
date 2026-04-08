@@ -1,9 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LineItemsTable } from "@/components/common/LineItemsTable";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { currency, formatDocumentNumber } from "@/lib/formatters";
-import { DOC_STATUS_LABEL } from "../constants";
+import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL } from "../constants";
 import type { CashSaleRow, DocumentEventQuickRow, DocumentLineQuickRow, DocumentQuickRow } from "../types";
 import { describeDocumentEvent } from "../utils";
 
@@ -47,12 +47,32 @@ export function CashDocumentPreviewDialog({
           <DialogTitle>Vista previa del documento</DialogTitle>
           <DialogDescription>Documento asociado a la venta y su trazabilidad.</DialogDescription>
         </DialogHeader>
+        {detailSale ? (
+          <div className="grid gap-3 rounded-3xl border bg-slate-50 p-4 md:grid-cols-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+              <p className="mt-1 font-semibold">{detailSale.customer_name_snapshot ?? "Consumidor final"}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Pago</p>
+              <p className="mt-1 font-semibold">{PAYMENT_LABEL[detailSale.payment_method]}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Comprobante</p>
+              <p className="mt-1 font-semibold">{detailSale.receipt_reference ?? RECEIPT_LABEL[detailSale.receipt_kind]}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Importe</p>
+              <p className="mt-1 font-semibold">{currency.format(Number(detailSale.amount_total))}</p>
+            </div>
+          </div>
+        ) : null}
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
           {linkedDocument ? (
             <>
               <div className="min-w-0 max-h-[72vh] space-y-4 overflow-y-auto pr-1">
                 <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-                  <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-emerald-50 p-5">
+                  <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50 p-5 text-slate-900 shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
                     <div className="mb-4 flex items-start justify-between gap-4">
                       <div className="space-y-3">
                         <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Remito</Badge>
@@ -62,8 +82,8 @@ export function CashDocumentPreviewDialog({
                           ) : (
                             <p className="text-2xl font-black tracking-[0.12em] text-primary">{companyBrand.appName}</p>
                           )}
-                          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            {companyBrand.documentTagline ?? "Documentación comercial"}
+                          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
+                            {companyBrand.documentTagline ?? "Documentacion comercial"}
                           </p>
                         </div>
                       </div>
@@ -74,12 +94,12 @@ export function CashDocumentPreviewDialog({
                       </div>
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <div className="rounded-2xl border bg-white/80 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/95 p-4">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Cliente</p>
                         <p className="mt-2 font-semibold">{linkedDocument.customer_name ?? "Cliente ocasional"}</p>
                       </div>
-                      <div className="rounded-2xl border bg-white/80 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operación</p>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/95 p-4">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Operacion</p>
                         <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(linkedDocument.issue_date).toLocaleDateString("es-AR")}</p>
                         <p className="text-sm"><span className="font-semibold">Estado:</span> {DOC_STATUS_LABEL[linkedDocument.status]}</p>
                         <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(linkedDocument.point_of_sale).padStart(4, "0")}</p>
@@ -102,30 +122,19 @@ export function CashDocumentPreviewDialog({
                 </div>
 
                 <div className="rounded-3xl border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>#</TableHead>
-                        <TableHead>Descripción</TableHead>
-                        <TableHead className="text-right">Cant.</TableHead>
-                        <TableHead>Unidad</TableHead>
-                        <TableHead className="text-right">P.Unit.</TableHead>
-                        <TableHead className="text-right">Importe</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {linkedDocumentLines.map((line) => (
-                        <TableRow key={line.id}>
-                          <TableCell>{line.line_order}</TableCell>
-                          <TableCell className="font-medium">{line.description}</TableCell>
-                          <TableCell className="text-right">{Number(line.quantity).toLocaleString("es-AR")}</TableCell>
-                          <TableCell>{line.unit ?? "un"}</TableCell>
-                          <TableCell className="text-right font-mono">{currency.format(Number(line.unit_price))}</TableCell>
-                          <TableCell className="text-right font-mono">{currency.format(Number(line.line_total))}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <LineItemsTable
+                    rows={linkedDocumentLines.map((line) => ({
+                      id: line.id,
+                      line_order: line.line_order,
+                      description: line.description,
+                      quantity: line.quantity,
+                      unit: line.unit,
+                      unit_price: line.unit_price,
+                      total: line.line_total,
+                    }))}
+                    showOrder
+                    currencyFormatter={(value) => currency.format(Number(value))}
+                  />
                 </div>
               </div>
 
@@ -137,7 +146,7 @@ export function CashDocumentPreviewDialog({
 
                 {linkedDocumentEvents.length === 0 ? (
                   <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
-                    Todavía no hay eventos registrados para este documento.
+                    Todavia no hay eventos registrados para este documento.
                   </div>
                 ) : (
                   <div className="relative pl-7">
@@ -172,7 +181,7 @@ export function CashDocumentPreviewDialog({
             </>
           ) : (
             <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
-              Esta venta todavía no tiene un documento asociado para previsualizar.
+              Esta venta no tiene un documento interno para previsualizar. Si fue facturada por afuera del sistema, arriba queda visible la referencia cargada.
             </div>
           )}
         </div>
