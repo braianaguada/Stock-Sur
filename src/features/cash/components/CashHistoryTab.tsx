@@ -25,6 +25,8 @@ export function CashHistoryTab({
   pageSize,
 }: CashHistoryTabProps) {
   const fillerItems = Math.max(0, pageSize - closuresHistory.length);
+  const historyRowClassName =
+    "min-h-[92px] flex flex-col gap-3 rounded-2xl border border-border/55 bg-background/68 p-4 md:flex-row md:items-center md:justify-between";
 
   return (
     <Card className="shadow-sm">
@@ -47,7 +49,7 @@ export function CashHistoryTab({
             closuresHistory.map((historyItem) => (
               <div
                 key={historyItem.id}
-                className="flex flex-col gap-3 rounded-2xl border border-border/55 bg-background/68 p-4 md:flex-row md:items-center md:justify-between"
+                className={historyRowClassName}
               >
                 <div>
                   <p className="font-semibold">{formatBusinessDate(historyItem.business_date)}</p>
@@ -88,10 +90,8 @@ export function CashHistoryTab({
                 <div
                   key={`closure-filler-${index}`}
                   aria-hidden="true"
-                  className="rounded-2xl border border-border/55 bg-background/30 p-4 opacity-0"
-                >
-                  <div className="h-[76px]" />
-                </div>
+                  className={`${historyRowClassName} invisible`}
+                />
               ))
             : null}
         </div>
