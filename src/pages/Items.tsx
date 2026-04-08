@@ -33,7 +33,7 @@ import {
   type SortDirection,
 } from "@/features/items/components/ItemsDataTable";
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const NEW_ITEM_DRAFT_KEY = "items:new-item-draft";
 
 

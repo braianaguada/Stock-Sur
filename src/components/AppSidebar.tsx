@@ -13,7 +13,6 @@ const navItems = [
   { title: "Stock", url: "/stock" },
   { title: "Proveedores", url: "/suppliers" },
   { title: "Precios", url: "/price-lists" },
-  { title: "Pendientes", url: "/pending" },
   { title: "Documentos", url: "/documents" },
   { title: "Caja", url: "/cash" },
   { title: "Clientes", url: "/customers" },

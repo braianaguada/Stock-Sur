@@ -16,9 +16,6 @@ import type {
 } from "@/features/price-lists/types";
 import { parseNonNegative } from "@/features/price-lists/utils";
 
-const BASE_PAGE_SIZE = 10;
-const LIST_PRODUCTS_PAGE_SIZE = 10;
-
 type BaseCatalogRow = {
   id: string;
   sku: string | null;
@@ -71,8 +68,10 @@ type PriceListSnapshotDbRow = {
 
 type UsePriceListsDataParams = {
   basePage: number;
+  basePageSize: number;
   baseSearch: string;
   detailPage: number;
+  detailPageSize: number;
   detailSearch: string;
   listSearch: string;
   selectedListId: string | null;
@@ -80,8 +79,10 @@ type UsePriceListsDataParams = {
 
 export function usePriceListsData({
   basePage,
+  basePageSize,
   baseSearch,
   detailPage,
+  detailPageSize,
   detailSearch,
   listSearch,
   selectedListId,
@@ -281,7 +282,7 @@ export function usePriceListsData({
   const basePagination = usePaginationSlice({
     items: filteredBaseRows,
     page: basePage,
-    pageSize: BASE_PAGE_SIZE,
+    pageSize: basePageSize,
   });
 
   const countsByListId = useMemo(() => {
@@ -362,7 +363,7 @@ export function usePriceListsData({
   const detailPagination = usePaginationSlice({
     items: filteredSelectedListProducts,
     page: detailPage,
-    pageSize: LIST_PRODUCTS_PAGE_SIZE,
+    pageSize: detailPageSize,
   });
 
   const updateBaseCostMutation = useMutation({

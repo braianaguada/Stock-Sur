@@ -47,7 +47,7 @@ import type {
 } from "@/features/documents/types";
 import { calculatePriceFromCostBase, formatNumber } from "@/features/documents/utils";
 
-const DOCUMENTS_PAGE_SIZE = 12;
+const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 
 const DocumentsEditorDialog = lazy(async () => {
   const module = await import("@/features/documents/components/DocumentsEditorDialog");
@@ -101,6 +101,7 @@ export default function DocumentsPage() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [documentsPage, setDocumentsPage] = useState(1);
+  const [documentsPageSize, setDocumentsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [form, setForm] = useState<DocumentFormState>(() => buildEmptyDocumentForm(defaultPointOfSale));
   const [lines, setLines] = useState<LineDraft[]>([EMPTY_LINE]);
 
@@ -138,12 +139,12 @@ export default function DocumentsPage() {
   const documentsPagination = usePaginationSlice({
     items: documents,
     page: documentsPage,
-    pageSize: DOCUMENTS_PAGE_SIZE,
+    pageSize: documentsPageSize,
   });
 
   useEffect(() => {
     setDocumentsPage(1);
-  }, [deferredSearch, typeFilter, statusFilter]);
+  }, [deferredSearch, typeFilter, statusFilter, documentsPageSize]);
 
   const syncLineWithPriceList = useCallback(
     (
@@ -526,7 +527,7 @@ export default function DocumentsPage() {
         <DocumentsDataTable
           documents={documentsPagination.pagedItems}
           isLoading={isLoading}
-          pageSize={DOCUMENTS_PAGE_SIZE}
+          pageSize={documentsPageSize}
           onOpenDetail={(documentId) => {
             setSelectedDocId(documentId);
             setDetailOpen(true);
@@ -568,7 +569,10 @@ export default function DocumentsPage() {
           totalItems={documents.length}
           rangeStart={documentsPagination.rangeStart}
           rangeEnd={documentsPagination.rangeEnd}
+          pageSize={documentsPageSize}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
           onPageChange={setDocumentsPage}
+          onPageSizeChange={(value) => setDocumentsPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
           itemLabel="documentos"
         />
       </div>
