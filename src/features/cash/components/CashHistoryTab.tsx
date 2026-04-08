@@ -24,6 +24,8 @@ export function CashHistoryTab({
   onPageChange,
   pageSize,
 }: CashHistoryTabProps) {
+  const fillerItems = Math.max(0, pageSize - closuresHistory.length);
+
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -81,6 +83,17 @@ export function CashHistoryTab({
               </div>
             ))
           )}
+          {closuresHistory.length > 0
+            ? Array.from({ length: fillerItems }).map((_, index) => (
+                <div
+                  key={`closure-filler-${index}`}
+                  aria-hidden="true"
+                  className="rounded-2xl border border-border/55 bg-background/30 p-4 opacity-0"
+                >
+                  <div className="h-[76px]" />
+                </div>
+              ))
+            : null}
         </div>
         {closuresHistory.length > 0 ? (
           <div className="mt-5 border-t border-border/45 pt-4">

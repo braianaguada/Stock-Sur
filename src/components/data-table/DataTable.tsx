@@ -115,10 +115,14 @@ export function DataTable<TData>({
             aria-hidden="true"
             className={cn("pointer-events-none hover:bg-transparent", rowClassName)}
           >
-            {Array.from({ length: visibleColumnCount }).map((__, cellIndex) => (
+            {table.getVisibleLeafColumns().map((column, cellIndex) => (
               <TableCell
                 key={`filler-cell-${index}-${cellIndex}`}
-                className={cn(cellClassName, "h-full py-0 select-none text-transparent")}
+                className={cn(
+                  cellClassName,
+                  column.columnDef.meta?.cellClassName,
+                  "h-full select-none text-transparent",
+                )}
               >
                 &nbsp;
               </TableCell>

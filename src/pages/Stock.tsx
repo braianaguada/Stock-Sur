@@ -242,7 +242,7 @@ export default function StockPage() {
                 <CardHeader className="border-b border-border/70 bg-[hsl(var(--panel))]/55">
                   <CardTitle className="text-lg">Alertas inteligentes</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 pt-7">
+                <CardContent className="space-y-2 pt-10">
                   {alertsPagination.pagedItems.map((alert) => (
                     <div
                       key={alert.id}
