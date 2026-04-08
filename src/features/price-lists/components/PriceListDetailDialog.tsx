@@ -67,14 +67,25 @@ export function PriceListDetailDialog({
   const configTabRef = useRef<HTMLDivElement | null>(null);
   const historyTabRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
+  const scrollActiveTabToTop = () => {
     if (detailTab === "config") {
       configTabRef.current?.scrollTo({ top: 0, behavior: "auto" });
     }
+
     if (detailTab === "history") {
       historyTabRef.current?.scrollTo({ top: 0, behavior: "auto" });
     }
-  }, [detailTab]);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+
+    const frame = requestAnimationFrame(() => {
+      scrollActiveTabToTop();
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [open, detailTab, selectedList?.id]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
