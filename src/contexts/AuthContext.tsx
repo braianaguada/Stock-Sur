@@ -247,12 +247,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const stopImpersonation = async () => {
-    if (!impersonationMeta || !session?.access_token) {
+    if (!impersonationMeta) {
       await clearImpersonationState();
       return;
     }
 
-    await requestImpersonationStop(session.access_token, impersonationMeta.impersonationId);
+    const {
+      data: { session: actorSession },
+    } = await supabaseAuth.auth.getSession();
+
+    if (!actorSession?.access_token) {
+      await clearImpersonationState();
+      return;
+    }
+
+    await requestImpersonationStop(actorSession.access_token, impersonationMeta.impersonationId);
     await clearImpersonationState();
   };
 
