@@ -41,7 +41,6 @@ export default function PriceListsPage() {
   const [detailTab, setDetailTab] = useState("products");
   const [createForm, setCreateForm] = useState<PriceListFormState>(DEFAULT_PRICE_LIST_FORM);
   const [configDraft, setConfigDraft] = useState<PriceListFormState | null>(null);
-  const [baseCostDrafts, setBaseCostDrafts] = useState<Record<string, string>>({});
 
   const {
     baseRows,
@@ -66,12 +65,6 @@ export default function PriceListsPage() {
     listSearch,
     selectedListId,
   });
-
-  useEffect(() => {
-    setBaseCostDrafts(
-      Object.fromEntries(baseRows.map((row) => [row.item_id, String(row.base_cost ?? 0)])),
-    );
-  }, [baseRows]);
 
   useEffect(() => {
     if (!selectedList) {
@@ -162,11 +155,9 @@ export default function PriceListsPage() {
             <DataCard>
               <BasePricesTable
                 rows={pagedBaseRows}
-                baseCostDrafts={baseCostDrafts}
                 isSaving={updateBaseCostMutation.isPending}
                 pageSize={10}
                 renderUserName={renderUserName}
-                onDraftChange={setBaseCostDrafts}
                 onSaveDraftValue={(itemId, draftValue) =>
                   updateBaseCostMutation.mutate({ itemId, baseCost: parseNonNegative(draftValue, 0) })}
               />
