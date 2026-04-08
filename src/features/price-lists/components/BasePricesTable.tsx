@@ -25,7 +25,6 @@ function BaseCostInputCell(props: {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [isFocused, setIsFocused] = useState(false);
-  const [localValue, setLocalValue] = useState(draftValue);
   const lastCommittedValueRef = useRef<string>(draftValue);
 
   useEffect(() => {
@@ -33,17 +32,11 @@ function BaseCostInputCell(props: {
   }, [draftValue]);
 
   useEffect(() => {
-    if (!isFocused) {
-      setLocalValue(draftValue);
-    }
-  }, [draftValue, isFocused]);
-
-  useEffect(() => {
     if (!isFocused) return;
 
     const handlePointerDown = (event: PointerEvent) => {
       if (!wrapperRef.current?.contains(event.target as Node)) {
-        const nextValue = inputRef.current?.value ?? localValue;
+        const nextValue = inputRef.current?.value ?? draftValue;
         if (nextValue !== lastCommittedValueRef.current) {
           lastCommittedValueRef.current = nextValue;
           onCommit(nextValue);
@@ -53,7 +46,7 @@ function BaseCostInputCell(props: {
 
     document.addEventListener("pointerdown", handlePointerDown, true);
     return () => document.removeEventListener("pointerdown", handlePointerDown, true);
-  }, [isFocused, localValue, onCommit]);
+  }, [draftValue, isFocused, onCommit]);
 
   return (
     <div ref={wrapperRef} className="text-right">
@@ -64,13 +57,9 @@ function BaseCostInputCell(props: {
         type="number"
         min={0}
         step="any"
-        value={localValue}
+        value={draftValue}
         onFocus={() => setIsFocused(true)}
-        onChange={(event) => {
-          const nextValue = sanitizeNonNegativeDraft(event.target.value);
-          setLocalValue(nextValue);
-          onDraftChange(nextValue);
-        }}
+        onChange={(event) => onDraftChange(sanitizeNonNegativeDraft(event.target.value))}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
@@ -101,16 +90,7 @@ export function BasePricesTable({
   onDraftChange,
   onSaveDraftValue,
 }: BasePricesTableProps) {
-  const tableRows = useMemo(
-    () =>
-      rows.map((row) => ({
-        ...row,
-        draftValue: baseCostDrafts[row.item_id] ?? "0",
-      })),
-    [baseCostDrafts, rows],
-  );
-
-  const columns = useMemo<ColumnDef<(BasePriceRow & { draftValue: string }), unknown>[]>(() => [
+  const columns = useMemo<ColumnDef<BasePriceRow, unknown>[]>(() => [
     {
       accessorKey: "sku",
       header: () => "SKU",
@@ -166,7 +146,7 @@ export function BasePricesTable({
       cell: ({ row }) => (
         <BaseCostInputCell
           itemId={row.original.item_id}
-          draftValue={row.original.draftValue}
+          draftValue={baseCostDrafts[row.original.item_id] ?? "0"}
           onDraftChange={(nextValue) =>
             onDraftChange((prev) => ({
               ...prev,
@@ -203,12 +183,12 @@ export function BasePricesTable({
       header: () => "Usuario",
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{renderUserName(row.original.updated_by)}</span>,
     },
-  ], [onDraftChange, onSaveDraftValue, renderUserName]);
+  ], [baseCostDrafts, onDraftChange, onSaveDraftValue, renderUserName]);
 
   return (
     <DataTable
       columns={columns}
-      data={tableRows}
+      data={rows}
       emptyMessage="No hay productos para mostrar."
       className="table-fixed"
       rowClassName="h-12"
