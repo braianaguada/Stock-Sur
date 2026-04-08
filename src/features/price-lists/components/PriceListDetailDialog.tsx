@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -67,7 +67,7 @@ export function PriceListDetailDialog({
   const configTabRef = useRef<HTMLDivElement | null>(null);
   const historyTabRef = useRef<HTMLDivElement | null>(null);
 
-  const scrollActiveTabToTop = () => {
+  const scrollActiveTabToTop = useCallback(() => {
     if (detailTab === "config") {
       configTabRef.current?.scrollTo({ top: 0, behavior: "auto" });
     }
@@ -75,7 +75,7 @@ export function PriceListDetailDialog({
     if (detailTab === "history") {
       historyTabRef.current?.scrollTo({ top: 0, behavior: "auto" });
     }
-  };
+  }, [detailTab]);
 
   useEffect(() => {
     if (!open) return;
@@ -85,7 +85,7 @@ export function PriceListDetailDialog({
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [open, detailTab, selectedList?.id]);
+  }, [open, selectedList?.id, scrollActiveTabToTop]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
