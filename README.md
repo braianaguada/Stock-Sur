@@ -134,6 +134,42 @@ Notas:
 - El parser tolera precios con `,` o `.` como separador decimal, símbolos de moneda y espacios.
 - Si el archivo no se puede leer, se informa un error claro en pantalla y en consola.
 
+## Importación asistida con IA para PDFs difíciles
+
+Se agregó una capa opcional para PDFs de proveedores con muchas imágenes o texto poco legible:
+
+- El flujo sigue intentando primero con `pdfjs` y OCR local.
+- Si el resultado es flojo, prueba automáticamente una Edge Function de Supabase con Gemini.
+- Si Gemini no está configurado o falla, el sistema vuelve al parser actual sin cortar la importación.
+
+### Configuración
+
+1. Crear los secretos en Supabase:
+
+```sh
+supabase secrets set GEMINI_API_KEY=tu_api_key
+supabase secrets set GEMINI_MODEL=gemini-2.5-flash
+```
+
+2. Desplegar la función:
+
+```sh
+supabase functions deploy supplier-pdf-ai-extract
+```
+
+3. Verificar que la sesión del usuario autenticado pueda invocar Edge Functions normalmente.
+
+### Qué devuelve Gemini
+
+La función intenta devolver una estructura limpia con:
+
+- `supplier_code`
+- `description`
+- `price`
+- `currency`
+
+Luego el frontend reutiliza el mismo modal de mapeo PDF y el mismo pipeline de importación que ya existía.
+
 ## Migración definitiva (Supabase CLI, sin dashboard)
 
 Se agregó la migración:
