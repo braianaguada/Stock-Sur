@@ -300,7 +300,12 @@ export function useSupplierImportFlow(params: {
 
         lines = normalized.lines.map(toSupplierCatalogRpcLinePayload);
       } else if (isPdf) {
-        const { DEFAULT_PDF_OPTIONS, parseFlexibleNumber, parsePdfToLines } = await import(
+        const {
+          DEFAULT_PDF_OPTIONS,
+          detectColumnsHeuristic,
+          parseFlexibleNumber,
+          parsePdfToLines,
+        } = await import(
           "@/lib/importers/catalogImporter"
         );
         const parseResultNative = await parsePdfToLines(
@@ -352,11 +357,25 @@ export function useSupplierImportFlow(params: {
             selectedSupplier.id,
             "pdf",
           );
+          const detected = detectColumnsHeuristic(tableHeaders, tableRows);
+          const detectedCodeColumn =
+            detected.supplierCodeColumn && tableHeaders.includes(detected.supplierCodeColumn)
+              ? detected.supplierCodeColumn
+              : tableHeaders.find((header) => /codigo|c[oó]digo|cod|sku|ref/i.test(header)) ?? null;
           const suggested: Omit<PdfMappingSelection, "remember"> = {
-            descriptionColumn: stored?.descriptionColumn ?? tableHeaders[0] ?? "col_1",
+            descriptionColumn:
+              stored?.descriptionColumn ??
+              detected.descriptionColumn ??
+              tableHeaders.find((header) => /description|descripcion|producto|detalle|item/i.test(header)) ??
+              tableHeaders[0] ??
+              "col_1",
             priceColumn:
-              stored?.priceColumn ?? tableHeaders[Math.min(1, tableHeaders.length - 1)] ?? "col_1",
-            codeColumn: stored?.codeColumn ?? null,
+              stored?.priceColumn ??
+              detected.priceColumn ??
+              tableHeaders.find((header) => /precio|price|cost|importe|lista|\$/i.test(header)) ??
+              tableHeaders[Math.min(1, tableHeaders.length - 1)] ??
+              "col_1",
+            codeColumn: stored?.codeColumn ?? detectedCodeColumn,
             preferPriceAtEnd: stored?.preferPriceAtEnd ?? true,
             filterRowsWithoutPrice: stored?.filterRowsWithoutPrice ?? true,
           };
