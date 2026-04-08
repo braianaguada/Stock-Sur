@@ -72,7 +72,7 @@ export function CashDocumentPreviewDialog({
             <>
               <div className="min-w-0 max-h-[72vh] space-y-4 overflow-y-auto pr-1">
                 <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-                  <div className="rounded-3xl border bg-gradient-to-br from-white via-white to-emerald-50 p-5">
+                  <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50 p-5 text-slate-900 shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
                     <div className="mb-4 flex items-start justify-between gap-4">
                       <div className="space-y-3">
                         <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Remito</Badge>
@@ -82,7 +82,7 @@ export function CashDocumentPreviewDialog({
                           ) : (
                             <p className="text-2xl font-black tracking-[0.12em] text-primary">{companyBrand.appName}</p>
                           )}
-                          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
                             {companyBrand.documentTagline ?? "Documentacion comercial"}
                           </p>
                         </div>
@@ -94,12 +94,12 @@ export function CashDocumentPreviewDialog({
                       </div>
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <div className="rounded-2xl border bg-white/80 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/95 p-4">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Cliente</p>
                         <p className="mt-2 font-semibold">{linkedDocument.customer_name ?? "Cliente ocasional"}</p>
                       </div>
-                      <div className="rounded-2xl border bg-white/80 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operacion</p>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/95 p-4">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Operacion</p>
                         <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(linkedDocument.issue_date).toLocaleDateString("es-AR")}</p>
                         <p className="text-sm"><span className="font-semibold">Estado:</span> {DOC_STATUS_LABEL[linkedDocument.status]}</p>
                         <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(linkedDocument.point_of_sale).padStart(4, "0")}</p>
