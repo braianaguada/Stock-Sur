@@ -74,12 +74,23 @@ function parseJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+function isImpersonationExpired(meta: ImpersonationMeta | null) {
+  if (!meta?.expiresAt) return false;
+  return meta.expiresAt <= Math.floor(Date.now() / 1000);
+}
+
 function readStoredImpersonationMeta() {
   const raw = sessionStorage.getItem(IMPERSONATION_META_STORAGE_KEY);
   if (!raw) return null;
 
   try {
-    return JSON.parse(raw) as ImpersonationMeta;
+    const parsed = JSON.parse(raw) as ImpersonationMeta;
+    if (isImpersonationExpired(parsed)) {
+      clearStoredImpersonation();
+      return null;
+    }
+
+    return parsed;
   } catch {
     sessionStorage.removeItem(IMPERSONATION_META_STORAGE_KEY);
     return null;
@@ -115,6 +126,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCompanyRoleCodes([]);
     setCompanyPermissionCodes([]);
   }, []);
+
+  const syncActorSession = useCallback(async () => {
+    const { data: { session: refreshedSession } } = await supabaseAuth.auth.getSession();
+    setSession(refreshedSession);
+    setEffectiveUser(refreshedSession?.user ?? null);
+  }, []);
+
+  const clearImpersonationState = useCallback(async () => {
+    clearStoredImpersonation();
+    setImpersonationMeta(null);
+    setLoading(true);
+    await syncActorSession();
+  }, [syncActorSession]);
 
   const loadAuthState = useCallback(async (actorSession: Session | null, nextImpersonationMeta: ImpersonationMeta | null) => {
     try {
@@ -223,6 +247,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     void loadAuthState(session, impersonationMeta);
   }, [impersonationMeta, loadAuthState, session]);
+
+  useEffect(() => {
+    if (!impersonationMeta) return;
+
+    if (isImpersonationExpired(impersonationMeta)) {
+      void clearImpersonationState();
+      return;
+    }
+
+    if (!impersonationMeta.expiresAt) return;
+
+    const timeoutMs = Math.max((impersonationMeta.expiresAt - Math.floor(Date.now() / 1000)) * 1000, 0);
+    const timer = window.setTimeout(() => {
+      void clearImpersonationState();
+    }, timeoutMs);
+
+    return () => window.clearTimeout(timer);
+  }, [clearImpersonationState, impersonationMeta]);
 
   useEffect(() => {
     const loadCompanyAccess = async () => {
@@ -375,8 +417,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const stopImpersonation = async () => {
     if (!impersonationMeta || !session?.access_token) {
-      clearStoredImpersonation();
-      setImpersonationMeta(null);
+      await clearImpersonationState();
       return;
     }
 
@@ -395,13 +436,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(getErrorMessage(payload, "No se pudo finalizar la impersonación."));
     }
 
-    clearStoredImpersonation();
-    setImpersonationMeta(null);
-    setLoading(true);
-
-    const { data: { session: refreshedSession } } = await supabaseAuth.auth.getSession();
-    setSession(refreshedSession);
-    setEffectiveUser(refreshedSession?.user ?? null);
+    await clearImpersonationState();
   };
 
   const signOut = async () => {
