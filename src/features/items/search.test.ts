@@ -59,4 +59,14 @@ describe("natural item search", () => {
 
     expect(ranked[0]?.id).toBe("2");
   });
+
+  it("avoids weak matches for multiword queries", () => {
+    const ranked = rankNaturalItemSearch({
+      items: ITEMS,
+      aliases: [],
+      query: "york media vacio",
+    });
+
+    expect(ranked).toHaveLength(0);
+  });
 });

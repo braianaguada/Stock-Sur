@@ -15,21 +15,19 @@ const PHRASE_NORMALIZATIONS: Array<[RegExp, string]> = [
   [/\bcuarto\b/g, "1/4"],
   [/\bun cuarto\b/g, "1/4"],
   [/\boctavo\b/g, "1/8"],
-  [/\bcano\b/g, "caño"],
-  [/\bcano(s)?\b/g, "caño$1"],
+  [/\bcano\b/g, "cano"],
+  [/\bcanos\b/g, "canos"],
   [/\baa\b/g, "aire acondicionado"],
   [/\bsplit\b/g, "aire acondicionado split"],
-  [/\binverter\b/g, "inverter"],
 ];
 
 const TOKEN_SYNONYMS: Record<string, string[]> = {
   "1/2": ["media", "medio"],
   "3/4": ["tres", "cuartos"],
   "1/4": ["cuarto"],
-  cano: ["caño"],
-  caño: ["cano"],
+  cano: ["tubo"],
+  canos: ["tubos"],
   aa: ["aire", "acondicionado"],
-  inverter: ["inverter"],
 };
 
 function normalizeSearchText(value: string) {
@@ -87,12 +85,19 @@ function scoreTextMatch(queryText: string, candidateText: string) {
 }
 
 function scoreTokenOverlap(queryTokens: string[], candidateText: string) {
-  if (queryTokens.length === 0 || !candidateText) return 0;
+  if (queryTokens.length === 0 || !candidateText) return { score: 0, matches: 0 };
+
   let score = 0;
+  let matches = 0;
+
   queryTokens.forEach((token) => {
-    if (candidateText.includes(token)) score += token.length >= 4 ? 16 : 8;
+    if (candidateText.includes(token)) {
+      score += token.length >= 4 ? 16 : 8;
+      matches += 1;
+    }
   });
-  return score;
+
+  return { score, matches };
 }
 
 export function rankNaturalItemSearch(params: {
@@ -113,24 +118,37 @@ export function rankNaturalItemSearch(params: {
   return params.items
     .map((item) => {
       const itemText = buildItemText(item);
-      const itemTokensScore = scoreTokenOverlap(queryTokens, itemText);
+      const itemTokenResult = scoreTokenOverlap(queryTokens, itemText);
       const nameScore = scoreTextMatch(queryText, normalizeSearchText(item.name));
       const skuScore = scoreTextMatch(queryText, normalizeSearchText(item.sku));
-      const baseScore = Math.max(nameScore, skuScore) + itemTokensScore;
+      const baseScore = Math.max(nameScore, skuScore) + itemTokenResult.score;
 
-      const aliasScore = (aliasesByItemId.get(item.id) ?? []).reduce((best, alias) => {
+      const aliasRank = (aliasesByItemId.get(item.id) ?? []).reduce((best, alias) => {
         const aliasText = normalizeSearchText(alias.alias);
+        const tokenResult = scoreTokenOverlap(queryTokens, aliasText);
         const score =
           scoreTextMatch(queryText, aliasText) +
-          scoreTokenOverlap(queryTokens, aliasText) +
+          tokenResult.score +
           (alias.is_supplier_code ? 8 : 0);
-        return Math.max(best, score);
-      }, 0);
 
-      const score = Math.max(baseScore, aliasScore);
-      return { item, score };
+        if (score > best.score) {
+          return { score, matches: tokenResult.matches };
+        }
+
+        return best;
+      }, { score: 0, matches: 0 });
+
+      const score = Math.max(baseScore, aliasRank.score);
+      const tokenMatches = Math.max(itemTokenResult.matches, aliasRank.matches);
+      const phraseMatched = Math.max(nameScore, skuScore, aliasRank.score) > 0;
+
+      return { item, score, tokenMatches, phraseMatched };
     })
-    .filter((entry) => entry.score > 0)
+    .filter((entry) => {
+      if (entry.score <= 0) return false;
+      if (queryTokens.length <= 1) return true;
+      return entry.phraseMatched || entry.tokenMatches >= Math.min(2, queryTokens.length);
+    })
     .sort((left, right) => {
       if (right.score !== left.score) return right.score - left.score;
       return left.item.name.localeCompare(right.item.name);

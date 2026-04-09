@@ -129,7 +129,7 @@ export default function ItemsPage() {
             ascending: sortDirection === "asc",
             nullsFirst: false,
           })
-          .limit(800);
+          .limit(1500);
         if (error) throw error;
 
         const ranked = rankNaturalItemSearch({
