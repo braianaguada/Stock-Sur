@@ -2,6 +2,7 @@ export interface Item {
   id: string;
   sku: string;
   name: string;
+  supplier: string | null;
   brand: string | null;
   model: string | null;
   unit: string;

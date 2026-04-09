@@ -73,6 +73,7 @@ function buildItemText(item: Item) {
   return normalizeSearchText([
     item.sku,
     item.name,
+    item.supplier ?? "",
     item.brand ?? "",
     item.model ?? "",
     item.category ?? "",

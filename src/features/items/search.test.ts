@@ -6,6 +6,7 @@ const ITEMS: Item[] = [
   {
     id: "1",
     sku: "CA-12",
+    supplier: null,
     name: "Caño cobre 1/2 0.8 mm x kg",
     brand: null,
     model: null,
@@ -18,6 +19,7 @@ const ITEMS: Item[] = [
   {
     id: "2",
     sku: "AA-3000",
+    supplier: null,
     name: "Aire acondicionado split inverter 3000 fg",
     brand: "York",
     model: "Ultra",

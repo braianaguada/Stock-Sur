@@ -17,6 +17,7 @@ import type { Item, ItemAlias } from "@/features/items/types";
 type ItemFormState = {
   sku: string;
   name: string;
+  supplier: string;
   brand: string;
   model: string;
   unit: string;
@@ -95,7 +96,15 @@ export function ItemFormDialog({
             required
           />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label>Proveedor</Label>
+            <Input
+              value={form.supplier}
+              onChange={(event) => onFormChange({ ...form, supplier: event.target.value })}
+              placeholder="Ej: StockSur"
+            />
+          </div>
           <div className="space-y-2">
             <Label>Marca</Label>
             <Input
