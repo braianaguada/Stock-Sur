@@ -22,6 +22,7 @@ import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { invalidateItemQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
+import { fetchItemAiSearch } from "@/features/items/aiSearch";
 import { rankNaturalItemSearch, type ItemSearchAliasRecord } from "@/features/items/search";
 import { type Item, type ItemAlias } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
@@ -136,6 +137,23 @@ export default function ItemsPage() {
           aliases: (aliasRows ?? []) as ItemSearchAliasRecord[],
           query: searchTerm,
         });
+
+        try {
+          const aiResult = await fetchItemAiSearch({
+            query: searchTerm,
+            items: (data ?? []) as Item[],
+            aliases: (aliasRows ?? []) as ItemSearchAliasRecord[],
+          });
+
+          if (aiResult?.items.length) {
+            return {
+              rows: aiResult.items.slice(from, to + 1),
+              total: aiResult.items.length,
+            };
+          }
+        } catch (error) {
+          console.error("items ai search fallback", error);
+        }
 
         return {
           rows: ranked.slice(from, to + 1),
