@@ -164,10 +164,12 @@ export default function ItemsPage() {
   const totalItems = itemsQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const isSearchSyncing = search.trim() !== deferredSearch.trim();
-  const visibleItems = isSearchSyncing ? [] : items;
-  const visibleTotalItems = isSearchSyncing ? 0 : totalItems;
+  const hasActiveSearch = deferredSearch.trim().length > 0;
+  const shouldHideResults = isSearchSyncing || (hasActiveSearch && itemsQuery.isFetching);
+  const visibleItems = shouldHideResults ? [] : items;
+  const visibleTotalItems = shouldHideResults ? 0 : totalItems;
   const visibleTotalPages = Math.max(1, Math.ceil(visibleTotalItems / pageSize));
-  const isLoading = itemsQuery.isLoading || isSearchSyncing;
+  const isLoading = itemsQuery.isLoading || shouldHideResults;
 
   const { data: categories = [] } = useQuery({
     queryKey: queryKeys.items.categories(currentCompany?.id ?? null, statusFilter),
