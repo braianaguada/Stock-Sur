@@ -668,7 +668,7 @@ export default function ItemsPage() {
             </CollapsibleTrigger>
           </FilterBar>
           <CollapsibleContent>
-            <DataCard className="space-y-3">
+            <DataCard className="mt-3 space-y-3 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-semibold">Columnas visibles</h3>
