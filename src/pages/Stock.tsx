@@ -17,7 +17,7 @@ import { StockCurrentTable } from "@/features/stock/components/StockCurrentTable
 import { StockMovementDialog } from "@/features/stock/components/StockMovementDialog";
 import { StockMovementsTable } from "@/features/stock/components/StockMovementsTable";
 import { useStockPage } from "@/features/stock/hooks/useStockPage";
-import { buildStockInsights, countStockInsightTones } from "@/features/stock/insights";
+import { buildStockInsights, countStockInsightTones, getStockInsightKindLabel } from "@/features/stock/insights";
 import type { DemandProfile, MovementType, StockHealth } from "@/features/stock/types";
 
 const INTEGER_ONLY_UNITS = new Set(["un"]);
@@ -257,7 +257,7 @@ export default function StockPage() {
                           </p>
                         </div>
                         <Badge variant="outline" className={cn("shrink-0", insightBadgeClass[alert.tone])}>
-                          {alert.kind.replaceAll("_", " ")}
+                          {getStockInsightKindLabel(alert.kind)}
                         </Badge>
                       </div>
                     ))}
