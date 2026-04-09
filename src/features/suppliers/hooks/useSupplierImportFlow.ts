@@ -29,7 +29,6 @@ import type {
   OrderLine,
   Supplier,
   SupplierCatalog,
-  SupplierCatalogLinePayload,
 } from "@/features/suppliers/types";
 
 type ToastFn = (params: {
@@ -142,7 +141,7 @@ export function useSupplierImportFlow(params: {
   }) =>
     new Promise<PdfMappingSelection | null>((resolve) => {
       setPdfMappingHeaders(request.headers);
-      setPdfMappingRows(request.rows.slice(0, 60));
+      setPdfMappingRows(request.rows.slice(0, 80));
       setPdfMappingSuggested(request.suggested);
       pdfMappingResolverRef.current = resolve;
       setPdfMappingOpen(true);
@@ -178,9 +177,7 @@ export function useSupplierImportFlow(params: {
       const title = documentTitle.trim() || selectedFile.name;
       const requestedCatalogId = selectedCatalogId === "new" ? null : selectedCatalogId;
       if (requestedCatalogId && !catalogsById.has(requestedCatalogId)) {
-        throw new Error(
-          "El listado seleccionado ya no esta disponible. Recarga el historial e intenta de nuevo",
-        );
+        throw new Error("El listado seleccionado ya no esta disponible. Recarga el historial e intenta de nuevo");
       }
 
       if (SHOULD_LOG_SUPPLIER_IMPORT) {
@@ -211,7 +208,7 @@ export function useSupplierImportFlow(params: {
       }
 
       const supplierDocumentId = document.id;
-      let lines: SupplierCatalogLinePayload[] = [];
+      let lines = [] as ReturnType<typeof toSupplierCatalogRpcLinePayload>[];
       let diagnostics: NormalizeDiagnostics | null = null;
 
       if (isXlsx || isText) {
@@ -302,12 +299,10 @@ export function useSupplierImportFlow(params: {
       } else if (isPdf) {
         const {
           DEFAULT_PDF_OPTIONS,
-          detectColumnsHeuristic,
-          parseFlexibleNumber,
+          detectPdfColumnsHeuristic,
+          normalizePdfRowsToLines,
           parsePdfToLines,
-        } = await import(
-          "@/lib/importers/catalogImporter"
-        );
+        } = await import("@/lib/importers/catalogImporter");
         const parseResultNative = await parsePdfToLines(
           selectedFile,
           DEFAULT_PDF_OPTIONS,
@@ -333,7 +328,7 @@ export function useSupplierImportFlow(params: {
             const aiResult = await extractSupplierPdfWithAi(selectedFile);
             if (
               aiResult &&
-              scorePdfExtractionResult(aiResult) > scorePdfExtractionResult(parseResultNative) * 1.1
+              scorePdfExtractionResult(aiResult) > scorePdfExtractionResult(parseResultNative) * 1.08
             ) {
               parseResult = aiResult;
             }
@@ -352,30 +347,16 @@ export function useSupplierImportFlow(params: {
           if (parseResult.lines.length === 0) throw new Error("No se pudo extraer contenido del PDF");
           lines = parseResult.lines.map(toSupplierCatalogRpcLinePayload);
         } else {
+          const detected = detectPdfColumnsHeuristic(tableHeaders, tableRows);
           const stored = await loadStoredSupplierImportMapping<PdfImportMappingStored>(
             currentCompanyId,
             selectedSupplier.id,
             "pdf",
           );
-          const detected = detectColumnsHeuristic(tableHeaders, tableRows);
-          const detectedCodeColumn =
-            detected.supplierCodeColumn && tableHeaders.includes(detected.supplierCodeColumn)
-              ? detected.supplierCodeColumn
-              : tableHeaders.find((header) => /codigo|c[oó]digo|cod|sku|ref/i.test(header)) ?? null;
           const suggested: Omit<PdfMappingSelection, "remember"> = {
-            descriptionColumn:
-              stored?.descriptionColumn ??
-              detected.descriptionColumn ??
-              tableHeaders.find((header) => /description|descripcion|producto|detalle|item/i.test(header)) ??
-              tableHeaders[0] ??
-              "col_1",
-            priceColumn:
-              stored?.priceColumn ??
-              detected.priceColumn ??
-              tableHeaders.find((header) => /precio|price|cost|importe|lista|\$/i.test(header)) ??
-              tableHeaders[Math.min(1, tableHeaders.length - 1)] ??
-              "col_1",
-            codeColumn: stored?.codeColumn ?? detectedCodeColumn,
+            descriptionColumn: stored?.descriptionColumn ?? detected.descriptionColumn,
+            priceColumn: stored?.priceColumn ?? detected.priceColumn,
+            codeColumn: stored?.codeColumn ?? detected.codeColumn,
             preferPriceAtEnd: stored?.preferPriceAtEnd ?? true,
             filterRowsWithoutPrice: stored?.filterRowsWithoutPrice ?? true,
           };
@@ -387,41 +368,14 @@ export function useSupplierImportFlow(params: {
           });
           if (!selection) throw new Error("Importacion PDF cancelada por el usuario");
 
-          const indexByHeader = new Map(tableHeaders.map((header, index) => [header, index]));
-          const descriptionIndex = indexByHeader.get(selection.descriptionColumn);
-          const priceIndex = indexByHeader.get(selection.priceColumn);
-          const codeIndex = selection.codeColumn
-            ? indexByHeader.get(selection.codeColumn)
-            : undefined;
-          if (descriptionIndex === undefined || priceIndex === undefined) {
-            throw new Error("Mapeo PDF invalido");
-          }
-
-          const parsedLines: SupplierCatalogLinePayload[] = [];
-          tableRows.forEach((row, index) => {
-            const rawDescription = String(row[descriptionIndex] ?? "")
-              .replace(/\s+/g, " ")
-              .trim();
-            const priceRaw = String(row[priceIndex] ?? "").trim();
-            const parsed = parseFlexibleNumber(priceRaw);
-            if (!rawDescription) return;
-            if (selection.filterRowsWithoutPrice && parsed === null) return;
-            if (parsed === null || parsed <= 0) return;
-
-            const supplierCode =
-              codeIndex !== undefined ? String(row[codeIndex] ?? "").trim() : "";
-            parsedLines.push({
-              supplier_code: supplierCode || null,
-              raw_description: rawDescription,
-              normalized_description: rawDescription.toLowerCase(),
-              cost: parsed,
-              currency: /usd|u\$s/i.test(priceRaw) ? "USD" : "ARS",
-              row_index: index + 1,
-              matched_item_id: null,
-              match_status: "PENDING",
-            });
+          const normalizedPdfLines = normalizePdfRowsToLines({
+            headers: tableHeaders,
+            rows: tableRows,
+            mapping: selection,
+            defaultCurrency: DEFAULT_PDF_OPTIONS.defaultCurrency,
           });
-          lines = parsedLines;
+          const effectivePdfLines = normalizedPdfLines.length > 0 ? normalizedPdfLines : parseResult.lines;
+          lines = effectivePdfLines.map(toSupplierCatalogRpcLinePayload);
 
           if (selection.remember) {
             try {
@@ -476,9 +430,7 @@ export function useSupplierImportFlow(params: {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["supplier-catalogs", selectedSupplier?.id] });
-      queryClient.invalidateQueries({
-        queryKey: ["supplier-catalog-versions", selectedSupplier?.id],
-      });
+      queryClient.invalidateQueries({ queryKey: ["supplier-catalog-versions", selectedSupplier?.id] });
       queryClient.invalidateQueries({ queryKey: ["supplier-catalog-lines"] });
       setDocumentTitle("");
       setDocumentNotes("");

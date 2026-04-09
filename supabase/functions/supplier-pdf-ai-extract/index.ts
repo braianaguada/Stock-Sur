@@ -125,6 +125,10 @@ Deno.serve(async (req) => {
       '- currency debe ser "ARS" o "USD". Si el PDF no lo aclara, usa "ARS".',
       "- Ignora encabezados, subtotales, condiciones comerciales, telefonos, direcciones, observaciones e imagenes decorativas.",
       "- Si hay varias columnas de precio, prioriza precio contado o precio lista final del producto.",
+      "- Si los precios y las descripciones no estan en la misma linea, emparejalos por orden visual y cercania dentro de la pagina.",
+      "- Si una descripcion esta partida en varias lineas, unela en una sola descripcion final.",
+      "- Si ves presentacion, medida o envase como parte del nombre comercial, incluyelo en description.",
+      "- No tomes fechas, telefonos, stock, descuentos ni encabezados como productos o precios.",
       "- No inventes productos.",
     ].join("\n");
 

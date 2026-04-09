@@ -95,22 +95,28 @@ export async function extractSupplierPdfWithAi(file: File): Promise<ParsePdfResu
 
 export function shouldTryAiPdfExtraction(nativeResult: ParsePdfResult) {
   const tableRowCount = nativeResult.table?.rows.length ?? 0;
+  const codeCount = nativeResult.lines.filter((line) => !!line.supplier_code).length;
   return (
     nativeResult.meta.mode === "ocr" ||
     nativeResult.meta.confidence < 0.45 ||
     nativeResult.lines.length < 20 ||
-    tableRowCount < 12
+    tableRowCount < 12 ||
+    (nativeResult.lines.length >= 10 && codeCount / nativeResult.lines.length < 0.08)
   );
 }
 
 export function scorePdfExtractionResult(result: ParsePdfResult) {
   const tableRowCount = result.table?.rows.length ?? 0;
   const codeCount = result.lines.filter((line) => !!line.supplier_code).length;
+  const avgDescriptionLength = result.lines.length
+    ? result.lines.reduce((acc, line) => acc + line.raw_description.length, 0) / result.lines.length
+    : 0;
   return (
     result.lines.length * 1.4 +
     tableRowCount * 1.1 +
     result.meta.confidence * 40 +
     codeCount * 0.4 +
+    Math.min(18, avgDescriptionLength / 4) +
     (result.meta.mode === "ai" ? 4 : 0)
   );
 }

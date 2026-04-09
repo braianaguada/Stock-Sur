@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { detectColumnsHeuristic, normalizeRowsToLines, parseFlexibleNumber } from "@/lib/importers/catalogImporter";
+import {
+  detectColumnsHeuristic,
+  detectPdfColumnsHeuristic,
+  normalizePdfRowsToLines,
+  normalizeRowsToLines,
+  parseFlexibleNumber,
+} from "@/lib/importers/catalogImporter";
 
 describe("supplier importer heuristics", () => {
   it("detects description and price columns on common headers", () => {
@@ -51,5 +57,38 @@ describe("supplier importer heuristics", () => {
     expect(parseFlexibleNumber("$ 2.345,50")).toBeCloseTo(2345.5, 2);
     expect(parseFlexibleNumber("USD 1,200.75")).toBeCloseTo(1200.75, 2);
     expect(parseFlexibleNumber("")).toBeNull();
+  });
+
+  it("detects PDF columns and rebuilds rows with shifted prices", () => {
+    const headers = ["col_1", "col_2", "col_3", "col_4", "col_5"];
+    const rows = [
+      ["750-9-220", "AC3 9A 1Na 220 Vca", "", "", "$ 13,077.02"],
+      ["750-12-220", "AC3 12A 1Na 220 Vca", "", "", "$ 13,850.42"],
+      ["MM1D5-45", "Multimedidor monofasico", "", "U$S 30.83", ""],
+      ["", "PABLO MOLISE", "", "", "TEL 4504-9474"],
+    ];
+
+    const detected = detectPdfColumnsHeuristic(headers, rows);
+    expect(detected.descriptionColumn).toBe("col_2");
+    expect(detected.codeColumn).toBe("col_1");
+
+    const lines = normalizePdfRowsToLines({
+      headers,
+      rows,
+      mapping: {
+        descriptionColumn: detected.descriptionColumn,
+        priceColumn: detected.priceColumn,
+        codeColumn: detected.codeColumn,
+        preferPriceAtEnd: true,
+        filterRowsWithoutPrice: true,
+      },
+      defaultCurrency: "ARS",
+    });
+
+    expect(lines).toHaveLength(3);
+    expect(lines[0].supplier_code).toBe("750-9-220");
+    expect(lines[0].cost).toBeCloseTo(13077.02, 2);
+    expect(lines[2].currency).toBe("USD");
+    expect(lines[2].cost).toBeCloseTo(30.83, 2);
   });
 });

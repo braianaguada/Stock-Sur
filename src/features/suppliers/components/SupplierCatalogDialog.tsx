@@ -1,11 +1,12 @@
-import { Copy, MessageCircle } from "lucide-react";
+import { Copy, FileStack, History, Inbox, MessageCircle, Search, Upload, Wallet } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { SupplierCatalogLinesTable } from "@/features/suppliers/components/SupplierCatalogLinesTable";
 import { SupplierOrderTable } from "@/features/suppliers/components/SupplierOrderTable";
 import type {
@@ -60,6 +61,27 @@ type SupplierCatalogDialogProps = {
   onOpenWhatsApp: () => void;
 };
 
+const NAV_ITEMS = [
+  {
+    key: "carga" as const,
+    label: "Fuentes",
+    helper: "Subi archivos PDF, Excel o CSV al proveedor.",
+    icon: Upload,
+  },
+  {
+    key: "historial" as const,
+    label: "Versiones",
+    helper: "Elegí la fuente o versión que vas a usar.",
+    icon: History,
+  },
+  {
+    key: "catalogo" as const,
+    label: "Catalogo y pedido",
+    helper: "Buscá productos y armá el pedido al proveedor.",
+    icon: FileStack,
+  },
+];
+
 export function SupplierCatalogDialog({
   open,
   onOpenChange,
@@ -100,211 +122,382 @@ export function SupplierCatalogDialog({
   onCopyOrderMessage,
   onOpenWhatsApp,
 }: SupplierCatalogDialogProps) {
+  const totalVersions = Object.values(versionsByCatalog).reduce((acc, versions) => acc + versions.length, 0);
+
   return (
     <EntityDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={`Catálogos del proveedor: ${selectedSupplier?.name ?? ""}`}
-      contentClassName="h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-[1400px] overflow-hidden p-0"
+      title={selectedSupplier?.name ? `Proveedor: ${selectedSupplier.name}` : "Proveedor"}
+      description="Workspace de carga, consolidacion y pedido."
+      contentClassName="h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-[1500px] overflow-hidden p-0"
     >
-      <Tabs
-        value={catalogUiTab}
-        onValueChange={(value) => onCatalogUiTabChange(value as "carga" | "historial" | "catalogo")}
-        className="flex h-full min-h-0 flex-col"
-      >
-        <div className="sticky top-0 z-20 border-b bg-background p-4">
-          <TabsList className="mt-3 grid w-full grid-cols-3">
-            <TabsTrigger value="carga">Subir archivo</TabsTrigger>
-            <TabsTrigger value="historial">Historial</TabsTrigger>
-            <TabsTrigger value="catalogo">Buscar catálogo</TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="carga" className="mt-0 min-h-0 flex-1 overflow-auto p-4">
-          <Card className="mx-auto w-full max-w-3xl">
-            <CardHeader>
-              <CardTitle className="text-base">Subir archivo</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <Label>Titulo</Label>
-                <Input
-                  value={documentTitle}
-                  onChange={(event) => onDocumentTitleChange(event.target.value)}
-                  placeholder="Lista Febrero 2026 contado"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Agregar a listado existente (opcional)</Label>
-                <Select value={selectedCatalogId} onValueChange={onSelectedCatalogIdChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Crear nuevo listado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="new">Crear nuevo listado</SelectItem>
-                    {catalogs.map((catalog) => (
-                      <SelectItem key={catalog.id} value={catalog.id}>
-                        {catalog.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Notas</Label>
-                <Input
-                  value={documentNotes}
-                  onChange={(event) => onDocumentNotesChange(event.target.value)}
-                  placeholder="Observaciones"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Archivo</Label>
-                <Input
-                  type="file"
-                  accept=".xlsx,.xls,.csv,.txt,.tsv,.pdf"
-                  onChange={(event) => onSelectedFileChange(event.target.files?.[0] ?? null)}
-                />
-              </div>
-              <Button onClick={onUpload} disabled={isUploading || !selectedFile}>
-                {isUploading ? "Procesando..." : "Subir archivo"}
-              </Button>
-              {pdfProgress ? <p className="text-xs text-muted-foreground">{pdfProgress.message}</p> : null}
-              {lastDiagnostics ? (
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p>
-                    Filas: {lastDiagnostics.keptRows}/{lastDiagnostics.totalRows}. Descartadas por descripción vacía:{" "}
-                    {lastDiagnostics.dropped_missingDesc}, precio inválido: {lastDiagnostics.dropped_invalidPrice},
-                    precio {"<="} 0: {lastDiagnostics.dropped_priceLE0}.
-                  </p>
-                  {lastDiagnostics.keptRows < 10 ? (
-                    <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={onOpenDropDetail}>
-                      Ver detalle de filas descartadas
-                    </Button>
-                  ) : null}
+      <div className="grid h-full min-h-0 lg:grid-cols-[290px_minmax(0,1fr)]">
+        <aside className="border-r bg-muted/30">
+          <div className="flex h-full min-h-0 flex-col gap-4 p-4">
+            <Card className="border-none bg-background shadow-sm">
+              <CardHeader className="gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">{selectedSupplier?.name ?? "Proveedor"}</CardTitle>
+                    <CardDescription>Gestiona fuentes, catalogo consolidado y pedido.</CardDescription>
+                  </div>
+                  <Badge variant="secondary">Compras</Badge>
                 </div>
-              ) : null}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="historial" className="mt-0 min-h-0 flex-1 overflow-auto p-4">
-          <Card className="mx-auto w-full max-w-5xl">
-            <CardHeader>
-              <CardTitle className="text-base">Historial</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {isHistoryLoading ? <p className="text-sm text-muted-foreground">Cargando...</p> : null}
-              {!isHistoryLoading && catalogs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Sin listados cargados</p>
-              ) : null}
-              {!isHistoryLoading
-                ? catalogs.map((catalog) => (
-                    <div key={catalog.id} className="rounded border p-3">
-                      <p className="font-medium">{catalog.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Creado: {formatSupplierDate(catalog.created_at)}
-                      </p>
-                      <div className="mt-2 space-y-2">
-                        {(versionsByCatalog[catalog.id] ?? []).length === 0 ? (
-                          <p className="text-xs text-muted-foreground">Sin versiones</p>
-                        ) : (
-                          (versionsByCatalog[catalog.id] ?? []).map((version) => (
-                            <button
-                              type="button"
-                              key={version.id}
-                              onClick={() => onSelectVersion(version.id)}
-                              className={`w-full rounded border p-2 text-left text-sm ${
-                                activeVersionId === version.id ? "border-primary bg-primary/5" : "border-border"
-                              }`}
-                            >
-                              <p className="font-medium">{version.title ?? catalog.title}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatSupplierDate(version.imported_at)} - {version.file_name} -{" "}
-                                {version.file_type.toUpperCase()} - {version.line_count} líneas
-                              </p>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ))
-                : null}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="catalogo" className="mt-0 min-h-0 flex-1 overflow-hidden p-4">
-          <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-            <Card className="min-h-0 flex flex-col">
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-base">Buscar en catálogos</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  {activeVersion
-                    ? `Versión activa: ${
-                        activeVersion.title ?? catalogTitleById.get(activeVersion.catalog_id) ?? "Listado"
-                      } (${formatSupplierDate(activeVersion.imported_at)})`
-                    : "Selecciona una versión en el historial"}
-                </p>
-                <Input
-                  placeholder="Buscar por descripción o código"
-                  value={catalogSearch}
-                  onChange={(event) => onCatalogSearchChange(event.target.value)}
-                  disabled={!activeVersionId}
-                />
+                <div className="grid gap-2 text-xs text-muted-foreground">
+                  <div>
+                    <span className="font-medium text-foreground">WhatsApp:</span>{" "}
+                    {selectedSupplier?.whatsapp ?? "No configurado"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-foreground">Email:</span>{" "}
+                    {selectedSupplier?.email ?? "No configurado"}
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="flex-1 min-h-0">
-                <div className="h-full min-h-0 overflow-auto rounded border">
-                  <SupplierCatalogLinesTable
-                    lines={activeCatalogLines}
-                    activeVersionId={activeVersionId}
-                    isLoading={isCatalogLoading}
-                    quantities={lineQuantities}
-                    onQuantityChange={onLineQuantityChange}
-                    onAdd={onAddToOrder}
-                  />
-                </div>
-              </CardContent>
             </Card>
 
-            <Card className="min-h-0 flex flex-col">
-              <CardHeader>
-                <CardTitle className="text-base">Pedido actual</CardTitle>
+            <div className="grid gap-2">
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const active = catalogUiTab === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => onCatalogUiTabChange(item.key)}
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition-colors",
+                      active
+                        ? "border-primary bg-primary/8 text-primary"
+                        : "border-border bg-background hover:border-primary/40 hover:bg-background",
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className={cn("rounded-lg border p-2", active ? "border-primary/30 bg-primary/10" : "bg-muted")}>
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="font-medium">{item.label}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">{item.helper}</div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <Card className="border-none bg-background shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Resumen</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 overflow-auto">
-                <div className="max-h-[42vh] overflow-auto rounded border">
-                  <SupplierOrderTable
-                    rows={orderLines}
-                    onQuantityChange={onOrderQuantityChange}
-                    onRemove={onRemoveOrderItem}
-                  />
+              <CardContent className="grid gap-3 text-sm">
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Inbox className="h-4 w-4" />
+                    Fuentes cargadas
+                  </div>
+                  <span className="font-semibold">{catalogs.length}</span>
                 </div>
-
-                <p className="text-sm font-semibold">
-                  Total: ${orderTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                </p>
-
-                {!selectedSupplier?.whatsapp ? (
-                  <p className="text-sm text-amber-600">
-                    Este proveedor no tiene WhatsApp configurado.
-                  </p>
-                ) : null}
-
-                <div className="grid gap-2">
-                  <Button variant="outline" onClick={onCopyOrderMessage}>
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copiar mensaje
-                  </Button>
-                  <Button onClick={onOpenWhatsApp}>
-                    <MessageCircle className="mr-2 h-4 w-4" />
-                    Abrir WhatsApp
-                  </Button>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <History className="h-4 w-4" />
+                    Versiones
+                  </div>
+                  <span className="font-semibold">{totalVersions}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Wallet className="h-4 w-4" />
+                    En pedido
+                  </div>
+                  <span className="font-semibold">{orderLines.length}</span>
                 </div>
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-      </Tabs>
+        </aside>
+
+        <section className="min-h-0 overflow-hidden bg-background">
+          {catalogUiTab === "carga" ? (
+            <div className="grid h-full min-h-0 gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+              <Card className="min-h-0">
+                <CardHeader>
+                  <CardTitle className="text-base">Nueva fuente del proveedor</CardTitle>
+                  <CardDescription>
+                    Subi una lista en PDF, Excel o CSV. El sistema usa parser nativo e IA cuando el archivo lo necesita.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Titulo interno</Label>
+                      <Input
+                        value={documentTitle}
+                        onChange={(event) => onDocumentTitleChange(event.target.value)}
+                        placeholder="Lista Febrero 2026 contado"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Agregar a fuente existente</Label>
+                      <Select value={selectedCatalogId} onValueChange={onSelectedCatalogIdChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Crear nueva fuente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="new">Crear nueva fuente</SelectItem>
+                          {catalogs.map((catalog) => (
+                            <SelectItem key={catalog.id} value={catalog.id}>
+                              {catalog.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Notas</Label>
+                    <Input
+                      value={documentNotes}
+                      onChange={(event) => onDocumentNotesChange(event.target.value)}
+                      placeholder="Ej: contado, lista oficial, promo, actualizado por proveedor"
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-dashed bg-muted/20 p-5">
+                    <div className="space-y-3">
+                      <div>
+                        <div className="font-medium">Archivo a procesar</div>
+                        <div className="text-sm text-muted-foreground">
+                          Se soportan `.xlsx`, `.xls`, `.csv`, `.txt`, `.tsv` y `.pdf`.
+                        </div>
+                      </div>
+                      <Input
+                        type="file"
+                        accept=".xlsx,.xls,.csv,.txt,.tsv,.pdf"
+                        onChange={(event) => onSelectedFileChange(event.target.files?.[0] ?? null)}
+                      />
+                      {selectedFile ? (
+                        <div className="rounded-lg border bg-background p-3 text-sm">
+                          <div className="font-medium">{selectedFile.name}</div>
+                          <div className="text-muted-foreground">
+                            {(selectedFile.size / 1024).toFixed(1)} KB
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <Button onClick={onUpload} disabled={isUploading || !selectedFile}>
+                      <Upload className="mr-2 h-4 w-4" />
+                      {isUploading ? "Procesando fuente..." : "Procesar e importar"}
+                    </Button>
+                    {pdfProgress ? (
+                      <Badge variant="secondary" className="px-3 py-1 text-xs">
+                        {pdfProgress.message}
+                      </Badge>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="h-fit">
+                <CardHeader>
+                  <CardTitle className="text-base">Control de calidad</CardTitle>
+                  <CardDescription>Senales utiles despues del parseo.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  <div className="rounded-lg border p-3">
+                    <div className="font-medium">Estrategia</div>
+                    <div className="mt-1 text-muted-foreground">
+                      Excel/CSV va por parser logico. PDF pasa por parser estructural y, si hace falta, por Gemini.
+                    </div>
+                  </div>
+                  {lastDiagnostics ? (
+                    <div className="rounded-lg border p-3">
+                      <div className="font-medium">Ultima importacion tabular</div>
+                      <div className="mt-2 space-y-1 text-muted-foreground">
+                        <div>Filas validas: {lastDiagnostics.keptRows} / {lastDiagnostics.totalRows}</div>
+                        <div>Sin descripcion: {lastDiagnostics.dropped_missingDesc}</div>
+                        <div>Precio invalido: {lastDiagnostics.dropped_invalidPrice}</div>
+                        <div>Precio menor o igual a 0: {lastDiagnostics.dropped_priceLE0}</div>
+                      </div>
+                      {lastDiagnostics.keptRows < 10 ? (
+                        <Button type="button" variant="link" className="mt-2 h-auto p-0 text-xs" onClick={onOpenDropDetail}>
+                          Ver detalle de filas descartadas
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border p-3 text-muted-foreground">
+                      Todavia no hay diagnostico de importacion en esta sesion.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          ) : null}
+
+          {catalogUiTab === "historial" ? (
+            <div className="h-full overflow-auto p-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Fuentes y versiones</CardTitle>
+                  <CardDescription>
+                    Cada listado puede tener varias versiones o archivos asociados. Elegi la version activa para trabajar.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isHistoryLoading ? <p className="text-sm text-muted-foreground">Cargando historial...</p> : null}
+                  {!isHistoryLoading && catalogs.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Este proveedor todavia no tiene fuentes cargadas.</p>
+                  ) : null}
+                  {!isHistoryLoading
+                    ? catalogs.map((catalog) => (
+                        <div key={catalog.id} className="rounded-2xl border bg-muted/10 p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <div className="font-semibold">{catalog.title}</div>
+                              <div className="text-xs text-muted-foreground">
+                                Creado {formatSupplierDate(catalog.created_at)}
+                              </div>
+                            </div>
+                            <Badge variant="outline">{(versionsByCatalog[catalog.id] ?? []).length} versiones</Badge>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                            {(versionsByCatalog[catalog.id] ?? []).length === 0 ? (
+                              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                                Esta fuente todavia no tiene versiones visibles.
+                              </div>
+                            ) : (
+                              (versionsByCatalog[catalog.id] ?? []).map((version) => (
+                                <button
+                                  type="button"
+                                  key={version.id}
+                                  onClick={() => onSelectVersion(version.id)}
+                                  className={cn(
+                                    "rounded-xl border p-4 text-left transition-colors",
+                                    activeVersionId === version.id
+                                      ? "border-primary bg-primary/6"
+                                      : "bg-background hover:border-primary/40",
+                                  )}
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <div className="font-medium">
+                                        {version.title ?? catalog.title}
+                                      </div>
+                                      <div className="mt-1 text-xs text-muted-foreground">
+                                        {formatSupplierDate(version.imported_at)}
+                                      </div>
+                                    </div>
+                                    {activeVersionId === version.id ? <Badge>Activa</Badge> : null}
+                                  </div>
+                                  <div className="mt-3 grid gap-1 text-xs text-muted-foreground">
+                                    <div>Archivo: {version.file_name}</div>
+                                    <div>Tipo: {version.file_type.toUpperCase()}</div>
+                                    <div>Items importados: {version.line_count}</div>
+                                  </div>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    : null}
+                </CardContent>
+              </Card>
+            </div>
+          ) : null}
+
+          {catalogUiTab === "catalogo" ? (
+            <div className="grid h-full min-h-0 gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <Card className="min-h-0 flex flex-col">
+                <CardHeader className="gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-base">Catalogo consolidado</CardTitle>
+                      <CardDescription>
+                        {activeVersion
+                          ? `Version activa: ${activeVersion.title ?? catalogTitleById.get(activeVersion.catalog_id) ?? "Listado"}`
+                          : "Selecciona una version desde la seccion Versiones."}
+                      </CardDescription>
+                    </div>
+                    {activeVersion ? (
+                      <Badge variant="secondary">{formatSupplierDate(activeVersion.imported_at)}</Badge>
+                    ) : null}
+                  </div>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por descripcion o codigo"
+                      value={catalogSearch}
+                      onChange={(event) => onCatalogSearchChange(event.target.value)}
+                      disabled={!activeVersionId}
+                      className="pl-9"
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="min-h-0 flex-1">
+                  <div className="h-full min-h-0 overflow-auto rounded-xl border">
+                    <SupplierCatalogLinesTable
+                      lines={activeCatalogLines}
+                      activeVersionId={activeVersionId}
+                      isLoading={isCatalogLoading}
+                      quantities={lineQuantities}
+                      onQuantityChange={onLineQuantityChange}
+                      onAdd={onAddToOrder}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="min-h-0 flex flex-col">
+                <CardHeader>
+                  <CardTitle className="text-base">Pedido al proveedor</CardTitle>
+                  <CardDescription>Selecciona productos, cantidades y genera el mensaje.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
+                  <div className="min-h-[240px] overflow-auto rounded-xl border">
+                    <SupplierOrderTable
+                      rows={orderLines}
+                      onQuantityChange={onOrderQuantityChange}
+                      onRemove={onRemoveOrderItem}
+                    />
+                  </div>
+
+                  <div className="rounded-xl border bg-muted/20 p-4">
+                    <div className="text-sm text-muted-foreground">Total estimado</div>
+                    <div className="mt-1 text-2xl font-semibold">
+                      ${orderTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                    </div>
+                  </div>
+
+                  {!selectedSupplier?.whatsapp ? (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-700">
+                      Este proveedor no tiene WhatsApp configurado. Puedes copiar el mensaje, pero no abrir el enlace directo.
+                    </div>
+                  ) : null}
+
+                  <div className="grid gap-2">
+                    <Button variant="outline" onClick={onCopyOrderMessage}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copiar mensaje
+                    </Button>
+                    <Button onClick={onOpenWhatsApp}>
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      Enviar por WhatsApp
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : null}
+        </section>
+      </div>
     </EntityDialog>
   );
 }
