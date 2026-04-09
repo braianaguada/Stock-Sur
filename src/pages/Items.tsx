@@ -1,6 +1,6 @@
 ﻿import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { invalidateItemQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
+import { fetchItemAiSearch } from "@/features/items/aiSearch";
+import { rankNaturalItemSearch, type ItemSearchAliasRecord } from "@/features/items/search";
 import { type Item, type ItemAlias } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
@@ -98,21 +100,10 @@ export default function ItemsPage() {
   const itemsQuery = useQuery({
     queryKey: queryKeys.items.list(currentCompany?.id ?? null, deferredSearch, categoryFilter, statusFilter, page, pageSize, sortBy, sortDirection),
     enabled: Boolean(currentCompany),
-    placeholderData: keepPreviousData,
     queryFn: async () => {
       const searchTerm = deferredSearch.trim();
-      let matchingItemIdsFromAlias: string[] = [];
-
-      if (searchTerm) {
-        const { data: aliasMatches, error: aliasError } = await supabase
-          .from("item_aliases")
-          .select("item_id")
-          .eq("company_id", currentCompany!.id)
-          .ilike("alias", `%${searchTerm}%`)
-          .limit(500);
-        if (aliasError) throw aliasError;
-        matchingItemIdsFromAlias = [...new Set((aliasMatches ?? []).map((a) => a.item_id))];
-      }
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
 
       let q = supabase
         .from("items")
@@ -122,18 +113,52 @@ export default function ItemsPage() {
       if (statusFilter === "inactive") q = q.eq("is_active", false);
 
       if (searchTerm) {
-        const searchFilters = [
-          `name.ilike.%${searchTerm}%`,
-          `sku.ilike.%${searchTerm}%`,
-          `brand.ilike.%${searchTerm}%`,
-          `model.ilike.%${searchTerm}%`,
-        ];
-
-        if (matchingItemIdsFromAlias.length > 0) {
-          searchFilters.push(`id.in.(${matchingItemIdsFromAlias.join(",")})`);
+        if (categoryFilter !== "all") {
+          q = q.eq("category", categoryFilter);
         }
 
-        q = q.or(searchFilters.join(","));
+        const { data: aliasRows, error: aliasError } = await supabase
+          .from("item_aliases")
+          .select("item_id, alias, is_supplier_code")
+          .eq("company_id", currentCompany!.id)
+          .limit(1500);
+        if (aliasError) throw aliasError;
+
+        const { data, error } = await q
+          .order(sortBy, {
+            ascending: sortDirection === "asc",
+            nullsFirst: false,
+          })
+          .limit(1500);
+        if (error) throw error;
+
+        const ranked = rankNaturalItemSearch({
+          items: (data ?? []) as Item[],
+          aliases: (aliasRows ?? []) as ItemSearchAliasRecord[],
+          query: searchTerm,
+        });
+
+        try {
+          const aiResult = await fetchItemAiSearch({
+            query: searchTerm,
+            items: (data ?? []) as Item[],
+            aliases: (aliasRows ?? []) as ItemSearchAliasRecord[],
+          });
+
+          if (aiResult?.items.length) {
+            return {
+              rows: aiResult.items.slice(from, to + 1),
+              total: aiResult.items.length,
+            };
+          }
+        } catch (error) {
+          console.error("items ai search fallback", error);
+        }
+
+        return {
+          rows: ranked.slice(from, to + 1),
+          total: ranked.length,
+        };
       }
 
       if (categoryFilter !== "all") {
@@ -145,8 +170,6 @@ export default function ItemsPage() {
         nullsFirst: false,
       });
 
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
       const { data, error, count } = await q.range(from, to);
       if (error) throw error;
       return {
@@ -158,7 +181,13 @@ export default function ItemsPage() {
   const items = useMemo(() => itemsQuery.data?.rows ?? [], [itemsQuery.data?.rows]);
   const totalItems = itemsQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const isLoading = itemsQuery.isLoading;
+  const isSearchSyncing = search.trim() !== deferredSearch.trim();
+  const hasActiveSearch = deferredSearch.trim().length > 0;
+  const shouldHideResults = isSearchSyncing || (hasActiveSearch && itemsQuery.isFetching);
+  const visibleItems = shouldHideResults ? [] : items;
+  const visibleTotalItems = shouldHideResults ? 0 : totalItems;
+  const visibleTotalPages = Math.max(1, Math.ceil(visibleTotalItems / pageSize));
+  const isLoading = itemsQuery.isLoading || shouldHideResults;
 
   const { data: categories = [] } = useQuery({
     queryKey: queryKeys.items.categories(currentCompany?.id ?? null, statusFilter),
@@ -188,8 +217,8 @@ export default function ItemsPage() {
       return data as ItemAlias[];
     },
   });
-  const rangeStart = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
-  const rangeEnd = Math.min(page * pageSize, totalItems);
+  const rangeStart = visibleTotalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, visibleTotalItems);
 
   const toggleSort = (field: ItemSortField) => {
     if (sortBy === field) {
@@ -435,7 +464,7 @@ export default function ItemsPage() {
           )}
           meta={(
             <>
-              <Badge variant="outline">{totalItems} registrados</Badge>
+              <Badge variant="outline">{visibleTotalItems} registrados</Badge>
               <Badge variant="secondary">{selectedItemIds.length} seleccionados</Badge>
             </>
           )}
@@ -446,7 +475,7 @@ export default function ItemsPage() {
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por SKU, nombre, marca, modelo o alias..."
+              placeholder="Buscar por SKU, nombre, marca, modelo, alias o lenguaje natural..."
               className="pl-9"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -500,7 +529,7 @@ export default function ItemsPage() {
 
         <DataCard>
           <ItemsDataTable
-            items={items}
+            items={visibleItems}
             isLoading={isLoading}
             pageSize={pageSize}
             selectedItemIds={selectedItemIds}
@@ -515,8 +544,8 @@ export default function ItemsPage() {
         </DataCard>
         <DataTablePagination
           page={page}
-          totalPages={totalPages}
-          totalItems={totalItems}
+          totalPages={visibleTotalPages}
+          totalItems={visibleTotalItems}
           rangeStart={rangeStart}
           rangeEnd={rangeEnd}
           pageSize={pageSize}

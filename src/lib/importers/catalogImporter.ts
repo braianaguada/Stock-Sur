@@ -66,8 +66,24 @@ export interface MappingSelectionCore {
   supplierCodeColumn: string | null;
 }
 
+export interface PdfMappingSelectionCore {
+  descriptionColumn: string;
+  priceColumn: string;
+  codeColumn: string | null;
+  preferPriceAtEnd: boolean;
+  filterRowsWithoutPrice: boolean;
+}
+
+export interface PdfColumnDetectionResult {
+  descriptionColumn: string;
+  priceColumn: string;
+  codeColumn: string | null;
+  confidence: number;
+}
+
+export type ParsePdfMode = "text" | "ocr" | "ai";
 export interface ParsePdfMeta {
-  mode: "text" | "ocr";
+  mode: ParsePdfMode;
   totalChars: number;
   parsedPages: number;
   confidence: number;
@@ -77,7 +93,7 @@ export interface PdfTableCandidate {
   headers: string[];
   rows: string[][];
   previewRows: string[][];
-  sourceMode: "text" | "ocr";
+  sourceMode: ParsePdfMode;
 }
 
 export interface ParsePdfOptions {
@@ -89,10 +105,16 @@ export interface ParsePdfOptions {
 }
 
 export interface ParsePdfProgress {
-  phase: "text" | "ocr";
+  phase: ParsePdfMode;
   currentPage: number;
   totalPages: number;
   message: string;
+}
+
+export interface ParsePdfResult {
+  lines: CatalogImportLine[];
+  meta: ParsePdfMeta;
+  table: PdfTableCandidate | null;
 }
 
 export const DEFAULT_PDF_OPTIONS: ParsePdfOptions = {
@@ -360,6 +382,183 @@ function detectCurrency(rawValue: string, fallback: "ARS" | "USD"): string {
   return fallback;
 }
 
+function isLikelySupplierCodeValue(value: string): boolean {
+  const normalized = value.trim();
+  if (!normalized || normalized.length > 24) return false;
+  if (/\s{2,}/.test(normalized)) return false;
+  if (/^(pagina|página|descuento|neto|contactos?|caracteristicas?|características)$/i.test(normalized)) return false;
+  return /^[A-Z0-9][A-Z0-9\-_/+.()]{1,23}$/i.test(normalized);
+}
+
+function isLikelyPdfNoiseValue(value: string): boolean {
+  const normalized = value.trim();
+  if (!normalized) return true;
+  return /@|tel|cel|p[aá]gina|descuento|neto|pmmateriales/i.test(normalized);
+}
+
+function isLikelyStatusValue(value: string): boolean {
+  return /^(s\/stock|disponible|nuevo|producto)$/i.test(value.trim());
+}
+
+function isLikelyPriceValue(value: string): boolean {
+  const normalized = value.trim();
+  if (!normalized) return false;
+  if (/^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(normalized)) return false;
+  if (/^\d[\d\s-]{5,}$/.test(normalized) && !/[.,]\d{2}\b/.test(normalized)) return false;
+  if (/[a-zA-Z]/.test(normalized) && !/u\$s|us\$|usd|ars|\$/i.test(normalized) && !/\d[.,]\d{2}\b/.test(normalized)) return false;
+  const parsed = parseFlexibleNumber(normalized);
+  if (parsed === null || parsed <= 0) return false;
+  if (/u\$s|us\$|usd|ars|\$/i.test(normalized)) return true;
+  if (/\d[.,]\d{2}\b/.test(normalized)) return true;
+  if (/\d{1,3}(?:[.,]\d{3})+[.,]\d{2}\b/.test(normalized)) return true;
+  return parsed >= 100;
+}
+
+function pickPdfPriceCell(
+  row: string[],
+  preferredIndex: number | undefined,
+  preferPrice: "first" | "last",
+): { index: number; raw: string; value: number } | null {
+  const orderedIndexes = Array.from({ length: row.length }, (_, idx) => idx);
+  if (preferPrice === "last") orderedIndexes.reverse();
+  if (preferredIndex !== undefined) {
+    const withoutPreferred = orderedIndexes.filter((idx) => idx !== preferredIndex);
+    orderedIndexes.splice(0, orderedIndexes.length, preferredIndex, ...withoutPreferred);
+  }
+  for (const index of orderedIndexes) {
+    const raw = String(row[index] ?? "").trim();
+    if (!isLikelyPriceValue(raw)) continue;
+    const value = parseFlexibleNumber(raw);
+    if (value === null || value <= 0) continue;
+    return { index, raw, value };
+  }
+  return null;
+}
+
+function buildPdfDescriptionFromRow(
+  row: string[],
+  descriptionIndex: number,
+  codeIndex: number | undefined,
+  priceIndex: number | undefined,
+): string {
+  const primary = String(row[descriptionIndex] ?? "").replace(/\s+/g, " ").trim();
+  const joined = row
+    .map((cell, index) => ({ index, value: String(cell ?? "").replace(/\s+/g, " ").trim() }))
+    .filter(({ value }) => value.length > 0)
+    .filter(({ index }) => index !== priceIndex)
+    .filter(({ index, value }) => !(index === codeIndex && isLikelySupplierCodeValue(value)))
+    .filter(({ value }) => !isLikelyStatusValue(value))
+    .filter(({ value }) => !isLikelyPriceValue(value))
+    .filter(({ value }) => !isLikelyPdfNoiseValue(value))
+    .map(({ value }) => value)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (joined.length >= Math.max(8, primary.length)) return joined;
+  return primary;
+}
+
+export function detectPdfColumnsHeuristic(headers: string[], rows: string[][]): PdfColumnDetectionResult {
+  const fallbackDescription = headers[0] ?? "col_1";
+  const fallbackPrice = headers[Math.max(0, headers.length - 1)] ?? fallbackDescription;
+  if (headers.length === 0 || rows.length === 0) {
+    return {
+      descriptionColumn: fallbackDescription,
+      priceColumn: fallbackPrice,
+      codeColumn: null,
+      confidence: 0,
+    };
+  }
+
+  const scores = headers.map((header, index) => {
+    const values = rows.map((row) => String(row[index] ?? "").trim()).filter(Boolean);
+    const total = values.length || 1;
+    const priceLikeRatio = values.filter((value) => isLikelyPriceValue(value)).length / total;
+    const codeLikeRatio = values.filter((value) => isLikelySupplierCodeValue(value)).length / total;
+    const textRatio = values.filter((value) => /[a-zA-ZÁÉÍÓÚÑáéíóúñ]/.test(value)).length / total;
+    const longTextRatio = values.filter((value) => value.length >= 10).length / total;
+    const noiseRatio = values.filter((value) => isLikelyPdfNoiseValue(value)).length / total;
+    const populatedRatio = values.length / rows.length;
+    return {
+      header,
+      descriptionScore: textRatio * 2.8 + longTextRatio * 2.2 - priceLikeRatio * 2.4 - codeLikeRatio * 1.2 - noiseRatio * 1.5,
+      priceScore: priceLikeRatio * 5.4 + (index / Math.max(1, headers.length - 1)) * 0.8 - longTextRatio * 1.4 - noiseRatio * 1.2,
+      codeScore: codeLikeRatio * 5 - longTextRatio * 1.4 - noiseRatio * 1.2 + (index === 0 ? 0.6 : 0),
+      populatedRatio,
+    };
+  });
+
+  const bestDescription = [...scores].sort((a, b) => b.descriptionScore - a.descriptionScore)[0];
+  const bestPrice = [...scores]
+    .filter((entry) => entry.header !== bestDescription.header)
+    .sort((a, b) => b.priceScore - a.priceScore)[0] ?? bestDescription;
+  const bestCode = [...scores]
+    .filter((entry) => entry.header !== bestDescription.header && entry.header !== bestPrice.header)
+    .sort((a, b) => b.codeScore - a.codeScore)[0];
+
+  const confidence = Math.max(
+    0,
+    Math.min(
+      1,
+      ((bestDescription.descriptionScore > 1.5 ? 0.4 : 0.2) +
+        (bestPrice.priceScore > 1.5 ? 0.4 : 0.2) +
+        (bestCode && bestCode.codeScore > 0.8 ? 0.2 : 0)) *
+        Math.min(1, (bestDescription.populatedRatio + bestPrice.populatedRatio) / 2),
+    ),
+  );
+
+  return {
+    descriptionColumn: bestDescription.header,
+    priceColumn: bestPrice.header,
+    codeColumn: bestCode && bestCode.codeScore > 0.8 ? bestCode.header : null,
+    confidence,
+  };
+}
+
+export function normalizePdfRowsToLines({
+  headers,
+  rows,
+  mapping,
+  defaultCurrency,
+}: {
+  headers: string[];
+  rows: string[][];
+  mapping: PdfMappingSelectionCore;
+  defaultCurrency: "ARS" | "USD";
+}): CatalogImportLine[] {
+  const headerIndexMap = new Map(headers.map((header, index) => [header, index]));
+  const descriptionIndex = headerIndexMap.get(mapping.descriptionColumn);
+  const priceIndex = headerIndexMap.get(mapping.priceColumn);
+  const codeIndex = mapping.codeColumn ? headerIndexMap.get(mapping.codeColumn) : undefined;
+  if (descriptionIndex === undefined) throw new Error("Mapeo PDF invalido");
+
+  const preferPrice = mapping.preferPriceAtEnd ? "last" : "first";
+  const lines: CatalogImportLine[] = [];
+  rows.forEach((row, index) => {
+    const pickedPrice = pickPdfPriceCell(row, priceIndex, preferPrice);
+    if (mapping.filterRowsWithoutPrice && !pickedPrice) return;
+    if (!pickedPrice) return;
+
+    const rawDescription = buildPdfDescriptionFromRow(row, descriptionIndex, codeIndex, pickedPrice.index);
+    if (!rawDescription || rawDescription.length < 3) return;
+    if (!/[a-zA-ZÁÉÍÓÚÑáéíóúñ]/.test(rawDescription)) return;
+
+    const explicitCode = codeIndex !== undefined ? String(row[codeIndex] ?? "").trim() : "";
+    const inferredCode = row.map((cell) => String(cell ?? "").trim()).find((cell) => isLikelySupplierCodeValue(cell)) ?? "";
+    const supplierCode = explicitCode || inferredCode || null;
+    const currency = detectCurrency(`${pickedPrice.raw} ${rawDescription}`, defaultCurrency);
+    lines.push({
+      supplier_code: supplierCode,
+      raw_description: rawDescription,
+      normalized_description: rawDescription.toLowerCase(),
+      cost: pickedPrice.value,
+      currency,
+      row_index: index + 1,
+    });
+  });
+  return lines;
+}
+
 export function normalizeRowsToLines({
   headers,
   rows,
@@ -511,12 +710,15 @@ function extractPdfLineCandidate(
 ): CatalogImportLine | null {
   const line = sourceLine.replace(/\s+/g, " ").trim();
   if (!line || line.length < 4) return null;
+  if (isLikelyPdfNoiseValue(line)) return null;
+  if (/^[*•]/.test(line)) return null;
   const chunks = line.split(/\s{2,}/).filter(Boolean);
   const candidateString = chunks.length > 1 ? chunks.join(" | ") : line;
   const numberMatches = [...candidateString.matchAll(/-?\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d+)?|-?\d+(?:[.,]\d+)?/g)];
   const prices = numberMatches
     .map((match) => ({ raw: match[0], value: parseFlexibleNumber(match[0]) }))
-    .filter((entry): entry is { raw: string; value: number } => entry.value !== null);
+    .filter((entry): entry is { raw: string; value: number } => entry.value !== null)
+    .filter((entry) => isLikelyPriceValue(entry.raw));
   if (prices.length === 0) return null;
   const pickedPrice = preferPrice === "first" ? prices[0] : prices[prices.length - 1];
   if (!pickedPrice || pickedPrice.value <= 0) return null;
@@ -642,7 +844,7 @@ export async function parsePdfToLines(
   file: File,
   optionsInput?: Partial<ParsePdfOptions>,
   onProgress?: (progress: ParsePdfProgress) => void,
-): Promise<{ lines: CatalogImportLine[]; meta: ParsePdfMeta; table: PdfTableCandidate | null }> {
+): Promise<ParsePdfResult> {
   const options: ParsePdfOptions = { ...DEFAULT_PDF_OPTIONS, ...(optionsInput ?? {}) };
   const textMode = await parsePdfTextMode(file, options, onProgress);
   const textMaxCols = textMode.tableRows.reduce((max, row) => Math.max(max, row.length), 0);

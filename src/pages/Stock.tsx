@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
@@ -11,10 +12,12 @@ import { ArrowDownCircle, ArrowUpCircle, Plus, Search, Settings2 } from "lucide-
 import { DataCard, PageHeader, StatCard } from "@/components/ui/page";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { cn } from "@/lib/utils";
+import { fetchStockAiAlerts } from "@/features/stock/aiAlerts";
 import { StockCurrentTable } from "@/features/stock/components/StockCurrentTable";
 import { StockMovementDialog } from "@/features/stock/components/StockMovementDialog";
 import { StockMovementsTable } from "@/features/stock/components/StockMovementsTable";
 import { useStockPage } from "@/features/stock/hooks/useStockPage";
+import { buildStockInsights, countStockInsightTones, getStockInsightKindLabel } from "@/features/stock/insights";
 import type { DemandProfile, MovementType, StockHealth } from "@/features/stock/types";
 
 const INTEGER_ONLY_UNITS = new Set(["un"]);
@@ -112,6 +115,18 @@ export default function StockPage() {
     RED: "border-destructive/18 bg-destructive text-destructive-foreground",
     GRAY: "border-border/70 bg-muted text-foreground",
   };
+  const insightToneClass = {
+    RED: "border-destructive/18 bg-destructive/10 text-foreground",
+    YELLOW: "border-warning/18 bg-warning/10 text-foreground",
+    BLUE: "border-info/18 bg-info/10 text-foreground",
+    GRAY: "border-border/70 bg-[hsl(var(--panel))]/66 text-foreground",
+  } as const;
+  const insightBadgeClass = {
+    RED: "border-destructive/18 bg-destructive text-destructive-foreground",
+    YELLOW: "border-warning/18 bg-warning text-warning-foreground",
+    BLUE: "border-info/18 bg-info text-info-foreground",
+    GRAY: "border-border/70 bg-muted text-foreground",
+  } as const;
   const demandProfileLabel: Record<DemandProfile, string> = {
     LOW: "Rotacion baja",
     MEDIUM: "Rotacion media",
@@ -123,51 +138,23 @@ export default function StockPage() {
     HIGH: "border-primary/16 bg-primary/10 text-primary",
   };
 
-  const alerts = useMemo(() => {
-    const critical = stockRows
-      .filter((row) => row.health === "RED")
-      .map((row) => ({
-        id: `critical-${row.item_id}`,
-        tone: "RED" as const,
-        title: `${row.item_name} en riesgo critico`,
-        detail:
-          row.total <= 0
-            ? "Sin stock o en negativo. Reposicion urgente."
-            : `Cobertura estimada: ${Math.max(0, row.days_of_cover ?? 0).toFixed(1)} dias.`,
-      }));
-    const low = stockRows
-      .filter((row) => row.health === "YELLOW")
-      .map((row) => ({
-        id: `low-${row.item_id}`,
-        tone: "YELLOW" as const,
-        title: `${row.item_name} con cobertura baja`,
-        detail: `Cobertura estimada: ${(row.days_of_cover ?? 0).toFixed(1)} dias.`,
-      }));
-
-    const lowRotationAttention = stockRows
-      .filter((row) => row.low_rotation && row.total > 0)
-      .flatMap((row) => {
-        const months = row.months_of_cover_low_rotation;
-        if (months !== null && months >= 24) {
-          return [{
-            id: `slow-over-${row.item_id}`,
-            tone: "YELLOW" as const,
-            title: `${row.item_name} con sobrestock en baja rotacion`,
-            detail: `Cobertura estimada: ${months.toFixed(1)} meses. Revisar compras futuras.`,
-          }];
-        }
-        return [];
-      });
-
-    return [...critical, ...low, ...lowRotationAttention];
-  }, [stockRows]);
-
-  const warningCount = useMemo(
-    () => alerts.filter((alert) => alert.tone === "YELLOW").length,
-    [alerts],
-  );
+  const alerts = useMemo(() => buildStockInsights(stockRows), [stockRows]);
+  const aiAlertsQuery = useQuery({
+    queryKey: ["stock-ai-alerts", currentCompany?.id ?? null, stockRows],
+    enabled: Boolean(currentCompany?.id && stockRows.length > 0),
+    queryFn: () =>
+      fetchStockAiAlerts({
+        companyName: currentCompany?.name ?? null,
+        rows: stockRows,
+      }),
+  });
+  const displayedAlerts = aiAlertsQuery.data?.alerts?.length ? aiAlertsQuery.data.alerts : alerts;
+  const insightSummary = aiAlertsQuery.data?.summary ?? null;
+  const insightSource = aiAlertsQuery.data?.alerts?.length ? "IA" : "Fallback local";
+  const insightModel = aiAlertsQuery.data?.model ?? null;
+  const insightCounts = useMemo(() => countStockInsightTones(displayedAlerts), [displayedAlerts]);
   const alertsPagination = usePaginationSlice({
-    items: alerts,
+    items: displayedAlerts,
     page: alertsPage,
     pageSize: alertsPageSize,
   });
@@ -224,45 +211,53 @@ export default function StockPage() {
           <TabsContent value="summary" className="space-y-6 pt-1">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <StatCard
-                label="En rojo"
-                value={stockRows.filter((row) => row.health === "RED").length}
+                label="Riesgo critico"
+                value={insightCounts.RED}
                 tone="danger"
                 className="bg-[radial-gradient(circle_at_bottom_right,rgba(248,113,113,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(248,113,113,0.55)]"
               />
               <StatCard
-                label="En amarillo"
-                value={warningCount}
+                label="Atencion"
+                value={insightCounts.YELLOW}
                 tone="warning"
                 className="shadow-[0_24px_50px_-28px_rgba(250,204,21,0.42)]"
               />
               <StatCard
-                label="Alertas"
-                value={alerts.length}
+                label="Oportunidades"
+                value={insightCounts.BLUE}
                 tone="success"
                 className="bg-[radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(16,185,129,0.55)]"
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Semaforo automatico: combina consumo de 30, 90 y 365 dias, con tratamiento especial para rotacion baja.
+              {insightSummary ?? "La IA prioriza riesgo de quiebre, aceleracion de consumo, sobrestock y stock inmovilizado sobre el snapshot actual."}
             </p>
-            {alerts.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              <span>Fuente: {insightSource}</span>
+              {insightModel ? <span>Modelo: {insightModel}</span> : null}
+              {aiAlertsQuery.isFetching ? <span>Actualizando lectura IA...</span> : null}
+            </div>
+            {displayedAlerts.length > 0 ? (
               <Card className="overflow-hidden">
                 <CardHeader className="border-b border-border/70 bg-[hsl(var(--panel))]/55">
-                  <CardTitle className="text-lg">Alertas inteligentes</CardTitle>
+                  <CardTitle className="text-lg">Stock inteligente</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-7">
                   <div className="space-y-2.5 pt-4">
                     {alertsPagination.pagedItems.map((alert) => (
                       <div
                         key={alert.id}
-                        className={`flex items-center justify-between gap-4 rounded-2xl border px-4 py-4.5 text-sm shadow-[var(--shadow-xs)] ${alertRowClass[alert.tone]}`}
+                        className={`flex items-center justify-between gap-4 rounded-2xl border px-4 py-4.5 text-sm shadow-[var(--shadow-xs)] ${insightToneClass[alert.tone]}`}
                       >
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-foreground">{alert.title}</p>
                           <p className="mt-1 text-muted-foreground">{alert.detail}</p>
+                          <p className="mt-2 text-xs font-medium text-foreground/80">
+                            Sugerencia: {alert.suggestedAction}
+                          </p>
                         </div>
-                        <Badge variant="outline" className={cn("shrink-0", alertBadgeClass[alert.tone])}>
-                          {alertToneLabel[alert.tone]}
+                        <Badge variant="outline" className={cn("shrink-0", insightBadgeClass[alert.tone])}>
+                          {getStockInsightKindLabel(alert.kind)}
                         </Badge>
                       </div>
                     ))}
@@ -271,7 +266,7 @@ export default function StockPage() {
                     <DataTablePagination
                       page={alertsPagination.page}
                       totalPages={alertsPagination.totalPages}
-                      totalItems={alerts.length}
+                      totalItems={displayedAlerts.length}
                       rangeStart={alertsPagination.rangeStart}
                       rangeEnd={alertsPagination.rangeEnd}
                       pageSize={alertsPageSize}
