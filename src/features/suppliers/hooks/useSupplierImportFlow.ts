@@ -347,25 +347,15 @@ export function useSupplierImportFlow(params: {
           if (parseResult.lines.length === 0) throw new Error("No se pudo extraer contenido del PDF");
           lines = parseResult.lines.map(toSupplierCatalogRpcLinePayload);
         } else {
+          const detected = detectPdfColumnsHeuristic(tableHeaders, tableRows);
           const stored = await loadStoredSupplierImportMapping<PdfImportMappingStored>(
             currentCompanyId,
             selectedSupplier.id,
             "pdf",
           );
-          const detected = detectPdfColumnsHeuristic(tableHeaders, tableRows);
           const suggested: Omit<PdfMappingSelection, "remember"> = {
-            descriptionColumn:
-              stored?.descriptionColumn ??
-              detected.descriptionColumn ??
-              tableHeaders.find((header) => /description|descripcion|producto|detalle|item/i.test(header)) ??
-              tableHeaders[0] ??
-              "col_1",
-            priceColumn:
-              stored?.priceColumn ??
-              detected.priceColumn ??
-              tableHeaders.find((header) => /precio|price|cost|importe|lista|\$/i.test(header)) ??
-              tableHeaders[Math.max(0, tableHeaders.length - 1)] ??
-              "col_1",
+            descriptionColumn: stored?.descriptionColumn ?? detected.descriptionColumn,
+            priceColumn: stored?.priceColumn ?? detected.priceColumn,
             codeColumn: stored?.codeColumn ?? detected.codeColumn,
             preferPriceAtEnd: stored?.preferPriceAtEnd ?? true,
             filterRowsWithoutPrice: stored?.filterRowsWithoutPrice ?? true,
