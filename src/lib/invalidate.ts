@@ -5,6 +5,8 @@ export async function invalidateItemQueries(queryClient: QueryClient) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.items.all() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.items.categoriesAll() }),
+    queryClient.invalidateQueries({ queryKey: ["items-catalog"] }),
+    queryClient.invalidateQueries({ queryKey: ["items-search-aliases"] }),
   ]);
 }
 

@@ -1,9 +1,11 @@
 ﻿import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { VisibilityState } from "@tanstack/react-table";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -13,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +39,31 @@ import {
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const NEW_ITEM_DRAFT_KEY = "items:new-item-draft";
+const ITEM_TABLE_COLUMNS_KEY = "items:table-columns";
+const DEFAULT_ITEM_COLUMN_VISIBILITY: VisibilityState = {
+  sku: true,
+  name: true,
+  supplier: true,
+  brand: true,
+  model: true,
+  category: true,
+  unit: true,
+  demand_profile: true,
+  is_active: true,
+  actions: true,
+  select: true,
+};
+const ITEM_COLUMN_OPTIONS: Array<{ id: keyof typeof DEFAULT_ITEM_COLUMN_VISIBILITY; label: string; hideable?: boolean }> = [
+  { id: "sku", label: "SKU" },
+  { id: "name", label: "Nombre" },
+  { id: "supplier", label: "Proveedor" },
+  { id: "brand", label: "Marca" },
+  { id: "model", label: "Modelo" },
+  { id: "category", label: "Categoría" },
+  { id: "unit", label: "Unidad" },
+  { id: "demand_profile", label: "Demanda" },
+  { id: "is_active", label: "Estado" },
+];
 
 function getNullableSortValue(item: Item, sortBy: ItemSortField) {
   switch (sortBy) {
@@ -100,7 +128,7 @@ function sortItems(items: Item[], sortBy: ItemSortField, sortDirection: SortDire
 }
 
 export default function ItemsPage() {
-  const { currentCompany } = useAuth();
+  const { currentCompany, user } = useAuth();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
@@ -113,6 +141,9 @@ export default function ItemsPage() {
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [sortBy, setSortBy] = useState<ItemSortField>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(DEFAULT_ITEM_COLUMN_VISIBILITY);
+  const [columnsHydrated, setColumnsHydrated] = useState(false);
   const [form, setForm] = useState({
     sku: "",
     name: "",
@@ -131,6 +162,7 @@ export default function ItemsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const aliasQueryKey = queryKeys.items.aliases(currentCompany?.id ?? null, editingItem?.id);
+  const itemTableColumnsStorageKey = `${ITEM_TABLE_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
 
   useEffect(() => {
     setPage(1);
@@ -157,6 +189,40 @@ export default function ItemsPage() {
       JSON.stringify({ open: true, form }),
     );
   }, [currentCompany, dialogOpen, editingItem, form]);
+
+  useEffect(() => {
+    setColumnsHydrated(false);
+    const raw = localStorage.getItem(itemTableColumnsStorageKey);
+    if (!raw) {
+      setColumnVisibility(DEFAULT_ITEM_COLUMN_VISIBILITY);
+      setColumnsHydrated(true);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as VisibilityState;
+      setColumnVisibility({
+        ...DEFAULT_ITEM_COLUMN_VISIBILITY,
+        ...parsed,
+        actions: true,
+        select: true,
+      });
+      setColumnsHydrated(true);
+    } catch {
+      localStorage.removeItem(itemTableColumnsStorageKey);
+      setColumnVisibility(DEFAULT_ITEM_COLUMN_VISIBILITY);
+      setColumnsHydrated(true);
+    }
+  }, [itemTableColumnsStorageKey]);
+
+  useEffect(() => {
+    if (!columnsHydrated) return;
+    localStorage.setItem(itemTableColumnsStorageKey, JSON.stringify({
+      ...columnVisibility,
+      actions: true,
+      select: true,
+    }));
+  }, [columnVisibility, columnsHydrated, itemTableColumnsStorageKey]);
 
   const itemsQuery = useQuery({
     queryKey: queryKeys.items.catalog(currentCompany?.id ?? null, categoryFilter, statusFilter),
@@ -264,6 +330,15 @@ export default function ItemsPage() {
     setSortDirection(field === "is_active" ? "desc" : "asc");
   };
 
+  const toggleColumnVisibility = (columnId: keyof typeof DEFAULT_ITEM_COLUMN_VISIBILITY, checked: boolean) => {
+    setColumnVisibility((current) => ({
+      ...current,
+      [columnId]: checked,
+      actions: true,
+      select: true,
+    }));
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
@@ -291,28 +366,50 @@ export default function ItemsPage() {
       };
 
       if (editingItem) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("items")
           .update({
             ...payload,
             sku: sku || editingItem.sku,
           })
           .eq("company_id", currentCompany.id)
-          .eq("id", editingItem.id);
+          .eq("id", editingItem.id)
+          .select("*")
+          .single();
         if (error) throw error;
+        return data as Item;
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("items")
           .insert({
             company_id: currentCompany.id,
             ...payload,
             sku: sku || generateItemSku(name),
             is_active: true,
-          });
+          })
+          .select("*")
+          .single();
         if (error) throw error;
+        return data as Item;
       }
     },
-    onSuccess: async () => {
+    onSuccess: async (savedItem) => {
+      if (currentCompany) {
+        const currentCatalogKey = queryKeys.items.catalog(currentCompany.id, categoryFilter, statusFilter);
+        qc.setQueryData<Item[]>(currentCatalogKey, (current = []) => {
+          const matchesStatus =
+            statusFilter === "all" ||
+            (statusFilter === "active" && savedItem.is_active) ||
+            (statusFilter === "inactive" && !savedItem.is_active);
+          const matchesCategory = categoryFilter === "all" || savedItem.category === categoryFilter;
+          const shouldInclude = matchesStatus && matchesCategory;
+          const withoutSavedItem = current.filter((item) => item.id !== savedItem.id);
+
+          if (!shouldInclude) return withoutSavedItem;
+          return sortItems([...withoutSavedItem, savedItem], sortBy, sortDirection);
+        });
+      }
+
       await Promise.all([invalidateItemQueries(qc), invalidateStockQueries(qc)]);
       if (currentCompany && !editingItem) {
         sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
@@ -509,61 +606,97 @@ export default function ItemsPage() {
         />
 
 
-        <FilterBar>
-          <div className="relative w-full md:max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por SKU, nombre, marca, modelo, alias o lenguaje natural..."
-              className="pl-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="w-full md:w-52">
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "active" | "inactive" | "all")}>
-              <SelectTrigger>
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Activos</SelectItem>
-                <SelectItem value="inactive">Inactivos</SelectItem>
-                <SelectItem value="all">Todos</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full md:w-64">
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las categorías</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>{category}</SelectItem>
+        <Collapsible open={columnsOpen} onOpenChange={setColumnsOpen}>
+          <FilterBar>
+            <div className="relative w-full md:max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por SKU, nombre, marca, modelo, alias o lenguaje natural..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="w-full md:w-52">
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "active" | "inactive" | "all")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Activos</SelectItem>
+                  <SelectItem value="inactive">Inactivos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-64">
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las categorías</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-64">
+              <Select value={bulkDemandProfile} onValueChange={(value) => setBulkDemandProfile(value as Item["demand_profile"])}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Demanda masiva" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Baja rotación</SelectItem>
+                  <SelectItem value="MEDIUM">Rotación media</SelectItem>
+                  <SelectItem value="HIGH">Alta rotación</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              variant="outline"
+              disabled={selectedItemIds.length === 0 || bulkDemandProfileMutation.isPending}
+              onClick={() => bulkDemandProfileMutation.mutate()}
+            >
+              Aplicar a seleccionados ({selectedItemIds.length})
+            </Button>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" type="button">
+                Columnas
+              </Button>
+            </CollapsibleTrigger>
+          </FilterBar>
+          <CollapsibleContent>
+            <DataCard className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Columnas visibles</h3>
+                  <p className="text-sm text-muted-foreground">La preferencia se guarda por usuario.</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setColumnVisibility(DEFAULT_ITEM_COLUMN_VISIBILITY)}
+                >
+                  Restaurar
+                </Button>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {ITEM_COLUMN_OPTIONS.map((column) => (
+                  <label key={column.id} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={columnVisibility[column.id] !== false}
+                      onCheckedChange={(checked) => toggleColumnVisibility(column.id, checked === true)}
+                    />
+                    <span>{column.label}</span>
+                  </label>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full md:w-64">
-            <Select value={bulkDemandProfile} onValueChange={(value) => setBulkDemandProfile(value as Item["demand_profile"])}>
-              <SelectTrigger>
-                <SelectValue placeholder="Demanda masiva" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="LOW">Baja rotación</SelectItem>
-                <SelectItem value="MEDIUM">Rotación media</SelectItem>
-                <SelectItem value="HIGH">Alta rotación</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            variant="outline"
-            disabled={selectedItemIds.length === 0 || bulkDemandProfileMutation.isPending}
-            onClick={() => bulkDemandProfileMutation.mutate()}
-          >
-            Aplicar a seleccionados ({selectedItemIds.length})
-          </Button>
-        </FilterBar>
+              </div>
+            </DataCard>
+          </CollapsibleContent>
+        </Collapsible>
 
         <DataCard>
           <ItemsDataTable
@@ -571,6 +704,7 @@ export default function ItemsPage() {
             isLoading={isLoading}
             pageSize={pageSize}
             selectedItemIds={selectedItemIds}
+            columnVisibility={columnVisibility}
             sortBy={sortBy}
             sortDirection={sortDirection}
             onSort={toggleSort}
