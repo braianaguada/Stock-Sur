@@ -163,7 +163,11 @@ export default function ItemsPage() {
   const items = useMemo(() => itemsQuery.data?.rows ?? [], [itemsQuery.data?.rows]);
   const totalItems = itemsQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const isLoading = itemsQuery.isLoading;
+  const isSearchSyncing = search.trim() !== deferredSearch.trim();
+  const visibleItems = isSearchSyncing ? [] : items;
+  const visibleTotalItems = isSearchSyncing ? 0 : totalItems;
+  const visibleTotalPages = Math.max(1, Math.ceil(visibleTotalItems / pageSize));
+  const isLoading = itemsQuery.isLoading || isSearchSyncing;
 
   const { data: categories = [] } = useQuery({
     queryKey: queryKeys.items.categories(currentCompany?.id ?? null, statusFilter),
@@ -193,8 +197,8 @@ export default function ItemsPage() {
       return data as ItemAlias[];
     },
   });
-  const rangeStart = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
-  const rangeEnd = Math.min(page * pageSize, totalItems);
+  const rangeStart = visibleTotalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, visibleTotalItems);
 
   const toggleSort = (field: ItemSortField) => {
     if (sortBy === field) {
@@ -440,7 +444,7 @@ export default function ItemsPage() {
           )}
           meta={(
             <>
-              <Badge variant="outline">{totalItems} registrados</Badge>
+              <Badge variant="outline">{visibleTotalItems} registrados</Badge>
               <Badge variant="secondary">{selectedItemIds.length} seleccionados</Badge>
             </>
           )}
@@ -505,7 +509,7 @@ export default function ItemsPage() {
 
         <DataCard>
           <ItemsDataTable
-            items={items}
+            items={visibleItems}
             isLoading={isLoading}
             pageSize={pageSize}
             selectedItemIds={selectedItemIds}
@@ -520,8 +524,8 @@ export default function ItemsPage() {
         </DataCard>
         <DataTablePagination
           page={page}
-          totalPages={totalPages}
-          totalItems={totalItems}
+          totalPages={visibleTotalPages}
+          totalItems={visibleTotalItems}
           rangeStart={rangeStart}
           rangeEnd={rangeEnd}
           pageSize={pageSize}
