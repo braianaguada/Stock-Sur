@@ -193,11 +193,19 @@ export function useStockPage() {
     queryKey: queryKeys.stock.current(currentCompany?.id ?? null, deferredSearch),
     enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { data: movements, error } = await supabase
-        .from("stock_movements")
-        .select("item_id, type, quantity, created_at, items(name, sku, unit, demand_profile, demand_monthly_estimate)")
-        .eq("company_id", currentCompany!.id);
-      if (error) throw error;
+      const [{ data: items, error: itemsError }, { data: movements, error: movementsError }] = await Promise.all([
+        supabase
+          .from("items")
+          .select("id, name, sku, unit, demand_profile, demand_monthly_estimate")
+          .eq("company_id", currentCompany!.id)
+          .eq("is_active", true),
+        supabase
+          .from("stock_movements")
+          .select("item_id, type, quantity, created_at, items(name, sku, unit, demand_profile, demand_monthly_estimate)")
+          .eq("company_id", currentCompany!.id),
+      ]);
+      if (itemsError) throw itemsError;
+      if (movementsError) throw movementsError;
 
       const last30DaysTs = Date.now() - 30 * 24 * 60 * 60 * 1000;
       const last90DaysTs = Date.now() - 90 * 24 * 60 * 60 * 1000;
@@ -210,6 +218,38 @@ export function useStockPage() {
         out_days_365: Set<string>;
         out_month_buckets_12m: number[];
       }>();
+
+      for (const item of (items ?? []) as Array<{
+        id: string;
+        name: string;
+        sku: string;
+        unit: string | null;
+        demand_profile: DemandProfile | null;
+        demand_monthly_estimate: number | null;
+      }>) {
+        rowsByItem.set(item.id, {
+          item_id: item.id,
+          item_name: item.name ?? "",
+          item_sku: item.sku ?? "",
+          item_unit: item.unit ?? "",
+          total: 0,
+          avg_daily_out_30d: 0,
+          avg_daily_out_90d: 0,
+          avg_daily_out_365d: 0,
+          demand_daily: 0,
+          days_of_cover: null,
+          months_of_cover_low_rotation: null,
+          health: "GRAY",
+          low_rotation: false,
+          demand_profile: item.demand_profile ?? "LOW",
+          demand_monthly_estimate: item.demand_monthly_estimate ?? null,
+          out_30d: 0,
+          out_90d: 0,
+          out_365d: 0,
+          out_days_365: new Set<string>(),
+          out_month_buckets_12m: Array.from({ length: 12 }, () => 0),
+        });
+      }
 
       for (const movement of (movements ?? []) as Array<{
         item_id: string;
@@ -250,6 +290,11 @@ export function useStockPage() {
         }
 
         const row = rowsByItem.get(movement.item_id)!;
+        row.item_name = movement.items?.name ?? row.item_name;
+        row.item_sku = movement.items?.sku ?? row.item_sku;
+        row.item_unit = movement.items?.unit ?? row.item_unit;
+        row.demand_profile = (movement.items?.demand_profile as DemandProfile) ?? row.demand_profile;
+        row.demand_monthly_estimate = movement.items?.demand_monthly_estimate ?? row.demand_monthly_estimate;
         const quantity = Number(movement.quantity);
         if (movement.type === "IN") row.total += quantity;
         else if (movement.type === "OUT") row.total -= quantity;
@@ -280,10 +325,13 @@ export function useStockPage() {
         const avgDailyOut30 = row.out_30d / 30;
         const avgDailyOut90 = row.out_90d / 90;
         const avgDailyOut365 = row.out_365d / 365;
-        const demandDaily = Math.max(
+        const demandDailyAuto = Math.max(
           avgDailyOut365,
           (avgDailyOut30 * 0.5) + (avgDailyOut90 * 0.3) + (avgDailyOut365 * 0.2),
         );
+        const manualDemandDaily =
+          (row.demand_monthly_estimate ?? 0) > 0 ? (row.demand_monthly_estimate as number) / 30 : 0;
+        const demandDaily = manualDemandDaily > 0 ? manualDemandDaily : demandDailyAuto;
         const monthlyDemand365 = row.out_365d / 12;
         const monthlyDemand90 = row.out_90d / 3;
         const lowRotation = row.demand_profile === "LOW";
