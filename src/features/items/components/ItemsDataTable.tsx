@@ -16,6 +16,7 @@ type ItemsDataTableProps = {
   isLoading: boolean;
   pageSize: number;
   selectedItemIds: string[];
+  columnVisibility: Record<string, boolean>;
   sortBy: ItemSortField;
   sortDirection: SortDirection;
   onSort: (field: ItemSortField) => void;
@@ -40,6 +41,7 @@ export function ItemsDataTable({
   isLoading,
   pageSize,
   selectedItemIds,
+  columnVisibility,
   sortBy,
   sortDirection,
   onSort,
@@ -236,17 +238,20 @@ export function ItemsDataTable({
   ], [allVisibleSelected, items, onDelete, onEdit, onRestore, onSelectionChange, onSort, selectedItemIds, sortBy, sortDirection]);
 
   return (
-    <DataTable
+    <div className="overflow-x-auto">
+      <DataTable
       columns={columns}
       data={items}
       isLoading={isLoading}
       loadingMessage="Cargando..."
       emptyMessage="No se encontraron ítems"
-      className="table-fixed"
+      className="table-fixed min-w-[1180px]"
       sorting={sorting}
+      columnVisibility={columnVisibility}
       rowClassName="h-9"
       cellClassName="h-9 py-0"
       reserveEmptyRows={pageSize}
-    />
+      />
+    </div>
   );
 }
