@@ -991,6 +991,7 @@ export type Database = {
           model: string | null
           name: string
           sku: string
+          supplier: string | null
           unit: string
           updated_at: string
         }
@@ -1007,6 +1008,7 @@ export type Database = {
           model?: string | null
           name: string
           sku: string
+          supplier?: string | null
           unit?: string
           updated_at?: string
         }
@@ -1023,6 +1025,7 @@ export type Database = {
           model?: string | null
           name?: string
           sku?: string
+          supplier?: string | null
           unit?: string
           updated_at?: string
         }

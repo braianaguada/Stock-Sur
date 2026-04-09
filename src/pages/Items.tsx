@@ -56,6 +56,7 @@ export default function ItemsPage() {
   const [form, setForm] = useState({
     sku: "",
     name: "",
+    supplier: "",
     brand: "",
     model: "",
     unit: "un",
@@ -235,6 +236,7 @@ export default function ItemsPage() {
       if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       const name = cleanText(form.name);
       const sku = cleanText(form.sku).toUpperCase();
+      const supplier = cleanText(form.supplier) || null;
       const brand = cleanText(form.brand) || null;
       const model = cleanText(form.model) || null;
       const unit = cleanText(form.unit) || "un";
@@ -246,6 +248,7 @@ export default function ItemsPage() {
       const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
       const payload = {
         name,
+        supplier,
         brand,
         model,
         unit,
@@ -394,6 +397,7 @@ export default function ItemsPage() {
     setForm({
       sku: "",
       name: "",
+      supplier: "",
       brand: "",
       model: "",
       unit: "un",
@@ -414,6 +418,7 @@ export default function ItemsPage() {
     setForm({
       sku: item.sku ?? "",
       name: item.name,
+      supplier: item.supplier ?? "",
       brand: item.brand ?? "",
       model: item.model ?? "",
       unit: item.unit || "un",
