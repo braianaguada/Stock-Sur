@@ -24,6 +24,12 @@ function round(value: number) {
   return Math.round(value * 10) / 10;
 }
 
+function formatMonths(value: number | null) {
+  if (value === null || !Number.isFinite(value)) return "sin referencia util";
+  if (value >= 60) return "mas de 60 meses";
+  return `${round(value)} meses`;
+}
+
 function hasDemandSignal(row: StockRow) {
   return row.avg_daily_out_30d > 0 || row.avg_daily_out_90d > 0 || row.avg_daily_out_365d > 0;
 }
@@ -113,7 +119,7 @@ export function buildStockInsights(rows: StockRow[]): StockInsight[] {
           kind: "OVERSTOCK",
           priority: months >= 24 ? 76 : 62,
           title: `${row.item_name} con sobrestock de baja rotacion`,
-          detail: `Cobertura estimada: ${round(months)} meses para un item de rotacion baja.`,
+          detail: `Cobertura estimada: ${formatMonths(months)} para un item de rotacion baja.`,
           suggestedAction: "Reducir futuras compras y revisar si conviene vender stock existente antes de reponer.",
         });
       }
@@ -190,5 +196,24 @@ export function countStockInsightTones(insights: StockInsight[]) {
 
 export function countCriticalStockRows(rows: StockRow[]) {
   return rows.filter((row) => row.health === "RED").length;
+}
+
+export function getStockInsightKindLabel(kind: StockInsight["kind"]) {
+  switch (kind) {
+    case "STOCKOUT":
+      return "Sin stock";
+    case "LOW_COVERAGE":
+      return "Cobertura baja";
+    case "DEMAND_SPIKE":
+      return "Demanda acelerada";
+    case "OVERSTOCK":
+      return "Sobrestock";
+    case "DORMANT_STOCK":
+      return "Stock inmovilizado";
+    case "NO_SIGNAL":
+      return "Sin senal";
+    default:
+      return kind;
+  }
 }
 

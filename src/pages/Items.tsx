@@ -22,6 +22,7 @@ import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { invalidateItemQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
+import { rankNaturalItemSearch, type ItemSearchAliasRecord } from "@/features/items/search";
 import { type Item, type ItemAlias } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
@@ -101,18 +102,8 @@ export default function ItemsPage() {
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const searchTerm = deferredSearch.trim();
-      let matchingItemIdsFromAlias: string[] = [];
-
-      if (searchTerm) {
-        const { data: aliasMatches, error: aliasError } = await supabase
-          .from("item_aliases")
-          .select("item_id")
-          .eq("company_id", currentCompany!.id)
-          .ilike("alias", `%${searchTerm}%`)
-          .limit(500);
-        if (aliasError) throw aliasError;
-        matchingItemIdsFromAlias = [...new Set((aliasMatches ?? []).map((a) => a.item_id))];
-      }
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
 
       let q = supabase
         .from("items")
@@ -122,18 +113,35 @@ export default function ItemsPage() {
       if (statusFilter === "inactive") q = q.eq("is_active", false);
 
       if (searchTerm) {
-        const searchFilters = [
-          `name.ilike.%${searchTerm}%`,
-          `sku.ilike.%${searchTerm}%`,
-          `brand.ilike.%${searchTerm}%`,
-          `model.ilike.%${searchTerm}%`,
-        ];
-
-        if (matchingItemIdsFromAlias.length > 0) {
-          searchFilters.push(`id.in.(${matchingItemIdsFromAlias.join(",")})`);
+        if (categoryFilter !== "all") {
+          q = q.eq("category", categoryFilter);
         }
 
-        q = q.or(searchFilters.join(","));
+        const { data: aliasRows, error: aliasError } = await supabase
+          .from("item_aliases")
+          .select("item_id, alias, is_supplier_code")
+          .eq("company_id", currentCompany!.id)
+          .limit(1500);
+        if (aliasError) throw aliasError;
+
+        const { data, error } = await q
+          .order(sortBy, {
+            ascending: sortDirection === "asc",
+            nullsFirst: false,
+          })
+          .limit(800);
+        if (error) throw error;
+
+        const ranked = rankNaturalItemSearch({
+          items: (data ?? []) as Item[],
+          aliases: (aliasRows ?? []) as ItemSearchAliasRecord[],
+          query: searchTerm,
+        });
+
+        return {
+          rows: ranked.slice(from, to + 1),
+          total: ranked.length,
+        };
       }
 
       if (categoryFilter !== "all") {
@@ -145,8 +153,6 @@ export default function ItemsPage() {
         nullsFirst: false,
       });
 
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
       const { data, error, count } = await q.range(from, to);
       if (error) throw error;
       return {
@@ -446,7 +452,7 @@ export default function ItemsPage() {
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por SKU, nombre, marca, modelo o alias..."
+              placeholder="Buscar por SKU, nombre, marca, modelo, alias o lenguaje natural..."
               className="pl-9"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
