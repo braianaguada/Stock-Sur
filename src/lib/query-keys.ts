@@ -11,6 +11,11 @@ export const queryKeys = {
     all: () => ["customers"] as const,
   },
   items: {
+    catalog: (
+      companyId: string | null,
+      categoryFilter: string,
+      statusFilter: "active" | "inactive" | "all",
+    ) => ["items-catalog", companyId ?? "no-company", categoryFilter, statusFilter] as const,
     list: (
       companyId: string | null,
       search: string,
@@ -25,6 +30,7 @@ export const queryKeys = {
     categoriesAll: () => ["items-categories"] as const,
     categories: (companyId: string | null, statusFilter: "active" | "inactive" | "all") =>
       ["items-categories", companyId ?? "no-company", statusFilter] as const,
+    searchAliases: (companyId: string | null) => ["items-search-aliases", companyId ?? "no-company"] as const,
     aliases: (companyId: string | null, itemId: string | null | undefined) =>
       ["item-aliases", companyId ?? "no-company", itemId] as const,
   },

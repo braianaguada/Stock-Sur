@@ -22,7 +22,6 @@ import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { invalidateItemQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
-import { fetchItemAiSearch } from "@/features/items/aiSearch";
 import { rankNaturalItemSearch, type ItemSearchAliasRecord } from "@/features/items/search";
 import { type Item, type ItemAlias } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
@@ -38,6 +37,67 @@ import {
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const NEW_ITEM_DRAFT_KEY = "items:new-item-draft";
 
+function getNullableSortValue(item: Item, sortBy: ItemSortField) {
+  switch (sortBy) {
+    case "sku":
+      return item.sku;
+    case "name":
+      return item.name;
+    case "supplier":
+      return item.supplier;
+    case "brand":
+      return item.brand;
+    case "model":
+      return item.model;
+    case "category":
+      return item.category;
+    default:
+      return null;
+  }
+}
+
+function compareItemValues(left: Item, right: Item, sortBy: ItemSortField) {
+  const getStringValue = (value: string | null | undefined) => cleanText(value ?? "").toLocaleLowerCase("es");
+  const compareNullableStrings = (leftValue: string | null | undefined, rightValue: string | null | undefined) => {
+    return getStringValue(leftValue).localeCompare(getStringValue(rightValue), "es");
+  };
+
+  switch (sortBy) {
+    case "sku":
+      return compareNullableStrings(left.sku, right.sku);
+    case "name":
+      return compareNullableStrings(left.name, right.name);
+    case "supplier":
+      return compareNullableStrings(left.supplier, right.supplier);
+    case "brand":
+      return compareNullableStrings(left.brand, right.brand);
+    case "model":
+      return compareNullableStrings(left.model, right.model);
+    case "category":
+      return compareNullableStrings(left.category, right.category);
+    case "is_active":
+      return Number(left.is_active) - Number(right.is_active);
+    case "created_at":
+    default:
+      return compareNullableStrings(left.name, right.name);
+  }
+}
+
+function sortItems(items: Item[], sortBy: ItemSortField, sortDirection: SortDirection) {
+  const direction = sortDirection === "asc" ? 1 : -1;
+  return [...items].sort((left, right) => {
+    const leftNullableValue = getNullableSortValue(left, sortBy);
+    const rightNullableValue = getNullableSortValue(right, sortBy);
+    const leftEmpty = typeof leftNullableValue === "string" ? cleanText(leftNullableValue).length === 0 : leftNullableValue == null;
+    const rightEmpty = typeof rightNullableValue === "string" ? cleanText(rightNullableValue).length === 0 : rightNullableValue == null;
+
+    if (leftEmpty !== rightEmpty) return leftEmpty ? 1 : -1;
+
+    const primary = compareItemValues(left, right, sortBy) * direction;
+    if (primary !== 0) return primary;
+    return left.name.localeCompare(right.name, "es");
+  });
+}
 
 export default function ItemsPage() {
   const { currentCompany } = useAuth();
@@ -99,96 +159,69 @@ export default function ItemsPage() {
   }, [currentCompany, dialogOpen, editingItem, form]);
 
   const itemsQuery = useQuery({
-    queryKey: queryKeys.items.list(currentCompany?.id ?? null, deferredSearch, categoryFilter, statusFilter, page, pageSize, sortBy, sortDirection),
+    queryKey: queryKeys.items.catalog(currentCompany?.id ?? null, categoryFilter, statusFilter),
     enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const searchTerm = deferredSearch.trim();
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-
       let q = supabase
         .from("items")
-        .select("*", { count: "exact" })
+        .select("*")
         .eq("company_id", currentCompany!.id);
       if (statusFilter === "active") q = q.eq("is_active", true);
       if (statusFilter === "inactive") q = q.eq("is_active", false);
-
-      if (searchTerm) {
-        if (categoryFilter !== "all") {
-          q = q.eq("category", categoryFilter);
-        }
-
-        const { data: aliasRows, error: aliasError } = await supabase
-          .from("item_aliases")
-          .select("item_id, alias, is_supplier_code")
-          .eq("company_id", currentCompany!.id)
-          .limit(1500);
-        if (aliasError) throw aliasError;
-
-        const { data, error } = await q
-          .order(sortBy, {
-            ascending: sortDirection === "asc",
-            nullsFirst: false,
-          })
-          .limit(1500);
-        if (error) throw error;
-
-        const ranked = rankNaturalItemSearch({
-          items: (data ?? []) as Item[],
-          aliases: (aliasRows ?? []) as ItemSearchAliasRecord[],
-          query: searchTerm,
-        });
-
-        try {
-          const aiResult = await fetchItemAiSearch({
-            query: searchTerm,
-            items: (data ?? []) as Item[],
-            aliases: (aliasRows ?? []) as ItemSearchAliasRecord[],
-          });
-
-          if (aiResult?.items.length) {
-            return {
-              rows: aiResult.items.slice(from, to + 1),
-              total: aiResult.items.length,
-            };
-          }
-        } catch (error) {
-          console.error("items ai search fallback", error);
-        }
-
-        return {
-          rows: ranked.slice(from, to + 1),
-          total: ranked.length,
-        };
-      }
 
       if (categoryFilter !== "all") {
         q = q.eq("category", categoryFilter);
       }
 
-      q = q.order(sortBy, {
-        ascending: sortDirection === "asc",
+      const { data, error } = await q.order("name", {
+        ascending: true,
         nullsFirst: false,
       });
-
-      const { data, error, count } = await q.range(from, to);
       if (error) throw error;
-      return {
-        rows: (data ?? []) as Item[],
-        total: count ?? 0,
-      };
+      return (data ?? []) as Item[];
     },
   });
-  const items = useMemo(() => itemsQuery.data?.rows ?? [], [itemsQuery.data?.rows]);
-  const totalItems = itemsQuery.data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const isSearchSyncing = search.trim() !== deferredSearch.trim();
+
   const hasActiveSearch = deferredSearch.trim().length > 0;
-  const shouldHideResults = isSearchSyncing || (hasActiveSearch && itemsQuery.isFetching);
-  const visibleItems = shouldHideResults ? [] : items;
+  const aliasesSearchQuery = useQuery({
+    queryKey: queryKeys.items.searchAliases(currentCompany?.id ?? null),
+    enabled: Boolean(currentCompany) && hasActiveSearch,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("item_aliases")
+        .select("item_id, alias, is_supplier_code")
+        .eq("company_id", currentCompany!.id);
+      if (error) throw error;
+      return (data ?? []) as ItemSearchAliasRecord[];
+    },
+  });
+
+  const items = useMemo(() => {
+    const allItems = itemsQuery.data ?? [];
+    const searchTerm = deferredSearch.trim();
+    const baseItems = searchTerm
+      ? rankNaturalItemSearch({
+        items: allItems,
+        aliases: aliasesSearchQuery.data ?? [],
+        query: searchTerm,
+      })
+      : allItems;
+
+    return sortItems(baseItems, sortBy, sortDirection);
+  }, [aliasesSearchQuery.data, deferredSearch, itemsQuery.data, sortBy, sortDirection]);
+
+  const totalItems = items.length;
+  const paginatedItems = useMemo(() => {
+    const from = (page - 1) * pageSize;
+    return items.slice(from, from + pageSize);
+  }, [items, page, pageSize]);
+  const isSearchSyncing = search.trim() !== deferredSearch.trim();
+  const shouldHideResults = isSearchSyncing || itemsQuery.isLoading || (hasActiveSearch && aliasesSearchQuery.isLoading);
+  const visibleItems = shouldHideResults ? [] : paginatedItems;
   const visibleTotalItems = shouldHideResults ? 0 : totalItems;
   const visibleTotalPages = Math.max(1, Math.ceil(visibleTotalItems / pageSize));
-  const isLoading = itemsQuery.isLoading || shouldHideResults;
+  const isLoading = shouldHideResults;
 
   const { data: categories = [] } = useQuery({
     queryKey: queryKeys.items.categories(currentCompany?.id ?? null, statusFilter),
