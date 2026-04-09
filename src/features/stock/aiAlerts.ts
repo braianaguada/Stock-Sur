@@ -1,4 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
 import type { StockRow } from "@/features/stock/types";
 import type { StockInsight, StockInsightTone } from "@/features/stock/insights";
 
@@ -24,6 +23,11 @@ export interface StockAiResult {
   summary: string | null;
   alerts: StockInsight[];
   model: string | null;
+}
+
+async function getSupabaseClient() {
+  const module = await import("@/integrations/supabase/client");
+  return module.supabase;
 }
 
 function normalizeTone(value: string | undefined): StockInsightTone {
@@ -90,6 +94,7 @@ export async function fetchStockAiAlerts(params: {
   const candidateRows = buildCandidateRows(params.rows);
   if (candidateRows.length === 0) return null;
 
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase.functions.invoke("stock-alerts-ai", {
     body: {
       companyName: params.companyName,

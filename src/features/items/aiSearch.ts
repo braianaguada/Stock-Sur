@@ -1,4 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
 import type { Item } from "@/features/items/types";
 import type { ItemSearchAliasRecord } from "@/features/items/search";
 
@@ -18,6 +17,11 @@ type ItemSearchAiResponse = {
     model?: string;
   };
 };
+
+async function getSupabaseClient() {
+  const module = await import("@/integrations/supabase/client");
+  return module.supabase;
+}
 
 function normalizeText(value: string) {
   return String(value ?? "")
@@ -189,6 +193,7 @@ export async function fetchItemAiSearch(params: {
   const candidates = buildItemAiSearchCandidates(params);
   if (candidates.length === 0) return null;
 
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase.functions.invoke("item-search-ai", {
     body: {
       query,
