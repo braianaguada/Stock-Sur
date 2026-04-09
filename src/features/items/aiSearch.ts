@@ -5,6 +5,7 @@ type ItemSearchAiCandidate = {
   itemId: string;
   sku: string;
   name: string;
+  supplier: string | null;
   brand: string | null;
   model: string | null;
   category: string | null;
@@ -153,6 +154,7 @@ export function buildItemAiSearchCandidates(params: {
       const haystack = normalizeText([
         item.sku,
         item.name,
+        item.supplier ?? "",
         item.brand ?? "",
         item.model ?? "",
         item.category ?? "",
@@ -169,6 +171,7 @@ export function buildItemAiSearchCandidates(params: {
         itemId: item.id,
         sku: item.sku,
         name: item.name,
+        supplier: item.supplier,
         brand: item.brand,
         model: item.model,
         category: item.category,

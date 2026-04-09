@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Item } from "@/features/items/types";
 
-export type ItemSortField = "sku" | "name" | "brand" | "model" | "category" | "is_active" | "created_at";
+export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "category" | "is_active" | "created_at";
 export type SortDirection = "asc" | "desc";
 
 type ItemsDataTableProps = {
@@ -28,6 +28,7 @@ type ItemsDataTableProps = {
 const sortFieldByColumnId: Record<string, ItemSortField> = {
   sku: "sku",
   name: "name",
+  supplier: "supplier",
   brand: "brand",
   model: "model",
   category: "category",
@@ -107,6 +108,21 @@ export function ItemsDataTable({
       cell: ({ row }) => <span className="block truncate text-sm font-medium">{row.original.name}</span>,
       meta: {
         className: "w-[360px]",
+        cellClassName: "py-1.5",
+      },
+    },
+    {
+      accessorKey: "supplier",
+      header: () => (
+        <DataTableColumnHeader
+          title="Proveedor"
+          sorted={sortBy === "supplier" ? sortDirection : false}
+          onToggleSort={() => onSort("supplier")}
+        />
+      ),
+      cell: ({ row }) => <span className="block truncate text-xs">{row.original.supplier ?? "-"}</span>,
+      meta: {
+        className: "w-[140px]",
         cellClassName: "py-1.5",
       },
     },
