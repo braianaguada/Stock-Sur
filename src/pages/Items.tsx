@@ -1,6 +1,6 @@
 ﻿import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -99,7 +99,6 @@ export default function ItemsPage() {
   const itemsQuery = useQuery({
     queryKey: queryKeys.items.list(currentCompany?.id ?? null, deferredSearch, categoryFilter, statusFilter, page, pageSize, sortBy, sortDirection),
     enabled: Boolean(currentCompany),
-    placeholderData: keepPreviousData,
     queryFn: async () => {
       const searchTerm = deferredSearch.trim();
       const from = (page - 1) * pageSize;
