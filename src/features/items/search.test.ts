@@ -69,4 +69,24 @@ describe("natural item search", () => {
 
     expect(ranked).toHaveLength(0);
   });
+
+  it("does not return unrelated items for a missing term", () => {
+    const ranked = rankNaturalItemSearch({
+      items: ITEMS,
+      aliases: [],
+      query: "lalal",
+    });
+
+    expect(ranked).toHaveLength(0);
+  });
+
+  it("keeps fraction equivalence strict for single-word natural queries", () => {
+    const ranked = rankNaturalItemSearch({
+      items: ITEMS,
+      aliases: [],
+      query: "media",
+    });
+
+    expect(ranked.map((item) => item.id)).toEqual(["1"]);
+  });
 });

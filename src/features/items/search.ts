@@ -46,12 +46,15 @@ function normalizeSearchText(value: string) {
   return output.replace(/\s+/g, " ").trim();
 }
 
-function tokenize(value: string) {
-  const baseTokens = normalizeSearchText(value)
+function getBaseTokens(value: string) {
+  return normalizeSearchText(value)
     .split(" ")
     .map((token) => token.trim())
     .filter(Boolean);
+}
 
+function tokenize(value: string) {
+  const baseTokens = getBaseTokens(value);
   const expanded = new Set<string>();
   baseTokens.forEach((token) => {
     expanded.add(token);
@@ -100,12 +103,30 @@ function scoreTokenOverlap(queryTokens: string[], candidateText: string) {
   return { score, matches };
 }
 
+function tokenMatchesCandidate(token: string, candidateText: string) {
+  if (!token || !candidateText) return false;
+  if (candidateText.includes(token)) return true;
+
+  return (TOKEN_SYNONYMS[token] ?? []).some((synonym) => {
+    const normalized = normalizeSearchText(synonym);
+    if (!normalized) return false;
+    if (candidateText.includes(normalized)) return true;
+    return normalized.split(" ").some((part) => candidateText.includes(part));
+  });
+}
+
+function satisfiesQuery(baseTokens: string[], candidateText: string) {
+  if (baseTokens.length === 0 || !candidateText) return false;
+  return baseTokens.every((token) => tokenMatchesCandidate(token, candidateText));
+}
+
 export function rankNaturalItemSearch(params: {
   items: Item[];
   aliases: ItemSearchAliasRecord[];
   query: string;
 }) {
   const queryText = normalizeSearchText(params.query);
+  const queryBaseTokens = getBaseTokens(params.query);
   const queryTokens = tokenize(params.query);
   if (!queryText) return params.items;
 
@@ -118,13 +139,17 @@ export function rankNaturalItemSearch(params: {
   return params.items
     .map((item) => {
       const itemText = buildItemText(item);
+      const itemMatched = satisfiesQuery(queryBaseTokens, itemText);
       const itemTokenResult = scoreTokenOverlap(queryTokens, itemText);
       const nameScore = scoreTextMatch(queryText, normalizeSearchText(item.name));
       const skuScore = scoreTextMatch(queryText, normalizeSearchText(item.sku));
-      const baseScore = Math.max(nameScore, skuScore) + itemTokenResult.score;
+      const baseScore = itemMatched ? Math.max(nameScore, skuScore) + itemTokenResult.score : 0;
 
       const aliasRank = (aliasesByItemId.get(item.id) ?? []).reduce((best, alias) => {
         const aliasText = normalizeSearchText(alias.alias);
+        if (!satisfiesQuery(queryBaseTokens, aliasText)) {
+          return best;
+        }
         const tokenResult = scoreTokenOverlap(queryTokens, aliasText);
         const score =
           scoreTextMatch(queryText, aliasText) +
@@ -140,14 +165,14 @@ export function rankNaturalItemSearch(params: {
 
       const score = Math.max(baseScore, aliasRank.score);
       const tokenMatches = Math.max(itemTokenResult.matches, aliasRank.matches);
-      const phraseMatched = Math.max(nameScore, skuScore, aliasRank.score) > 0;
+      const phraseMatched = Math.max(nameScore, skuScore, aliasRank.score) > 0 || itemMatched;
 
       return { item, score, tokenMatches, phraseMatched };
     })
     .filter((entry) => {
       if (entry.score <= 0) return false;
-      if (queryTokens.length <= 1) return true;
-      return entry.phraseMatched || entry.tokenMatches >= Math.min(2, queryTokens.length);
+      if (queryBaseTokens.length <= 1) return entry.phraseMatched;
+      return entry.phraseMatched || entry.tokenMatches >= queryBaseTokens.length;
     })
     .sort((left, right) => {
       if (right.score !== left.score) return right.score - left.score;
