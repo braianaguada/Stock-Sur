@@ -82,7 +82,6 @@ export interface PdfColumnDetectionResult {
 }
 
 export type ParsePdfMode = "text" | "ocr" | "ai";
-
 export interface ParsePdfMeta {
   mode: ParsePdfMode;
   totalChars: number;
