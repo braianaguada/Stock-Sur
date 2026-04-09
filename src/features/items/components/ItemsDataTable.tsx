@@ -178,6 +178,7 @@ export function ItemsDataTable({
       header: () => "Unidad",
       cell: ({ row }) => <span className="text-xs">{row.original.unit}</span>,
       meta: {
+        className: "w-[96px]",
         cellClassName: "py-1.5",
       },
     },
@@ -190,6 +191,7 @@ export function ItemsDataTable({
         </Badge>
       ),
       meta: {
+        className: "w-[112px]",
         cellClassName: "py-1.5",
       },
     },
@@ -208,6 +210,7 @@ export function ItemsDataTable({
         </Badge>
       ),
       meta: {
+        className: "w-[112px]",
         cellClassName: "py-1.5",
       },
     },
@@ -231,7 +234,7 @@ export function ItemsDataTable({
         </div>
       ),
       meta: {
-        className: "w-[120px]",
+        className: "w-[104px]",
         cellClassName: "py-1.5",
       },
     },
@@ -245,7 +248,7 @@ export function ItemsDataTable({
       isLoading={isLoading}
       loadingMessage="Cargando..."
       emptyMessage="No se encontraron ítems"
-      className="table-fixed min-w-[1180px]"
+      className="table-fixed min-w-[1400px]"
       sorting={sorting}
       columnVisibility={columnVisibility}
       rowClassName="h-9"
