@@ -12,6 +12,8 @@ type PriceListProductsTableProps = {
 };
 
 export function PriceListProductsTable({ rows, columnVisibility }: PriceListProductsTableProps) {
+  const showAttributesInline = columnVisibility.attributes === false;
+
   const columns = useMemo<ColumnDef<PriceListProductRow, unknown>[]>(() => [
     {
       accessorKey: "sku",
@@ -25,10 +27,10 @@ export function PriceListProductsTable({ rows, columnVisibility }: PriceListProd
       accessorKey: "name",
       header: () => "Nombre",
       cell: ({ row }) => (
-        <div className="space-y-1">
-          <OverflowTooltip text={row.original.name} className="block truncate font-medium" />
-          {row.original.attributes ? (
-            <OverflowTooltip text={row.original.attributes} className="block truncate text-xs text-muted-foreground" />
+        <div className="min-w-0">
+          <OverflowTooltip text={row.original.name} className="block truncate text-sm font-medium leading-5" />
+          {showAttributesInline && row.original.attributes ? (
+            <OverflowTooltip text={row.original.attributes} className="block truncate text-[11px] leading-4 text-muted-foreground" />
           ) : null}
         </div>
       ),
@@ -39,7 +41,7 @@ export function PriceListProductsTable({ rows, columnVisibility }: PriceListProd
     {
       accessorKey: "attributes",
       header: () => "Atributos",
-      cell: ({ row }) => <OverflowTooltip text={row.original.attributes} className="block truncate text-sm text-muted-foreground" />,
+      cell: ({ row }) => <OverflowTooltip text={row.original.attributes} className="block truncate text-xs text-muted-foreground" />,
       meta: {
         className: "w-[260px]",
       },
@@ -63,7 +65,7 @@ export function PriceListProductsTable({ rows, columnVisibility }: PriceListProd
         </Badge>
       ),
     },
-  ], []);
+  ], [showAttributesInline]);
 
   return (
     <div className="overflow-x-auto">
@@ -73,6 +75,8 @@ export function PriceListProductsTable({ rows, columnVisibility }: PriceListProd
         emptyMessage="No hay productos para mostrar."
         className="table-fixed min-w-[1180px]"
         columnVisibility={columnVisibility}
+        rowClassName={showAttributesInline ? "h-14" : "h-12"}
+        cellClassName={showAttributesInline ? "h-14 py-1.5" : "h-12 py-1"}
       />
     </div>
   );
