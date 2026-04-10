@@ -46,7 +46,7 @@ const DEFAULT_ITEM_COLUMN_VISIBILITY: VisibilityState = {
   supplier: true,
   brand: true,
   model: true,
-  attributes: true,
+  attributes: false,
   category: true,
   unit: true,
   demand_profile: true,

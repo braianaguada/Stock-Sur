@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
 import { Badge } from "@/components/ui/badge";
@@ -108,9 +109,19 @@ export function ItemsDataTable({
           onToggleSort={() => onSort("name")}
         />
       ),
-      cell: ({ row }) => <span className="block truncate text-sm font-medium">{row.original.name}</span>,
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <OverflowTooltip text={row.original.name} className="block truncate text-sm font-medium" />
+          {row.original.attributes ? (
+            <OverflowTooltip
+              text={row.original.attributes}
+              className="mt-0.5 block truncate text-[11px] text-muted-foreground"
+            />
+          ) : null}
+        </div>
+      ),
       meta: {
-        className: "w-[360px]",
+        className: "w-[320px]",
         cellClassName: "py-1.5",
       },
     },
@@ -170,7 +181,7 @@ export function ItemsDataTable({
       ),
       cell: ({ row }) => <span className="block truncate text-xs">{row.original.attributes ?? "-"}</span>,
       meta: {
-        className: "w-[240px]",
+        className: "w-[220px]",
         cellClassName: "py-1.5",
       },
     },
