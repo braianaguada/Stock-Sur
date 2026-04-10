@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
+import type { VisibilityState } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +26,8 @@ type PriceListDetailDialogProps = {
   detailPage: number;
   detailTotalItems: number;
   detailTotalPages: number;
+  productColumnsOpen: boolean;
+  productColumnVisibility: VisibilityState;
   configDraft: PriceListFormState | null;
   isRecalculating: boolean;
   isSavingConfig: boolean;
@@ -33,11 +38,22 @@ type PriceListDetailDialogProps = {
   onDetailTabChange: (value: string) => void;
   onDetailSearchChange: (value: string) => void;
   onDetailPageChange: (page: number) => void;
+  onProductColumnsOpenChange: (open: boolean) => void;
+  onProductColumnVisibilityChange: (columnId: string, checked: boolean) => void;
+  onResetProductColumns: () => void;
   onConfigDraftChange: (updater: (prev: PriceListFormState | null) => PriceListFormState | null) => void;
   onSaveConfig: () => void;
   onRecalculate: () => void;
   onDelete: () => void;
 };
+
+const PRODUCT_COLUMN_OPTIONS: Array<{ id: string; label: string }> = [
+  { id: "sku", label: "SKU" },
+  { id: "name", label: "Nombre" },
+  { id: "attributes", label: "Atributos" },
+  { id: "calculated_price", label: "Precio lista" },
+  { id: "needs_recalculation", label: "Estado" },
+];
 
 export function PriceListDetailDialog({
   open,
@@ -49,6 +65,8 @@ export function PriceListDetailDialog({
   detailPage,
   detailTotalItems,
   detailTotalPages,
+  productColumnsOpen,
+  productColumnVisibility,
   configDraft,
   isRecalculating,
   isSavingConfig,
@@ -59,6 +77,9 @@ export function PriceListDetailDialog({
   onDetailTabChange,
   onDetailSearchChange,
   onDetailPageChange,
+  onProductColumnsOpenChange,
+  onProductColumnVisibilityChange,
+  onResetProductColumns,
   onConfigDraftChange,
   onSaveConfig,
   onRecalculate,
@@ -124,19 +145,54 @@ export function PriceListDetailDialog({
                     Ultimo recalculo: {formatDateTime(selectedList.last_recalculated_at)} - {renderUserName(selectedList.last_recalculated_by)}
                   </div>
                 </div>
-                <div className="relative max-w-sm">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar producto..."
-                    className="pl-9"
-                    value={detailSearch}
-                    onChange={(event) => onDetailSearchChange(event.target.value)}
-                  />
-                </div>
+                <Collapsible open={productColumnsOpen} onOpenChange={onProductColumnsOpenChange}>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative max-w-sm flex-1 min-w-[260px]">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar producto..."
+                        className="pl-9"
+                        value={detailSearch}
+                        onChange={(event) => onDetailSearchChange(event.target.value)}
+                      />
+                    </div>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="outline" type="button">
+                        Columnas
+                      </Button>
+                    </CollapsibleTrigger>
+                  </div>
+                  <CollapsibleContent>
+                    <Card className="mt-3">
+                      <CardContent className="space-y-3 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <h3 className="text-sm font-semibold">Columnas visibles</h3>
+                            <p className="text-sm text-muted-foreground">La preferencia se guarda por usuario.</p>
+                          </div>
+                          <Button type="button" variant="ghost" size="sm" onClick={onResetProductColumns}>
+                            Restaurar
+                          </Button>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {PRODUCT_COLUMN_OPTIONS.map((column) => (
+                            <label key={column.id} className="flex items-center gap-2 text-sm">
+                              <Checkbox
+                                checked={productColumnVisibility[column.id] !== false}
+                                onCheckedChange={(checked) => onProductColumnVisibilityChange(column.id, checked === true)}
+                              />
+                              <span>{column.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </CollapsibleContent>
+                </Collapsible>
               </div>
               <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
                 <div className="min-h-0 flex-1 overflow-auto">
-                  <PriceListProductsTable rows={pagedProducts} />
+                  <PriceListProductsTable rows={pagedProducts} columnVisibility={productColumnVisibility} />
                 </div>
                 <div className="shrink-0 border-t bg-background px-4 py-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

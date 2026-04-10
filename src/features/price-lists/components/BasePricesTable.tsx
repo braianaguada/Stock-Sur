@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ type BasePricesTableProps = {
   rows: BasePriceRow[];
   isSaving: boolean;
   pageSize: number;
+  columnVisibility: VisibilityState;
   renderUserName: (userId: string | null) => string;
   onSaveDraftValue: (itemId: string, nextBaseCost: number) => void;
 };
@@ -79,6 +80,7 @@ export function BasePricesTable({
   rows,
   isSaving,
   pageSize,
+  columnVisibility,
   renderUserName,
   onSaveDraftValue,
 }: BasePricesTableProps) {
@@ -188,15 +190,18 @@ export function BasePricesTable({
   ], [isSaving, onSaveDraftValue, renderUserName]);
 
   return (
-    <DataTable
-      columns={columns}
-      data={rows}
-      emptyMessage="No hay productos para mostrar."
-      className="table-fixed"
-      getRowId={(row) => row.item_id}
-      rowClassName="h-16"
-      cellClassName="h-16 py-2"
-      reserveEmptyRows={pageSize}
-    />
+    <div className="overflow-x-auto">
+      <DataTable
+        columns={columns}
+        data={rows}
+        emptyMessage="No hay productos para mostrar."
+        className="table-fixed min-w-[1660px]"
+        columnVisibility={columnVisibility}
+        getRowId={(row) => row.item_id}
+        rowClassName="h-16"
+        cellClassName="h-16 py-2"
+        reserveEmptyRows={pageSize}
+      />
+    </div>
   );
 }

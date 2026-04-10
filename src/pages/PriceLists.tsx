@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { VisibilityState } from "@tanstack/react-table";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -6,6 +7,8 @@ import { DataTablePagination } from "@/components/data-table/DataTablePagination
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +24,41 @@ import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const PRICE_LISTS_UI_STATE_KEY = "price-lists:ui-state";
+const PRICE_BASE_COLUMNS_KEY = "price-lists:base-columns";
+const PRICE_DETAIL_COLUMNS_KEY = "price-lists:detail-columns";
+const DEFAULT_BASE_COLUMN_VISIBILITY: VisibilityState = {
+  sku: true,
+  name: true,
+  attributes: true,
+  brand: true,
+  model: true,
+  category: true,
+  previous_base_cost: true,
+  base_cost: true,
+  cost_variation_pct: true,
+  updated_at: true,
+  updated_by: true,
+};
+const DEFAULT_DETAIL_COLUMN_VISIBILITY: VisibilityState = {
+  sku: true,
+  name: true,
+  attributes: true,
+  calculated_price: true,
+  needs_recalculation: true,
+};
+const BASE_COLUMN_OPTIONS: Array<{ id: keyof typeof DEFAULT_BASE_COLUMN_VISIBILITY; label: string }> = [
+  { id: "sku", label: "SKU" },
+  { id: "name", label: "Nombre" },
+  { id: "attributes", label: "Atributos" },
+  { id: "brand", label: "Marca" },
+  { id: "model", label: "Modelo" },
+  { id: "category", label: "Categoría" },
+  { id: "previous_base_cost", label: "Costo anterior" },
+  { id: "base_cost", label: "Costo base" },
+  { id: "cost_variation_pct", label: "Variación" },
+  { id: "updated_at", label: "Última actualización" },
+  { id: "updated_by", label: "Usuario" },
+];
 
 const pricingChipClass = {
   flete: "border-blue-200/80 bg-blue-50/90 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200",
@@ -29,8 +67,10 @@ const pricingChipClass = {
 } as const;
 
 export default function PriceListsPage() {
-  const { currentCompany } = useAuth();
+  const { currentCompany, user } = useAuth();
   const storageKey = currentCompany ? `${PRICE_LISTS_UI_STATE_KEY}:${currentCompany.id}` : null;
+  const baseColumnsStorageKey = `${PRICE_BASE_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
+  const detailColumnsStorageKey = `${PRICE_DETAIL_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
 
   const [moduleTab, setModuleTab] = useState("base");
   const [baseSearch, setBaseSearch] = useState("");
@@ -45,6 +85,12 @@ export default function PriceListsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState("products");
+  const [baseColumnsOpen, setBaseColumnsOpen] = useState(false);
+  const [detailColumnsOpen, setDetailColumnsOpen] = useState(false);
+  const [baseColumnVisibility, setBaseColumnVisibility] = useState<VisibilityState>(DEFAULT_BASE_COLUMN_VISIBILITY);
+  const [detailColumnVisibility, setDetailColumnVisibility] = useState<VisibilityState>(DEFAULT_DETAIL_COLUMN_VISIBILITY);
+  const [baseColumnsHydrated, setBaseColumnsHydrated] = useState(false);
+  const [detailColumnsHydrated, setDetailColumnsHydrated] = useState(false);
   const [createForm, setCreateForm] = useState<PriceListFormState>(DEFAULT_PRICE_LIST_FORM);
   const [configDraft, setConfigDraft] = useState<PriceListFormState | null>(null);
   const {
@@ -104,6 +150,64 @@ export default function PriceListsPage() {
   }, [baseSearch, listSearch, moduleTab, storageKey]);
 
   useEffect(() => {
+    setBaseColumnsHydrated(false);
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem(baseColumnsStorageKey);
+    if (!raw) {
+      setBaseColumnVisibility(DEFAULT_BASE_COLUMN_VISIBILITY);
+      setBaseColumnsHydrated(true);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as VisibilityState;
+      setBaseColumnVisibility({
+        ...DEFAULT_BASE_COLUMN_VISIBILITY,
+        ...parsed,
+      });
+      setBaseColumnsHydrated(true);
+    } catch {
+      localStorage.removeItem(baseColumnsStorageKey);
+      setBaseColumnVisibility(DEFAULT_BASE_COLUMN_VISIBILITY);
+      setBaseColumnsHydrated(true);
+    }
+  }, [baseColumnsStorageKey]);
+
+  useEffect(() => {
+    setDetailColumnsHydrated(false);
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem(detailColumnsStorageKey);
+    if (!raw) {
+      setDetailColumnVisibility(DEFAULT_DETAIL_COLUMN_VISIBILITY);
+      setDetailColumnsHydrated(true);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as VisibilityState;
+      setDetailColumnVisibility({
+        ...DEFAULT_DETAIL_COLUMN_VISIBILITY,
+        ...parsed,
+      });
+      setDetailColumnsHydrated(true);
+    } catch {
+      localStorage.removeItem(detailColumnsStorageKey);
+      setDetailColumnVisibility(DEFAULT_DETAIL_COLUMN_VISIBILITY);
+      setDetailColumnsHydrated(true);
+    }
+  }, [detailColumnsStorageKey]);
+
+  useEffect(() => {
+    if (!baseColumnsHydrated || typeof window === "undefined") return;
+    localStorage.setItem(baseColumnsStorageKey, JSON.stringify(baseColumnVisibility));
+  }, [baseColumnVisibility, baseColumnsHydrated, baseColumnsStorageKey]);
+
+  useEffect(() => {
+    if (!detailColumnsHydrated || typeof window === "undefined") return;
+    localStorage.setItem(detailColumnsStorageKey, JSON.stringify(detailColumnVisibility));
+  }, [detailColumnVisibility, detailColumnsHydrated, detailColumnsStorageKey]);
+
+  useEffect(() => {
     setBasePage(1);
   }, [baseSearch, basePageSize]);
 
@@ -142,6 +246,20 @@ export default function PriceListsPage() {
   const handleSaveBaseCost = useCallback((itemId: string, nextBaseCost: number) => {
     updateBaseCostMutation.mutate({ itemId, baseCost: nextBaseCost });
   }, [updateBaseCostMutation]);
+
+  const toggleBaseColumnVisibility = useCallback((columnId: keyof typeof DEFAULT_BASE_COLUMN_VISIBILITY, checked: boolean) => {
+    setBaseColumnVisibility((current) => ({
+      ...current,
+      [columnId]: checked,
+    }));
+  }, []);
+
+  const toggleDetailColumnVisibility = useCallback((columnId: string, checked: boolean) => {
+    setDetailColumnVisibility((current) => ({
+      ...current,
+      [columnId]: checked,
+    }));
+  }, []);
 
   const renderPricingSummary = (values: {
     flete_pct: number | null;
@@ -187,25 +305,57 @@ export default function PriceListsPage() {
 
         <Tabs value={moduleTab} onValueChange={setModuleTab}>
           <TabsContent value="base" className="space-y-5 pt-1">
-            <FilterBar>
-              <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por SKU, nombre, marca, modelo o categoria..."
-                  className="pl-9"
-                  value={baseSearch}
-                  onChange={(event) => {
-                    setBaseSearch(event.target.value);
-                    setBasePage(1);
-                  }}
-                />
-              </div>
-            </FilterBar>
+            <Collapsible open={baseColumnsOpen} onOpenChange={setBaseColumnsOpen}>
+              <FilterBar>
+                <div className="relative max-w-sm flex-1 min-w-[260px]">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por SKU, nombre, marca, modelo, atributos o categoria..."
+                    className="pl-9"
+                    value={baseSearch}
+                    onChange={(event) => {
+                      setBaseSearch(event.target.value);
+                      setBasePage(1);
+                    }}
+                  />
+                </div>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" type="button">
+                    Columnas
+                  </Button>
+                </CollapsibleTrigger>
+              </FilterBar>
+              <CollapsibleContent>
+                <DataCard className="mt-3 space-y-3 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold">Columnas visibles</h3>
+                      <p className="text-sm text-muted-foreground">La preferencia se guarda por usuario.</p>
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setBaseColumnVisibility(DEFAULT_BASE_COLUMN_VISIBILITY)}>
+                      Restaurar
+                    </Button>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {BASE_COLUMN_OPTIONS.map((column) => (
+                      <label key={column.id} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={baseColumnVisibility[column.id] !== false}
+                          onCheckedChange={(checked) => toggleBaseColumnVisibility(column.id, checked === true)}
+                        />
+                        <span>{column.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </DataCard>
+              </CollapsibleContent>
+            </Collapsible>
             <DataCard>
               <BasePricesTable
                 rows={pagedBaseRows}
                 isSaving={updateBaseCostMutation.isPending}
                 pageSize={basePageSize}
+                columnVisibility={baseColumnVisibility}
                 renderUserName={renderUserName}
                 onSaveDraftValue={handleSaveBaseCost}
               />
@@ -313,6 +463,8 @@ export default function PriceListsPage() {
         detailPage={detailPagination.page}
         detailTotalItems={detailPagination.totalItems}
         detailTotalPages={detailPagination.totalPages}
+        productColumnsOpen={detailColumnsOpen}
+        productColumnVisibility={detailColumnVisibility}
         configDraft={configDraft}
         isRecalculating={recalculateMutation.isPending}
         isSavingConfig={updateListConfigMutation.isPending}
@@ -326,6 +478,9 @@ export default function PriceListsPage() {
           setDetailPage(1);
         }}
         onDetailPageChange={setDetailPage}
+        onProductColumnsOpenChange={setDetailColumnsOpen}
+        onProductColumnVisibilityChange={toggleDetailColumnVisibility}
+        onResetProductColumns={() => setDetailColumnVisibility(DEFAULT_DETAIL_COLUMN_VISIBILITY)}
         onConfigDraftChange={setConfigDraft}
         onSaveConfig={() => {
           if (!selectedListId || !configDraft) return;
