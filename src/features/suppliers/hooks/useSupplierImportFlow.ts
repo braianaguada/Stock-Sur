@@ -38,6 +38,25 @@ type ToastFn = (params: {
   variant?: "default" | "destructive";
 }) => void;
 
+function hasGenericPdfHeaders(headers: string[]) {
+  if (headers.length === 0) return true;
+  return headers.every((header) => /^col_?\d+$/i.test(header.trim()));
+}
+
+function shouldRequestPdfMapping(params: {
+  headers: string[];
+  rows: string[][];
+  mode: string;
+  confidence: number;
+}) {
+  const { headers, rows, mode, confidence } = params;
+  if (rows.length === 0) return false;
+  if (mode === "ai") return false;
+  if (hasGenericPdfHeaders(headers)) return false;
+  if (confidence < 0.72) return false;
+  return true;
+}
+
 export function useSupplierImportFlow(params: {
   currentCompanyId: string | null;
   selectedSupplier: Supplier | null;
@@ -347,7 +366,14 @@ export function useSupplierImportFlow(params: {
         const tableHeaders = parseResult.table?.headers ?? [];
         const tableRows = parseResult.table?.rows ?? [];
 
-        if (tableHeaders.length === 0 || tableRows.length === 0) {
+        const canUsePdfMapping = shouldRequestPdfMapping({
+          headers: tableHeaders,
+          rows: tableRows,
+          mode: parseResult.meta.mode,
+          confidence: parseResult.meta.confidence,
+        });
+
+        if (tableHeaders.length === 0 || tableRows.length === 0 || !canUsePdfMapping) {
           if (parseResult.lines.length === 0) throw new Error("No se pudo extraer contenido del PDF");
           lines = parseResult.lines.map((line, index) => ({
             id: `preview-${index + 1}`,

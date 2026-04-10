@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   detectColumnsHeuristic,
   detectPdfColumnsHeuristic,
+  extractPdfCatalogCandidates,
   normalizePdfRowsToLines,
   normalizeRowsToLines,
   parseFlexibleNumber,
@@ -266,5 +267,35 @@ describe("supplier importer heuristics", () => {
         },
       ),
     ).toBe(false);
+  });
+
+  it("rebuilds product blocks that split price, code, and description across lines", () => {
+    const lines = extractPdfCatalogCandidates(
+      [
+        "TIMER PROGRAMABLE WI-FI U$S 13.53",
+        "TIMWIFI INTERRUPTOR Y TIMER PROGRAMABLE",
+        "Caracteristicas: Programable dia y hora.",
+        "50160 U$S 18.00",
+        "Caja de proteccion / seguridad porta termostato con llave 18 X 10 X 9",
+        "HY03BW Termostato de Ambiente con pantalla tactil ASUA U$S 36.32",
+      ],
+      "last",
+      "ARS",
+      {
+        pageNumber: 3,
+        pageHasCatalogSignals: true,
+        pageHasTechnicalTable: false,
+      },
+    );
+
+    expect(lines).toHaveLength(3);
+    expect(lines[0].supplier_code).toBe("TIMWIFI");
+    expect(lines[0].raw_description).toContain("TIMER PROGRAMABLE WI-FI");
+    expect(lines[0].cost).toBeCloseTo(13.53, 2);
+    expect(lines[1].supplier_code).toBe("50160");
+    expect(lines[1].raw_description).toContain("Caja de proteccion");
+    expect(lines[1].cost).toBeCloseTo(18, 2);
+    expect(lines[2].supplier_code).toBe("HY03BW");
+    expect(lines[2].currency).toBe("USD");
   });
 });
