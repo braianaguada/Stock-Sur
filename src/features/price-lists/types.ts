@@ -4,6 +4,7 @@ export interface BasePriceRow {
   item_id: string;
   sku: string | null;
   name: string;
+  attributes: string | null;
   brand: string | null;
   model: string | null;
   category: string | null;
@@ -37,6 +38,7 @@ export interface PriceListProductRow {
   item_id: string;
   sku: string | null;
   name: string;
+  attributes: string | null;
   brand: string | null;
   model: string | null;
   category: string | null;
