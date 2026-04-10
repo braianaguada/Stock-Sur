@@ -7,7 +7,6 @@ import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHe
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Item } from "@/features/items/types";
 
 export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "attributes" | "category" | "is_active" | "created_at";
@@ -38,13 +37,6 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
   category: "category",
   is_active: "is_active",
 };
-
-function splitAttributeTokens(value: string | null) {
-  return String(value ?? "")
-    .split("|")
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
 
 export function ItemsDataTable({
   items,
@@ -121,20 +113,10 @@ export function ItemsDataTable({
         <div className="min-w-0">
           <OverflowTooltip text={row.original.name} className="block truncate text-sm font-medium" />
           {row.original.attributes ? (
-            <Tooltip delayDuration={250}>
-              <TooltipTrigger asChild>
-                <div className="mt-1 flex flex-wrap gap-1 overflow-hidden">
-                  {splitAttributeTokens(row.original.attributes).map((token) => (
-                    <Badge key={token} variant="secondary" className="min-h-5 max-w-full px-2 text-[9px] tracking-[0.04em]">
-                      <span className="truncate">{token}</span>
-                    </Badge>
-                  ))}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-sm whitespace-normal break-words">
-                {row.original.attributes}
-              </TooltipContent>
-            </Tooltip>
+            <OverflowTooltip
+              text={row.original.attributes}
+              className="mt-0.5 block truncate text-[11px] text-muted-foreground"
+            />
           ) : null}
         </div>
       ),
@@ -197,22 +179,7 @@ export function ItemsDataTable({
           onToggleSort={() => onSort("attributes")}
         />
       ),
-      cell: ({ row }) => {
-        const tokens = splitAttributeTokens(row.original.attributes);
-        if (tokens.length === 0) {
-          return <span className="block truncate text-xs">-</span>;
-        }
-
-        return (
-          <div className="flex flex-wrap gap-1">
-            {tokens.map((token) => (
-              <Badge key={token} variant="secondary" className="min-h-5 max-w-full px-2 text-[9px] tracking-[0.04em]">
-                <span className="truncate">{token}</span>
-              </Badge>
-            ))}
-          </div>
-        );
-      },
+      cell: ({ row }) => <span className="block truncate text-xs text-muted-foreground">{row.original.attributes ?? "-"}</span>,
       meta: {
         className: "w-[220px]",
         cellClassName: "py-1.5",
