@@ -822,6 +822,18 @@ function isLikelySectionHeading(value: string) {
   return false;
 }
 
+function hasStrongPdfPriceContext(line: string, token: { raw: string; index: number; value: number }) {
+  const before = line.slice(Math.max(0, token.index - 10), token.index);
+  const after = line.slice(token.index + token.raw.length, token.index + token.raw.length + 16);
+  const around = `${before} ${after}`;
+  const lineHasCurrency = /\$|u\$s|us\$|usd|ars/i.test(line);
+  if (lineHasCurrency) return true;
+  if (/\bx\s*(unidad|tira|pack|100)\b/i.test(around)) return true;
+  if (!/[.,]\d{2}\b/.test(token.raw)) return false;
+  if (/\b(v|vac|vca|w|kw|a|amp|rpm|cm|mm|hs|min)\b/i.test(around)) return false;
+  return token.value >= 1;
+}
+
 function extractPdfPriceToken(line: string, preferPrice: "first" | "last") {
   const matches = [...line.matchAll(/-?\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d+)?|-?\d+(?:[.,]\d+)?/g)]
     .map((match) => ({
@@ -830,7 +842,8 @@ function extractPdfPriceToken(line: string, preferPrice: "first" | "last") {
       value: parseFlexibleNumber(match[0]),
     }))
     .filter((entry): entry is { raw: string; index: number; value: number } => entry.index >= 0 && entry.value !== null)
-    .filter((entry) => isLikelyPriceValue(entry.raw));
+    .filter((entry) => isLikelyPriceValue(entry.raw))
+    .filter((entry) => hasStrongPdfPriceContext(line, entry));
 
   if (matches.length === 0) return null;
   return preferPrice === "first" ? matches[0] : matches[matches.length - 1];
