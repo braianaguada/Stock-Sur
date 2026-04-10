@@ -27,6 +27,11 @@ const SupplierDropDetailDialog = lazy(async () => {
   return { default: module.SupplierDropDetailDialog };
 });
 
+const SupplierExtractionReviewDialog = lazy(async () => {
+  const module = await import("@/features/suppliers/components/SupplierExtractionReviewDialog");
+  return { default: module.SupplierExtractionReviewDialog };
+});
+
 const ColumnMappingModal = lazy(async () => {
   const module = await import("@/features/suppliers/components/ColumnMappingModal");
   return { default: module.ColumnMappingModal };
@@ -68,6 +73,9 @@ export default function SuppliersPage() {
     documentTitle,
     dropDetailOpen,
     editing,
+    extractionImportPending,
+    extractionReviewLines,
+    extractionReviewOpen,
     form,
     isCatalogLoading,
     isHistoryLoading,
@@ -82,7 +90,11 @@ export default function SuppliersPage() {
     onCatalogDialogOpenChange,
     onCatalogVersionSelect,
     onCopyOrderMessage,
+    onConfirmExtractionImport,
+    onExtractionReviewLineChange,
+    onOpenEmail,
     onOpenWhatsApp,
+    onRemoveExtractionReviewLine,
     onRemoveOrderItem,
     onRestoreSupplier,
     onUpdateLineQuantity,
@@ -91,7 +103,7 @@ export default function SuppliersPage() {
     openCreate,
     openEdit,
     orderLines,
-    orderTotal,
+    orderTotalsByCurrency,
     pdfMappingHeaders,
     pdfMappingOpen,
     pdfMappingRows,
@@ -123,6 +135,8 @@ export default function SuppliersPage() {
     suppliers,
     uploadCatalogMutation,
     versionsByCatalog,
+    setExtractionReviewLines,
+    setExtractionReviewOpen,
   } = useSuppliersPage({
     companyId: currentCompany?.id,
     toast,
@@ -223,11 +237,31 @@ export default function SuppliersPage() {
             onLineQuantityChange={onUpdateLineQuantity}
             onAddToOrder={addToOrder}
             orderLines={orderLines}
-            orderTotal={orderTotal}
+            orderTotalsByCurrency={orderTotalsByCurrency}
             onOrderQuantityChange={onUpdateOrderQuantity}
             onRemoveOrderItem={onRemoveOrderItem}
             onCopyOrderMessage={onCopyOrderMessage}
+            onOpenEmail={onOpenEmail}
             onOpenWhatsApp={onOpenWhatsApp}
+          />
+        </Suspense>
+      ) : null}
+
+      {extractionReviewOpen ? (
+        <Suspense fallback={<SupplierDialogLoader />}>
+          <SupplierExtractionReviewDialog
+            open={extractionReviewOpen}
+            onOpenChange={setExtractionReviewOpen}
+            fileName={selectedFile?.name ?? null}
+            lines={extractionReviewLines}
+            isImporting={extractionImportPending}
+            onLineChange={onExtractionReviewLineChange}
+            onRemoveLine={onRemoveExtractionReviewLine}
+            onConfirm={onConfirmExtractionImport}
+            onCancel={() => {
+              setExtractionReviewLines([]);
+              setExtractionReviewOpen(false);
+            }}
           />
         </Suspense>
       ) : null}
