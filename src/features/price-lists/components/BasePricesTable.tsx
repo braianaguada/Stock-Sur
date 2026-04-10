@@ -84,6 +84,8 @@ export function BasePricesTable({
   renderUserName,
   onSaveDraftValue,
 }: BasePricesTableProps) {
+  const showAttributesInline = columnVisibility.attributes === false;
+
   const columns = useMemo<ColumnDef<BasePriceRow, unknown>[]>(() => [
     {
       accessorKey: "sku",
@@ -97,10 +99,10 @@ export function BasePricesTable({
       accessorKey: "name",
       header: () => "Nombre",
       cell: ({ row }) => (
-        <div className="space-y-1">
-          <OverflowTooltip text={row.original.name} className="block truncate font-medium" />
-          {row.original.attributes ? (
-            <OverflowTooltip text={row.original.attributes} className="block truncate text-xs text-muted-foreground" />
+        <div className="min-w-0">
+          <OverflowTooltip text={row.original.name} className="block truncate text-sm font-medium leading-5" />
+          {showAttributesInline && row.original.attributes ? (
+            <OverflowTooltip text={row.original.attributes} className="block truncate text-[11px] leading-4 text-muted-foreground" />
           ) : null}
         </div>
       ),
@@ -111,7 +113,7 @@ export function BasePricesTable({
     {
       accessorKey: "attributes",
       header: () => "Atributos",
-      cell: ({ row }) => <OverflowTooltip text={row.original.attributes} className="block truncate text-sm text-muted-foreground" />,
+      cell: ({ row }) => <OverflowTooltip text={row.original.attributes} className="block truncate text-xs text-muted-foreground" />,
       meta: {
         className: "w-[260px]",
       },
@@ -187,7 +189,7 @@ export function BasePricesTable({
       header: () => "Usuario",
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{renderUserName(row.original.updated_by)}</span>,
     },
-  ], [isSaving, onSaveDraftValue, renderUserName]);
+  ], [isSaving, onSaveDraftValue, renderUserName, showAttributesInline]);
 
   return (
     <div className="overflow-x-auto">
@@ -198,8 +200,8 @@ export function BasePricesTable({
         className="table-fixed min-w-[1660px]"
         columnVisibility={columnVisibility}
         getRowId={(row) => row.item_id}
-        rowClassName="h-16"
-        cellClassName="h-16 py-2"
+        rowClassName={showAttributesInline ? "h-14" : "h-12"}
+        cellClassName={showAttributesInline ? "h-14 py-1.5" : "h-12 py-1"}
         reserveEmptyRows={pageSize}
       />
     </div>
