@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
@@ -38,7 +38,7 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
   is_active: "is_active",
 };
 
-export function ItemsDataTable({
+function ItemsDataTableComponent({
   items,
   isLoading,
   pageSize,
@@ -285,3 +285,13 @@ export function ItemsDataTable({
     </div>
   );
 }
+
+export const ItemsDataTable = memo(ItemsDataTableComponent, (prev, next) => (
+  prev.items === next.items
+  && prev.isLoading === next.isLoading
+  && prev.pageSize === next.pageSize
+  && prev.selectedItemIds === next.selectedItemIds
+  && prev.columnVisibility === next.columnVisibility
+  && prev.sortBy === next.sortBy
+  && prev.sortDirection === next.sortDirection
+));
