@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
@@ -8,9 +8,10 @@ import { formatMoney } from "@/features/price-lists/utils";
 
 type PriceListProductsTableProps = {
   rows: PriceListProductRow[];
+  columnVisibility: VisibilityState;
 };
 
-export function PriceListProductsTable({ rows }: PriceListProductsTableProps) {
+export function PriceListProductsTable({ rows, columnVisibility }: PriceListProductsTableProps) {
   const columns = useMemo<ColumnDef<PriceListProductRow, unknown>[]>(() => [
     {
       accessorKey: "sku",
@@ -65,11 +66,14 @@ export function PriceListProductsTable({ rows }: PriceListProductsTableProps) {
   ], []);
 
   return (
-    <DataTable
-      columns={columns}
-      data={rows}
-      emptyMessage="No hay productos para mostrar."
-      className="table-fixed"
-    />
+    <div className="overflow-x-auto">
+      <DataTable
+        columns={columns}
+        data={rows}
+        emptyMessage="No hay productos para mostrar."
+        className="table-fixed min-w-[1180px]"
+        columnVisibility={columnVisibility}
+      />
+    </div>
   );
 }
