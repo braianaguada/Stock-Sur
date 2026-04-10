@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Item } from "@/features/items/types";
 
-export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "category" | "is_active" | "created_at";
+export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "attributes" | "category" | "is_active" | "created_at";
 export type SortDirection = "asc" | "desc";
 
 type ItemsDataTableProps = {
@@ -32,6 +32,7 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
   supplier: "supplier",
   brand: "brand",
   model: "model",
+  attributes: "attributes",
   category: "category",
   is_active: "is_active",
 };
@@ -159,6 +160,21 @@ export function ItemsDataTable({
       },
     },
     {
+      accessorKey: "attributes",
+      header: () => (
+        <DataTableColumnHeader
+          title="Atributos"
+          sorted={sortBy === "attributes" ? sortDirection : false}
+          onToggleSort={() => onSort("attributes")}
+        />
+      ),
+      cell: ({ row }) => <span className="block truncate text-xs">{row.original.attributes ?? "-"}</span>,
+      meta: {
+        className: "w-[240px]",
+        cellClassName: "py-1.5",
+      },
+    },
+    {
       accessorKey: "category",
       header: () => (
         <DataTableColumnHeader
@@ -248,7 +264,7 @@ export function ItemsDataTable({
       isLoading={isLoading}
       loadingMessage="Cargando..."
       emptyMessage="No se encontraron ítems"
-      className="table-fixed min-w-[1400px]"
+      className="table-fixed min-w-[1640px]"
       sorting={sorting}
       columnVisibility={columnVisibility}
       rowClassName="h-9"
