@@ -20,6 +20,7 @@ type BaseCatalogRow = {
   id: string;
   sku: string | null;
   name: string;
+  attributes: string | null;
   brand: string | null;
   model: string | null;
   category: string | null;
@@ -97,7 +98,7 @@ export function usePriceListsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("items")
-        .select("id, sku, name, brand, model, category, unit")
+        .select("id, sku, name, attributes, brand, model, category, unit")
         .eq("company_id", currentCompany!.id)
         .eq("is_active", true)
         .order("name")
@@ -255,6 +256,7 @@ export function usePriceListsData({
         item_id: item.id,
         sku: item.sku,
         name: item.name,
+        attributes: item.attributes,
         brand: item.brand,
         model: item.model,
         category: item.category,
@@ -273,7 +275,7 @@ export function usePriceListsData({
     if (!term) return baseRows;
 
     return baseRows.filter((row) =>
-      [row.sku, row.name, row.brand, row.model, row.category]
+      [row.sku, row.name, row.attributes, row.brand, row.model, row.category]
         .filter(Boolean)
         .some((value) => value!.toLowerCase().includes(term)),
     );
@@ -334,6 +336,7 @@ export function usePriceListsData({
         item_id: row.item_id,
         sku: row.sku,
         name: row.name,
+        attributes: row.attributes,
         brand: row.brand,
         model: row.model,
         category: row.category,
@@ -354,7 +357,7 @@ export function usePriceListsData({
     if (!term) return selectedListProducts;
 
     return selectedListProducts.filter((row) =>
-      [row.sku, row.name, row.brand, row.model, row.category]
+      [row.sku, row.name, row.attributes, row.brand, row.model, row.category]
         .filter(Boolean)
         .some((value) => value!.toLowerCase().includes(term)),
     );

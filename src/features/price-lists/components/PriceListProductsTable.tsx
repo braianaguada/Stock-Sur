@@ -23,9 +23,24 @@ export function PriceListProductsTable({ rows }: PriceListProductsTableProps) {
     {
       accessorKey: "name",
       header: () => "Nombre",
-      cell: ({ row }) => <OverflowTooltip text={row.original.name} className="block truncate font-medium" />,
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <OverflowTooltip text={row.original.name} className="block truncate font-medium" />
+          {row.original.attributes ? (
+            <OverflowTooltip text={row.original.attributes} className="block truncate text-xs text-muted-foreground" />
+          ) : null}
+        </div>
+      ),
       meta: {
         className: "w-[320px]",
+      },
+    },
+    {
+      accessorKey: "attributes",
+      header: () => "Atributos",
+      cell: ({ row }) => <OverflowTooltip text={row.original.attributes} className="block truncate text-sm text-muted-foreground" />,
+      meta: {
+        className: "w-[260px]",
       },
     },
     {

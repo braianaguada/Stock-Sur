@@ -94,9 +94,24 @@ export function BasePricesTable({
     {
       accessorKey: "name",
       header: () => "Nombre",
-      cell: ({ row }) => <OverflowTooltip text={row.original.name} className="block truncate font-medium" />,
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <OverflowTooltip text={row.original.name} className="block truncate font-medium" />
+          {row.original.attributes ? (
+            <OverflowTooltip text={row.original.attributes} className="block truncate text-xs text-muted-foreground" />
+          ) : null}
+        </div>
+      ),
       meta: {
         className: "w-[300px]",
+      },
+    },
+    {
+      accessorKey: "attributes",
+      header: () => "Atributos",
+      cell: ({ row }) => <OverflowTooltip text={row.original.attributes} className="block truncate text-sm text-muted-foreground" />,
+      meta: {
+        className: "w-[260px]",
       },
     },
     {
@@ -179,8 +194,8 @@ export function BasePricesTable({
       emptyMessage="No hay productos para mostrar."
       className="table-fixed"
       getRowId={(row) => row.item_id}
-      rowClassName="h-12"
-      cellClassName="h-12 py-0"
+      rowClassName="h-16"
+      cellClassName="h-16 py-2"
       reserveEmptyRows={pageSize}
     />
   );
