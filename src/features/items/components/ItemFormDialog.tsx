@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -20,6 +21,7 @@ type ItemFormState = {
   supplier: string;
   brand: string;
   model: string;
+  attributes: string;
   unit: string;
   category: string;
   demand_profile: Item["demand_profile"];
@@ -119,6 +121,15 @@ export function ItemFormDialog({
               onChange={(event) => onFormChange({ ...form, model: event.target.value })}
             />
           </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Atributos</Label>
+          <Textarea
+            value={form.attributes}
+            onChange={(event) => onFormChange({ ...form, attributes: event.target.value })}
+            placeholder="Ej: 18 x 21 MM x 2 M | CON ADHESIVO"
+            rows={3}
+          />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">

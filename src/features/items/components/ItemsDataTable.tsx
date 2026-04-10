@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Item } from "@/features/items/types";
 
-export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "category" | "is_active" | "created_at";
+export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "attributes" | "category" | "is_active" | "created_at";
 export type SortDirection = "asc" | "desc";
 
 type ItemsDataTableProps = {
@@ -32,6 +33,7 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
   supplier: "supplier",
   brand: "brand",
   model: "model",
+  attributes: "attributes",
   category: "category",
   is_active: "is_active",
 };
@@ -107,9 +109,19 @@ export function ItemsDataTable({
           onToggleSort={() => onSort("name")}
         />
       ),
-      cell: ({ row }) => <span className="block truncate text-sm font-medium">{row.original.name}</span>,
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <OverflowTooltip text={row.original.name} className="block truncate text-sm font-medium" />
+          {row.original.attributes ? (
+            <OverflowTooltip
+              text={row.original.attributes}
+              className="mt-0.5 block truncate text-[11px] text-muted-foreground"
+            />
+          ) : null}
+        </div>
+      ),
       meta: {
-        className: "w-[360px]",
+        className: "w-[320px]",
         cellClassName: "py-1.5",
       },
     },
@@ -155,6 +167,21 @@ export function ItemsDataTable({
       cell: ({ row }) => <span className="block truncate text-xs">{row.original.model ?? "-"}</span>,
       meta: {
         className: "w-[120px]",
+        cellClassName: "py-1.5",
+      },
+    },
+    {
+      accessorKey: "attributes",
+      header: () => (
+        <DataTableColumnHeader
+          title="Atributos"
+          sorted={sortBy === "attributes" ? sortDirection : false}
+          onToggleSort={() => onSort("attributes")}
+        />
+      ),
+      cell: ({ row }) => <span className="block truncate text-xs text-muted-foreground">{row.original.attributes ?? "-"}</span>,
+      meta: {
+        className: "w-[220px]",
         cellClassName: "py-1.5",
       },
     },
@@ -248,7 +275,7 @@ export function ItemsDataTable({
       isLoading={isLoading}
       loadingMessage="Cargando..."
       emptyMessage="No se encontraron ítems"
-      className="table-fixed min-w-[1400px]"
+      className="table-fixed min-w-[1640px]"
       sorting={sorting}
       columnVisibility={columnVisibility}
       rowClassName="h-9"

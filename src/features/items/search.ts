@@ -76,6 +76,7 @@ function buildItemText(item: Item) {
     item.supplier ?? "",
     item.brand ?? "",
     item.model ?? "",
+    item.attributes ?? "",
     item.category ?? "",
   ].join(" "));
 }

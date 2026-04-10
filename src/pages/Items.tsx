@@ -46,6 +46,7 @@ const DEFAULT_ITEM_COLUMN_VISIBILITY: VisibilityState = {
   supplier: true,
   brand: true,
   model: true,
+  attributes: false,
   category: true,
   unit: true,
   demand_profile: true,
@@ -59,6 +60,7 @@ const ITEM_COLUMN_OPTIONS: Array<{ id: keyof typeof DEFAULT_ITEM_COLUMN_VISIBILI
   { id: "supplier", label: "Proveedor" },
   { id: "brand", label: "Marca" },
   { id: "model", label: "Modelo" },
+  { id: "attributes", label: "Atributos" },
   { id: "category", label: "Categoría" },
   { id: "unit", label: "Unidad" },
   { id: "demand_profile", label: "Demanda" },
@@ -77,6 +79,8 @@ function getNullableSortValue(item: Item, sortBy: ItemSortField) {
       return item.brand;
     case "model":
       return item.model;
+    case "attributes":
+      return item.attributes;
     case "category":
       return item.category;
     default:
@@ -101,6 +105,8 @@ function compareItemValues(left: Item, right: Item, sortBy: ItemSortField) {
       return compareNullableStrings(left.brand, right.brand);
     case "model":
       return compareNullableStrings(left.model, right.model);
+    case "attributes":
+      return compareNullableStrings(left.attributes, right.attributes);
     case "category":
       return compareNullableStrings(left.category, right.category);
     case "is_active":
@@ -150,6 +156,7 @@ export default function ItemsPage() {
     supplier: "",
     brand: "",
     model: "",
+    attributes: "",
     unit: "un",
     category: "",
     demand_profile: "LOW" as Item["demand_profile"],
@@ -347,6 +354,7 @@ export default function ItemsPage() {
       const supplier = cleanText(form.supplier) || null;
       const brand = cleanText(form.brand) || null;
       const model = cleanText(form.model) || null;
+      const attributes = cleanText(form.attributes) || null;
       const unit = cleanText(form.unit) || "un";
 
       if (!name) {
@@ -359,6 +367,7 @@ export default function ItemsPage() {
         supplier,
         brand,
         model,
+        attributes,
         unit,
         category: cleanText(form.category) || null,
         demand_profile: form.demand_profile,
@@ -530,6 +539,7 @@ export default function ItemsPage() {
       supplier: "",
       brand: "",
       model: "",
+      attributes: "",
       unit: "un",
       category: "",
       demand_profile: "LOW",
@@ -551,6 +561,7 @@ export default function ItemsPage() {
       supplier: item.supplier ?? "",
       brand: item.brand ?? "",
       model: item.model ?? "",
+      attributes: item.attributes ?? "",
       unit: item.unit || "un",
       category: item.category ?? "",
       demand_profile: item.demand_profile ?? "LOW",
@@ -611,7 +622,7 @@ export default function ItemsPage() {
             <div className="relative w-full md:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por SKU, nombre, marca, modelo, alias o lenguaje natural..."
+                placeholder="Buscar por SKU, nombre, marca, modelo, atributos, alias o lenguaje natural..."
                 className="pl-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}

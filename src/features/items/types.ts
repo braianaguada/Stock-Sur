@@ -5,6 +5,7 @@ export interface Item {
   supplier: string | null;
   brand: string | null;
   model: string | null;
+  attributes: string | null;
   unit: string;
   category: string | null;
   demand_profile: "LOW" | "MEDIUM" | "HIGH";

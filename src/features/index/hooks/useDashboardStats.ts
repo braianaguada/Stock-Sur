@@ -16,7 +16,8 @@ export function useDashboardStats({ companyId }: UseDashboardStatsOptions) {
       const { count } = await supabase
         .from("items")
         .select("*", { count: "exact", head: true })
-        .eq("company_id", companyId!);
+        .eq("company_id", companyId!)
+        .eq("is_active", true);
       return count ?? 0;
     },
   });

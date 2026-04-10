@@ -979,6 +979,7 @@ export type Database = {
       }
       items: {
         Row: {
+          attributes: string | null
           brand: string | null
           category: string | null
           company_id: string
@@ -996,6 +997,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attributes?: string | null
           brand?: string | null
           category?: string | null
           company_id: string
@@ -1013,6 +1015,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attributes?: string | null
           brand?: string | null
           category?: string | null
           company_id?: string

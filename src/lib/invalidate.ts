@@ -7,6 +7,7 @@ export async function invalidateItemQueries(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: queryKeys.items.categoriesAll() }),
     queryClient.invalidateQueries({ queryKey: ["items-catalog"] }),
     queryClient.invalidateQueries({ queryKey: ["items-search-aliases"] }),
+    queryClient.invalidateQueries({ queryKey: ["items-count"] }),
   ]);
 }
 
