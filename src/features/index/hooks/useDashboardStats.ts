@@ -1,71 +1,132 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Package, Truck, type LucideIcon } from "lucide-react";
+import {
+  BadgeDollarSign,
+  Boxes,
+  CircleDollarSign,
+  FileText,
+  PackageSearch,
+  Truck,
+  type LucideIcon,
+} from "lucide-react";
 import { queryKeys } from "@/lib/query-keys";
 import { supabase } from "@/integrations/supabase/client";
+import { buildDashboardInsights } from "@/features/index/dashboard-insights";
 
 type UseDashboardStatsOptions = {
   companyId: string | null | undefined;
 };
 
 export function useDashboardStats({ companyId }: UseDashboardStatsOptions) {
-  const itemsCountQuery = useQuery({
-    queryKey: queryKeys.dashboard.itemsCount(companyId ?? null),
+  const overviewQuery = useQuery({
+    queryKey: queryKeys.dashboard.overview(companyId ?? null),
     enabled: Boolean(companyId),
     queryFn: async () => {
-      const { count } = await supabase
-        .from("items")
-        .select("*", { count: "exact", head: true })
-        .eq("company_id", companyId!)
-        .eq("is_active", true);
-      return count ?? 0;
+      const [
+        { data: items, error: itemsError },
+        { data: movements, error: movementsError },
+        { data: pricingBase, error: pricingError },
+        { count: suppliersCount, error: suppliersError },
+        { count: quotesCount, error: quotesError },
+      ] = await Promise.all([
+        supabase
+          .from("items")
+          .select("id, name, sku, category, is_active")
+          .eq("company_id", companyId!)
+          .eq("is_active", true)
+          .limit(5000),
+        supabase
+          .from("stock_movements")
+          .select("item_id, type, quantity, created_at")
+          .eq("company_id", companyId!)
+          .limit(10000),
+        supabase
+          .from("item_pricing_base")
+          .select("item_id, base_cost")
+          .eq("company_id", companyId!),
+        supabase
+          .from("suppliers")
+          .select("*", { count: "exact", head: true })
+          .eq("company_id", companyId!),
+        supabase
+          .from("quotes")
+          .select("*", { count: "exact", head: true })
+          .eq("company_id", companyId!),
+      ]);
+
+      if (itemsError) throw itemsError;
+      if (movementsError) throw movementsError;
+      if (pricingError) throw pricingError;
+      if (suppliersError) throw suppliersError;
+      if (quotesError) throw quotesError;
+
+      return buildDashboardInsights({
+        items: items ?? [],
+        movements: movements ?? [],
+        pricingBase: pricingBase ?? [],
+        suppliersCount: suppliersCount ?? 0,
+        quotesCount: quotesCount ?? 0,
+      });
     },
   });
 
-  const suppliersCountQuery = useQuery({
-    queryKey: queryKeys.dashboard.suppliersCount(companyId ?? null),
-    enabled: Boolean(companyId),
-    queryFn: async () => {
-      const { count } = await supabase
-        .from("suppliers")
-        .select("*", { count: "exact", head: true })
-        .eq("company_id", companyId!);
-      return count ?? 0;
-    },
+  const dashboard = overviewQuery.data ?? buildDashboardInsights({
+    items: [],
+    movements: [],
+    pricingBase: [],
+    suppliersCount: 0,
+    quotesCount: 0,
   });
 
-  const quotesCountQuery = useQuery({
-    queryKey: queryKeys.dashboard.quotesCount(companyId ?? null),
-    enabled: Boolean(companyId),
-    queryFn: async () => {
-      const { count } = await supabase
-        .from("quotes")
-        .select("*", { count: "exact", head: true })
-        .eq("company_id", companyId!);
-      return count ?? 0;
-    },
-  });
-
-  const stats = useMemo<Array<{ label: string; value: number; icon: LucideIcon; hint: string }>>(() => [
+  const stats = useMemo<Array<{ label: string; value: number; icon: LucideIcon; hint: string; tone: "info" | "success" | "warning" | "default" }>>(() => [
     {
-      label: "Items",
-      value: itemsCountQuery.data ?? 0,
-      icon: Package,
-      hint: "Catalogo operativo listo para vender y comprar.",
+      label: "Capital en mercaderia",
+      value: dashboard.metrics.inventoryValue,
+      icon: BadgeDollarSign,
+      hint: "Valorizado con costo base sobre stock positivo.",
+      tone: "info",
     },
     {
-      label: "Proveedores",
-      value: suppliersCountQuery.data ?? 0,
+      label: "Items con stock",
+      value: dashboard.metrics.itemsWithStock,
+      icon: Boxes,
+      hint: "Productos con existencia disponible hoy.",
+      tone: "success",
+    },
+    {
+      label: "Items sin costo",
+      value: dashboard.metrics.itemsWithoutCost,
+      icon: PackageSearch,
+      hint: "Tienen stock pero todavia no entran en la valorizacion.",
+      tone: dashboard.metrics.itemsWithoutCost > 0 ? "warning" : "default",
+    },
+    {
+      label: "Proveedores activos",
+      value: dashboard.metrics.suppliersCount,
       icon: Truck,
-      hint: "Relaciones comerciales activas y listas para importar.",
+      hint: "Base comercial disponible para reponer.",
+      tone: "default",
     },
     {
       label: "Presupuestos",
-      value: quotesCountQuery.data ?? 0,
+      value: dashboard.metrics.quotesCount,
       icon: FileText,
-      hint: "Documentos comerciales generados desde el sistema.",
+      hint: "Documentos comerciales generados en la app.",
+      tone: "default",
     },
-  ], [itemsCountQuery.data, quotesCountQuery.data, suppliersCountQuery.data]);
+    {
+      label: "Cobertura valorizada",
+      value: dashboard.metrics.valuedItemsShare,
+      icon: CircleDollarSign,
+      hint: "Porcentaje de items con stock que ya tienen costo base.",
+      tone: dashboard.metrics.valuedItemsShare >= 75 ? "success" : "warning",
+    },
+  ], [dashboard.metrics.inventoryValue, dashboard.metrics.itemsWithStock, dashboard.metrics.itemsWithoutCost, dashboard.metrics.quotesCount, dashboard.metrics.suppliersCount, dashboard.metrics.valuedItemsShare]);
 
-  return { stats };
+  return {
+    dashboard,
+    stats,
+    isLoading: overviewQuery.isLoading,
+    isFetching: overviewQuery.isFetching,
+  };
 }
