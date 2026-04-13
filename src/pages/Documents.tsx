@@ -261,13 +261,40 @@ export default function DocumentsPage() {
     toast,
   });
 
-  const onPickItem = (index: number, itemId: string) => {
+  const isBlankLine = (line: LineDraft) =>
+    line.item_id === null
+    && line.description.trim() === ""
+    && line.quantity === EMPTY_LINE.quantity
+    && line.unit_price === EMPTY_LINE.unit_price;
+
+  const applyPickItemToLines = (draftLines: LineDraft[], index: number, itemId: string) => {
+    if (!draftLines[index]) return;
+
+    if (!itemId) {
+      const current = draftLines[index];
+      draftLines[index] = {
+        ...current,
+        item_id: null,
+        sku_snapshot: "",
+        unit: current.unit || "un",
+        pricing_mode: "MANUAL_PRICE",
+        suggested_unit_price: current.unit_price,
+        base_cost_snapshot: null,
+        list_flete_pct_snapshot: null,
+        list_utilidad_pct_snapshot: null,
+        list_impuesto_pct_snapshot: null,
+        manual_margin_pct: null,
+        price_overridden_by: null,
+        price_overridden_at: null,
+      };
+      return;
+    }
+
     const item = itemsById.get(itemId);
     if (!item) return;
 
-    const nextLines = [...lines];
     const baseLine: LineDraft = {
-      ...nextLines[index],
+      ...draftLines[index],
       item_id: itemId,
       sku_snapshot: item.sku,
       description: buildItemDisplayName({
@@ -277,10 +304,10 @@ export default function DocumentsPage() {
         attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
       }),
       unit: item.unit || "un",
-      unit_price: form.price_list_id ? priceByItem.get(itemId) ?? 0 : nextLines[index].unit_price,
+      unit_price: form.price_list_id ? priceByItem.get(itemId) ?? 0 : draftLines[index].unit_price,
     };
 
-    nextLines[index] = form.price_list_id
+    draftLines[index] = form.price_list_id
       ? syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true)
       : {
           ...baseLine,
@@ -294,8 +321,25 @@ export default function DocumentsPage() {
           price_overridden_by: null,
           price_overridden_at: null,
         };
+  };
 
-    setLines(nextLines);
+  const onPickItem = (index: number, itemId: string) => {
+    setLines((previous) => {
+      const next = [...previous];
+      applyPickItemToLines(next, index, itemId);
+      return next;
+    });
+  };
+
+  const onAddItem = (itemId: string) => {
+    setLines((previous) => {
+      const next = [...previous];
+      const blankIndex = next.findIndex(isBlankLine);
+      const index = blankIndex >= 0 ? blankIndex : next.length;
+      if (index === next.length) next.push(EMPTY_LINE);
+      applyPickItemToLines(next, index, itemId);
+      return next;
+    });
   };
 
   const onPriceListChange = (priceListId: string) => {
@@ -597,6 +641,7 @@ export default function DocumentsPage() {
             customers={customers}
             priceLists={priceLists}
             availableItems={availableItems}
+            onAddItem={onAddItem}
             onPriceListChange={onPriceListChange}
             onPickItem={onPickItem}
             removeLine={removeLine}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,7 @@ interface DocumentsEditorDialogProps {
   customers: CustomerOption[];
   priceLists: PriceListRow[];
   availableItems: AvailableItemOption[];
+  onAddItem: (itemId: string) => void;
   onPriceListChange: (priceListId: string) => void;
   onPickItem: (idx: number, itemId: string) => void;
   removeLine: (idx: number) => void;
@@ -67,14 +68,17 @@ export function DocumentsEditorDialog({
   customers,
   priceLists,
   availableItems,
+  onAddItem,
   onPriceListChange,
-  onPickItem,
+  onPickItem: _onPickItem,
   removeLine,
   onSubmit,
   onResetDraftForm,
   isSubmitting,
 }: DocumentsEditorDialogProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [itemQuery, setItemQuery] = useState("");
+  const deferredItemQuery = useDeferredValue(itemQuery);
 
   const hasPriceList = Boolean(form.price_list_id);
   const hasNotes = form.notes.trim().length > 0;
@@ -82,6 +86,33 @@ export function DocumentsEditorDialog({
     const selected = form.customer_id ? customers.find((c) => c.id === form.customer_id) : null;
     return selected?.name ?? form.customer_name.trim() ?? "";
   }, [customers, form.customer_id, form.customer_name]);
+
+  const filteredItems = useMemo(() => {
+    const needle = deferredItemQuery.trim().toLowerCase();
+    if (!needle) return [];
+    return availableItems
+      .filter((item) => {
+        const haystacks = [
+          item.display_name ?? item.name,
+          item.sku,
+          item.brand,
+          item.model,
+          item.attributes,
+        ];
+        return haystacks.some((value) => value?.toLowerCase().includes(needle));
+      })
+      .slice(0, 12);
+  }, [availableItems, deferredItemQuery]);
+
+  const availableItemsById = useMemo(
+    () => new Map(availableItems.map((item) => [item.id, item])),
+    [availableItems],
+  );
+
+  const addItemFromSearch = (itemId: string) => {
+    onAddItem(itemId);
+    setItemQuery("");
+  };
   return (
     <EntityDialog
       open={open}
@@ -99,175 +130,262 @@ export function DocumentsEditorDialog({
           }}
           className="space-y-4"
         >
-          <div className="rounded-[calc(var(--radius)+0.15rem)] border border-border/60 bg-card/70 p-3 shadow-[var(--shadow-xs)]">
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
-              <div className="md:col-span-2 space-y-1">
-                <Label className="text-xs text-muted-foreground">Tipo *</Label>
-                <Select
-                  value={form.doc_type}
-                  onValueChange={(v) =>
-                    setForm((prev) => {
-                      const nextDocType = v as DocType;
-                      const nextCustomerKind =
-                        nextDocType === "PRESUPUESTO" && prev.customer_kind === "INTERNO" ? "GENERAL" : prev.customer_kind;
-                      return {
-                        ...prev,
-                        doc_type: nextDocType,
-                        customer_kind: nextCustomerKind,
-                        internal_remito_type:
-                          nextDocType === "REMITO" && nextCustomerKind === "INTERNO" ? prev.internal_remito_type : "",
-                      };
-                    })
-                  }
-                >
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PRESUPUESTO">Presupuesto</SelectItem>
-                    <SelectItem value="REMITO">Remito</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="md:col-span-2 space-y-1">
-                <Label className="text-xs text-muted-foreground">Punto de venta</Label>
-                <Input
-                  className="h-9"
-                  type="number"
-                  min={1}
-                  value={form.point_of_sale}
-                  onChange={(e) => setForm((prev) => ({ ...prev, point_of_sale: Math.max(1, Number(e.target.value) || 1) }))}
-                />
-              </div>
-
-              <div className="md:col-span-4 space-y-1">
-                <Label className="text-xs text-muted-foreground">Lista de precios</Label>
-                <Select value={form.price_list_id || "__none__"} onValueChange={(v) => onPriceListChange(v === "__none__" ? "" : v)}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Opcional" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin lista</SelectItem>
-                    {priceLists.map((pl) => <SelectItem key={pl.id} value={pl.id}>{pl.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="md:col-span-4 space-y-1">
-                <Label className="text-xs text-muted-foreground">Cliente</Label>
-                <Select value={form.customer_id || "__none__"} onValueChange={(v) => setForm((prev) => ({ ...prev, customer_id: v === "__none__" ? "" : v }))}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar (opcional)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin seleccionar</SelectItem>
-                    {customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-12">
-              <div className="md:col-span-3 space-y-1">
-                <Label className="text-xs text-muted-foreground">Tipo de cliente</Label>
-                <Select
-                  value={form.customer_kind}
-                  onValueChange={(v) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      customer_kind: v as CustomerKind,
-                      internal_remito_type: v === "INTERNO" && prev.doc_type === "REMITO" ? prev.internal_remito_type : "",
-                    }))
-                  }
-                >
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="GENERAL">Cliente general</SelectItem>
-                    {form.doc_type === "REMITO" && <SelectItem value="INTERNO">Personal / tecnico interno</SelectItem>}
-                    <SelectItem value="EMPRESA">Empresa</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="md:col-span-6 space-y-1">
-                <Label className="text-xs text-muted-foreground">Nombre cliente</Label>
-                <Input className="h-9" value={form.customer_name} onChange={(e) => setForm((prev) => ({ ...prev, customer_name: e.target.value }))} />
-              </div>
-
-              <div className="md:col-span-3 flex items-end justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resumen</p>
-                  <p className="truncate text-sm font-semibold text-foreground">{customerLabel || "Sin cliente"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {hasPriceList ? "Lista activa" : "Precio manual"}{hasNotes ? " · Con notas" : ""}
-                  </p>
+          <Collapsible
+            open={detailsOpen}
+            onOpenChange={setDetailsOpen}
+            className="rounded-[calc(var(--radius)+0.15rem)] border border-border/60 bg-card/70 shadow-[var(--shadow-xs)]"
+          >
+            <div className="p-3">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
+                <div className="md:col-span-2 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Tipo *</Label>
+                  <Select
+                    value={form.doc_type}
+                    onValueChange={(v) =>
+                      setForm((prev) => {
+                        const nextDocType = v as DocType;
+                        const nextCustomerKind =
+                          nextDocType === "PRESUPUESTO" && prev.customer_kind === "INTERNO" ? "GENERAL" : prev.customer_kind;
+                        return {
+                          ...prev,
+                          doc_type: nextDocType,
+                          customer_kind: nextCustomerKind,
+                          internal_remito_type:
+                            nextDocType === "REMITO" && nextCustomerKind === "INTERNO" ? prev.internal_remito_type : "",
+                        };
+                      })
+                    }
+                  >
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PRESUPUESTO">Presupuesto</SelectItem>
+                      <SelectItem value="REMITO">Remito</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+                <div className="md:col-span-2 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Punto de venta</Label>
+                  <Input
+                    className="h-9"
+                    type="number"
+                    min={1}
+                    value={form.point_of_sale}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, point_of_sale: Math.max(1, Number(e.target.value) || 1) }))
+                    }
+                  />
+                </div>
+
+                <div className="md:col-span-4 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Lista de precios</Label>
+                  <Select
+                    value={form.price_list_id || "__none__"}
+                    onValueChange={(v) => onPriceListChange(v === "__none__" ? "" : v)}
+                  >
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin lista</SelectItem>
+                      {priceLists.map((pl) => <SelectItem key={pl.id} value={pl.id}>{pl.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="md:col-span-4 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Cliente</Label>
+                  <Select
+                    value={form.customer_id || "__none__"}
+                    onValueChange={(v) => setForm((prev) => ({ ...prev, customer_id: v === "__none__" ? "" : v }))}
+                  >
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar (opcional)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin seleccionar</SelectItem>
+                      {customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-12">
+                <div className="md:col-span-3 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Tipo de cliente</Label>
+                  <Select
+                    value={form.customer_kind}
+                    onValueChange={(v) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        customer_kind: v as CustomerKind,
+                        internal_remito_type: v === "INTERNO" && prev.doc_type === "REMITO" ? prev.internal_remito_type : "",
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="GENERAL">Cliente general</SelectItem>
+                      {form.doc_type === "REMITO" && <SelectItem value="INTERNO">Personal / tecnico interno</SelectItem>}
+                      <SelectItem value="EMPRESA">Empresa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="md:col-span-6 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Nombre cliente</Label>
+                  <Input
+                    className="h-9"
+                    value={form.customer_name}
+                    onChange={(e) => setForm((prev) => ({ ...prev, customer_name: e.target.value }))}
+                    placeholder="Opcional"
+                  />
+                </div>
+
+                <div className="md:col-span-3 flex items-end justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resumen</p>
+                    <p className="truncate text-sm font-semibold text-foreground">{customerLabel || "Sin cliente"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {hasPriceList ? "Lista activa" : "Precio manual"}{hasNotes ? " · Con notas" : ""}
+                    </p>
+                  </div>
                   <CollapsibleTrigger asChild>
                     <Button type="button" variant="outline" size="sm" className="h-9 rounded-full">
                       {detailsOpen ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
                       Mas datos
                     </Button>
                   </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-3 rounded-2xl border border-border/60 bg-background/70 p-3">
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
-                      <div className="md:col-span-4 space-y-1">
-                        <Label className="text-xs text-muted-foreground">CUIT</Label>
-                        <Input className="h-9" value={form.customer_tax_id} onChange={(e) => setForm((prev) => ({ ...prev, customer_tax_id: e.target.value }))} />
-                      </div>
-                      <div className="md:col-span-4 space-y-1">
-                        <Label className="text-xs text-muted-foreground">Condicion fiscal</Label>
-                        <Input className="h-9" value={form.customer_tax_condition} onChange={(e) => setForm((prev) => ({ ...prev, customer_tax_condition: e.target.value }))} />
-                      </div>
-                      <div className="md:col-span-4 space-y-1">
-                        <Label className="text-xs text-muted-foreground">Condicion de venta</Label>
-                        <Input className="h-9" value={form.payment_terms} onChange={(e) => setForm((prev) => ({ ...prev, payment_terms: e.target.value }))} />
-                      </div>
-                      <div className="md:col-span-4 space-y-1">
-                        <Label className="text-xs text-muted-foreground">Vendedor</Label>
-                        <Input className="h-9" value={form.salesperson} onChange={(e) => setForm((prev) => ({ ...prev, salesperson: e.target.value }))} />
-                      </div>
-                      {form.doc_type === "PRESUPUESTO" ? (
-                        <div className="md:col-span-4 space-y-1">
-                          <Label className="text-xs text-muted-foreground">Valido hasta</Label>
-                          <Input className="h-9" type="date" value={form.valid_until} onChange={(e) => setForm((prev) => ({ ...prev, valid_until: e.target.value }))} />
-                        </div>
-                      ) : null}
-                      {form.doc_type === "REMITO" ? (
-                        <div className="md:col-span-8 space-y-1">
-                          <Label className="text-xs text-muted-foreground">Domicilio de entrega</Label>
-                          <Input className="h-9" value={form.delivery_address} onChange={(e) => setForm((prev) => ({ ...prev, delivery_address: e.target.value }))} />
-                        </div>
-                      ) : null}
-                      {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? (
-                        <div className="md:col-span-4 space-y-1">
-                          <Label className="text-xs text-muted-foreground">Imputacion del remito</Label>
-                          <Select value={form.internal_remito_type || "__none__"} onValueChange={(v) => setForm((prev) => ({ ...prev, internal_remito_type: v === "__none__" ? "" : (v as InternalRemitoType) }))}>
-                            <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
-                              <SelectItem value="DESCUENTO_SUELDO">Descuento de sueldo</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      ) : null}
-                      <div className="md:col-span-12 space-y-1">
-                        <Label className="text-xs text-muted-foreground">Notas</Label>
-                        <Textarea value={form.notes} onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))} />
-                      </div>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
+                </div>
               </div>
             </div>
-          </div>
+
+            <CollapsibleContent className="border-t border-border/60 bg-background/40 p-3">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
+                <div className="md:col-span-4 space-y-1">
+                  <Label className="text-xs text-muted-foreground">CUIT</Label>
+                  <Input className="h-9" value={form.customer_tax_id} onChange={(e) => setForm((prev) => ({ ...prev, customer_tax_id: e.target.value }))} />
+                </div>
+                <div className="md:col-span-4 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Condicion fiscal</Label>
+                  <Input className="h-9" value={form.customer_tax_condition} onChange={(e) => setForm((prev) => ({ ...prev, customer_tax_condition: e.target.value }))} />
+                </div>
+                <div className="md:col-span-4 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Condicion de venta</Label>
+                  <Input className="h-9" value={form.payment_terms} onChange={(e) => setForm((prev) => ({ ...prev, payment_terms: e.target.value }))} />
+                </div>
+                <div className="md:col-span-4 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Vendedor</Label>
+                  <Input className="h-9" value={form.salesperson} onChange={(e) => setForm((prev) => ({ ...prev, salesperson: e.target.value }))} />
+                </div>
+                {form.doc_type === "PRESUPUESTO" ? (
+                  <div className="md:col-span-4 space-y-1">
+                    <Label className="text-xs text-muted-foreground">Valido hasta</Label>
+                    <Input
+                      className="h-9 w-full min-w-[11rem]"
+                      type="date"
+                      value={form.valid_until}
+                      onChange={(e) => setForm((prev) => ({ ...prev, valid_until: e.target.value }))}
+                    />
+                  </div>
+                ) : null}
+                {form.doc_type === "REMITO" ? (
+                  <div className="md:col-span-8 space-y-1">
+                    <Label className="text-xs text-muted-foreground">Domicilio de entrega</Label>
+                    <Input className="h-9" value={form.delivery_address} onChange={(e) => setForm((prev) => ({ ...prev, delivery_address: e.target.value }))} />
+                  </div>
+                ) : null}
+                {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? (
+                  <div className="md:col-span-4 space-y-1">
+                    <Label className="text-xs text-muted-foreground">Imputacion del remito</Label>
+                    <Select
+                      value={form.internal_remito_type || "__none__"}
+                      onValueChange={(v) => setForm((prev) => ({ ...prev, internal_remito_type: v === "__none__" ? "" : (v as InternalRemitoType) }))}
+                    >
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
+                        <SelectItem value="DESCUENTO_SUELDO">Descuento de sueldo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+                <div className="md:col-span-12 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Notas</Label>
+                  <Textarea
+                    className="min-h-[90px]"
+                    value={form.notes}
+                    onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           <div className="space-y-2">
-            <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-border/60 bg-background/80 px-3 py-2 shadow-[var(--shadow-xs)] backdrop-blur-sm">
-              <div className="min-w-0">
-                <Label className="text-sm">Lineas</Label>
-                <p className="text-xs text-muted-foreground">
-                  {hasPriceList ? "Precio por lista (editable por linea)" : "Precio manual por linea"}
-                </p>
+            <div className="sticky top-0 z-10 flex flex-col gap-2 rounded-[calc(var(--radius)+0.15rem)] border border-border/60 bg-background/80 px-3 py-2 shadow-[var(--shadow-xs)] backdrop-blur-sm md:flex-row md:items-center md:justify-between">
+              <div className="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-center">
+                <div className="min-w-0">
+                  <Label className="text-sm">Lineas</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {hasPriceList ? "Precio por lista (editable por linea)" : "Precio manual por linea"}
+                  </p>
+                </div>
+
+                <div className="relative w-full md:max-w-[560px]">
+                  <Input
+                    className="h-9"
+                    placeholder={availableItems.length ? "Buscar producto (SKU / nombre / marca / modelo / atributo)" : "Sin productos"}
+                    value={itemQuery}
+                    disabled={availableItems.length === 0}
+                    onChange={(e) => setItemQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setItemQuery("");
+                        return;
+                      }
+                      if (e.key !== "Enter") return;
+                      if (filteredItems.length === 0) return;
+                      e.preventDefault();
+                      addItemFromSearch(filteredItems[0].id);
+                    }}
+                  />
+
+                  {itemQuery.trim() ? (
+                    <div className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 max-h-72 overflow-auto rounded-md border border-border/70 bg-popover p-1 shadow-[var(--shadow-lg)]">
+                      {filteredItems.length > 0 ? (
+                        filteredItems.map((item) => {
+                          const meta = [item.sku, item.brand, item.model, item.attributes].filter(Boolean).join(" | ");
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              className="w-full rounded-sm px-2 py-2 text-left hover:bg-accent hover:text-accent-foreground"
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                addItemFromSearch(item.id);
+                              }}
+                              title={meta ? `${item.display_name ?? item.name} (${meta})` : item.display_name ?? item.name}
+                            >
+                              <div className="truncate text-sm font-medium">
+                                {item.display_name ?? item.name}
+                              </div>
+                              {meta ? (
+                                <div className="truncate text-xs text-muted-foreground">
+                                  {meta}
+                                </div>
+                              ) : null}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="px-2 py-2 text-xs text-muted-foreground">
+                          Sin resultados
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="hidden text-right md:block">
+
+              <div className="flex items-center justify-between gap-2 md:justify-end">
+                <div className="text-right">
                   <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total</p>
                   <p className="text-sm font-bold text-foreground">
                     ${totalDraft.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
@@ -282,38 +400,30 @@ export function DocumentsEditorDialog({
               {lines.map((line, idx) => {
                 const lineHasPriceList = hasPriceList && !!line.item_id;
                 const lockPrice = lineHasPriceList && line.pricing_mode === "LIST_PRICE";
-                const lockDescription = !!line.item_id;
+                const picked = line.item_id ? availableItemsById.get(line.item_id) ?? null : null;
+                const pickedLabel = picked
+                  ? `${picked.sku} | ${picked.display_name ?? picked.name}`
+                  : line.item_id
+                    ? `${line.sku_snapshot || "-"} | ${line.description || "-"}`
+                    : "";
                 return (
-                  <div key={idx} className="space-y-2 rounded-[calc(var(--radius)+0.15rem)] border border-border/70 bg-card/70 p-3 shadow-[var(--shadow-xs)]">
-                    <div className="grid grid-cols-12 gap-2">
-                      <div className="col-span-12 md:col-span-4">
-                        <Select value={line.item_id ?? "__none__"} onValueChange={(v) => onPickItem(idx, v === "__none__" ? "" : v)}>
-                          <SelectTrigger className="h-10"><SelectValue placeholder="Item" /></SelectTrigger>
-                          <SelectContent>
-                            {!hasPriceList && <SelectItem value="__none__">Manual</SelectItem>}
-                            {availableItems.map((it) => (
-                              <SelectItem key={it.id} value={it.id} className="py-2">
-                                <div className="flex min-w-0 flex-col">
-                                  <span className="truncate font-medium text-foreground">
-                                    {it.display_name ?? it.name}
-                                  </span>
-                                  <span className="truncate text-xs text-muted-foreground">
-                                    {it.sku}
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="col-span-12 md:col-span-4">
-                        {lockDescription ? (
-                          <div className="h-10 rounded-md border border-border/60 bg-background/70 px-3 py-2 text-sm text-foreground">
-                            <span className="block truncate">{line.description || "-"}</span>
+                  <div key={idx} className="rounded-[calc(var(--radius)+0.15rem)] border border-border/70 bg-card/70 p-2 shadow-[var(--shadow-xs)]">
+                    <div className="grid grid-cols-12 items-center gap-2">
+                      <div className="col-span-12 md:col-span-5">
+                        {line.item_id ? (
+                          <div
+                            className="h-9 rounded-md border border-border/60 bg-background/70 px-3 py-2 text-sm text-foreground"
+                            title={pickedLabel}
+                          >
+                            <span className="block truncate">{pickedLabel}</span>
+                          </div>
+                        ) : hasPriceList ? (
+                          <div className="h-9 rounded-md border border-dashed border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                            Usa el buscador de arriba para agregar un producto
                           </div>
                         ) : (
                           <Input
-                            className="h-10"
+                            className="h-9"
                             placeholder="Descripcion"
                             value={line.description}
                             onChange={(e) => {
@@ -324,8 +434,9 @@ export function DocumentsEditorDialog({
                           />
                         )}
                       </div>
+
                       <Input
-                        className="col-span-6 md:col-span-1 h-10"
+                        className="col-span-4 md:col-span-1 h-9"
                         type="number"
                         min={0.001}
                         step="any"
@@ -336,14 +447,16 @@ export function DocumentsEditorDialog({
                           setLines(next);
                         }}
                       />
-                      <div className="col-span-6 md:col-span-3 space-y-1">
+
+                      <div className="col-span-8 md:col-span-2">
                         <Input
-                          className="h-10 text-right text-[15px] font-semibold"
+                          className="h-9 text-right text-[15px] font-semibold"
                           type="number"
                           min={0}
                           step="any"
                           value={line.unit_price}
                           disabled={lockPrice}
+                          title={lineHasPriceList ? `Sugerido: $${line.suggested_unit_price.toLocaleString("es-AR", { minimumFractionDigits: 2 })}` : undefined}
                           onChange={(e) => {
                             const next = [...lines];
                             next[idx] = {
@@ -354,14 +467,9 @@ export function DocumentsEditorDialog({
                             setLines(next);
                           }}
                         />
-                        {lineHasPriceList ? (
-                          <p className="text-[11px] font-medium text-muted-foreground">
-                            Sugerido: ${line.suggested_unit_price.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                          </p>
-                        ) : null}
                       </div>
 
-                      <div className="col-span-12 md:col-span-12 flex items-center justify-between gap-2">
+                      <div className="col-span-12 md:col-span-2 flex items-center gap-2">
                         {lineHasPriceList ? (
                           <div className="flex flex-wrap items-center gap-2">
                             <Select
@@ -402,7 +510,7 @@ export function DocumentsEditorDialog({
                                 setLines(next);
                               }}
                             >
-                              <SelectTrigger className="h-9 w-[190px]"><SelectValue /></SelectTrigger>
+                              <SelectTrigger className="h-9 w-[170px]"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="LIST_PRICE">{PRICING_MODE_LABEL.LIST_PRICE}</SelectItem>
                                 <SelectItem value="MANUAL_MARGIN">{PRICING_MODE_LABEL.MANUAL_MARGIN}</SelectItem>
@@ -412,7 +520,7 @@ export function DocumentsEditorDialog({
 
                             {line.pricing_mode === "MANUAL_MARGIN" ? (
                               <Input
-                                className="h-9 w-[140px]"
+                                className="h-9 w-[120px]"
                                 type="number"
                                 min={0}
                                 step="any"
@@ -439,26 +547,26 @@ export function DocumentsEditorDialog({
                         ) : (
                           <span className="text-xs text-muted-foreground">Precio manual</span>
                         )}
+                      </div>
 
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <p className="text-xs text-muted-foreground">Total</p>
-                            <p className="text-sm font-mono text-foreground">
-                              ${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                            onClick={() => removeLine(idx)}
-                            title="Eliminar linea"
-                            aria-label="Eliminar linea"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                      <div className="col-span-12 md:col-span-2 flex items-center justify-between gap-3">
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Total</p>
+                          <p className="text-sm font-mono text-foreground">
+                            ${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                          </p>
                         </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeLine(idx)}
+                          title="Eliminar linea"
+                          aria-label="Eliminar linea"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>
