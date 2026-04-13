@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
+import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type { Movement, MovementType } from "@/features/stock/types";
 
 type StockMovementsTableProps = {
@@ -48,7 +49,30 @@ export function StockMovementsTable({
     {
       id: "item",
       header: () => "Item",
-      cell: ({ row }) => <span className="font-medium">{row.original.items?.name ?? "-"}</span>,
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <span className="block truncate font-medium">
+            {row.original.items
+              ? buildItemDisplayName({
+                  name: row.original.items.name,
+                  brand: row.original.items.brand,
+                  model: row.original.items.model,
+                  attributes: row.original.items.attributes,
+                })
+              : "-"}
+          </span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {row.original.items
+              ? buildItemDisplayMeta({
+                  sku: row.original.items.sku,
+                  brand: row.original.items.brand,
+                  model: row.original.items.model,
+                  attributes: row.original.items.attributes,
+                })
+              : ""}
+          </span>
+        </div>
+      ),
     },
     {
       accessorKey: "quantity",

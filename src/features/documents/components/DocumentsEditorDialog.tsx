@@ -27,6 +27,8 @@ type AvailableItemOption = {
   sku: string;
   name: string;
   attributes?: string | null;
+  brand?: string | null;
+  model?: string | null;
   display_name?: string;
   unit?: string | null;
 };
