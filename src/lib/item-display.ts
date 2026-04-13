@@ -22,14 +22,14 @@ function buildDetailParts(input: ItemDisplayInput) {
 export function buildItemDisplayName(input: ItemDisplayInput) {
   const name = cleanPart(input.name) ?? "Item sin nombre";
   const details = buildDetailParts(input);
-  return details.length > 0 ? `${name} - ${details.join(" · ")}` : name;
+  return details.length > 0 ? `${name} - ${details.join(" | ")}` : name;
 }
 
 export function buildItemDisplayMeta(input: ItemDisplayInput) {
   const sku = cleanPart(input.sku);
-  const details = buildDetailParts(input).join(" · ");
+  const details = buildDetailParts(input).join(" | ");
 
-  if (sku && details) return `${sku} · ${details}`;
+  if (sku && details) return `${sku} | ${details}`;
   if (sku) return sku;
   if (details) return details;
   return "";
