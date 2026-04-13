@@ -26,6 +26,9 @@ type AvailableItemOption = {
   id: string;
   sku: string;
   name: string;
+  attributes?: string | null;
+  display_name?: string;
+  unit?: string | null;
 };
 
 interface DocumentsEditorDialogProps {
@@ -240,7 +243,18 @@ export function DocumentsEditorDialog({
                           <SelectTrigger><SelectValue placeholder="Item" /></SelectTrigger>
                           <SelectContent>
                             {!form.price_list_id && <SelectItem value="__none__">Manual</SelectItem>}
-                            {availableItems.map((it) => <SelectItem key={it.id} value={it.id}>{it.sku} - {it.name}</SelectItem>)}
+                            {availableItems.map((it) => (
+                              <SelectItem key={it.id} value={it.id} className="py-2">
+                                <div className="flex min-w-0 flex-col">
+                                  <span className="truncate font-medium text-foreground">
+                                    {it.display_name ?? it.name}
+                                  </span>
+                                  <span className="truncate text-xs text-muted-foreground">
+                                    {it.sku}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
