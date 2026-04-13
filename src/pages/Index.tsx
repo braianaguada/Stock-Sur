@@ -294,7 +294,7 @@ export default function Dashboard() {
                         dataKey="name"
                         tickLine={false}
                         axisLine={false}
-                        width={140}
+                        width={220}
                         tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                       />
                       <Tooltip content={<ChartTooltip valueFormatter={formatCurrency} />} />

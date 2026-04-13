@@ -1,9 +1,11 @@
 import type { MovementType } from "@/features/stock/types";
+import { buildItemDisplayName } from "@/lib/item-display";
 
 type DashboardItem = {
   id: string;
   name: string;
   sku: string | null;
+  attributes: string | null;
   category: string | null;
   is_active: boolean;
 };
@@ -182,7 +184,7 @@ export function buildDashboardInsights({
 
     topItemsByValue.push({
       itemId: item.id,
-      name: item.name,
+      name: buildItemDisplayName({ name: item.name, attributes: item.attributes }),
       sku: item.sku,
       quantity: positiveQuantity,
       baseCost,

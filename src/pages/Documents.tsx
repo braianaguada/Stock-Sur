@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
+import { buildItemDisplayName } from "@/lib/item-display";
 import { getErrorMessage } from "@/lib/errors";
 import {
   canCloneBudgetToRemito,
@@ -269,7 +270,10 @@ export default function DocumentsPage() {
       ...nextLines[index],
       item_id: itemId,
       sku_snapshot: item.sku,
-      description: item.name,
+      description: buildItemDisplayName({
+        name: item.name,
+        attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
+      }),
       unit: item.unit || "un",
       unit_price: form.price_list_id ? priceByItem.get(itemId) ?? 0 : nextLines[index].unit_price,
     };
