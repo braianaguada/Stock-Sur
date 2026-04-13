@@ -2,6 +2,7 @@ import type { DocStatus, DocType } from "@/features/documents/types";
 
 export const queryKeys = {
   dashboard: {
+    overview: (companyId: string | null) => ["dashboard-overview", companyId ?? "no-company"] as const,
     itemsCount: (companyId: string | null) => ["items-count", companyId ?? "no-company"] as const,
     suppliersCount: (companyId: string | null) => ["suppliers-count", companyId ?? "no-company"] as const,
     quotesCount: (companyId: string | null) => ["quotes-count", companyId ?? "no-company"] as const,
