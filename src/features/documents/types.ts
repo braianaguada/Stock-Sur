@@ -118,6 +118,7 @@ export interface PriceListItemRow {
     id: string;
     sku: string;
     name: string;
+    attributes?: string | null;
     unit: string;
   } | null;
 }

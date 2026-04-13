@@ -31,7 +31,7 @@ export function useDashboardStats({ companyId }: UseDashboardStatsOptions) {
       ] = await Promise.all([
         supabase
           .from("items")
-          .select("id, name, sku, category, is_active")
+          .select("id, name, sku, attributes, category, is_active")
           .eq("company_id", companyId!)
           .eq("is_active", true)
           .limit(5000),

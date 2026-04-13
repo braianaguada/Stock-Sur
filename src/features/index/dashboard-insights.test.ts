@@ -24,9 +24,9 @@ describe("dashboard insights", () => {
   it("calculates valued stock, missing costs and top capital correctly", () => {
     const insights = buildDashboardInsights({
       items: [
-        { id: "a", name: "Cable taller", sku: "CAB-01", category: "Electricidad", is_active: true },
-        { id: "b", name: "Valvula 1/2", sku: "VAL-01", category: "Sanitaria", is_active: true },
-        { id: "c", name: "Filtro", sku: "FIL-01", category: null, is_active: true },
+        { id: "a", name: "Cable taller", sku: "CAB-01", attributes: "2 x 1,5 mm", category: "Electricidad", is_active: true },
+        { id: "b", name: "Valvula 1/2", sku: "VAL-01", attributes: null, category: "Sanitaria", is_active: true },
+        { id: "c", name: "Filtro", sku: "FIL-01", attributes: null, category: null, is_active: true },
       ],
       movements: [
         { item_id: "a", type: "IN", quantity: 10, created_at: "2026-04-01T10:00:00.000Z" },
@@ -47,7 +47,7 @@ describe("dashboard insights", () => {
     expect(insights.metrics.itemsWithStock).toBe(2);
     expect(insights.metrics.itemsWithoutCost).toBe(1);
     expect(insights.metrics.valuedItemsShare).toBe(50);
-    expect(insights.topItemsByValue[0]?.name).toBe("Cable taller");
+    expect(insights.topItemsByValue[0]?.name).toBe("Cable taller - 2 x 1,5 mm");
     expect(insights.categoryValues[0]).toEqual({
       category: "Electricidad",
       value: 8000,
