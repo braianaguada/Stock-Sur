@@ -7,6 +7,9 @@ export interface StockRow {
   item_name: string;
   item_sku: string;
   item_unit: string;
+  item_brand: string | null;
+  item_model: string | null;
+  item_attributes: string | null;
   total: number;
   avg_daily_out_30d: number;
   avg_daily_out_90d: number;
@@ -29,7 +32,14 @@ export interface Movement {
   created_by: string | null;
   created_by_name?: string;
   created_at: string;
-  items?: { name: string; sku: string } | null;
+  items?: {
+    name: string;
+    sku: string;
+    unit?: string | null;
+    brand?: string | null;
+    model?: string | null;
+    attributes?: string | null;
+  } | null;
 }
 
 export interface SearchableItem {
@@ -39,6 +49,7 @@ export interface SearchableItem {
   unit: string | null;
   brand?: string | null;
   model?: string | null;
+  attributes?: string | null;
 }
 
 export interface StockMovementForm {

@@ -272,6 +272,8 @@ export default function DocumentsPage() {
       sku_snapshot: item.sku,
       description: buildItemDisplayName({
         name: item.name,
+        brand: "brand" in item ? (item.brand as string | null | undefined) : null,
+        model: "model" in item ? (item.model as string | null | undefined) : null,
         attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
       }),
       unit: item.unit || "un",

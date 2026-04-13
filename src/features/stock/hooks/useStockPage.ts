@@ -55,6 +55,7 @@ function normalizeItem(item: SearchableItem | null | undefined) {
         unit: item.unit,
         brand: item.brand ?? null,
         model: item.model ?? null,
+        attributes: item.attributes ?? null,
       }
     : null;
 }
@@ -109,7 +110,7 @@ export function useStockPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("stock_movements")
-        .select("item_id, created_at, items(id, name, sku, unit, brand, model, is_active)")
+        .select("item_id, created_at, items(id, name, sku, unit, brand, model, attributes, is_active)")
         .eq("company_id", currentCompany!.id)
         .eq("created_by", user!.id)
         .order("created_at", { ascending: false })
@@ -127,6 +128,7 @@ export function useStockPage() {
           unit: item.unit,
           brand: item.brand,
           model: item.model,
+          attributes: item.attributes,
         });
       }
 
@@ -152,7 +154,7 @@ export function useStockPage() {
 
       const query = supabase
         .from("items")
-        .select("id, name, sku, unit, brand, model")
+        .select("id, name, sku, unit, brand, model, attributes")
         .eq("company_id", currentCompany!.id)
         .eq("is_active", true);
 
@@ -196,12 +198,12 @@ export function useStockPage() {
       const [{ data: items, error: itemsError }, { data: movements, error: movementsError }] = await Promise.all([
         supabase
           .from("items")
-          .select("id, name, sku, unit, demand_profile, demand_monthly_estimate")
+          .select("id, name, sku, unit, brand, model, attributes, demand_profile, demand_monthly_estimate")
           .eq("company_id", currentCompany!.id)
           .eq("is_active", true),
         supabase
           .from("stock_movements")
-          .select("item_id, type, quantity, created_at, items(name, sku, unit, demand_profile, demand_monthly_estimate)")
+          .select("item_id, type, quantity, created_at, items(name, sku, unit, brand, model, attributes, demand_profile, demand_monthly_estimate)")
           .eq("company_id", currentCompany!.id),
       ]);
       if (itemsError) throw itemsError;
@@ -224,6 +226,9 @@ export function useStockPage() {
         name: string;
         sku: string;
         unit: string | null;
+        brand: string | null;
+        model: string | null;
+        attributes: string | null;
         demand_profile: DemandProfile | null;
         demand_monthly_estimate: number | null;
       }>) {
@@ -232,6 +237,9 @@ export function useStockPage() {
           item_name: item.name ?? "",
           item_sku: item.sku ?? "",
           item_unit: item.unit ?? "",
+          item_brand: item.brand ?? null,
+          item_model: item.model ?? null,
+          item_attributes: item.attributes ?? null,
           total: 0,
           avg_daily_out_30d: 0,
           avg_daily_out_90d: 0,
@@ -260,6 +268,9 @@ export function useStockPage() {
           name?: string | null;
           sku?: string | null;
           unit?: string | null;
+          brand?: string | null;
+          model?: string | null;
+          attributes?: string | null;
           demand_profile?: DemandProfile | null;
           demand_monthly_estimate?: number | null;
         } | null;
@@ -270,6 +281,9 @@ export function useStockPage() {
             item_name: movement.items?.name ?? "",
             item_sku: movement.items?.sku ?? "",
             item_unit: movement.items?.unit ?? "",
+            item_brand: movement.items?.brand ?? null,
+            item_model: movement.items?.model ?? null,
+            item_attributes: movement.items?.attributes ?? null,
             total: 0,
             avg_daily_out_30d: 0,
             avg_daily_out_90d: 0,
@@ -293,6 +307,9 @@ export function useStockPage() {
         row.item_name = movement.items?.name ?? row.item_name;
         row.item_sku = movement.items?.sku ?? row.item_sku;
         row.item_unit = movement.items?.unit ?? row.item_unit;
+        row.item_brand = movement.items?.brand ?? row.item_brand;
+        row.item_model = movement.items?.model ?? row.item_model;
+        row.item_attributes = movement.items?.attributes ?? row.item_attributes;
         row.demand_profile = (movement.items?.demand_profile as DemandProfile) ?? row.demand_profile;
         row.demand_monthly_estimate = movement.items?.demand_monthly_estimate ?? row.demand_monthly_estimate;
         const quantity = Number(movement.quantity);
@@ -367,6 +384,9 @@ export function useStockPage() {
           item_name: row.item_name,
           item_sku: row.item_sku,
           item_unit: row.item_unit,
+          item_brand: row.item_brand,
+          item_model: row.item_model,
+          item_attributes: row.item_attributes,
           total: row.total,
           avg_daily_out_30d: avgDailyOut30,
           avg_daily_out_90d: avgDailyOut90,
@@ -399,7 +419,7 @@ export function useStockPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("stock_movements")
-        .select("id, item_id, type, quantity, reference, created_at, created_by, items(name, sku, unit)")
+        .select("id, item_id, type, quantity, reference, created_at, created_by, items(name, sku, unit, brand, model, attributes)")
         .eq("company_id", currentCompany!.id)
         .order("created_at", { ascending: false })
         .limit(5000);
