@@ -53,7 +53,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("items")
-        .select("id, sku, name, attributes, unit")
+        .select("id, sku, name, attributes, brand, model, unit")
         .eq("company_id", currentCompanyId!)
         .eq("is_active", true)
         .order("name");
@@ -82,7 +82,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
-        .select("item_id, is_active, base_cost, calculated_price, flete_pct, utilidad_pct, impuesto_pct, final_price_override, items(id, sku, name, attributes, unit)")
+        .select("item_id, is_active, base_cost, calculated_price, flete_pct, utilidad_pct, impuesto_pct, final_price_override, items(id, sku, name, attributes, brand, model, unit)")
         .eq("company_id", currentCompanyId!)
         .eq("price_list_id", selectedPriceListId)
         .eq("is_active", true);
@@ -119,6 +119,8 @@ export function useDocumentsData({
         name: row.items!.name,
         display_name: buildItemDisplayName({
           name: row.items!.name,
+          brand: row.items!.brand ?? null,
+          model: row.items!.model ?? null,
           attributes: row.items!.attributes ?? null,
         }),
         attributes: row.items!.attributes ?? null,

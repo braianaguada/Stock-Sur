@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
+import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import { cn } from "@/lib/utils";
 import type { DemandProfile, StockHealth, StockRow } from "@/features/stock/types";
 
@@ -40,9 +41,28 @@ export function StockCurrentTable({
     {
       accessorKey: "item_name",
       header: () => "Nombre",
-      cell: ({ row }) => <span className="block truncate text-sm font-semibold">{row.original.item_name}</span>,
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <span className="block truncate text-sm font-semibold">
+            {buildItemDisplayName({
+              name: row.original.item_name,
+              brand: row.original.item_brand,
+              model: row.original.item_model,
+              attributes: row.original.item_attributes,
+            })}
+          </span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {buildItemDisplayMeta({
+              sku: row.original.item_sku,
+              brand: row.original.item_brand,
+              model: row.original.item_model,
+              attributes: row.original.item_attributes,
+            })}
+          </span>
+        </div>
+      ),
       meta: {
-        className: "w-[320px]",
+        className: "w-[420px]",
       },
     },
     {
