@@ -15,6 +15,8 @@ export interface CatalogImportLine {
   cost: number;
   currency: string;
   row_index: number;
+  source_page?: number;
+  confidence?: number;
 }
 
 export interface DroppedRowSample {
@@ -87,6 +89,7 @@ export interface ParsePdfMeta {
   totalChars: number;
   parsedPages: number;
   confidence: number;
+  provider?: string | null;
 }
 
 export interface PdfTableCandidate {
@@ -115,6 +118,35 @@ export interface ParsePdfResult {
   lines: CatalogImportLine[];
   meta: ParsePdfMeta;
   table: PdfTableCandidate | null;
+}
+
+export interface PdfParseCandidateMetrics {
+  lines: CatalogImportLine[];
+  chars: number;
+  tableRows: string[][];
+}
+
+interface PdfLineContext {
+  pageNumber: number;
+  pageHasCatalogSignals: boolean;
+  pageHasTechnicalTable: boolean;
+}
+
+interface PendingPdfProduct {
+  supplierCode: string | null;
+  descriptionParts: string[];
+  priceValue: number | null;
+  currency: "ARS" | "USD";
+  rowIndex: number;
+  sourcePage: number;
+  confidence: number;
+}
+
+interface PendingPdfHeaderPrice {
+  description: string;
+  priceValue: number;
+  currency: "ARS" | "USD";
+  sourcePage: number;
 }
 
 export const DEFAULT_PDF_OPTIONS: ParsePdfOptions = {
@@ -147,6 +179,34 @@ const PRICE_KEYWORDS = ["precio", "costo", "cost", "importe", "lista", "price", 
 const CURRENCY_KEYWORDS = ["moneda", "currency", "curr", "divisa"];
 const CODE_KEYWORDS = ["codigo", "código", "cod", "sku", "ean", "upc", "ref", "referencia"];
 
+
+const PDF_IGNORE_PATTERNS = [
+  /^(pagina|p[aá]gina)\s+\d+$/i,
+  /^pm materiales el[eé]ctricos$/i,
+  /^pablo molise$/i,
+  /^contactos?:?$/i,
+  /^neto$/i,
+  /^nuevo$/i,
+  /^producto$/i,
+  /^s\/stock$/i,
+];
+const PDF_CATALOG_HINTS = ["codigo", "código", "precio", "u$s", "usd", "ars", "neto", "descuento"];
+const PDF_TECHNICAL_HINTS = ["voltaje", "rpm", "prof.", "altura", "base", "a cm", "b cm", "c cm", "pulg."];
+const PDF_TECHNICAL_PREFIXES = [
+  /^caracter[ií]sticas?:/i,
+  /^datos t[eé]cnicos?:/i,
+  /^carga /i,
+  /^contactos?:?$/i,
+  /^programaci[oó]n/i,
+  /^tiempo m[ií]nimo/i,
+  /^alimentaci[oó]n/i,
+  /^modo(s)? de operaci[oó]n/i,
+  /^control de /i,
+  /^pantalla /i,
+  /^funci[oó]n /i,
+  /^registro /i,
+  /^\*/i,
+];
 
 function sanitizeHeaderRow(rawHeaders: string[]): string[] {
   const used = new Set<string>();
@@ -387,6 +447,7 @@ function isLikelySupplierCodeValue(value: string): boolean {
   if (!normalized || normalized.length > 24) return false;
   if (/\s{2,}/.test(normalized)) return false;
   if (/^(pagina|página|descuento|neto|contactos?|caracteristicas?|características)$/i.test(normalized)) return false;
+  if (/^[A-Za-z]+$/.test(normalized) && normalized !== normalized.toUpperCase()) return false;
   return /^[A-Z0-9][A-Z0-9\-_/+.()]{1,23}$/i.test(normalized);
 }
 
@@ -702,15 +763,269 @@ function ocrLineToTableRow(line: string): string[] {
   return normalized.split(" ").filter(Boolean);
 }
 
+function normalizePdfLineText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasMostlyNumericCells(row: string[]) {
+  const nonEmpty = row.map((cell) => cell.trim()).filter(Boolean);
+  if (nonEmpty.length < 3) return false;
+  const numericLike = nonEmpty.filter((cell) => parseFlexibleNumber(cell) !== null || /^\d+[a-z]{0,3}$/i.test(cell)).length;
+  return numericLike / nonEmpty.length >= 0.6;
+}
+
+function buildPdfPageContext(lines: string[], tableRows: string[][], pageNumber: number): PdfLineContext {
+  const normalizedLines = lines.map(normalizePdfLineText).filter(Boolean);
+  const joined = normalizedLines.join(" ");
+  const pageHasCatalogSignals = PDF_CATALOG_HINTS.some((hint) => joined.includes(hint));
+  const pageHasTechnicalTable =
+    PDF_TECHNICAL_HINTS.filter((hint) => joined.includes(hint)).length >= 2 ||
+    tableRows.some((row) => hasMostlyNumericCells(row));
+
+  return {
+    pageNumber,
+    pageHasCatalogSignals,
+    pageHasTechnicalTable,
+  };
+}
+
+function isLikelyTechnicalDescription(value: string) {
+  const normalized = normalizePdfLineText(value);
+  if (!normalized) return true;
+  if (PDF_IGNORE_PATTERNS.some((pattern) => pattern.test(normalized))) return true;
+  if (/^(codigo|base|altura|prof\.?|voltaje|rpm|pulg\.?)(\s|$)/i.test(normalized)) return true;
+  if (/^(con regulacion|sin regulacion)$/i.test(normalized)) return true;
+  if (/^[abc]\s*cm$/i.test(normalized)) return true;
+  if (/^\d+(\.\d+)?\s*x\s*\d+(\.\d+)?$/i.test(normalized)) return true;
+  if (PDF_TECHNICAL_HINTS.some((hint) => normalized.includes(hint)) && !/[a-z]{4,}/i.test(normalized.replace(/voltaje|altura|base|prof|rpm|pulg/g, ""))) {
+    return true;
+  }
+  return false;
+}
+
+function isLikelyTechnicalContinuationLine(value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return true;
+  return PDF_TECHNICAL_PREFIXES.some((pattern) => pattern.test(normalized));
+}
+
+function isLikelySectionHeading(value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return false;
+  if (/^l[íi]nea\b/i.test(normalized)) return true;
+  if (/^(interruptores horarios|llaves a tecla|difusores|desagote rigido|termostatos? de ambiente)/i.test(normalized)) return true;
+  return false;
+}
+
+function hasStrongPdfPriceContext(line: string, token: { raw: string; index: number; value: number }) {
+  const before = line.slice(Math.max(0, token.index - 10), token.index);
+  const after = line.slice(token.index + token.raw.length, token.index + token.raw.length + 16);
+  const around = `${before} ${after}`;
+  const lineHasCurrency = /\$|u\$s|us\$|usd|ars/i.test(line);
+  if (lineHasCurrency) return true;
+  if (/\bx\s*(unidad|tira|pack|100)\b/i.test(around)) return true;
+  if (!/[.,]\d{2}\b/.test(token.raw)) return false;
+  if (/\b(v|vac|vca|w|kw|a|amp|rpm|cm|mm|hs|min)\b/i.test(around)) return false;
+  return token.value >= 1;
+}
+
+function extractPdfPriceToken(line: string, preferPrice: "first" | "last") {
+  const matches = [...line.matchAll(/-?\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d+)?|-?\d+(?:[.,]\d+)?/g)]
+    .map((match) => ({
+      raw: match[0],
+      index: match.index ?? -1,
+      value: parseFlexibleNumber(match[0]),
+    }))
+    .filter((entry): entry is { raw: string; index: number; value: number } => entry.index >= 0 && entry.value !== null)
+    .filter((entry) => isLikelyPriceValue(entry.raw))
+    .filter((entry) => hasStrongPdfPriceContext(line, entry));
+
+  if (matches.length === 0) return null;
+  return preferPrice === "first" ? matches[0] : matches[matches.length - 1];
+}
+
+function splitPdfLeadingCode(line: string) {
+  const match = line.match(/^([A-Z0-9][A-Z0-9\-_./]{1,15})\s+(.+)$/i);
+  if (!match) return { supplierCode: null, description: line.trim() };
+  const supplierCode = isLikelySupplierCodeValue(match[1]) ? match[1] : null;
+  return {
+    supplierCode,
+    description: supplierCode ? match[2].trim() : line.trim(),
+  };
+}
+
+function finalizePendingPdfProduct(pending: PendingPdfProduct | null): CatalogImportLine | null {
+  if (!pending || !pending.priceValue || pending.priceValue <= 0) return null;
+  const rawDescription = pending.descriptionParts.join(" ").replace(/\s+/g, " ").trim();
+  if (!rawDescription || rawDescription.length < 3) return null;
+  if (!/[a-zA-ZÃ¡Ã©Ã­Ã³ÃºÃ±]/i.test(rawDescription)) return null;
+  if (isLikelyTechnicalDescription(rawDescription)) return null;
+  return {
+    supplier_code: pending.supplierCode,
+    raw_description: rawDescription,
+    normalized_description: rawDescription.toLowerCase(),
+    cost: pending.priceValue,
+    currency: pending.currency,
+    row_index: pending.rowIndex,
+    source_page: pending.sourcePage,
+    confidence: Math.max(0.1, Math.min(0.99, pending.confidence)),
+  };
+}
+
+export function extractPdfCatalogCandidates(
+  sourceLines: string[],
+  preferPrice: "first" | "last",
+  defaultCurrency: "ARS" | "USD",
+  context: PdfLineContext,
+) {
+  const lines: CatalogImportLine[] = [];
+  let pendingProduct: PendingPdfProduct | null = null;
+  let pendingHeaderPrice: PendingPdfHeaderPrice | null = null;
+
+  const flushPendingProduct = () => {
+    const finalized = finalizePendingPdfProduct(pendingProduct);
+    if (finalized) lines.push(finalized);
+    pendingProduct = null;
+  };
+
+  sourceLines.forEach((sourceLine, rawIndex) => {
+    const line = sourceLine.replace(/\s+/g, " ").trim();
+    if (!line || line.length < 3) return;
+    if (isLikelyPdfNoiseValue(line)) return;
+    if (PDF_IGNORE_PATTERNS.some((pattern) => pattern.test(line))) return;
+
+    const priceToken = extractPdfPriceToken(line, preferPrice);
+    const currency = detectCurrency(line, defaultCurrency) as "ARS" | "USD";
+    const lineWithoutPrice = priceToken
+      ? `${line.slice(0, priceToken.index)} ${line.slice(priceToken.index + priceToken.raw.length)}`
+        .replace(/\b(u\$s|us\$|usd|ars)\b/gi, " ")
+        .replace(/\$/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+      : line;
+    let { supplierCode, description } = splitPdfLeadingCode(lineWithoutPrice);
+    if (!supplierCode && !lineWithoutPrice.includes(" ") && isLikelySupplierCodeValue(lineWithoutPrice)) {
+      supplierCode = lineWithoutPrice;
+      description = "";
+    }
+    if (
+      supplierCode &&
+      priceToken &&
+      /^[A-Z]+$/i.test(supplierCode) &&
+      description.split(/\s+/).filter(Boolean).length <= 3
+    ) {
+      supplierCode = null;
+      description = lineWithoutPrice;
+    }
+    const rowIndex = rawIndex + 1;
+    const technicalContinuation = isLikelyTechnicalContinuationLine(lineWithoutPrice);
+    const sectionHeading = isLikelySectionHeading(lineWithoutPrice);
+
+    if (supplierCode && priceToken && description) {
+      flushPendingProduct();
+      pendingHeaderPrice = null;
+      lines.push({
+        supplier_code: supplierCode,
+        raw_description: description,
+        normalized_description: description.toLowerCase(),
+        cost: priceToken.value,
+        currency,
+        row_index: rowIndex,
+        source_page: context.pageNumber,
+        confidence: Math.max(0.1, Math.min(0.99, 0.78 + (context.pageHasCatalogSignals ? 0.08 : 0))),
+      });
+      return;
+    }
+
+    if (supplierCode && priceToken && !description) {
+      flushPendingProduct();
+      pendingProduct = {
+        supplierCode,
+        descriptionParts: [],
+        priceValue: priceToken.value,
+        currency,
+        rowIndex,
+        sourcePage: context.pageNumber,
+        confidence: 0.66,
+      };
+      pendingHeaderPrice = null;
+      return;
+    }
+
+    if (supplierCode && !priceToken) {
+      flushPendingProduct();
+      const inheritedHeader = pendingHeaderPrice && pendingHeaderPrice.sourcePage === context.pageNumber
+        ? pendingHeaderPrice
+        : null;
+      const initialDescription = [
+        inheritedHeader && !isLikelySectionHeading(inheritedHeader.description) ? inheritedHeader.description : "",
+        description,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+      pendingProduct = {
+        supplierCode,
+        descriptionParts: initialDescription ? [initialDescription] : [],
+        priceValue: inheritedHeader?.priceValue ?? null,
+        currency: inheritedHeader?.currency ?? currency,
+        rowIndex,
+        sourcePage: context.pageNumber,
+        confidence: inheritedHeader ? 0.76 : 0.62,
+      };
+      pendingHeaderPrice = null;
+      return;
+    }
+
+    if (!supplierCode && priceToken && description) {
+      if (pendingProduct && pendingProduct.sourcePage === context.pageNumber && pendingProduct.priceValue === null) {
+        pendingProduct.priceValue = priceToken.value;
+        pendingProduct.currency = currency;
+        if (!technicalContinuation && !sectionHeading && description.length >= 4) {
+          pendingProduct.descriptionParts.push(description);
+        }
+        return;
+      }
+
+      flushPendingProduct();
+      pendingHeaderPrice = {
+        description,
+        priceValue: priceToken.value,
+        currency,
+        sourcePage: context.pageNumber,
+      };
+      return;
+    }
+
+    if (!supplierCode && !priceToken && pendingProduct && pendingProduct.sourcePage === context.pageNumber) {
+      if (!technicalContinuation && !sectionHeading && description.length >= 4) {
+        pendingProduct.descriptionParts.push(description);
+      }
+      return;
+    }
+  });
+
+  flushPendingProduct();
+  return lines;
+}
+
 function extractPdfLineCandidate(
   sourceLine: string,
   rowIndex: number,
   preferPrice: "first" | "last",
   defaultCurrency: "ARS" | "USD",
+  context: PdfLineContext,
 ): CatalogImportLine | null {
   const line = sourceLine.replace(/\s+/g, " ").trim();
   if (!line || line.length < 4) return null;
   if (isLikelyPdfNoiseValue(line)) return null;
+  if (PDF_IGNORE_PATTERNS.some((pattern) => pattern.test(line.trim()))) return null;
   if (/^[*•]/.test(line)) return null;
   const chunks = line.split(/\s{2,}/).filter(Boolean);
   const candidateString = chunks.length > 1 ? chunks.join(" | ") : line;
@@ -733,6 +1048,14 @@ function extractPdfLineCandidate(
   const supplierCode = codeMatch ? codeMatch[1] : null;
   description = codeMatch ? codeMatch[2].trim() : description;
   if (description.length < 3) return null;
+  if (isLikelyTechnicalDescription(description)) return null;
+  let confidence = 0.58;
+  if (supplierCode) confidence += 0.12;
+  if (/u\$s|us\$|usd|ars|\$/i.test(candidateString)) confidence += 0.08;
+  if (context.pageHasCatalogSignals) confidence += 0.08;
+  if (context.pageHasTechnicalTable) confidence -= 0.05;
+  if (description.length >= 18) confidence += 0.05;
+  if (description.length < 8) confidence -= 0.08;
   if (!/[a-zA-Záéíóúñ]/i.test(description)) return null;
   return {
     supplier_code: supplierCode,
@@ -741,7 +1064,46 @@ function extractPdfLineCandidate(
     cost: pickedPrice.value,
     currency,
     row_index: rowIndex,
+    source_page: context.pageNumber,
+    confidence: Math.max(0.1, Math.min(0.99, confidence)),
   };
+}
+
+function scorePdfCandidate(candidate: PdfParseCandidateMetrics): number {
+  const avgDescriptionLength = candidate.lines.length
+    ? candidate.lines.reduce((total, line) => total + line.raw_description.length, 0) / candidate.lines.length
+    : 0;
+  const rowsWithMultipleColumns = candidate.tableRows.filter(
+    (row) => row.filter((cell) => cell.trim().length > 0).length >= 2,
+  ).length;
+
+  return (
+    candidate.lines.length * 2.6 +
+    Math.min(candidate.tableRows.length, 80) * 0.35 +
+    rowsWithMultipleColumns * 0.5 +
+    Math.min(candidate.chars, 6000) / 260 +
+    Math.min(avgDescriptionLength, 80) * 0.2
+  );
+}
+
+export function shouldRetryPdfWithOcr(candidate: PdfParseCandidateMetrics, options: ParsePdfOptions): boolean {
+  if (candidate.lines.length === 0) return true;
+  if (candidate.chars < options.textThresholdChars) return true;
+
+  const avgDescriptionLength = candidate.lines.length
+    ? candidate.lines.reduce((total, line) => total + line.raw_description.length, 0) / candidate.lines.length
+    : 0;
+  const rowsWithMultipleColumns = candidate.tableRows.filter(
+    (row) => row.filter((cell) => cell.trim().length > 0).length >= 2,
+  ).length;
+
+  if (candidate.lines.length < 10) return true;
+  if (candidate.tableRows.length > 0 && rowsWithMultipleColumns < Math.max(4, Math.floor(candidate.tableRows.length * 0.18))) {
+    return true;
+  }
+  if (avgDescriptionLength < 8) return true;
+
+  return false;
 }
 
 async function parsePdfTextMode(
@@ -769,20 +1131,27 @@ async function parsePdfTextMode(
       getTextContent: () => Promise<{ items: unknown[] }>;
     };
     const content = await page.getTextContent();
-    const items = content.items
-      .map((item) => {
-        if (!("str" in item) || !("transform" in item)) return null;
-        return { str: String(item.str ?? ""), transform: item.transform as number[] };
-      })
-      .filter((item): item is { str: string; transform: number[] } => item !== null);
-    chars += items.reduce((acc, item) => acc + item.str.replace(/\s+/g, "").length, 0);
-    const visualLines = textItemsToVisualLines(items);
-    tableRows.push(...textItemsToTableRows(items));
-    visualLines.forEach((line) => {
-      const parsed = extractPdfLineCandidate(line, rowIndex, options.preferPrice, options.defaultCurrency);
-      rowIndex += 1;
-      if (parsed) lines.push(parsed);
-    });
+      const items = content.items
+        .map((item) => {
+          if (!("str" in item) || !("transform" in item)) return null;
+          return { str: String(item.str ?? ""), transform: item.transform as number[] };
+        })
+        .filter((item): item is { str: string; transform: number[] } => item !== null);
+      chars += items.reduce((acc, item) => acc + item.str.replace(/\s+/g, "").length, 0);
+      const visualLines = textItemsToVisualLines(items);
+      const pageTableRows = textItemsToTableRows(items);
+      const pageContext = buildPdfPageContext(visualLines, pageTableRows, pageNumber);
+      tableRows.push(...pageTableRows);
+      const parsedPageLines = extractPdfCatalogCandidates(
+        visualLines,
+        options.preferPrice,
+        options.defaultCurrency,
+        pageContext,
+      );
+      parsedPageLines.forEach((parsed) => {
+        lines.push({ ...parsed, row_index: rowIndex });
+        rowIndex += 1;
+      });
   }
   return { lines, chars, pages: totalPages, tableRows };
 }
@@ -825,12 +1194,23 @@ async function parsePdfOcrMode(
       await page.render({ canvasContext: context, viewport }).promise;
       const result = await worker.recognize(canvas);
       const textLines = result.data.text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const pageTableRows = textLines
+        .map((line) => ocrLineToTableRow(line))
+        .filter((row) => row.length > 0);
+      const pageContext = buildPdfPageContext(textLines, pageTableRows, pageNumber);
       textLines.forEach((line) => {
         const row = ocrLineToTableRow(line);
         if (row.length > 0) tableRows.push(row);
-        const parsed = extractPdfLineCandidate(line, rowIndex, options.preferPrice, options.defaultCurrency);
+      });
+      const parsedPageLines = extractPdfCatalogCandidates(
+        textLines,
+        options.preferPrice,
+        options.defaultCurrency,
+        pageContext,
+      );
+      parsedPageLines.forEach((parsed) => {
+        lines.push({ ...parsed, row_index: rowIndex });
         rowIndex += 1;
-        if (parsed) lines.push(parsed);
       });
       if (pageNumber >= 2 && lines.length >= 30) break;
     }
@@ -854,7 +1234,13 @@ export async function parsePdfToLines(
     while (padded.length < textMaxCols) padded.push("");
     return padded;
   });
-  if (textMode.chars >= options.textThresholdChars && textMode.lines.length > 0) {
+  const textCandidate: PdfParseCandidateMetrics = {
+    lines: textMode.lines,
+    chars: textMode.chars,
+    tableRows: textMode.tableRows,
+  };
+
+  if (!shouldRetryPdfWithOcr(textCandidate, options)) {
     const confidence = Math.min(1, textMode.lines.length / 80);
     return {
       lines: textMode.lines,
@@ -874,6 +1260,7 @@ export async function parsePdfToLines(
         : null,
     };
   }
+
   const ocrMode = await parsePdfOcrMode(file, options, onProgress);
   const ocrMaxCols = ocrMode.tableRows.reduce((max, row) => Math.max(max, row.length), 0);
   const ocrHeaders = Array.from({ length: ocrMaxCols }, (_, idx) => `col_${idx + 1}`);
@@ -882,21 +1269,36 @@ export async function parsePdfToLines(
     while (padded.length < ocrMaxCols) padded.push("");
     return padded;
   });
-  const confidence = Math.min(1, ocrMode.lines.length / 80);
-  return {
+
+  const ocrCandidate: PdfParseCandidateMetrics = {
     lines: ocrMode.lines,
+    chars: textMode.chars,
+    tableRows: ocrMode.tableRows,
+  };
+
+  const useTextMode =
+    textMode.lines.length > 0 &&
+    scorePdfCandidate(textCandidate) >= scorePdfCandidate(ocrCandidate) * 1.05;
+  const selectedMode = useTextMode ? textMode : ocrMode;
+  const selectedTableRows = useTextMode ? textTableRows : ocrTableRows;
+  const selectedHeaders = useTextMode ? textHeaders : ocrHeaders;
+  const selectedMetaMode: ParsePdfMode = useTextMode ? "text" : "ocr";
+  const confidence = Math.min(1, selectedMode.lines.length / 80);
+
+  return {
+    lines: selectedMode.lines,
     meta: {
-      mode: "ocr",
+      mode: selectedMetaMode,
       totalChars: textMode.chars,
-      parsedPages: ocrMode.pages,
+      parsedPages: selectedMode.pages,
       confidence,
     },
-    table: ocrMaxCols > 0
+    table: selectedHeaders.length > 0
       ? {
-        headers: ocrHeaders,
-        rows: ocrTableRows,
-        previewRows: ocrTableRows.slice(0, 30),
-        sourceMode: "ocr",
+        headers: selectedHeaders,
+        rows: selectedTableRows,
+        previewRows: selectedTableRows.slice(0, 30),
+        sourceMode: selectedMetaMode,
       }
       : null,
   };

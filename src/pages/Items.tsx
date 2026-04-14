@@ -1,4 +1,4 @@
-﻿import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { VisibilityState } from "@tanstack/react-table";
@@ -439,8 +439,11 @@ export default function ItemsPage() {
       const { error } = await supabase.from("price_list_items").update({ is_active: false }).eq("item_id", id);
       if (error) throw error;
     },
-    onSuccess: async () => {
-      await invalidateItemQueries(qc);
+    onSuccess: async (count) => {
+      await Promise.all([
+        invalidateItemQueries(qc),
+        invalidateStockQueries(qc),
+      ]);
       toast({ title: "Ítem desactivado" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),

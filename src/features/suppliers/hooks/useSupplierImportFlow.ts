@@ -24,6 +24,7 @@ import type {
 } from "@/features/suppliers/components/ColumnMappingModal";
 import type { PdfMappingSelection } from "@/features/suppliers/components/PdfMappingModal";
 import type {
+  ExtractionReviewLine,
   ImportMappingStored,
   PdfImportMappingStored,
   OrderLine,
@@ -36,6 +37,25 @@ type ToastFn = (params: {
   description?: string;
   variant?: "default" | "destructive";
 }) => void;
+
+function hasGenericPdfHeaders(headers: string[]) {
+  if (headers.length === 0) return true;
+  return headers.every((header) => /^col_?\d+$/i.test(header.trim()));
+}
+
+function shouldRequestPdfMapping(params: {
+  headers: string[];
+  rows: string[][];
+  mode: string;
+  confidence: number;
+}) {
+  const { headers, rows, mode, confidence } = params;
+  if (rows.length === 0) return false;
+  if (mode === "ai") return false;
+  if (hasGenericPdfHeaders(headers)) return false;
+  if (confidence < 0.72) return false;
+  return true;
+}
 
 export function useSupplierImportFlow(params: {
   currentCompanyId: string | null;
@@ -52,6 +72,8 @@ export function useSupplierImportFlow(params: {
   setSelectedFile: (file: File | null) => void;
   setPdfProgress: (value: ParsePdfProgress | null) => void;
   setLastDiagnostics: (value: NormalizeDiagnostics | null) => void;
+  setExtractionReviewOpen: (value: boolean) => void;
+  setExtractionReviewLines: (value: ExtractionReviewLine[]) => void;
   setActiveVersionId: (value: string | null) => void;
   setCatalogUiTab: (value: "carga" | "historial" | "catalogo") => void;
   setOrderItems: (value: Record<string, OrderLine>) => void;
@@ -84,6 +106,8 @@ export function useSupplierImportFlow(params: {
     setSelectedFile,
     setPdfProgress,
     setLastDiagnostics,
+    setExtractionReviewOpen,
+    setExtractionReviewLines,
     setActiveVersionId,
     setCatalogUiTab,
     setOrderItems,
@@ -101,6 +125,14 @@ export function useSupplierImportFlow(params: {
     pdfMappingResolverRef,
     toast,
   } = params;
+
+  type ParsedSupplierImportResult = {
+    fileType: "pdf" | "xlsx" | "csv";
+    title: string;
+    requestedCatalogId: string | null;
+    diagnostics: NormalizeDiagnostics | null;
+    lines: ExtractionReviewLine[];
+  };
 
   const requestXlsxMapping = (request: {
     headers: string[];
@@ -190,25 +222,7 @@ export function useSupplierImportFlow(params: {
         });
       }
 
-      const { data: document, error: documentError } = await supabase
-        .from("supplier_documents")
-        .insert({
-          company_id: currentCompanyId,
-          supplier_id: selectedSupplier.id,
-          title,
-          file_name: selectedFile.name,
-          file_type: fileType,
-          notes: documentNotes.trim() || null,
-        })
-        .select("id")
-        .single();
-      if (documentError) {
-        logSupplierImportError("insert_document", documentError, { userId, requestedCatalogId });
-        throw documentError;
-      }
-
-      const supplierDocumentId = document.id;
-      let lines = [] as ReturnType<typeof toSupplierCatalogRpcLinePayload>[];
+      let lines = [] as ExtractionReviewLine[];
       let diagnostics: NormalizeDiagnostics | null = null;
 
       if (isXlsx || isText) {
@@ -295,7 +309,16 @@ export function useSupplierImportFlow(params: {
           }
         }
 
-        lines = normalized.lines.map(toSupplierCatalogRpcLinePayload);
+        lines = normalized.lines.map((line, index) => ({
+          id: `preview-${index + 1}`,
+          supplier_code: line.supplier_code,
+          raw_description: line.raw_description,
+          cost: line.cost,
+          currency: line.currency || "ARS",
+          row_index: line.row_index,
+          source_page: line.source_page,
+          confidence: line.confidence,
+        }));
       } else if (isPdf) {
         const {
           DEFAULT_PDF_OPTIONS,
@@ -343,9 +366,25 @@ export function useSupplierImportFlow(params: {
         const tableHeaders = parseResult.table?.headers ?? [];
         const tableRows = parseResult.table?.rows ?? [];
 
-        if (tableHeaders.length === 0 || tableRows.length === 0) {
+        const canUsePdfMapping = shouldRequestPdfMapping({
+          headers: tableHeaders,
+          rows: tableRows,
+          mode: parseResult.meta.mode,
+          confidence: parseResult.meta.confidence,
+        });
+
+        if (tableHeaders.length === 0 || tableRows.length === 0 || !canUsePdfMapping) {
           if (parseResult.lines.length === 0) throw new Error("No se pudo extraer contenido del PDF");
-          lines = parseResult.lines.map(toSupplierCatalogRpcLinePayload);
+          lines = parseResult.lines.map((line, index) => ({
+            id: `preview-${index + 1}`,
+            supplier_code: line.supplier_code,
+            raw_description: line.raw_description,
+            cost: line.cost,
+            currency: line.currency || "ARS",
+            row_index: line.row_index,
+            source_page: line.source_page,
+            confidence: line.confidence,
+          }));
         } else {
           const detected = detectPdfColumnsHeuristic(tableHeaders, tableRows);
           const stored = await loadStoredSupplierImportMapping<PdfImportMappingStored>(
@@ -375,7 +414,16 @@ export function useSupplierImportFlow(params: {
             defaultCurrency: DEFAULT_PDF_OPTIONS.defaultCurrency,
           });
           const effectivePdfLines = normalizedPdfLines.length > 0 ? normalizedPdfLines : parseResult.lines;
-          lines = effectivePdfLines.map(toSupplierCatalogRpcLinePayload);
+          lines = effectivePdfLines.map((line, index) => ({
+            id: `preview-${index + 1}`,
+            supplier_code: line.supplier_code,
+            raw_description: line.raw_description,
+            cost: line.cost,
+            currency: line.currency || "ARS",
+            row_index: line.row_index,
+            source_page: line.source_page,
+            confidence: line.confidence,
+          }));
 
           if (selection.remember) {
             try {
@@ -399,32 +447,103 @@ export function useSupplierImportFlow(params: {
       setPdfProgress(null);
       setLastDiagnostics(diagnostics);
       if (lines.length === 0) throw new Error("No se encontraron filas validas para importar");
+      return {
+        fileType,
+        title,
+        requestedCatalogId,
+        diagnostics,
+        lines,
+      } satisfies ParsedSupplierImportResult;
+    },
+    onSuccess: (result) => {
+      setPdfProgress(null);
+      setExtractionReviewLines(result.lines);
+      setExtractionReviewOpen(true);
+      setLineQuantities({});
+      toast({ title: "Listado procesado", description: `Revisa ${result.lines.length} lineas antes de importar` });
+    },
+    onError: (error: unknown) => {
+      setPdfProgress(null);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
 
-      const { data: rpcResult, error: rpcError } = await supabase.rpc(
-        "create_supplier_catalog_import",
-        {
-          p_supplier_id: selectedSupplier.id,
-          p_supplier_document_id: supplierDocumentId,
-          p_catalog_id: requestedCatalogId,
-          p_catalog_title: requestedCatalogId ? null : title,
-          p_catalog_notes: documentNotes.trim() || null,
-          p_version_title: title,
-          p_lines: lines,
-        },
+  const confirmImportMutation = useMutation({
+    mutationFn: async (reviewLines: ExtractionReviewLine[]) => {
+      if (!currentCompanyId) throw new Error("Selecciona una empresa para importar catalogos");
+      if (!selectedSupplier) throw new Error("Selecciona un proveedor");
+      if (!selectedFile) throw new Error("Selecciona un archivo");
+      if (reviewLines.length === 0) throw new Error("No hay lineas para importar");
+
+      const extension = selectedFile.name.split(".").pop()?.toLowerCase();
+      const isXlsx = ["xlsx", "xls"].includes(extension ?? "");
+      const isPdf = extension === "pdf";
+      const isText = ["csv", "txt", "tsv"].includes(extension ?? "");
+      const fileType = isPdf ? "pdf" : isXlsx ? "xlsx" : isText ? "csv" : null;
+      if (!fileType) throw new Error("Formato no soportado");
+
+      const title = documentTitle.trim() || selectedFile.name;
+      const requestedCatalogId = selectedCatalogId === "new" ? null : selectedCatalogId;
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData.user?.id ?? null;
+
+      const { data: document, error: documentError } = await supabase
+        .from("supplier_documents")
+        .insert({
+          company_id: currentCompanyId,
+          supplier_id: selectedSupplier.id,
+          title,
+          file_name: selectedFile.name,
+          file_type: fileType,
+          notes: documentNotes.trim() || null,
+        })
+        .select("id")
+        .single();
+      if (documentError) {
+        logSupplierImportError("insert_document", documentError, { userId, requestedCatalogId });
+        throw documentError;
+      }
+
+      const supplierDocumentId = document.id;
+      const rpcLines = reviewLines.map((line) =>
+        toSupplierCatalogRpcLinePayload({
+          supplier_code: line.supplier_code,
+          raw_description: line.raw_description.trim(),
+          normalized_description: line.raw_description.trim().toLowerCase(),
+          cost: line.cost,
+          currency: line.currency || "ARS",
+          row_index: line.row_index,
+          source_page: line.source_page,
+          confidence: line.confidence,
+        }),
       );
+
+      const { data: rpcResult, error: rpcError } = await supabase.rpc("create_supplier_catalog_import", {
+        p_supplier_id: selectedSupplier.id,
+        p_supplier_document_id: supplierDocumentId,
+        p_catalog_id: requestedCatalogId,
+        p_catalog_title: requestedCatalogId ? null : title,
+        p_catalog_notes: documentNotes.trim() || null,
+        p_version_title: title,
+        p_lines: rpcLines,
+      });
       if (rpcError) {
         logSupplierImportError("create_supplier_catalog_import", rpcError, {
           userId,
           requestedCatalogId,
           supplierDocumentId,
-          lineCount: lines.length,
+          lineCount: rpcLines.length,
         });
         throw rpcError;
       }
 
       const response = (rpcResult ?? {}) as { version_id?: string; inserted_count?: number };
       return {
-        total: response.inserted_count ?? lines.length,
+        total: response.inserted_count ?? rpcLines.length,
         versionId: response.version_id ?? null,
       };
     },
@@ -437,6 +556,8 @@ export function useSupplierImportFlow(params: {
       setSelectedCatalogId("new");
       setSelectedFile(null);
       setPdfProgress(null);
+      setExtractionReviewLines([]);
+      setExtractionReviewOpen(false);
       if (result.versionId) setActiveVersionId(result.versionId);
       setCatalogUiTab("catalogo");
       setOrderItems({});
@@ -447,8 +568,6 @@ export function useSupplierImportFlow(params: {
       });
     },
     onError: (error: unknown) => {
-      setPdfProgress(null);
-      setSelectedFile(null);
       toast({
         title: "Error",
         description: getErrorMessage(error),
@@ -464,6 +583,7 @@ export function useSupplierImportFlow(params: {
     requestPdfMapping,
     closePdfMappingModal,
     confirmPdfMappingModal,
+    confirmImportMutation,
     uploadCatalogMutation,
   };
 }

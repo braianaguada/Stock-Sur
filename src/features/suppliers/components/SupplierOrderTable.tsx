@@ -56,7 +56,7 @@ export function SupplierOrderTable({
       header: () => <div className="text-right">Costo</div>,
       cell: ({ row }) => (
         <div className="text-right font-mono">
-          ${Number(row.original.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+          {row.original.currency} {Number(row.original.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
         </div>
       ),
       meta: {
@@ -69,7 +69,7 @@ export function SupplierOrderTable({
       header: () => <div className="text-right">Subtotal</div>,
       cell: ({ row }) => (
         <div className="text-right font-semibold">
-          ${(row.original.cost * row.original.quantity).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+          {row.original.currency} {(row.original.cost * row.original.quantity).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
         </div>
       ),
       meta: {
