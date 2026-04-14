@@ -1,5 +1,5 @@
-import { useDeferredValue, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -18,7 +18,6 @@ import type {
   PriceListRow,
 } from "@/features/documents/types";
 import { calculatePriceFromCostBase } from "@/features/documents/utils";
-import { buildItemDisplayName } from "@/lib/item-display";
 
 type CustomerOption = {
   id: string;
@@ -29,10 +28,6 @@ type AvailableItemOption = {
   id: string;
   sku: string;
   name: string;
-  attributes?: string | null;
-  brand?: string | null;
-  model?: string | null;
-  display_name?: string;
   unit?: string | null;
 };
 
@@ -48,9 +43,8 @@ interface DocumentsEditorDialogProps {
   customers: CustomerOption[];
   priceLists: PriceListRow[];
   availableItems: AvailableItemOption[];
-  onAddItem: (itemId: string) => void;
   onPriceListChange: (priceListId: string) => void;
-  onPickItem: (index: number, itemId: string) => void;
+  onAddItem: (itemId: string) => void;
   removeLine: (idx: number) => void;
   onSubmit: () => void;
   onResetDraftForm: () => void;
@@ -73,303 +67,581 @@ export function DocumentsEditorDialog({
   customers,
   priceLists,
   availableItems,
-  onAddItem,
   onPriceListChange,
-  onPickItem,
+  onAddItem,
   removeLine,
   onSubmit,
   onResetDraftForm,
   isSubmitting,
 }: DocumentsEditorDialogProps) {
+  const [itemSearch, setItemSearch] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [itemQuery, setItemQuery] = useState("");
-  const deferredItemQuery = useDeferredValue(itemQuery);
 
-  const hasPriceList = Boolean(form.price_list_id);
+  const selectedPriceList = useMemo(
+    () => priceLists.find((priceList) => priceList.id === form.price_list_id) ?? null,
+    [form.price_list_id, priceLists],
+  );
+
+  const lineCountByItemId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const line of lines) {
+      if (!line.item_id) continue;
+      counts.set(line.item_id, (counts.get(line.item_id) ?? 0) + 1);
+    }
+    return counts;
+  }, [lines]);
 
   const filteredItems = useMemo(() => {
-    if (!deferredItemQuery.trim()) return [];
-    const query = deferredItemQuery.toLowerCase();
-    return availableItems.filter((item) => {
-      const display = buildItemDisplayName({
-        name: item.name,
-        brand: item.brand,
-        model: item.model,
-        attributes: item.attributes,
-      }).toLowerCase();
-      return (
-        item.sku.toLowerCase().includes(query) ||
-        item.name.toLowerCase().includes(query) ||
-        display.includes(query)
-      );
-    }).slice(0, 10);
-  }, [deferredItemQuery, availableItems]);
+    const query = itemSearch.trim().toLowerCase();
+    if (!form.price_list_id || query.length === 0) return [];
+
+    return availableItems
+      .filter((item) =>
+        [item.sku, item.name, item.unit ?? ""].some((value) => value.toLowerCase().includes(query)),
+      )
+      .slice(0, 8);
+  }, [availableItems, form.price_list_id, itemSearch]);
+
+  const updateLine = (index: number, patch: Partial<LineDraft>) => {
+    setLines((previousLines) =>
+      previousLines.map((line, lineIndex) =>
+        lineIndex === index ? { ...line, ...patch } : line,
+      ),
+    );
+  };
 
   const handleAddItem = (itemId: string) => {
     onAddItem(itemId);
-    setItemQuery("");
-  };
-
-  const updateLine = (idx: number, updates: Partial<LineDraft>) => {
-    const next = [...lines];
-    next[idx] = { ...next[idx], ...updates };
-    setLines(next);
+    setItemSearch("");
   };
 
   return (
     <EntityDialog
       open={open}
-      onOpenChange={onOpenChange}
-      title={editingDocId ? "Editar Documento" : "Nuevo Documento"}
-      description="Completa los datos del cliente y los productos. El documento se guardará como borrador."
-      size="xl"
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) {
+          setItemSearch("");
+          setDetailsOpen(false);
+          onResetDraftForm();
+        }
+      }}
+      title={editingDocId ? "Editar borrador" : "Nuevo documento"}
+      contentClassName="!w-[min(98vw,1680px)] sm:!w-[min(98vw,1680px)] !max-w-[1680px] sm:!max-w-[1680px] max-h-[92vh] overflow-x-hidden overflow-y-auto"
     >
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
+        onSubmit={(event) => {
+          event.preventDefault();
           onSubmit();
         }}
-        className="space-y-6"
+        className="space-y-4"
       >
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-4 rounded-xl border border-border/70 bg-background/50 p-4">
-            <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Datos del Documento</div>
-            <div className="grid gap-4">
+        <div className="rounded-xl border border-border/70 bg-card/60 shadow-sm relative">
+          <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+            <div className="p-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 items-start">
               <div className="space-y-2">
-                <Label>Cliente</Label>
+                <Label>Tipo *</Label>
                 <Select
-                  value={form.customer_id ?? ""}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, customer_id: value }))}
+                  value={form.doc_type}
+                  onValueChange={(value) =>
+                    setForm((previousForm) => {
+                      const nextDocType = value as DocType;
+                      const nextCustomerKind =
+                        nextDocType === "PRESUPUESTO" && previousForm.customer_kind === "INTERNO"
+                          ? "GENERAL"
+                          : previousForm.customer_kind;
+                      return {
+                        ...previousForm,
+                        doc_type: nextDocType,
+                        customer_kind: nextCustomerKind,
+                        internal_remito_type:
+                          nextDocType === "REMITO" && nextCustomerKind === "INTERNO"
+                            ? previousForm.internal_remito_type
+                            : "",
+                      };
+                    })
+                  }
                 >
-                  <SelectTrigger><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {customers.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    <SelectItem value="PRESUPUESTO">Presupuesto</SelectItem>
+                    <SelectItem value="REMITO">Remito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2 lg:hidden xl:block">
+                <Label>Punto de venta</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.point_of_sale}
+                  onChange={(event) =>
+                    setForm((previousForm) => ({
+                      ...previousForm,
+                      point_of_sale: Math.max(1, Number(event.target.value) || 1),
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2 md:col-span-2 xl:col-span-1">
+                <Label>Lista de precios *</Label>
+                <Select value={form.price_list_id} onValueChange={onPriceListChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar lista" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priceLists.map((priceList) => (
+                      <SelectItem key={priceList.id} value={priceList.id}>
+                        {priceList.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label>Lista de precios</Label>
-                <Select value={form.price_list_id ?? "none"} onValueChange={onPriceListChange}>
-                  <SelectTrigger><SelectValue placeholder="Precio manual (sin lista)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Manual (Sin lista)</SelectItem>
-                    {priceLists.map((pl) => (
-                      <SelectItem key={pl.id} value={pl.id}>{pl.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen} className="rounded-xl border border-border/70 bg-background/50 p-4">
-              <div className="flex items-center justify-between">
-                <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Mas detalles</div>
+              <div className="flex items-center justify-end h-full w-full">
                 <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    {detailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  <Button type="button" variant="outline" size="sm" className="h-9 mt-6 w-full shadow-none bg-background/50 hover:bg-background">
+                    {detailsOpen ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
+                    {detailsOpen ? "Ocultar opciones avanzadas" : "Opciones de facturación avanzadas"}
                   </Button>
                 </CollapsibleTrigger>
               </div>
-              <CollapsibleContent className="mt-4 space-y-4">
-                <div className="space-y-2">
-                  <Label>Notas</Label>
-                  <Textarea
-                    placeholder="Observaciones internas o para el cliente..."
-                    value={form.notes}
-                    onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+            </div>
+
+            <CollapsibleContent className="px-4 pb-4 border-t border-border/60 bg-muted/10 pt-4 rounded-b-xl">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="space-y-2 hidden lg:block xl:hidden">
+                  <Label>Punto de venta</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={form.point_of_sale}
+                    onChange={(event) =>
+                      setForm((previousForm) => ({
+                        ...previousForm,
+                        point_of_sale: Math.max(1, Number(event.target.value) || 1),
+                      }))
+                    }
                   />
                 </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
+
+                <div className="space-y-2">
+                  <Label>Tipo de cliente</Label>
+                  <Select
+                    value={form.customer_kind}
+                    onValueChange={(value) =>
+                      setForm((previousForm) => ({
+                        ...previousForm,
+                        customer_kind: value as CustomerKind,
+                        internal_remito_type:
+                          value === "INTERNO" && previousForm.doc_type === "REMITO"
+                            ? previousForm.internal_remito_type
+                            : "",
+                      }))
+                    }
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="GENERAL">Cliente general</SelectItem>
+                      {form.doc_type === "REMITO" ? (
+                        <SelectItem value="INTERNO">Personal / tecnico interno</SelectItem>
+                      ) : null}
+                      <SelectItem value="EMPRESA">Empresa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Cliente registrado</Label>
+                  <Select
+                    value={form.customer_id || "__none__"}
+                    onValueChange={(value) =>
+                      setForm((previousForm) => ({
+                        ...previousForm,
+                        customer_id: value === "__none__" ? "" : value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin seleccionar</SelectItem>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Nombre cliente</Label>
+                  <Input
+                    value={form.customer_name}
+                    placeholder="Opcional"
+                    onChange={(event) =>
+                      setForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>CUIT</Label>
+                  <Input
+                    value={form.customer_tax_id}
+                    placeholder="Opcional"
+                    onChange={(event) =>
+                      setForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Condición fiscal</Label>
+                  <Input
+                    value={form.customer_tax_condition}
+                    placeholder="Opcional"
+                    onChange={(event) =>
+                      setForm((previousForm) => ({
+                        ...previousForm,
+                        customer_tax_condition: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Condición de venta</Label>
+                  <Input
+                    value={form.payment_terms}
+                    placeholder="Opcional"
+                    onChange={(event) =>
+                      setForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Vendedor</Label>
+                  <Input
+                    value={form.salesperson}
+                    placeholder="Opcional"
+                    onChange={(event) =>
+                      setForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
+                    }
+                  />
+                </div>
+
+                {form.doc_type === "PRESUPUESTO" ? (
+                  <div className="space-y-2">
+                    <Label>Valido hasta</Label>
+                    <Input
+                      type="date"
+                      value={form.valid_until}
+                      onChange={(event) =>
+                        setForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
+                      }
+                    />
+                  </div>
+                ) : null}
+
+                {form.doc_type === "REMITO" ? (
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Domicilio de entrega</Label>
+                    <Input
+                      value={form.delivery_address}
+                      placeholder="Opcional"
+                      onChange={(event) =>
+                        setForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
+                      }
+                    />
+                  </div>
+                ) : null}
+
+                {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? (
+                  <div className="space-y-2">
+                    <Label>Imputación del remito</Label>
+                    <Select
+                      value={form.internal_remito_type || "__none__"}
+                      onValueChange={(value) =>
+                        setForm((previousForm) => ({
+                          ...previousForm,
+                          internal_remito_type:
+                            value === "__none__" ? "" : (value as InternalRemitoType),
+                        }))
+                      }
+                    >
+                      <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
+                        <SelectItem value="DESCUENTO_SUELDO">Descuento de sueldo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="relative flex-1 max-w-md">
-              <Label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Agregar productos
-              </Label>
+        <div className="space-y-4 rounded-xl border border-border/70 bg-card/60 p-4 relative">
+          <div className="flex flex-col gap-1">
+            <Label className="text-base">Productos ({lines.length})</Label>
+            <p className="text-sm text-muted-foreground mr-[200px]">
+              Busca en la lista activa ({selectedPriceList?.name ?? "Ninguna"}) y agrega productos. 
+              <span className="hidden sm:inline"> Presiona <strong>Enter</strong> para sumar rápidamente el primero.</span>
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="relative w-full">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar por SKU o nombre..."
-                value={itemQuery}
-                onChange={(e) => setItemQuery(e.target.value)}
-              />
-              {filteredItems.length > 0 ? (
-                <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[300px] overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-xl backdrop-blur-md overflow-hidden">
+                  value={itemSearch}
+                  disabled={!form.price_list_id || priceLists.length === 0}
+                  className="pl-10"
+                  placeholder={
+                    form.price_list_id
+                      ? "Buscar producto por SKU, nombre o unidad"
+                      : "Selecciona una lista para habilitar la busqueda"
+                  }
+                  onChange={(event) => setItemSearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && filteredItems.length > 0) {
+                      event.preventDefault();
+                      handleAddItem(filteredItems[0].id);
+                    }
+                  }}
+                />
+            </div>
+
+            {itemSearch.trim().length > 0 ? (
+              filteredItems.length > 0 ? (
+                <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-2">
                   {filteredItems.map((item) => {
-                    const alreadyAdded = lines.some((l) => l.item_id === item.id);
+                    const alreadyAdded = lineCountByItemId.has(item.id);
                     return (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between rounded-md p-2 hover:bg-muted/60 transition-colors"
+                        className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card px-3 py-3 md:flex-row md:items-center md:justify-between"
                       >
-                        <div className="min-w-0 pr-4">
-                          <p className="truncate text-sm font-medium">{item.sku} | {item.name}</p>
-                          <p className="text-[11px] text-muted-foreground">Unidad: {item.unit || "un"}</p>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">
+                            {item.sku} | {item.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Unidad: {item.unit || "un"}
+                            {alreadyAdded ? " | Ya agregado" : ""}
+                          </div>
                         </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 shrink-0 gap-1.5 text-primary hover:bg-primary/10 hover:text-primary"
-                          onClick={() => handleAddItem(item.id)}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
+                        <Button type="button" size="sm" onClick={() => handleAddItem(item.id)}>
                           {alreadyAdded ? "Sumar" : "Agregar"}
                         </Button>
                       </div>
                     );
                   })}
                 </div>
-              ) : itemQuery.length > 2 ? (
-                <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-lg border border-border bg-popover p-3 text-center text-sm text-muted-foreground shadow-xl">
-                  No se encontraron productos
+              ) : (
+                <div className="rounded-lg border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">
+                  No hay coincidencias en la lista seleccionada.
                 </div>
-              ) : null}
-            </div>
-            
-            <div className="rounded-2xl border border-primary/20 bg-primary/5 px-6 py-3 shadow-[inset_0_1px_rgba(255,255,255,0.1)]">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-primary/70 font-bold mb-0.5">Total Documento</p>
-              <p className="text-2xl font-black tracking-tight text-primary">
-                ${totalDraft.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-              </p>
-            </div>
+              )
+            ) : null}
           </div>
 
-          <div className="space-y-3 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-2">
             {lines.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/20 py-12">
-                <Plus className="mb-3 h-10 w-10 text-muted-foreground/30" />
-                <p className="text-sm font-medium text-muted-foreground">Agrega productos para comenzar</p>
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-sm text-muted-foreground bg-muted/10">
+                <Search className="h-8 w-8 mb-3 text-muted-foreground/30" />
+                No tienes ningún producto agregado.
+                <br />
+                Usa el buscador para añadirlos.
               </div>
             ) : (
-              lines.map((line, idx) => {
-                const lineHasPriceList = Boolean(line.item_id && form.price_list_id);
-                const lockPrice = line.pricing_mode === "LIST_PRICE";
+              <div className="sticky top-0 z-20 hidden rounded-md border border-border/40 bg-muted/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-md xl:grid xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:gap-3">
+                <div>Producto</div>
+                <div>Cantidad</div>
+                <div>Modo de precio</div>
+                <div>Margen %</div>
+                <div>Precio unitario</div>
+                <div>Total</div>
+                <div className="text-right">Acs</div>
+              </div>
+            )}
 
-                return (
-                  <div key={`${line.item_id ?? "manual"}-${idx}`} className="group relative rounded-2xl border border-border/50 bg-card py-3 px-4 shadow-sm transition-all hover:bg-card/80 hover:shadow-md">
-                    <div className="grid gap-4 md:grid-cols-[2fr_100px_150px_180px_150px_40px] md:items-center">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-foreground/90">
-                          {line.sku_snapshot ? `${line.sku_snapshot} | ` : ""}{line.description}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">Unidad: {line.unit || "un"}</p>
+            {lines.map((line, index) => {
+              const lockPrice = line.pricing_mode === "LIST_PRICE";
+              const lineTotal = line.quantity * line.unit_price;
+
+              return (
+                <div key={`${line.item_id ?? "manual"}-${index}`} className="group rounded-lg border border-border/70 bg-background/80 px-3 py-2 hover:border-border transition-colors">
+                  <div className="grid gap-3 xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:items-center">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-foreground">
+                        {line.sku_snapshot ? `${line.sku_snapshot} | ` : ""}
+                        {line.description}
                       </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Cant.</Label>
-                        <Input
-                          className="h-9 text-center font-mono"
-                          type="number"
-                          min={0}
-                          step="any"
-                          value={line.quantity}
-                          onChange={(e) => updateLine(idx, { quantity: Number(e.target.value) || 0 })}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">P. Unitario</Label>
-                        <Input
-                          className="h-9 text-right font-mono"
-                          type="number"
-                          min={0}
-                          step="any"
-                          value={line.unit_price}
-                          disabled={lockPrice}
-                          onChange={(e) => updateLine(idx, { 
-                            unit_price: Number(e.target.value) || 0,
-                            price_overridden_at: lineHasPriceList ? new Date().toISOString() : line.price_overridden_at
-                          })}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Modo de precio</Label>
-                        {lineHasPriceList ? (
-                          <Select
-                            value={line.pricing_mode}
-                            onValueChange={(value) => {
-                              const nextMode = value as LinePricingMode;
-                              if (nextMode === "LIST_PRICE") {
-                                updateLine(idx, {
-                                  pricing_mode: nextMode,
-                                  unit_price: line.suggested_unit_price,
-                                  manual_margin_pct: null,
-                                  price_overridden_at: null,
-                                  price_overridden_by: null,
-                                });
-                              } else if (nextMode === "MANUAL_MARGIN") {
-                                const marginPct = line.manual_margin_pct ?? line.list_utilidad_pct_snapshot ?? 0;
-                                updateLine(idx, {
-                                  pricing_mode: nextMode,
-                                  manual_margin_pct: Number(marginPct),
-                                  unit_price: calculatePriceFromCostBase(
-                                    line.base_cost_snapshot ?? 0,
-                                    line.list_flete_pct_snapshot,
-                                    Number(marginPct),
-                                    line.list_impuesto_pct_snapshot,
-                                  ),
-                                  price_overridden_at: new Date().toISOString(),
-                                });
-                              } else {
-                                updateLine(idx, {
-                                  pricing_mode: nextMode,
-                                  price_overridden_at: new Date().toISOString(),
-                                });
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="LIST_PRICE">{PRICING_MODE_LABEL.LIST_PRICE}</SelectItem>
-                              <SelectItem value="MANUAL_MARGIN">{PRICING_MODE_LABEL.MANUAL_MARGIN}</SelectItem>
-                              <SelectItem value="MANUAL_PRICE">{PRICING_MODE_LABEL.MANUAL_PRICE}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <div className="h-9 flex items-center px-3 border border-dashed rounded-md text-[11px] text-muted-foreground bg-muted/10 font-medium">Manual (Sin lista)</div>
-                        )}
-                      </div>
-
-                      <div className="text-right">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold block mb-1">Total Linea</Label>
-                        <p className="text-base font-bold tabular-nums">${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
-                      </div>
-
-                      <div className="flex justify-end">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => removeLine(idx)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <div className="mt-0.5 text-xs text-muted-foreground flex items-center gap-2">
+                        <span>{line.unit || "un"}</span>
+                        <span>&bull;</span>
+                        <span>Sug: {formatMoney(line.suggested_unit_price)}</span>
                       </div>
                     </div>
+
+                    <div className="space-y-1 xl:space-y-0">
+                      <Label className="text-xs text-muted-foreground xl:hidden">Cantidad</Label>
+                      <Input
+                        className="h-9 text-sm"
+                        type="number"
+                        min={0.001}
+                        step="any"
+                        value={line.quantity}
+                        onChange={(event) =>
+                          updateLine(index, { quantity: Number(event.target.value) || 0 })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-1 xl:space-y-0">
+                      <Label className="text-xs text-muted-foreground xl:hidden">Modo de precio</Label>
+                      <Select
+                        value={line.pricing_mode}
+                        onValueChange={(value) => {
+                          const nextMode = value as LinePricingMode;
+                          if (nextMode === "LIST_PRICE") {
+                            updateLine(index, {
+                              pricing_mode: nextMode,
+                              unit_price: line.suggested_unit_price,
+                              manual_margin_pct: null,
+                              price_overridden_at: null,
+                              price_overridden_by: null,
+                            });
+                            return;
+                          }
+
+                          if (nextMode === "MANUAL_MARGIN") {
+                            const marginPct =
+                              line.manual_margin_pct ?? line.list_utilidad_pct_snapshot ?? 0;
+                            updateLine(index, {
+                              pricing_mode: nextMode,
+                              manual_margin_pct: Number(marginPct),
+                              unit_price: calculatePriceFromCostBase(
+                                line.base_cost_snapshot ?? 0,
+                                line.list_flete_pct_snapshot,
+                                Number(marginPct),
+                                line.list_impuesto_pct_snapshot,
+                              ),
+                              price_overridden_at: new Date().toISOString(),
+                            });
+                            return;
+                          }
+
+                          updateLine(index, {
+                            pricing_mode: nextMode,
+                            price_overridden_at: new Date().toISOString(),
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="LIST_PRICE">{PRICING_MODE_LABEL.LIST_PRICE}</SelectItem>
+                          <SelectItem value="MANUAL_MARGIN">{PRICING_MODE_LABEL.MANUAL_MARGIN}</SelectItem>
+                          <SelectItem value="MANUAL_PRICE">{PRICING_MODE_LABEL.MANUAL_PRICE}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1 xl:space-y-0">
+                      <Label className="text-xs text-muted-foreground xl:hidden">Margen %</Label>
+                      <Input
+                        className="h-9 text-sm"
+                        type="number"
+                        min={0}
+                        step="any"
+                        disabled={line.pricing_mode !== "MANUAL_MARGIN"}
+                        placeholder="N/A"
+                        value={line.pricing_mode === "MANUAL_MARGIN" ? (line.manual_margin_pct ?? "") : ""}
+                        onChange={(event) => {
+                          const marginPct = event.target.value === "" ? 0 : Number(event.target.value);
+                          updateLine(index, {
+                            manual_margin_pct: marginPct,
+                            unit_price: calculatePriceFromCostBase(
+                              line.base_cost_snapshot ?? 0,
+                              line.list_flete_pct_snapshot,
+                              marginPct,
+                              line.list_impuesto_pct_snapshot,
+                            ),
+                            price_overridden_at: new Date().toISOString(),
+                          });
+                        }}
+                      />
+                    </div>
+
+                    <div className="space-y-1 xl:space-y-0">
+                      <Label className="text-xs text-muted-foreground xl:hidden">Precio unitario</Label>
+                      <Input
+                        className="h-9 text-sm"
+                        type="number"
+                        min={0}
+                        step="any"
+                        disabled={lockPrice}
+                        value={line.unit_price}
+                        onChange={(event) =>
+                          updateLine(index, {
+                            unit_price: Number(event.target.value) || 0,
+                            price_overridden_at: new Date().toISOString(),
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-1 flex items-center h-9 mt-4 xl:mt-0 relative overflow-hidden">
+                      <Label className="text-xs text-muted-foreground xl:hidden absolute top-0 -mt-5">Total</Label>
+                      <div className="text-sm font-semibold text-foreground w-full xl:text-left">{formatMoney(lineTotal)}</div>
+                    </div>
+
+                    <div className="flex items-end justify-end xl:justify-center mt-[-36px] xl:mt-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-muted-foreground opacity-50 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all"
+                        onClick={() => removeLine(index)}
+                        title="Eliminar linea"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                );
-              })
-            )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-border/60 bg-background/85 px-6 py-4 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.1)] backdrop-blur-sm">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold">Resumen Documento</p>
-            <p className="text-xl font-black tracking-tight text-foreground">
-              ${totalDraft.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-            </p>
+        <div className="space-y-2 mb-20">
+          <Label>Notas Generales</Label>
+          <Textarea
+            className="resize-none min-h-[80px]"
+            placeholder="Aclaraciones adicionales del documento..."
+            value={form.notes}
+            onChange={(event) =>
+              setForm((previousForm) => ({ ...previousForm, notes: event.target.value }))
+            }
+          />
+        </div>
+
+        <div className="sticky bottom-0 z-30 flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/95 px-5 py-4 shadow-[var(--shadow-md)] backdrop-blur-md">
+          <div className="flex flex-col">
+            <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-0.5">Total Documento</span>
+            <span className="text-2xl font-extrabold tracking-tight text-foreground">
+              {formatMoney(totalDraft)}
+            </span>
           </div>
-          <Button type="submit" disabled={isSubmitting} className="h-11 rounded-full px-8 font-bold shadow-lg shadow-primary/20">
+          <Button type="submit" disabled={isSubmitting || priceLists.length === 0} className="h-11 rounded-full px-8 shadow-sm">
             {isSubmitting ? "Guardando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
           </Button>
         </div>
