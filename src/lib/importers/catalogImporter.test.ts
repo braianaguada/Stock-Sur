@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   detectColumnsHeuristic,
   detectPdfColumnsHeuristic,
+  extractPdfCatalogCandidates,
   normalizePdfRowsToLines,
   normalizeRowsToLines,
   parseFlexibleNumber,
+  shouldRetryPdfWithOcr,
 } from "@/lib/importers/catalogImporter";
 
 describe("supplier importer heuristics", () => {
@@ -90,5 +92,210 @@ describe("supplier importer heuristics", () => {
     expect(lines[0].cost).toBeCloseTo(13077.02, 2);
     expect(lines[2].currency).toBe("USD");
     expect(lines[2].cost).toBeCloseTo(30.83, 2);
+  });
+
+  it("filters technical rows and ignores non-product PDF noise", () => {
+    const headers = ["col_1", "col_2", "col_3", "col_4"];
+    const rows = [
+      ["CODIGO", "PULG.", "A cm", "B cm"],
+      ["DCR-6", "6", "15", "12"],
+      ["SL12WF", "Aplique cerrado blanco 12w Luz blanca fría", "", "U$S 3.60"],
+      ["NETO", "", "", ""],
+    ];
+
+    const lines = normalizePdfRowsToLines({
+      headers,
+      rows,
+      mapping: {
+        descriptionColumn: "col_2",
+        priceColumn: "col_4",
+        codeColumn: "col_1",
+        preferPriceAtEnd: true,
+        filterRowsWithoutPrice: true,
+      },
+      defaultCurrency: "ARS",
+    });
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0].supplier_code).toBe("SL12WF");
+    expect(lines[0].raw_description).toContain("Aplique cerrado blanco 12w");
+  });
+
+  it("retries OCR when text extraction quality is poor even if the PDF has enough text", () => {
+    expect(
+      shouldRetryPdfWithOcr(
+        {
+          chars: 2200,
+          lines: [
+            {
+              supplier_code: "A1",
+              raw_description: "Cable",
+              normalized_description: "cable",
+              cost: 1000,
+              currency: "ARS",
+              row_index: 1,
+            },
+            {
+              supplier_code: "A2",
+              raw_description: "Mouse",
+              normalized_description: "mouse",
+              cost: 2000,
+              currency: "ARS",
+              row_index: 2,
+            },
+          ],
+          tableRows: [
+            ["promo vigente"],
+            ["sku"],
+            ["precio"],
+            ["telefono"],
+            ["direccion"],
+          ],
+        },
+        {
+          preferPrice: "last",
+          defaultCurrency: "ARS",
+          maxPages: 30,
+          textThresholdChars: 500,
+          maxOcrMs: 120000,
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps text mode when extracted rows already look healthy", () => {
+    expect(
+      shouldRetryPdfWithOcr(
+        {
+          chars: 3200,
+          lines: [
+            {
+              supplier_code: "A1",
+              raw_description: "Cable HDMI 2 metros mallado",
+              normalized_description: "cable hdmi 2 metros mallado",
+              cost: 1000,
+              currency: "ARS",
+              row_index: 1,
+            },
+            {
+              supplier_code: "A2",
+              raw_description: "Mouse inalambrico recargable",
+              normalized_description: "mouse inalambrico recargable",
+              cost: 2000,
+              currency: "ARS",
+              row_index: 2,
+            },
+            {
+              supplier_code: "A3",
+              raw_description: "Teclado mecanico compacto",
+              normalized_description: "teclado mecanico compacto",
+              cost: 3000,
+              currency: "ARS",
+              row_index: 3,
+            },
+            {
+              supplier_code: "A4",
+              raw_description: "Auriculares bluetooth plegables",
+              normalized_description: "auriculares bluetooth plegables",
+              cost: 4000,
+              currency: "ARS",
+              row_index: 4,
+            },
+            {
+              supplier_code: "A5",
+              raw_description: "Monitor led 24 pulgadas",
+              normalized_description: "monitor led 24 pulgadas",
+              cost: 5000,
+              currency: "ARS",
+              row_index: 5,
+            },
+            {
+              supplier_code: "A6",
+              raw_description: "Webcam full hd con microfono",
+              normalized_description: "webcam full hd con microfono",
+              cost: 6000,
+              currency: "ARS",
+              row_index: 6,
+            },
+            {
+              supplier_code: "A7",
+              raw_description: "Parlante portatil resistente al agua",
+              normalized_description: "parlante portatil resistente al agua",
+              cost: 7000,
+              currency: "ARS",
+              row_index: 7,
+            },
+            {
+              supplier_code: "A8",
+              raw_description: "Disco solido externo 1tb",
+              normalized_description: "disco solido externo 1tb",
+              cost: 8000,
+              currency: "ARS",
+              row_index: 8,
+            },
+            {
+              supplier_code: "A9",
+              raw_description: "Adaptador usb c multipuerto",
+              normalized_description: "adaptador usb c multipuerto",
+              cost: 9000,
+              currency: "ARS",
+              row_index: 9,
+            },
+            {
+              supplier_code: "A10",
+              raw_description: "Base notebook aluminio regulable",
+              normalized_description: "base notebook aluminio regulable",
+              cost: 10000,
+              currency: "ARS",
+              row_index: 10,
+            },
+          ],
+          tableRows: [
+            ["A1", "Cable HDMI 2 metros mallado", "$ 1.000,00"],
+            ["A2", "Mouse inalambrico recargable", "$ 2.000,00"],
+            ["A3", "Teclado mecanico compacto", "$ 3.000,00"],
+            ["A4", "Auriculares bluetooth plegables", "$ 4.000,00"],
+            ["A5", "Monitor led 24 pulgadas", "$ 5.000,00"],
+          ],
+        },
+        {
+          preferPrice: "last",
+          defaultCurrency: "ARS",
+          maxPages: 30,
+          textThresholdChars: 500,
+          maxOcrMs: 120000,
+        },
+      ),
+    ).toBe(false);
+  });
+
+  it("rebuilds product blocks that split price, code, and description across lines", () => {
+    const lines = extractPdfCatalogCandidates(
+      [
+        "TIMER PROGRAMABLE WI-FI U$S 13.53",
+        "TIMWIFI INTERRUPTOR Y TIMER PROGRAMABLE",
+        "Caracteristicas: Programable dia y hora.",
+        "50160 U$S 18.00",
+        "Caja de proteccion / seguridad porta termostato con llave 18 X 10 X 9",
+        "HY03BW Termostato de Ambiente con pantalla tactil ASUA U$S 36.32",
+      ],
+      "last",
+      "ARS",
+      {
+        pageNumber: 3,
+        pageHasCatalogSignals: true,
+        pageHasTechnicalTable: false,
+      },
+    );
+
+    expect(lines).toHaveLength(3);
+    expect(lines[0].supplier_code).toBe("TIMWIFI");
+    expect(lines[0].raw_description).toContain("TIMER PROGRAMABLE WI-FI");
+    expect(lines[0].cost).toBeCloseTo(13.53, 2);
+    expect(lines[1].supplier_code).toBe("50160");
+    expect(lines[1].raw_description).toContain("Caja de proteccion");
+    expect(lines[1].cost).toBeCloseTo(18, 2);
+    expect(lines[2].supplier_code).toBe("HY03BW");
+    expect(lines[2].currency).toBe("USD");
   });
 });

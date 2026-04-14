@@ -139,12 +139,14 @@ Notas:
 Se agregó una capa opcional para PDFs de proveedores con muchas imágenes o texto poco legible:
 
 - El flujo sigue intentando primero con `pdfjs` y OCR local.
-- Si el resultado es flojo, prueba automáticamente una Edge Function de Supabase con Gemini.
-- Si Gemini no está configurado o falla, el sistema vuelve al parser actual sin cortar la importación.
+- Si el resultado es flojo, prueba automáticamente motores externos vía Edge Functions de Supabase.
+- La prioridad gratis actual es `Gemini`.
+- `Mistral OCR` queda como motor opcional, no requerido.
+- Si los motores externos no están configurados o fallan, el sistema vuelve al parser actual sin cortar la importación.
 
 ### Configuración
 
-1. Crear los secretos en Supabase:
+1. ConfiguraciÃ³n mÃ­nima gratis en Supabase:
 
 ```sh
 supabase secrets set GEMINI_API_KEY=tu_api_key
@@ -168,7 +170,7 @@ La función intenta devolver una estructura limpia con:
 - `price`
 - `currency`
 
-Luego el frontend reutiliza el mismo modal de mapeo PDF y el mismo pipeline de importación que ya existía.
+Luego el frontend reutiliza el mismo modal de mapeo PDF y el pipeline de importación, ahora con una revisión final antes de confirmar el alta del listado.
 
 ## Migración definitiva (Supabase CLI, sin dashboard)
 

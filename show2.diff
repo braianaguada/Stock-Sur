@@ -1,0 +1,3241 @@
+commit 6ba8b972c75fe7dcfcd1558371a158690b289c1c
+Author: Braian Aguada <braianaguada@gmail.com>
+Date:   Mon Apr 13 23:17:09 2026 -0300
+
+    fix: simplify documents modal line flow (#157)
+    
+    * Add supplier catalog extraction review flow
+    
+    * Improve PDF product block extraction
+    
+    * Tighten PDF price detection
+    
+    * fix: simplify documents modal line flow
+    
+    * chore: rerun ci
+    
+    * fix: lazy load supabase in ai pdf extraction
+
+diff --git a/src/features/documents/components/DocumentsEditorDialog.tsx b/src/features/documents/components/DocumentsEditorDialog.tsx
+index 72b82bd..964e326 100644
+--- a/src/features/documents/components/DocumentsEditorDialog.tsx
++++ b/src/features/documents/components/DocumentsEditorDialog.tsx
+@@ -1,11 +1,12 @@
+-import { Plus, Trash2 } from "lucide-react";
++import { useMemo, useState } from "react";
++import { Search, Trash2 } from "lucide-react";
+ import { EntityDialog } from "@/components/common/EntityDialog";
+ import { Button } from "@/components/ui/button";
+ import { Input } from "@/components/ui/input";
+ import { Label } from "@/components/ui/label";
+ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+ import { Textarea } from "@/components/ui/textarea";
+-import { EMPTY_LINE, PRICING_MODE_LABEL } from "@/features/documents/constants";
++import { PRICING_MODE_LABEL } from "@/features/documents/constants";
+ import type {
+   CustomerKind,
+   DocType,
+@@ -26,6 +27,7 @@ type AvailableItemOption = {
+   id: string;
+   sku: string;
+   name: string;
++  unit?: string | null;
+ };
+ 
+ interface DocumentsEditorDialogProps {
+@@ -41,13 +43,17 @@ interface DocumentsEditorDialogProps {
+   priceLists: PriceListRow[];
+   availableItems: AvailableItemOption[];
+   onPriceListChange: (priceListId: string) => void;
+-  onPickItem: (idx: number, itemId: string) => void;
++  onAddItem: (itemId: string) => void;
+   removeLine: (idx: number) => void;
+   onSubmit: () => void;
+   onResetDraftForm: () => void;
+   isSubmitting: boolean;
+ }
+ 
++function formatMoney(value: number) {
++  return `$${value.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
++}
++
+ export function DocumentsEditorDialog({
+   open,
+   onOpenChange,
+@@ -61,371 +67,563 @@ export function DocumentsEditorDialog({
+   priceLists,
+   availableItems,
+   onPriceListChange,
+-  onPickItem,
++  onAddItem,
+   removeLine,
+   onSubmit,
+   onResetDraftForm,
+   isSubmitting,
+ }: DocumentsEditorDialogProps) {
++  const [itemSearch, setItemSearch] = useState("");
++
++  const selectedPriceList = useMemo(
++    () => priceLists.find((priceList) => priceList.id === form.price_list_id) ?? null,
++    [form.price_list_id, priceLists],
++  );
++
++  const lineCountByItemId = useMemo(() => {
++    const counts = new Map<string, number>();
++    for (const line of lines) {
++      if (!line.item_id) continue;
++      counts.set(line.item_id, (counts.get(line.item_id) ?? 0) + 1);
++    }
++    return counts;
++  }, [lines]);
++
++  const filteredItems = useMemo(() => {
++    const query = itemSearch.trim().toLowerCase();
++    if (!form.price_list_id || query.length === 0) return [];
++
++    return availableItems
++      .filter((item) =>
++        [item.sku, item.name, item.unit ?? ""].some((value) => value.toLowerCase().includes(query)),
++      )
++      .slice(0, 8);
++  }, [availableItems, form.price_list_id, itemSearch]);
++
++  const updateLine = (index: number, patch: Partial<LineDraft>) => {
++    setLines((previousLines) =>
++      previousLines.map((line, lineIndex) =>
++        lineIndex === index ? { ...line, ...patch } : line,
++      ),
++    );
++  };
++
++  const handleAddItem = (itemId: string) => {
++    onAddItem(itemId);
++    setItemSearch("");
++  };
++
+   return (
+     <EntityDialog
+       open={open}
+       onOpenChange={(nextOpen) => {
+         onOpenChange(nextOpen);
+-        if (!nextOpen) onResetDraftForm();
++        if (!nextOpen) {
++          setItemSearch("");
++          onResetDraftForm();
++        }
+       }}
+       title={editingDocId ? "Editar borrador" : "Nuevo documento"}
+-      contentClassName="max-w-5xl max-h-[90vh] overflow-auto"
++      contentClassName="max-h-[92vh] max-w-[min(96vw,1320px)] overflow-y-auto"
+     >
+-        <form
+-          onSubmit={(e) => {
+-            e.preventDefault();
+-            onSubmit();
+-          }}
+-          className="space-y-4"
+-        >
+-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+-            <div className="space-y-2">
+-              <Label>Tipo *</Label>
+-              <Select
+-                value={form.doc_type}
+-                onValueChange={(v) =>
+-                  setForm((prev) => {
+-                    const nextDocType = v as DocType;
+-                    const nextCustomerKind = nextDocType === "PRESUPUESTO" && prev.customer_kind === "INTERNO" ? "GENERAL" : prev.customer_kind;
+-                    return {
+-                      ...prev,
+-                      doc_type: nextDocType,
+-                      customer_kind: nextCustomerKind,
+-                      internal_remito_type: nextDocType === "REMITO" && nextCustomerKind === "INTERNO" ? prev.internal_remito_type : "",
+-                    };
+-                  })
+-                }
+-              >
+-                <SelectTrigger><SelectValue /></SelectTrigger>
+-                <SelectContent>
+-                  <SelectItem value="PRESUPUESTO">Presupuesto</SelectItem>
+-                  <SelectItem value="REMITO">Remito</SelectItem>
+-                </SelectContent>
+-              </Select>
+-            </div>
+-            <div className="space-y-2">
+-              <Label>Punto de venta</Label>
+-              <Input type="number" min={1} value={form.point_of_sale} onChange={(e) => setForm((prev) => ({ ...prev, point_of_sale: Math.max(1, Number(e.target.value) || 1) }))} />
+-            </div>
+-            <div className="space-y-2">
+-              <Label>Lista de precios</Label>
+-              <Select value={form.price_list_id || "__none__"} onValueChange={(v) => onPriceListChange(v === "__none__" ? "" : v)}>
+-                <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+-                <SelectContent>
+-                  <SelectItem value="__none__">Sin lista</SelectItem>
+-                  {priceLists.map((pl) => <SelectItem key={pl.id} value={pl.id}>{pl.name}</SelectItem>)}
+-                </SelectContent>
+-              </Select>
+-            </div>
+-          </div>
+-
+-          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+-            <div className="space-y-2">
+-              <Label>Tipo de cliente</Label>
+-              <Select
+-                value={form.customer_kind}
+-                onValueChange={(v) =>
+-                  setForm((prev) => ({
+-                    ...prev,
+-                    customer_kind: v as CustomerKind,
+-                    internal_remito_type: v === "INTERNO" && prev.doc_type === "REMITO" ? prev.internal_remito_type : "",
+-                  }))
+-                }
+-              >
+-                <SelectTrigger><SelectValue /></SelectTrigger>
+-                <SelectContent>
+-                  <SelectItem value="GENERAL">Cliente general</SelectItem>
+-                  {form.doc_type === "REMITO" && <SelectItem value="INTERNO">Personal / tecnico interno</SelectItem>}
+-                  <SelectItem value="EMPRESA">Empresa</SelectItem>
+-                </SelectContent>
+-              </Select>
+-            </div>
+-            <div className="space-y-2">
+-              <Label>Cliente registrado</Label>
+-              <Select value={form.customer_id || "__none__"} onValueChange={(v) => setForm((prev) => ({ ...prev, customer_id: v === "__none__" ? "" : v }))}>
+-                <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+-                <SelectContent>
+-                  <SelectItem value="__none__">Sin seleccionar</SelectItem>
+-                  {customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+-                </SelectContent>
+-              </Select>
+-            </div>
+-            <div className="space-y-2">
+-              <Label>Nombre cliente</Label>
+-              <Input value={form.customer_name} onChange={(e) => setForm((prev) => ({ ...prev, customer_name: e.target.value }))} />
+-            </div>
+-            <div className="space-y-2">
+-              <Label>CUIT</Label>
+-              <Input value={form.customer_tax_id} onChange={(e) => setForm((prev) => ({ ...prev, customer_tax_id: e.target.value }))} />
+-            </div>
+-            <div className="space-y-2">
+-              <Label>Condicion fiscal</Label>
+-              <Input value={form.customer_tax_condition} onChange={(e) => setForm((prev) => ({ ...prev, customer_tax_condition: e.target.value }))} />
+-            </div>
+-          </div>
++      <form
++        onSubmit={(event) => {
++          event.preventDefault();
++          onSubmit();
++        }}
++        className="space-y-5"
++      >
++        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_320px]">
++          <div className="rounded-xl border border-border/70 bg-card/60 p-4">
++            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
++              <div className="space-y-2">
++                <Label>Tipo *</Label>
++                <Select
++                  value={form.doc_type}
++                  onValueChange={(value) =>
++                    setForm((previousForm) => {
++                      const nextDocType = value as DocType;
++                      const nextCustomerKind =
++                        nextDocType === "PRESUPUESTO" && previousForm.customer_kind === "INTERNO"
++                          ? "GENERAL"
++                          : previousForm.customer_kind;
++                      return {
++                        ...previousForm,
++                        doc_type: nextDocType,
++                        customer_kind: nextCustomerKind,
++                        internal_remito_type:
++                          nextDocType === "REMITO" && nextCustomerKind === "INTERNO"
++                            ? previousForm.internal_remito_type
++                            : "",
++                      };
++                    })
++                  }
++                >
++                  <SelectTrigger><SelectValue /></SelectTrigger>
++                  <SelectContent>
++                    <SelectItem value="PRESUPUESTO">Presupuesto</SelectItem>
++                    <SelectItem value="REMITO">Remito</SelectItem>
++                  </SelectContent>
++                </Select>
++              </div>
+ 
+-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+-            <div className="space-y-2">
+-              <Label>Condicion de venta</Label>
+-              <Input value={form.payment_terms} onChange={(e) => setForm((prev) => ({ ...prev, payment_terms: e.target.value }))} />
+-            </div>
+-            <div className="space-y-2">
+-              <Label>Vendedor</Label>
+-              <Input value={form.salesperson} onChange={(e) => setForm((prev) => ({ ...prev, salesperson: e.target.value }))} />
+-            </div>
+-            {form.doc_type === "PRESUPUESTO" && (
+               <div className="space-y-2">
+-                <Label>Valido hasta</Label>
+-                <Input type="date" value={form.valid_until} onChange={(e) => setForm((prev) => ({ ...prev, valid_until: e.target.value }))} />
++                <Label>Punto de venta</Label>
++                <Input
++                  type="number"
++                  min={1}
++                  value={form.point_of_sale}
++                  onChange={(event) =>
++                    setForm((previousForm) => ({
++                      ...previousForm,
++                      point_of_sale: Math.max(1, Number(event.target.value) || 1),
++                    }))
++                  }
++                />
+               </div>
+-            )}
+-          </div>
+ 
+-          {form.doc_type === "REMITO" && (
+-            <div className="space-y-2">
+-              <Label>Domicilio de entrega</Label>
+-              <Input value={form.delivery_address} onChange={(e) => setForm((prev) => ({ ...prev, delivery_address: e.target.value }))} />
+-            </div>
+-          )}
++              <div className="space-y-2 xl:col-span-2">
++                <Label>Lista de precios *</Label>
++                <Select value={form.price_list_id} onValueChange={onPriceListChange}>
++                  <SelectTrigger>
++                    <SelectValue placeholder="Seleccionar lista" />
++                  </SelectTrigger>
++                  <SelectContent>
++                    {priceLists.map((priceList) => (
++                      <SelectItem key={priceList.id} value={priceList.id}>
++                        {priceList.name}
++                      </SelectItem>
++                    ))}
++                  </SelectContent>
++                </Select>
++              </div>
+ 
+-          {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" && (
+-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+               <div className="space-y-2">
+-                <Label>Imputacion del remito</Label>
++                <Label>Tipo de cliente</Label>
+                 <Select
+-                  value={form.internal_remito_type || "__none__"}
+-                  onValueChange={(v) => setForm((prev) => ({ ...prev, internal_remito_type: v === "__none__" ? "" : (v as InternalRemitoType) }))}
++                  value={form.customer_kind}
++                  onValueChange={(value) =>
++                    setForm((previousForm) => ({
++                      ...previousForm,
++                      customer_kind: value as CustomerKind,
++                      internal_remito_type:
++                        value === "INTERNO" && previousForm.doc_type === "REMITO"
++                          ? previousForm.internal_remito_type
++                          : "",
++                    }))
++                  }
+                 >
+-                  <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
++                  <SelectTrigger><SelectValue /></SelectTrigger>
+                   <SelectContent>
+-                    <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
+-                    <SelectItem value="DESCUENTO_SUELDO">Descuento de sueldo</SelectItem>
++                    <SelectItem value="GENERAL">Cliente general</SelectItem>
++                    {form.doc_type === "REMITO" ? (
++                      <SelectItem value="INTERNO">Personal / tecnico interno</SelectItem>
++                    ) : null}
++                    <SelectItem value="EMPRESA">Empresa</SelectItem>
+                   </SelectContent>
+                 </Select>
+               </div>
+-            </div>
+-          )}
+ 
+-          <div className="space-y-2">
+-            <Label>Notas</Label>
+-            <Textarea value={form.notes} onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))} />
++              <div className="space-y-2">
++                <Label>Cliente registrado</Label>
++                <Select
++                  value={form.customer_id || "__none__"}
++                  onValueChange={(value) =>
++                    setForm((previousForm) => ({
++                      ...previousForm,
++                      customer_id: value === "__none__" ? "" : value,
++                    }))
++                  }
++                >
++                  <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
++                  <SelectContent>
++                    <SelectItem value="__none__">Sin seleccionar</SelectItem>
++                    {customers.map((customer) => (
++                      <SelectItem key={customer.id} value={customer.id}>
++                        {customer.name}
++                      </SelectItem>
++                    ))}
++                  </SelectContent>
++                </Select>
++              </div>
++
++              <div className="space-y-2">
++                <Label>Nombre cliente</Label>
++                <Input
++                  value={form.customer_name}
++                  placeholder="Opcional"
++                  onChange={(event) =>
++                    setForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
++                  }
++                />
++              </div>
++
++              <div className="space-y-2">
++                <Label>CUIT</Label>
++                <Input
++                  value={form.customer_tax_id}
++                  placeholder="Opcional"
++                  onChange={(event) =>
++                    setForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
++                  }
++                />
++              </div>
++
++              <div className="space-y-2">
++                <Label>Condicion fiscal</Label>
++                <Input
++                  value={form.customer_tax_condition}
++                  placeholder="Opcional"
++                  onChange={(event) =>
++                    setForm((previousForm) => ({
++                      ...previousForm,
++                      customer_tax_condition: event.target.value,
++                    }))
++                  }
++                />
++              </div>
++
++              <div className="space-y-2">
++                <Label>Condicion de venta</Label>
++                <Input
++                  value={form.payment_terms}
++                  placeholder="Opcional"
++                  onChange={(event) =>
++                    setForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
++                  }
++                />
++              </div>
++
++              <div className="space-y-2">
++                <Label>Vendedor</Label>
++                <Input
++                  value={form.salesperson}
++                  placeholder="Opcional"
++                  onChange={(event) =>
++                    setForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
++                  }
++                />
++              </div>
++
++              {form.doc_type === "PRESUPUESTO" ? (
++                <div className="space-y-2">
++                  <Label>Valido hasta</Label>
++                  <Input
++                    type="date"
++                    value={form.valid_until}
++                    onChange={(event) =>
++                      setForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
++                    }
++                  />
++                </div>
++              ) : null}
++
++              {form.doc_type === "REMITO" ? (
++                <div className="space-y-2 xl:col-span-2">
++                  <Label>Domicilio de entrega</Label>
++                  <Input
++                    value={form.delivery_address}
++                    placeholder="Opcional"
++                    onChange={(event) =>
++                      setForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
++                    }
++                  />
++                </div>
++              ) : null}
++
++              {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? (
++                <div className="space-y-2">
++                  <Label>Imputacion del remito</Label>
++                  <Select
++                    value={form.internal_remito_type || "__none__"}
++                    onValueChange={(value) =>
++                      setForm((previousForm) => ({
++                        ...previousForm,
++                        internal_remito_type:
++                          value === "__none__" ? "" : (value as InternalRemitoType),
++                      }))
++                    }
++                  >
++                    <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
++                    <SelectContent>
++                      <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
++                      <SelectItem value="DESCUENTO_SUELDO">Descuento de sueldo</SelectItem>
++                    </SelectContent>
++                  </Select>
++                </div>
++              ) : null}
++            </div>
+           </div>
+ 
+-          <div className="space-y-2">
+-            <div className="flex items-center justify-between">
+-              <Label>Lineas</Label>
+-              <Button type="button" variant="outline" size="sm" onClick={() => setLines((prev) => [...prev, EMPTY_LINE])}>
+-                <Plus className="mr-1 h-3 w-3" /> Linea
++          <div className="flex h-full flex-col justify-between rounded-xl border border-border/70 bg-muted/20 p-4">
++            <div className="space-y-3">
++              <div>
++                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
++                  Resumen
++                </p>
++                <p className="mt-2 text-sm text-muted-foreground">
++                  La carga de productos se hace siempre desde una lista activa.
++                </p>
++              </div>
++              <div className="space-y-2 rounded-lg border border-border/70 bg-background/70 p-3">
++                <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
++                  Lista activa
++                </div>
++                <div className="text-sm font-medium">
++                  {selectedPriceList?.name ?? "Selecciona una lista para continuar"}
++                </div>
++              </div>
++              <div className="grid grid-cols-2 gap-3">
++                <div className="rounded-lg border border-border/70 bg-background/70 p-3">
++                  <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Lineas</div>
++                  <div className="mt-1 text-2xl font-semibold">{lines.length}</div>
++                </div>
++                <div className="rounded-lg border border-border/70 bg-background/70 p-3">
++                  <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Total</div>
++                  <div className="mt-1 text-xl font-semibold">{formatMoney(totalDraft)}</div>
++                </div>
++              </div>
++            </div>
++            <div className="mt-4">
++              <Button type="submit" className="w-full" disabled={isSubmitting || priceLists.length === 0}>
++                {isSubmitting ? "Guardando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
+               </Button>
+             </div>
+-            {form.price_list_id && (
+-              <p className="text-xs text-muted-foreground">Con lista activa, solo aparecen items de esa lista y cada linea puede usar precio de lista, margen manual o precio manual.</p>
+-            )}
+-            <div className="space-y-2">
+-              {lines.map((line, idx) => {
+-                const hasPriceList = !!form.price_list_id && !!line.item_id;
+-                const lockPrice = hasPriceList && line.pricing_mode === "LIST_PRICE";
+-                const lockDescription = !!line.item_id;
+-                return (
+-                  <div key={idx} className="space-y-2 rounded-lg border border-border/70 p-3">
+-                    <div className="grid grid-cols-12 gap-2">
+-                      <div className="col-span-12 md:col-span-3">
+-                        <Select value={line.item_id ?? "__none__"} onValueChange={(v) => onPickItem(idx, v === "__none__" ? "" : v)}>
+-                          <SelectTrigger><SelectValue placeholder="Item" /></SelectTrigger>
+-                          <SelectContent>
+-                            {!form.price_list_id && <SelectItem value="__none__">Manual</SelectItem>}
+-                            {availableItems.map((it) => <SelectItem key={it.id} value={it.id}>{it.sku} - {it.name}</SelectItem>)}
+-                          </SelectContent>
+-                        </Select>
++          </div>
++        </div>
++
++        <div className="space-y-3 rounded-xl border border-border/70 bg-card/60 p-4">
++          <div className="flex flex-col gap-1">
++            <Label>Agregar productos</Label>
++            <p className="text-sm text-muted-foreground">
++              Busca en la lista seleccionada y agrega o suma productos sin crear filas vacias.
++            </p>
++          </div>
++
++          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
++            <div className="space-y-3">
++              <div className="relative">
++                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
++                <Input
++                  value={itemSearch}
++                  disabled={!form.price_list_id || priceLists.length === 0}
++                  className="pl-10"
++                  placeholder={
++                    form.price_list_id
++                      ? "Buscar producto por SKU, nombre o unidad"
++                      : "Selecciona una lista para habilitar la busqueda"
++                  }
++                  onChange={(event) => setItemSearch(event.target.value)}
++                />
++              </div>
++
++              {itemSearch.trim().length > 0 ? (
++                filteredItems.length > 0 ? (
++                  <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-2">
++                    {filteredItems.map((item) => {
++                      const alreadyAdded = lineCountByItemId.has(item.id);
++                      return (
++                        <div
++                          key={item.id}
++                          className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card px-3 py-3 md:flex-row md:items-center md:justify-between"
++                        >
++                          <div className="min-w-0">
++                            <div className="truncate text-sm font-medium">
++                              {item.sku} | {item.name}
++                            </div>
++                            <div className="text-xs text-muted-foreground">
++                              Unidad: {item.unit || "un"}
++                              {alreadyAdded ? " | Ya agregado" : ""}
++                            </div>
++                          </div>
++                          <Button type="button" size="sm" onClick={() => handleAddItem(item.id)}>
++                            {alreadyAdded ? "Sumar" : "Agregar"}
++                          </Button>
++                        </div>
++                      );
++                    })}
++                  </div>
++                ) : (
++                  <div className="rounded-lg border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">
++                    No hay coincidencias en la lista seleccionada.
++                  </div>
++                )
++              ) : null}
++            </div>
++
++            <div className="rounded-xl border border-border/70 bg-background/70 p-3">
++              <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
++                Productos cargados
++              </div>
++              <div className="mt-2 text-2xl font-semibold">{lines.length}</div>
++              <p className="mt-2 text-sm text-muted-foreground">
++                Cada producto agregado puede editar cantidad, modo de precio y eliminarse desde su fila.
++              </p>
++            </div>
++          </div>
++
++          <div className="space-y-3">
++            {lines.length === 0 ? (
++              <div className="rounded-lg border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
++                Todavia no agregaste productos al documento.
++              </div>
++            ) : null}
++
++            {lines.map((line, index) => {
++              const lockPrice = line.pricing_mode === "LIST_PRICE";
++              const lineTotal = line.quantity * line.unit_price;
++
++              return (
++                <div key={`${line.item_id ?? "manual"}-${index}`} className="rounded-xl border border-border/70 bg-background/80 p-4">
++                  <div className="grid gap-3 xl:grid-cols-[minmax(0,2.8fr)_130px_210px_150px_170px_150px_auto] xl:items-center">
++                    <div className="min-w-0">
++                      <div className="truncate text-base font-semibold">
++                        {line.sku_snapshot ? `${line.sku_snapshot} | ` : ""}
++                        {line.description}
+                       </div>
++                      <div className="mt-1 text-sm text-muted-foreground">
++                        Unidad: {line.unit || "un"} | Precio sugerido: {formatMoney(line.suggested_unit_price)}
++                      </div>
++                    </div>
++
++                    <div className="space-y-2">
++                      <Label className="text-xs text-muted-foreground">Cantidad</Label>
+                       <Input
+-                        className="col-span-12 md:col-span-4"
+-                        placeholder="Descripcion"
+-                        value={line.description}
+-                        disabled={lockDescription}
+-                        onChange={(e) => {
+-                          const next = [...lines];
+-                          next[idx] = { ...next[idx], description: e.target.value };
+-                          setLines(next);
+-                        }}
+-                      />
+-                      <Input
+-                        className="col-span-6 md:col-span-1"
+                         type="number"
+                         min={0.001}
+                         step="any"
+                         value={line.quantity}
+-                        onChange={(e) => {
+-                          const next = [...lines];
+-                          next[idx] = { ...next[idx], quantity: Number(e.target.value) || 0 };
+-                          setLines(next);
+-                        }}
++                        onChange={(event) =>
++                          updateLine(index, { quantity: Number(event.target.value) || 0 })
++                        }
+                       />
++                    </div>
++
++                    <div className="space-y-2">
++                      <Label className="text-xs text-muted-foreground">Modo de precio</Label>
++                      <Select
++                        value={line.pricing_mode}
++                        onValueChange={(value) => {
++                          const nextMode = value as LinePricingMode;
++                          if (nextMode === "LIST_PRICE") {
++                            updateLine(index, {
++                              pricing_mode: nextMode,
++                              unit_price: line.suggested_unit_price,
++                              manual_margin_pct: null,
++                              price_overridden_at: null,
++                              price_overridden_by: null,
++                            });
++                            return;
++                          }
++
++                          if (nextMode === "MANUAL_MARGIN") {
++                            const marginPct =
++                              line.manual_margin_pct ?? line.list_utilidad_pct_snapshot ?? 0;
++                            updateLine(index, {
++                              pricing_mode: nextMode,
++                              manual_margin_pct: Number(marginPct),
++                              unit_price: calculatePriceFromCostBase(
++                                line.base_cost_snapshot ?? 0,
++                                line.list_flete_pct_snapshot,
++                                Number(marginPct),
++                                line.list_impuesto_pct_snapshot,
++                              ),
++                              price_overridden_at: new Date().toISOString(),
++                            });
++                            return;
++                          }
++
++                          updateLine(index, {
++                            pricing_mode: nextMode,
++                            price_overridden_at: new Date().toISOString(),
++                          });
++                        }}
++                      >
++                        <SelectTrigger><SelectValue /></SelectTrigger>
++                        <SelectContent>
++                          <SelectItem value="LIST_PRICE">{PRICING_MODE_LABEL.LIST_PRICE}</SelectItem>
++                          <SelectItem value="MANUAL_MARGIN">{PRICING_MODE_LABEL.MANUAL_MARGIN}</SelectItem>
++                          <SelectItem value="MANUAL_PRICE">{PRICING_MODE_LABEL.MANUAL_PRICE}</SelectItem>
++                        </SelectContent>
++                      </Select>
++                    </div>
++
++                    <div className="space-y-2">
++                      <Label className="text-xs text-muted-foreground">Margen %</Label>
+                       <Input
+-                        className="col-span-6 md:col-span-2"
+                         type="number"
+                         min={0}
+                         step="any"
+-                        value={line.unit_price}
+-                        disabled={lockPrice}
+-                        onChange={(e) => {
+-                          const next = [...lines];
+-                          next[idx] = {
+-                            ...next[idx],
+-                            unit_price: Number(e.target.value) || 0,
+-                            price_overridden_at: hasPriceList ? new Date().toISOString() : next[idx].price_overridden_at,
+-                          };
+-                          setLines(next);
++                        disabled={line.pricing_mode !== "MANUAL_MARGIN"}
++                        placeholder="No aplica"
++                        value={line.pricing_mode === "MANUAL_MARGIN" ? (line.manual_margin_pct ?? "") : ""}
++                        onChange={(event) => {
++                          const marginPct = event.target.value === "" ? 0 : Number(event.target.value);
++                          updateLine(index, {
++                            manual_margin_pct: marginPct,
++                            unit_price: calculatePriceFromCostBase(
++                              line.base_cost_snapshot ?? 0,
++                              line.list_flete_pct_snapshot,
++                              marginPct,
++                              line.list_impuesto_pct_snapshot,
++                            ),
++                            price_overridden_at: new Date().toISOString(),
++                          });
+                         }}
+                       />
+-                      <div className="col-span-12 md:col-span-2 flex items-center justify-between gap-2 md:justify-end">
+-                        <span className="text-xs text-muted-foreground">Total</span>
+-                        <span className="text-sm font-mono">
+-                          ${(line.quantity * line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+-                        </span>
+-                      </div>
+                     </div>
+ 
+-                    {hasPriceList && (
+-                      <div className="grid grid-cols-12 gap-2">
+-                        <div className="col-span-12 md:col-span-3 space-y-1">
+-                          <Label className="text-xs text-muted-foreground">Modo de precio</Label>
+-                          <Select
+-                            value={line.pricing_mode}
+-                            onValueChange={(value) => {
+-                              const nextMode = value as LinePricingMode;
+-                              const next = [...lines];
+-                              if (nextMode === "LIST_PRICE") {
+-                                next[idx] = {
+-                                  ...next[idx],
+-                                  pricing_mode: nextMode,
+-                                  unit_price: next[idx].suggested_unit_price,
+-                                  manual_margin_pct: null,
+-                                  price_overridden_at: null,
+-                                  price_overridden_by: null,
+-                                };
+-                              } else if (nextMode === "MANUAL_MARGIN") {
+-                                const marginPct = next[idx].manual_margin_pct ?? next[idx].list_utilidad_pct_snapshot ?? 0;
+-                                next[idx] = {
+-                                  ...next[idx],
+-                                  pricing_mode: nextMode,
+-                                  manual_margin_pct: Number(marginPct),
+-                                  unit_price: calculatePriceFromCostBase(
+-                                    next[idx].base_cost_snapshot ?? 0,
+-                                    next[idx].list_flete_pct_snapshot,
+-                                    Number(marginPct),
+-                                    next[idx].list_impuesto_pct_snapshot,
+-                                  ),
+-                                  price_overridden_at: new Date().toISOString(),
+-                                };
+-                              } else {
+-                                next[idx] = {
+-                                  ...next[idx],
+-                                  pricing_mode: nextMode,
+-                                  price_overridden_at: new Date().toISOString(),
+-                                };
+-                              }
+-                              setLines(next);
+-                            }}
+-                          >
+-                            <SelectTrigger><SelectValue /></SelectTrigger>
+-                            <SelectContent>
+-                              <SelectItem value="LIST_PRICE">{PRICING_MODE_LABEL.LIST_PRICE}</SelectItem>
+-                              <SelectItem value="MANUAL_MARGIN">{PRICING_MODE_LABEL.MANUAL_MARGIN}</SelectItem>
+-                              <SelectItem value="MANUAL_PRICE">{PRICING_MODE_LABEL.MANUAL_PRICE}</SelectItem>
+-                            </SelectContent>
+-                          </Select>
+-                        </div>
++                    <div className="space-y-2">
++                      <Label className="text-xs text-muted-foreground">Precio unitario</Label>
++                      <Input
++                        type="number"
++                        min={0}
++                        step="any"
++                        disabled={lockPrice}
++                        value={line.unit_price}
++                        onChange={(event) =>
++                          updateLine(index, {
++                            unit_price: Number(event.target.value) || 0,
++                            price_overridden_at: new Date().toISOString(),
++                          })
++                        }
++                      />
++                    </div>
+ 
+-                        {line.pricing_mode === "MANUAL_MARGIN" ? (
+-                          <div className="col-span-12 md:col-span-2 space-y-1">
+-                            <Label className="text-xs text-muted-foreground">Margen %</Label>
+-                            <Input
+-                              type="number"
+-                              min={0}
+-                              step="any"
+-                              value={line.manual_margin_pct ?? ""}
+-                              onChange={(e) => {
+-                                const marginPct = e.target.value === "" ? 0 : Number(e.target.value);
+-                                const next = [...lines];
+-                                next[idx] = {
+-                                  ...next[idx],
+-                                  manual_margin_pct: marginPct,
+-                                  unit_price: calculatePriceFromCostBase(
+-                                    next[idx].base_cost_snapshot ?? 0,
+-                                    next[idx].list_flete_pct_snapshot,
+-                                    marginPct,
+-                                    next[idx].list_impuesto_pct_snapshot,
+-                                  ),
+-                                  price_overridden_at: new Date().toISOString(),
+-                                };
+-                                setLines(next);
+-                              }}
+-                            />
+-                          </div>
+-                        ) : (
+-                          <div className="col-span-12 md:col-span-2" />
+-                        )}
+-
+-                        <div className="col-span-12 md:col-span-5 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+-                          <div>Precio sugerido: ${line.suggested_unit_price.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div>
+-                          {line.pricing_mode === "MANUAL_MARGIN" ? (
+-                            <div>Margen manual aplicado sobre costo base y porcentajes de la lista.</div>
+-                          ) : line.pricing_mode === "MANUAL_PRICE" ? (
+-                            <div>Precio final manual. Se conserva el sugerido como referencia.</div>
+-                          ) : (
+-                            <div>La linea usa el precio calculado desde la lista seleccionada.</div>
+-                          )}
+-                        </div>
++                    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
++                      <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Total</div>
++                      <div className="mt-1 text-lg font-semibold">{formatMoney(lineTotal)}</div>
++                    </div>
+ 
+-                        <div className="col-span-12 md:col-span-2 flex items-end justify-end">
+-                          <Button
+-                            type="button"
+-                            variant="ghost"
+-                            size="sm"
+-                            className="h-8 px-2 text-muted-foreground hover:text-destructive"
+-                            onClick={() => removeLine(idx)}
+-                            title="Eliminar linea"
+-                          >
+-                            <Trash2 className="mr-1 h-4 w-4" /> Eliminar linea
+-                          </Button>
+-                        </div>
+-                      </div>
+-                    )}
+-
+-                    {!hasPriceList && (
+-                      <div className="flex justify-end">
+-                        <Button
+-                          type="button"
+-                          variant="ghost"
+-                          size="sm"
+-                          className="h-8 px-2 text-muted-foreground hover:text-destructive"
+-                          onClick={() => removeLine(idx)}
+-                          title="Eliminar linea"
+-                        >
+-                          <Trash2 className="mr-1 h-4 w-4" /> Eliminar linea
+-                        </Button>
+-                      </div>
+-                    )}
++                    <div className="flex items-end justify-end xl:justify-center">
++                      <Button
++                        type="button"
++                        variant="ghost"
++                        size="icon"
++                        className="h-11 w-11 text-muted-foreground hover:text-destructive"
++                        onClick={() => removeLine(index)}
++                        title="Eliminar linea"
++                      >
++                        <Trash2 className="h-4 w-4" />
++                      </Button>
++                    </div>
+                   </div>
+-                );
+-              })}
+-            </div>
+-            <p className="text-right font-bold">Total: ${totalDraft.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
++                </div>
++              );
++            })}
+           </div>
++        </div>
+ 
+-          <div className="flex justify-end">
+-            <Button type="submit" disabled={isSubmitting}>
+-              {isSubmitting ? "Guardando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
+-            </Button>
+-          </div>
+-        </form>
++        <div className="space-y-2">
++          <Label>Notas</Label>
++          <Textarea
++            value={form.notes}
++            onChange={(event) =>
++              setForm((previousForm) => ({ ...previousForm, notes: event.target.value }))
++            }
++          />
++        </div>
++      </form>
+     </EntityDialog>
+   );
+ }
+diff --git a/src/features/documents/hooks/useDocumentDraftLoader.ts b/src/features/documents/hooks/useDocumentDraftLoader.ts
+index 42c94c1..5fedc0f 100644
+--- a/src/features/documents/hooks/useDocumentDraftLoader.ts
++++ b/src/features/documents/hooks/useDocumentDraftLoader.ts
+@@ -1,6 +1,5 @@
+ import { useCallback } from "react";
+ import { supabase } from "@/integrations/supabase/client";
+-import { EMPTY_LINE } from "../constants";
+ import type { DocRow, DocumentFormState, LineDraft } from "../types";
+ 
+ type UseDocumentDraftLoaderParams = {
+@@ -66,7 +65,7 @@ export function useDocumentDraftLoader({ documentsById }: UseDocumentDraftLoader
+         price_list_id: target.price_list_id ?? "",
+         notes: target.notes ?? "",
+       },
+-      lines: draftLines.length > 0 ? draftLines : [EMPTY_LINE],
++      lines: draftLines,
+     };
+   }, [documentsById]);
+ }
+diff --git a/src/features/documents/hooks/useDocumentsMutations.ts b/src/features/documents/hooks/useDocumentsMutations.ts
+index 4d25a20..9b31525 100644
+--- a/src/features/documents/hooks/useDocumentsMutations.ts
++++ b/src/features/documents/hooks/useDocumentsMutations.ts
+@@ -155,6 +155,7 @@ export function useDocumentsMutations({
+ 
+       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
+       if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
++      if (!form.price_list_id) throw new Error("Selecciona una lista de precios para cargar productos");
+       if (form.doc_type === "PRESUPUESTO" && form.customer_kind === "INTERNO") {
+         throw new Error("Los presupuestos no aplican a personal interno");
+       }
+diff --git a/src/features/suppliers/aiPdfExtraction.test.ts b/src/features/suppliers/aiPdfExtraction.test.ts
+new file mode 100644
+index 0000000..f0bc112
+--- /dev/null
++++ b/src/features/suppliers/aiPdfExtraction.test.ts
+@@ -0,0 +1,102 @@
++import { describe, expect, it } from "vitest";
++import { cleanAiLines, scorePdfExtractionResult } from "@/features/suppliers/aiPdfExtraction";
++import type { CatalogImportLine, ParsePdfResult } from "@/lib/importers/catalogImporter";
++
++describe("supplier ai pdf extraction", () => {
++  it("cleans residual noise and deduplicates extracted rows", () => {
++    const lines: CatalogImportLine[] = [
++      {
++        supplier_code: "A1",
++        raw_description: "Producto nuevo Cable HDMI................................",
++        normalized_description: "producto nuevo cable hdmi",
++        cost: 10,
++        currency: "USD",
++        row_index: 1,
++        source_page: 2,
++        confidence: 0.7,
++      },
++      {
++        supplier_code: "A1",
++        raw_description: "Cable HDMI",
++        normalized_description: "cable hdmi",
++        cost: 10,
++        currency: "USD",
++        row_index: 2,
++        source_page: 2,
++        confidence: 0.9,
++      },
++      {
++        supplier_code: null,
++        raw_description: "NETO",
++        normalized_description: "neto",
++        cost: 20,
++        currency: "ARS",
++        row_index: 3,
++      },
++    ];
++
++    const cleaned = cleanAiLines(lines);
++
++    expect(cleaned).toHaveLength(1);
++    expect(cleaned[0].raw_description).toBe("Cable HDMI");
++    expect(cleaned[0].confidence).toBe(0.9);
++  });
++
++  it("prefers stronger page/confidence coverage over optional paid providers", () => {
++    const geminiResult: ParsePdfResult = {
++      lines: [
++        {
++          supplier_code: "A1",
++          raw_description: "Cable HDMI 2 metros",
++          normalized_description: "cable hdmi 2 metros",
++          cost: 10,
++          currency: "USD",
++          row_index: 1,
++          source_page: 1,
++          confidence: 0.92,
++        },
++        {
++          supplier_code: "B2",
++          raw_description: "Mouse inalambrico",
++          normalized_description: "mouse inalambrico",
++          cost: 20,
++          currency: "USD",
++          row_index: 2,
++          source_page: 2,
++          confidence: 0.91,
++        },
++      ],
++      meta: {
++        mode: "ai",
++        totalChars: 40,
++        parsedPages: 2,
++        confidence: 0.9,
++        provider: "gemini",
++      },
++      table: {
++        headers: ["supplier_code", "description", "price", "currency"],
++        rows: [
++          ["A1", "Cable HDMI 2 metros", "10", "USD"],
++          ["B2", "Mouse inalambrico", "20", "USD"],
++        ],
++        previewRows: [],
++        sourceMode: "ai",
++      },
++    };
++
++    const mistralResult: ParsePdfResult = {
++      ...geminiResult,
++      meta: {
++        ...geminiResult.meta,
++        provider: "mistral",
++        confidence: 0.72,
++      },
++      lines: geminiResult.lines.map((line) => ({
++        ...line,
++        confidence: 0.68,
++      })),
++    };
++
++    expect(scorePdfExtractionResult(geminiResult)).toBeGreaterThan(scorePdfExtractionResult(mistralResult));
++  });
++});
+diff --git a/src/features/suppliers/aiPdfExtraction.ts b/src/features/suppliers/aiPdfExtraction.ts
+index 022ca13..26da141 100644
+--- a/src/features/suppliers/aiPdfExtraction.ts
++++ b/src/features/suppliers/aiPdfExtraction.ts
+@@ -1,4 +1,3 @@
+-import { supabase } from "@/integrations/supabase/client";
+ import type { CatalogImportLine, ParsePdfResult } from "@/lib/importers/catalogImporter";
+ 
+ type SupplierPdfAiRow = {
+@@ -6,6 +5,8 @@ type SupplierPdfAiRow = {
+   description?: string | null;
+   price?: number | null;
+   currency?: string | null;
++  page?: number | null;
++  confidence?: number | null;
+ };
+ 
+ type SupplierPdfAiResponse = {
+@@ -15,9 +16,20 @@ type SupplierPdfAiResponse = {
+     model?: string;
+     pageCount?: number;
+     fileName?: string;
++    provider?: string;
+   };
+ };
+ 
++type SupplierPdfAiProvider = "gemini" | "mistral";
++
++const PDF_AI_PROVIDER_SEQUENCE: Array<{
++  provider: SupplierPdfAiProvider;
++  functionName: "supplier-pdf-ai-extract" | "supplier-pdf-mistral-extract";
++}> = [
++  { provider: "gemini", functionName: "supplier-pdf-ai-extract" },
++  { provider: "mistral", functionName: "supplier-pdf-mistral-extract" },
++];
++
+ function toBase64(buffer: ArrayBuffer) {
+   const bytes = new Uint8Array(buffer);
+   let binary = "";
+@@ -38,6 +50,10 @@ function normalizeAiRows(rows: SupplierPdfAiRow[]): CatalogImportLine[] {
+       const cost = typeof row.price === "number" ? row.price : Number.NaN;
+       const currency = String(row.currency ?? "ARS").trim().toUpperCase() || "ARS";
+       const supplierCode = String(row.supplier_code ?? "").trim();
++      const sourcePage = typeof row.page === "number" && row.page > 0 ? Math.trunc(row.page) : undefined;
++      const confidence = typeof row.confidence === "number" && row.confidence > 0
++        ? Math.max(0.1, Math.min(0.99, row.confidence))
++        : undefined;
+ 
+       if (!rawDescription || !Number.isFinite(cost) || cost <= 0) return null;
+ 
+@@ -48,14 +64,73 @@ function normalizeAiRows(rows: SupplierPdfAiRow[]): CatalogImportLine[] {
+         cost,
+         currency: currency === "USD" ? "USD" : "ARS",
+         row_index: index + 1,
++        source_page: sourcePage,
++        confidence,
+       } satisfies CatalogImportLine;
+     })
+     .filter((row): row is CatalogImportLine => row !== null);
+ }
+ 
+-export async function extractSupplierPdfWithAi(file: File): Promise<ParsePdfResult | null> {
++function normalizeCatalogDescription(value: string) {
++  return value
++    .replace(/[.]{3,}/g, " ")
++    .replace(/\b(nuevo producto|nuevo|producto|s\/stock|neto)\b/gi, " ")
++    .replace(/\s+/g, " ")
++    .trim();
++}
++
++function isLikelyResidualNoise(line: CatalogImportLine) {
++  const normalized = normalizeCatalogDescription(line.raw_description).toLowerCase();
++  if (!normalized) return true;
++  if (/^(codigo|base|altura|prof\.?|voltaje|rpm|pulg\.?|contactos?)$/.test(normalized)) return true;
++  if (/^(a cm|b cm|c cm|con regulacion|sin regulacion)$/.test(normalized)) return true;
++  if (normalized.length < 3) return true;
++  return false;
++}
++
++export function cleanAiLines(lines: CatalogImportLine[]) {
++  const deduped = new Map<string, CatalogImportLine>();
++
++  lines.forEach((line, index) => {
++    const rawDescription = normalizeCatalogDescription(line.raw_description);
++    if (!rawDescription) return;
++
++    const candidate: CatalogImportLine = {
++      ...line,
++      raw_description: rawDescription,
++      normalized_description: rawDescription.toLowerCase(),
++      row_index: index + 1,
++    };
++
++    if (isLikelyResidualNoise(candidate)) return;
++
++    const dedupeKey = [
++      candidate.supplier_code ?? "",
++      candidate.normalized_description ?? "",
++      candidate.currency,
++      candidate.cost.toFixed(2),
++      candidate.source_page ?? "",
++    ].join("|");
++
++    const existing = deduped.get(dedupeKey);
++    if (!existing || (candidate.confidence ?? 0) > (existing.confidence ?? 0)) {
++      deduped.set(dedupeKey, candidate);
++    }
++  });
++
++  return Array.from(deduped.values()).map((line, index) => ({
++    ...line,
++    row_index: index + 1,
++  }));
++}
++
++async function invokePdfExtractionFunction(
++  functionName: "supplier-pdf-mistral-extract" | "supplier-pdf-ai-extract",
++  file: File,
++) {
++  const { supabase } = await import("@/integrations/supabase/client");
+   const fileBase64 = toBase64(await file.arrayBuffer());
+-  const { data, error } = await supabase.functions.invoke("supplier-pdf-ai-extract", {
++  const { data, error } = await supabase.functions.invoke(functionName, {
+     body: {
+       fileName: file.name,
+       fileBase64,
+@@ -63,9 +138,11 @@ export async function extractSupplierPdfWithAi(file: File): Promise<ParsePdfResu
+   });
+ 
+   if (error) throw error;
++  return data;
++}
+ 
+-  const payload = (data ?? {}) as SupplierPdfAiResponse;
+-  const lines = normalizeAiRows(Array.isArray(payload.lines) ? payload.lines : []);
++function toParsePdfResult(payload: SupplierPdfAiResponse): ParsePdfResult | null {
++  const lines = cleanAiLines(normalizeAiRows(Array.isArray(payload.lines) ? payload.lines : []));
+   if (lines.length === 0) return null;
+ 
+   const headers = ["supplier_code", "description", "price", "currency"];
+@@ -82,7 +159,13 @@ export async function extractSupplierPdfWithAi(file: File): Promise<ParsePdfResu
+       mode: "ai",
+       totalChars: lines.reduce((total, line) => total + line.raw_description.length, 0),
+       parsedPages: typeof payload.meta?.pageCount === "number" ? payload.meta.pageCount : 0,
+-      confidence: Math.min(0.98, 0.45 + lines.length / 120),
++      provider: payload.meta?.provider ?? null,
++      confidence: Math.min(
++        0.98,
++        0.48 +
++          lines.length / 120 +
++          (lines.reduce((sum, line) => sum + (line.confidence ?? 0.5), 0) / Math.max(lines.length, 1)) * 0.18,
++      ),
+     },
+     table: {
+       headers,
+@@ -93,6 +176,44 @@ export async function extractSupplierPdfWithAi(file: File): Promise<ParsePdfResu
+   };
+ }
+ 
++function providerBonus(provider: string | null | undefined) {
++  if (provider === "gemini") return 3;
++  if (provider === "mistral") return 1;
++  return 0;
++}
++
++function compareResults(left: ParsePdfResult, right: ParsePdfResult) {
++  return scorePdfExtractionResult(left) - scorePdfExtractionResult(right);
++}
++
++export async function extractSupplierPdfWithAi(file: File): Promise<ParsePdfResult | null> {
++  const results: ParsePdfResult[] = [];
++  const errors: unknown[] = [];
++
++  for (const candidate of PDF_AI_PROVIDER_SEQUENCE) {
++    try {
++      const payload = (await invokePdfExtractionFunction(candidate.functionName, file)) as SupplierPdfAiResponse;
++      const result = toParsePdfResult({
++        ...payload,
++        meta: { ...payload.meta, provider: candidate.provider },
++      });
++      if (result) results.push(result);
++    } catch (error) {
++      errors.push(error);
++    }
++  }
++
++  if (results.length > 0) {
++    return [...results].sort((left, right) => compareResults(right, left))[0] ?? null;
++  }
++
++  if (errors.length > 0) {
++    throw errors[0];
++  }
++
++  return null;
++}
++
+ export function shouldTryAiPdfExtraction(nativeResult: ParsePdfResult) {
+   const tableRowCount = nativeResult.table?.rows.length ?? 0;
+   const codeCount = nativeResult.lines.filter((line) => !!line.supplier_code).length;
+@@ -108,15 +229,22 @@ export function shouldTryAiPdfExtraction(nativeResult: ParsePdfResult) {
+ export function scorePdfExtractionResult(result: ParsePdfResult) {
+   const tableRowCount = result.table?.rows.length ?? 0;
+   const codeCount = result.lines.filter((line) => !!line.supplier_code).length;
++  const pageCount = new Set(result.lines.map((line) => line.source_page).filter((page): page is number => typeof page === "number")).size;
++  const avgLineConfidence = result.lines.length
++    ? result.lines.reduce((accumulator, line) => accumulator + (line.confidence ?? result.meta.confidence), 0) / result.lines.length
++    : result.meta.confidence;
+   const avgDescriptionLength = result.lines.length
+     ? result.lines.reduce((acc, line) => acc + line.raw_description.length, 0) / result.lines.length
+     : 0;
+   return (
+     result.lines.length * 1.4 +
+     tableRowCount * 1.1 +
+-    result.meta.confidence * 40 +
++    result.meta.confidence * 32 +
++    avgLineConfidence * 18 +
+     codeCount * 0.4 +
++    pageCount * 1.5 +
+     Math.min(18, avgDescriptionLength / 4) +
+-    (result.meta.mode === "ai" ? 4 : 0)
++    (result.meta.mode === "ai" ? 8 : 0) +
++    providerBonus(result.meta.provider)
+   );
+ }
+diff --git a/src/features/suppliers/components/SupplierCatalogDialog.tsx b/src/features/suppliers/components/SupplierCatalogDialog.tsx
+index a7e6667..b552772 100644
+--- a/src/features/suppliers/components/SupplierCatalogDialog.tsx
++++ b/src/features/suppliers/components/SupplierCatalogDialog.tsx
+@@ -1,4 +1,4 @@
+-import { Copy, FileStack, History, Inbox, MessageCircle, Search, Upload, Wallet } from "lucide-react";
++import { Copy, FileStack, History, Inbox, Mail, MessageCircle, Search, Upload, Wallet } from "lucide-react";
+ import { EntityDialog } from "@/components/common/EntityDialog";
+ import { Badge } from "@/components/ui/badge";
+ import { Button } from "@/components/ui/button";
+@@ -54,10 +54,11 @@ type SupplierCatalogDialogProps = {
+   onLineQuantityChange: (lineId: string, value: string) => void;
+   onAddToOrder: (line: CatalogLine) => void;
+   orderLines: OrderLine[];
+-  orderTotal: number;
++  orderTotalsByCurrency: Record<string, number>;
+   onOrderQuantityChange: (lineId: string, value: string) => void;
+   onRemoveOrderItem: (lineId: string) => void;
+   onCopyOrderMessage: () => void;
++  onOpenEmail: () => void;
+   onOpenWhatsApp: () => void;
+ };
+ 
+@@ -116,10 +117,11 @@ export function SupplierCatalogDialog({
+   onLineQuantityChange,
+   onAddToOrder,
+   orderLines,
+-  orderTotal,
++  orderTotalsByCurrency,
+   onOrderQuantityChange,
+   onRemoveOrderItem,
+   onCopyOrderMessage,
++  onOpenEmail,
+   onOpenWhatsApp,
+ }: SupplierCatalogDialogProps) {
+   const totalVersions = Object.values(versionsByCatalog).reduce((acc, versions) => acc + versions.length, 0);
+@@ -292,7 +294,7 @@ export function SupplierCatalogDialog({
+                   <div className="flex flex-wrap gap-3">
+                     <Button onClick={onUpload} disabled={isUploading || !selectedFile}>
+                       <Upload className="mr-2 h-4 w-4" />
+-                      {isUploading ? "Procesando fuente..." : "Procesar e importar"}
++                      {isUploading ? "Procesando fuente..." : "Procesar listado"}
+                     </Button>
+                     {pdfProgress ? (
+                       <Badge variant="secondary" className="px-3 py-1 text-xs">
+@@ -312,7 +314,7 @@ export function SupplierCatalogDialog({
+                   <div className="rounded-lg border p-3">
+                     <div className="font-medium">Estrategia</div>
+                     <div className="mt-1 text-muted-foreground">
+-                      Excel/CSV va por parser logico. PDF pasa por parser estructural y, si hace falta, por Gemini.
++                      Excel/CSV va por parser logico. PDF pasa por parser estructural y, si hace falta, por motores externos como Mistral OCR o Gemini antes de la revision final.
+                     </div>
+                   </div>
+                   {lastDiagnostics ? (
+@@ -471,14 +473,31 @@ export function SupplierCatalogDialog({
+ 
+                   <div className="rounded-xl border bg-muted/20 p-4">
+                     <div className="text-sm text-muted-foreground">Total estimado</div>
+-                    <div className="mt-1 text-2xl font-semibold">
+-                      ${orderTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
++                    <div className="mt-3 grid gap-2">
++                      {Object.entries(orderTotalsByCurrency).length > 0 ? (
++                        Object.entries(orderTotalsByCurrency)
++                          .sort(([left], [right]) => left.localeCompare(right))
++                          .map(([currency, total]) => (
++                            <div key={currency} className="flex items-center justify-between gap-3 text-sm">
++                              <span className="font-medium text-muted-foreground">{currency}</span>
++                              <span className="text-lg font-semibold">
++                                {total.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
++                              </span>
++                            </div>
++                          ))
++                      ) : (
++                        <div className="text-lg font-semibold">0.00</div>
++                      )}
+                     </div>
+                   </div>
+ 
+-                  {!selectedSupplier?.whatsapp ? (
++                  {!selectedSupplier?.whatsapp || !selectedSupplier?.email ? (
+                     <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-700">
+-                      Este proveedor no tiene WhatsApp configurado. Puedes copiar el mensaje, pero no abrir el enlace directo.
++                      {!selectedSupplier?.whatsapp && !selectedSupplier?.email
++                        ? "Este proveedor no tiene WhatsApp ni email configurados. Puedes copiar el mensaje, pero no abrir envio directo."
++                        : !selectedSupplier?.whatsapp
++                          ? "Este proveedor no tiene WhatsApp configurado. Puedes copiar el mensaje o usar email."
++                          : "Este proveedor no tiene email configurado. Puedes copiar el mensaje o usar WhatsApp."}
+                     </div>
+                   ) : null}
+ 
+@@ -487,6 +506,10 @@ export function SupplierCatalogDialog({
+                       <Copy className="mr-2 h-4 w-4" />
+                       Copiar mensaje
+                     </Button>
++                    <Button variant="outline" onClick={onOpenEmail}>
++                      <Mail className="mr-2 h-4 w-4" />
++                      Enviar por email
++                    </Button>
+                     <Button onClick={onOpenWhatsApp}>
+                       <MessageCircle className="mr-2 h-4 w-4" />
+                       Enviar por WhatsApp
+diff --git a/src/features/suppliers/components/SupplierCatalogLinesTable.tsx b/src/features/suppliers/components/SupplierCatalogLinesTable.tsx
+index 0784904..11c85bc 100644
+--- a/src/features/suppliers/components/SupplierCatalogLinesTable.tsx
++++ b/src/features/suppliers/components/SupplierCatalogLinesTable.tsx
+@@ -49,7 +49,7 @@ export function SupplierCatalogLinesTable({
+       header: () => <div className="text-right">Costo</div>,
+       cell: ({ row }) => (
+         <div className="text-right font-mono">
+-          {Number(row.original.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
++          {row.original.currency} {Number(row.original.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+         </div>
+       ),
+       meta: {
+diff --git a/src/features/suppliers/components/SupplierExtractionReviewDialog.tsx b/src/features/suppliers/components/SupplierExtractionReviewDialog.tsx
+new file mode 100644
+index 0000000..ece738a
+--- /dev/null
++++ b/src/features/suppliers/components/SupplierExtractionReviewDialog.tsx
+@@ -0,0 +1,130 @@
++import { Trash2 } from "lucide-react";
++import { EntityDialog } from "@/components/common/EntityDialog";
++import { Button } from "@/components/ui/button";
++import { Input } from "@/components/ui/input";
++import { Label } from "@/components/ui/label";
++import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
++import type { ExtractionReviewLine } from "@/features/suppliers/types";
++
++interface SupplierExtractionReviewDialogProps {
++  open: boolean;
++  onOpenChange: (open: boolean) => void;
++  fileName: string | null;
++  lines: ExtractionReviewLine[];
++  isImporting: boolean;
++  onLineChange: (lineId: string, patch: Partial<ExtractionReviewLine>) => void;
++  onRemoveLine: (lineId: string) => void;
++  onConfirm: () => void;
++  onCancel: () => void;
++}
++
++export function SupplierExtractionReviewDialog({
++  open,
++  onOpenChange,
++  fileName,
++  lines,
++  isImporting,
++  onLineChange,
++  onRemoveLine,
++  onConfirm,
++  onCancel,
++}: SupplierExtractionReviewDialogProps) {
++  const arsCount = lines.filter((line) => line.currency === "ARS").length;
++  const usdCount = lines.filter((line) => line.currency === "USD").length;
++
++  return (
++    <EntityDialog
++      open={open}
++      onOpenChange={onOpenChange}
++      title="Revisar listado extraido"
++      description={fileName ? `Revisa el listado detectado en ${fileName} antes de importarlo.` : "Revisa el listado antes de importarlo."}
++      contentClassName="max-w-7xl"
++      footer={(
++        <>
++          <Button variant="outline" onClick={onCancel} disabled={isImporting}>Cancelar</Button>
++          <Button onClick={onConfirm} disabled={isImporting || lines.length === 0}>
++            {isImporting ? "Importando..." : "Confirmar e importar"}
++          </Button>
++        </>
++      )}
++    >
++      <div className="grid gap-4">
++        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
++          <span>Lineas detectadas: {lines.length}</span>
++          <span>ARS: {arsCount}</span>
++          <span>USD: {usdCount}</span>
++        </div>
++
++        <div className="max-h-[65vh] overflow-auto rounded-xl border">
++          <table className="w-full min-w-[1100px] border-collapse text-sm">
++            <thead className="sticky top-0 bg-background shadow-sm">
++              <tr className="border-b">
++                <th className="px-3 py-2 text-left">#</th>
++                <th className="px-3 py-2 text-left">Codigo</th>
++                <th className="px-3 py-2 text-left">Producto</th>
++                <th className="px-3 py-2 text-left">Precio</th>
++                <th className="px-3 py-2 text-left">Moneda</th>
++                <th className="px-3 py-2 text-left">Pagina</th>
++                <th className="px-3 py-2 text-left">Conf.</th>
++                <th className="px-3 py-2 text-right">Accion</th>
++              </tr>
++            </thead>
++            <tbody>
++              {lines.map((line, index) => (
++                <tr key={line.id} className="border-b align-top">
++                  <td className="px-3 py-2 text-muted-foreground">{index + 1}</td>
++                  <td className="px-3 py-2">
++                    <Input
++                      value={line.supplier_code ?? ""}
++                      onChange={(event) => onLineChange(line.id, { supplier_code: event.target.value.trim() || null })}
++                      placeholder="S/COD"
++                    />
++                  </td>
++                  <td className="px-3 py-2">
++                    <div className="grid gap-1">
++                      <Label className="sr-only">Producto</Label>
++                      <Input
++                        value={line.raw_description}
++                        onChange={(event) => onLineChange(line.id, { raw_description: event.target.value })}
++                        placeholder="Nombre del producto"
++                      />
++                    </div>
++                  </td>
++                  <td className="px-3 py-2">
++                    <Input
++                      type="number"
++                      min="0"
++                      step="0.01"
++                      value={Number.isFinite(line.cost) ? line.cost : 0}
++                      onChange={(event) => onLineChange(line.id, { cost: Number(event.target.value) || 0 })}
++                    />
++                  </td>
++                  <td className="px-3 py-2">
++                    <Select value={line.currency} onValueChange={(value) => onLineChange(line.id, { currency: value })}>
++                      <SelectTrigger>
++                        <SelectValue />
++                      </SelectTrigger>
++                      <SelectContent>
++                        <SelectItem value="ARS">ARS</SelectItem>
++                        <SelectItem value="USD">USD</SelectItem>
++                      </SelectContent>
++                    </Select>
++                  </td>
++                  <td className="px-3 py-2 text-muted-foreground">{line.source_page ?? "-"}</td>
++                  <td className="px-3 py-2 text-muted-foreground">
++                    {typeof line.confidence === "number" ? `${Math.round(line.confidence * 100)}%` : "-"}
++                  </td>
++                  <td className="px-3 py-2 text-right">
++                    <Button variant="ghost" size="icon" onClick={() => onRemoveLine(line.id)}>
++                      <Trash2 className="h-4 w-4" />
++                    </Button>
++                  </td>
++                </tr>
++              ))}
++            </tbody>
++          </table>
++        </div>
++      </div>
++    </EntityDialog>
++  );
++}
+diff --git a/src/features/suppliers/components/SupplierOrderTable.tsx b/src/features/suppliers/components/SupplierOrderTable.tsx
+index f782ac6..b9267c6 100644
+--- a/src/features/suppliers/components/SupplierOrderTable.tsx
++++ b/src/features/suppliers/components/SupplierOrderTable.tsx
+@@ -56,7 +56,7 @@ export function SupplierOrderTable({
+       header: () => <div className="text-right">Costo</div>,
+       cell: ({ row }) => (
+         <div className="text-right font-mono">
+-          ${Number(row.original.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
++          {row.original.currency} {Number(row.original.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+         </div>
+       ),
+       meta: {
+@@ -69,7 +69,7 @@ export function SupplierOrderTable({
+       header: () => <div className="text-right">Subtotal</div>,
+       cell: ({ row }) => (
+         <div className="text-right font-semibold">
+-          ${(row.original.cost * row.original.quantity).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
++          {row.original.currency} {(row.original.cost * row.original.quantity).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+         </div>
+       ),
+       meta: {
+diff --git a/src/features/suppliers/hooks/useSupplierImportFlow.ts b/src/features/suppliers/hooks/useSupplierImportFlow.ts
+index 96fe6b9..2439010 100644
+--- a/src/features/suppliers/hooks/useSupplierImportFlow.ts
++++ b/src/features/suppliers/hooks/useSupplierImportFlow.ts
+@@ -24,6 +24,7 @@ import type {
+ } from "@/features/suppliers/components/ColumnMappingModal";
+ import type { PdfMappingSelection } from "@/features/suppliers/components/PdfMappingModal";
+ import type {
++  ExtractionReviewLine,
+   ImportMappingStored,
+   PdfImportMappingStored,
+   OrderLine,
+@@ -37,6 +38,25 @@ type ToastFn = (params: {
+   variant?: "default" | "destructive";
+ }) => void;
+ 
++function hasGenericPdfHeaders(headers: string[]) {
++  if (headers.length === 0) return true;
++  return headers.every((header) => /^col_?\d+$/i.test(header.trim()));
++}
++
++function shouldRequestPdfMapping(params: {
++  headers: string[];
++  rows: string[][];
++  mode: string;
++  confidence: number;
++}) {
++  const { headers, rows, mode, confidence } = params;
++  if (rows.length === 0) return false;
++  if (mode === "ai") return false;
++  if (hasGenericPdfHeaders(headers)) return false;
++  if (confidence < 0.72) return false;
++  return true;
++}
++
+ export function useSupplierImportFlow(params: {
+   currentCompanyId: string | null;
+   selectedSupplier: Supplier | null;
+@@ -52,6 +72,8 @@ export function useSupplierImportFlow(params: {
+   setSelectedFile: (file: File | null) => void;
+   setPdfProgress: (value: ParsePdfProgress | null) => void;
+   setLastDiagnostics: (value: NormalizeDiagnostics | null) => void;
++  setExtractionReviewOpen: (value: boolean) => void;
++  setExtractionReviewLines: (value: ExtractionReviewLine[]) => void;
+   setActiveVersionId: (value: string | null) => void;
+   setCatalogUiTab: (value: "carga" | "historial" | "catalogo") => void;
+   setOrderItems: (value: Record<string, OrderLine>) => void;
+@@ -84,6 +106,8 @@ export function useSupplierImportFlow(params: {
+     setSelectedFile,
+     setPdfProgress,
+     setLastDiagnostics,
++    setExtractionReviewOpen,
++    setExtractionReviewLines,
+     setActiveVersionId,
+     setCatalogUiTab,
+     setOrderItems,
+@@ -102,6 +126,14 @@ export function useSupplierImportFlow(params: {
+     toast,
+   } = params;
+ 
++  type ParsedSupplierImportResult = {
++    fileType: "pdf" | "xlsx" | "csv";
++    title: string;
++    requestedCatalogId: string | null;
++    diagnostics: NormalizeDiagnostics | null;
++    lines: ExtractionReviewLine[];
++  };
++
+   const requestXlsxMapping = (request: {
+     headers: string[];
+     previewRows: string[][];
+@@ -190,25 +222,7 @@ export function useSupplierImportFlow(params: {
+         });
+       }
+ 
+-      const { data: document, error: documentError } = await supabase
+-        .from("supplier_documents")
+-        .insert({
+-          company_id: currentCompanyId,
+-          supplier_id: selectedSupplier.id,
+-          title,
+-          file_name: selectedFile.name,
+-          file_type: fileType,
+-          notes: documentNotes.trim() || null,
+-        })
+-        .select("id")
+-        .single();
+-      if (documentError) {
+-        logSupplierImportError("insert_document", documentError, { userId, requestedCatalogId });
+-        throw documentError;
+-      }
+-
+-      const supplierDocumentId = document.id;
+-      let lines = [] as ReturnType<typeof toSupplierCatalogRpcLinePayload>[];
++      let lines = [] as ExtractionReviewLine[];
+       let diagnostics: NormalizeDiagnostics | null = null;
+ 
+       if (isXlsx || isText) {
+@@ -295,7 +309,16 @@ export function useSupplierImportFlow(params: {
+           }
+         }
+ 
+-        lines = normalized.lines.map(toSupplierCatalogRpcLinePayload);
++        lines = normalized.lines.map((line, index) => ({
++          id: `preview-${index + 1}`,
++          supplier_code: line.supplier_code,
++          raw_description: line.raw_description,
++          cost: line.cost,
++          currency: line.currency || "ARS",
++          row_index: line.row_index,
++          source_page: line.source_page,
++          confidence: line.confidence,
++        }));
+       } else if (isPdf) {
+         const {
+           DEFAULT_PDF_OPTIONS,
+@@ -343,9 +366,25 @@ export function useSupplierImportFlow(params: {
+         const tableHeaders = parseResult.table?.headers ?? [];
+         const tableRows = parseResult.table?.rows ?? [];
+ 
+-        if (tableHeaders.length === 0 || tableRows.length === 0) {
++        const canUsePdfMapping = shouldRequestPdfMapping({
++          headers: tableHeaders,
++          rows: tableRows,
++          mode: parseResult.meta.mode,
++          confidence: parseResult.meta.confidence,
++        });
++
++        if (tableHeaders.length === 0 || tableRows.length === 0 || !canUsePdfMapping) {
+           if (parseResult.lines.length === 0) throw new Error("No se pudo extraer contenido del PDF");
+-          lines = parseResult.lines.map(toSupplierCatalogRpcLinePayload);
++          lines = parseResult.lines.map((line, index) => ({
++            id: `preview-${index + 1}`,
++            supplier_code: line.supplier_code,
++            raw_description: line.raw_description,
++            cost: line.cost,
++            currency: line.currency || "ARS",
++            row_index: line.row_index,
++            source_page: line.source_page,
++            confidence: line.confidence,
++          }));
+         } else {
+           const detected = detectPdfColumnsHeuristic(tableHeaders, tableRows);
+           const stored = await loadStoredSupplierImportMapping<PdfImportMappingStored>(
+@@ -375,7 +414,16 @@ export function useSupplierImportFlow(params: {
+             defaultCurrency: DEFAULT_PDF_OPTIONS.defaultCurrency,
+           });
+           const effectivePdfLines = normalizedPdfLines.length > 0 ? normalizedPdfLines : parseResult.lines;
+-          lines = effectivePdfLines.map(toSupplierCatalogRpcLinePayload);
++          lines = effectivePdfLines.map((line, index) => ({
++            id: `preview-${index + 1}`,
++            supplier_code: line.supplier_code,
++            raw_description: line.raw_description,
++            cost: line.cost,
++            currency: line.currency || "ARS",
++            row_index: line.row_index,
++            source_page: line.source_page,
++            confidence: line.confidence,
++          }));
+ 
+           if (selection.remember) {
+             try {
+@@ -399,32 +447,103 @@ export function useSupplierImportFlow(params: {
+       setPdfProgress(null);
+       setLastDiagnostics(diagnostics);
+       if (lines.length === 0) throw new Error("No se encontraron filas validas para importar");
++      return {
++        fileType,
++        title,
++        requestedCatalogId,
++        diagnostics,
++        lines,
++      } satisfies ParsedSupplierImportResult;
++    },
++    onSuccess: (result) => {
++      setPdfProgress(null);
++      setExtractionReviewLines(result.lines);
++      setExtractionReviewOpen(true);
++      setLineQuantities({});
++      toast({ title: "Listado procesado", description: `Revisa ${result.lines.length} lineas antes de importar` });
++    },
++    onError: (error: unknown) => {
++      setPdfProgress(null);
++      toast({
++        title: "Error",
++        description: getErrorMessage(error),
++        variant: "destructive",
++      });
++    },
++  });
++
++  const confirmImportMutation = useMutation({
++    mutationFn: async (reviewLines: ExtractionReviewLine[]) => {
++      if (!currentCompanyId) throw new Error("Selecciona una empresa para importar catalogos");
++      if (!selectedSupplier) throw new Error("Selecciona un proveedor");
++      if (!selectedFile) throw new Error("Selecciona un archivo");
++      if (reviewLines.length === 0) throw new Error("No hay lineas para importar");
++
++      const extension = selectedFile.name.split(".").pop()?.toLowerCase();
++      const isXlsx = ["xlsx", "xls"].includes(extension ?? "");
++      const isPdf = extension === "pdf";
++      const isText = ["csv", "txt", "tsv"].includes(extension ?? "");
++      const fileType = isPdf ? "pdf" : isXlsx ? "xlsx" : isText ? "csv" : null;
++      if (!fileType) throw new Error("Formato no soportado");
++
++      const title = documentTitle.trim() || selectedFile.name;
++      const requestedCatalogId = selectedCatalogId === "new" ? null : selectedCatalogId;
++      const { data: authData } = await supabase.auth.getUser();
++      const userId = authData.user?.id ?? null;
++
++      const { data: document, error: documentError } = await supabase
++        .from("supplier_documents")
++        .insert({
++          company_id: currentCompanyId,
++          supplier_id: selectedSupplier.id,
++          title,
++          file_name: selectedFile.name,
++          file_type: fileType,
++          notes: documentNotes.trim() || null,
++        })
++        .select("id")
++        .single();
++      if (documentError) {
++        logSupplierImportError("insert_document", documentError, { userId, requestedCatalogId });
++        throw documentError;
++      }
+ 
+-      const { data: rpcResult, error: rpcError } = await supabase.rpc(
+-        "create_supplier_catalog_import",
+-        {
+-          p_supplier_id: selectedSupplier.id,
+-          p_supplier_document_id: supplierDocumentId,
+-          p_catalog_id: requestedCatalogId,
+-          p_catalog_title: requestedCatalogId ? null : title,
+-          p_catalog_notes: documentNotes.trim() || null,
+-          p_version_title: title,
+-          p_lines: lines,
+-        },
++      const supplierDocumentId = document.id;
++      const rpcLines = reviewLines.map((line) =>
++        toSupplierCatalogRpcLinePayload({
++          supplier_code: line.supplier_code,
++          raw_description: line.raw_description.trim(),
++          normalized_description: line.raw_description.trim().toLowerCase(),
++          cost: line.cost,
++          currency: line.currency || "ARS",
++          row_index: line.row_index,
++          source_page: line.source_page,
++          confidence: line.confidence,
++        }),
+       );
++
++      const { data: rpcResult, error: rpcError } = await supabase.rpc("create_supplier_catalog_import", {
++        p_supplier_id: selectedSupplier.id,
++        p_supplier_document_id: supplierDocumentId,
++        p_catalog_id: requestedCatalogId,
++        p_catalog_title: requestedCatalogId ? null : title,
++        p_catalog_notes: documentNotes.trim() || null,
++        p_version_title: title,
++        p_lines: rpcLines,
++      });
+       if (rpcError) {
+         logSupplierImportError("create_supplier_catalog_import", rpcError, {
+           userId,
+           requestedCatalogId,
+           supplierDocumentId,
+-          lineCount: lines.length,
++          lineCount: rpcLines.length,
+         });
+         throw rpcError;
+       }
+ 
+       const response = (rpcResult ?? {}) as { version_id?: string; inserted_count?: number };
+       return {
+-        total: response.inserted_count ?? lines.length,
++        total: response.inserted_count ?? rpcLines.length,
+         versionId: response.version_id ?? null,
+       };
+     },
+@@ -437,6 +556,8 @@ export function useSupplierImportFlow(params: {
+       setSelectedCatalogId("new");
+       setSelectedFile(null);
+       setPdfProgress(null);
++      setExtractionReviewLines([]);
++      setExtractionReviewOpen(false);
+       if (result.versionId) setActiveVersionId(result.versionId);
+       setCatalogUiTab("catalogo");
+       setOrderItems({});
+@@ -447,8 +568,6 @@ export function useSupplierImportFlow(params: {
+       });
+     },
+     onError: (error: unknown) => {
+-      setPdfProgress(null);
+-      setSelectedFile(null);
+       toast({
+         title: "Error",
+         description: getErrorMessage(error),
+@@ -464,6 +583,7 @@ export function useSupplierImportFlow(params: {
+     requestPdfMapping,
+     closePdfMappingModal,
+     confirmPdfMappingModal,
++    confirmImportMutation,
+     uploadCatalogMutation,
+   };
+ }
+diff --git a/src/features/suppliers/hooks/useSupplierOrderActions.ts b/src/features/suppliers/hooks/useSupplierOrderActions.ts
+index 0940006..02cb603 100644
+--- a/src/features/suppliers/hooks/useSupplierOrderActions.ts
++++ b/src/features/suppliers/hooks/useSupplierOrderActions.ts
+@@ -1,4 +1,5 @@
+ import { useMemo, type Dispatch, type SetStateAction } from "react";
++import { buildMailtoLink } from "@/lib/email";
+ import { buildWhatsAppLink } from "@/lib/whatsapp";
+ import {
+   addCatalogLineToOrder,
+@@ -33,8 +34,13 @@ export function useSupplierOrderActions(params: {
+   } = params;
+ 
+   const orderLines = useMemo(() => Object.values(orderItems), [orderItems]);
+-  const orderTotal = useMemo(
+-    () => orderLines.reduce((acc, line) => acc + (line.cost * line.quantity), 0),
++  const orderTotalsByCurrency = useMemo(
++    () =>
++      orderLines.reduce<Record<string, number>>((accumulator, line) => {
++        const currency = String(line.currency ?? "ARS").toUpperCase();
++        accumulator[currency] = (accumulator[currency] ?? 0) + (line.cost * line.quantity);
++        return accumulator;
++      }, {}),
+     [orderLines],
+   );
+   const orderMessage = useMemo(() =>
+@@ -49,6 +55,14 @@ export function useSupplierOrderActions(params: {
+     () => buildWhatsAppLink(selectedSupplier?.whatsapp, orderMessage),
+     [selectedSupplier?.whatsapp, orderMessage],
+   );
++  const emailSubject = useMemo(() => {
++    if (!selectedSupplier || orderLines.length === 0) return "";
++    return `Pedido ${selectedSupplier.name}`;
++  }, [selectedSupplier, orderLines.length]);
++  const emailLink = useMemo(
++    () => buildMailtoLink({ to: selectedSupplier?.email, subject: emailSubject, body: orderMessage }),
++    [emailSubject, orderMessage, selectedSupplier?.email],
++  );
+ 
+   const addToOrder = (line: CatalogLine) => {
+     setOrderItems((prev) => addCatalogLineToOrder(prev, lineQuantities, line));
+@@ -94,12 +108,28 @@ export function useSupplierOrderActions(params: {
+     window.open(waLink, "_blank", "noopener,noreferrer");
+   };
+ 
++  const openEmail = () => {
++    if (orderLines.length === 0) {
++      toast({ title: "Pedido vacio", description: "Agrega al menos un producto", variant: "destructive" });
++      return;
++    }
++
++    if (!emailLink) {
++      toast({ title: "Proveedor sin email", description: "Completa el email para abrir el correo", variant: "destructive" });
++      return;
++    }
++
++    window.open(emailLink, "_blank", "noopener,noreferrer");
++  };
++
+   return {
+     addToOrder,
+     copyOrderMessage,
++    emailLink,
+     openWhatsApp,
++    openEmail,
+     orderLines,
+-    orderTotal,
++    orderTotalsByCurrency,
+     removeOrderItem,
+     updateLineQuantity,
+     updateOrderQuantity,
+diff --git a/src/features/suppliers/hooks/useSuppliersPage.ts b/src/features/suppliers/hooks/useSuppliersPage.ts
+index 836e752..89f77c4 100644
+--- a/src/features/suppliers/hooks/useSuppliersPage.ts
++++ b/src/features/suppliers/hooks/useSuppliersPage.ts
+@@ -25,6 +25,7 @@ import {
+ } from "@/features/suppliers/state";
+ import type {
+   CatalogImportLine,
++  ExtractionReviewLine,
+   NormalizeDiagnostics,
+   OrderLine,
+   ParsePdfProgress,
+@@ -91,6 +92,8 @@ export function useSuppliersPage({
+     filterRowsWithoutPrice: true,
+   });
+   const [pdfProgress, setPdfProgress] = useState<ParsePdfProgress | null>(null);
++  const [extractionReviewOpen, setExtractionReviewOpen] = useState(false);
++  const [extractionReviewLines, setExtractionReviewLines] = useState<ExtractionReviewLine[]>([]);
+ 
+   const xlsxMappingResolverRef = useRef<((value: MappingSelection | null) => void) | null>(null);
+   const pdfMappingResolverRef = useRef<((value: PdfMappingSelection | null) => void) | null>(null);
+@@ -163,6 +166,7 @@ export function useSuppliersPage({
+     closePdfMappingModal,
+     confirmMappingModal,
+     confirmPdfMappingModal,
++    confirmImportMutation,
+     uploadCatalogMutation,
+   } = useSupplierImportFlow({
+     currentCompanyId: companyId ?? null,
+@@ -179,6 +183,8 @@ export function useSuppliersPage({
+     setSelectedFile,
+     setPdfProgress,
+     setLastDiagnostics,
++    setExtractionReviewOpen,
++    setExtractionReviewLines,
+     setActiveVersionId,
+     setCatalogUiTab,
+     setOrderItems,
+@@ -200,9 +206,11 @@ export function useSuppliersPage({
+   const {
+     addToOrder,
+     copyOrderMessage,
++    emailLink,
++    openEmail,
+     openWhatsApp,
+     orderLines,
+-    orderTotal,
++    orderTotalsByCurrency,
+     removeOrderItem,
+     updateLineQuantity,
+     updateOrderQuantity,
+@@ -290,6 +298,8 @@ export function useSuppliersPage({
+     setSelectedCatalogId(nextState.selectedCatalogId);
+     setSelectedFile(nextState.selectedFile);
+     setCatalogUiTab(nextState.catalogUiTab);
++    setExtractionReviewOpen(false);
++    setExtractionReviewLines([]);
+   };
+ 
+   const openCreate = () => {
+@@ -324,6 +334,16 @@ export function useSuppliersPage({
+     setCatalogUiTab("catalogo");
+   };
+ 
++  const onExtractionReviewLineChange = (lineId: string, patch: Partial<ExtractionReviewLine>) => {
++    setExtractionReviewLines((previousLines) =>
++      previousLines.map((line) => (line.id === lineId ? { ...line, ...patch } : line)),
++    );
++  };
++
++  const onRemoveExtractionReviewLine = (lineId: string) => {
++    setExtractionReviewLines((previousLines) => previousLines.filter((line) => line.id !== lineId));
++  };
++
+   return {
+     activeCatalogLines,
+     activeVersion,
+@@ -358,7 +378,11 @@ export function useSuppliersPage({
+     onCatalogDialogOpenChange,
+     onCatalogVersionSelect,
+     onCopyOrderMessage: copyOrderMessage,
++    onConfirmExtractionImport: () => confirmImportMutation.mutate(extractionReviewLines),
++    onExtractionReviewLineChange,
++    onOpenEmail: openEmail,
+     onOpenWhatsApp: openWhatsApp,
++    onRemoveExtractionReviewLine,
+     onRemoveOrderItem: removeOrderItem,
+     onRestoreSupplier: (supplierId: string) => restoreMutation.mutate(supplierId),
+     onUpdateLineQuantity: updateLineQuantity,
+@@ -367,23 +391,30 @@ export function useSuppliersPage({
+     openCreate,
+     openEdit,
+     orderLines,
+-    orderTotal,
++    orderTotalsByCurrency,
+     pdfMappingHeaders,
+     pdfMappingOpen,
+     pdfMappingRows,
+     pdfMappingSuggested,
+     pdfProgress,
++    extractionImportPending: confirmImportMutation.isPending,
++    extractionReviewLines,
++    extractionReviewOpen,
++    confirmImportMutation,
+     saveMutation,
+     search,
+     selectedCatalogId,
+     selectedFile,
+     selectedSupplier,
++    supplierEmailLink: emailLink,
+     setCatalogSearch,
+     setCatalogUiTab,
+     setDialogOpen,
+     setDocumentNotes,
+     setDocumentTitle,
+     setDropDetailOpen,
++    setExtractionReviewLines,
++    setExtractionReviewOpen,
+     setForm,
+     setMappingModalOpen,
+     setPdfMappingOpen,
+diff --git a/src/features/suppliers/state.test.ts b/src/features/suppliers/state.test.ts
+new file mode 100644
+index 0000000..7e0764f
+--- /dev/null
++++ b/src/features/suppliers/state.test.ts
+@@ -0,0 +1,51 @@
++import { describe, expect, it } from "vitest";
++import { buildSupplierOrderMessage } from "@/features/suppliers/state";
++
++describe("buildSupplierOrderMessage", () => {
++  it("includes currency and unit cost for each line", () => {
++    const message = buildSupplierOrderMessage({
++      selectedSupplier: {
++        id: "supplier-1",
++        name: "PM Materiales",
++        contact_name: null,
++        email: "pm@example.com",
++        phone: null,
++        whatsapp: null,
++        notes: null,
++        is_active: true,
++      },
++      orderLines: [
++        {
++          id: "line-1",
++          supplier_code: "A1",
++          raw_description: "Cable HDMI",
++          cost: 1234.5,
++          currency: "ARS",
++          quantity: 2,
++        },
++        {
++          id: "line-2",
++          supplier_code: "B2",
++          raw_description: "Contactor",
++          cost: 8.75,
++          currency: "USD",
++          quantity: 3,
++        },
++      ],
++      activeVersion: {
++        id: "version-1",
++        catalog_id: "catalog-1",
++        title: "Lista Marzo",
++        imported_at: "2026-03-17T10:00:00.000Z",
++        supplier_document_id: "doc-1",
++        file_name: "lista.pdf",
++        file_type: "pdf",
++        line_count: 2,
++      },
++      catalogTitleById: new Map([["catalog-1", "PM Marzo"]]),
++    });
++
++    expect(message).toContain("A1 - Cable HDMI x 2 - ARS 1.234,50");
++    expect(message).toContain("B2 - Contactor x 3 - USD 8,75");
++  });
++});
+diff --git a/src/features/suppliers/state.ts b/src/features/suppliers/state.ts
+index 3f950c9..5b91120 100644
+--- a/src/features/suppliers/state.ts
++++ b/src/features/suppliers/state.ts
+@@ -50,7 +50,12 @@ export function buildSupplierOrderMessage(params: {
+   const catalogName = activeVersion
+     ? catalogTitleById.get(activeVersion.catalog_id) ?? activeVersion.title ?? "Listado"
+     : "Sin listado";
+-  const rows = orderLines.map((line) => `${line.supplier_code ?? "S/COD"} - ${line.raw_description} x ${line.quantity}`);
++  const rows = orderLines.map((line) =>
++    `${line.supplier_code ?? "S/COD"} - ${line.raw_description} x ${line.quantity} - ${line.currency} ${line.cost.toLocaleString("es-AR", {
++      minimumFractionDigits: 2,
++      maximumFractionDigits: 2,
++    })}`,
++  );
+ 
+   return [
+     `Proveedor: ${selectedSupplier.name}`,
+diff --git a/src/features/suppliers/types.ts b/src/features/suppliers/types.ts
+index 550e689..c1f0426 100644
+--- a/src/features/suppliers/types.ts
++++ b/src/features/suppliers/types.ts
+@@ -49,6 +49,17 @@ export interface CatalogLine {
+   currency: string;
+ }
+ 
++export interface ExtractionReviewLine {
++  id: string;
++  supplier_code: string | null;
++  raw_description: string;
++  cost: number;
++  currency: string;
++  row_index: number;
++  source_page?: number;
++  confidence?: number;
++}
++
+ export interface OrderLine extends CatalogLine {
+   quantity: number;
+ }
+diff --git a/src/lib/email.test.ts b/src/lib/email.test.ts
+new file mode 100644
+index 0000000..8564468
+--- /dev/null
++++ b/src/lib/email.test.ts
+@@ -0,0 +1,19 @@
++import { describe, expect, it } from "vitest";
++import { buildMailtoLink } from "@/lib/email";
++
++describe("buildMailtoLink", () => {
++  it("returns null when the email is missing", () => {
++    expect(buildMailtoLink({ to: "" })).toBeNull();
++    expect(buildMailtoLink({ to: null })).toBeNull();
++  });
++
++  it("builds a mailto link with subject and body", () => {
++    const link = buildMailtoLink({
++      to: "proveedor@example.com",
++      subject: "Pedido",
++      body: "Linea 1\nLinea 2",
++    });
++
++    expect(link).toBe("mailto:proveedor%40example.com?subject=Pedido&body=Linea+1%0ALinea+2");
++  });
++});
+diff --git a/src/lib/email.ts b/src/lib/email.ts
+new file mode 100644
+index 0000000..5be6974
+--- /dev/null
++++ b/src/lib/email.ts
+@@ -0,0 +1,15 @@
++export function buildMailtoLink(params: {
++  to: string | null | undefined;
++  subject?: string;
++  body?: string;
++}): string | null {
++  const to = String(params.to ?? "").trim();
++  if (!to) return null;
++
++  const search = new URLSearchParams();
++  if (params.subject) search.set("subject", params.subject);
++  if (params.body) search.set("body", params.body);
++
++  const query = search.toString();
++  return query ? `mailto:${encodeURIComponent(to)}?${query}` : `mailto:${encodeURIComponent(to)}`;
++}
+diff --git a/src/lib/importers/catalogImporter.test.ts b/src/lib/importers/catalogImporter.test.ts
+index cc73138..d147e83 100644
+--- a/src/lib/importers/catalogImporter.test.ts
++++ b/src/lib/importers/catalogImporter.test.ts
+@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
+ import {
+   detectColumnsHeuristic,
+   detectPdfColumnsHeuristic,
++  extractPdfCatalogCandidates,
+   normalizePdfRowsToLines,
+   normalizeRowsToLines,
+   parseFlexibleNumber,
++  shouldRetryPdfWithOcr,
+ } from "@/lib/importers/catalogImporter";
+ 
+ describe("supplier importer heuristics", () => {
+@@ -91,4 +93,209 @@ describe("supplier importer heuristics", () => {
+     expect(lines[2].currency).toBe("USD");
+     expect(lines[2].cost).toBeCloseTo(30.83, 2);
+   });
++
++  it("filters technical rows and ignores non-product PDF noise", () => {
++    const headers = ["col_1", "col_2", "col_3", "col_4"];
++    const rows = [
++      ["CODIGO", "PULG.", "A cm", "B cm"],
++      ["DCR-6", "6", "15", "12"],
++      ["SL12WF", "Aplique cerrado blanco 12w Luz blanca fría", "", "U$S 3.60"],
++      ["NETO", "", "", ""],
++    ];
++
++    const lines = normalizePdfRowsToLines({
++      headers,
++      rows,
++      mapping: {
++        descriptionColumn: "col_2",
++        priceColumn: "col_4",
++        codeColumn: "col_1",
++        preferPriceAtEnd: true,
++        filterRowsWithoutPrice: true,
++      },
++      defaultCurrency: "ARS",
++    });
++
++    expect(lines).toHaveLength(1);
++    expect(lines[0].supplier_code).toBe("SL12WF");
++    expect(lines[0].raw_description).toContain("Aplique cerrado blanco 12w");
++  });
++
++  it("retries OCR when text extraction quality is poor even if the PDF has enough text", () => {
++    expect(
++      shouldRetryPdfWithOcr(
++        {
++          chars: 2200,
++          lines: [
++            {
++              supplier_code: "A1",
++              raw_description: "Cable",
++              normalized_description: "cable",
++              cost: 1000,
++              currency: "ARS",
++              row_index: 1,
++            },
++            {
++              supplier_code: "A2",
++              raw_description: "Mouse",
++              normalized_description: "mouse",
++              cost: 2000,
++              currency: "ARS",
++              row_index: 2,
++            },
++          ],
++          tableRows: [
++            ["promo vigente"],
++            ["sku"],
++            ["precio"],
++            ["telefono"],
++            ["direccion"],
++          ],
++        },
++        {
++          preferPrice: "last",
++          defaultCurrency: "ARS",
++          maxPages: 30,
++          textThresholdChars: 500,
++          maxOcrMs: 120000,
++        },
++      ),
++    ).toBe(true);
++  });
++
++  it("keeps text mode when extracted rows already look healthy", () => {
++    expect(
++      shouldRetryPdfWithOcr(
++        {
++          chars: 3200,
++          lines: [
++            {
++              supplier_code: "A1",
++              raw_description: "Cable HDMI 2 metros mallado",
++              normalized_description: "cable hdmi 2 metros mallado",
++              cost: 1000,
++              currency: "ARS",
++              row_index: 1,
++            },
++            {
++              supplier_code: "A2",
++              raw_description: "Mouse inalambrico recargable",
++              normalized_description: "mouse inalambrico recargable",
++              cost: 2000,
++              currency: "ARS",
++              row_index: 2,
++            },
++            {
++              supplier_code: "A3",
++              raw_description: "Teclado mecanico compacto",
++              normalized_description: "teclado mecanico compacto",
++              cost: 3000,
++              currency: "ARS",
++              row_index: 3,
++            },
++            {
++              supplier_code: "A4",
++              raw_description: "Auriculares bluetooth plegables",
++              normalized_description: "auriculares bluetooth plegables",
++              cost: 4000,
++              currency: "ARS",
++              row_index: 4,
++            },
++            {
++              supplier_code: "A5",
++              raw_description: "Monitor led 24 pulgadas",
++              normalized_description: "monitor led 24 pulgadas",
++              cost: 5000,
++              currency: "ARS",
++              row_index: 5,
++            },
++            {
++              supplier_code: "A6",
++              raw_description: "Webcam full hd con microfono",
++              normalized_description: "webcam full hd con microfono",
++              cost: 6000,
++              currency: "ARS",
++              row_index: 6,
++            },
++            {
++              supplier_code: "A7",
++              raw_description: "Parlante portatil resistente al agua",
++              normalized_description: "parlante portatil resistente al agua",
++              cost: 7000,
++              currency: "ARS",
++              row_index: 7,
++            },
++            {
++              supplier_code: "A8",
++              raw_description: "Disco solido externo 1tb",
++              normalized_description: "disco solido externo 1tb",
++              cost: 8000,
++              currency: "ARS",
++              row_index: 8,
++            },
++            {
++              supplier_code: "A9",
++              raw_description: "Adaptador usb c multipuerto",
++              normalized_description: "adaptador usb c multipuerto",
++              cost: 9000,
++              currency: "ARS",
++              row_index: 9,
++            },
++            {
++              supplier_code: "A10",
++              raw_description: "Base notebook aluminio regulable",
++              normalized_description: "base notebook aluminio regulable",
++              cost: 10000,
++              currency: "ARS",
++              row_index: 10,
++            },
++          ],
++          tableRows: [
++            ["A1", "Cable HDMI 2 metros mallado", "$ 1.000,00"],
++            ["A2", "Mouse inalambrico recargable", "$ 2.000,00"],
++            ["A3", "Teclado mecanico compacto", "$ 3.000,00"],
++            ["A4", "Auriculares bluetooth plegables", "$ 4.000,00"],
++            ["A5", "Monitor led 24 pulgadas", "$ 5.000,00"],
++          ],
++        },
++        {
++          preferPrice: "last",
++          defaultCurrency: "ARS",
++          maxPages: 30,
++          textThresholdChars: 500,
++          maxOcrMs: 120000,
++        },
++      ),
++    ).toBe(false);
++  });
++
++  it("rebuilds product blocks that split price, code, and description across lines", () => {
++    const lines = extractPdfCatalogCandidates(
++      [
++        "TIMER PROGRAMABLE WI-FI U$S 13.53",
++        "TIMWIFI INTERRUPTOR Y TIMER PROGRAMABLE",
++        "Caracteristicas: Programable dia y hora.",
++        "50160 U$S 18.00",
++        "Caja de proteccion / seguridad porta termostato con llave 18 X 10 X 9",
++        "HY03BW Termostato de Ambiente con pantalla tactil ASUA U$S 36.32",
++      ],
++      "last",
++      "ARS",
++      {
++        pageNumber: 3,
++        pageHasCatalogSignals: true,
++        pageHasTechnicalTable: false,
++      },
++    );
++
++    expect(lines).toHaveLength(3);
++    expect(lines[0].supplier_code).toBe("TIMWIFI");
++    expect(lines[0].raw_description).toContain("TIMER PROGRAMABLE WI-FI");
++    expect(lines[0].cost).toBeCloseTo(13.53, 2);
++    expect(lines[1].supplier_code).toBe("50160");
++    expect(lines[1].raw_description).toContain("Caja de proteccion");
++    expect(lines[1].cost).toBeCloseTo(18, 2);
++    expect(lines[2].supplier_code).toBe("HY03BW");
++    expect(lines[2].currency).toBe("USD");
++  });
+ });
+diff --git a/src/lib/importers/catalogImporter.ts b/src/lib/importers/catalogImporter.ts
+index d659afc..c82fbc6 100644
+--- a/src/lib/importers/catalogImporter.ts
++++ b/src/lib/importers/catalogImporter.ts
+@@ -15,6 +15,8 @@ export interface CatalogImportLine {
+   cost: number;
+   currency: string;
+   row_index: number;
++  source_page?: number;
++  confidence?: number;
+ }
+ 
+ export interface DroppedRowSample {
+@@ -87,6 +89,7 @@ export interface ParsePdfMeta {
+   totalChars: number;
+   parsedPages: number;
+   confidence: number;
++  provider?: string | null;
+ }
+ 
+ export interface PdfTableCandidate {
+@@ -117,6 +120,35 @@ export interface ParsePdfResult {
+   table: PdfTableCandidate | null;
+ }
+ 
++export interface PdfParseCandidateMetrics {
++  lines: CatalogImportLine[];
++  chars: number;
++  tableRows: string[][];
++}
++
++interface PdfLineContext {
++  pageNumber: number;
++  pageHasCatalogSignals: boolean;
++  pageHasTechnicalTable: boolean;
++}
++
++interface PendingPdfProduct {
++  supplierCode: string | null;
++  descriptionParts: string[];
++  priceValue: number | null;
++  currency: "ARS" | "USD";
++  rowIndex: number;
++  sourcePage: number;
++  confidence: number;
++}
++
++interface PendingPdfHeaderPrice {
++  description: string;
++  priceValue: number;
++  currency: "ARS" | "USD";
++  sourcePage: number;
++}
++
+ export const DEFAULT_PDF_OPTIONS: ParsePdfOptions = {
+   preferPrice: "last",
+   defaultCurrency: "ARS",
+@@ -148,6 +180,34 @@ const CURRENCY_KEYWORDS = ["moneda", "currency", "curr", "divisa"];
+ const CODE_KEYWORDS = ["codigo", "código", "cod", "sku", "ean", "upc", "ref", "referencia"];
+ 
+ 
++const PDF_IGNORE_PATTERNS = [
++  /^(pagina|p[aá]gina)\s+\d+$/i,
++  /^pm materiales el[eé]ctricos$/i,
++  /^pablo molise$/i,
++  /^contactos?:?$/i,
++  /^neto$/i,
++  /^nuevo$/i,
++  /^producto$/i,
++  /^s\/stock$/i,
++];
++const PDF_CATALOG_HINTS = ["codigo", "código", "precio", "u$s", "usd", "ars", "neto", "descuento"];
++const PDF_TECHNICAL_HINTS = ["voltaje", "rpm", "prof.", "altura", "base", "a cm", "b cm", "c cm", "pulg."];
++const PDF_TECHNICAL_PREFIXES = [
++  /^caracter[ií]sticas?:/i,
++  /^datos t[eé]cnicos?:/i,
++  /^carga /i,
++  /^contactos?:?$/i,
++  /^programaci[oó]n/i,
++  /^tiempo m[ií]nimo/i,
++  /^alimentaci[oó]n/i,
++  /^modo(s)? de operaci[oó]n/i,
++  /^control de /i,
++  /^pantalla /i,
++  /^funci[oó]n /i,
++  /^registro /i,
++  /^\*/i,
++];
++
+ function sanitizeHeaderRow(rawHeaders: string[]): string[] {
+   const used = new Set<string>();
+   return rawHeaders.map((raw, index) => {
+@@ -387,6 +447,7 @@ function isLikelySupplierCodeValue(value: string): boolean {
+   if (!normalized || normalized.length > 24) return false;
+   if (/\s{2,}/.test(normalized)) return false;
+   if (/^(pagina|página|descuento|neto|contactos?|caracteristicas?|características)$/i.test(normalized)) return false;
++  if (/^[A-Za-z]+$/.test(normalized) && normalized !== normalized.toUpperCase()) return false;
+   return /^[A-Z0-9][A-Z0-9\-_/+.()]{1,23}$/i.test(normalized);
+ }
+ 
+@@ -702,15 +763,269 @@ function ocrLineToTableRow(line: string): string[] {
+   return normalized.split(" ").filter(Boolean);
+ }
+ 
++function normalizePdfLineText(value: string) {
++  return value
++    .toLowerCase()
++    .normalize("NFD")
++    .replace(/[\u0300-\u036f]/g, "")
++    .replace(/\s+/g, " ")
++    .trim();
++}
++
++function hasMostlyNumericCells(row: string[]) {
++  const nonEmpty = row.map((cell) => cell.trim()).filter(Boolean);
++  if (nonEmpty.length < 3) return false;
++  const numericLike = nonEmpty.filter((cell) => parseFlexibleNumber(cell) !== null || /^\d+[a-z]{0,3}$/i.test(cell)).length;
++  return numericLike / nonEmpty.length >= 0.6;
++}
++
++function buildPdfPageContext(lines: string[], tableRows: string[][], pageNumber: number): PdfLineContext {
++  const normalizedLines = lines.map(normalizePdfLineText).filter(Boolean);
++  const joined = normalizedLines.join(" ");
++  const pageHasCatalogSignals = PDF_CATALOG_HINTS.some((hint) => joined.includes(hint));
++  const pageHasTechnicalTable =
++    PDF_TECHNICAL_HINTS.filter((hint) => joined.includes(hint)).length >= 2 ||
++    tableRows.some((row) => hasMostlyNumericCells(row));
++
++  return {
++    pageNumber,
++    pageHasCatalogSignals,
++    pageHasTechnicalTable,
++  };
++}
++
++function isLikelyTechnicalDescription(value: string) {
++  const normalized = normalizePdfLineText(value);
++  if (!normalized) return true;
++  if (PDF_IGNORE_PATTERNS.some((pattern) => pattern.test(normalized))) return true;
++  if (/^(codigo|base|altura|prof\.?|voltaje|rpm|pulg\.?)(\s|$)/i.test(normalized)) return true;
++  if (/^(con regulacion|sin regulacion)$/i.test(normalized)) return true;
++  if (/^[abc]\s*cm$/i.test(normalized)) return true;
++  if (/^\d+(\.\d+)?\s*x\s*\d+(\.\d+)?$/i.test(normalized)) return true;
++  if (PDF_TECHNICAL_HINTS.some((hint) => normalized.includes(hint)) && !/[a-z]{4,}/i.test(normalized.replace(/voltaje|altura|base|prof|rpm|pulg/g, ""))) {
++    return true;
++  }
++  return false;
++}
++
++function isLikelyTechnicalContinuationLine(value: string) {
++  const normalized = value.replace(/\s+/g, " ").trim();
++  if (!normalized) return true;
++  return PDF_TECHNICAL_PREFIXES.some((pattern) => pattern.test(normalized));
++}
++
++function isLikelySectionHeading(value: string) {
++  const normalized = value.replace(/\s+/g, " ").trim();
++  if (!normalized) return false;
++  if (/^l[íi]nea\b/i.test(normalized)) return true;
++  if (/^(interruptores horarios|llaves a tecla|difusores|desagote rigido|termostatos? de ambiente)/i.test(normalized)) return true;
++  return false;
++}
++
++function hasStrongPdfPriceContext(line: string, token: { raw: string; index: number; value: number }) {
++  const before = line.slice(Math.max(0, token.index - 10), token.index);
++  const after = line.slice(token.index + token.raw.length, token.index + token.raw.length + 16);
++  const around = `${before} ${after}`;
++  const lineHasCurrency = /\$|u\$s|us\$|usd|ars/i.test(line);
++  if (lineHasCurrency) return true;
++  if (/\bx\s*(unidad|tira|pack|100)\b/i.test(around)) return true;
++  if (!/[.,]\d{2}\b/.test(token.raw)) return false;
++  if (/\b(v|vac|vca|w|kw|a|amp|rpm|cm|mm|hs|min)\b/i.test(around)) return false;
++  return token.value >= 1;
++}
++
++function extractPdfPriceToken(line: string, preferPrice: "first" | "last") {
++  const matches = [...line.matchAll(/-?\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d+)?|-?\d+(?:[.,]\d+)?/g)]
++    .map((match) => ({
++      raw: match[0],
++      index: match.index ?? -1,
++      value: parseFlexibleNumber(match[0]),
++    }))
++    .filter((entry): entry is { raw: string; index: number; value: number } => entry.index >= 0 && entry.value !== null)
++    .filter((entry) => isLikelyPriceValue(entry.raw))
++    .filter((entry) => hasStrongPdfPriceContext(line, entry));
++
++  if (matches.length === 0) return null;
++  return preferPrice === "first" ? matches[0] : matches[matches.length - 1];
++}
++
++function splitPdfLeadingCode(line: string) {
++  const match = line.match(/^([A-Z0-9][A-Z0-9\-_./]{1,15})\s+(.+)$/i);
++  if (!match) return { supplierCode: null, description: line.trim() };
++  const supplierCode = isLikelySupplierCodeValue(match[1]) ? match[1] : null;
++  return {
++    supplierCode,
++    description: supplierCode ? match[2].trim() : line.trim(),
++  };
++}
++
++function finalizePendingPdfProduct(pending: PendingPdfProduct | null): CatalogImportLine | null {
++  if (!pending || !pending.priceValue || pending.priceValue <= 0) return null;
++  const rawDescription = pending.descriptionParts.join(" ").replace(/\s+/g, " ").trim();
++  if (!rawDescription || rawDescription.length < 3) return null;
++  if (!/[a-zA-ZÃ¡Ã©Ã­Ã³ÃºÃ±]/i.test(rawDescription)) return null;
++  if (isLikelyTechnicalDescription(rawDescription)) return null;
++  return {
++    supplier_code: pending.supplierCode,
++    raw_description: rawDescription,
++    normalized_description: rawDescription.toLowerCase(),
++    cost: pending.priceValue,
++    currency: pending.currency,
++    row_index: pending.rowIndex,
++    source_page: pending.sourcePage,
++    confidence: Math.max(0.1, Math.min(0.99, pending.confidence)),
++  };
++}
++
++export function extractPdfCatalogCandidates(
++  sourceLines: string[],
++  preferPrice: "first" | "last",
++  defaultCurrency: "ARS" | "USD",
++  context: PdfLineContext,
++) {
++  const lines: CatalogImportLine[] = [];
++  let pendingProduct: PendingPdfProduct | null = null;
++  let pendingHeaderPrice: PendingPdfHeaderPrice | null = null;
++
++  const flushPendingProduct = () => {
++    const finalized = finalizePendingPdfProduct(pendingProduct);
++    if (finalized) lines.push(finalized);
++    pendingProduct = null;
++  };
++
++  sourceLines.forEach((sourceLine, rawIndex) => {
++    const line = sourceLine.replace(/\s+/g, " ").trim();
++    if (!line || line.length < 3) return;
++    if (isLikelyPdfNoiseValue(line)) return;
++    if (PDF_IGNORE_PATTERNS.some((pattern) => pattern.test(line))) return;
++
++    const priceToken = extractPdfPriceToken(line, preferPrice);
++    const currency = detectCurrency(line, defaultCurrency) as "ARS" | "USD";
++    const lineWithoutPrice = priceToken
++      ? `${line.slice(0, priceToken.index)} ${line.slice(priceToken.index + priceToken.raw.length)}`
++        .replace(/\b(u\$s|us\$|usd|ars)\b/gi, " ")
++        .replace(/\$/g, " ")
++        .replace(/\s+/g, " ")
++        .trim()
++      : line;
++    let { supplierCode, description } = splitPdfLeadingCode(lineWithoutPrice);
++    if (!supplierCode && !lineWithoutPrice.includes(" ") && isLikelySupplierCodeValue(lineWithoutPrice)) {
++      supplierCode = lineWithoutPrice;
++      description = "";
++    }
++    if (
++      supplierCode &&
++      priceToken &&
++      /^[A-Z]+$/i.test(supplierCode) &&
++      description.split(/\s+/).filter(Boolean).length <= 3
++    ) {
++      supplierCode = null;
++      description = lineWithoutPrice;
++    }
++    const rowIndex = rawIndex + 1;
++    const technicalContinuation = isLikelyTechnicalContinuationLine(lineWithoutPrice);
++    const sectionHeading = isLikelySectionHeading(lineWithoutPrice);
++
++    if (supplierCode && priceToken && description) {
++      flushPendingProduct();
++      pendingHeaderPrice = null;
++      lines.push({
++        supplier_code: supplierCode,
++        raw_description: description,
++        normalized_description: description.toLowerCase(),
++        cost: priceToken.value,
++        currency,
++        row_index: rowIndex,
++        source_page: context.pageNumber,
++        confidence: Math.max(0.1, Math.min(0.99, 0.78 + (context.pageHasCatalogSignals ? 0.08 : 0))),
++      });
++      return;
++    }
++
++    if (supplierCode && priceToken && !description) {
++      flushPendingProduct();
++      pendingProduct = {
++        supplierCode,
++        descriptionParts: [],
++        priceValue: priceToken.value,
++        currency,
++        rowIndex,
++        sourcePage: context.pageNumber,
++        confidence: 0.66,
++      };
++      pendingHeaderPrice = null;
++      return;
++    }
++
++    if (supplierCode && !priceToken) {
++      flushPendingProduct();
++      const inheritedHeader = pendingHeaderPrice && pendingHeaderPrice.sourcePage === context.pageNumber
++        ? pendingHeaderPrice
++        : null;
++      const initialDescription = [
++        inheritedHeader && !isLikelySectionHeading(inheritedHeader.description) ? inheritedHeader.description : "",
++        description,
++      ]
++        .filter(Boolean)
++        .join(" ")
++        .replace(/\s+/g, " ")
++        .trim();
++      pendingProduct = {
++        supplierCode,
++        descriptionParts: initialDescription ? [initialDescription] : [],
++        priceValue: inheritedHeader?.priceValue ?? null,
++        currency: inheritedHeader?.currency ?? currency,
++        rowIndex,
++        sourcePage: context.pageNumber,
++        confidence: inheritedHeader ? 0.76 : 0.62,
++      };
++      pendingHeaderPrice = null;
++      return;
++    }
++
++    if (!supplierCode && priceToken && description) {
++      if (pendingProduct && pendingProduct.sourcePage === context.pageNumber && pendingProduct.priceValue === null) {
++        pendingProduct.priceValue = priceToken.value;
++        pendingProduct.currency = currency;
++        if (!technicalContinuation && !sectionHeading && description.length >= 4) {
++          pendingProduct.descriptionParts.push(description);
++        }
++        return;
++      }
++
++      flushPendingProduct();
++      pendingHeaderPrice = {
++        description,
++        priceValue: priceToken.value,
++        currency,
++        sourcePage: context.pageNumber,
++      };
++      return;
++    }
++
++    if (!supplierCode && !priceToken && pendingProduct && pendingProduct.sourcePage === context.pageNumber) {
++      if (!technicalContinuation && !sectionHeading && description.length >= 4) {
++        pendingProduct.descriptionParts.push(description);
++      }
++      return;
++    }
++  });
++
++  flushPendingProduct();
++  return lines;
++}
++
+ function extractPdfLineCandidate(
+   sourceLine: string,
+   rowIndex: number,
+   preferPrice: "first" | "last",
+   defaultCurrency: "ARS" | "USD",
++  context: PdfLineContext,
+ ): CatalogImportLine | null {
+   const line = sourceLine.replace(/\s+/g, " ").trim();
+   if (!line || line.length < 4) return null;
+   if (isLikelyPdfNoiseValue(line)) return null;
++  if (PDF_IGNORE_PATTERNS.some((pattern) => pattern.test(line.trim()))) return null;
+   if (/^[*•]/.test(line)) return null;
+   const chunks = line.split(/\s{2,}/).filter(Boolean);
+   const candidateString = chunks.length > 1 ? chunks.join(" | ") : line;
+@@ -733,6 +1048,14 @@ function extractPdfLineCandidate(
+   const supplierCode = codeMatch ? codeMatch[1] : null;
+   description = codeMatch ? codeMatch[2].trim() : description;
+   if (description.length < 3) return null;
++  if (isLikelyTechnicalDescription(description)) return null;
++  let confidence = 0.58;
++  if (supplierCode) confidence += 0.12;
++  if (/u\$s|us\$|usd|ars|\$/i.test(candidateString)) confidence += 0.08;
++  if (context.pageHasCatalogSignals) confidence += 0.08;
++  if (context.pageHasTechnicalTable) confidence -= 0.05;
++  if (description.length >= 18) confidence += 0.05;
++  if (description.length < 8) confidence -= 0.08;
+   if (!/[a-zA-Záéíóúñ]/i.test(description)) return null;
+   return {
+     supplier_code: supplierCode,
+@@ -741,9 +1064,48 @@ function extractPdfLineCandidate(
+     cost: pickedPrice.value,
+     currency,
+     row_index: rowIndex,
++    source_page: context.pageNumber,
++    confidence: Math.max(0.1, Math.min(0.99, confidence)),
+   };
+ }
+ 
++function scorePdfCandidate(candidate: PdfParseCandidateMetrics): number {
++  const avgDescriptionLength = candidate.lines.length
++    ? candidate.lines.reduce((total, line) => total + line.raw_description.length, 0) / candidate.lines.length
++    : 0;
++  const rowsWithMultipleColumns = candidate.tableRows.filter(
++    (row) => row.filter((cell) => cell.trim().length > 0).length >= 2,
++  ).length;
++
++  return (
++    candidate.lines.length * 2.6 +
++    Math.min(candidate.tableRows.length, 80) * 0.35 +
++    rowsWithMultipleColumns * 0.5 +
++    Math.min(candidate.chars, 6000) / 260 +
++    Math.min(avgDescriptionLength, 80) * 0.2
++  );
++}
++
++export function shouldRetryPdfWithOcr(candidate: PdfParseCandidateMetrics, options: ParsePdfOptions): boolean {
++  if (candidate.lines.length === 0) return true;
++  if (candidate.chars < options.textThresholdChars) return true;
++
++  const avgDescriptionLength = candidate.lines.length
++    ? candidate.lines.reduce((total, line) => total + line.raw_description.length, 0) / candidate.lines.length
++    : 0;
++  const rowsWithMultipleColumns = candidate.tableRows.filter(
++    (row) => row.filter((cell) => cell.trim().length > 0).length >= 2,
++  ).length;
++
++  if (candidate.lines.length < 10) return true;
++  if (candidate.tableRows.length > 0 && rowsWithMultipleColumns < Math.max(4, Math.floor(candidate.tableRows.length * 0.18))) {
++    return true;
++  }
++  if (avgDescriptionLength < 8) return true;
++
++  return false;
++}
++
+ async function parsePdfTextMode(
+   file: File,
+   options: ParsePdfOptions,
+@@ -769,20 +1131,27 @@ async function parsePdfTextMode(
+       getTextContent: () => Promise<{ items: unknown[] }>;
+     };
+     const content = await page.getTextContent();
+-    const items = content.items
+-      .map((item) => {
+-        if (!("str" in item) || !("transform" in item)) return null;
+-        return { str: String(item.str ?? ""), transform: item.transform as number[] };
+-      })
+-      .filter((item): item is { str: string; transform: number[] } => item !== null);
+-    chars += items.reduce((acc, item) => acc + item.str.replace(/\s+/g, "").length, 0);
+-    const visualLines = textItemsToVisualLines(items);
+-    tableRows.push(...textItemsToTableRows(items));
+-    visualLines.forEach((line) => {
+-      const parsed = extractPdfLineCandidate(line, rowIndex, options.preferPrice, options.defaultCurrency);
+-      rowIndex += 1;
+-      if (parsed) lines.push(parsed);
+-    });
++      const items = content.items
++        .map((item) => {
++          if (!("str" in item) || !("transform" in item)) return null;
++          return { str: String(item.str ?? ""), transform: item.transform as number[] };
++        })
++        .filter((item): item is { str: string; transform: number[] } => item !== null);
++      chars += items.reduce((acc, item) => acc + item.str.replace(/\s+/g, "").length, 0);
++      const visualLines = textItemsToVisualLines(items);
++      const pageTableRows = textItemsToTableRows(items);
++      const pageContext = buildPdfPageContext(visualLines, pageTableRows, pageNumber);
++      tableRows.push(...pageTableRows);
++      const parsedPageLines = extractPdfCatalogCandidates(
++        visualLines,
++        options.preferPrice,
++        options.defaultCurrency,
++        pageContext,
++      );
++      parsedPageLines.forEach((parsed) => {
++        lines.push({ ...parsed, row_index: rowIndex });
++        rowIndex += 1;
++      });
+   }
+   return { lines, chars, pages: totalPages, tableRows };
+ }
+@@ -825,12 +1194,23 @@ async function parsePdfOcrMode(
+       await page.render({ canvasContext: context, viewport }).promise;
+       const result = await worker.recognize(canvas);
+       const textLines = result.data.text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
++      const pageTableRows = textLines
++        .map((line) => ocrLineToTableRow(line))
++        .filter((row) => row.length > 0);
++      const pageContext = buildPdfPageContext(textLines, pageTableRows, pageNumber);
+       textLines.forEach((line) => {
+         const row = ocrLineToTableRow(line);
+         if (row.length > 0) tableRows.push(row);
+-        const parsed = extractPdfLineCandidate(line, rowIndex, options.preferPrice, options.defaultCurrency);
++      });
++      const parsedPageLines = extractPdfCatalogCandidates(
++        textLines,
++        options.preferPrice,
++        options.defaultCurrency,
++        pageContext,
++      );
++      parsedPageLines.forEach((parsed) => {
++        lines.push({ ...parsed, row_index: rowIndex });
+         rowIndex += 1;
+-        if (parsed) lines.push(parsed);
+       });
+       if (pageNumber >= 2 && lines.length >= 30) break;
+     }
+@@ -854,7 +1234,13 @@ export async function parsePdfToLines(
+     while (padded.length < textMaxCols) padded.push("");
+     return padded;
+   });
+-  if (textMode.chars >= options.textThresholdChars && textMode.lines.length > 0) {
++  const textCandidate: PdfParseCandidateMetrics = {
++    lines: textMode.lines,
++    chars: textMode.chars,
++    tableRows: textMode.tableRows,
++  };
++
++  if (!shouldRetryPdfWithOcr(textCandidate, options)) {
+     const confidence = Math.min(1, textMode.lines.length / 80);
+     return {
+       lines: textMode.lines,
+@@ -874,6 +1260,7 @@ export async function parsePdfToLines(
+         : null,
+     };
+   }
++
+   const ocrMode = await parsePdfOcrMode(file, options, onProgress);
+   const ocrMaxCols = ocrMode.tableRows.reduce((max, row) => Math.max(max, row.length), 0);
+   const ocrHeaders = Array.from({ length: ocrMaxCols }, (_, idx) => `col_${idx + 1}`);
+@@ -882,21 +1269,36 @@ export async function parsePdfToLines(
+     while (padded.length < ocrMaxCols) padded.push("");
+     return padded;
+   });
+-  const confidence = Math.min(1, ocrMode.lines.length / 80);
+-  return {
++
++  const ocrCandidate: PdfParseCandidateMetrics = {
+     lines: ocrMode.lines,
++    chars: textMode.chars,
++    tableRows: ocrMode.tableRows,
++  };
++
++  const useTextMode =
++    textMode.lines.length > 0 &&
++    scorePdfCandidate(textCandidate) >= scorePdfCandidate(ocrCandidate) * 1.05;
++  const selectedMode = useTextMode ? textMode : ocrMode;
++  const selectedTableRows = useTextMode ? textTableRows : ocrTableRows;
++  const selectedHeaders = useTextMode ? textHeaders : ocrHeaders;
++  const selectedMetaMode: ParsePdfMode = useTextMode ? "text" : "ocr";
++  const confidence = Math.min(1, selectedMode.lines.length / 80);
++
++  return {
++    lines: selectedMode.lines,
+     meta: {
+-      mode: "ocr",
++      mode: selectedMetaMode,
+       totalChars: textMode.chars,
+-      parsedPages: ocrMode.pages,
++      parsedPages: selectedMode.pages,
+       confidence,
+     },
+-    table: ocrMaxCols > 0
++    table: selectedHeaders.length > 0
+       ? {
+-        headers: ocrHeaders,
+-        rows: ocrTableRows,
+-        previewRows: ocrTableRows.slice(0, 30),
+-        sourceMode: "ocr",
++        headers: selectedHeaders,
++        rows: selectedTableRows,
++        previewRows: selectedTableRows.slice(0, 30),
++        sourceMode: selectedMetaMode,
+       }
+       : null,
+   };
+diff --git a/src/pages/Documents.tsx b/src/pages/Documents.tsx
+index 3c3be0c..9036a23 100644
+--- a/src/pages/Documents.tsx
++++ b/src/pages/Documents.tsx
+@@ -103,7 +103,7 @@ export default function DocumentsPage() {
+   const [documentsPage, setDocumentsPage] = useState(1);
+   const [documentsPageSize, setDocumentsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+   const [form, setForm] = useState<DocumentFormState>(() => buildEmptyDocumentForm(defaultPointOfSale));
+-  const [lines, setLines] = useState<LineDraft[]>([EMPTY_LINE]);
++  const [lines, setLines] = useState<LineDraft[]>([]);
+ 
+   const {
+     customers,
+@@ -146,6 +146,11 @@ export default function DocumentsPage() {
+     setDocumentsPage(1);
+   }, [deferredSearch, typeFilter, statusFilter, documentsPageSize]);
+ 
++  useEffect(() => {
++    if (form.price_list_id || priceLists.length === 0) return;
++    setForm((previousForm) => ({ ...previousForm, price_list_id: priceLists[0].id }));
++  }, [form.price_list_id, priceLists]);
++
+   const syncLineWithPriceList = useCallback(
+     (
+       line: LineDraft,
+@@ -214,7 +219,7 @@ export default function DocumentsPage() {
+   const resetDraftForm = () => {
+     setEditingDocId(null);
+     setForm(buildEmptyDocumentForm(defaultPointOfSale));
+-    setLines([EMPTY_LINE]);
++    setLines([]);
+   };
+ 
+   const loadDraftForEditing = useDocumentDraftLoader({ documentsById });
+@@ -232,7 +237,7 @@ export default function DocumentsPage() {
+       const draft = await loadDraftForEditing(documentId);
+       setEditingDocId(draft.editingDocId);
+       setForm(draft.form);
+-      setLines(draft.lines.length > 0 ? draft.lines : [EMPTY_LINE]);
++      setLines(draft.lines);
+       setDialogOpen(true);
+     } catch (error) {
+       toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
+@@ -260,36 +265,35 @@ export default function DocumentsPage() {
+     toast,
+   });
+ 
+-  const onPickItem = (index: number, itemId: string) => {
++  const addItemToDraft = (itemId: string) => {
+     const item = itemsById.get(itemId);
+     if (!item) return;
+ 
+-    const nextLines = [...lines];
+-    const baseLine: LineDraft = {
+-      ...nextLines[index],
+-      item_id: itemId,
+-      sku_snapshot: item.sku,
+-      description: item.name,
+-      unit: item.unit || "un",
+-      unit_price: form.price_list_id ? priceByItem.get(itemId) ?? 0 : nextLines[index].unit_price,
+-    };
+-
+-    nextLines[index] = form.price_list_id
+-      ? syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true)
+-      : {
+-          ...baseLine,
+-          pricing_mode: "MANUAL_PRICE",
+-          suggested_unit_price: baseLine.unit_price,
+-          base_cost_snapshot: null,
+-          list_flete_pct_snapshot: null,
+-          list_utilidad_pct_snapshot: null,
+-          list_impuesto_pct_snapshot: null,
+-          manual_margin_pct: null,
+-          price_overridden_by: null,
+-          price_overridden_at: null,
+-        };
++    setLines((previousLines) => {
++      const existingIndex = previousLines.findIndex((line) => line.item_id === itemId);
++      if (existingIndex >= 0) {
++        return previousLines.map((line, index) =>
++          index === existingIndex
++            ? { ...line, quantity: line.quantity + 1 }
++            : line,
++        );
++      }
+ 
+-    setLines(nextLines);
++      const baseLine: LineDraft = {
++        ...EMPTY_LINE,
++        item_id: itemId,
++        sku_snapshot: item.sku,
++        description: item.name,
++        unit: item.unit || "un",
++        quantity: 1,
++        unit_price: priceByItem.get(itemId) ?? 0,
++      };
++
++      return [
++        ...previousLines,
++        syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true),
++      ];
++    });
+   };
+ 
+   const onPriceListChange = (priceListId: string) => {
+@@ -311,14 +315,11 @@ export default function DocumentsPage() {
+     }
+ 
+     setForm((previousForm) => ({ ...previousForm, price_list_id: priceListId }));
+-    setLines([EMPTY_LINE]);
++    setLines([]);
+   };
+ 
+   const removeLine = (index: number) => {
+-    setLines((previousLines) => {
+-      if (previousLines.length === 1) return [EMPTY_LINE];
+-      return previousLines.filter((_, lineIndex) => lineIndex !== index);
+-    });
++    setLines((previousLines) => previousLines.filter((_, lineIndex) => lineIndex !== index));
+   };
+ 
+   const printDocument = async (document: DocRow) => {
+@@ -592,7 +593,7 @@ export default function DocumentsPage() {
+             priceLists={priceLists}
+             availableItems={availableItems}
+             onPriceListChange={onPriceListChange}
+-            onPickItem={onPickItem}
++            onAddItem={addItemToDraft}
+             removeLine={removeLine}
+             onSubmit={() => upsertDraftMutation.mutate()}
+             onResetDraftForm={resetDraftForm}
+diff --git a/src/pages/Suppliers.tsx b/src/pages/Suppliers.tsx
+index 1b586b7..631dfd4 100644
+--- a/src/pages/Suppliers.tsx
++++ b/src/pages/Suppliers.tsx
+@@ -27,6 +27,11 @@ const SupplierDropDetailDialog = lazy(async () => {
+   return { default: module.SupplierDropDetailDialog };
+ });
+ 
++const SupplierExtractionReviewDialog = lazy(async () => {
++  const module = await import("@/features/suppliers/components/SupplierExtractionReviewDialog");
++  return { default: module.SupplierExtractionReviewDialog };
++});
++
+ const ColumnMappingModal = lazy(async () => {
+   const module = await import("@/features/suppliers/components/ColumnMappingModal");
+   return { default: module.ColumnMappingModal };
+@@ -68,6 +73,9 @@ export default function SuppliersPage() {
+     documentTitle,
+     dropDetailOpen,
+     editing,
++    extractionImportPending,
++    extractionReviewLines,
++    extractionReviewOpen,
+     form,
+     isCatalogLoading,
+     isHistoryLoading,
+@@ -82,7 +90,11 @@ export default function SuppliersPage() {
+     onCatalogDialogOpenChange,
+     onCatalogVersionSelect,
+     onCopyOrderMessage,
++    onConfirmExtractionImport,
++    onExtractionReviewLineChange,
++    onOpenEmail,
+     onOpenWhatsApp,
++    onRemoveExtractionReviewLine,
+     onRemoveOrderItem,
+     onRestoreSupplier,
+     onUpdateLineQuantity,
+@@ -91,7 +103,7 @@ export default function SuppliersPage() {
+     openCreate,
+     openEdit,
+     orderLines,
+-    orderTotal,
++    orderTotalsByCurrency,
+     pdfMappingHeaders,
+     pdfMappingOpen,
+     pdfMappingRows,
+@@ -123,6 +135,8 @@ export default function SuppliersPage() {
+     suppliers,
+     uploadCatalogMutation,
+     versionsByCatalog,
++    setExtractionReviewLines,
++    setExtractionReviewOpen,
+   } = useSuppliersPage({
+     companyId: currentCompany?.id,
+     toast,
+@@ -223,15 +237,35 @@ export default function SuppliersPage() {
+             onLineQuantityChange={onUpdateLineQuantity}
+             onAddToOrder={addToOrder}
+             orderLines={orderLines}
+-            orderTotal={orderTotal}
++            orderTotalsByCurrency={orderTotalsByCurrency}
+             onOrderQuantityChange={onUpdateOrderQuantity}
+             onRemoveOrderItem={onRemoveOrderItem}
+             onCopyOrderMessage={onCopyOrderMessage}
++            onOpenEmail={onOpenEmail}
+             onOpenWhatsApp={onOpenWhatsApp}
+           />
+         </Suspense>
+       ) : null}
+ 
++      {extractionReviewOpen ? (
++        <Suspense fallback={<SupplierDialogLoader />}>
++          <SupplierExtractionReviewDialog
++            open={extractionReviewOpen}
++            onOpenChange={setExtractionReviewOpen}
++            fileName={selectedFile?.name ?? null}
++            lines={extractionReviewLines}
++            isImporting={extractionImportPending}
++            onLineChange={onExtractionReviewLineChange}
++            onRemoveLine={onRemoveExtractionReviewLine}
++            onConfirm={onConfirmExtractionImport}
++            onCancel={() => {
++              setExtractionReviewLines([]);
++              setExtractionReviewOpen(false);
++            }}
++          />
++        </Suspense>
++      ) : null}
++
+       <ConfirmDeleteDialog
+         open={!!supplierToDelete}
+         onOpenChange={(open) => {

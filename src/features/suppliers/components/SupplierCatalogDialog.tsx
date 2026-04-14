@@ -1,4 +1,4 @@
-import { Copy, FileStack, History, Inbox, MessageCircle, Search, Upload, Wallet } from "lucide-react";
+import { Copy, FileStack, History, Inbox, Mail, MessageCircle, Search, Upload, Wallet } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,10 +54,11 @@ type SupplierCatalogDialogProps = {
   onLineQuantityChange: (lineId: string, value: string) => void;
   onAddToOrder: (line: CatalogLine) => void;
   orderLines: OrderLine[];
-  orderTotal: number;
+  orderTotalsByCurrency: Record<string, number>;
   onOrderQuantityChange: (lineId: string, value: string) => void;
   onRemoveOrderItem: (lineId: string) => void;
   onCopyOrderMessage: () => void;
+  onOpenEmail: () => void;
   onOpenWhatsApp: () => void;
 };
 
@@ -116,10 +117,11 @@ export function SupplierCatalogDialog({
   onLineQuantityChange,
   onAddToOrder,
   orderLines,
-  orderTotal,
+  orderTotalsByCurrency,
   onOrderQuantityChange,
   onRemoveOrderItem,
   onCopyOrderMessage,
+  onOpenEmail,
   onOpenWhatsApp,
 }: SupplierCatalogDialogProps) {
   const totalVersions = Object.values(versionsByCatalog).reduce((acc, versions) => acc + versions.length, 0);
@@ -292,7 +294,7 @@ export function SupplierCatalogDialog({
                   <div className="flex flex-wrap gap-3">
                     <Button onClick={onUpload} disabled={isUploading || !selectedFile}>
                       <Upload className="mr-2 h-4 w-4" />
-                      {isUploading ? "Procesando fuente..." : "Procesar e importar"}
+                      {isUploading ? "Procesando fuente..." : "Procesar listado"}
                     </Button>
                     {pdfProgress ? (
                       <Badge variant="secondary" className="px-3 py-1 text-xs">
@@ -312,7 +314,7 @@ export function SupplierCatalogDialog({
                   <div className="rounded-lg border p-3">
                     <div className="font-medium">Estrategia</div>
                     <div className="mt-1 text-muted-foreground">
-                      Excel/CSV va por parser logico. PDF pasa por parser estructural y, si hace falta, por Gemini.
+                      Excel/CSV va por parser logico. PDF pasa por parser estructural y, si hace falta, por motores externos como Mistral OCR o Gemini antes de la revision final.
                     </div>
                   </div>
                   {lastDiagnostics ? (
@@ -471,14 +473,31 @@ export function SupplierCatalogDialog({
 
                   <div className="rounded-xl border bg-muted/20 p-4">
                     <div className="text-sm text-muted-foreground">Total estimado</div>
-                    <div className="mt-1 text-2xl font-semibold">
-                      ${orderTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                    <div className="mt-3 grid gap-2">
+                      {Object.entries(orderTotalsByCurrency).length > 0 ? (
+                        Object.entries(orderTotalsByCurrency)
+                          .sort(([left], [right]) => left.localeCompare(right))
+                          .map(([currency, total]) => (
+                            <div key={currency} className="flex items-center justify-between gap-3 text-sm">
+                              <span className="font-medium text-muted-foreground">{currency}</span>
+                              <span className="text-lg font-semibold">
+                                {total.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          ))
+                      ) : (
+                        <div className="text-lg font-semibold">0.00</div>
+                      )}
                     </div>
                   </div>
 
-                  {!selectedSupplier?.whatsapp ? (
+                  {!selectedSupplier?.whatsapp || !selectedSupplier?.email ? (
                     <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-700">
-                      Este proveedor no tiene WhatsApp configurado. Puedes copiar el mensaje, pero no abrir el enlace directo.
+                      {!selectedSupplier?.whatsapp && !selectedSupplier?.email
+                        ? "Este proveedor no tiene WhatsApp ni email configurados. Puedes copiar el mensaje, pero no abrir envio directo."
+                        : !selectedSupplier?.whatsapp
+                          ? "Este proveedor no tiene WhatsApp configurado. Puedes copiar el mensaje o usar email."
+                          : "Este proveedor no tiene email configurado. Puedes copiar el mensaje o usar WhatsApp."}
                     </div>
                   ) : null}
 
@@ -486,6 +505,10 @@ export function SupplierCatalogDialog({
                     <Button variant="outline" onClick={onCopyOrderMessage}>
                       <Copy className="mr-2 h-4 w-4" />
                       Copiar mensaje
+                    </Button>
+                    <Button variant="outline" onClick={onOpenEmail}>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Enviar por email
                     </Button>
                     <Button onClick={onOpenWhatsApp}>
                       <MessageCircle className="mr-2 h-4 w-4" />

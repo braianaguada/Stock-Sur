@@ -1,4 +1,4 @@
-﻿import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { VisibilityState } from "@tanstack/react-table";
@@ -20,7 +20,7 @@ import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Search } from "lucide-react";
+import { PackageX, Plus, Search } from "lucide-react";
 import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { invalidateItemQueries, invalidateStockQueries } from "@/lib/invalidate";
@@ -43,6 +43,7 @@ const ITEM_TABLE_COLUMNS_KEY = "items:table-columns";
 const DEFAULT_ITEM_COLUMN_VISIBILITY: VisibilityState = {
   sku: true,
   name: true,
+  stock: true,
   supplier: true,
   brand: true,
   model: true,
@@ -57,6 +58,7 @@ const DEFAULT_ITEM_COLUMN_VISIBILITY: VisibilityState = {
 const ITEM_COLUMN_OPTIONS: Array<{ id: keyof typeof DEFAULT_ITEM_COLUMN_VISIBILITY; label: string; hideable?: boolean }> = [
   { id: "sku", label: "SKU" },
   { id: "name", label: "Nombre" },
+  { id: "stock", label: "Stock" },
   { id: "supplier", label: "Proveedor" },
   { id: "brand", label: "Marca" },
   { id: "model", label: "Modelo" },
@@ -86,6 +88,14 @@ function getNullableSortValue(item: Item, sortBy: ItemSortField) {
     default:
       return null;
   }
+}
+
+function sortItemsByStock(items: Item[], stockByItemId: Map<string, number>, direction: "asc" | "desc") {
+  return [...items].sort((a, b) => {
+    const aStock = stockByItemId.get(a.id) ?? -1;
+    const bStock = stockByItemId.get(b.id) ?? -1;
+    return direction === "asc" ? aStock - bStock : bStock - aStock;
+  });
 }
 
 function compareItemValues(left: Item, right: Item, sortBy: ItemSortField) {
@@ -139,6 +149,8 @@ export default function ItemsPage() {
   const deferredSearch = useDeferredValue(search);
   const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [supplierFilter, setSupplierFilter] = useState<string>("all");
+  const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "no_stock">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
@@ -255,6 +267,49 @@ export default function ItemsPage() {
     },
   });
 
+  // Fetch stock totals per item from stock_movements
+  const stockQuery = useQuery({
+    queryKey: ["items-stock-totals", currentCompany?.id ?? null],
+    enabled: Boolean(currentCompany),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stock_movements")
+        .select("item_id, type, quantity")
+        .eq("company_id", currentCompany!.id);
+      if (error) throw error;
+
+      const totals = new Map<string, number>();
+      for (const row of data ?? []) {
+        const prev = totals.get(row.item_id) ?? 0;
+        const qty = Number(row.quantity);
+        if (row.type === "IN") totals.set(row.item_id, prev + qty);
+        else if (row.type === "OUT") totals.set(row.item_id, prev - qty);
+        else totals.set(row.item_id, prev + qty);
+      }
+      return totals;
+    },
+  });
+
+  const stockByItemId = useMemo(() => stockQuery.data ?? new Map<string, number>(), [stockQuery.data]);
+
+  const stockStats = useMemo(() => {
+    const all = itemsQuery.data ?? [];
+    const stats = {
+      total: all.length,
+      active: all.filter(i => i.is_active).length,
+      noStock: 0,
+      inStock: 0,
+    };
+    all.forEach(item => {
+      if (!item.is_active) return;
+      const s = stockByItemId.get(item.id) ?? 0;
+      if (s <= 0) stats.noStock++;
+      else stats.inStock++;
+    });
+    return stats;
+  }, [itemsQuery.data, stockByItemId]);
+
   const hasActiveSearch = deferredSearch.trim().length > 0;
   const aliasesSearchQuery = useQuery({
     queryKey: queryKeys.items.searchAliases(currentCompany?.id ?? null),
@@ -281,8 +336,30 @@ export default function ItemsPage() {
       })
       : allItems;
 
-    return sortItems(baseItems, sortBy, sortDirection);
-  }, [aliasesSearchQuery.data, deferredSearch, itemsQuery.data, sortBy, sortDirection]);
+    let sorted = sortBy === "stock"
+      ? sortItemsByStock(baseItems, stockByItemId, sortDirection)
+      : sortItems(baseItems, sortBy, sortDirection);
+
+    // Apply supplier filter
+    if (supplierFilter !== "all") {
+      sorted = sorted.filter((item) => (item.supplier ?? "") === supplierFilter);
+    }
+
+    // Apply stock filter
+    if (stockFilter === "no_stock") {
+      sorted = sorted.filter((item) => {
+        const s = stockByItemId.get(item.id);
+        return s === undefined || s <= 0;
+      });
+    } else if (stockFilter === "in_stock") {
+      sorted = sorted.filter((item) => {
+        const s = stockByItemId.get(item.id);
+        return s !== undefined && s > 0;
+      });
+    }
+
+    return sorted;
+  }, [aliasesSearchQuery.data, deferredSearch, itemsQuery.data, sortBy, sortDirection, stockByItemId, supplierFilter, stockFilter]);
 
   const totalItems = items.length;
   const paginatedItems = useMemo(() => {
@@ -309,6 +386,12 @@ export default function ItemsPage() {
       return Array.from(new Set((data ?? []).map((item) => item.category).filter(Boolean))) as string[];
     },
   });
+
+  // Unique supplier list derived from current filtered-less item list
+  const suppliers = useMemo(() => {
+    const all = itemsQuery.data ?? [];
+    return Array.from(new Set(all.map((i) => i.supplier).filter(Boolean))) as string[];
+  }, [itemsQuery.data]);
 
   const { data: aliases = [] } = useQuery({
     queryKey: aliasQueryKey,
@@ -440,7 +523,10 @@ export default function ItemsPage() {
       if (error) throw error;
     },
     onSuccess: async () => {
-      await invalidateItemQueries(qc);
+      await Promise.all([
+        invalidateItemQueries(qc),
+        invalidateStockQueries(qc),
+      ]);
       toast({ title: "Ítem desactivado" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -501,16 +587,71 @@ export default function ItemsPage() {
         .in("id", selectedItemIds);
       if (error) throw error;
     },
+    onMutate: async () => {
+      // Optimistic update
+      await qc.cancelQueries({ queryKey: queryKeys.items.all() });
+      const previousItems = qc.getQueryData(queryKeys.items.all());
+      
+      qc.setQueryData(queryKeys.items.all(), (old: Item[] | undefined) => {
+        if (!old) return old;
+        return old.map((item: Item) => 
+          selectedItemIds.includes(item.id) 
+            ? { ...item, demand_profile: bulkDemandProfile } 
+            : item
+        );
+      });
+
+      return { previousItems };
+    },
     onSuccess: async () => {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: queryKeys.items.all() }),
+        invalidateItemQueries(qc),
         invalidateStockQueries(qc),
       ]);
       setSelectedItemIds([]);
       toast({ title: "Tipo de demanda actualizado" });
     },
+    onError: (e: Error, _, context) => {
+      const ctx = context as { previousItems?: Item[] } | undefined;
+      if (ctx?.previousItems) {
+        qc.setQueryData(queryKeys.items.all(), ctx.previousItems);
+      }
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const bulkDeactivateNoStockMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentCompany) throw new Error("Seleccioná una empresa");
+      // Filter only selected items that have stock <= 0 or not registered
+      const toDeactivate = selectedItemIds.filter((id) => {
+        const s = stockByItemId.get(id);
+        return s === undefined || s <= 0;
+      });
+      if (toDeactivate.length === 0) throw new Error("Ninguno de los seleccionados tiene stock = 0");
+      const { error } = await supabase
+        .from("items")
+        .update({ is_active: false })
+        .eq("company_id", currentCompany.id)
+        .in("id", toDeactivate);
+      if (error) throw error;
+      return toDeactivate.length;
+    },
+    onSuccess: async (count) => {
+      await Promise.all([
+        invalidateItemQueries(qc),
+        invalidateStockQueries(qc),
+      ]);
+      setSelectedItemIds([]);
+      toast({ title: `${count} ítem(s) desactivados (sin stock)` });
+    },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
+
+  const noStockSelectedCount = selectedItemIds.filter((id) => {
+    const s = stockByItemId.get(id);
+    return s === undefined || s <= 0;
+  }).length;
 
   const deleteAliasMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -597,38 +738,57 @@ export default function ItemsPage() {
         <PageHeader
           eyebrow="Catálogo maestro"
           title="Ítems"
-          subtitle="Gestioná productos, alias y demanda sin perder velocidad operativa. El rediseño mejora lectura y jerarquía sobre la misma lógica actual."
+          subtitle="Gestioná productos, perfil de demanda y disponibilidad real en una vista integrada."
           actions={(
-            <>
-              <Button asChild variant="outline">
-                <Link to="/items/catalog/import-legacy">Importar catálogo</Link>
-              </Button>
-              <Button onClick={openCreate}>
-                <Plus className="mr-2 h-4 w-4" /> Nuevo
-              </Button>
-            </>
+            <Button onClick={openCreate}>
+              <Plus className="mr-2 h-4 w-4" /> Nuevo ítem
+            </Button>
           )}
           meta={(
-            <>
-              <Badge variant="outline">{visibleTotalItems} registrados</Badge>
-              <Badge variant="secondary">{selectedItemIds.length} seleccionados</Badge>
-            </>
+            <div className="flex gap-2">
+              <Badge variant="outline">{stockStats.total} registrados</Badge>
+              {selectedItemIds.length > 0 && <Badge variant="secondary">{selectedItemIds.length} seleccionados</Badge>}
+            </div>
           )}
         />
 
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="flex flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 shadow-sm transition-all hover:shadow-md">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Ítems</span>
+            <span className="text-xl font-black">{stockStats.total}</span>
+          </div>
+          <div className="flex flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 shadow-sm transition-all hover:shadow-md">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Activos en Venta</span>
+            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{stockStats.active}</span>
+          </div>
+          <div 
+            className="flex cursor-pointer flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 shadow-sm transition-all hover:bg-card hover:shadow-md"
+            onClick={() => setStockFilter("in_stock")}
+          >
+            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Con Stock</span>
+            <span className="text-xl font-black text-blue-600 dark:text-blue-400">{stockStats.inStock}</span>
+          </div>
+          <div 
+            className="flex cursor-pointer flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 shadow-sm transition-all hover:bg-card hover:shadow-md"
+            onClick={() => setStockFilter("no_stock")}
+          >
+            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Sin Stock</span>
+            <span className="text-xl font-black text-rose-600 dark:text-rose-400">{stockStats.noStock}</span>
+          </div>
+        </div>
 
         <Collapsible open={columnsOpen} onOpenChange={setColumnsOpen}>
           <FilterBar>
             <div className="relative w-full md:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por SKU, nombre, marca, modelo, atributos, alias o lenguaje natural..."
+                placeholder="Buscar por SKU, nombre, marca, modelo, atributos, alias..."
                 className="pl-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="w-full md:w-52">
+            <div className="w-full md:w-44">
               <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "active" | "inactive" | "all")}>
                 <SelectTrigger>
                   <SelectValue placeholder="Estado" />
@@ -640,10 +800,22 @@ export default function ItemsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-full md:w-64">
+            <div className="w-full md:w-44">
+              <Select value={stockFilter} onValueChange={(value) => setStockFilter(value as "all" | "in_stock" | "no_stock")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Stock" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los stocks</SelectItem>
+                  <SelectItem value="in_stock">Con stock</SelectItem>
+                  <SelectItem value="no_stock">Sin stock</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-52">
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por categoría" />
+                  <SelectValue placeholder="Categoría" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas las categorías</SelectItem>
@@ -653,25 +825,54 @@ export default function ItemsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-full md:w-64">
-              <Select value={bulkDemandProfile} onValueChange={(value) => setBulkDemandProfile(value as Item["demand_profile"])}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Demanda masiva" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LOW">Baja rotación</SelectItem>
-                  <SelectItem value="MEDIUM">Rotación media</SelectItem>
-                  <SelectItem value="HIGH">Alta rotación</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              variant="outline"
-              disabled={selectedItemIds.length === 0 || bulkDemandProfileMutation.isPending}
-              onClick={() => bulkDemandProfileMutation.mutate()}
-            >
-              Aplicar a seleccionados ({selectedItemIds.length})
-            </Button>
+            {suppliers.length > 0 ? (
+              <div className="w-full md:w-52">
+                <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Proveedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los proveedores</SelectItem>
+                    {suppliers.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+            {selectedItemIds.length > 0 ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="w-full md:w-52">
+                  <Select value={bulkDemandProfile} onValueChange={(value) => setBulkDemandProfile(value as Item["demand_profile"])}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Demanda masiva" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LOW">Baja rotación</SelectItem>
+                      <SelectItem value="MEDIUM">Rotación media</SelectItem>
+                      <SelectItem value="HIGH">Alta rotación</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={bulkDemandProfileMutation.isPending}
+                  onClick={() => bulkDemandProfileMutation.mutate()}
+                >
+                  Actualizar demanda ({selectedItemIds.length})
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                  disabled={noStockSelectedCount === 0 || bulkDeactivateNoStockMutation.isPending}
+                  onClick={() => bulkDeactivateNoStockMutation.mutate()}
+                  title={`Desactivar sólo los ${noStockSelectedCount} seleccionados sin stock`}
+                >
+                  <PackageX className="mr-2 h-4 w-4" />
+                  Desactivar sin stock ({noStockSelectedCount})
+                </Button>
+              </div>
+            ) : null}
             <CollapsibleTrigger asChild>
               <Button variant="outline" type="button">
                 Columnas
@@ -718,6 +919,7 @@ export default function ItemsPage() {
             columnVisibility={columnVisibility}
             sortBy={sortBy}
             sortDirection={sortDirection}
+            stockByItemId={stockByItemId}
             onSort={toggleSort}
             onSelectionChange={setSelectedItemIds}
             onEdit={openEdit}

@@ -8,6 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ArrowDownCircle, ArrowUpCircle, Plus, Search, Settings2 } from "lucide-react";
 import { DataCard, PageHeader, StatCard } from "@/components/ui/page";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
@@ -51,6 +58,8 @@ export default function StockPage() {
   const [stockPageSize, setStockPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [movementsPage, setMovementsPage] = useState(1);
   const [movementsPageSize, setMovementsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+  const [healthFilter, setHealthFilter] = useState<StockHealth | "ALL">("ALL");
+  const [demandFilter, setDemandFilter] = useState<DemandProfile | "ALL">("ALL");
   const {
     currentCompany,
     dialogOpen,
@@ -166,12 +175,15 @@ export default function StockPage() {
       GREEN: 3,
     };
 
-    return [...stockRows].sort((left, right) => {
-      const diff = priority[left.health] - priority[right.health];
-      if (diff !== 0) return diff;
-      return left.item_name.localeCompare(right.item_name);
-    });
-  }, [stockRows]);
+    return [...stockRows]
+      .filter((row) => healthFilter === "ALL" || row.health === healthFilter)
+      .filter((row) => demandFilter === "ALL" || row.demand_profile === demandFilter)
+      .sort((left, right) => {
+        const diff = priority[left.health] - priority[right.health];
+        if (diff !== 0) return diff;
+        return left.item_name.localeCompare(right.item_name);
+      });
+  }, [stockRows, healthFilter, demandFilter]);
   const stockPagination = usePaginationSlice({
     items: sortedStockRows,
     page: stockPage,
@@ -285,17 +297,42 @@ export default function StockPage() {
           </TabsContent>
 
           <TabsContent value="current" className="space-y-5 pt-1">
-            <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="stock-search"
-                name="stock-search"
-                aria-label="Buscar item en stock"
-                placeholder="Buscar item..."
-                className="pl-9"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
+            <div className="flex flex-wrap gap-3">
+              <div className="relative max-w-sm flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="stock-search"
+                  name="stock-search"
+                  aria-label="Buscar item en stock"
+                  placeholder="Buscar item..."
+                  className="pl-9"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              </div>
+              <div className="w-full md:w-44">
+                <Select value={healthFilter} onValueChange={(v) => { setHealthFilter(v as StockHealth | "ALL"); setStockPage(1); }}>
+                  <SelectTrigger><SelectValue placeholder="Semáforo" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todos los estados</SelectItem>
+                    <SelectItem value="RED">🔴 Crítico</SelectItem>
+                    <SelectItem value="YELLOW">🟡 Atención</SelectItem>
+                    <SelectItem value="GREEN">🟢 OK</SelectItem>
+                    <SelectItem value="GRAY">⚪ Sin datos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-full md:w-44">
+                <Select value={demandFilter} onValueChange={(v) => { setDemandFilter(v as DemandProfile | "ALL"); setStockPage(1); }}>
+                  <SelectTrigger><SelectValue placeholder="Demanda" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Toda la demanda</SelectItem>
+                    <SelectItem value="HIGH">Alta rotación</SelectItem>
+                    <SelectItem value="MEDIUM">Rotación media</SelectItem>
+                    <SelectItem value="LOW">Baja rotación</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <DataCard>
               <StockCurrentTable

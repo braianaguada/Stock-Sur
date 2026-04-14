@@ -49,7 +49,7 @@ export function SupplierCatalogLinesTable({
       header: () => <div className="text-right">Costo</div>,
       cell: ({ row }) => (
         <div className="text-right font-mono">
-          {Number(row.original.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+          {row.original.currency} {Number(row.original.cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
         </div>
       ),
       meta: {

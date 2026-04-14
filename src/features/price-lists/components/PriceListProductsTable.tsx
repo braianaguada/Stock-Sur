@@ -1,17 +1,54 @@
 import { useMemo } from "react";
 import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
+import { Package, PackageX } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PriceListProductRow } from "@/features/price-lists/types";
 import { formatMoney } from "@/features/price-lists/utils";
 
 type PriceListProductsTableProps = {
   rows: PriceListProductRow[];
   columnVisibility: VisibilityState;
+  /** Map item_id → total stock qty */
+  stockByItemId?: Map<string, number>;
 };
 
-export function PriceListProductsTable({ rows, columnVisibility }: PriceListProductsTableProps) {
+function StockBadge({ total }: { total: number | undefined }) {
+  if (total === undefined) {
+    return (
+      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-border/50 text-muted-foreground font-normal">
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
+        S/D
+      </Badge>
+    );
+  }
+  if (total <= 0) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="outline" className="h-5 cursor-default gap-1 px-1.5 text-[10px] border-destructive/40 bg-destructive/8 text-destructive font-medium">
+            <PackageX className="h-2.5 w-2.5" /> Sin stock
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs">Stock actual: 0</TooltipContent>
+      </Tooltip>
+    );
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant="outline" className="h-5 cursor-default gap-1 px-1.5 text-[10px] border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400 font-medium">
+          <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs">Stock actual: {total}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+export function PriceListProductsTable({ rows, columnVisibility, stockByItemId }: PriceListProductsTableProps) {
   const showAttributesInline = columnVisibility.attributes === false;
 
   const columns = useMemo<ColumnDef<PriceListProductRow, unknown>[]>(() => [
@@ -35,7 +72,15 @@ export function PriceListProductsTable({ rows, columnVisibility }: PriceListProd
         </div>
       ),
       meta: {
-        className: "w-[320px]",
+        className: "w-[300px]",
+      },
+    },
+    {
+      id: "stock",
+      header: () => "Stock",
+      cell: ({ row }) => <StockBadge total={stockByItemId?.get(row.original.item_id)} />,
+      meta: {
+        className: "w-[110px]",
       },
     },
     {
@@ -49,7 +94,10 @@ export function PriceListProductsTable({ rows, columnVisibility }: PriceListProd
     {
       accessorKey: "calculated_price",
       header: () => <div className="text-right">Precio lista</div>,
-      cell: ({ row }) => <div className="text-right font-mono">${formatMoney(row.original.calculated_price)}</div>,
+      cell: ({ row }) => <div className="text-right font-mono text-sm font-bold text-foreground">${formatMoney(row.original.calculated_price)}</div>,
+      meta: {
+        className: "w-[120px]",
+      },
     },
     {
       accessorKey: "needs_recalculation",
@@ -64,8 +112,11 @@ export function PriceListProductsTable({ rows, columnVisibility }: PriceListProd
           {row.original.needs_recalculation ? "Pendiente" : "Actualizado"}
         </Badge>
       ),
+      meta: {
+        className: "w-[110px]",
+      },
     },
-  ], [showAttributesInline]);
+  ], [showAttributesInline, stockByItemId]);
 
   return (
     <div className="overflow-x-auto">
@@ -73,7 +124,7 @@ export function PriceListProductsTable({ rows, columnVisibility }: PriceListProd
         columns={columns}
         data={rows}
         emptyMessage="No hay productos para mostrar."
-        className="table-fixed min-w-[1180px]"
+        className="table-fixed min-w-[1240px]"
         columnVisibility={columnVisibility}
         rowClassName={showAttributesInline ? "h-14" : "h-12"}
         cellClassName={showAttributesInline ? "h-14 py-1.5" : "h-12 py-1"}

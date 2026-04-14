@@ -18,6 +18,38 @@ type StockCurrentTableProps = {
   demandProfileClass: Record<DemandProfile, string>;
 };
 
+function CoverageBar({ row, formatCoverage }: { row: StockRow; formatCoverage: (value: number | null, unit: "m" | "d") => string }) {
+  const isLowRot = row.low_rotation;
+  const rawValue = isLowRot ? row.months_of_cover_low_rotation : row.days_of_cover;
+  const maxScale = isLowRot ? 12 : 60; // months or days to reach 100%
+
+  const pct = rawValue !== null && rawValue > 0
+    ? Math.min(100, (rawValue / maxScale) * 100)
+    : 0;
+
+  const barColor =
+    row.health === "RED" ? "bg-destructive"
+    : row.health === "YELLOW" ? "bg-amber-500"
+    : row.health === "GREEN" ? "bg-emerald-500"
+    : "bg-muted-foreground/30";
+
+  const label = formatCoverage(rawValue, isLowRot ? "m" : "d");
+
+  return (
+    <div className="min-w-[90px]">
+      <div className="mb-1 text-right font-mono text-xs tabular-nums text-foreground/80">
+        {label}
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-muted/50 overflow-hidden">
+        <div
+          className={cn("h-full rounded-full transition-all duration-500", barColor)}
+          style={{ width: rawValue === null || rawValue <= 0 ? "0%" : `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function StockCurrentTable({
   rows,
   isLoading,
@@ -62,7 +94,7 @@ export function StockCurrentTable({
         </div>
       ),
       meta: {
-        className: "w-[420px]",
+        className: "w-[360px]",
       },
     },
     {
@@ -70,45 +102,50 @@ export function StockCurrentTable({
       header: () => "Unidad",
       cell: ({ row }) => <span className="text-sm">{row.original.item_unit}</span>,
       meta: {
-        className: "w-[90px]",
+        className: "w-[80px]",
       },
     },
     {
       id: "health",
-      header: () => "Semáforo",
+      header: () => "Estado",
       cell: ({ row }) => (
-        <div className="flex flex-nowrap items-center gap-2 overflow-hidden">
-          <Badge variant="outline" className={cn("px-2.5 py-0.5 text-[10px]", healthClass[row.original.health])}>
+        <div className="flex flex-col gap-1.5">
+          <Badge variant="outline" className={cn("w-fit px-2 py-0.5 text-[10px] font-medium", healthClass[row.original.health])}>
             {healthLabel[row.original.health]}
           </Badge>
-          <Badge variant="outline" className={cn("px-2.5 py-0.5 text-[10px]", demandProfileClass[row.original.demand_profile])}>
+          <Badge variant="outline" className={cn("w-fit px-2 py-0.5 text-[10px]", demandProfileClass[row.original.demand_profile])}>
             {demandProfileLabel[row.original.demand_profile]}
           </Badge>
         </div>
       ),
       meta: {
-        className: "w-[220px]",
+        className: "w-[160px]",
       },
     },
     {
       id: "coverage",
-      header: () => <div className="text-right">Cobertura</div>,
+      header: () => <div className="text-right pr-2">Cobertura</div>,
       cell: ({ row }) => (
-        <div className="text-right font-mono">
-          {row.original.low_rotation
-            ? formatCoverage(row.original.months_of_cover_low_rotation, "m")
-            : formatCoverage(row.original.days_of_cover, "d")}
-        </div>
+        <CoverageBar row={row.original} formatCoverage={formatCoverage} />
       ),
+      meta: {
+        className: "w-[140px]",
+      },
     },
     {
       id: "total",
       header: () => <div className="text-right">Stock</div>,
       cell: ({ row }) => (
-        <div className="text-right text-[15px] font-bold">
+        <div className={cn(
+          "text-right text-[15px] font-bold tabular-nums",
+          row.original.total <= 0 ? "text-destructive" : "text-foreground",
+        )}>
           {formatQuantity(row.original.total, row.original.item_unit)}
         </div>
       ),
+      meta: {
+        className: "w-[90px]",
+      },
     },
   ], [demandProfileClass, demandProfileLabel, formatCoverage, formatQuantity, healthClass, healthLabel]);
 
@@ -120,8 +157,8 @@ export function StockCurrentTable({
       loadingMessage="Cargando..."
       emptyMessage="Sin movimientos de stock"
       className="table-fixed"
-      rowClassName="h-11"
-      cellClassName="h-11 py-0"
+      rowClassName="h-12"
+      cellClassName="h-12 py-0"
       reserveEmptyRows={pageSize}
     />
   );

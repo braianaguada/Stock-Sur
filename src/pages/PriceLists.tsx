@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/query-keys";
 import type { VisibilityState } from "@tanstack/react-table";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -11,6 +14,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, RefreshCcw, Search } from "lucide-react";
 import { BasePricesTable } from "@/features/price-lists/components/BasePricesTable";
@@ -29,6 +39,7 @@ const PRICE_DETAIL_COLUMNS_KEY = "price-lists:detail-columns";
 const DEFAULT_BASE_COLUMN_VISIBILITY: VisibilityState = {
   sku: true,
   name: true,
+  stock: true,
   attributes: true,
   brand: true,
   model: true,
@@ -49,6 +60,7 @@ const DEFAULT_DETAIL_COLUMN_VISIBILITY: VisibilityState = {
 const BASE_COLUMN_OPTIONS: Array<{ id: keyof typeof DEFAULT_BASE_COLUMN_VISIBILITY; label: string }> = [
   { id: "sku", label: "SKU" },
   { id: "name", label: "Nombre" },
+  { id: "stock", label: "Stock" },
   { id: "attributes", label: "Atributos" },
   { id: "brand", label: "Marca" },
   { id: "model", label: "Modelo" },
@@ -93,6 +105,33 @@ export default function PriceListsPage() {
   const [detailColumnsHydrated, setDetailColumnsHydrated] = useState(false);
   const [createForm, setCreateForm] = useState<PriceListFormState>(DEFAULT_PRICE_LIST_FORM);
   const [configDraft, setConfigDraft] = useState<PriceListFormState | null>(null);
+  const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "no_stock">("all");
+
+  const stockQuery = useQuery({
+    queryKey: ["items-stock-totals", currentCompany?.id ?? null],
+    enabled: Boolean(currentCompany),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stock_movements")
+        .select("item_id, type, quantity")
+        .eq("company_id", currentCompany!.id);
+      if (error) throw error;
+
+      const totals = new Map<string, number>();
+      for (const row of data ?? []) {
+        const prev = totals.get(row.item_id) ?? 0;
+        const qty = Number(row.quantity);
+        if (row.type === "IN") totals.set(row.item_id, prev + qty);
+        else if (row.type === "OUT") totals.set(row.item_id, prev - qty);
+        else totals.set(row.item_id, prev + qty);
+      }
+      return totals;
+    },
+  });
+
+  const stockByItemId = useMemo(() => stockQuery.data ?? new Map<string, number>(), [stockQuery.data]);
+
   const {
     pagedBaseRows,
     priceLists,
@@ -319,6 +358,21 @@ export default function PriceListsPage() {
                     }}
                   />
                 </div>
+                <div className="w-full md:w-44">
+                  <Select value={stockFilter} onValueChange={(value) => {
+                    setStockFilter(value as "all" | "in_stock" | "no_stock");
+                    setBasePage(1);
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Stock" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los stocks</SelectItem>
+                      <SelectItem value="in_stock">Con stock</SelectItem>
+                      <SelectItem value="no_stock">Sin stock</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" type="button">
                     Columnas
@@ -352,10 +406,15 @@ export default function PriceListsPage() {
             </Collapsible>
             <DataCard>
               <BasePricesTable
-                rows={pagedBaseRows}
+                rows={pagedBaseRows.filter(row => {
+                  if (stockFilter === "all") return true;
+                  const total = stockByItemId.get(row.item_id) ?? 0;
+                  return stockFilter === "in_stock" ? total > 0 : total <= 0;
+                })}
                 isSaving={updateBaseCostMutation.isPending}
                 pageSize={basePageSize}
                 columnVisibility={baseColumnVisibility}
+                stockByItemId={stockByItemId}
                 renderUserName={renderUserName}
                 onSaveDraftValue={handleSaveBaseCost}
               />
@@ -469,6 +528,7 @@ export default function PriceListsPage() {
         isRecalculating={recalculateMutation.isPending}
         isSavingConfig={updateListConfigMutation.isPending}
         isDeleting={deleteListMutation.isPending}
+        stockByItemId={stockByItemId}
         renderUserName={renderUserName}
         renderPricingSummary={renderPricingSummary}
         onOpenChange={setDetailDialogOpen}

@@ -32,6 +32,7 @@ type PriceListDetailDialogProps = {
   isRecalculating: boolean;
   isSavingConfig: boolean;
   isDeleting: boolean;
+  stockByItemId?: Map<string, number>;
   renderUserName: (userId: string | null) => string;
   renderPricingSummary: (values: { flete_pct: number | null; utilidad_pct: number | null; impuesto_pct: number | null }) => JSX.Element;
   onOpenChange: (open: boolean) => void;
@@ -50,6 +51,7 @@ type PriceListDetailDialogProps = {
 const PRODUCT_COLUMN_OPTIONS: Array<{ id: string; label: string }> = [
   { id: "sku", label: "SKU" },
   { id: "name", label: "Nombre" },
+  { id: "stock", label: "Stock" },
   { id: "attributes", label: "Atributos" },
   { id: "calculated_price", label: "Precio lista" },
   { id: "needs_recalculation", label: "Estado" },
@@ -73,6 +75,7 @@ export function PriceListDetailDialog({
   isDeleting,
   renderUserName,
   renderPricingSummary,
+  stockByItemId,
   onOpenChange,
   onDetailTabChange,
   onDetailSearchChange,
@@ -192,7 +195,7 @@ export function PriceListDetailDialog({
               </div>
               <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
                 <div className="min-h-0 flex-1 overflow-auto">
-                  <PriceListProductsTable rows={pagedProducts} columnVisibility={productColumnVisibility} />
+                  <PriceListProductsTable rows={pagedProducts} columnVisibility={productColumnVisibility} stockByItemId={stockByItemId} />
                 </div>
                 <div className="shrink-0 border-t bg-background px-4 py-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

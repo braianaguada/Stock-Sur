@@ -49,6 +49,17 @@ export interface CatalogLine {
   currency: string;
 }
 
+export interface ExtractionReviewLine {
+  id: string;
+  supplier_code: string | null;
+  raw_description: string;
+  cost: number;
+  currency: string;
+  row_index: number;
+  source_page?: number;
+  confidence?: number;
+}
+
 export interface OrderLine extends CatalogLine {
   quantity: number;
 }
