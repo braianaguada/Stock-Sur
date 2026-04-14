@@ -124,7 +124,7 @@ export function DocumentsEditorDialog({
         }
       }}
       title={editingDocId ? "Editar borrador" : "Nuevo documento"}
-      contentClassName="max-h-[92vh] max-w-[min(96vw,1320px)] overflow-y-auto"
+      contentClassName="!w-[min(98vw,1680px)] sm:!w-[min(98vw,1680px)] !max-w-[1680px] sm:!max-w-[1680px] max-h-[92vh] overflow-x-hidden overflow-y-auto"
     >
       <form
         onSubmit={(event) => {
@@ -133,9 +133,9 @@ export function DocumentsEditorDialog({
         }}
         className="space-y-5"
       >
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_320px]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(980px,2.35fr)_360px]">
           <div className="rounded-xl border border-border/70 bg-card/60 p-4">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               <div className="space-y-2">
                 <Label>Tipo *</Label>
                 <Select
