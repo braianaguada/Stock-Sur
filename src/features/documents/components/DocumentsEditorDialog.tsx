@@ -474,21 +474,22 @@ export function DocumentsEditorDialog({
               const lineTotal = line.quantity * line.unit_price;
 
               return (
-                <div key={`${line.item_id ?? "manual"}-${index}`} className="rounded-xl border border-border/70 bg-background/80 p-4">
-                  <div className="grid gap-3 xl:grid-cols-[minmax(0,2.8fr)_130px_210px_150px_170px_150px_auto] xl:items-center">
+                <div key={`${line.item_id ?? "manual"}-${index}`} className="rounded-lg border border-border/70 bg-background/80 px-4 py-3">
+                  <div className="grid gap-2 xl:grid-cols-[minmax(0,2.9fr)_110px_190px_130px_150px_128px_42px] xl:items-center">
                     <div className="min-w-0">
-                      <div className="truncate text-base font-semibold">
+                      <div className="truncate text-sm font-semibold">
                         {line.sku_snapshot ? `${line.sku_snapshot} | ` : ""}
                         {line.description}
                       </div>
-                      <div className="mt-1 text-sm text-muted-foreground">
+                      <div className="mt-0.5 text-xs text-muted-foreground">
                         Unidad: {line.unit || "un"} | Precio sugerido: {formatMoney(line.suggested_unit_price)}
                       </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Cantidad</Label>
                       <Input
+                        className="h-10 text-sm"
                         type="number"
                         min={0.001}
                         step="any"
@@ -499,7 +500,7 @@ export function DocumentsEditorDialog({
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Modo de precio</Label>
                       <Select
                         value={line.pricing_mode}
@@ -539,7 +540,7 @@ export function DocumentsEditorDialog({
                           });
                         }}
                       >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-10 text-sm"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="LIST_PRICE">{PRICING_MODE_LABEL.LIST_PRICE}</SelectItem>
                           <SelectItem value="MANUAL_MARGIN">{PRICING_MODE_LABEL.MANUAL_MARGIN}</SelectItem>
@@ -548,9 +549,10 @@ export function DocumentsEditorDialog({
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Margen %</Label>
                       <Input
+                        className="h-10 text-sm"
                         type="number"
                         min={0}
                         step="any"
@@ -573,9 +575,10 @@ export function DocumentsEditorDialog({
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Precio unitario</Label>
                       <Input
+                        className="h-10 text-sm"
                         type="number"
                         min={0}
                         step="any"
@@ -590,9 +593,9 @@ export function DocumentsEditorDialog({
                       />
                     </div>
 
-                    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+                    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-1.5">
                       <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Total</div>
-                      <div className="mt-1 text-lg font-semibold">{formatMoney(lineTotal)}</div>
+                      <div className="mt-0.5 text-base font-semibold">{formatMoney(lineTotal)}</div>
                     </div>
 
                     <div className="flex items-end justify-end xl:justify-center">
@@ -600,7 +603,7 @@ export function DocumentsEditorDialog({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-11 w-11 text-muted-foreground hover:text-destructive"
+                        className="h-9 w-9 text-muted-foreground hover:text-destructive"
                         onClick={() => removeLine(index)}
                         title="Eliminar linea"
                       >
