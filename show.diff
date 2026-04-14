@@ -1,0 +1,117 @@
+commit abcd0968653cefdaa5a8db7d963a0be29e9f4f80
+Author: Braian Aguada <braianaguada@gmail.com>
+Date:   Mon Apr 13 23:41:03 2026 -0300
+
+    fix: remove product summary card and tighten rows
+
+diff --git a/src/features/documents/components/DocumentsEditorDialog.tsx b/src/features/documents/components/DocumentsEditorDialog.tsx
+index 57c1d6d..a717b8f 100644
+--- a/src/features/documents/components/DocumentsEditorDialog.tsx
++++ b/src/features/documents/components/DocumentsEditorDialog.tsx
+@@ -401,10 +401,10 @@ export function DocumentsEditorDialog({
+           </div>
+ 
+           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
+-            <div className="space-y-3">
+-              <div className="relative">
+-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+-                <Input
++          <div className="space-y-3">
++            <div className="relative">
++              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
++              <Input
+                   value={itemSearch}
+                   disabled={!form.price_list_id || priceLists.length === 0}
+                   className="pl-10"
+@@ -450,16 +450,6 @@ export function DocumentsEditorDialog({
+                 )
+               ) : null}
+             </div>
+-
+-            <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+-              <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+-                Productos cargados
+-              </div>
+-              <div className="mt-2 text-2xl font-semibold">{lines.length}</div>
+-              <p className="mt-2 text-sm text-muted-foreground">
+-                Cada producto agregado puede editar cantidad, modo de precio y eliminarse desde su fila.
+-              </p>
+-            </div>
+           </div>
+ 
+           <div className="space-y-3">
+@@ -474,7 +464,7 @@ export function DocumentsEditorDialog({
+               const lineTotal = line.quantity * line.unit_price;
+ 
+               return (
+-                <div key={`${line.item_id ?? "manual"}-${index}`} className="rounded-lg border border-border/70 bg-background/80 px-4 py-3">
++                <div key={`${line.item_id ?? "manual"}-${index}`} className="rounded-lg border border-border/70 bg-background/80 px-3 py-2.5">
+                   <div className="grid gap-2 xl:grid-cols-[minmax(0,2.9fr)_110px_190px_130px_150px_128px_42px] xl:items-center">
+                     <div className="min-w-0">
+                       <div className="truncate text-sm font-semibold">
+@@ -486,10 +476,10 @@ export function DocumentsEditorDialog({
+                       </div>
+                     </div>
+ 
+-                    <div className="space-y-1">
++                    <div className="space-y-0.5">
+                       <Label className="text-xs text-muted-foreground">Cantidad</Label>
+                       <Input
+-                        className="h-10 text-sm"
++                        className="h-9 text-sm"
+                         type="number"
+                         min={0.001}
+                         step="any"
+@@ -500,7 +490,7 @@ export function DocumentsEditorDialog({
+                       />
+                     </div>
+ 
+-                    <div className="space-y-1">
++                    <div className="space-y-0.5">
+                       <Label className="text-xs text-muted-foreground">Modo de precio</Label>
+                       <Select
+                         value={line.pricing_mode}
+@@ -540,7 +530,7 @@ export function DocumentsEditorDialog({
+                           });
+                         }}
+                       >
+-                        <SelectTrigger className="h-10 text-sm"><SelectValue /></SelectTrigger>
++                        <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="LIST_PRICE">{PRICING_MODE_LABEL.LIST_PRICE}</SelectItem>
+                           <SelectItem value="MANUAL_MARGIN">{PRICING_MODE_LABEL.MANUAL_MARGIN}</SelectItem>
+@@ -549,10 +539,10 @@ export function DocumentsEditorDialog({
+                       </Select>
+                     </div>
+ 
+-                    <div className="space-y-1">
++                    <div className="space-y-0.5">
+                       <Label className="text-xs text-muted-foreground">Margen %</Label>
+                       <Input
+-                        className="h-10 text-sm"
++                        className="h-9 text-sm"
+                         type="number"
+                         min={0}
+                         step="any"
+@@ -575,10 +565,10 @@ export function DocumentsEditorDialog({
+                       />
+                     </div>
+ 
+-                    <div className="space-y-1">
++                    <div className="space-y-0.5">
+                       <Label className="text-xs text-muted-foreground">Precio unitario</Label>
+                       <Input
+-                        className="h-10 text-sm"
++                        className="h-9 text-sm"
+                         type="number"
+                         min={0}
+                         step="any"
+@@ -593,7 +583,7 @@ export function DocumentsEditorDialog({
+                       />
+                     </div>
+ 
+-                    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-1.5">
++                    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-1">
+                       <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Total</div>
+                       <div className="mt-0.5 text-base font-semibold">{formatMoney(lineTotal)}</div>
+                     </div>
