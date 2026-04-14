@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { EMPTY_LINE } from "../constants";
 import type { DocRow, DocumentFormState, LineDraft } from "../types";
 
 type UseDocumentDraftLoaderParams = {
@@ -66,7 +65,7 @@ export function useDocumentDraftLoader({ documentsById }: UseDocumentDraftLoader
         price_list_id: target.price_list_id ?? "",
         notes: target.notes ?? "",
       },
-      lines: draftLines.length > 0 ? draftLines : [EMPTY_LINE],
+      lines: draftLines,
     };
   }, [documentsById]);
 }
