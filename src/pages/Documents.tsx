@@ -103,7 +103,7 @@ export default function DocumentsPage() {
   const [documentsPage, setDocumentsPage] = useState(1);
   const [documentsPageSize, setDocumentsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [form, setForm] = useState<DocumentFormState>(() => buildEmptyDocumentForm(defaultPointOfSale));
-  const [lines, setLines] = useState<LineDraft[]>([EMPTY_LINE]);
+  const [lines, setLines] = useState<LineDraft[]>([]);
 
   const {
     customers,
@@ -145,6 +145,11 @@ export default function DocumentsPage() {
   useEffect(() => {
     setDocumentsPage(1);
   }, [deferredSearch, typeFilter, statusFilter, documentsPageSize]);
+
+  useEffect(() => {
+    if (form.price_list_id || priceLists.length === 0) return;
+    setForm((previousForm) => ({ ...previousForm, price_list_id: priceLists[0].id }));
+  }, [form.price_list_id, priceLists]);
 
   const syncLineWithPriceList = useCallback(
     (
@@ -214,7 +219,7 @@ export default function DocumentsPage() {
   const resetDraftForm = () => {
     setEditingDocId(null);
     setForm(buildEmptyDocumentForm(defaultPointOfSale));
-    setLines([EMPTY_LINE]);
+    setLines([]);
   };
 
   const loadDraftForEditing = useDocumentDraftLoader({ documentsById });
@@ -232,7 +237,7 @@ export default function DocumentsPage() {
       const draft = await loadDraftForEditing(documentId);
       setEditingDocId(draft.editingDocId);
       setForm(draft.form);
-      setLines(draft.lines.length > 0 ? draft.lines : [EMPTY_LINE]);
+      setLines(draft.lines);
       setDialogOpen(true);
     } catch (error) {
       toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
@@ -260,36 +265,35 @@ export default function DocumentsPage() {
     toast,
   });
 
-  const onPickItem = (index: number, itemId: string) => {
+  const addItemToDraft = (itemId: string) => {
     const item = itemsById.get(itemId);
     if (!item) return;
 
-    const nextLines = [...lines];
-    const baseLine: LineDraft = {
-      ...nextLines[index],
-      item_id: itemId,
-      sku_snapshot: item.sku,
-      description: item.name,
-      unit: item.unit || "un",
-      unit_price: form.price_list_id ? priceByItem.get(itemId) ?? 0 : nextLines[index].unit_price,
-    };
+    setLines((previousLines) => {
+      const existingIndex = previousLines.findIndex((line) => line.item_id === itemId);
+      if (existingIndex >= 0) {
+        return previousLines.map((line, index) =>
+          index === existingIndex
+            ? { ...line, quantity: line.quantity + 1 }
+            : line,
+        );
+      }
 
-    nextLines[index] = form.price_list_id
-      ? syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true)
-      : {
-          ...baseLine,
-          pricing_mode: "MANUAL_PRICE",
-          suggested_unit_price: baseLine.unit_price,
-          base_cost_snapshot: null,
-          list_flete_pct_snapshot: null,
-          list_utilidad_pct_snapshot: null,
-          list_impuesto_pct_snapshot: null,
-          manual_margin_pct: null,
-          price_overridden_by: null,
-          price_overridden_at: null,
-        };
+      const baseLine: LineDraft = {
+        ...EMPTY_LINE,
+        item_id: itemId,
+        sku_snapshot: item.sku,
+        description: item.name,
+        unit: item.unit || "un",
+        quantity: 1,
+        unit_price: priceByItem.get(itemId) ?? 0,
+      };
 
-    setLines(nextLines);
+      return [
+        ...previousLines,
+        syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true),
+      ];
+    });
   };
 
   const onPriceListChange = (priceListId: string) => {
@@ -311,14 +315,11 @@ export default function DocumentsPage() {
     }
 
     setForm((previousForm) => ({ ...previousForm, price_list_id: priceListId }));
-    setLines([EMPTY_LINE]);
+    setLines([]);
   };
 
   const removeLine = (index: number) => {
-    setLines((previousLines) => {
-      if (previousLines.length === 1) return [EMPTY_LINE];
-      return previousLines.filter((_, lineIndex) => lineIndex !== index);
-    });
+    setLines((previousLines) => previousLines.filter((_, lineIndex) => lineIndex !== index));
   };
 
   const printDocument = async (document: DocRow) => {
@@ -592,7 +593,7 @@ export default function DocumentsPage() {
             priceLists={priceLists}
             availableItems={availableItems}
             onPriceListChange={onPriceListChange}
-            onPickItem={onPickItem}
+            onAddItem={addItemToDraft}
             removeLine={removeLine}
             onSubmit={() => upsertDraftMutation.mutate()}
             onResetDraftForm={resetDraftForm}

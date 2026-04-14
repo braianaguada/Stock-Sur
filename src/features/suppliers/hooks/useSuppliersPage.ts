@@ -25,6 +25,7 @@ import {
 } from "@/features/suppliers/state";
 import type {
   CatalogImportLine,
+  ExtractionReviewLine,
   NormalizeDiagnostics,
   OrderLine,
   ParsePdfProgress,
@@ -91,6 +92,8 @@ export function useSuppliersPage({
     filterRowsWithoutPrice: true,
   });
   const [pdfProgress, setPdfProgress] = useState<ParsePdfProgress | null>(null);
+  const [extractionReviewOpen, setExtractionReviewOpen] = useState(false);
+  const [extractionReviewLines, setExtractionReviewLines] = useState<ExtractionReviewLine[]>([]);
 
   const xlsxMappingResolverRef = useRef<((value: MappingSelection | null) => void) | null>(null);
   const pdfMappingResolverRef = useRef<((value: PdfMappingSelection | null) => void) | null>(null);
@@ -163,6 +166,7 @@ export function useSuppliersPage({
     closePdfMappingModal,
     confirmMappingModal,
     confirmPdfMappingModal,
+    confirmImportMutation,
     uploadCatalogMutation,
   } = useSupplierImportFlow({
     currentCompanyId: companyId ?? null,
@@ -179,6 +183,8 @@ export function useSuppliersPage({
     setSelectedFile,
     setPdfProgress,
     setLastDiagnostics,
+    setExtractionReviewOpen,
+    setExtractionReviewLines,
     setActiveVersionId,
     setCatalogUiTab,
     setOrderItems,
@@ -200,9 +206,11 @@ export function useSuppliersPage({
   const {
     addToOrder,
     copyOrderMessage,
+    emailLink,
+    openEmail,
     openWhatsApp,
     orderLines,
-    orderTotal,
+    orderTotalsByCurrency,
     removeOrderItem,
     updateLineQuantity,
     updateOrderQuantity,
@@ -290,6 +298,8 @@ export function useSuppliersPage({
     setSelectedCatalogId(nextState.selectedCatalogId);
     setSelectedFile(nextState.selectedFile);
     setCatalogUiTab(nextState.catalogUiTab);
+    setExtractionReviewOpen(false);
+    setExtractionReviewLines([]);
   };
 
   const openCreate = () => {
@@ -322,6 +332,16 @@ export function useSuppliersPage({
     setOrderItems({});
     setLineQuantities({});
     setCatalogUiTab("catalogo");
+  };
+
+  const onExtractionReviewLineChange = (lineId: string, patch: Partial<ExtractionReviewLine>) => {
+    setExtractionReviewLines((previousLines) =>
+      previousLines.map((line) => (line.id === lineId ? { ...line, ...patch } : line)),
+    );
+  };
+
+  const onRemoveExtractionReviewLine = (lineId: string) => {
+    setExtractionReviewLines((previousLines) => previousLines.filter((line) => line.id !== lineId));
   };
 
   return {
@@ -358,7 +378,11 @@ export function useSuppliersPage({
     onCatalogDialogOpenChange,
     onCatalogVersionSelect,
     onCopyOrderMessage: copyOrderMessage,
+    onConfirmExtractionImport: () => confirmImportMutation.mutate(extractionReviewLines),
+    onExtractionReviewLineChange,
+    onOpenEmail: openEmail,
     onOpenWhatsApp: openWhatsApp,
+    onRemoveExtractionReviewLine,
     onRemoveOrderItem: removeOrderItem,
     onRestoreSupplier: (supplierId: string) => restoreMutation.mutate(supplierId),
     onUpdateLineQuantity: updateLineQuantity,
@@ -367,23 +391,30 @@ export function useSuppliersPage({
     openCreate,
     openEdit,
     orderLines,
-    orderTotal,
+    orderTotalsByCurrency,
     pdfMappingHeaders,
     pdfMappingOpen,
     pdfMappingRows,
     pdfMappingSuggested,
     pdfProgress,
+    extractionImportPending: confirmImportMutation.isPending,
+    extractionReviewLines,
+    extractionReviewOpen,
+    confirmImportMutation,
     saveMutation,
     search,
     selectedCatalogId,
     selectedFile,
     selectedSupplier,
+    supplierEmailLink: emailLink,
     setCatalogSearch,
     setCatalogUiTab,
     setDialogOpen,
     setDocumentNotes,
     setDocumentTitle,
     setDropDetailOpen,
+    setExtractionReviewLines,
+    setExtractionReviewOpen,
     setForm,
     setMappingModalOpen,
     setPdfMappingOpen,

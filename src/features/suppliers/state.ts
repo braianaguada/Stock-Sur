@@ -50,7 +50,12 @@ export function buildSupplierOrderMessage(params: {
   const catalogName = activeVersion
     ? catalogTitleById.get(activeVersion.catalog_id) ?? activeVersion.title ?? "Listado"
     : "Sin listado";
-  const rows = orderLines.map((line) => `${line.supplier_code ?? "S/COD"} - ${line.raw_description} x ${line.quantity}`);
+  const rows = orderLines.map((line) =>
+    `${line.supplier_code ?? "S/COD"} - ${line.raw_description} x ${line.quantity} - ${line.currency} ${line.cost.toLocaleString("es-AR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`,
+  );
 
   return [
     `Proveedor: ${selectedSupplier.name}`,

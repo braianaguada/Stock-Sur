@@ -1,4 +1,5 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
+import { buildMailtoLink } from "@/lib/email";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 import {
   addCatalogLineToOrder,
@@ -33,8 +34,13 @@ export function useSupplierOrderActions(params: {
   } = params;
 
   const orderLines = useMemo(() => Object.values(orderItems), [orderItems]);
-  const orderTotal = useMemo(
-    () => orderLines.reduce((acc, line) => acc + (line.cost * line.quantity), 0),
+  const orderTotalsByCurrency = useMemo(
+    () =>
+      orderLines.reduce<Record<string, number>>((accumulator, line) => {
+        const currency = String(line.currency ?? "ARS").toUpperCase();
+        accumulator[currency] = (accumulator[currency] ?? 0) + (line.cost * line.quantity);
+        return accumulator;
+      }, {}),
     [orderLines],
   );
   const orderMessage = useMemo(() =>
@@ -48,6 +54,14 @@ export function useSupplierOrderActions(params: {
   const waLink = useMemo(
     () => buildWhatsAppLink(selectedSupplier?.whatsapp, orderMessage),
     [selectedSupplier?.whatsapp, orderMessage],
+  );
+  const emailSubject = useMemo(() => {
+    if (!selectedSupplier || orderLines.length === 0) return "";
+    return `Pedido ${selectedSupplier.name}`;
+  }, [selectedSupplier, orderLines.length]);
+  const emailLink = useMemo(
+    () => buildMailtoLink({ to: selectedSupplier?.email, subject: emailSubject, body: orderMessage }),
+    [emailSubject, orderMessage, selectedSupplier?.email],
   );
 
   const addToOrder = (line: CatalogLine) => {
@@ -94,12 +108,28 @@ export function useSupplierOrderActions(params: {
     window.open(waLink, "_blank", "noopener,noreferrer");
   };
 
+  const openEmail = () => {
+    if (orderLines.length === 0) {
+      toast({ title: "Pedido vacio", description: "Agrega al menos un producto", variant: "destructive" });
+      return;
+    }
+
+    if (!emailLink) {
+      toast({ title: "Proveedor sin email", description: "Completa el email para abrir el correo", variant: "destructive" });
+      return;
+    }
+
+    window.open(emailLink, "_blank", "noopener,noreferrer");
+  };
+
   return {
     addToOrder,
     copyOrderMessage,
+    emailLink,
     openWhatsApp,
+    openEmail,
     orderLines,
-    orderTotal,
+    orderTotalsByCurrency,
     removeOrderItem,
     updateLineQuantity,
     updateOrderQuantity,
