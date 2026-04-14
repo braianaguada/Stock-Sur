@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -74,6 +75,7 @@ export function DocumentsEditorDialog({
   isSubmitting,
 }: DocumentsEditorDialogProps) {
   const [itemSearch, setItemSearch] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const selectedPriceList = useMemo(
     () => priceLists.find((priceList) => priceList.id === form.price_list_id) ?? null,
@@ -120,6 +122,7 @@ export function DocumentsEditorDialog({
         onOpenChange(nextOpen);
         if (!nextOpen) {
           setItemSearch("");
+          setDetailsOpen(false);
           onResetDraftForm();
         }
       }}
@@ -131,11 +134,11 @@ export function DocumentsEditorDialog({
           event.preventDefault();
           onSubmit();
         }}
-        className="space-y-5"
+        className="space-y-4"
       >
-        <div className="grid gap-4 xl:grid-cols-[minmax(980px,2.35fr)_360px]">
-          <div className="rounded-xl border border-border/70 bg-card/60 p-4">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="rounded-xl border border-border/70 bg-card/60 shadow-sm relative">
+          <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+            <div className="p-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 items-start">
               <div className="space-y-2">
                 <Label>Tipo *</Label>
                 <Select
@@ -167,7 +170,7 @@ export function DocumentsEditorDialog({
                 </Select>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 lg:hidden xl:block">
                 <Label>Punto de venta</Label>
                 <Input
                   type="number"
@@ -182,7 +185,7 @@ export function DocumentsEditorDialog({
                 />
               </div>
 
-              <div className="space-y-2 xl:col-span-2">
+              <div className="space-y-2 md:col-span-2 xl:col-span-1">
                 <Label>Lista de precios *</Label>
                 <Select value={form.price_list_id} onValueChange={onPriceListChange}>
                   <SelectTrigger>
@@ -198,211 +201,203 @@ export function DocumentsEditorDialog({
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label>Tipo de cliente</Label>
-                <Select
-                  value={form.customer_kind}
-                  onValueChange={(value) =>
-                    setForm((previousForm) => ({
-                      ...previousForm,
-                      customer_kind: value as CustomerKind,
-                      internal_remito_type:
-                        value === "INTERNO" && previousForm.doc_type === "REMITO"
-                          ? previousForm.internal_remito_type
-                          : "",
-                    }))
-                  }
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="GENERAL">Cliente general</SelectItem>
-                    {form.doc_type === "REMITO" ? (
-                      <SelectItem value="INTERNO">Personal / tecnico interno</SelectItem>
-                    ) : null}
-                    <SelectItem value="EMPRESA">Empresa</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center justify-end h-full w-full">
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="outline" size="sm" className="h-9 mt-6 w-full shadow-none bg-background/50 hover:bg-background">
+                    {detailsOpen ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
+                    {detailsOpen ? "Ocultar opciones avanzadas" : "Opciones de facturación avanzadas"}
+                  </Button>
+                </CollapsibleTrigger>
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label>Cliente registrado</Label>
-                <Select
-                  value={form.customer_id || "__none__"}
-                  onValueChange={(value) =>
-                    setForm((previousForm) => ({
-                      ...previousForm,
-                      customer_id: value === "__none__" ? "" : value,
-                    }))
-                  }
-                >
-                  <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin seleccionar</SelectItem>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Nombre cliente</Label>
-                <Input
-                  value={form.customer_name}
-                  placeholder="Opcional"
-                  onChange={(event) =>
-                    setForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>CUIT</Label>
-                <Input
-                  value={form.customer_tax_id}
-                  placeholder="Opcional"
-                  onChange={(event) =>
-                    setForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Condicion fiscal</Label>
-                <Input
-                  value={form.customer_tax_condition}
-                  placeholder="Opcional"
-                  onChange={(event) =>
-                    setForm((previousForm) => ({
-                      ...previousForm,
-                      customer_tax_condition: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Condicion de venta</Label>
-                <Input
-                  value={form.payment_terms}
-                  placeholder="Opcional"
-                  onChange={(event) =>
-                    setForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Vendedor</Label>
-                <Input
-                  value={form.salesperson}
-                  placeholder="Opcional"
-                  onChange={(event) =>
-                    setForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
-                  }
-                />
-              </div>
-
-              {form.doc_type === "PRESUPUESTO" ? (
-                <div className="space-y-2">
-                  <Label>Valido hasta</Label>
+            <CollapsibleContent className="px-4 pb-4 border-t border-border/60 bg-muted/10 pt-4 rounded-b-xl">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="space-y-2 hidden lg:block xl:hidden">
+                  <Label>Punto de venta</Label>
                   <Input
-                    type="date"
-                    value={form.valid_until}
+                    type="number"
+                    min={1}
+                    value={form.point_of_sale}
                     onChange={(event) =>
-                      setForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
+                      setForm((previousForm) => ({
+                        ...previousForm,
+                        point_of_sale: Math.max(1, Number(event.target.value) || 1),
+                      }))
                     }
                   />
                 </div>
-              ) : null}
 
-              {form.doc_type === "REMITO" ? (
-                <div className="space-y-2 xl:col-span-2">
-                  <Label>Domicilio de entrega</Label>
-                  <Input
-                    value={form.delivery_address}
-                    placeholder="Opcional"
-                    onChange={(event) =>
-                      setForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
-                    }
-                  />
-                </div>
-              ) : null}
-
-              {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? (
                 <div className="space-y-2">
-                  <Label>Imputacion del remito</Label>
+                  <Label>Tipo de cliente</Label>
                   <Select
-                    value={form.internal_remito_type || "__none__"}
+                    value={form.customer_kind}
                     onValueChange={(value) =>
                       setForm((previousForm) => ({
                         ...previousForm,
+                        customer_kind: value as CustomerKind,
                         internal_remito_type:
-                          value === "__none__" ? "" : (value as InternalRemitoType),
+                          value === "INTERNO" && previousForm.doc_type === "REMITO"
+                            ? previousForm.internal_remito_type
+                            : "",
                       }))
                     }
                   >
-                    <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
-                      <SelectItem value="DESCUENTO_SUELDO">Descuento de sueldo</SelectItem>
+                      <SelectItem value="GENERAL">Cliente general</SelectItem>
+                      {form.doc_type === "REMITO" ? (
+                        <SelectItem value="INTERNO">Personal / tecnico interno</SelectItem>
+                      ) : null}
+                      <SelectItem value="EMPRESA">Empresa</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              ) : null}
-            </div>
-          </div>
 
-          <div className="flex h-full flex-col justify-between rounded-xl border border-border/70 bg-muted/20 p-4">
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-                  Resumen
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  La carga de productos se hace siempre desde una lista activa.
-                </p>
+                <div className="space-y-2">
+                  <Label>Cliente registrado</Label>
+                  <Select
+                    value={form.customer_id || "__none__"}
+                    onValueChange={(value) =>
+                      setForm((previousForm) => ({
+                        ...previousForm,
+                        customer_id: value === "__none__" ? "" : value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin seleccionar</SelectItem>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Nombre cliente</Label>
+                  <Input
+                    value={form.customer_name}
+                    placeholder="Opcional"
+                    onChange={(event) =>
+                      setForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>CUIT</Label>
+                  <Input
+                    value={form.customer_tax_id}
+                    placeholder="Opcional"
+                    onChange={(event) =>
+                      setForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Condicion fiscal</Label>
+                  <Input
+                    value={form.customer_tax_condition}
+                    placeholder="Opcional"
+                    onChange={(event) =>
+                      setForm((previousForm) => ({
+                        ...previousForm,
+                        customer_tax_condition: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Condicion de venta</Label>
+                  <Input
+                    value={form.payment_terms}
+                    placeholder="Opcional"
+                    onChange={(event) =>
+                      setForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Vendedor</Label>
+                  <Input
+                    value={form.salesperson}
+                    placeholder="Opcional"
+                    onChange={(event) =>
+                      setForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
+                    }
+                  />
+                </div>
+
+                {form.doc_type === "PRESUPUESTO" ? (
+                  <div className="space-y-2">
+                    <Label>Valido hasta</Label>
+                    <Input
+                      type="date"
+                      value={form.valid_until}
+                      onChange={(event) =>
+                        setForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
+                      }
+                    />
+                  </div>
+                ) : null}
+
+                {form.doc_type === "REMITO" ? (
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Domicilio de entrega</Label>
+                    <Input
+                      value={form.delivery_address}
+                      placeholder="Opcional"
+                      onChange={(event) =>
+                        setForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
+                      }
+                    />
+                  </div>
+                ) : null}
+
+                {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? (
+                  <div className="space-y-2">
+                    <Label>Imputacion del remito</Label>
+                    <Select
+                      value={form.internal_remito_type || "__none__"}
+                      onValueChange={(value) =>
+                        setForm((previousForm) => ({
+                          ...previousForm,
+                          internal_remito_type:
+                            value === "__none__" ? "" : (value as InternalRemitoType),
+                        }))
+                      }
+                    >
+                      <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
+                        <SelectItem value="DESCUENTO_SUELDO">Descuento de sueldo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
               </div>
-              <div className="space-y-2 rounded-lg border border-border/70 bg-background/70 p-3">
-                <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                  Lista activa
-                </div>
-                <div className="text-sm font-medium">
-                  {selectedPriceList?.name ?? "Selecciona una lista para continuar"}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-border/70 bg-background/70 p-3">
-                  <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Lineas</div>
-                  <div className="mt-1 text-2xl font-semibold">{lines.length}</div>
-                </div>
-                <div className="rounded-lg border border-border/70 bg-background/70 p-3">
-                  <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Total</div>
-                  <div className="mt-1 text-xl font-semibold">{formatMoney(totalDraft)}</div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4">
-              <Button type="submit" className="w-full" disabled={isSubmitting || priceLists.length === 0}>
-                {isSubmitting ? "Guardando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
-              </Button>
-            </div>
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
-        <div className="space-y-3 rounded-xl border border-border/70 bg-card/60 p-4">
+        <div className="space-y-4 rounded-xl border border-border/70 bg-card/60 p-4 relative">
           <div className="flex flex-col gap-1">
-            <Label>Agregar productos</Label>
-            <p className="text-sm text-muted-foreground">
-              Busca en la lista seleccionada y agrega o suma productos sin crear filas vacias.
+            <Label className="text-base">Productos ({lines.length})</Label>
+            <p className="text-sm text-muted-foreground mr-[200px]">
+              Busca en la lista activa ({selectedPriceList?.name ?? "Ninguna"}) y agrega productos. 
+              <span className="hidden sm:inline"> Presiona <strong>Enter</strong> para sumar rápidamente el primero.</span>
             </p>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
           <div className="space-y-3">
-            <div className="relative">
+            <div className="relative w-full">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                   value={itemSearch}
@@ -414,70 +409,90 @@ export function DocumentsEditorDialog({
                       : "Selecciona una lista para habilitar la busqueda"
                   }
                   onChange={(event) => setItemSearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && filteredItems.length > 0) {
+                      event.preventDefault();
+                      handleAddItem(filteredItems[0].id);
+                    }
+                  }}
                 />
-              </div>
-
-              {itemSearch.trim().length > 0 ? (
-                filteredItems.length > 0 ? (
-                  <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-2">
-                    {filteredItems.map((item) => {
-                      const alreadyAdded = lineCountByItemId.has(item.id);
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card px-3 py-3 md:flex-row md:items-center md:justify-between"
-                        >
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium">
-                              {item.sku} | {item.name}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Unidad: {item.unit || "un"}
-                              {alreadyAdded ? " | Ya agregado" : ""}
-                            </div>
-                          </div>
-                          <Button type="button" size="sm" onClick={() => handleAddItem(item.id)}>
-                            {alreadyAdded ? "Sumar" : "Agregar"}
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">
-                    No hay coincidencias en la lista seleccionada.
-                  </div>
-                )
-              ) : null}
             </div>
+
+            {itemSearch.trim().length > 0 ? (
+              filteredItems.length > 0 ? (
+                <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-2">
+                  {filteredItems.map((item) => {
+                    const alreadyAdded = lineCountByItemId.has(item.id);
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card px-3 py-3 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">
+                            {item.sku} | {item.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Unidad: {item.unit || "un"}
+                            {alreadyAdded ? " | Ya agregado" : ""}
+                          </div>
+                        </div>
+                        <Button type="button" size="sm" onClick={() => handleAddItem(item.id)}>
+                          {alreadyAdded ? "Sumar" : "Agregar"}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">
+                  No hay coincidencias en la lista seleccionada.
+                </div>
+              )
+            ) : null}
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {lines.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
-                Todavia no agregaste productos al documento.
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-sm text-muted-foreground bg-muted/10">
+                <Search className="h-8 w-8 mb-3 text-muted-foreground/30" />
+                No tienes ningún producto agregado.
+                <br />
+                Usa el buscador para añadirlos.
               </div>
-            ) : null}
+            ) : (
+              <div className="sticky top-0 z-20 hidden rounded-md border border-border/40 bg-muted/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-md xl:grid xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:gap-3">
+                <div>Producto</div>
+                <div>Cantidad</div>
+                <div>Modo de precio</div>
+                <div>Margen %</div>
+                <div>Precio unitario</div>
+                <div>Total</div>
+                <div className="text-right">Acs</div>
+              </div>
+            )}
 
             {lines.map((line, index) => {
               const lockPrice = line.pricing_mode === "LIST_PRICE";
               const lineTotal = line.quantity * line.unit_price;
 
               return (
-                <div key={`${line.item_id ?? "manual"}-${index}`} className="rounded-lg border border-border/70 bg-background/80 px-3 py-2.5">
-                  <div className="grid gap-2 xl:grid-cols-[minmax(0,2.9fr)_110px_190px_130px_150px_128px_42px] xl:items-center">
+                <div key={`${line.item_id ?? "manual"}-${index}`} className="group rounded-lg border border-border/70 bg-background/80 px-3 py-2 hover:border-border transition-colors">
+                  <div className="grid gap-3 xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:items-center">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold">
+                      <div className="truncate text-sm font-semibold text-foreground">
                         {line.sku_snapshot ? `${line.sku_snapshot} | ` : ""}
                         {line.description}
                       </div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">
-                        Unidad: {line.unit || "un"} | Precio sugerido: {formatMoney(line.suggested_unit_price)}
+                      <div className="mt-0.5 text-xs text-muted-foreground flex items-center gap-2">
+                        <span>{line.unit || "un"}</span>
+                        <span>&bull;</span>
+                        <span>Sug: {formatMoney(line.suggested_unit_price)}</span>
                       </div>
                     </div>
 
-                    <div className="space-y-0.5">
-                      <Label className="text-xs text-muted-foreground">Cantidad</Label>
+                    <div className="space-y-1 xl:space-y-0">
+                      <Label className="text-xs text-muted-foreground xl:hidden">Cantidad</Label>
                       <Input
                         className="h-9 text-sm"
                         type="number"
@@ -490,8 +505,8 @@ export function DocumentsEditorDialog({
                       />
                     </div>
 
-                    <div className="space-y-0.5">
-                      <Label className="text-xs text-muted-foreground">Modo de precio</Label>
+                    <div className="space-y-1 xl:space-y-0">
+                      <Label className="text-xs text-muted-foreground xl:hidden">Modo de precio</Label>
                       <Select
                         value={line.pricing_mode}
                         onValueChange={(value) => {
@@ -539,15 +554,15 @@ export function DocumentsEditorDialog({
                       </Select>
                     </div>
 
-                    <div className="space-y-0.5">
-                      <Label className="text-xs text-muted-foreground">Margen %</Label>
+                    <div className="space-y-1 xl:space-y-0">
+                      <Label className="text-xs text-muted-foreground xl:hidden">Margen %</Label>
                       <Input
                         className="h-9 text-sm"
                         type="number"
                         min={0}
                         step="any"
                         disabled={line.pricing_mode !== "MANUAL_MARGIN"}
-                        placeholder="No aplica"
+                        placeholder="N/A"
                         value={line.pricing_mode === "MANUAL_MARGIN" ? (line.manual_margin_pct ?? "") : ""}
                         onChange={(event) => {
                           const marginPct = event.target.value === "" ? 0 : Number(event.target.value);
@@ -565,8 +580,8 @@ export function DocumentsEditorDialog({
                       />
                     </div>
 
-                    <div className="space-y-0.5">
-                      <Label className="text-xs text-muted-foreground">Precio unitario</Label>
+                    <div className="space-y-1 xl:space-y-0">
+                      <Label className="text-xs text-muted-foreground xl:hidden">Precio unitario</Label>
                       <Input
                         className="h-9 text-sm"
                         type="number"
@@ -583,17 +598,17 @@ export function DocumentsEditorDialog({
                       />
                     </div>
 
-                    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-1">
-                      <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Total</div>
-                      <div className="mt-0.5 text-base font-semibold">{formatMoney(lineTotal)}</div>
+                    <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-1 flex items-center h-9 mt-4 xl:mt-0 relative overflow-hidden">
+                      <Label className="text-xs text-muted-foreground xl:hidden absolute top-0 -mt-5">Total</Label>
+                      <div className="text-sm font-semibold text-foreground w-full xl:text-left">{formatMoney(lineTotal)}</div>
                     </div>
 
-                    <div className="flex items-end justify-end xl:justify-center">
+                    <div className="flex items-end justify-end xl:justify-center mt-[-36px] xl:mt-0">
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                        className="h-9 w-9 text-muted-foreground opacity-50 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all"
                         onClick={() => removeLine(index)}
                         title="Eliminar linea"
                       >
@@ -607,14 +622,28 @@ export function DocumentsEditorDialog({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label>Notas</Label>
+        <div className="space-y-2 mb-20">
+          <Label>Notas Generales</Label>
           <Textarea
+            className="resize-none min-h-[80px]"
+            placeholder="Aclaraciones adicionales del documento..."
             value={form.notes}
             onChange={(event) =>
               setForm((previousForm) => ({ ...previousForm, notes: event.target.value }))
             }
           />
+        </div>
+
+        <div className="sticky bottom-0 z-30 flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/95 px-5 py-4 shadow-[var(--shadow-md)] backdrop-blur-md">
+          <div className="flex flex-col">
+            <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-0.5">Total Documento</span>
+            <span className="text-2xl font-extrabold tracking-tight text-foreground">
+              {formatMoney(totalDraft)}
+            </span>
+          </div>
+          <Button type="submit" disabled={isSubmitting || priceLists.length === 0} className="h-11 rounded-full px-8 shadow-sm">
+            {isSubmitting ? "Guardando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
+          </Button>
         </div>
       </form>
     </EntityDialog>
