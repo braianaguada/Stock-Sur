@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type { MovementType, SearchableItem, StockMovementForm } from "@/features/stock/types";
 
 type StockMovementDialogProps = {
@@ -76,8 +77,23 @@ export function StockMovementDialog({
                     selectedItem?.id === item.id ? "bg-muted" : ""
                   }`}
                 >
-                  <span className="min-w-0 truncate">
-                    {item.name} <span className="text-xs text-muted-foreground">({item.sku})</span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">
+                      {buildItemDisplayName({
+                        name: item.name,
+                        brand: item.brand,
+                        model: item.model,
+                        attributes: item.attributes,
+                      })}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {buildItemDisplayMeta({
+                        sku: item.sku,
+                        brand: item.brand,
+                        model: item.model,
+                        attributes: item.attributes,
+                      })}
+                    </span>
                   </span>
                 </button>
               ))
@@ -85,7 +101,12 @@ export function StockMovementDialog({
           </div>
           {selectedItem ? (
             <p className="text-sm text-muted-foreground">
-              Seleccionado: <span className="font-medium text-foreground">{selectedItem.name}</span>
+              Seleccionado: <span className="font-medium text-foreground">{buildItemDisplayName({
+                name: selectedItem.name,
+                brand: selectedItem.brand,
+                model: selectedItem.model,
+                attributes: selectedItem.attributes,
+              })}</span>
             </p>
           ) : null}
         </div>
