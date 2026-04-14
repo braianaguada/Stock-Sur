@@ -1,4 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
 import type { CatalogImportLine, ParsePdfResult } from "@/lib/importers/catalogImporter";
 
 type SupplierPdfAiRow = {
@@ -129,6 +128,7 @@ async function invokePdfExtractionFunction(
   functionName: "supplier-pdf-mistral-extract" | "supplier-pdf-ai-extract",
   file: File,
 ) {
+  const { supabase } = await import("@/integrations/supabase/client");
   const fileBase64 = toBase64(await file.arrayBuffer());
   const { data, error } = await supabase.functions.invoke(functionName, {
     body: {
