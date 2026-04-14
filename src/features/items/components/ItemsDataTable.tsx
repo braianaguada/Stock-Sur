@@ -1,15 +1,16 @@
 import { memo, useMemo } from "react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { Package, PackageX, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Item } from "@/features/items/types";
 
-export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "attributes" | "category" | "is_active" | "created_at";
+export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "attributes" | "category" | "is_active" | "created_at" | "stock";
 export type SortDirection = "asc" | "desc";
 
 type ItemsDataTableProps = {
@@ -20,6 +21,8 @@ type ItemsDataTableProps = {
   columnVisibility: Record<string, boolean>;
   sortBy: ItemSortField;
   sortDirection: SortDirection;
+  /** Map of item_id → total stock quantity (from stock-current query) */
+  stockByItemId: Map<string, number>;
   onSort: (field: ItemSortField) => void;
   onSelectionChange: (next: string[]) => void;
   onEdit: (item: Item) => void;
@@ -36,7 +39,31 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
   attributes: "attributes",
   category: "category",
   is_active: "is_active",
+  stock: "stock",
 };
+
+function stockChip(total: number | undefined) {
+  if (total === undefined) {
+    return (
+      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-border/50 text-muted-foreground">
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
+        Sin registro
+      </Badge>
+    );
+  }
+  if (total <= 0) {
+    return (
+      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-destructive/40 bg-destructive/8 text-destructive">
+        <PackageX className="h-2.5 w-2.5" /> Sin stock
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400">
+      <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
+    </Badge>
+  );
+}
 
 function ItemsDataTableComponent({
   items,
@@ -46,6 +73,7 @@ function ItemsDataTableComponent({
   columnVisibility,
   sortBy,
   sortDirection,
+  stockByItemId,
   onSort,
   onSelectionChange,
   onEdit,
@@ -121,7 +149,34 @@ function ItemsDataTableComponent({
         </div>
       ),
       meta: {
-        className: "w-[320px]",
+        className: "w-[300px]",
+        cellClassName: "py-1.5",
+      },
+    },
+    {
+      id: "stock",
+      header: () => (
+        <DataTableColumnHeader
+          title="Stock"
+          sorted={sortBy === "stock" ? sortDirection : false}
+          onToggleSort={() => onSort("stock")}
+        />
+      ),
+      cell: ({ row }) => {
+        const total = stockByItemId.get(row.original.id);
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>{stockChip(total)}</span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {total === undefined ? "No se registró stock para este ítem" : `${total} unidades en stock`}
+            </TooltipContent>
+          </Tooltip>
+        );
+      },
+      meta: {
+        className: "w-[130px]",
         cellClassName: "py-1.5",
       },
     },
@@ -181,7 +236,7 @@ function ItemsDataTableComponent({
       ),
       cell: ({ row }) => <span className="block truncate text-xs text-muted-foreground">{row.original.attributes ?? "-"}</span>,
       meta: {
-        className: "w-[220px]",
+        className: "w-[200px]",
         cellClassName: "py-1.5",
       },
     },
@@ -205,7 +260,7 @@ function ItemsDataTableComponent({
       header: () => "Unidad",
       cell: ({ row }) => <span className="text-xs">{row.original.unit}</span>,
       meta: {
-        className: "w-[96px]",
+        className: "w-[80px]",
         cellClassName: "py-1.5",
       },
     },
@@ -218,7 +273,7 @@ function ItemsDataTableComponent({
         </Badge>
       ),
       meta: {
-        className: "w-[112px]",
+        className: "w-[100px]",
         cellClassName: "py-1.5",
       },
     },
@@ -237,7 +292,7 @@ function ItemsDataTableComponent({
         </Badge>
       ),
       meta: {
-        className: "w-[112px]",
+        className: "w-[96px]",
         cellClassName: "py-1.5",
       },
     },
@@ -265,7 +320,7 @@ function ItemsDataTableComponent({
         cellClassName: "py-1.5",
       },
     },
-  ], [allVisibleSelected, items, onDelete, onEdit, onRestore, onSelectionChange, onSort, selectedItemIds, sortBy, sortDirection]);
+  ], [allVisibleSelected, items, onDelete, onEdit, onRestore, onSelectionChange, onSort, selectedItemIds, sortBy, sortDirection, stockByItemId]);
 
   return (
     <div className="overflow-x-auto">
@@ -275,7 +330,7 @@ function ItemsDataTableComponent({
       isLoading={isLoading}
       loadingMessage="Cargando..."
       emptyMessage="No se encontraron ítems"
-      className="table-fixed min-w-[1640px]"
+      className="table-fixed min-w-[1680px]"
       sorting={sorting}
       columnVisibility={columnVisibility}
       rowClassName="h-9"
@@ -294,4 +349,5 @@ export const ItemsDataTable = memo(ItemsDataTableComponent, (prev, next) => (
   && prev.columnVisibility === next.columnVisibility
   && prev.sortBy === next.sortBy
   && prev.sortDirection === next.sortDirection
+  && prev.stockByItemId === next.stockByItemId
 ));
