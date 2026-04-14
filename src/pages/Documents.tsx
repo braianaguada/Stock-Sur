@@ -338,6 +338,16 @@ export default function DocumentsPage() {
 
   const onAddItem = (itemId: string) => {
     setLines((previous) => {
+      const existingIndex = previous.findIndex((l) => l.item_id === itemId);
+      if (existingIndex >= 0) {
+        const next = [...previous];
+        next[existingIndex] = {
+          ...next[existingIndex],
+          quantity: (next[existingIndex].quantity || 0) + 1,
+        };
+        return next;
+      }
+
       const next = [...previous];
       const blankIndex = next.findIndex(isBlankLine);
       const index = blankIndex >= 0 ? blankIndex : next.length;
@@ -590,8 +600,9 @@ export default function DocumentsPage() {
           }}
           onEditDraft={openEditDialog}
           onTransition={(documentId, targetStatus) => {
-            if (!canTransitionDocumentTo(roles, targetStatus)) return;
-            transitionMutation.mutate({ documentId, targetStatus });
+            const status = targetStatus as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO";
+            if (!canTransitionDocumentTo(roles, status)) return;
+            transitionMutation.mutate({ documentId, targetStatus: status });
           }}
           onIssueRemito={(documentId) => {
             if (!canIssueRemito(roles)) return;
