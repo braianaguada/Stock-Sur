@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
-import { buildItemDisplayName } from "@/lib/item-display";
 import { getErrorMessage } from "@/lib/errors";
 import {
   canCloneBudgetToRemito,
@@ -540,9 +539,8 @@ export default function DocumentsPage() {
           }}
           onEditDraft={openEditDialog}
           onTransition={(documentId, targetStatus) => {
-            const typedStatus = targetStatus as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO";
-            if (!canTransitionDocumentTo(roles, typedStatus)) return;
-            transitionMutation.mutate({ documentId, targetStatus: typedStatus });
+            if (!canTransitionDocumentTo(roles, targetStatus)) return;
+            transitionMutation.mutate({ documentId, targetStatus });
           }}
           onIssueRemito={(documentId) => {
             if (!canIssueRemito(roles)) return;
