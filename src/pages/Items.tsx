@@ -293,6 +293,23 @@ export default function ItemsPage() {
 
   const stockByItemId = useMemo(() => stockQuery.data ?? new Map<string, number>(), [stockQuery.data]);
 
+  const stockStats = useMemo(() => {
+    const all = itemsQuery.data ?? [];
+    const stats = {
+      total: all.length,
+      active: all.filter(i => i.is_active).length,
+      noStock: 0,
+      inStock: 0,
+    };
+    all.forEach(item => {
+      if (!item.is_active) return;
+      const s = stockByItemId.get(item.id) ?? 0;
+      if (s <= 0) stats.noStock++;
+      else stats.inStock++;
+    });
+    return stats;
+  }, [itemsQuery.data, stockByItemId]);
+
   const hasActiveSearch = deferredSearch.trim().length > 0;
   const aliasesSearchQuery = useQuery({
     queryKey: queryKeys.items.searchAliases(currentCompany?.id ?? null),
@@ -714,25 +731,44 @@ export default function ItemsPage() {
         <PageHeader
           eyebrow="Catálogo maestro"
           title="Ítems"
-          subtitle="Gestioná productos, alias y demanda sin perder velocidad operativa. El rediseño mejora lectura y jerarquía sobre la misma lógica actual."
+          subtitle="Gestioná productos, perfil de demanda y disponibilidad real en una vista integrada."
           actions={(
-            <>
-              <Button asChild variant="outline">
-                <Link to="/items/catalog/import-legacy">Importar catálogo</Link>
-              </Button>
-              <Button onClick={openCreate}>
-                <Plus className="mr-2 h-4 w-4" /> Nuevo
-              </Button>
-            </>
+            <Button onClick={openCreate}>
+              <Plus className="mr-2 h-4 w-4" /> Nuevo ítem
+            </Button>
           )}
           meta={(
-            <>
-              <Badge variant="outline">{visibleTotalItems} registrados</Badge>
-              <Badge variant="secondary">{selectedItemIds.length} seleccionados</Badge>
-            </>
+            <div className="flex gap-2">
+              <Badge variant="outline">{stockStats.total} registrados</Badge>
+              {selectedItemIds.length > 0 && <Badge variant="secondary">{selectedItemIds.length} seleccionados</Badge>}
+            </div>
           )}
         />
 
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="flex flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 shadow-sm transition-all hover:shadow-md">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Ítems</span>
+            <span className="text-xl font-black">{stockStats.total}</span>
+          </div>
+          <div className="flex flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 shadow-sm transition-all hover:shadow-md">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Activos en Venta</span>
+            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{stockStats.active}</span>
+          </div>
+          <div 
+            className="flex cursor-pointer flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 shadow-sm transition-all hover:bg-card hover:shadow-md"
+            onClick={() => setStockFilter("in_stock")}
+          >
+            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Con Stock</span>
+            <span className="text-xl font-black text-blue-600 dark:text-blue-400">{stockStats.inStock}</span>
+          </div>
+          <div 
+            className="flex cursor-pointer flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 shadow-sm transition-all hover:bg-card hover:shadow-md"
+            onClick={() => setStockFilter("no_stock")}
+          >
+            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Sin Stock</span>
+            <span className="text-xl font-black text-rose-600 dark:text-rose-400">{stockStats.noStock}</span>
+          </div>
+        </div>
 
         <Collapsible open={columnsOpen} onOpenChange={setColumnsOpen}>
           <FilterBar>

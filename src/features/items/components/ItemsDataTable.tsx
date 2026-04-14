@@ -42,24 +42,40 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
   stock: "stock",
 };
 
-function stockChip(total: number | undefined) {
+function stockChip(total: number | undefined, demand?: string | null) {
   if (total === undefined) {
     return (
-      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-border/50 text-muted-foreground">
+      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-border/50 text-muted-foreground font-normal">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-        Sin registro
+        S/D
       </Badge>
     );
   }
+  
   if (total <= 0) {
     return (
-      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-destructive/40 bg-destructive/8 text-destructive">
+      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-rose-500/30 bg-rose-500/8 text-rose-600 dark:text-rose-400 font-bold">
         <PackageX className="h-2.5 w-2.5" /> Sin stock
       </Badge>
     );
   }
+
+  // Basic health logic: highlight low stock based on demand
+  const isHighDemand = demand === "HIGH";
+  const isMediumDemand = demand === "MEDIUM";
+  const isCritical = (isHighDemand && total < 15) || (isMediumDemand && total < 5) || total < 2;
+
+  if (isCritical) {
+    return (
+      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold">
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+        {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })} (Bajo)
+      </Badge>
+    );
+  }
+
   return (
-    <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400">
+    <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400 font-medium">
       <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
     </Badge>
   );
@@ -167,7 +183,7 @@ function ItemsDataTableComponent({
         return (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span>{stockChip(total)}</span>
+              <span>{stockChip(total, row.original.demand_profile)}</span>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">
               {total === undefined ? "No se registró stock para este ítem" : `${total} unidades en stock`}
