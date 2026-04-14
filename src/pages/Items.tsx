@@ -523,7 +523,10 @@ export default function ItemsPage() {
       if (error) throw error;
     },
     onSuccess: async () => {
-      await invalidateItemQueries(qc);
+      await Promise.all([
+        invalidateItemQueries(qc),
+        invalidateStockQueries(qc),
+      ]);
       toast({ title: "Ítem desactivado" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -634,7 +637,10 @@ export default function ItemsPage() {
       return toDeactivate.length;
     },
     onSuccess: async (count) => {
-      await invalidateItemQueries(qc);
+      await Promise.all([
+        invalidateItemQueries(qc),
+        invalidateStockQueries(qc),
+      ]);
       setSelectedItemIds([]);
       toast({ title: `${count} ítem(s) desactivados (sin stock)` });
     },

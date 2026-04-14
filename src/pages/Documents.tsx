@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
+import { buildItemDisplayName } from "@/lib/item-display";
 import { getErrorMessage } from "@/lib/errors";
 import {
   canCloneBudgetToRemito,
@@ -265,6 +266,86 @@ export default function DocumentsPage() {
     toast,
   });
 
+<<<<<<< HEAD
+  const isBlankLine = (line: LineDraft) =>
+    line.item_id === null
+    && line.description.trim() === ""
+    && line.quantity === EMPTY_LINE.quantity
+    && line.unit_price === EMPTY_LINE.unit_price;
+
+  const applyPickItemToLines = (draftLines: LineDraft[], index: number, itemId: string) => {
+    if (!draftLines[index]) return;
+
+    if (!itemId) {
+      const current = draftLines[index];
+      draftLines[index] = {
+        ...current,
+        item_id: null,
+        sku_snapshot: "",
+        unit: current.unit || "un",
+        pricing_mode: "MANUAL_PRICE",
+        suggested_unit_price: current.unit_price,
+        base_cost_snapshot: null,
+        list_flete_pct_snapshot: null,
+        list_utilidad_pct_snapshot: null,
+        list_impuesto_pct_snapshot: null,
+        manual_margin_pct: null,
+        price_overridden_by: null,
+        price_overridden_at: null,
+      };
+      return;
+    }
+
+    const item = itemsById.get(itemId);
+    if (!item) return;
+
+    const baseLine: LineDraft = {
+      ...draftLines[index],
+      item_id: itemId,
+      sku_snapshot: item.sku,
+      description: buildItemDisplayName({
+        name: item.name,
+        brand: "brand" in item ? (item.brand as string | null | undefined) : null,
+        model: "model" in item ? (item.model as string | null | undefined) : null,
+        attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
+      }),
+      unit: item.unit || "un",
+      unit_price: form.price_list_id ? priceByItem.get(itemId) ?? 0 : draftLines[index].unit_price,
+    };
+
+    draftLines[index] = form.price_list_id
+      ? syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true)
+      : {
+          ...baseLine,
+          pricing_mode: "MANUAL_PRICE",
+          suggested_unit_price: baseLine.unit_price,
+          base_cost_snapshot: null,
+          list_flete_pct_snapshot: null,
+          list_utilidad_pct_snapshot: null,
+          list_impuesto_pct_snapshot: null,
+          manual_margin_pct: null,
+          price_overridden_by: null,
+          price_overridden_at: null,
+        };
+  };
+
+  const onPickItem = (index: number, itemId: string) => {
+    setLines((previous) => {
+      const next = [...previous];
+      applyPickItemToLines(next, index, itemId);
+      return next;
+    });
+  };
+
+  const onAddItem = (itemId: string) => {
+    setLines((previous) => {
+      const next = [...previous];
+      const blankIndex = next.findIndex(isBlankLine);
+      const index = blankIndex >= 0 ? blankIndex : next.length;
+      if (index === next.length) next.push(EMPTY_LINE);
+      applyPickItemToLines(next, index, itemId);
+      return next;
+=======
   const addItemToDraft = (itemId: string) => {
     const item = itemsById.get(itemId);
     if (!item) return;
@@ -293,6 +374,7 @@ export default function DocumentsPage() {
         ...previousLines,
         syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true),
       ];
+>>>>>>> 6ba8b97 (fix: simplify documents modal line flow (#157))
     });
   };
 
@@ -592,6 +674,7 @@ export default function DocumentsPage() {
             customers={customers}
             priceLists={priceLists}
             availableItems={availableItems}
+            onAddItem={onAddItem}
             onPriceListChange={onPriceListChange}
             onAddItem={addItemToDraft}
             removeLine={removeLine}
