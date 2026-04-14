@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, FileText, PlayCircle, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, FileText, LucideIcon, PlayCircle, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,7 +23,7 @@ interface DocumentsPreviewDialogProps {
   companySettings: CompanySettings;
 }
 
-const HISTORY_TONE_COLORS: Record<string, { bg: string; border: string; text: string; icon: any }> = {
+const HISTORY_TONE_COLORS: Record<string, { bg: string; border: string; text: string; icon: LucideIcon }> = {
   neutral: { bg: "bg-slate-100 dark:bg-slate-800", border: "border-slate-200 dark:border-slate-700", text: "text-slate-600 dark:text-slate-400", icon: PlayCircle },
   success: { bg: "bg-emerald-100 dark:bg-emerald-900/30", border: "border-emerald-200 dark:border-emerald-800/50", text: "text-emerald-700 dark:text-emerald-400", icon: CheckCircle2 },
   warning: { bg: "bg-amber-100 dark:bg-amber-900/30", border: "border-amber-200 dark:border-amber-800/50", text: "text-amber-700 dark:text-amber-400", icon: Clock },

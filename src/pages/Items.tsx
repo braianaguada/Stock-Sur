@@ -592,9 +592,9 @@ export default function ItemsPage() {
       await qc.cancelQueries({ queryKey: queryKeys.items.all() });
       const previousItems = qc.getQueryData(queryKeys.items.all());
       
-      qc.setQueryData(queryKeys.items.all(), (old: any) => {
+      qc.setQueryData(queryKeys.items.all(), (old: Item[] | undefined) => {
         if (!old) return old;
-        return old.map((item: any) => 
+        return old.map((item: Item) => 
           selectedItemIds.includes(item.id) 
             ? { ...item, demand_profile: bulkDemandProfile } 
             : item
@@ -611,9 +611,10 @@ export default function ItemsPage() {
       setSelectedItemIds([]);
       toast({ title: "Tipo de demanda actualizado" });
     },
-    onError: (e: Error, _, context: any) => {
-      if (context?.previousItems) {
-        qc.setQueryData(queryKeys.items.all(), context.previousItems);
+    onError: (e: Error, _, context) => {
+      const ctx = context as { previousItems?: Item[] } | undefined;
+      if (ctx?.previousItems) {
+        qc.setQueryData(queryKeys.items.all(), ctx.previousItems);
       }
       toast({ title: "Error", description: e.message, variant: "destructive" });
     },
