@@ -266,7 +266,6 @@ export default function DocumentsPage() {
     toast,
   });
 
-<<<<<<< HEAD
   const isBlankLine = (line: LineDraft) =>
     line.item_id === null
     && line.description.trim() === ""
@@ -345,36 +344,6 @@ export default function DocumentsPage() {
       if (index === next.length) next.push(EMPTY_LINE);
       applyPickItemToLines(next, index, itemId);
       return next;
-=======
-  const addItemToDraft = (itemId: string) => {
-    const item = itemsById.get(itemId);
-    if (!item) return;
-
-    setLines((previousLines) => {
-      const existingIndex = previousLines.findIndex((line) => line.item_id === itemId);
-      if (existingIndex >= 0) {
-        return previousLines.map((line, index) =>
-          index === existingIndex
-            ? { ...line, quantity: line.quantity + 1 }
-            : line,
-        );
-      }
-
-      const baseLine: LineDraft = {
-        ...EMPTY_LINE,
-        item_id: itemId,
-        sku_snapshot: item.sku,
-        description: item.name,
-        unit: item.unit || "un",
-        quantity: 1,
-        unit_price: priceByItem.get(itemId) ?? 0,
-      };
-
-      return [
-        ...previousLines,
-        syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true),
-      ];
->>>>>>> 6ba8b97 (fix: simplify documents modal line flow (#157))
     });
   };
 
@@ -676,7 +645,6 @@ export default function DocumentsPage() {
             availableItems={availableItems}
             onAddItem={onAddItem}
             onPriceListChange={onPriceListChange}
-            onAddItem={addItemToDraft}
             removeLine={removeLine}
             onSubmit={() => upsertDraftMutation.mutate()}
             onResetDraftForm={resetDraftForm}
