@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
+import { Package, PackageX, TrendingDown, TrendingUp } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { BasePriceRow } from "@/features/price-lists/types";
 import { formatDateTime, formatMoney, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
 
@@ -11,6 +14,8 @@ type BasePricesTableProps = {
   isSaving: boolean;
   pageSize: number;
   columnVisibility: VisibilityState;
+  /** Map item_id → total stock qty */
+  stockByItemId?: Map<string, number>;
   renderUserName: (userId: string | null) => string;
   onSaveDraftValue: (itemId: string, nextBaseCost: number) => void;
 };
@@ -76,11 +81,45 @@ function BaseCostInputCell(props: {
   );
 }
 
+function StockBadge({ total }: { total: number | undefined }) {
+  if (total === undefined) {
+    return (
+      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-border/50 text-muted-foreground">
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
+        S/D
+      </Badge>
+    );
+  }
+  if (total <= 0) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="outline" className="h-5 cursor-default gap-1 px-1.5 text-[10px] border-destructive/40 bg-destructive/8 text-destructive">
+            <PackageX className="h-2.5 w-2.5" /> Sin stock
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs">Stock actual: 0</TooltipContent>
+      </Tooltip>
+    );
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant="outline" className="h-5 cursor-default gap-1 px-1.5 text-[10px] border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400">
+          <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs">Stock actual: {total}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function BasePricesTable({
   rows,
   isSaving,
   pageSize,
   columnVisibility,
+  stockByItemId,
   renderUserName,
   onSaveDraftValue,
 }: BasePricesTableProps) {
@@ -107,7 +146,15 @@ export function BasePricesTable({
         </div>
       ),
       meta: {
-        className: "w-[300px]",
+        className: "w-[280px]",
+      },
+    },
+    {
+      id: "stock",
+      header: () => "Stock",
+      cell: ({ row }) => <StockBadge total={stockByItemId?.get(row.original.item_id)} />,
+      meta: {
+        className: "w-[110px]",
       },
     },
     {
@@ -115,7 +162,7 @@ export function BasePricesTable({
       header: () => "Atributos",
       cell: ({ row }) => <OverflowTooltip text={row.original.attributes} className="block truncate text-xs text-muted-foreground" />,
       meta: {
-        className: "w-[260px]",
+        className: "w-[240px]",
       },
     },
     {
@@ -139,14 +186,14 @@ export function BasePricesTable({
       header: () => "Categoría",
       cell: ({ row }) => <OverflowTooltip text={row.original.category} className="block truncate" />,
       meta: {
-        className: "w-[150px]",
+        className: "w-[140px]",
       },
     },
     {
       accessorKey: "previous_base_cost",
       header: () => <div className="text-right">Costo anterior</div>,
       cell: ({ row }) => (
-        <div className="text-right">
+        <div className="text-right text-sm text-muted-foreground">
           {row.original.previous_base_cost !== null ? `$${formatMoney(row.original.previous_base_cost)}` : "-"}
         </div>
       ),
@@ -165,19 +212,21 @@ export function BasePricesTable({
     {
       accessorKey: "cost_variation_pct",
       header: () => <div className="text-right">Variación</div>,
-      cell: ({ row }) => (
-        <div
-          className={`text-right text-sm ${
-            row.original.cost_variation_pct !== null && row.original.cost_variation_pct > 0
-              ? "text-rose-600"
-              : row.original.cost_variation_pct !== null && row.original.cost_variation_pct < 0
-                ? "text-emerald-600"
-                : "text-muted-foreground"
-          }`}
-        >
-          {formatPercentDelta(row.original.cost_variation_pct)}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const pct = row.original.cost_variation_pct;
+        const isUp = pct !== null && pct > 0;
+        const isDown = pct !== null && pct < 0;
+        return (
+          <div className={`flex items-center justify-end gap-1 text-sm font-medium ${
+            isUp ? "text-rose-600 dark:text-rose-400"
+            : isDown ? "text-emerald-600 dark:text-emerald-400"
+            : "text-muted-foreground"
+          }`}>
+            {isUp ? <TrendingUp className="h-3.5 w-3.5" /> : isDown ? <TrendingDown className="h-3.5 w-3.5" /> : null}
+            {formatPercentDelta(pct)}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "updated_at",
@@ -189,7 +238,7 @@ export function BasePricesTable({
       header: () => "Usuario",
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{renderUserName(row.original.updated_by)}</span>,
     },
-  ], [isSaving, onSaveDraftValue, renderUserName, showAttributesInline]);
+  ], [isSaving, onSaveDraftValue, renderUserName, showAttributesInline, stockByItemId]);
 
   return (
     <div className="overflow-x-auto">
@@ -197,7 +246,7 @@ export function BasePricesTable({
         columns={columns}
         data={rows}
         emptyMessage="No hay productos para mostrar."
-        className="table-fixed min-w-[1660px]"
+        className="table-fixed min-w-[1700px]"
         columnVisibility={columnVisibility}
         getRowId={(row) => row.item_id}
         rowClassName={showAttributesInline ? "h-14" : "h-12"}

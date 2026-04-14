@@ -567,15 +567,36 @@ export default function ItemsPage() {
         .in("id", selectedItemIds);
       if (error) throw error;
     },
+    onMutate: async () => {
+      // Optimistic update
+      await qc.cancelQueries({ queryKey: queryKeys.items.all() });
+      const previousItems = qc.getQueryData(queryKeys.items.all());
+      
+      qc.setQueryData(queryKeys.items.all(), (old: any) => {
+        if (!old) return old;
+        return old.map((item: any) => 
+          selectedItemIds.includes(item.id) 
+            ? { ...item, demand_profile: bulkDemandProfile } 
+            : item
+        );
+      });
+
+      return { previousItems };
+    },
     onSuccess: async () => {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: queryKeys.items.all() }),
+        invalidateItemQueries(qc),
         invalidateStockQueries(qc),
       ]);
       setSelectedItemIds([]);
       toast({ title: "Tipo de demanda actualizado" });
     },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error, _, context: any) => {
+      if (context?.previousItems) {
+        qc.setQueryData(queryKeys.items.all(), context.previousItems);
+      }
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
   });
 
   const bulkDeactivateNoStockMutation = useMutation({
