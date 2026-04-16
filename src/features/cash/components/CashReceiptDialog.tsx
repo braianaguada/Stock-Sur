@@ -103,7 +103,7 @@ export function CashReceiptDialog({
         ) : null}
         {pendingReceiptKind === "FACTURA" ? (
           <div className="rounded-xl border bg-muted/30 p-3 text-sm">
-            <p className="text-muted-foreground">La referencia de factura se toma del remito seleccionado.</p>
+            <p className="text-muted-foreground">La caja toma el monto y la referencia desde el remito facturado seleccionado.</p>
             <p className="mt-1 font-mono font-medium">{pendingReceiptReference || "Sin factura asociada"}</p>
           </div>
         ) : null}

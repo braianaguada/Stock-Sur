@@ -24,6 +24,7 @@ export type RemitoOption = {
   document_number: number | null;
   issue_date: string;
   status: string;
+  total: number;
   external_invoice_number: string | null;
   external_invoice_status: "ACTIVE" | "VOIDED" | null;
 };

@@ -176,8 +176,9 @@ export function DocumentsPreviewDialog({
                         <div className="mt-4 flex flex-wrap gap-2">
                           <Button
                             type="button"
-                            variant="outline"
+                            variant="default"
                             size="sm"
+                            className="shadow-sm"
                             onClick={handleSetExternalInvoice}
                             disabled={isUpdatingExternalInvoice}
                           >
@@ -186,7 +187,7 @@ export function DocumentsPreviewDialog({
                           {selectedDocument.external_invoice_number ? (
                             <Button
                               type="button"
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               onClick={handleClearExternalInvoice}
                               disabled={isUpdatingExternalInvoice}
@@ -231,7 +232,7 @@ export function DocumentsPreviewDialog({
                 </p>
                 <div className="mt-5 space-y-4 relative z-10">
                   <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 shadow-[inset_0_1px_rgba(255,255,255,0.1)]">
-                    <p className="text-xs uppercase tracking-[0.15em] text-foreground/60 mb-1">Total a Pagar</p>
+                    <p className="text-xs uppercase tracking-[0.15em] text-foreground/60 mb-1">Total del documento</p>
                     <p className="text-4xl font-black tracking-tight text-primary break-all">
                       ${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                     </p>
@@ -249,7 +250,7 @@ export function DocumentsPreviewDialog({
               <aside className="rounded-3xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 shadow-sm flex-1">
                 <div className="mb-6">
                   <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground font-semibold">Historial de Eventos</p>
-                  <p className="mt-1.5 text-sm text-muted-foreground">Ciclo de vida del documento.</p>
+                  <p className="mt-1.5 text-sm text-muted-foreground">Cambios de estado y referencias asociadas.</p>
                   {sourceDocumentLabel ? (
                     <Badge variant="secondary" className="mt-4 px-3 py-1 font-mono text-xs">
                       Origen: {sourceDocumentLabel}

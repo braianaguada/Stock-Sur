@@ -133,13 +133,16 @@ export default function CashPage() {
   }, [businessDate]);
 
   useEffect(() => {
-    if (receiptKind !== "REMITO") {
+    if (receiptKind === "PENDIENTE") {
       setSelectedRemitoId("__none__");
     }
-    if (receiptKind !== "FACTURA") {
-      setReceiptReference("");
+    if (receiptKind === "REMITO" || receiptKind === "FACTURA") {
+      const selected = remitosById.get(selectedRemitoId);
+      setAmount(selected ? Number(selected.total).toFixed(2) : "");
+      setCustomerId(selected?.customer_id ?? "__none__");
     }
-  }, [receiptKind]);
+    setReceiptReference("");
+  }, [receiptKind, selectedRemitoId, remitosById]);
 
   useEffect(() => {
     if (pendingReceiptKind === "REMITO") {
@@ -203,6 +206,7 @@ export default function CashPage() {
     () => new Map(availableRemitos.map((remito) => [remito.id, formatRemitoOptionLabel(remito)])),
     [availableRemitos],
   );
+  const remitosById = useMemo(() => new Map(remitos.map((remito) => [remito.id, remito])), [remitos]);
   const historyPagination = usePaginationSlice({
     items: closuresHistory,
     page: historyPage,
@@ -341,13 +345,14 @@ export default function CashPage() {
                 }}
               >
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Importe</Label>
+                  <Label htmlFor="amount">{receiptKind === "PENDIENTE" ? "Importe manual" : "Importe del comprobante"}</Label>
                   <Input
                     id="amount"
                     inputMode="decimal"
                     placeholder="0,00"
                     value={amount}
                     onChange={(event) => setAmount(event.target.value)}
+                    disabled={receiptKind === "REMITO" || receiptKind === "FACTURA"}
                   />
                 </div>
 
@@ -407,34 +412,22 @@ export default function CashPage() {
                   </Select>
                 </div>
 
-                {receiptKind === "REMITO" ? (
+                {receiptKind === "REMITO" || receiptKind === "FACTURA" ? (
                   <div className="space-y-2">
-                    <Label>Remito emitido</Label>
+                    <Label>{receiptKind === "REMITO" ? "Remito sin factura" : "Remito con factura"}</Label>
                     <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar remito del dia" />
+                        <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito sin factura" : "Seleccionar remito con factura"} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
-                        {availableRemitos.map((remito) => (
+                        <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito sin factura" : "Seleccionar remito con factura"}</SelectItem>
+                        {(receiptKind === "REMITO" ? availableRemitos : availableFacturableRemitos).map((remito) => (
                           <SelectItem key={remito.id} value={remito.id}>
                             {remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                ) : null}
-
-                {receiptKind === "FACTURA" ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="receipt-reference">Referencia de factura</Label>
-                    <Input
-                      id="receipt-reference"
-                      placeholder="Ej. 0009-00001782"
-                      value={receiptReference}
-                      onChange={(event) => setReceiptReference(event.target.value)}
-                    />
                   </div>
                 ) : null}
 

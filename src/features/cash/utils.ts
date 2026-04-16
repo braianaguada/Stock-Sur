@@ -21,7 +21,8 @@ export function formatRemitoOptionLabel(remito: RemitoOption) {
   const invoice = remito.external_invoice_number && remito.external_invoice_status === "ACTIVE"
     ? ` / Factura ${remito.external_invoice_number}`
     : "";
-  return remito.customer_name ? `${number} - ${remito.customer_name}${invoice}` : `${number}${invoice}`;
+  const amount = Number.isFinite(Number(remito.total)) ? ` - ${currency.format(Number(remito.total))}` : "";
+  return remito.customer_name ? `${number} - ${remito.customer_name}${amount}${invoice}` : `${number}${amount}${invoice}`;
 }
 
 export function getClosureSituation(sale: CashSaleRow, hasClosedClosureForDay: boolean) {
@@ -54,7 +55,9 @@ export function getClosureSituation(sale: CashSaleRow, hasClosedClosureForDay: b
 
 export function describeDocumentEvent(event: DocumentEventQuickRow) {
   const eventType = event.event_type.toUpperCase();
-  if (eventType.includes("EMIT")) return { title: "Documento emitido", tone: "success" as const };
+  if (eventType === "EXTERNAL_INVOICE_SET") return { title: "Factura externa registrada", tone: "info" as const };
+  if (eventType === "EXTERNAL_INVOICE_CLEARED") return { title: "Factura externa quitada", tone: "warning" as const };
+  if (eventType.includes("EMIT")) return { title: "Remito emitido", tone: "success" as const };
   if (eventType.includes("ANUL")) return { title: "Documento anulado", tone: "danger" as const };
   if (eventType.includes("CRE")) return { title: "Documento creado", tone: "info" as const };
   return { title: event.event_type.replaceAll("_", " "), tone: "neutral" as const };

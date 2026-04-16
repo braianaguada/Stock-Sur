@@ -47,6 +47,20 @@ export function describeDocumentHistoryEvent(event: DocEventRow) {
   const payload = isRecord(event.payload) ? event.payload : null;
 
   switch (event.event_type) {
+    case "EXTERNAL_INVOICE_SET": {
+      const number = typeof payload?.external_invoice_number === "string" ? payload.external_invoice_number : null;
+      return {
+        title: "Factura externa registrada",
+        detail: number ? `Se asoció la factura ${number}` : "Se registró una factura externa",
+        tone: "info" as const,
+      };
+    }
+    case "EXTERNAL_INVOICE_CLEARED":
+      return {
+        title: "Factura externa quitada",
+        detail: "Se desvinculó la referencia fiscal externa",
+        tone: "warning" as const,
+      };
     case "CREATED": {
       const source = typeof payload?.source === "string" ? payload.source : null;
       const sourceNumber = typeof payload?.source_number === "string" ? payload.source_number : null;
@@ -110,8 +124,8 @@ export function describeDocumentHistoryEvent(event: DocEventRow) {
     }
     default:
       return {
-        title: event.event_type,
-        detail: "Evento registrado",
+        title: event.event_type.replaceAll("_", " "),
+        detail: "Movimiento registrado",
         tone: "neutral" as const,
       };
   }

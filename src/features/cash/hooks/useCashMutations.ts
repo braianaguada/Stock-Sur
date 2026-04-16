@@ -53,12 +53,7 @@ export function useCashMutations({
     mutationFn: async (form: CashSaleFormState) => {
       if (!currentCompanyId) throw new Error("Selecciona una empresa para registrar la venta");
 
-      const parsedAmount = Number(form.amount.replace(",", "."));
-      if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-        throw new Error("Ingresa un importe valido");
-      }
-
-      if (form.receiptKind === "REMITO" && form.selectedRemitoId === "__none__") {
+      if (form.receiptKind !== "PENDIENTE" && form.selectedRemitoId === "__none__") {
         throw new Error("Selecciona un remito emitido");
       }
 
@@ -76,10 +71,18 @@ export function useCashMutations({
         throw new Error("El cliente seleccionado ya no esta disponible. Recarga la caja e intenta de nuevo");
       }
 
+      const derivedAmount =
+        form.receiptKind === "REMITO" || form.receiptKind === "FACTURA"
+          ? Number(selectedRemito?.total ?? 0)
+          : Number(form.amount.replace(",", "."));
+      if (!Number.isFinite(derivedAmount) || derivedAmount <= 0) {
+        throw new Error("No se pudo determinar un importe valido");
+      }
+
       const payload = {
         company_id: currentCompanyId,
         business_date: businessDate,
-        amount_total: parsedAmount,
+        amount_total: derivedAmount,
         payment_method: form.paymentMethod as PaymentMethod,
         receipt_kind: form.receiptKind as ReceiptKind,
         customer_id: form.customerId === "__none__" ? selectedRemito?.customer_id ?? null : form.customerId,
@@ -127,14 +130,19 @@ export function useCashMutations({
         throw new Error("El remito seleccionado ya no esta disponible. Recarga la caja e intenta de nuevo");
       }
 
+      const receiptAmount = Number(selectedRemito?.total ?? 0);
+      if (!Number.isFinite(receiptAmount) || receiptAmount <= 0) {
+        throw new Error("No se pudo determinar un importe valido");
+      }
+
       const { error } = await supabase.rpc("attach_cash_sale_receipt", {
         p_sale_id: pendingState.selectedSale.id,
         p_receipt_kind: pendingState.pendingReceiptKind,
-        p_document_id: pendingState.pendingReceiptKind === "REMITO" ? selectedRemito?.id ?? null : null,
+        p_document_id: selectedRemito?.id ?? null,
         p_receipt_reference:
           pendingState.pendingReceiptKind === "REMITO"
             ? formatDocumentNumber(selectedRemito?.point_of_sale ?? 0, selectedRemito?.document_number ?? null)
-            : (selectedRemito?.external_invoice_number ?? pendingState.pendingReceiptReference.trim()) || null,
+            : selectedRemito?.external_invoice_number ?? null,
       });
 
       if (error) throw error;
