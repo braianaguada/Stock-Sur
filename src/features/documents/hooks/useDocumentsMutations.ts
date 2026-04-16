@@ -477,10 +477,68 @@ export function useDocumentsMutations({
     },
   });
 
+  const setExternalInvoiceMutation = useMutation({
+    mutationFn: async ({
+      documentId,
+      externalInvoiceNumber,
+      externalInvoiceDate,
+    }: {
+      documentId: string;
+      externalInvoiceNumber: string;
+      externalInvoiceDate?: string | null;
+    }) => {
+      if (!documentsById.has(documentId)) {
+        throw new Error("El documento seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+      const { error } = await supabase.rpc("set_document_external_invoice", {
+        p_document_id: documentId,
+        p_external_invoice_number: externalInvoiceNumber,
+        p_external_invoice_date: externalInvoiceDate ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void invalidateDocumentQueries(qc);
+      toast({ title: "Factura externa registrada" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo registrar la factura externa",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const clearExternalInvoiceMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      if (!documentsById.has(documentId)) {
+        throw new Error("El documento seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+      const { error } = await supabase.rpc("clear_document_external_invoice", {
+        p_document_id: documentId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void invalidateDocumentQueries(qc);
+      toast({ title: "Factura externa quitada" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo quitar la factura externa",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     upsertDraftMutation,
     issueMutation,
     transitionMutation,
     cloneAsRemitoMutation,
+    setExternalInvoiceMutation,
+    clearExternalInvoiceMutation,
   };
 }

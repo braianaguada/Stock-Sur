@@ -1,4 +1,5 @@
 import { CheckCircle2, Clock, FileText, LucideIcon, PlayCircle, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,6 +22,9 @@ interface DocumentsPreviewDialogProps {
   selectedEvents: DocEventRow[];
   sourceDocumentLabel: string | null;
   companySettings: CompanySettings;
+  onSetExternalInvoice: (documentId: string, externalInvoiceNumber: string) => void;
+  onClearExternalInvoice: (documentId: string) => void;
+  isUpdatingExternalInvoice: boolean;
 }
 
 const HISTORY_TONE_COLORS: Record<string, { bg: string; border: string; text: string; icon: LucideIcon }> = {
@@ -38,7 +42,25 @@ export function DocumentsPreviewDialog({
   selectedEvents,
   sourceDocumentLabel,
   companySettings,
+  onSetExternalInvoice,
+  onClearExternalInvoice,
+  isUpdatingExternalInvoice,
 }: DocumentsPreviewDialogProps) {
+  const handleSetExternalInvoice = () => {
+    if (!selectedDocument) return;
+    const currentValue = selectedDocument.external_invoice_number ?? "";
+    const nextValue = window.prompt("Numero de factura externa", currentValue)?.trim();
+    if (nextValue === undefined || !nextValue) return;
+    onSetExternalInvoice(selectedDocument.id, nextValue);
+  };
+
+  const handleClearExternalInvoice = () => {
+    if (!selectedDocument) return;
+    const confirmed = window.confirm("Quieres quitar la factura externa asociada?");
+    if (!confirmed) return;
+    onClearExternalInvoice(selectedDocument.id);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[92vh] overflow-hidden border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
@@ -114,19 +136,27 @@ export function DocumentsPreviewDialog({
                         <p>PDV:</p>
                         <p className="font-mono text-slate-800">{String(selectedDocument.point_of_sale).padStart(4, "0")}</p>
                         
-                        {selectedDocument.payment_terms ? (
+                      {selectedDocument.payment_terms ? (
+                        <>
+                          <p>Condición:</p>
+                          <p className="font-medium text-slate-800">{selectedDocument.payment_terms}</p>
+                        </>
+                      ) : null}
+                        {selectedDocument.doc_type === "REMITO" && selectedDocument.external_invoice_number ? (
                           <>
-                            <p>Condición:</p>
-                            <p className="font-medium text-slate-800">{selectedDocument.payment_terms}</p>
-                          </>
+                            <p>Factura:</p>
+                            <p className="font-mono font-medium text-slate-800">
+                              {selectedDocument.external_invoice_number}
+                          </p>
+                        </>
                         ) : null}
-                        
+                          
                         {selectedDocument.salesperson ? (
                           <>
                             <p>Vendedor:</p>
-                            <p className="font-medium text-slate-800">{selectedDocument.salesperson}</p>
-                          </>
-                        ) : null}
+                              <p className="font-medium text-slate-800">{selectedDocument.salesperson}</p>
+                            </>
+                          ) : null}
                         
                         {selectedDocument.valid_until ? (
                           <>
@@ -142,6 +172,30 @@ export function DocumentsPreviewDialog({
                           </>
                         ) : null}
                       </div>
+                      {selectedDocument.doc_type === "REMITO" ? (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSetExternalInvoice}
+                            disabled={isUpdatingExternalInvoice}
+                          >
+                            {selectedDocument.external_invoice_number ? "Editar factura externa" : "Registrar factura externa"}
+                          </Button>
+                          {selectedDocument.external_invoice_number ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleClearExternalInvoice}
+                              disabled={isUpdatingExternalInvoice}
+                            >
+                              Quitar factura externa
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 

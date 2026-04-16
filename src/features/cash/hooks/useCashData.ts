@@ -71,10 +71,11 @@ export function useCashData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("documents")
-        .select("id, customer_id, customer_name, point_of_sale, document_number, issue_date, status")
+        .select("id, customer_id, customer_name, point_of_sale, document_number, issue_date, status, external_invoice_number, external_invoice_status")
         .eq("company_id", currentCompanyId!)
         .eq("doc_type", "REMITO")
         .eq("status", "EMITIDO")
+        .eq("external_invoice_status", "ACTIVE")
         .eq("issue_date", businessDate)
         .order("document_number", { ascending: false })
         .limit(200);
@@ -107,7 +108,7 @@ export function useCashData({
       if (!detailDocumentId) return null;
       const { data, error } = await supabase
         .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_name, total, notes")
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_name, total, notes, external_invoice_number, external_invoice_status")
         .eq("id", detailDocumentId)
         .maybeSingle();
 
@@ -215,6 +216,10 @@ export function useCashData({
     () => remitos.filter((remito) => !assignedRemitoIds.has(remito.id)),
     [remitos, assignedRemitoIds],
   );
+  const availableFacturableRemitos = useMemo(
+    () => availableRemitos.filter((remito) => remito.external_invoice_status === "ACTIVE" && Boolean(remito.external_invoice_number)),
+    [availableRemitos],
+  );
   const unclosedSalesAfterClosure = useMemo(
     () => sales.filter((sale) => sale.status !== "ANULADA" && !sale.closure_id),
     [sales],
@@ -268,6 +273,7 @@ export function useCashData({
     unclosedSalesAfterClosure,
     filteredSales,
     selectedClosurePreview,
+    availableFacturableRemitos,
     refreshCash,
   };
 }

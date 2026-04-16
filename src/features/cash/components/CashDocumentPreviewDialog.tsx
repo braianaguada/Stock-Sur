@@ -103,6 +103,9 @@ export function CashDocumentPreviewDialog({
                         <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(linkedDocument.issue_date).toLocaleDateString("es-AR")}</p>
                         <p className="text-sm"><span className="font-semibold">Estado:</span> {DOC_STATUS_LABEL[linkedDocument.status]}</p>
                         <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(linkedDocument.point_of_sale).padStart(4, "0")}</p>
+                        {linkedDocument.external_invoice_number ? (
+                          <p className="text-sm"><span className="font-semibold">Factura externa:</span> {linkedDocument.external_invoice_number}</p>
+                        ) : null}
                       </div>
                     </div>
                   </div>
