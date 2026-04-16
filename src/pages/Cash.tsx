@@ -110,6 +110,7 @@ export default function CashPage() {
     effectiveClosure,
     hasClosedClosureForDay,
     availableRemitos,
+    availableFacturableRemitos,
     unclosedSalesAfterClosure,
     filteredSales,
     selectedClosurePreview,
@@ -141,11 +142,8 @@ export default function CashPage() {
   }, [receiptKind]);
 
   useEffect(() => {
-    if (pendingReceiptKind !== "REMITO") {
+    if (pendingReceiptKind === "REMITO") {
       setPendingRemitoId("__none__");
-    }
-    if (pendingReceiptKind !== "FACTURA") {
-      setPendingReceiptReference("");
     }
   }, [pendingReceiptKind]);
 
@@ -205,7 +203,6 @@ export default function CashPage() {
     () => new Map(availableRemitos.map((remito) => [remito.id, formatRemitoOptionLabel(remito)])),
     [availableRemitos],
   );
-
   const historyPagination = usePaginationSlice({
     items: closuresHistory,
     page: historyPage,
@@ -556,7 +553,7 @@ export default function CashPage() {
             pendingReceiptKind={pendingReceiptKind}
             pendingRemitoId={pendingRemitoId}
             pendingReceiptReference={pendingReceiptReference}
-            availableRemitos={availableRemitos}
+            availableRemitos={pendingReceiptKind === "FACTURA" ? availableFacturableRemitos : availableRemitos}
             saving={attachReceiptMutation.isPending}
             onPendingReceiptKindChange={setPendingReceiptKind}
             onPendingRemitoIdChange={setPendingRemitoId}

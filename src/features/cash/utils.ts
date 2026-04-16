@@ -18,7 +18,10 @@ export function todayDateInputValue() {
 
 export function formatRemitoOptionLabel(remito: RemitoOption) {
   const number = formatDocumentNumber(remito.point_of_sale, remito.document_number);
-  return remito.customer_name ? `${number} - ${remito.customer_name}` : number;
+  const invoice = remito.external_invoice_number && remito.external_invoice_status === "ACTIVE"
+    ? ` / Factura ${remito.external_invoice_number}`
+    : "";
+  return remito.customer_name ? `${number} - ${remito.customer_name}${invoice}` : `${number}${invoice}`;
 }
 
 export function getClosureSituation(sale: CashSaleRow, hasClosedClosureForDay: boolean) {

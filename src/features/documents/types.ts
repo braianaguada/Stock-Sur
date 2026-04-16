@@ -60,6 +60,9 @@ export interface DocRow {
   source_document_id: string | null;
   source_document_type: DocType | null;
   source_document_number_snapshot: string | null;
+  external_invoice_number: string | null;
+  external_invoice_date: string | null;
+  external_invoice_status: "ACTIVE" | "VOIDED" | null;
   notes: string | null;
   subtotal: number;
   tax_total: number;

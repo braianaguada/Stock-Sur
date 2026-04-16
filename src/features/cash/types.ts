@@ -24,6 +24,8 @@ export type RemitoOption = {
   document_number: number | null;
   issue_date: string;
   status: string;
+  external_invoice_number: string | null;
+  external_invoice_status: "ACTIVE" | "VOIDED" | null;
 };
 
 export type CashSaleRow = {
@@ -75,6 +77,8 @@ export type DocumentQuickRow = {
   customer_name: string;
   total: number;
   notes: string | null;
+  external_invoice_number: string | null;
+  external_invoice_status: "ACTIVE" | "VOIDED" | null;
 };
 
 export type DocumentLineQuickRow = {

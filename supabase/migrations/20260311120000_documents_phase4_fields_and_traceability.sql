@@ -114,6 +114,11 @@ begin
   update public.documents
   set status = p_target_status,
       document_number = coalesce(v_next, document_number),
+      external_invoice_number = case when p_target_status = 'ANULADO' then null else external_invoice_number end,
+      external_invoice_date = case when p_target_status = 'ANULADO' then null else external_invoice_date end,
+      external_invoice_status = case when p_target_status = 'ANULADO' then 'VOIDED'::public.external_invoice_status else external_invoice_status end,
+      external_invoice_updated_at = case when p_target_status = 'ANULADO' then now() else external_invoice_updated_at end,
+      external_invoice_updated_by = case when p_target_status = 'ANULADO' then auth.uid() else external_invoice_updated_by end,
       updated_at = now()
   where id = v_doc.id
   returning * into v_updated;

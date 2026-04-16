@@ -83,9 +83,16 @@ export function DocumentsDataTable({
       accessorKey: "status",
       header: () => "Estado",
       cell: ({ row }) => (
-        <Badge variant={STATUS_VARIANT[row.original.status]} className={STATUS_CLASS[row.original.status]}>
-          {STATUS_LABEL[row.original.status]}
-        </Badge>
+        <div className="space-y-1">
+          <Badge variant={STATUS_VARIANT[row.original.status]} className={STATUS_CLASS[row.original.status]}>
+            {STATUS_LABEL[row.original.status]}
+          </Badge>
+          {row.original.doc_type === "REMITO" && row.original.external_invoice_status === "ACTIVE" ? (
+            <p className="truncate font-mono text-[11px] text-muted-foreground">
+              Factura: {row.original.external_invoice_number}
+            </p>
+          ) : null}
+        </div>
       ),
       meta: {
         cellClassName: "py-2.5",

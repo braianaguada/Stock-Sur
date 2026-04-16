@@ -250,6 +250,8 @@ export default function DocumentsPage() {
     issueMutation,
     transitionMutation,
     cloneAsRemitoMutation,
+    setExternalInvoiceMutation,
+    clearExternalInvoiceMutation,
   } = useDocumentsMutations({
     currentCompanyId: currentCompany?.id ?? null,
     userId: user?.id,
@@ -499,6 +501,7 @@ export default function DocumentsPage() {
           ${document.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${escapeHtml(document.salesperson)}</p>` : ""}
           ${document.valid_until ? `<p class="muted"><strong>Valido hasta:</strong> ${new Date(document.valid_until).toLocaleDateString("es-AR")}</p>` : ""}
           ${document.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${escapeHtml(document.delivery_address)}</p>` : ""}
+          ${document.doc_type === "REMITO" && document.external_invoice_number ? `<p class="muted"><strong>Factura externa:</strong> ${escapeHtml(document.external_invoice_number)}</p>` : ""}
           ${document.source_document_type && document.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${escapeHtml(DOC_LABEL[document.source_document_type])} ${escapeHtml(document.source_document_number_snapshot)}</p>` : ""}
           ${document.internal_remito_type ? `<p class="muted"><strong>Imputacion:</strong> ${escapeHtml(INTERNAL_REMITO_LABEL[document.internal_remito_type])}</p>` : ""}
           <p class="muted"><strong>Creado:</strong> ${new Date(document.created_at).toLocaleString("es-AR")}</p>
@@ -674,6 +677,19 @@ export default function DocumentsPage() {
             selectedEvents={selectedEvents}
             sourceDocumentLabel={sourceDocumentLabel}
             companySettings={companySettings}
+            onSetExternalInvoice={(documentId, externalInvoiceNumber) => {
+              setExternalInvoiceMutation.mutate({
+                documentId,
+                externalInvoiceNumber,
+                externalInvoiceDate: null,
+              });
+            }}
+            onClearExternalInvoice={(documentId) => {
+              clearExternalInvoiceMutation.mutate(documentId);
+            }}
+            isUpdatingExternalInvoice={
+              setExternalInvoiceMutation.isPending || clearExternalInvoiceMutation.isPending
+            }
           />
         </Suspense>
       ) : null}
