@@ -391,6 +391,10 @@ export default function CashPage() {
                       <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"}</SelectItem>
                       {filteredReceiptOptions.map((remito) => {
                         const remitoNumber = `${String(remito.point_of_sale).padStart(4, "0")}-${String(remito.document_number ?? 0).padStart(8, "0")}`;
+                        const receiptLabel =
+                          receiptKind === "FACTURA" && remito.external_invoice_number
+                            ? remito.external_invoice_number
+                            : remitoNumber;
                         const amount = Number(remito.total).toLocaleString("es-AR", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
@@ -399,7 +403,7 @@ export default function CashPage() {
                         return (
                           <SelectItem key={remito.id} value={remito.id}>
                             <div className="flex w-full items-center gap-3 py-0.5 leading-tight">
-                              <span className="w-[120px] shrink-0 font-medium">{remitoNumber}</span>
+                              <span className="w-[120px] shrink-0 font-medium">{receiptLabel}</span>
                               <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                                 {customerLabel}
                               </span>
