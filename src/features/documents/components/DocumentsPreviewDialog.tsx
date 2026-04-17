@@ -102,14 +102,21 @@ export function DocumentsPreviewDialog({
                     </div>
                     
                     {/* Floating Document Box */}
-                    <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 px-5 py-4 text-right text-white shadow-xl ring-1 ring-white/10">
+                    <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 px-5 py-4 text-left text-white shadow-xl ring-1 ring-white/10">
                       <p className="text-[9px] uppercase tracking-[0.25em] text-slate-400 font-semibold mb-1">Documento</p>
                       <p className="text-xl font-extrabold tracking-tight">{DOC_LABEL[selectedDocument.doc_type]}</p>
-                      <div className="mt-2 text-sm text-slate-300 font-mono tracking-wider bg-white/10 inline-block px-3 py-1 rounded-md">
+                      <div className="mt-2 inline-block rounded-md bg-white/10 px-3 py-1 text-sm font-mono tracking-wider text-slate-300 whitespace-nowrap">
                         Nro: {formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}
                       </div>
                     </div>
                   </div>
+
+                  {sourceDocumentLabel ? (
+                    <div className="relative z-10 mb-4 rounded-2xl border border-amber-200/70 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm">
+                      <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-amber-700">Origen del documento</p>
+                      <p className="mt-1 text-sm font-medium">{sourceDocumentLabel}</p>
+                    </div>
+                  ) : null}
 
                   {/* Customer and Operation Cards */}
                   <div className="relative z-10 grid gap-4 md:grid-cols-2">
