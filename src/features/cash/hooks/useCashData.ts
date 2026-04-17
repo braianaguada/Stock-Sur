@@ -31,10 +31,6 @@ export function useCashData({
   currentCompanyId,
 }: UseCashDataParams) {
   const qc = useQueryClient();
-  const businessDayStartUtc = `${businessDate}T03:00:00.000Z`;
-  const businessDayEndUtc = new Date(`${businessDate}T03:00:00.000Z`);
-  businessDayEndUtc.setUTCDate(businessDayEndUtc.getUTCDate() + 1);
-
   const customersQuery = useQuery({
     queryKey: queryKeys.cash.customers(currentCompanyId),
     enabled: Boolean(currentCompanyId),
@@ -78,8 +74,7 @@ export function useCashData({
         .eq("company_id", currentCompanyId!)
         .eq("doc_type", "REMITO")
         .eq("status", "EMITIDO")
-        .gte("created_at", businessDayStartUtc)
-        .lt("created_at", businessDayEndUtc.toISOString())
+        .eq("issue_date", businessDate)
         .order("document_number", { ascending: false })
         .limit(200);
 
