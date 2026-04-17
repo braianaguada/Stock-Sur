@@ -18,6 +18,7 @@ type MutationDeps = {
   businessDate: string;
   customers: CustomerOption[];
   remitos: RemitoOption[];
+  usedReceiptReferences: Set<string>;
   closure: CashClosureRow | null;
   closureError: unknown;
   closeNotes: string;
@@ -32,6 +33,7 @@ export function useCashMutations({
   businessDate,
   customers,
   remitos,
+  usedReceiptReferences,
   closure,
   closureError,
   closeNotes,
@@ -63,12 +65,23 @@ export function useCashMutations({
 
       const selectedCustomer = customersById.get(form.customerId);
       const selectedRemito = remitosById.get(form.selectedRemitoId);
+      const selectedReference =
+        form.receiptKind === "REMITO"
+          ? formatDocumentNumber(selectedRemito?.point_of_sale ?? 0, selectedRemito?.document_number ?? null)
+          : selectedRemito?.external_invoice_number ?? form.receiptReference.trim();
 
       if ((form.receiptKind === "REMITO" || form.receiptKind === "FACTURA") && !selectedRemito) {
         throw new Error("El remito seleccionado ya no esta disponible. Recarga la caja e intenta de nuevo");
       }
       if (form.paymentMethod === "CUENTA_CORRIENTE" && form.customerId !== "__none__" && !selectedCustomer) {
         throw new Error("El cliente seleccionado ya no esta disponible. Recarga la caja e intenta de nuevo");
+      }
+      if ((form.receiptKind === "REMITO" || form.receiptKind === "FACTURA") && !selectedReference) {
+        throw new Error("El comprobante seleccionado no tiene referencia valida");
+      }
+
+      if (form.receiptKind === "FACTURA" && selectedReference && usedReceiptReferences.has(selectedReference)) {
+        throw new Error("Ese comprobante ya fue registrado en caja");
       }
 
       const derivedAmount =
@@ -88,12 +101,7 @@ export function useCashMutations({
         customer_id: form.customerId === "__none__" ? selectedRemito?.customer_id ?? null : form.customerId,
         customer_name_snapshot: selectedCustomer?.name ?? selectedRemito?.customer_name ?? "Consumidor final",
         document_id: form.receiptKind === "REMITO" ? selectedRemito?.id ?? null : null,
-        receipt_reference:
-          form.receiptKind === "PENDIENTE"
-            ? null
-            : form.receiptKind === "REMITO"
-              ? formatDocumentNumber(selectedRemito?.point_of_sale ?? 0, selectedRemito?.document_number ?? null)
-              : (selectedRemito?.external_invoice_number ?? form.receiptReference.trim()) || null,
+        receipt_reference: form.receiptKind === "PENDIENTE" ? null : selectedReference || null,
         notes: form.notes.trim() || null,
       };
 

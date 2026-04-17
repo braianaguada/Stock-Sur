@@ -115,6 +115,7 @@ export default function CashPage() {
     unclosedSalesAfterClosure,
     filteredSales,
     selectedClosurePreview,
+    usedReceiptReferences,
     refreshCash,
   } = useCashData({
     businessDate,
@@ -181,6 +182,7 @@ export default function CashPage() {
     businessDate,
     customers,
     remitos,
+    usedReceiptReferences,
     closure,
     closureError,
     closeNotes,
@@ -200,13 +202,25 @@ export default function CashPage() {
       ),
     [customers],
   );
-
+  const formatCashOptionCustomer = (remito: (typeof availableRemitos)[number]) =>
+    remito.customer_name?.trim() ? remito.customer_name.trim() : "Cliente ocasional";
   const remitoOptionLabels = useMemo(
     () => new Map(availableRemitos.map((remito) => [remito.id, formatRemitoOptionLabel(remito)])),
     [availableRemitos],
   );
-  const formatCashOptionCustomer = (remito: (typeof availableRemitos)[number]) =>
-    remito.customer_name?.trim() ? remito.customer_name.trim() : "Cliente ocasional";
+  const selectedReceiptOption = selectedReceiptRemito
+    ? {
+        receiptLabel:
+          receiptKind === "FACTURA" && selectedReceiptRemito.external_invoice_number
+            ? selectedReceiptRemito.external_invoice_number
+            : `${String(selectedReceiptRemito.point_of_sale).padStart(4, "0")}-${String(selectedReceiptRemito.document_number ?? 0).padStart(8, "0")}`,
+        customerLabel: formatCashOptionCustomer(selectedReceiptRemito),
+        amount: Number(selectedReceiptRemito.total).toLocaleString("es-AR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      }
+    : null;
   const receiptOptions = receiptKind === "REMITO" ? availableRemitos : availableFacturableRemitos;
   const filteredReceiptOptions = useMemo(() => {
     const query = normalizeReceiptSearch(receiptSearch);
@@ -376,8 +390,22 @@ export default function CashPage() {
                 <div className="space-y-2">
                   <Label>{receiptKind === "REMITO" ? "Remito" : "Factura"}</Label>
                   <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"} />
+                    <SelectTrigger className="justify-start">
+                      {selectedReceiptOption ? (
+                        <div className="grid w-full grid-cols-[112px_minmax(0,1fr)_96px] items-center gap-3 text-left">
+                          <span className="truncate font-medium text-left">
+                            {selectedReceiptOption.receiptLabel}
+                          </span>
+                          <span className="truncate text-left text-xs text-muted-foreground">
+                            {selectedReceiptOption.customerLabel}
+                          </span>
+                          <span className="truncate text-right text-xs text-muted-foreground tabular-nums">
+                            ${selectedReceiptOption.amount}
+                          </span>
+                        </div>
+                      ) : (
+                        <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"} />
+                      )}
                     </SelectTrigger>
                     <SelectContent className="max-h-[22rem] overflow-hidden p-0">
                       <div className="border-b border-border/60 p-2">
@@ -402,9 +430,9 @@ export default function CashPage() {
                         const customerLabel = formatCashOptionCustomer(remito);
                         return (
                           <SelectItem key={remito.id} value={remito.id}>
-                            <div className="grid w-full grid-cols-[116px_minmax(0,1fr)_96px] items-center gap-3 py-0.5 leading-tight">
-                              <span className="truncate font-medium">{receiptLabel}</span>
-                              <span className="truncate text-xs text-muted-foreground">
+                            <div className="grid w-full grid-cols-[112px_minmax(0,1fr)_96px] items-center gap-3 py-0.5 leading-tight text-left">
+                              <span className="truncate font-medium text-left">{receiptLabel}</span>
+                              <span className="truncate text-left text-xs text-muted-foreground">
                                 {customerLabel}
                               </span>
                               <span className="truncate text-right text-xs text-muted-foreground tabular-nums">

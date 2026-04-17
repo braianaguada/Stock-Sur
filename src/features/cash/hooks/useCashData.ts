@@ -215,6 +215,14 @@ export function useCashData({
     ),
     [sales],
   );
+  const usedReceiptReferences = useMemo(
+    () => new Set(
+      sales
+        .filter((sale) => sale.status !== "ANULADA" && sale.receipt_reference)
+        .map((sale) => sale.receipt_reference as string),
+    ),
+    [sales],
+  );
   const availableRemitos = useMemo(
     () =>
       remitos.filter(
@@ -231,9 +239,10 @@ export function useCashData({
         (remito) =>
           !assignedRemitoIds.has(remito.id) &&
           remito.external_invoice_status === "ACTIVE" &&
-          Boolean(remito.external_invoice_number),
+          Boolean(remito.external_invoice_number) &&
+          !usedReceiptReferences.has(remito.external_invoice_number as string),
       ),
-    [remitos, assignedRemitoIds],
+    [remitos, assignedRemitoIds, usedReceiptReferences],
   );
   const unclosedSalesAfterClosure = useMemo(
     () => sales.filter((sale) => sale.status !== "ANULADA" && !sale.closure_id),
@@ -289,6 +298,7 @@ export function useCashData({
     filteredSales,
     selectedClosurePreview,
     availableFacturableRemitos,
+    usedReceiptReferences,
     refreshCash,
   };
 }
