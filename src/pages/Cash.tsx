@@ -355,13 +355,13 @@ export default function CashPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>{receiptKind === "REMITO" ? "Remito sin factura" : "Remito con factura"}</Label>
+                  <Label>{receiptKind === "REMITO" ? "Remito sin factura" : "Factura externa asociada"}</Label>
                   <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
                     <SelectTrigger>
-                      <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito sin factura" : "Seleccionar remito con factura"} />
+                      <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito sin factura" : "Seleccionar factura externa asociada"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito sin factura" : "Seleccionar remito con factura"}</SelectItem>
+                      <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito sin factura" : "Seleccionar factura externa asociada"}</SelectItem>
                       {(receiptKind === "REMITO" ? availableRemitos : availableFacturableRemitos).map((remito) => (
                         <SelectItem key={remito.id} value={remito.id}>
                           {remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito)}

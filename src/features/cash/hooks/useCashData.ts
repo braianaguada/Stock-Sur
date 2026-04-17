@@ -75,7 +75,6 @@ export function useCashData({
         .eq("company_id", currentCompanyId!)
         .eq("doc_type", "REMITO")
         .eq("status", "EMITIDO")
-        .eq("issue_date", businessDate)
         .order("document_number", { ascending: false })
         .limit(200);
 
