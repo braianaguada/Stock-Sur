@@ -69,7 +69,6 @@ export default function CashPage() {
   const [businessDate, setBusinessDate] = useState(todayDateInputValue());
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO_REMITO");
   const [receiptKind, setReceiptKind] = useState<ReceiptKind>("REMITO");
-  const [customerId, setCustomerId] = useState<string>("__none__");
   const [selectedRemitoId, setSelectedRemitoId] = useState<string>("__none__");
   const [receiptReference, setReceiptReference] = useState("");
   const [notes, setNotes] = useState("");
@@ -138,14 +137,9 @@ export default function CashPage() {
   }, [businessDate]);
 
   useEffect(() => {
-    if (!selectedReceiptRemito) {
-      setCustomerId("__none__");
-      setReceiptReference("");
-      return;
-    }
-    setCustomerId(selectedReceiptRemito.customer_id ?? "__none__");
+    setSelectedRemitoId("__none__");
     setReceiptReference("");
-  }, [selectedReceiptRemito]);
+  }, [receiptKind]);
 
   useEffect(() => {
     if (pendingReceiptKind === "REMITO") {
@@ -160,7 +154,6 @@ export default function CashPage() {
   const resetSaleForm = () => {
     setPaymentMethod("EFECTIVO_REMITO");
     setReceiptKind("REMITO");
-    setCustomerId("__none__");
     setSelectedRemitoId("__none__");
     setReceiptReference("");
     setNotes("");
@@ -338,7 +331,7 @@ export default function CashPage() {
                     amount: derivedAmount,
                     paymentMethod,
                     receiptKind,
-                    customerId,
+                    customerId: selectedReceiptRemito?.customer_id ?? "__none__",
                     selectedRemitoId,
                     receiptReference,
                     notes,
@@ -346,67 +339,17 @@ export default function CashPage() {
                 }}
               >
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Importe del comprobante</Label>
-                  <Input
-                    id="amount"
-                    value={derivedAmount}
-                    placeholder="Seleccionar remito o factura"
-                    readOnly
-                    disabled
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
-                  <div className="space-y-2">
-                    <Label>Medio de pago</Label>
-                    <Select
-                      value={paymentMethod}
-                      onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="EFECTIVO_REMITO">Efectivo remito</SelectItem>
-                        <SelectItem value="EFECTIVO_FACTURABLE">Efectivo facturable</SelectItem>
-                        <SelectItem value="SERVICIOS_REMITO">Servicios / remito</SelectItem>
-                        <SelectItem value="POINT">Point</SelectItem>
-                        <SelectItem value="TRANSFERENCIA">Transferencia</SelectItem>
-                        <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Comprobante</Label>
-                    <Select
-                      value={receiptKind}
-                      onValueChange={(value) => setReceiptKind(value as ReceiptKind)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="REMITO">Remito</SelectItem>
-                        <SelectItem value="FACTURA">Factura</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Cliente</Label>
-                  <Select value={customerId} onValueChange={setCustomerId}>
+                  <Label>Comprobante</Label>
+                  <Select
+                    value={receiptKind}
+                    onValueChange={(value) => setReceiptKind(value as ReceiptKind)}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Consumidor final" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Consumidor final</SelectItem>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customerOptionLabels.get(customer.id) ?? customer.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="REMITO">Remito</SelectItem>
+                      <SelectItem value="FACTURA">Factura</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -429,6 +372,26 @@ export default function CashPage() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label>Medio de pago</Label>
+                  <Select
+                    value={paymentMethod}
+                    onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EFECTIVO_REMITO">Efectivo remito</SelectItem>
+                      <SelectItem value="EFECTIVO_FACTURABLE">Efectivo facturable</SelectItem>
+                      <SelectItem value="SERVICIOS_REMITO">Servicios / remito</SelectItem>
+                      <SelectItem value="POINT">Point</SelectItem>
+                      <SelectItem value="TRANSFERENCIA">Transferencia</SelectItem>
+                      <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="notes">Observaciones</Label>
                   <Textarea
                     id="notes"
@@ -437,6 +400,15 @@ export default function CashPage() {
                     onChange={(event) => setNotes(event.target.value)}
                     rows={4}
                   />
+                </div>
+
+                <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-primary/5 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                    Total
+                  </div>
+                  <div className="mt-1 text-3xl font-semibold tracking-tight">
+                    ${derivedAmount || "0,00"}
+                  </div>
                 </div>
 
                 {paymentMethod === "SERVICIOS_REMITO" ? (
