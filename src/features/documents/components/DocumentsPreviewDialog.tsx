@@ -184,16 +184,17 @@ export function DocumentsPreviewDialog({
                           >
                             {selectedDocument.external_invoice_number ? "Editar factura externa" : "Registrar factura externa"}
                           </Button>
-                          {selectedDocument.external_invoice_number ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={handleClearExternalInvoice}
-                              disabled={isUpdatingExternalInvoice}
-                            >
-                              Quitar factura externa
-                            </Button>
+                            {selectedDocument.external_invoice_number ? (
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                className="shadow-sm"
+                                onClick={handleClearExternalInvoice}
+                                disabled={isUpdatingExternalInvoice}
+                              >
+                                Quitar factura externa
+                              </Button>
                           ) : null}
                         </div>
                       ) : null}
