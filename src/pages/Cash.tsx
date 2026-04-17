@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,9 @@ import type {
 } from "@/features/cash/types";
 import {
   buildCashClosurePrintHtml,
+  buildReceiptSearchText,
   formatRemitoOptionLabel,
+  normalizeReceiptSearch,
   todayDateInputValue,
 } from "@/features/cash/utils";
 import { PageHeader } from "@/components/ui/page";
@@ -205,11 +207,11 @@ export default function CashPage() {
   );
   const receiptOptions = receiptKind === "REMITO" ? availableRemitos : availableFacturableRemitos;
   const filteredReceiptOptions = useMemo(() => {
-    const query = receiptSearch.trim().toLowerCase();
+    const query = normalizeReceiptSearch(receiptSearch);
     if (!query) return receiptOptions;
     return receiptOptions.filter((remito) => {
       const label = remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito);
-      return label.toLowerCase().includes(query);
+      return buildReceiptSearchText(remito).includes(query) || normalizeReceiptSearch(label).includes(query);
     });
   }, [receiptOptions, remitoOptionLabels, receiptSearch]);
   const historyPagination = usePaginationSlice({
@@ -356,6 +358,7 @@ export default function CashPage() {
                     onValueChange={(value) => {
                       setReceiptKind(value as ReceiptKind);
                       setReceiptSearch("");
+                      setSelectedRemitoId("__none__");
                     }}
                   >
                     <SelectTrigger>
@@ -370,16 +373,19 @@ export default function CashPage() {
 
                 <div className="space-y-2">
                   <Label>{receiptKind === "REMITO" ? "Remito" : "Factura"}</Label>
-                  <Input
-                    value={receiptSearch}
-                    onChange={(event) => setReceiptSearch(event.target.value)}
-                    placeholder="Buscar por remito, factura, cliente o monto"
-                  />
                   <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
                     <SelectTrigger>
                       <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"} />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="p-0">
+                      <div className="border-b border-border/60 p-2">
+                        <Input
+                          value={receiptSearch}
+                          onChange={(event) => setReceiptSearch(event.target.value)}
+                          placeholder="Buscar por remito, factura, cliente o monto"
+                          autoComplete="off"
+                        />
+                      </div>
                       <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"}</SelectItem>
                       {filteredReceiptOptions.map((remito) => {
                         const remitoNumber = `${String(remito.point_of_sale).padStart(4, "0")}-${String(remito.document_number ?? 0).padStart(8, "0")}`;
@@ -595,3 +601,5 @@ export default function CashPage() {
     </AppLayout>
   );
 }
+
+

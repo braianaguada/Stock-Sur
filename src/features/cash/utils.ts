@@ -25,6 +25,26 @@ export function formatRemitoOptionLabel(remito: RemitoOption) {
   return remito.customer_name ? `${number} - ${remito.customer_name}${amount}${invoice}` : `${number}${amount}${invoice}`;
 }
 
+export function normalizeReceiptSearch(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+export function buildReceiptSearchText(remito: RemitoOption) {
+  const paddedNumber = formatDocumentNumber(remito.point_of_sale, remito.document_number);
+  const compactNumber = `${Number(remito.point_of_sale)}-${Number(remito.document_number ?? 0)}`;
+  const invoiceNumber = remito.external_invoice_number ?? "";
+  const amount = Number.isFinite(Number(remito.total)) ? Number(remito.total).toFixed(2) : "";
+  return normalizeReceiptSearch(
+    [
+      paddedNumber,
+      compactNumber,
+      remito.customer_name,
+      invoiceNumber,
+      amount,
+    ].filter(Boolean).join(" "),
+  );
+}
+
 export function getClosureSituation(sale: CashSaleRow, hasClosedClosureForDay: boolean) {
   if (sale.status === "ANULADA") {
     return {

@@ -216,12 +216,24 @@ export function useCashData({
     [sales],
   );
   const availableRemitos = useMemo(
-    () => remitos.filter((remito) => !assignedRemitoIds.has(remito.id)),
+    () =>
+      remitos.filter(
+        (remito) =>
+          !assignedRemitoIds.has(remito.id) &&
+          !remito.external_invoice_number &&
+          remito.external_invoice_status !== "ACTIVE",
+      ),
     [remitos, assignedRemitoIds],
   );
   const availableFacturableRemitos = useMemo(
-    () => availableRemitos.filter((remito) => remito.external_invoice_status === "ACTIVE" && Boolean(remito.external_invoice_number)),
-    [availableRemitos],
+    () =>
+      remitos.filter(
+        (remito) =>
+          !assignedRemitoIds.has(remito.id) &&
+          remito.external_invoice_status === "ACTIVE" &&
+          Boolean(remito.external_invoice_number),
+      ),
+    [remitos, assignedRemitoIds],
   );
   const unclosedSalesAfterClosure = useMemo(
     () => sales.filter((sale) => sale.status !== "ANULADA" && !sale.closure_id),
