@@ -68,11 +68,11 @@ function DocumentsDialogLoader() {
   );
 }
 
-function buildEmptyDocumentForm(defaultPointOfSale: number): DocumentFormState {
+function buildEmptyDocumentForm(defaultPointOfSale: number, defaultCustomerId = ""): DocumentFormState {
   return {
     doc_type: "PRESUPUESTO",
     point_of_sale: defaultPointOfSale,
-    customer_id: "",
+    customer_id: defaultCustomerId,
     customer_name: "",
     customer_tax_condition: "",
     customer_tax_id: "",
@@ -142,6 +142,10 @@ export default function DocumentsPage() {
     page: documentsPage,
     pageSize: documentsPageSize,
   });
+  const defaultCustomerId = useMemo(
+    () => customers.find((customer) => customer.name.trim().toLowerCase() === "cliente ocasional")?.id ?? "",
+    [customers],
+  );
 
   useEffect(() => {
     setDocumentsPage(1);
@@ -151,6 +155,11 @@ export default function DocumentsPage() {
     if (form.price_list_id || priceLists.length === 0) return;
     setForm((previousForm) => ({ ...previousForm, price_list_id: priceLists[0].id }));
   }, [form.price_list_id, priceLists]);
+
+  useEffect(() => {
+    if (editingDocId || form.customer_id || !defaultCustomerId) return;
+    setForm((previousForm) => ({ ...previousForm, customer_id: defaultCustomerId }));
+  }, [defaultCustomerId, editingDocId, form.customer_id]);
 
   const syncLineWithPriceList = useCallback(
     (
@@ -219,7 +228,7 @@ export default function DocumentsPage() {
 
   const resetDraftForm = () => {
     setEditingDocId(null);
-    setForm(buildEmptyDocumentForm(defaultPointOfSale));
+    setForm(buildEmptyDocumentForm(defaultPointOfSale, defaultCustomerId));
     setLines([]);
   };
 
