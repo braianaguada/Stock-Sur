@@ -391,7 +391,6 @@ export default function CashPage() {
                       <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"}</SelectItem>
                       {filteredReceiptOptions.map((remito) => {
                         const remitoNumber = `${String(remito.point_of_sale).padStart(4, "0")}-${String(remito.document_number ?? 0).padStart(8, "0")}`;
-                        const invoiceNumber = remito.external_invoice_number ? `Factura ${remito.external_invoice_number}` : "Sin factura";
                         const amount = Number(remito.total).toLocaleString("es-AR", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
@@ -399,19 +398,13 @@ export default function CashPage() {
                         const customerLabel = formatCashOptionCustomer(remito);
                         return (
                           <SelectItem key={remito.id} value={remito.id}>
-                            <div className="flex w-full flex-col gap-0.5 leading-tight py-0.5">
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="font-medium">{remitoNumber}</span>
-                                <span className="shrink-0 text-xs text-muted-foreground">
-                                  ${amount}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                                <span className="truncate">{customerLabel}</span>
-                                <span className="shrink-0 truncate">{invoiceNumber}</span>
-                              </div>
-                              <span className="sr-only">
-                                {customerLabel} {invoiceNumber} ${amount}
+                            <div className="flex w-full items-center gap-3 py-0.5 leading-tight">
+                              <span className="w-[120px] shrink-0 font-medium">{remitoNumber}</span>
+                              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                                {customerLabel}
+                              </span>
+                              <span className="shrink-0 text-xs text-muted-foreground">
+                                ${amount}
                               </span>
                             </div>
                           </SelectItem>
