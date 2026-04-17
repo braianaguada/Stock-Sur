@@ -402,12 +402,12 @@ export default function CashPage() {
                         const customerLabel = formatCashOptionCustomer(remito);
                         return (
                           <SelectItem key={remito.id} value={remito.id}>
-                            <div className="flex w-full items-center gap-3 py-0.5 leading-tight">
-                              <span className="w-[120px] shrink-0 font-medium">{receiptLabel}</span>
-                              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                            <div className="grid w-full grid-cols-[116px_minmax(0,1fr)_96px] items-center gap-3 py-0.5 leading-tight">
+                              <span className="truncate font-medium">{receiptLabel}</span>
+                              <span className="truncate text-xs text-muted-foreground">
                                 {customerLabel}
                               </span>
-                              <span className="shrink-0 text-xs text-muted-foreground">
+                              <span className="truncate text-right text-xs text-muted-foreground tabular-nums">
                                 ${amount}
                               </span>
                             </div>
