@@ -88,6 +88,8 @@ export default function CashPage() {
   const [isCloseNotesDirty, setIsCloseNotesDirty] = useState(false);
   const [situationFilter, setSituationFilter] = useState<SituationFilter>("TODAS");
   const [tab, setTab] = useState("day");
+  const [salesPage, setSalesPage] = useState(1);
+  const [salesPageSize, setSalesPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const saleFormRef = useRef<HTMLDivElement | null>(null);
@@ -155,6 +157,10 @@ export default function CashPage() {
   useEffect(() => {
     setHistoryPage(1);
   }, [closuresHistory.length, historyPageSize]);
+
+  useEffect(() => {
+    setSalesPage(1);
+  }, [businessDate, situationFilter, filteredSales.length, salesPageSize]);
 
   const resetSaleForm = () => {
     setPaymentMethod("EFECTIVO_REMITO");
@@ -242,6 +248,11 @@ export default function CashPage() {
     items: closuresHistory,
     page: historyPage,
     pageSize: historyPageSize,
+  });
+  const salesPagination = usePaginationSlice({
+    items: filteredSales,
+    page: salesPage,
+    pageSize: salesPageSize,
   });
 
   const canCreateSale = canCreateCashSale(roles);
@@ -521,7 +532,7 @@ export default function CashPage() {
           <Tabs value={tab} onValueChange={setTab} className="space-y-4">
             <TabsContent value="day">
               <CashSalesTab
-                filteredSales={filteredSales}
+                filteredSales={salesPagination.pagedItems}
                 salesLoading={salesLoading}
                 situationFilter={situationFilter}
                 onSituationFilterChange={setSituationFilter}
@@ -533,6 +544,13 @@ export default function CashPage() {
                 }}
                 canCancelSale={canCancelSale}
                 cancelPending={cancelSaleMutation.isPending}
+                page={salesPagination.page}
+                totalPages={salesPagination.totalPages}
+                totalItems={filteredSales.length}
+                onPageChange={setSalesPage}
+                pageSize={salesPageSize}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                onPageSizeChange={(value) => setSalesPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
               />
             </TabsContent>
 

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, NotebookText } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +22,13 @@ type CashSalesTabProps = {
   onCancelSale: (saleId: string) => void;
   canCancelSale: (sale: CashSaleRow) => boolean;
   cancelPending: boolean;
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+  pageSize: number;
+  pageSizeOptions: readonly number[];
+  onPageSizeChange: (pageSize: number) => void;
 };
 
 export function CashSalesTab({
@@ -33,6 +41,13 @@ export function CashSalesTab({
   onCancelSale,
   canCancelSale,
   cancelPending,
+  page,
+  totalPages,
+  totalItems,
+  onPageChange,
+  pageSize,
+  pageSizeOptions,
+  onPageSizeChange,
 }: CashSalesTabProps) {
   const columns = useMemo<ColumnDef<CashSaleRow, unknown>[]>(() => [
     {
@@ -124,7 +139,7 @@ export function CashSalesTab({
           <CardDescription>Vista rápida para controlar lo cargado y detectar pendientes antes del cierre.</CardDescription>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="w-fit">{filteredSales.length} registros</Badge>
+          <Badge variant="outline" className="w-fit">{totalItems} registros</Badge>
           <Select value={situationFilter} onValueChange={(value) => onSituationFilterChange(value as SituationFilter)}>
             <SelectTrigger className="w-[190px]">
               <SelectValue />
@@ -151,6 +166,22 @@ export function CashSalesTab({
             rowClassName="h-11"
           />
         </div>
+        {filteredSales.length > 0 ? (
+          <div className="mt-4">
+            <DataTablePagination
+              page={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              rangeStart={totalItems === 0 ? 0 : (page - 1) * pageSize + 1}
+              rangeEnd={totalItems === 0 ? 0 : Math.min(page * pageSize, totalItems)}
+              pageSize={pageSize}
+              pageSizeOptions={pageSizeOptions}
+              onPageChange={onPageChange}
+              onPageSizeChange={onPageSizeChange}
+              itemLabel="ventas"
+            />
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

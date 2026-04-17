@@ -305,10 +305,11 @@ export function useCashData({
 
   const refreshCash = async () => {
     await Promise.all([
-      qc.invalidateQueries({ queryKey: queryKeys.cash.sales(currentCompanyId, businessDate) }),
-      qc.invalidateQueries({ queryKey: queryKeys.cash.closure(currentCompanyId, businessDate) }),
-      qc.invalidateQueries({ queryKey: queryKeys.cash.remitos(currentCompanyId, businessDate) }),
-      qc.invalidateQueries({ queryKey: queryKeys.cash.closuresHistory(currentCompanyId) }),
+      qc.refetchQueries({ queryKey: queryKeys.cash.sales(currentCompanyId, businessDate) }),
+      qc.refetchQueries({ queryKey: queryKeys.cash.sales(currentCompanyId, "all-references") }),
+      qc.refetchQueries({ queryKey: queryKeys.cash.closure(currentCompanyId, businessDate) }),
+      qc.refetchQueries({ queryKey: queryKeys.cash.remitos(currentCompanyId, businessDate) }),
+      qc.refetchQueries({ queryKey: queryKeys.cash.closuresHistory(currentCompanyId) }),
     ]);
   };
 
