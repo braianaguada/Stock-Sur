@@ -93,6 +93,7 @@ export default function CashPage() {
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const saleFormRef = useRef<HTMLDivElement | null>(null);
+  const autoCloseTriggeredRef = useRef<string | null>(null);
 
   const {
     customers,
@@ -199,6 +200,33 @@ export default function CashPage() {
     onCreateSaleSuccess: resetSaleForm,
     onAttachReceiptSuccess: resetPendingReceiptForm,
   });
+
+  useEffect(() => {
+    if (!currentCompany) return;
+    if (!closure || closure.status !== "ABIERTO") return;
+    if (!companySettings.auto_close_cash_enabled || !companySettings.auto_close_cash_time) return;
+
+    const todayBusinessDate = todayDateInputValue();
+    if (businessDate !== todayBusinessDate) return;
+
+    const now = new Date();
+    const local = new Date(now.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
+    const currentMinutes = local.getHours() * 60 + local.getMinutes();
+    const [hour, minute] = companySettings.auto_close_cash_time.split(":").map(Number);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return;
+
+    const limitMinutes = hour * 60 + minute;
+    const closureKey = `${businessDate}:${closure.id}:${companySettings.auto_close_cash_time}`;
+    if (currentMinutes < limitMinutes || autoCloseTriggeredRef.current === closureKey) return;
+
+    autoCloseTriggeredRef.current = closureKey;
+    closeClosureMutation.mutate({
+      countedCashTotal: Number(closure.expected_cash_to_render ?? 0),
+      countedPointTotal: Number(closure.expected_point_sales_total ?? 0),
+      countedTransferTotal: Number(closure.expected_transfer_sales_total ?? 0),
+      notes: "Cierre automatico por hora maxima configurada",
+    });
+  }, [businessDate, closure, closeClosureMutation, companySettings.auto_close_cash_enabled, companySettings.auto_close_cash_time, currentCompany]);
 
   const customerOptionLabels = useMemo(
     () =>

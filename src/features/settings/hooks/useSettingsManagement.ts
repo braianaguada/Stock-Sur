@@ -46,6 +46,8 @@ export function useSettingsManagement({
     document_footer: "",
     default_point_of_sale: "1",
     allow_issue_remitos_without_stock: false,
+    auto_close_cash_enabled: false,
+    auto_close_cash_time: "",
   });
 
   useEffect(() => {
@@ -67,6 +69,8 @@ export function useSettingsManagement({
       document_footer: settings.document_footer ?? "",
       default_point_of_sale: String(settings.default_point_of_sale ?? 1),
       allow_issue_remitos_without_stock: settings.allow_issue_remitos_without_stock ?? false,
+      auto_close_cash_enabled: settings.auto_close_cash_enabled ?? false,
+      auto_close_cash_time: settings.auto_close_cash_time ?? "",
     });
     setLogoPreview(settings.logo_url ?? "");
   }, [settings]);
@@ -112,6 +116,8 @@ export function useSettingsManagement({
         document_footer: form.document_footer.trim() || null,
         default_point_of_sale: Math.max(1, Number(form.default_point_of_sale) || 1),
         allow_issue_remitos_without_stock: form.allow_issue_remitos_without_stock,
+        auto_close_cash_enabled: form.auto_close_cash_enabled,
+        auto_close_cash_time: form.auto_close_cash_enabled ? (form.auto_close_cash_time || null) : null,
       };
 
       const { error } = await supabase

@@ -198,17 +198,22 @@ export function useCashMutations({
   });
 
   const closeClosureMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (payload?: {
+      countedCashTotal?: number | null;
+      countedPointTotal?: number | null;
+      countedTransferTotal?: number | null;
+      notes?: string | null;
+    }) => {
       if (!currentCompanyId) throw new Error("Selecciona una empresa para operar caja");
       if (closureError instanceof Error) throw closureError;
       if (!closure) throw new Error("No se encontro el cierre del dia");
 
       const { error } = await supabase.rpc("close_cash_closure", {
         p_closure_id: closure.id,
-        p_counted_cash_total: null,
-        p_counted_point_total: null,
-        p_counted_transfer_total: null,
-        p_notes: closeNotes.trim() || null,
+        p_counted_cash_total: payload?.countedCashTotal ?? null,
+        p_counted_point_total: payload?.countedPointTotal ?? null,
+        p_counted_transfer_total: payload?.countedTransferTotal ?? null,
+        p_notes: payload?.notes ?? (closeNotes.trim() || null),
       });
 
       if (error) throw error;

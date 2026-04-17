@@ -143,6 +143,42 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+                <div className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4 md:col-span-2">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="auto_close_cash_enabled"
+                      checked={form.auto_close_cash_enabled}
+                      onCheckedChange={(checked) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          auto_close_cash_enabled: checked === true,
+                        }))
+                      }
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="auto_close_cash_enabled" className="cursor-pointer">
+                        Cerrar caja automáticamente
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Si sigue abierta al llegar la hora configurada, el sistema la cerrara sola.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid gap-2 md:max-w-xs">
+                    <Label>Hora máxima de cierre</Label>
+                    <Input
+                      type="time"
+                      value={form.auto_close_cash_time}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          auto_close_cash_time: e.target.value,
+                        }))
+                      }
+                      disabled={!form.auto_close_cash_enabled}
+                    />
+                  </div>
+                </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Direccion</Label>
                   <Input value={form.address} onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))} />

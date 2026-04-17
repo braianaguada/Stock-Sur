@@ -18,6 +18,8 @@ export interface CompanySettings {
   document_footer: string | null;
   default_point_of_sale: number;
   allow_issue_remitos_without_stock: boolean;
+  auto_close_cash_enabled: boolean;
+  auto_close_cash_time: string | null;
 }
 
 export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
@@ -38,6 +40,8 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   document_footer: "Este documento no reemplaza comprobantes fiscales",
   default_point_of_sale: 1,
   allow_issue_remitos_without_stock: false,
+  auto_close_cash_enabled: false,
+  auto_close_cash_time: null,
 };
 
 export interface CompanyBrandContextValue {
