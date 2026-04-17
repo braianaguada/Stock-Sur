@@ -50,6 +50,13 @@ export function useCashMutations({
     () => new Map(remitos.map((remito) => [remito.id, remito])),
     [remitos],
   );
+  const getDocumentBusinessDate = (remito?: RemitoOption | null) =>
+    remito?.issue_date
+      ?? (remito?.created_at
+        ? new Date(remito.created_at).toLocaleDateString("en-CA", {
+            timeZone: "America/Argentina/Buenos_Aires",
+          })
+        : businessDate);
 
   const createSaleMutation = useMutation({
     mutationFn: async (form: CashSaleFormState) => {
@@ -94,7 +101,10 @@ export function useCashMutations({
 
       const payload = {
         company_id: currentCompanyId,
-        business_date: businessDate,
+        business_date:
+          form.receiptKind === "REMITO" || form.receiptKind === "FACTURA"
+            ? getDocumentBusinessDate(selectedRemito)
+            : businessDate,
         amount_total: derivedAmount,
         payment_method: form.paymentMethod as PaymentMethod,
         receipt_kind: form.receiptKind as ReceiptKind,
