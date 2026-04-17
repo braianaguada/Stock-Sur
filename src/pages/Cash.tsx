@@ -377,7 +377,7 @@ export default function CashPage() {
                     <SelectTrigger>
                       <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"} />
                     </SelectTrigger>
-                    <SelectContent className="p-0">
+                    <SelectContent className="max-h-96 p-0">
                       <div className="border-b border-border/60 p-2">
                         <Input
                           value={receiptSearch}
@@ -393,10 +393,13 @@ export default function CashPage() {
                         const amount = Number(remito.total).toFixed(2);
                         return (
                           <SelectItem key={remito.id} value={remito.id}>
-                            <div className="flex w-full flex-col leading-tight">
+                            <div className="flex w-full flex-col gap-0.5 leading-tight">
                               <span className="font-medium">{remitoNumber}</span>
                               <span className="text-xs text-muted-foreground">
-                                {remito.customer_name} · {invoiceNumber} · ${amount}
+                                Cliente: {remito.customer_name}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {invoiceNumber} · ${amount}
                               </span>
                             </div>
                           </SelectItem>
