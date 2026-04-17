@@ -15,6 +15,14 @@ import type {
 } from "../types";
 import { buildCashSummary, getClosureSituation } from "../utils";
 
+const LOCAL_DAY_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+function toLocalBusinessDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() - LOCAL_DAY_OFFSET_MS).toISOString().slice(0, 10);
+}
+
 type UseCashDataParams = {
   businessDate: string;
   detailDocumentId: string | null;
@@ -68,22 +76,20 @@ export function useCashData({
     queryKey: queryKeys.cash.remitos(currentCompanyId, businessDate),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
-      const dayStartUtc = `${businessDate}T03:00:00.000Z`;
-      const dayEndUtc = new Date(dayStartUtc);
-      dayEndUtc.setUTCDate(dayEndUtc.getUTCDate() + 1);
-
       const { data, error } = await supabase
         .from("documents")
-        .select("id, customer_id, customer_name, point_of_sale, document_number, issue_date, status, total, external_invoice_number, external_invoice_status")
+        .select("id, customer_id, customer_name, point_of_sale, document_number, issue_date, created_at, status, total, external_invoice_number, external_invoice_status")
         .eq("company_id", currentCompanyId!)
         .eq("doc_type", "REMITO")
         .eq("status", "EMITIDO")
-        .or(`issue_date.eq.${businessDate},and(created_at.gte.${dayStartUtc},created_at.lt.${dayEndUtc.toISOString()})`)
         .order("document_number", { ascending: false })
-        .limit(200);
+        .limit(500);
 
       if (error) throw error;
-      return (data ?? []) as RemitoOption[];
+      return ((data ?? []) as RemitoOption[]).filter((remito) => {
+        if (remito.issue_date === businessDate) return true;
+        return toLocalBusinessDate(remito.created_at) === businessDate;
+      });
     },
   });
 

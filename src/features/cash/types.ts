@@ -23,6 +23,7 @@ export type RemitoOption = {
   point_of_sale: number;
   document_number: number | null;
   issue_date: string;
+  created_at: string;
   status: string;
   total: number;
   external_invoice_number: string | null;
