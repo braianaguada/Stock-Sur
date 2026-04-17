@@ -121,8 +121,8 @@ export default function CashPage() {
     refreshCash,
   } = useCashData({
     businessDate,
-    detailDocumentId: detailSale?.document_id ?? null,
-    detailReceiptReference: detailSale?.receipt_reference ?? null,
+    detailDocumentId: detailSale?.status === "ANULADA" ? null : detailSale?.document_id ?? null,
+    detailReceiptReference: detailSale?.status === "ANULADA" ? null : detailSale?.receipt_reference ?? null,
     selectedClosureId,
     situationFilter,
     currentCompanyId: currentCompany?.id ?? null,
