@@ -411,14 +411,14 @@ export default function CashPage() {
                   <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
                     <SelectTrigger className="justify-start">
                       {selectedReceiptOption ? (
-                        <div className="grid w-full grid-cols-[112px_minmax(0,1fr)_96px] items-center gap-3 text-left">
-                          <span className="truncate font-medium text-left">
+                        <div className="grid w-full grid-cols-[104px_minmax(0,1fr)_84px] items-center gap-2 text-left">
+                          <span className="min-w-0 truncate font-medium text-left tabular-nums">
                             {selectedReceiptOption.receiptLabel}
                           </span>
-                          <span className="truncate text-left text-xs text-muted-foreground">
+                          <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
                             {selectedReceiptOption.customerLabel}
                           </span>
-                          <span className="truncate text-right text-xs text-muted-foreground tabular-nums">
+                          <span className="min-w-0 justify-self-end truncate text-right text-xs text-muted-foreground tabular-nums">
                             ${selectedReceiptOption.amount}
                           </span>
                         </div>
@@ -449,12 +449,12 @@ export default function CashPage() {
                         const customerLabel = formatCashOptionCustomer(remito);
                         return (
                           <SelectItem key={remito.id} value={remito.id}>
-                            <div className="grid w-full grid-cols-[112px_minmax(0,1fr)_96px] items-center gap-3 py-0.5 leading-tight text-left">
-                              <span className="truncate font-medium text-left">{receiptLabel}</span>
-                              <span className="truncate text-left text-xs text-muted-foreground">
+                            <div className="grid w-full grid-cols-[104px_minmax(0,1fr)_84px] items-center gap-2 py-0.5 leading-tight text-left">
+                              <span className="min-w-0 truncate font-medium text-left tabular-nums">{receiptLabel}</span>
+                              <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
                                 {customerLabel}
                               </span>
-                              <span className="truncate text-right text-xs text-muted-foreground tabular-nums">
+                              <span className="min-w-0 justify-self-end truncate text-right text-xs text-muted-foreground tabular-nums">
                                 ${amount}
                               </span>
                             </div>
