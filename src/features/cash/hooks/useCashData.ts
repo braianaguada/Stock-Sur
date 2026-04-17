@@ -70,16 +70,21 @@ export function useCashData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("documents")
-        .select("id, customer_id, customer_name, point_of_sale, document_number, issue_date, status, total, external_invoice_number, external_invoice_status")
+        .select("id, customer_id, customer_name, point_of_sale, document_number, issue_date, created_at, status, total, external_invoice_number, external_invoice_status")
         .eq("company_id", currentCompanyId!)
         .eq("doc_type", "REMITO")
         .eq("status", "EMITIDO")
-        .eq("issue_date", businessDate)
         .order("document_number", { ascending: false })
         .limit(500);
 
       if (error) throw error;
-      return (data ?? []) as RemitoOption[];
+      return ((data ?? []) as RemitoOption[]).filter((remito) => {
+        const issueDateMatches = remito.issue_date === businessDate;
+        const createdDateMatches = new Date(remito.created_at).toLocaleDateString("en-CA", {
+          timeZone: "America/Argentina/Buenos_Aires",
+        }) === businessDate;
+        return issueDateMatches || createdDateMatches;
+      });
     },
   });
 
