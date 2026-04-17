@@ -323,6 +323,15 @@ export function useCashData({
     () => (selectedClosureId ? closuresById.get(selectedClosureId) ?? null : null),
     [closuresById, selectedClosureId],
   );
+  const selectedClosureSalesForPreview = useMemo(
+    () => {
+      if (!selectedClosurePreview) return selectedClosureSalesQuery.data ?? [];
+      return (selectedClosureSalesQuery.data ?? []).filter(
+        (sale) => sale.business_date === selectedClosurePreview.business_date,
+      );
+    },
+    [selectedClosurePreview, selectedClosureSalesQuery.data],
+  );
 
   const refreshCash = async () => {
     if (effectiveClosure?.status === "ABIERTO") {
@@ -355,6 +364,7 @@ export function useCashData({
     linkedDocumentEvents: linkedDocumentEventsQuery.data ?? [],
     closuresHistory,
     selectedClosureSales: selectedClosureSalesQuery.data ?? [],
+    selectedClosureSalesForPreview,
     summary,
     pendingSales,
     effectiveClosure,

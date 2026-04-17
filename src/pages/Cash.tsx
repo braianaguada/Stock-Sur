@@ -108,6 +108,7 @@ export default function CashPage() {
     linkedDocumentEvents,
     closuresHistory,
     selectedClosureSales,
+    selectedClosureSalesForPreview,
     summary,
     pendingSales,
     effectiveClosure,
@@ -284,12 +285,12 @@ export default function CashPage() {
     if (!selectedClosurePreview) return;
 
     const win = openPrintWindow(
-      buildCashClosurePrintHtml({
-        closure: selectedClosurePreview,
-        sales: selectedClosureSales,
-        appName: companySettings.app_name,
-        documentFooter: companySettings.document_footer,
-      }),
+        buildCashClosurePrintHtml({
+          closure: selectedClosurePreview,
+          sales: selectedClosureSalesForPreview,
+          appName: companySettings.app_name,
+          documentFooter: companySettings.document_footer,
+        }),
       "width=1100,height=800",
     );
     if (!win) return;
@@ -659,7 +660,7 @@ export default function CashPage() {
             open={closurePreviewOpen}
             onOpenChange={setClosurePreviewOpen}
             selectedClosurePreview={selectedClosurePreview}
-            selectedClosureSales={selectedClosureSales}
+            selectedClosureSales={selectedClosureSalesForPreview}
             onPrint={printClosurePreview}
           />
         </Suspense>
