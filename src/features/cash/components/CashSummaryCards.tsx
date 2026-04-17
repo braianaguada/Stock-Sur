@@ -91,7 +91,7 @@ export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
           >
             <CardContent className="px-5 py-7 text-center">
               <div className="grid min-h-[156px] place-items-center">
-                <div className="flex w-full min-w-0 max-w-[16rem] flex-col items-center justify-center gap-3">
+                <div className="flex w-full min-w-0 max-w-[16rem] flex-col items-center justify-center gap-3 overflow-hidden">
                   <div
                     className={`mx-auto flex h-10 w-10 items-center justify-center rounded-2xl border shadow-[var(--shadow-xs)] ${iconClasses[card.tone]}`}
                   >

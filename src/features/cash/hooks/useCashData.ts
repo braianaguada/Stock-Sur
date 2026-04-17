@@ -227,17 +227,32 @@ export function useCashData({
     () => new Map(closuresHistory.map((closure) => [closure.business_date, closure])),
     [closuresHistory],
   );
-  const summary = useMemo(() => buildCashSummary(sales), [sales]);
-  const pendingSales = useMemo(
-    () => sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE"),
-    [sales],
-  );
   const closureHistoryForDate = useMemo(
     () => closuresByBusinessDate.get(businessDate) ?? null,
     [closuresByBusinessDate, businessDate],
   );
   const effectiveClosure = closureHistoryForDate ?? closureQuery.data ?? null;
   const hasClosedClosureForDay = effectiveClosure?.status === "CERRADO";
+  const summary = useMemo(() => {
+    if (!effectiveClosure) {
+      return buildCashSummary(sales);
+    }
+
+    return {
+      efectivoRemito: Number(effectiveClosure.expected_cash_remito_total ?? 0),
+      efectivoFacturable: Number(effectiveClosure.expected_cash_facturable_total ?? 0),
+      serviciosRemito: Number(effectiveClosure.expected_services_remito_total ?? 0),
+      point: Number(effectiveClosure.expected_point_sales_total ?? 0),
+      transferencia: Number(effectiveClosure.expected_transfer_sales_total ?? 0),
+      cuentaCorriente: Number(effectiveClosure.expected_account_sales_total ?? 0),
+      total: Number(effectiveClosure.expected_sales_total ?? 0),
+      pendientes: sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE").length,
+    };
+  }, [effectiveClosure, sales]);
+  const pendingSales = useMemo(
+    () => sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE"),
+    [sales],
+  );
   const salesReferenceRows = allSalesReferencesQuery.data ?? [];
   const assignedRemitoIds = useMemo(
     () => new Set(
