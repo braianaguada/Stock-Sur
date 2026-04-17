@@ -145,6 +145,11 @@ export default function CashPage() {
   }, [receiptKind]);
 
   useEffect(() => {
+    if (!selectedReceiptRemito) return;
+    setBusinessDate(selectedReceiptRemito.issue_date);
+  }, [selectedReceiptRemito]);
+
+  useEffect(() => {
     if (pendingReceiptKind === "REMITO") {
       setPendingRemitoId("__none__");
     }
