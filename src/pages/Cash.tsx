@@ -70,6 +70,7 @@ export default function CashPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO_REMITO");
   const [receiptKind, setReceiptKind] = useState<ReceiptKind>("REMITO");
   const [selectedRemitoId, setSelectedRemitoId] = useState<string>("__none__");
+  const [receiptSearch, setReceiptSearch] = useState("");
   const [receiptReference, setReceiptReference] = useState("");
   const [notes, setNotes] = useState("");
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
@@ -155,6 +156,7 @@ export default function CashPage() {
     setPaymentMethod("EFECTIVO_REMITO");
     setReceiptKind("REMITO");
     setSelectedRemitoId("__none__");
+    setReceiptSearch("");
     setReceiptReference("");
     setNotes("");
   };
@@ -201,6 +203,15 @@ export default function CashPage() {
     () => new Map(availableRemitos.map((remito) => [remito.id, formatRemitoOptionLabel(remito)])),
     [availableRemitos],
   );
+  const receiptOptions = receiptKind === "REMITO" ? availableRemitos : availableFacturableRemitos;
+  const filteredReceiptOptions = useMemo(() => {
+    const query = receiptSearch.trim().toLowerCase();
+    if (!query) return receiptOptions;
+    return receiptOptions.filter((remito) => {
+      const label = remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito);
+      return label.toLowerCase().includes(query);
+    });
+  }, [receiptOptions, remitoOptionLabels, receiptSearch]);
   const historyPagination = usePaginationSlice({
     items: closuresHistory,
     page: historyPage,
@@ -339,34 +350,52 @@ export default function CashPage() {
                 }}
               >
                 <div className="space-y-2">
-                  <Label>Comprobante a registrar</Label>
+                  <Label>Comprobante</Label>
                   <Select
                     value={receiptKind}
-                    onValueChange={(value) => setReceiptKind(value as ReceiptKind)}
+                    onValueChange={(value) => {
+                      setReceiptKind(value as ReceiptKind);
+                      setReceiptSearch("");
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="REMITO">Remito del dia</SelectItem>
-                      <SelectItem value="FACTURA">Factura externa</SelectItem>
+                      <SelectItem value="REMITO">Remito</SelectItem>
+                      <SelectItem value="FACTURA">Factura</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>{receiptKind === "REMITO" ? "Remitos del dia sin factura" : "Remitos del dia con factura externa"}</Label>
+                  <Label>{receiptKind === "REMITO" ? "Remito" : "Factura"}</Label>
+                  <Input
+                    value={receiptSearch}
+                    onChange={(event) => setReceiptSearch(event.target.value)}
+                    placeholder="Buscar por remito, factura, cliente o monto"
+                  />
                   <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
                     <SelectTrigger>
-                      <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito del dia sin factura" : "Seleccionar remito del dia con factura externa"} />
+                      <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito del dia sin factura" : "Seleccionar remito del dia con factura externa"}</SelectItem>
-                      {(receiptKind === "REMITO" ? availableRemitos : availableFacturableRemitos).map((remito) => (
-                        <SelectItem key={remito.id} value={remito.id}>
-                          {remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito)}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"}</SelectItem>
+                      {filteredReceiptOptions.map((remito) => {
+                        const remitoNumber = `${String(remito.point_of_sale).padStart(4, "0")}-${String(remito.document_number ?? 0).padStart(8, "0")}`;
+                        const invoiceNumber = remito.external_invoice_number ? `Factura ${remito.external_invoice_number}` : "Sin factura";
+                        const amount = Number(remito.total).toFixed(2);
+                        return (
+                          <SelectItem key={remito.id} value={remito.id}>
+                            <div className="flex w-full flex-col leading-tight">
+                              <span className="font-medium">{remitoNumber}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {remito.customer_name} · {invoiceNumber} · ${amount}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
