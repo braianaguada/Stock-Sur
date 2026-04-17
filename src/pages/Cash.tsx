@@ -205,6 +205,8 @@ export default function CashPage() {
     () => new Map(availableRemitos.map((remito) => [remito.id, formatRemitoOptionLabel(remito)])),
     [availableRemitos],
   );
+  const formatCashOptionCustomer = (remito: (typeof availableRemitos)[number]) =>
+    remito.customer_name?.trim() ? remito.customer_name.trim() : "Cliente ocasional";
   const receiptOptions = receiptKind === "REMITO" ? availableRemitos : availableFacturableRemitos;
   const filteredReceiptOptions = useMemo(() => {
     const query = normalizeReceiptSearch(receiptSearch);
@@ -377,7 +379,7 @@ export default function CashPage() {
                     <SelectTrigger>
                       <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"} />
                     </SelectTrigger>
-                    <SelectContent className="max-h-96 p-0">
+                    <SelectContent className="max-h-[22rem] overflow-hidden p-0">
                       <div className="border-b border-border/60 p-2">
                         <Input
                           value={receiptSearch}
@@ -390,16 +392,26 @@ export default function CashPage() {
                       {filteredReceiptOptions.map((remito) => {
                         const remitoNumber = `${String(remito.point_of_sale).padStart(4, "0")}-${String(remito.document_number ?? 0).padStart(8, "0")}`;
                         const invoiceNumber = remito.external_invoice_number ? `Factura ${remito.external_invoice_number}` : "Sin factura";
-                        const amount = Number(remito.total).toFixed(2);
+                        const amount = Number(remito.total).toLocaleString("es-AR", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        });
+                        const customerLabel = formatCashOptionCustomer(remito);
                         return (
                           <SelectItem key={remito.id} value={remito.id}>
-                            <div className="flex w-full flex-col gap-0.5 leading-tight">
-                              <span className="font-medium">{remitoNumber}</span>
-                              <span className="text-xs text-muted-foreground">
-                                Cliente: {remito.customer_name}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {invoiceNumber} · ${amount}
+                            <div className="flex w-full flex-col gap-0.5 leading-tight py-0.5">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="font-medium">{remitoNumber}</span>
+                                <span className="shrink-0 text-xs text-muted-foreground">
+                                  ${amount}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                                <span className="truncate">{customerLabel}</span>
+                                <span className="shrink-0 truncate">{invoiceNumber}</span>
+                              </div>
+                              <span className="sr-only">
+                                {customerLabel} {invoiceNumber} ${amount}
                               </span>
                             </div>
                           </SelectItem>
