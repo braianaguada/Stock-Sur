@@ -230,6 +230,13 @@ export default function CashPage() {
       return buildReceiptSearchText(remito).includes(query) || normalizeReceiptSearch(label).includes(query);
     });
   }, [receiptOptions, remitoOptionLabels, receiptSearch]);
+
+  useEffect(() => {
+    if (selectedRemitoId === "__none__") return;
+    if (!filteredReceiptOptions.some((remito) => remito.id === selectedRemitoId)) {
+      setSelectedRemitoId("__none__");
+    }
+  }, [filteredReceiptOptions, selectedRemitoId]);
   const historyPagination = usePaginationSlice({
     items: closuresHistory,
     page: historyPage,
