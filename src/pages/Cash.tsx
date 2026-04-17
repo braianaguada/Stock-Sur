@@ -120,6 +120,7 @@ export default function CashPage() {
   } = useCashData({
     businessDate,
     detailDocumentId: detailSale?.document_id ?? null,
+    detailReceiptReference: detailSale?.receipt_reference ?? null,
     selectedClosureId,
     situationFilter,
     currentCompanyId: currentCompany?.id ?? null,

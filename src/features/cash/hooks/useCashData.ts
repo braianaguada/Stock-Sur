@@ -19,6 +19,7 @@ import { buildCashSummary, getClosureSituation } from "../utils";
 type UseCashDataParams = {
   businessDate: string;
   detailDocumentId: string | null;
+  detailReceiptReference: string | null;
   selectedClosureId: string | null;
   situationFilter: SituationFilter;
   currentCompanyId: string | null;
@@ -27,6 +28,7 @@ type UseCashDataParams = {
 export function useCashData({
   businessDate,
   detailDocumentId,
+  detailReceiptReference,
   selectedClosureId,
   situationFilter,
   currentCompanyId,
@@ -106,15 +108,22 @@ export function useCashData({
   });
 
   const linkedDocumentQuery = useQuery({
-    queryKey: queryKeys.cash.linkedDocument(detailDocumentId),
-    enabled: Boolean(detailDocumentId),
+    queryKey: queryKeys.cash.linkedDocument(detailDocumentId ?? detailReceiptReference),
+    enabled: Boolean(detailDocumentId || detailReceiptReference),
     queryFn: async () => {
-      if (!detailDocumentId) return null;
-      const { data, error } = await supabase
+      const baseQuery = supabase
         .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_name, total, notes, external_invoice_number, external_invoice_status")
-        .eq("id", detailDocumentId)
-        .maybeSingle();
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_name, total, notes, external_invoice_number, external_invoice_status");
+
+      const query = detailDocumentId
+        ? baseQuery.eq("id", detailDocumentId)
+        : baseQuery
+          .eq("company_id", currentCompanyId!)
+          .eq("doc_type", "REMITO")
+          .eq("external_invoice_status", "ACTIVE")
+          .eq("external_invoice_number", detailReceiptReference!);
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) throw error;
       return (data ?? null) as DocumentQuickRow | null;
