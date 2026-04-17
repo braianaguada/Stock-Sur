@@ -119,8 +119,9 @@ begin
       format('%s-%s', lpad(v_doc.point_of_sale::text, 4, '0'), lpad(v_doc.document_number::text, 8, '0'))
     );
 
-    insert into public.stock_movements (item_id, type, quantity, reference, notes, created_by)
+    insert into public.stock_movements (company_id, item_id, type, quantity, reference, notes, created_by)
     select
+      v_doc.company_id,
       dl.item_id,
       'IN'::public.movement_type,
       dl.quantity,
