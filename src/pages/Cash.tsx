@@ -122,6 +122,7 @@ export default function CashPage() {
     situationFilter,
     currentCompanyId: currentCompany?.id ?? null,
   });
+  const remitosById = useMemo(() => new Map(remitos.map((remito) => [remito.id, remito])), [remitos]);
 
   useEffect(() => {
     if (!closure || isCloseNotesDirty) return;
@@ -206,7 +207,6 @@ export default function CashPage() {
     () => new Map(availableRemitos.map((remito) => [remito.id, formatRemitoOptionLabel(remito)])),
     [availableRemitos],
   );
-  const remitosById = useMemo(() => new Map(remitos.map((remito) => [remito.id, remito])), [remitos]);
   const historyPagination = usePaginationSlice({
     items: closuresHistory,
     page: historyPage,
