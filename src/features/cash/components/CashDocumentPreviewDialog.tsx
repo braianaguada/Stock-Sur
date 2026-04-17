@@ -184,7 +184,9 @@ export function CashDocumentPreviewDialog({
             </>
           ) : (
             <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/60 p-6 text-sm text-slate-300">
-              No hay documento interno para previsualizar. Si fue facturada por afuera del sistema, arriba queda visible la referencia cargada.
+              {detailSale?.status === "ANULADA"
+                ? "Venta anulada: no hay documento asociado visible."
+                : "No hay documento interno para previsualizar. Si fue facturada por afuera del sistema, arriba queda visible la referencia cargada."}
             </div>
           )}
         </div>

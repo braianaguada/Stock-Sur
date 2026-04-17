@@ -310,6 +310,12 @@ export function useCashData({
   );
 
   const refreshCash = async () => {
+    if (effectiveClosure?.status === "ABIERTO") {
+      await supabase.rpc("recalculate_cash_closure_totals", {
+        p_closure_id: effectiveClosure.id,
+      });
+    }
+
     await Promise.all([
       qc.refetchQueries({ queryKey: queryKeys.cash.sales(currentCompanyId, businessDate) }),
       qc.refetchQueries({ queryKey: queryKeys.cash.sales(currentCompanyId, "all-references") }),
