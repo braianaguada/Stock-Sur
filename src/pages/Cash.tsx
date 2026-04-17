@@ -339,7 +339,7 @@ export default function CashPage() {
                 }}
               >
                 <div className="space-y-2">
-                  <Label>Comprobante</Label>
+                  <Label>Comprobante a registrar</Label>
                   <Select
                     value={receiptKind}
                     onValueChange={(value) => setReceiptKind(value as ReceiptKind)}
@@ -348,20 +348,20 @@ export default function CashPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="REMITO">Remito</SelectItem>
-                      <SelectItem value="FACTURA">Factura</SelectItem>
+                      <SelectItem value="REMITO">Remito del dia</SelectItem>
+                      <SelectItem value="FACTURA">Factura externa</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>{receiptKind === "REMITO" ? "Remito sin factura" : "Factura externa asociada"}</Label>
+                  <Label>{receiptKind === "REMITO" ? "Remitos del dia sin factura" : "Remitos del dia con factura externa"}</Label>
                   <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
                     <SelectTrigger>
-                      <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito sin factura" : "Seleccionar factura externa asociada"} />
+                      <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito del dia sin factura" : "Seleccionar remito del dia con factura externa"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito sin factura" : "Seleccionar factura externa asociada"}</SelectItem>
+                      <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito del dia sin factura" : "Seleccionar remito del dia con factura externa"}</SelectItem>
                       {(receiptKind === "REMITO" ? availableRemitos : availableFacturableRemitos).map((remito) => (
                         <SelectItem key={remito.id} value={remito.id}>
                           {remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito)}
