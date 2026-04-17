@@ -59,7 +59,7 @@ export function DocumentsDataTable({
       accessorKey: "document_number",
       header: () => "Número",
       cell: ({ row }) => (
-        <span className="block truncate font-mono">
+        <span className="block whitespace-nowrap font-mono tabular-nums">
           {formatNumber(row.original.document_number, row.original.point_of_sale)}
         </span>
       ),

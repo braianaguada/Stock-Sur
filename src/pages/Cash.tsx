@@ -411,8 +411,8 @@ export default function CashPage() {
                   <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
                     <SelectTrigger className="justify-start">
                       {selectedReceiptOption ? (
-                        <div className="grid w-full grid-cols-[104px_minmax(0,1fr)_84px] items-center gap-2 text-left">
-                          <span className="min-w-0 truncate font-medium text-left tabular-nums">
+                        <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_76px] items-center gap-2 text-left">
+                          <span className="min-w-0 whitespace-nowrap font-medium text-left tabular-nums">
                             {selectedReceiptOption.receiptLabel}
                           </span>
                           <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
@@ -449,8 +449,8 @@ export default function CashPage() {
                         const customerLabel = formatCashOptionCustomer(remito);
                         return (
                           <SelectItem key={remito.id} value={remito.id}>
-                            <div className="grid w-full grid-cols-[104px_minmax(0,1fr)_84px] items-center gap-2 py-0.5 leading-tight text-left">
-                              <span className="min-w-0 truncate font-medium text-left tabular-nums">{receiptLabel}</span>
+                            <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_76px] items-center gap-2 py-0.5 leading-tight text-left">
+                              <span className="min-w-0 whitespace-nowrap font-medium text-left tabular-nums">{receiptLabel}</span>
                               <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
                                 {customerLabel}
                               </span>
