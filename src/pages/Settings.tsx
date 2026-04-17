@@ -1,4 +1,4 @@
-import { AppLayout } from "@/components/AppLayout";
+Ôªøimport { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,7 +121,7 @@ export default function SettingsPage() {
                   <Label>Punto de venta por defecto</Label>
                   <Input type="number" min={1} value={form.default_point_of_sale} onChange={(e) => setForm((prev) => ({ ...prev, default_point_of_sale: e.target.value }))} />
                 </div>
-                <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 md:col-span-2">
+                <div className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4 md:col-span-2">
                   <div className="flex items-start gap-3">
                     <Checkbox
                       id="allow_issue_remitos_without_stock"
@@ -157,15 +157,15 @@ export default function SettingsPage() {
                     />
                     <div className="space-y-1">
                       <Label htmlFor="auto_close_cash_enabled" className="cursor-pointer">
-                        Cerrar caja autom·ticamente
+                        Cerrar caja autom√°ticamente
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Si sigue abierta al llegar la hora configurada, el sistema la cerrar· sola.
+                        Si sigue abierta al llegar la hora configurada, el sistema la cerrar√° sola.
                       </p>
                     </div>
                   </div>
                   <div className="grid gap-2 md:max-w-xs">
-                    <Label>Hora m·xima de cierre</Label>
+                    <Label>Hora m√°xima de cierre</Label>
                     <Input
                       type="time"
                       value={form.auto_close_cash_time}
@@ -330,4 +330,5 @@ export default function SettingsPage() {
     </AppLayout>
   );
 }
+
 
