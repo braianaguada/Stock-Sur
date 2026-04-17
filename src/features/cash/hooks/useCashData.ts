@@ -15,14 +15,6 @@ import type {
 } from "../types";
 import { buildCashSummary, getClosureSituation } from "../utils";
 
-const LOCAL_DAY_OFFSET_MS = 3 * 60 * 60 * 1000;
-
-function toLocalBusinessDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Date(date.getTime() - LOCAL_DAY_OFFSET_MS).toISOString().slice(0, 10);
-}
-
 type UseCashDataParams = {
   businessDate: string;
   detailDocumentId: string | null;
@@ -78,18 +70,16 @@ export function useCashData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("documents")
-        .select("id, customer_id, customer_name, point_of_sale, document_number, issue_date, created_at, status, total, external_invoice_number, external_invoice_status")
+        .select("id, customer_id, customer_name, point_of_sale, document_number, issue_date, status, total, external_invoice_number, external_invoice_status")
         .eq("company_id", currentCompanyId!)
         .eq("doc_type", "REMITO")
         .eq("status", "EMITIDO")
+        .eq("issue_date", businessDate)
         .order("document_number", { ascending: false })
         .limit(500);
 
       if (error) throw error;
-      return ((data ?? []) as RemitoOption[]).filter((remito) => {
-        if (remito.issue_date === businessDate) return true;
-        return toLocalBusinessDate(remito.created_at) === businessDate;
-      });
+      return (data ?? []) as RemitoOption[];
     },
   });
 
