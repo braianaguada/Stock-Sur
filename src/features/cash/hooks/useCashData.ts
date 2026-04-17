@@ -60,10 +60,25 @@ export function useCashData({
         .eq("company_id", currentCompanyId!)
         .eq("business_date", businessDate)
         .order("sold_at", { ascending: false })
-        .limit(150);
 
       if (error) throw error;
       return (data ?? []) as CashSaleRow[];
+    },
+  });
+
+  const allSalesReferencesQuery = useQuery({
+    queryKey: queryKeys.cash.sales(currentCompanyId, "all-references"),
+    enabled: Boolean(currentCompanyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_sales")
+        .select("id, status, document_id, receipt_kind, receipt_reference")
+        .eq("company_id", currentCompanyId!)
+        .order("sold_at", { ascending: false })
+        .limit(5000);
+
+      if (error) throw error;
+      return data ?? [];
     },
   });
 
@@ -217,13 +232,14 @@ export function useCashData({
   );
   const effectiveClosure = closureHistoryForDate ?? closureQuery.data ?? null;
   const hasClosedClosureForDay = effectiveClosure?.status === "CERRADO";
+  const salesReferenceRows = allSalesReferencesQuery.data ?? [];
   const assignedRemitoIds = useMemo(
     () => new Set(
-      sales
+      salesReferenceRows
         .filter((sale) => sale.status !== "ANULADA" && sale.document_id)
         .map((sale) => sale.document_id as string),
     ),
-    [sales],
+    [salesReferenceRows],
   );
   const remitoReferenceById = useMemo(
     () =>
@@ -235,44 +251,36 @@ export function useCashData({
       ),
     [remitos],
   );
-  const assignedReceiptReferences = useMemo(
-    () => new Set(
-      sales
-        .filter((sale) => sale.status !== "ANULADA" && sale.receipt_reference)
-        .map((sale) => sale.receipt_reference as string),
-    ),
-    [sales],
-  );
   const usedReceiptReferences = useMemo(
     () => new Set(
-      sales
+      salesReferenceRows
         .filter((sale) => sale.status !== "ANULADA" && sale.receipt_reference)
         .map((sale) => sale.receipt_reference as string),
     ),
-    [sales],
+    [salesReferenceRows],
   );
   const availableRemitos = useMemo(
     () =>
       remitos.filter(
         (remito) =>
           !assignedRemitoIds.has(remito.id) &&
-          !assignedReceiptReferences.has(remitoReferenceById.get(remito.id) ?? "") &&
+          !usedReceiptReferences.has(remitoReferenceById.get(remito.id) ?? "") &&
           !remito.external_invoice_number &&
           remito.external_invoice_status !== "ACTIVE",
       ),
-    [remitos, assignedRemitoIds, assignedReceiptReferences, remitoReferenceById],
+    [remitos, assignedRemitoIds, usedReceiptReferences, remitoReferenceById],
   );
   const availableFacturableRemitos = useMemo(
     () =>
       remitos.filter(
         (remito) =>
           !assignedRemitoIds.has(remito.id) &&
-          !assignedReceiptReferences.has(remito.external_invoice_number ?? "") &&
+          !usedReceiptReferences.has(remito.external_invoice_number ?? "") &&
           remito.external_invoice_status === "ACTIVE" &&
           Boolean(remito.external_invoice_number) &&
           !usedReceiptReferences.has(remito.external_invoice_number as string),
       ),
-    [remitos, assignedRemitoIds, assignedReceiptReferences, usedReceiptReferences],
+    [remitos, assignedRemitoIds, usedReceiptReferences],
   );
   const unclosedSalesAfterClosure = useMemo(
     () => sales.filter((sale) => sale.status !== "ANULADA" && !sale.closure_id),
@@ -312,7 +320,7 @@ export function useCashData({
     closureLoading: closureQuery.isLoading,
     closureError: closureQuery.error,
     salesLoading: salesQuery.isLoading,
-    salesError: salesQuery.error,
+    salesError: salesQuery.error ?? allSalesReferencesQuery.error,
     remitosError: remitosQuery.error,
     linkedDocument: linkedDocumentQuery.data ?? null,
     linkedDocumentLines: linkedDocumentLinesQuery.data ?? [],
