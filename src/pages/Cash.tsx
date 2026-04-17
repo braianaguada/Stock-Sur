@@ -67,9 +67,8 @@ export default function CashPage() {
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
   const [businessDate, setBusinessDate] = useState(todayDateInputValue());
-  const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO_REMITO");
-  const [receiptKind, setReceiptKind] = useState<ReceiptKind>("PENDIENTE");
+  const [receiptKind, setReceiptKind] = useState<ReceiptKind>("REMITO");
   const [customerId, setCustomerId] = useState<string>("__none__");
   const [selectedRemitoId, setSelectedRemitoId] = useState<string>("__none__");
   const [receiptReference, setReceiptReference] = useState("");
@@ -123,6 +122,11 @@ export default function CashPage() {
     currentCompanyId: currentCompany?.id ?? null,
   });
   const remitosById = useMemo(() => new Map(remitos.map((remito) => [remito.id, remito])), [remitos]);
+  const selectedReceiptRemito = useMemo(
+    () => remitosById.get(selectedRemitoId) ?? null,
+    [remitosById, selectedRemitoId],
+  );
+  const derivedAmount = selectedReceiptRemito ? Number(selectedReceiptRemito.total).toFixed(2) : "";
 
   useEffect(() => {
     if (!closure || isCloseNotesDirty) return;
@@ -134,16 +138,14 @@ export default function CashPage() {
   }, [businessDate]);
 
   useEffect(() => {
-    if (receiptKind === "PENDIENTE") {
-      setSelectedRemitoId("__none__");
+    if (!selectedReceiptRemito) {
+      setCustomerId("__none__");
+      setReceiptReference("");
+      return;
     }
-    if (receiptKind === "REMITO" || receiptKind === "FACTURA") {
-      const selected = remitosById.get(selectedRemitoId);
-      setAmount(selected ? Number(selected.total).toFixed(2) : "");
-      setCustomerId(selected?.customer_id ?? "__none__");
-    }
+    setCustomerId(selectedReceiptRemito.customer_id ?? "__none__");
     setReceiptReference("");
-  }, [receiptKind, selectedRemitoId, remitosById]);
+  }, [selectedReceiptRemito]);
 
   useEffect(() => {
     if (pendingReceiptKind === "REMITO") {
@@ -156,9 +158,8 @@ export default function CashPage() {
   }, [closuresHistory.length, historyPageSize]);
 
   const resetSaleForm = () => {
-    setAmount("");
     setPaymentMethod("EFECTIVO_REMITO");
-    setReceiptKind("PENDIENTE");
+    setReceiptKind("REMITO");
     setCustomerId("__none__");
     setSelectedRemitoId("__none__");
     setReceiptReference("");
@@ -334,7 +335,7 @@ export default function CashPage() {
                   event.preventDefault();
                   if (!canCreateSale) return;
                   createSaleMutation.mutate({
-                    amount,
+                    amount: derivedAmount,
                     paymentMethod,
                     receiptKind,
                     customerId,
@@ -345,14 +346,13 @@ export default function CashPage() {
                 }}
               >
                 <div className="space-y-2">
-                  <Label htmlFor="amount">{receiptKind === "PENDIENTE" ? "Importe manual" : "Importe del comprobante"}</Label>
+                  <Label htmlFor="amount">Importe del comprobante</Label>
                   <Input
                     id="amount"
-                    inputMode="decimal"
-                    placeholder="0,00"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
-                    disabled={receiptKind === "REMITO" || receiptKind === "FACTURA"}
+                    value={derivedAmount}
+                    placeholder="Seleccionar remito o factura"
+                    readOnly
+                    disabled
                   />
                 </div>
 
@@ -387,7 +387,6 @@ export default function CashPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="PENDIENTE">Definir despues</SelectItem>
                         <SelectItem value="REMITO">Remito</SelectItem>
                         <SelectItem value="FACTURA">Factura</SelectItem>
                       </SelectContent>
@@ -412,24 +411,22 @@ export default function CashPage() {
                   </Select>
                 </div>
 
-                {receiptKind === "REMITO" || receiptKind === "FACTURA" ? (
-                  <div className="space-y-2">
-                    <Label>{receiptKind === "REMITO" ? "Remito sin factura" : "Remito con factura"}</Label>
-                    <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito sin factura" : "Seleccionar remito con factura"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito sin factura" : "Seleccionar remito con factura"}</SelectItem>
-                        {(receiptKind === "REMITO" ? availableRemitos : availableFacturableRemitos).map((remito) => (
-                          <SelectItem key={remito.id} value={remito.id}>
-                            {remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : null}
+                <div className="space-y-2">
+                  <Label>{receiptKind === "REMITO" ? "Remito sin factura" : "Remito con factura"}</Label>
+                  <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito sin factura" : "Seleccionar remito con factura"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito sin factura" : "Seleccionar remito con factura"}</SelectItem>
+                      {(receiptKind === "REMITO" ? availableRemitos : availableFacturableRemitos).map((remito) => (
+                        <SelectItem key={remito.id} value={remito.id}>
+                          {remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="notes">Observaciones</Label>
