@@ -89,7 +89,7 @@ export default function CashPage() {
   const [situationFilter, setSituationFilter] = useState<SituationFilter>("TODAS");
   const [tab, setTab] = useState("day");
   const [salesPage, setSalesPage] = useState(1);
-  const [salesPageSize, setSalesPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+  const [salesPageSize, setSalesPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(50);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const saleFormRef = useRef<HTMLDivElement | null>(null);
