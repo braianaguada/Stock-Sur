@@ -1,7 +1,10 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { currency, formatBusinessDate, formatDateTime } from "@/lib/formatters";
+import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { CashClosureSalesTable } from "@/features/cash/components/CashClosureSalesTable";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import type { CashClosureHistoryRow, CashSaleRow } from "@/features/cash/types";
 
 type CashClosurePreviewDialogProps = {
@@ -19,6 +22,20 @@ export function CashClosurePreviewDialog({
   selectedClosureSales,
   onPrint,
 }: CashClosurePreviewDialogProps) {
+  const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedClosurePreview?.id, pageSize]);
+
+  const salesPagination = usePaginationSlice({
+    items: selectedClosureSales,
+    page,
+    pageSize,
+  });
+
   return (
     <EntityDialog
       open={open}
@@ -129,8 +146,24 @@ export function CashClosurePreviewDialog({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/60 bg-card/72 overflow-auto">
-            <CashClosureSalesTable sales={selectedClosureSales} />
+            <div className="rounded-2xl border border-border/60 bg-card/72 overflow-auto">
+            <CashClosureSalesTable sales={salesPagination.pagedItems} />
+            {selectedClosureSales.length > 0 ? (
+              <div className="border-t border-border/60 px-4 py-3">
+                <DataTablePagination
+                  page={salesPagination.page}
+                  totalPages={salesPagination.totalPages}
+                  totalItems={selectedClosureSales.length}
+                  rangeStart={salesPagination.rangeStart}
+                  rangeEnd={salesPagination.rangeEnd}
+                  pageSize={pageSize}
+                  pageSizeOptions={PAGE_SIZE_OPTIONS}
+                  onPageChange={setPage}
+                  onPageSizeChange={setPageSize}
+                  itemLabel="ventas"
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
