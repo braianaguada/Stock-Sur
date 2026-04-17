@@ -10,14 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { currency, formatTime } from "@/lib/formatters";
 import { PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LABEL } from "../constants";
 import type { CashSaleRow, SituationFilter } from "../types";
-import { getClosureSituation } from "../utils";
+import { getClosureSituationWithClosure } from "../utils";
 
 type CashSalesTabProps = {
   filteredSales: CashSaleRow[];
   salesLoading: boolean;
   situationFilter: SituationFilter;
   onSituationFilterChange: (value: SituationFilter) => void;
-  hasClosedClosureForDay: boolean;
+  effectiveClosure: { status: string; closed_at: string | null } | null;
   onOpenDetail: (sale: CashSaleRow) => void;
   onCancelSale: (saleId: string) => void;
   canCancelSale: (sale: CashSaleRow) => boolean;
@@ -36,7 +36,7 @@ export function CashSalesTab({
   salesLoading,
   situationFilter,
   onSituationFilterChange,
-  hasClosedClosureForDay,
+  effectiveClosure,
   onOpenDetail,
   onCancelSale,
   canCancelSale,
@@ -96,7 +96,7 @@ export function CashSalesTab({
       id: "closure_situation",
       header: () => "Situación",
       cell: ({ row }) => {
-        const closureSituation = getClosureSituation(row.original, hasClosedClosureForDay);
+        const closureSituation = getClosureSituationWithClosure(row.original, effectiveClosure);
         return (
           <Badge variant="outline" className={closureSituation.className}>
             {closureSituation.label}
@@ -129,7 +129,7 @@ export function CashSalesTab({
       ),
       meta: { className: "w-[92px]", cellClassName: "py-2.5" },
     },
-  ], [cancelPending, canCancelSale, hasClosedClosureForDay, onCancelSale, onOpenDetail]);
+  ], [cancelPending, canCancelSale, effectiveClosure, onCancelSale, onOpenDetail]);
 
   return (
     <Card className="shadow-sm">

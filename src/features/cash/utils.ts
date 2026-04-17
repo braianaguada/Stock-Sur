@@ -83,6 +83,49 @@ export function describeDocumentEvent(event: DocumentEventQuickRow) {
   return { title: event.event_type.replaceAll("_", " "), tone: "neutral" as const };
 }
 
+export function getClosureSituationWithClosure(
+  sale: CashSaleRow,
+  closure: { status: string; closed_at: string | null } | null,
+) {
+  if (sale.status === "ANULADA") {
+    return {
+      label: "Anulada",
+      className: "border-rose-200 bg-rose-50 text-rose-700",
+    };
+  }
+
+  if (sale.closure_id) {
+    return {
+      label: "En caja cerrada",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    };
+  }
+
+  if (closure?.status === "CERRADO" && closure.closed_at) {
+    return new Date(sale.sold_at) <= new Date(closure.closed_at)
+      ? {
+          label: "En caja cerrada",
+          className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        }
+      : {
+          label: "Venta post cierre",
+          className: "border-violet-200 bg-violet-50 text-violet-700",
+        };
+  }
+
+  if (closure?.status === "CERRADO") {
+    return {
+      label: "Venta post cierre",
+      className: "border-violet-200 bg-violet-50 text-violet-700",
+    };
+  }
+
+  return {
+    label: "Pendiente de cierre",
+    className: "border-sky-200 bg-sky-50 text-sky-700",
+  };
+}
+
 export function buildCashSummary(sales: CashSaleRow[]): CashSummary {
   return sales.reduce(
     (acc, sale) => {

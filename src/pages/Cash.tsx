@@ -536,7 +536,7 @@ export default function CashPage() {
                 salesLoading={salesLoading}
                 situationFilter={situationFilter}
                 onSituationFilterChange={setSituationFilter}
-                hasClosedClosureForDay={hasClosedClosureForDay}
+                effectiveClosure={effectiveClosure}
                 onOpenDetail={openSaleDetail}
                 onCancelSale={(saleId) => {
                   if (!canCancelCashSale(roles)) return;

@@ -14,7 +14,7 @@ import type {
   RemitoOption,
   SituationFilter,
 } from "../types";
-import { buildCashSummary, getClosureSituation } from "../utils";
+import { buildCashSummary, getClosureSituationWithClosure } from "../utils";
 
 type UseCashDataParams = {
   businessDate: string;
@@ -311,13 +311,13 @@ export function useCashData({
     () => sales.filter((sale) => {
       if (situationFilter === "TODAS") return true;
       if (situationFilter === "ANULADA") return sale.status === "ANULADA";
-      const situation = getClosureSituation(sale, hasClosedClosureForDay).label;
+      const situation = getClosureSituationWithClosure(sale, effectiveClosure).label;
       if (situationFilter === "PENDIENTE_CIERRE") return situation === "Pendiente de cierre";
       if (situationFilter === "EN_CAJA_CERRADA") return situation === "En caja cerrada";
       if (situationFilter === "POST_CIERRE") return situation === "Venta post cierre";
       return true;
     }),
-    [sales, situationFilter, hasClosedClosureForDay],
+    [sales, situationFilter, effectiveClosure],
   );
   const selectedClosurePreview = useMemo(
     () => (selectedClosureId ? closuresById.get(selectedClosureId) ?? null : null),
