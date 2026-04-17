@@ -155,6 +155,7 @@ export function useDocumentsMutations({
 
       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
       if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
+      if (totalDraft <= 0) throw new Error("El documento no puede guardarse con total cero");
       if (!form.price_list_id) throw new Error("Selecciona una lista de precios para cargar productos");
       if (form.doc_type === "PRESUPUESTO" && form.customer_kind === "INTERNO") {
         throw new Error("Los presupuestos no aplican a personal interno");
@@ -303,6 +304,9 @@ export function useDocumentsMutations({
       }
       if (currentDocument.doc_type !== "REMITO") {
         throw new Error("Solo los remitos se emiten");
+      }
+      if (Number(currentDocument.total) <= 0) {
+        throw new Error("No se puede emitir un remito con total cero");
       }
       const { data: remitoLines, error: linesError } = await supabase
         .from("document_lines")
