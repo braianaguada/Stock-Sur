@@ -1,4 +1,5 @@
 import { CheckCircle2, Clock, FileText, LucideIcon, PlayCircle, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,6 +22,9 @@ interface DocumentsPreviewDialogProps {
   selectedEvents: DocEventRow[];
   sourceDocumentLabel: string | null;
   companySettings: CompanySettings;
+  onSetExternalInvoice: (documentId: string, externalInvoiceNumber: string) => void;
+  onClearExternalInvoice: (documentId: string) => void;
+  isUpdatingExternalInvoice: boolean;
 }
 
 const HISTORY_TONE_COLORS: Record<string, { bg: string; border: string; text: string; icon: LucideIcon }> = {
@@ -38,7 +42,25 @@ export function DocumentsPreviewDialog({
   selectedEvents,
   sourceDocumentLabel,
   companySettings,
+  onSetExternalInvoice,
+  onClearExternalInvoice,
+  isUpdatingExternalInvoice,
 }: DocumentsPreviewDialogProps) {
+  const handleSetExternalInvoice = () => {
+    if (!selectedDocument) return;
+    const currentValue = selectedDocument.external_invoice_number ?? "";
+    const nextValue = window.prompt("Numero de factura externa", currentValue)?.trim();
+    if (nextValue === undefined || !nextValue) return;
+    onSetExternalInvoice(selectedDocument.id, nextValue);
+  };
+
+  const handleClearExternalInvoice = () => {
+    if (!selectedDocument) return;
+    const confirmed = window.confirm("Quieres quitar la factura externa asociada?");
+    if (!confirmed) return;
+    onClearExternalInvoice(selectedDocument.id);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[92vh] overflow-hidden border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
@@ -80,14 +102,21 @@ export function DocumentsPreviewDialog({
                     </div>
                     
                     {/* Floating Document Box */}
-                    <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 px-5 py-4 text-right text-white shadow-xl ring-1 ring-white/10">
+                    <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 px-5 py-4 text-left text-white shadow-xl ring-1 ring-white/10">
                       <p className="text-[9px] uppercase tracking-[0.25em] text-slate-400 font-semibold mb-1">Documento</p>
                       <p className="text-xl font-extrabold tracking-tight">{DOC_LABEL[selectedDocument.doc_type]}</p>
-                      <div className="mt-2 text-sm text-slate-300 font-mono tracking-wider bg-white/10 inline-block px-3 py-1 rounded-md">
+                      <div className="mt-2 inline-block rounded-md bg-white/10 px-3 py-1 text-sm font-mono tracking-wider text-slate-300 whitespace-nowrap">
                         Nro: {formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}
                       </div>
                     </div>
                   </div>
+
+                  {sourceDocumentLabel ? (
+                    <div className="relative z-10 mb-4 rounded-2xl border border-amber-200/70 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm">
+                      <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-amber-700">Origen del documento</p>
+                      <p className="mt-1 text-sm font-medium">{sourceDocumentLabel}</p>
+                    </div>
+                  ) : null}
 
                   {/* Customer and Operation Cards */}
                   <div className="relative z-10 grid gap-4 md:grid-cols-2">
@@ -114,19 +143,27 @@ export function DocumentsPreviewDialog({
                         <p>PDV:</p>
                         <p className="font-mono text-slate-800">{String(selectedDocument.point_of_sale).padStart(4, "0")}</p>
                         
-                        {selectedDocument.payment_terms ? (
+                      {selectedDocument.payment_terms ? (
+                        <>
+                          <p>Condición:</p>
+                          <p className="font-medium text-slate-800">{selectedDocument.payment_terms}</p>
+                        </>
+                      ) : null}
+                        {selectedDocument.doc_type === "REMITO" && selectedDocument.external_invoice_number ? (
                           <>
-                            <p>Condición:</p>
-                            <p className="font-medium text-slate-800">{selectedDocument.payment_terms}</p>
-                          </>
+                            <p>Factura:</p>
+                            <p className="font-mono font-medium text-slate-800">
+                              {selectedDocument.external_invoice_number}
+                          </p>
+                        </>
                         ) : null}
-                        
+                          
                         {selectedDocument.salesperson ? (
                           <>
                             <p>Vendedor:</p>
-                            <p className="font-medium text-slate-800">{selectedDocument.salesperson}</p>
-                          </>
-                        ) : null}
+                              <p className="font-medium text-slate-800">{selectedDocument.salesperson}</p>
+                            </>
+                          ) : null}
                         
                         {selectedDocument.valid_until ? (
                           <>
@@ -142,6 +179,32 @@ export function DocumentsPreviewDialog({
                           </>
                         ) : null}
                       </div>
+                      {selectedDocument.doc_type === "REMITO" ? (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="default"
+                            size="sm"
+                            className="shadow-sm"
+                            onClick={handleSetExternalInvoice}
+                            disabled={isUpdatingExternalInvoice}
+                          >
+                            {selectedDocument.external_invoice_number ? "Editar factura externa" : "Registrar factura externa"}
+                          </Button>
+                            {selectedDocument.external_invoice_number ? (
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                className="shadow-sm"
+                                onClick={handleClearExternalInvoice}
+                                disabled={isUpdatingExternalInvoice}
+                              >
+                                Quitar factura externa
+                              </Button>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
@@ -177,7 +240,7 @@ export function DocumentsPreviewDialog({
                 </p>
                 <div className="mt-5 space-y-4 relative z-10">
                   <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 shadow-[inset_0_1px_rgba(255,255,255,0.1)]">
-                    <p className="text-xs uppercase tracking-[0.15em] text-foreground/60 mb-1">Total a Pagar</p>
+                    <p className="text-xs uppercase tracking-[0.15em] text-foreground/60 mb-1">Total del documento</p>
                     <p className="text-4xl font-black tracking-tight text-primary break-all">
                       ${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                     </p>
@@ -195,7 +258,7 @@ export function DocumentsPreviewDialog({
               <aside className="rounded-3xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 shadow-sm flex-1">
                 <div className="mb-6">
                   <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground font-semibold">Historial de Eventos</p>
-                  <p className="mt-1.5 text-sm text-muted-foreground">Ciclo de vida del documento.</p>
+                  <p className="mt-1.5 text-sm text-muted-foreground">Cambios de estado y referencias asociadas.</p>
                   {sourceDocumentLabel ? (
                     <Badge variant="secondary" className="mt-4 px-3 py-1 font-mono text-xs">
                       Origen: {sourceDocumentLabel}

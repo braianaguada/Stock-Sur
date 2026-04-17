@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { currency, formatTime } from "@/lib/formatters";
@@ -86,13 +85,13 @@ export function CashReceiptDialog({
             </SelectContent>
           </Select>
         </div>
-        {pendingReceiptKind === "REMITO" ? (
+        {pendingReceiptKind === "REMITO" || pendingReceiptKind === "FACTURA" ? (
           <div className="space-y-2">
-            <Label>Remito emitido</Label>
+            <Label>{pendingReceiptKind === "REMITO" ? "Remito emitido" : "Remito facturado"}</Label>
             <Select value={pendingRemitoId} onValueChange={onPendingRemitoIdChange}>
-              <SelectTrigger><SelectValue placeholder="Seleccionar remito del día" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Seleccionar remito facturable" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Seleccionar remito del día</SelectItem>
+                <SelectItem value="__none__">Seleccionar remito facturable</SelectItem>
                 {availableRemitos.map((remito) => (
                   <SelectItem key={remito.id} value={remito.id}>
                     {remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito)}
@@ -103,14 +102,9 @@ export function CashReceiptDialog({
           </div>
         ) : null}
         {pendingReceiptKind === "FACTURA" ? (
-          <div className="space-y-2">
-            <Label htmlFor="pending-receipt-reference">Referencia de factura</Label>
-            <Input
-              id="pending-receipt-reference"
-              value={pendingReceiptReference}
-              onChange={(event) => onPendingReceiptReferenceChange(event.target.value)}
-              placeholder="Ej. B 0009-00001782"
-            />
+          <div className="rounded-xl border bg-muted/30 p-3 text-sm">
+            <p className="text-muted-foreground">La caja toma el monto y la referencia desde el remito facturado seleccionado.</p>
+            <p className="mt-1 font-mono font-medium">{pendingReceiptReference || "Sin factura asociada"}</p>
           </div>
         ) : null}
       </div>

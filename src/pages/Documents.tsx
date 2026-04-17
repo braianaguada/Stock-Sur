@@ -68,11 +68,11 @@ function DocumentsDialogLoader() {
   );
 }
 
-function buildEmptyDocumentForm(defaultPointOfSale: number): DocumentFormState {
+function buildEmptyDocumentForm(defaultPointOfSale: number, defaultCustomerId = ""): DocumentFormState {
   return {
     doc_type: "PRESUPUESTO",
     point_of_sale: defaultPointOfSale,
-    customer_id: "",
+    customer_id: defaultCustomerId,
     customer_name: "",
     customer_tax_condition: "",
     customer_tax_id: "",
@@ -142,6 +142,10 @@ export default function DocumentsPage() {
     page: documentsPage,
     pageSize: documentsPageSize,
   });
+  const defaultCustomerId = useMemo(
+    () => customers.find((customer) => customer.name.trim().toLowerCase() === "cliente ocasional")?.id ?? "",
+    [customers],
+  );
 
   useEffect(() => {
     setDocumentsPage(1);
@@ -151,6 +155,11 @@ export default function DocumentsPage() {
     if (form.price_list_id || priceLists.length === 0) return;
     setForm((previousForm) => ({ ...previousForm, price_list_id: priceLists[0].id }));
   }, [form.price_list_id, priceLists]);
+
+  useEffect(() => {
+    if (form.customer_id || !defaultCustomerId) return;
+    setForm((previousForm) => ({ ...previousForm, customer_id: defaultCustomerId }));
+  }, [defaultCustomerId, form.customer_id]);
 
   const syncLineWithPriceList = useCallback(
     (
@@ -219,7 +228,7 @@ export default function DocumentsPage() {
 
   const resetDraftForm = () => {
     setEditingDocId(null);
-    setForm(buildEmptyDocumentForm(defaultPointOfSale));
+    setForm(buildEmptyDocumentForm(defaultPointOfSale, defaultCustomerId));
     setLines([]);
   };
 
@@ -250,6 +259,8 @@ export default function DocumentsPage() {
     issueMutation,
     transitionMutation,
     cloneAsRemitoMutation,
+    setExternalInvoiceMutation,
+    clearExternalInvoiceMutation,
   } = useDocumentsMutations({
     currentCompanyId: currentCompany?.id ?? null,
     userId: user?.id,
@@ -499,6 +510,7 @@ export default function DocumentsPage() {
           ${document.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${escapeHtml(document.salesperson)}</p>` : ""}
           ${document.valid_until ? `<p class="muted"><strong>Valido hasta:</strong> ${new Date(document.valid_until).toLocaleDateString("es-AR")}</p>` : ""}
           ${document.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${escapeHtml(document.delivery_address)}</p>` : ""}
+          ${document.doc_type === "REMITO" && document.external_invoice_number ? `<p class="muted"><strong>Factura externa:</strong> ${escapeHtml(document.external_invoice_number)}</p>` : ""}
           ${document.source_document_type && document.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${escapeHtml(DOC_LABEL[document.source_document_type])} ${escapeHtml(document.source_document_number_snapshot)}</p>` : ""}
           ${document.internal_remito_type ? `<p class="muted"><strong>Imputacion:</strong> ${escapeHtml(INTERNAL_REMITO_LABEL[document.internal_remito_type])}</p>` : ""}
           <p class="muted"><strong>Creado:</strong> ${new Date(document.created_at).toLocaleString("es-AR")}</p>
@@ -674,6 +686,19 @@ export default function DocumentsPage() {
             selectedEvents={selectedEvents}
             sourceDocumentLabel={sourceDocumentLabel}
             companySettings={companySettings}
+            onSetExternalInvoice={(documentId, externalInvoiceNumber) => {
+              setExternalInvoiceMutation.mutate({
+                documentId,
+                externalInvoiceNumber,
+                externalInvoiceDate: null,
+              });
+            }}
+            onClearExternalInvoice={(documentId) => {
+              clearExternalInvoiceMutation.mutate(documentId);
+            }}
+            isUpdatingExternalInvoice={
+              setExternalInvoiceMutation.isPending || clearExternalInvoiceMutation.isPending
+            }
           />
         </Suspense>
       ) : null}

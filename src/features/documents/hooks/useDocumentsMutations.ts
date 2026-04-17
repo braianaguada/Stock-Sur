@@ -155,6 +155,7 @@ export function useDocumentsMutations({
 
       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
       if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
+      if (totalDraft <= 0) throw new Error("El documento no puede guardarse con total cero");
       if (!form.price_list_id) throw new Error("Selecciona una lista de precios para cargar productos");
       if (form.doc_type === "PRESUPUESTO" && form.customer_kind === "INTERNO") {
         throw new Error("Los presupuestos no aplican a personal interno");
@@ -303,6 +304,9 @@ export function useDocumentsMutations({
       }
       if (currentDocument.doc_type !== "REMITO") {
         throw new Error("Solo los remitos se emiten");
+      }
+      if (Number(currentDocument.total) <= 0) {
+        throw new Error("No se puede emitir un remito con total cero");
       }
       const { data: remitoLines, error: linesError } = await supabase
         .from("document_lines")
@@ -477,10 +481,68 @@ export function useDocumentsMutations({
     },
   });
 
+  const setExternalInvoiceMutation = useMutation({
+    mutationFn: async ({
+      documentId,
+      externalInvoiceNumber,
+      externalInvoiceDate,
+    }: {
+      documentId: string;
+      externalInvoiceNumber: string;
+      externalInvoiceDate?: string | null;
+    }) => {
+      if (!documentsById.has(documentId)) {
+        throw new Error("El documento seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+      const { error } = await supabase.rpc("set_document_external_invoice", {
+        p_document_id: documentId,
+        p_external_invoice_number: externalInvoiceNumber,
+        p_external_invoice_date: externalInvoiceDate ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void invalidateDocumentQueries(qc);
+      toast({ title: "Factura externa registrada" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo registrar la factura externa",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const clearExternalInvoiceMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      if (!documentsById.has(documentId)) {
+        throw new Error("El documento seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+      const { error } = await supabase.rpc("clear_document_external_invoice", {
+        p_document_id: documentId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void invalidateDocumentQueries(qc);
+      toast({ title: "Factura externa quitada" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo quitar la factura externa",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     upsertDraftMutation,
     issueMutation,
     transitionMutation,
     cloneAsRemitoMutation,
+    setExternalInvoiceMutation,
+    clearExternalInvoiceMutation,
   };
 }

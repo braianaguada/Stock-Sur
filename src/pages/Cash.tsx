@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,9 @@ import type {
 } from "@/features/cash/types";
 import {
   buildCashClosurePrintHtml,
+  buildReceiptSearchText,
   formatRemitoOptionLabel,
+  normalizeReceiptSearch,
   todayDateInputValue,
 } from "@/features/cash/utils";
 import { PageHeader } from "@/components/ui/page";
@@ -67,11 +69,10 @@ export default function CashPage() {
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
   const [businessDate, setBusinessDate] = useState(todayDateInputValue());
-  const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO_REMITO");
-  const [receiptKind, setReceiptKind] = useState<ReceiptKind>("PENDIENTE");
-  const [customerId, setCustomerId] = useState<string>("__none__");
+  const [receiptKind, setReceiptKind] = useState<ReceiptKind>("REMITO");
   const [selectedRemitoId, setSelectedRemitoId] = useState<string>("__none__");
+  const [receiptSearch, setReceiptSearch] = useState("");
   const [receiptReference, setReceiptReference] = useState("");
   const [notes, setNotes] = useState("");
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
@@ -87,9 +88,12 @@ export default function CashPage() {
   const [isCloseNotesDirty, setIsCloseNotesDirty] = useState(false);
   const [situationFilter, setSituationFilter] = useState<SituationFilter>("TODAS");
   const [tab, setTab] = useState("day");
+  const [salesPage, setSalesPage] = useState(1);
+  const [salesPageSize, setSalesPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(50);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const saleFormRef = useRef<HTMLDivElement | null>(null);
+  const autoCloseTriggeredRef = useRef<string | null>(null);
 
   const {
     customers,
@@ -105,22 +109,32 @@ export default function CashPage() {
     linkedDocumentEvents,
     closuresHistory,
     selectedClosureSales,
+    selectedClosureSalesForPreview,
     summary,
     pendingSales,
     effectiveClosure,
     hasClosedClosureForDay,
     availableRemitos,
+    availableFacturableRemitos,
     unclosedSalesAfterClosure,
     filteredSales,
     selectedClosurePreview,
+    usedReceiptReferences,
     refreshCash,
   } = useCashData({
     businessDate,
-    detailDocumentId: detailSale?.document_id ?? null,
+    detailDocumentId: detailSale?.status === "ANULADA" ? null : detailSale?.document_id ?? null,
+    detailReceiptReference: detailSale?.status === "ANULADA" ? null : detailSale?.receipt_reference ?? null,
     selectedClosureId,
     situationFilter,
     currentCompanyId: currentCompany?.id ?? null,
   });
+  const remitosById = useMemo(() => new Map(remitos.map((remito) => [remito.id, remito])), [remitos]);
+  const selectedReceiptRemito = useMemo(
+    () => remitosById.get(selectedRemitoId) ?? null,
+    [remitosById, selectedRemitoId],
+  );
+  const derivedAmount = selectedReceiptRemito ? Number(selectedReceiptRemito.total).toFixed(2) : "";
 
   useEffect(() => {
     if (!closure || isCloseNotesDirty) return;
@@ -132,20 +146,13 @@ export default function CashPage() {
   }, [businessDate]);
 
   useEffect(() => {
-    if (receiptKind !== "REMITO") {
-      setSelectedRemitoId("__none__");
-    }
-    if (receiptKind !== "FACTURA") {
-      setReceiptReference("");
-    }
+    setSelectedRemitoId("__none__");
+    setReceiptReference("");
   }, [receiptKind]);
 
   useEffect(() => {
-    if (pendingReceiptKind !== "REMITO") {
+    if (pendingReceiptKind === "REMITO") {
       setPendingRemitoId("__none__");
-    }
-    if (pendingReceiptKind !== "FACTURA") {
-      setPendingReceiptReference("");
     }
   }, [pendingReceiptKind]);
 
@@ -153,12 +160,15 @@ export default function CashPage() {
     setHistoryPage(1);
   }, [closuresHistory.length, historyPageSize]);
 
+  useEffect(() => {
+    setSalesPage(1);
+  }, [businessDate, situationFilter, filteredSales.length, salesPageSize]);
+
   const resetSaleForm = () => {
-    setAmount("");
     setPaymentMethod("EFECTIVO_REMITO");
-    setReceiptKind("PENDIENTE");
-    setCustomerId("__none__");
+    setReceiptKind("REMITO");
     setSelectedRemitoId("__none__");
+    setReceiptSearch("");
     setReceiptReference("");
     setNotes("");
   };
@@ -181,6 +191,7 @@ export default function CashPage() {
     businessDate,
     customers,
     remitos,
+    usedReceiptReferences,
     closure,
     closureError,
     closeNotes,
@@ -189,6 +200,33 @@ export default function CashPage() {
     onCreateSaleSuccess: resetSaleForm,
     onAttachReceiptSuccess: resetPendingReceiptForm,
   });
+
+  useEffect(() => {
+    if (!currentCompany) return;
+    if (!closure || closure.status !== "ABIERTO") return;
+    if (!companySettings.auto_close_cash_enabled || !companySettings.auto_close_cash_time) return;
+
+    const todayBusinessDate = todayDateInputValue();
+    if (businessDate !== todayBusinessDate) return;
+
+    const now = new Date();
+    const local = new Date(now.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
+    const currentMinutes = local.getHours() * 60 + local.getMinutes();
+    const [hour, minute] = companySettings.auto_close_cash_time.split(":").map(Number);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return;
+
+    const limitMinutes = hour * 60 + minute;
+    const closureKey = `${businessDate}:${closure.id}:${companySettings.auto_close_cash_time}`;
+    if (currentMinutes < limitMinutes || autoCloseTriggeredRef.current === closureKey) return;
+
+    autoCloseTriggeredRef.current = closureKey;
+    closeClosureMutation.mutate({
+      countedCashTotal: Number(closure.expected_cash_to_render ?? 0),
+      countedPointTotal: Number(closure.expected_point_sales_total ?? 0),
+      countedTransferTotal: Number(closure.expected_transfer_sales_total ?? 0),
+      notes: "Cierre automatico por hora maxima configurada",
+    });
+  }, [businessDate, closure, closeClosureMutation, companySettings.auto_close_cash_enabled, companySettings.auto_close_cash_time, currentCompany]);
 
   const customerOptionLabels = useMemo(
     () =>
@@ -200,16 +238,50 @@ export default function CashPage() {
       ),
     [customers],
   );
-
+  const formatCashOptionCustomer = (remito: (typeof availableRemitos)[number]) =>
+    remito.customer_name?.trim() ? remito.customer_name.trim() : "Cliente ocasional";
   const remitoOptionLabels = useMemo(
     () => new Map(availableRemitos.map((remito) => [remito.id, formatRemitoOptionLabel(remito)])),
     [availableRemitos],
   );
+  const selectedReceiptOption = selectedReceiptRemito
+    ? {
+        receiptLabel:
+          receiptKind === "FACTURA" && selectedReceiptRemito.external_invoice_number
+            ? selectedReceiptRemito.external_invoice_number
+            : `${String(selectedReceiptRemito.point_of_sale).padStart(4, "0")}-${String(selectedReceiptRemito.document_number ?? 0).padStart(8, "0")}`,
+        customerLabel: formatCashOptionCustomer(selectedReceiptRemito),
+        amount: Number(selectedReceiptRemito.total).toLocaleString("es-AR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      }
+    : null;
+  const receiptOptions = receiptKind === "REMITO" ? availableRemitos : availableFacturableRemitos;
+  const filteredReceiptOptions = useMemo(() => {
+    const query = normalizeReceiptSearch(receiptSearch);
+    if (!query) return receiptOptions;
+    return receiptOptions.filter((remito) => {
+      const label = remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito);
+      return buildReceiptSearchText(remito).includes(query) || normalizeReceiptSearch(label).includes(query);
+    });
+  }, [receiptOptions, remitoOptionLabels, receiptSearch]);
 
+  useEffect(() => {
+    if (selectedRemitoId === "__none__") return;
+    if (!filteredReceiptOptions.some((remito) => remito.id === selectedRemitoId)) {
+      setSelectedRemitoId("__none__");
+    }
+  }, [filteredReceiptOptions, selectedRemitoId]);
   const historyPagination = usePaginationSlice({
     items: closuresHistory,
     page: historyPage,
     pageSize: historyPageSize,
+  });
+  const salesPagination = usePaginationSlice({
+    items: filteredSales,
+    page: salesPage,
+    pageSize: salesPageSize,
   });
 
   const canCreateSale = canCreateCashSale(roles);
@@ -241,12 +313,12 @@ export default function CashPage() {
     if (!selectedClosurePreview) return;
 
     const win = openPrintWindow(
-      buildCashClosurePrintHtml({
-        closure: selectedClosurePreview,
-        sales: selectedClosureSales,
-        appName: companySettings.app_name,
-        documentFooter: companySettings.document_footer,
-      }),
+        buildCashClosurePrintHtml({
+          closure: selectedClosurePreview,
+          sales: selectedClosureSalesForPreview,
+          appName: companySettings.app_name,
+          documentFooter: companySettings.document_footer,
+        }),
       "width=1100,height=800",
     );
     if (!win) return;
@@ -333,10 +405,10 @@ export default function CashPage() {
                   event.preventDefault();
                   if (!canCreateSale) return;
                   createSaleMutation.mutate({
-                    amount,
+                    amount: derivedAmount,
                     paymentMethod,
                     receiptKind,
-                    customerId,
+                    customerId: selectedReceiptRemito?.customer_id ?? "__none__",
                     selectedRemitoId,
                     receiptReference,
                     notes,
@@ -344,102 +416,103 @@ export default function CashPage() {
                 }}
               >
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Importe</Label>
-                  <Input
-                    id="amount"
-                    inputMode="decimal"
-                    placeholder="0,00"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
-                  <div className="space-y-2">
-                    <Label>Medio de pago</Label>
-                    <Select
-                      value={paymentMethod}
-                      onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="EFECTIVO_REMITO">Efectivo remito</SelectItem>
-                        <SelectItem value="EFECTIVO_FACTURABLE">Efectivo facturable</SelectItem>
-                        <SelectItem value="SERVICIOS_REMITO">Servicios / remito</SelectItem>
-                        <SelectItem value="POINT">Point</SelectItem>
-                        <SelectItem value="TRANSFERENCIA">Transferencia</SelectItem>
-                        <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Comprobante</Label>
-                    <Select
-                      value={receiptKind}
-                      onValueChange={(value) => setReceiptKind(value as ReceiptKind)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PENDIENTE">Definir despues</SelectItem>
-                        <SelectItem value="REMITO">Remito</SelectItem>
-                        <SelectItem value="FACTURA">Factura</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Cliente</Label>
-                  <Select value={customerId} onValueChange={setCustomerId}>
+                  <Label>Comprobante</Label>
+                  <Select
+                    value={receiptKind}
+                    onValueChange={(value) => {
+                      setReceiptKind(value as ReceiptKind);
+                      setReceiptSearch("");
+                      setSelectedRemitoId("__none__");
+                    }}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Consumidor final" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Consumidor final</SelectItem>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customerOptionLabels.get(customer.id) ?? customer.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="REMITO">Remito</SelectItem>
+                      <SelectItem value="FACTURA">Factura</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {receiptKind === "REMITO" ? (
-                  <div className="space-y-2">
-                    <Label>Remito emitido</Label>
-                    <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar remito del dia" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Seleccionar remito del dia</SelectItem>
-                        {availableRemitos.map((remito) => (
+                <div className="space-y-2">
+                  <Label>{receiptKind === "REMITO" ? "Remito" : "Factura"}</Label>
+                  <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
+                    <SelectTrigger className="justify-start">
+                      {selectedReceiptOption ? (
+                        <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_76px] items-center gap-2 text-left">
+                          <span className="min-w-0 whitespace-nowrap font-medium text-left tabular-nums">
+                            {selectedReceiptOption.receiptLabel}
+                          </span>
+                          <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
+                            {selectedReceiptOption.customerLabel}
+                          </span>
+                          <span className="min-w-0 truncate text-left text-xs text-muted-foreground tabular-nums">
+                            ${selectedReceiptOption.amount}
+                          </span>
+                        </div>
+                      ) : (
+                        <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"} />
+                      )}
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[22rem] overflow-hidden p-0">
+                      <div className="border-b border-border/60 p-2">
+                        <Input
+                          value={receiptSearch}
+                          onChange={(event) => setReceiptSearch(event.target.value)}
+                          placeholder="Buscar por remito, factura, cliente o monto"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"}</SelectItem>
+                      {filteredReceiptOptions.map((remito) => {
+                        const remitoNumber = `${String(remito.point_of_sale).padStart(4, "0")}-${String(remito.document_number ?? 0).padStart(8, "0")}`;
+                        const receiptLabel =
+                          receiptKind === "FACTURA" && remito.external_invoice_number
+                            ? remito.external_invoice_number
+                            : remitoNumber;
+                        const amount = Number(remito.total).toLocaleString("es-AR", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        });
+                        const customerLabel = formatCashOptionCustomer(remito);
+                        return (
                           <SelectItem key={remito.id} value={remito.id}>
-                            {remitoOptionLabels.get(remito.id) ?? formatRemitoOptionLabel(remito)}
+                            <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_76px] items-center gap-2 py-0.5 leading-tight text-left">
+                              <span className="min-w-0 whitespace-nowrap font-medium text-left tabular-nums">{receiptLabel}</span>
+                              <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
+                                {customerLabel}
+                              </span>
+                              <span className="min-w-0 truncate text-left text-xs text-muted-foreground tabular-nums">
+                                ${amount}
+                              </span>
+                            </div>
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : null}
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                {receiptKind === "FACTURA" ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="receipt-reference">Referencia de factura</Label>
-                    <Input
-                      id="receipt-reference"
-                      placeholder="Ej. 0009-00001782"
-                      value={receiptReference}
-                      onChange={(event) => setReceiptReference(event.target.value)}
-                    />
-                  </div>
-                ) : null}
+                <div className="space-y-2">
+                  <Label>Medio de pago</Label>
+                  <Select
+                    value={paymentMethod}
+                    onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EFECTIVO_REMITO">Efectivo remito</SelectItem>
+                      <SelectItem value="EFECTIVO_FACTURABLE">Efectivo facturable</SelectItem>
+                      <SelectItem value="SERVICIOS_REMITO">Servicios / remito</SelectItem>
+                      <SelectItem value="POINT">Point</SelectItem>
+                      <SelectItem value="TRANSFERENCIA">Transferencia</SelectItem>
+                      <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="notes">Observaciones</Label>
@@ -450,6 +523,15 @@ export default function CashPage() {
                     onChange={(event) => setNotes(event.target.value)}
                     rows={4}
                   />
+                </div>
+
+                <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-primary/5 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                    Total
+                  </div>
+                  <div className="mt-1 text-3xl font-semibold tracking-tight">
+                    ${derivedAmount || "0,00"}
+                  </div>
                 </div>
 
                 {paymentMethod === "SERVICIOS_REMITO" ? (
@@ -479,11 +561,11 @@ export default function CashPage() {
           <Tabs value={tab} onValueChange={setTab} className="space-y-4">
             <TabsContent value="day">
               <CashSalesTab
-                filteredSales={filteredSales}
+                filteredSales={salesPagination.pagedItems}
                 salesLoading={salesLoading}
                 situationFilter={situationFilter}
                 onSituationFilterChange={setSituationFilter}
-                hasClosedClosureForDay={hasClosedClosureForDay}
+                effectiveClosure={effectiveClosure}
                 onOpenDetail={openSaleDetail}
                 onCancelSale={(saleId) => {
                   if (!canCancelCashSale(roles)) return;
@@ -491,6 +573,13 @@ export default function CashPage() {
                 }}
                 canCancelSale={canCancelSale}
                 cancelPending={cancelSaleMutation.isPending}
+                page={salesPagination.page}
+                totalPages={salesPagination.totalPages}
+                totalItems={filteredSales.length}
+                onPageChange={setSalesPage}
+                pageSize={salesPageSize}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                onPageSizeChange={(value) => setSalesPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
               />
             </TabsContent>
 
@@ -556,7 +645,7 @@ export default function CashPage() {
             pendingReceiptKind={pendingReceiptKind}
             pendingRemitoId={pendingRemitoId}
             pendingReceiptReference={pendingReceiptReference}
-            availableRemitos={availableRemitos}
+            availableRemitos={pendingReceiptKind === "FACTURA" ? availableFacturableRemitos : availableRemitos}
             saving={attachReceiptMutation.isPending}
             onPendingReceiptKindChange={setPendingReceiptKind}
             onPendingRemitoIdChange={setPendingRemitoId}
@@ -599,7 +688,7 @@ export default function CashPage() {
             open={closurePreviewOpen}
             onOpenChange={setClosurePreviewOpen}
             selectedClosurePreview={selectedClosurePreview}
-            selectedClosureSales={selectedClosureSales}
+            selectedClosureSales={selectedClosureSalesForPreview}
             onPrint={printClosurePreview}
           />
         </Suspense>
@@ -607,3 +696,5 @@ export default function CashPage() {
     </AppLayout>
   );
 }
+
+

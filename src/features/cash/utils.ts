@@ -18,7 +18,31 @@ export function todayDateInputValue() {
 
 export function formatRemitoOptionLabel(remito: RemitoOption) {
   const number = formatDocumentNumber(remito.point_of_sale, remito.document_number);
-  return remito.customer_name ? `${number} - ${remito.customer_name}` : number;
+  const invoice = remito.external_invoice_number && remito.external_invoice_status === "ACTIVE"
+    ? ` / Factura ${remito.external_invoice_number}`
+    : "";
+  const amount = Number.isFinite(Number(remito.total)) ? ` - ${currency.format(Number(remito.total))}` : "";
+  return remito.customer_name ? `${number} - ${remito.customer_name}${amount}${invoice}` : `${number}${amount}${invoice}`;
+}
+
+export function normalizeReceiptSearch(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+export function buildReceiptSearchText(remito: RemitoOption) {
+  const paddedNumber = formatDocumentNumber(remito.point_of_sale, remito.document_number);
+  const compactNumber = `${Number(remito.point_of_sale)}-${Number(remito.document_number ?? 0)}`;
+  const invoiceNumber = remito.external_invoice_number ?? "";
+  const amount = Number.isFinite(Number(remito.total)) ? Number(remito.total).toFixed(2) : "";
+  return normalizeReceiptSearch(
+    [
+      paddedNumber,
+      compactNumber,
+      remito.customer_name,
+      invoiceNumber,
+      amount,
+    ].filter(Boolean).join(" "),
+  );
 }
 
 export function getClosureSituation(sale: CashSaleRow, hasClosedClosureForDay: boolean) {
@@ -51,10 +75,55 @@ export function getClosureSituation(sale: CashSaleRow, hasClosedClosureForDay: b
 
 export function describeDocumentEvent(event: DocumentEventQuickRow) {
   const eventType = event.event_type.toUpperCase();
-  if (eventType.includes("EMIT")) return { title: "Documento emitido", tone: "success" as const };
+  if (eventType === "EXTERNAL_INVOICE_SET") return { title: "Factura externa registrada", tone: "info" as const };
+  if (eventType === "EXTERNAL_INVOICE_CLEARED") return { title: "Factura externa quitada", tone: "warning" as const };
+  if (eventType.includes("EMIT")) return { title: "Remito emitido", tone: "success" as const };
   if (eventType.includes("ANUL")) return { title: "Documento anulado", tone: "danger" as const };
   if (eventType.includes("CRE")) return { title: "Documento creado", tone: "info" as const };
   return { title: event.event_type.replaceAll("_", " "), tone: "neutral" as const };
+}
+
+export function getClosureSituationWithClosure(
+  sale: CashSaleRow,
+  closure: { status: string; closed_at: string | null } | null,
+) {
+  if (sale.status === "ANULADA") {
+    return {
+      label: "Anulada",
+      className: "border-rose-200 bg-rose-50 text-rose-700",
+    };
+  }
+
+  if (sale.closure_id) {
+    return {
+      label: "En caja cerrada",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    };
+  }
+
+  if (closure?.status === "CERRADO" && closure.closed_at) {
+    return new Date(sale.sold_at) <= new Date(closure.closed_at)
+      ? {
+          label: "En caja cerrada",
+          className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        }
+      : {
+          label: "Venta post cierre",
+          className: "border-violet-200 bg-violet-50 text-violet-700",
+        };
+  }
+
+  if (closure?.status === "CERRADO") {
+    return {
+      label: "Venta post cierre",
+      className: "border-violet-200 bg-violet-50 text-violet-700",
+    };
+  }
+
+  return {
+    label: "Pendiente de cierre",
+    className: "border-sky-200 bg-sky-50 text-sky-700",
+  };
 }
 
 export function buildCashSummary(sales: CashSaleRow[]): CashSummary {

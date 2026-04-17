@@ -205,7 +205,7 @@ export function DocumentsEditorDialog({
                 <CollapsibleTrigger asChild>
                   <Button type="button" variant="outline" size="sm" className="h-9 mt-6 w-full shadow-none bg-background/50 hover:bg-background">
                     {detailsOpen ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
-                    {detailsOpen ? "Ocultar opciones avanzadas" : "Opciones de facturación avanzadas"}
+                    {detailsOpen ? "Ocultar opciones avanzadas" : "Opciones de documento"}
                   </Button>
                 </CollapsibleTrigger>
               </div>
@@ -247,7 +247,7 @@ export function DocumentsEditorDialog({
                     <SelectContent>
                       <SelectItem value="GENERAL">Cliente general</SelectItem>
                       {form.doc_type === "REMITO" ? (
-                        <SelectItem value="INTERNO">Personal / tecnico interno</SelectItem>
+                          <SelectItem value="INTERNO">Personal / técnico interno</SelectItem>
                       ) : null}
                       <SelectItem value="EMPRESA">Empresa</SelectItem>
                     </SelectContent>
@@ -265,7 +265,7 @@ export function DocumentsEditorDialog({
                       }))
                     }
                   >
-                    <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Cliente ocasional" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Sin seleccionar</SelectItem>
                       {customers.map((customer) => (
@@ -281,7 +281,7 @@ export function DocumentsEditorDialog({
                   <Label>Nombre cliente</Label>
                   <Input
                     value={form.customer_name}
-                    placeholder="Opcional"
+                    placeholder="Cliente ocasional"
                     onChange={(event) =>
                       setForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
                     }
@@ -337,7 +337,7 @@ export function DocumentsEditorDialog({
 
                 {form.doc_type === "PRESUPUESTO" ? (
                   <div className="space-y-2">
-                    <Label>Valido hasta</Label>
+                    <Label>Válido hasta</Label>
                     <Input
                       type="date"
                       value={form.valid_until}

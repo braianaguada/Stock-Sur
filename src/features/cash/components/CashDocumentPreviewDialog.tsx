@@ -48,21 +48,21 @@ export function CashDocumentPreviewDialog({
           <DialogDescription>Documento asociado a la venta y su trazabilidad.</DialogDescription>
         </DialogHeader>
         {detailSale ? (
-          <div className="grid gap-3 rounded-3xl border bg-slate-50 p-4 md:grid-cols-4">
+          <div className="grid gap-3 rounded-3xl border border-white/10 bg-slate-900 p-4 text-slate-100 md:grid-cols-4">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Cliente</p>
               <p className="mt-1 font-semibold">{detailSale.customer_name_snapshot ?? "Consumidor final"}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Pago</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Pago</p>
               <p className="mt-1 font-semibold">{PAYMENT_LABEL[detailSale.payment_method]}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Comprobante</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Comprobante</p>
               <p className="mt-1 font-semibold">{detailSale.receipt_reference ?? RECEIPT_LABEL[detailSale.receipt_kind]}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Importe</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Importe</p>
               <p className="mt-1 font-semibold">{currency.format(Number(detailSale.amount_total))}</p>
             </div>
           </div>
@@ -103,6 +103,9 @@ export function CashDocumentPreviewDialog({
                         <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(linkedDocument.issue_date).toLocaleDateString("es-AR")}</p>
                         <p className="text-sm"><span className="font-semibold">Estado:</span> {DOC_STATUS_LABEL[linkedDocument.status]}</p>
                         <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(linkedDocument.point_of_sale).padStart(4, "0")}</p>
+                        {linkedDocument.external_invoice_number ? (
+                          <p className="text-sm"><span className="font-semibold">Factura externa:</span> {linkedDocument.external_invoice_number}</p>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -180,8 +183,10 @@ export function CashDocumentPreviewDialog({
               </aside>
             </>
           ) : (
-            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
-              Esta venta no tiene un documento interno para previsualizar. Si fue facturada por afuera del sistema, arriba queda visible la referencia cargada.
+            <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/60 p-6 text-sm text-slate-300">
+              {detailSale?.status === "ANULADA"
+                ? "Venta anulada: no hay documento asociado visible."
+                : "No hay documento interno para previsualizar. Si fue facturada por afuera del sistema, arriba queda visible la referencia cargada."}
             </div>
           )}
         </div>

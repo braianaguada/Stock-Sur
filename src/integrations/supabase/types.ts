@@ -380,6 +380,8 @@ export type Database = {
           accent_color: string
           address: string | null
           allow_issue_remitos_without_stock: boolean
+          auto_close_cash_enabled: boolean
+          auto_close_cash_time: string | null
           app_name: string
           company_id: string
           created_at: string
@@ -401,6 +403,8 @@ export type Database = {
           accent_color?: string
           address?: string | null
           allow_issue_remitos_without_stock?: boolean
+          auto_close_cash_enabled?: boolean
+          auto_close_cash_time?: string | null
           app_name?: string
           company_id: string
           created_at?: string
@@ -422,6 +426,8 @@ export type Database = {
           accent_color?: string
           address?: string | null
           allow_issue_remitos_without_stock?: boolean
+          auto_close_cash_enabled?: boolean
+          auto_close_cash_time?: string | null
           app_name?: string
           company_id?: string
           created_at?: string
