@@ -418,7 +418,7 @@ export default function CashPage() {
                           <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
                             {selectedReceiptOption.customerLabel}
                           </span>
-                          <span className="min-w-0 justify-self-end truncate text-right text-xs text-muted-foreground tabular-nums">
+                          <span className="min-w-0 truncate text-left text-xs text-muted-foreground tabular-nums">
                             ${selectedReceiptOption.amount}
                           </span>
                         </div>
@@ -454,7 +454,7 @@ export default function CashPage() {
                               <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
                                 {customerLabel}
                               </span>
-                              <span className="min-w-0 justify-self-end truncate text-right text-xs text-muted-foreground tabular-nums">
+                              <span className="min-w-0 truncate text-left text-xs text-muted-foreground tabular-nums">
                                 ${amount}
                               </span>
                             </div>
