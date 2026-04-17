@@ -157,9 +157,9 @@ export default function DocumentsPage() {
   }, [form.price_list_id, priceLists]);
 
   useEffect(() => {
-    if (editingDocId || form.customer_id || !defaultCustomerId) return;
+    if (form.customer_id || !defaultCustomerId) return;
     setForm((previousForm) => ({ ...previousForm, customer_id: defaultCustomerId }));
-  }, [defaultCustomerId, editingDocId, form.customer_id]);
+  }, [defaultCustomerId, form.customer_id]);
 
   const syncLineWithPriceList = useCallback(
     (
