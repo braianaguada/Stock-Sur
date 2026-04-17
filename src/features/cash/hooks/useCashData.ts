@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDocumentNumber } from "@/lib/formatters";
 import { queryKeys } from "@/lib/query-keys";
 import type {
   CashClosureHistoryRow,
@@ -215,6 +216,24 @@ export function useCashData({
     ),
     [sales],
   );
+  const remitoReferenceById = useMemo(
+    () =>
+      new Map(
+        remitos.map((remito) => [
+          remito.id,
+          formatDocumentNumber(remito.point_of_sale, remito.document_number),
+        ]),
+      ),
+    [remitos],
+  );
+  const assignedReceiptReferences = useMemo(
+    () => new Set(
+      sales
+        .filter((sale) => sale.status !== "ANULADA" && sale.receipt_reference)
+        .map((sale) => sale.receipt_reference as string),
+    ),
+    [sales],
+  );
   const usedReceiptReferences = useMemo(
     () => new Set(
       sales
@@ -228,21 +247,23 @@ export function useCashData({
       remitos.filter(
         (remito) =>
           !assignedRemitoIds.has(remito.id) &&
+          !assignedReceiptReferences.has(remitoReferenceById.get(remito.id) ?? "") &&
           !remito.external_invoice_number &&
           remito.external_invoice_status !== "ACTIVE",
       ),
-    [remitos, assignedRemitoIds],
+    [remitos, assignedRemitoIds, assignedReceiptReferences, remitoReferenceById],
   );
   const availableFacturableRemitos = useMemo(
     () =>
       remitos.filter(
         (remito) =>
           !assignedRemitoIds.has(remito.id) &&
+          !assignedReceiptReferences.has(remito.external_invoice_number ?? "") &&
           remito.external_invoice_status === "ACTIVE" &&
           Boolean(remito.external_invoice_number) &&
           !usedReceiptReferences.has(remito.external_invoice_number as string),
       ),
-    [remitos, assignedRemitoIds, usedReceiptReferences],
+    [remitos, assignedRemitoIds, assignedReceiptReferences, usedReceiptReferences],
   );
   const unclosedSalesAfterClosure = useMemo(
     () => sales.filter((sale) => sale.status !== "ANULADA" && !sale.closure_id),
