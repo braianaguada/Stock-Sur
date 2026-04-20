@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PRICING_MODE_LABEL } from "@/features/documents/constants";
+import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type {
   CustomerKind,
   DocType,
@@ -29,6 +30,9 @@ type AvailableItemOption = {
   sku: string;
   name: string;
   unit?: string | null;
+  attributes?: string | null;
+  brand?: string | null;
+  model?: string | null;
 };
 
 interface DocumentsEditorDialogProps {
@@ -423,16 +427,19 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-2">
                   {filteredItems.map((item) => {
                     const alreadyAdded = lineCountByItemId.has(item.id);
+                    const displayName = buildItemDisplayName(item);
+                    const displayMeta = buildItemDisplayMeta(item);
                     return (
                       <div
                         key={item.id}
                         className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card px-3 py-3 md:flex-row md:items-center md:justify-between"
                       >
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium">
-                            {item.sku} | {item.name}
+                          <div className="text-sm font-medium leading-5 break-words">
+                            {displayName}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground break-words">
+                            {displayMeta ? `${displayMeta} - ` : ""}
                             Unidad: {item.unit || "un"}
                             {alreadyAdded ? " | Ya agregado" : ""}
                           </div>
@@ -480,13 +487,13 @@ export function DocumentsEditorDialog({
                 <div key={`${line.item_id ?? "manual"}-${index}`} className="group rounded-lg border border-border/70 bg-background/80 px-3 py-2 hover:border-border transition-colors">
                   <div className="grid gap-3 xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:items-center">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-foreground">
+                      <div className="text-sm font-semibold text-foreground leading-5 break-words">
                         {line.sku_snapshot ? `${line.sku_snapshot} | ` : ""}
                         {line.description}
                       </div>
-                      <div className="mt-0.5 text-xs text-muted-foreground flex items-center gap-2">
+                      <div className="mt-0.5 text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span>{line.unit || "un"}</span>
-                        <span>&bull;</span>
+                        <span className="hidden sm:inline">&bull;</span>
                         <span>Sug: {formatMoney(line.suggested_unit_price)}</span>
                       </div>
                     </div>
@@ -598,9 +605,9 @@ export function DocumentsEditorDialog({
                       />
                     </div>
 
-                    <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-1 flex items-center h-9 mt-4 xl:mt-0 relative overflow-hidden">
+                    <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-1 flex items-center min-h-9 mt-4 xl:mt-0 relative overflow-hidden">
                       <Label className="text-xs text-muted-foreground xl:hidden absolute top-0 -mt-5">Total</Label>
-                      <div className="text-sm font-semibold text-foreground w-full xl:text-left">{formatMoney(lineTotal)}</div>
+                      <div className="text-sm font-semibold text-foreground w-full xl:text-left whitespace-nowrap">{formatMoney(lineTotal)}</div>
                     </div>
 
                     <div className="flex items-end justify-end xl:justify-center mt-[-36px] xl:mt-0">
