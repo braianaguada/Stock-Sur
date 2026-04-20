@@ -20,7 +20,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 vi.mock("@/contexts/company-brand-context", () => ({
   useCompanyBrand: () => ({
     settings: {
-      app_name: "Stock Sur",
+      app_name: "Empresa Demo",
       logo_url: null,
       primary_color: "#123456",
       secondary_color: "#654321",
