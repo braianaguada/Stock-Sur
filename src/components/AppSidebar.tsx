@@ -103,7 +103,7 @@ export function AppSidebar() {
               )}
 
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">{currentCompany?.name ?? settings.app_name}</p>
+                <p className="truncate text-sm font-semibold text-foreground">{settings.app_name ?? currentCompany?.name}</p>
                 <p className="truncate text-[10px] uppercase tracking-[0.22em] text-muted-foreground/85">Gestión comercial</p>
               </div>
             </div>
