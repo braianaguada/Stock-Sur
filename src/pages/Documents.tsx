@@ -118,6 +118,7 @@ export default function DocumentsPage() {
     isLoading,
     selectedLines,
     selectedEvents,
+    selectedDocumentCashUsage,
     selectedDocument,
     sourceDocumentLabel,
   } = useDocumentsData({
@@ -685,6 +686,7 @@ export default function DocumentsPage() {
             selectedDocument={selectedDocument}
             selectedLines={selectedLines}
             selectedEvents={selectedEvents}
+            isExternalInvoiceLocked={selectedDocumentCashUsage}
             sourceDocumentLabel={sourceDocumentLabel}
             companySettings={companySettings}
             onSetExternalInvoice={(documentId, externalInvoiceNumber) => {

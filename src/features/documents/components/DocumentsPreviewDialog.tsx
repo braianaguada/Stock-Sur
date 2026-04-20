@@ -23,6 +23,7 @@ interface DocumentsPreviewDialogProps {
   selectedEvents: DocEventRow[];
   sourceDocumentLabel: string | null;
   companySettings: CompanySettings;
+  isExternalInvoiceLocked: boolean;
   onSetExternalInvoice: (documentId: string, externalInvoiceNumber: string) => void;
   onClearExternalInvoice: (documentId: string) => void;
   isUpdatingExternalInvoice: boolean;
@@ -43,6 +44,7 @@ export function DocumentsPreviewDialog({
   selectedEvents,
   sourceDocumentLabel,
   companySettings,
+  isExternalInvoiceLocked,
   onSetExternalInvoice,
   onClearExternalInvoice,
   isUpdatingExternalInvoice,
@@ -188,10 +190,10 @@ export function DocumentsPreviewDialog({
                             size="sm"
                             className="shadow-sm"
                             onClick={handleSetExternalInvoice}
-                            disabled={isUpdatingExternalInvoice}
-                          >
-                            {selectedDocument.external_invoice_number ? "Editar factura externa" : "Registrar factura externa"}
-                          </Button>
+                          disabled={isUpdatingExternalInvoice || isExternalInvoiceLocked}
+                        >
+                          {selectedDocument.external_invoice_number ? "Editar factura externa" : "Registrar factura externa"}
+                        </Button>
                             {selectedDocument.external_invoice_number ? (
                               <Button
                                 type="button"
@@ -199,7 +201,7 @@ export function DocumentsPreviewDialog({
                                 size="sm"
                                 className="shadow-sm"
                                 onClick={handleClearExternalInvoice}
-                                disabled={isUpdatingExternalInvoice}
+                                disabled={isUpdatingExternalInvoice || isExternalInvoiceLocked}
                               >
                                 Quitar factura externa
                               </Button>
