@@ -29,6 +29,10 @@ export function formatBusinessDate(value: string) {
   return `${day}/${month}/${year}`;
 }
 
+export function formatIsoDate(value: string) {
+  return formatBusinessDate(value);
+}
+
 export function formatDocumentNumber(pointOfSale: number, documentNumber: number | null) {
   if (documentNumber == null) return "Sin numero";
   return `${String(pointOfSale).padStart(4, "0")}-${String(documentNumber).padStart(8, "0")}`;

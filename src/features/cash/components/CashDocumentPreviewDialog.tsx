@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { currency, formatDocumentNumber } from "@/lib/formatters";
+import { formatIsoDate } from "@/lib/formatters";
 import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL } from "../constants";
 import type { CashSaleRow, DocumentEventQuickRow, DocumentLineQuickRow, DocumentQuickRow } from "../types";
 import { describeDocumentEvent } from "../utils";
@@ -100,7 +101,7 @@ export function CashDocumentPreviewDialog({
                       </div>
                       <div className="rounded-2xl border border-slate-200 bg-slate-50/95 p-4">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Operacion</p>
-                        <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {new Date(linkedDocument.issue_date).toLocaleDateString("es-AR")}</p>
+                        <p className="mt-2 text-sm"><span className="font-semibold">Fecha:</span> {formatIsoDate(linkedDocument.issue_date)}</p>
                         <p className="text-sm"><span className="font-semibold">Estado:</span> {DOC_STATUS_LABEL[linkedDocument.status]}</p>
                         <p className="text-sm"><span className="font-semibold">Punto de venta:</span> {String(linkedDocument.point_of_sale).padStart(4, "0")}</p>
                         {linkedDocument.external_invoice_number ? (
@@ -118,7 +119,9 @@ export function CashDocumentPreviewDialog({
                       </div>
                       <div className="rounded-2xl border border-dashed p-4">
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Notas</p>
-                        <p className="mt-2 text-sm text-muted-foreground">{linkedDocument.notes ?? "Sin observaciones cargadas."}</p>
+                        <p className="mt-2 text-sm whitespace-pre-wrap break-words text-muted-foreground">
+                          {linkedDocument.notes ?? "Sin observaciones cargadas."}
+                        </p>
                       </div>
                     </div>
                   </div>

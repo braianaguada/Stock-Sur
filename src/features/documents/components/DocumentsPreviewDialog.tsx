@@ -13,6 +13,7 @@ import {
 } from "@/features/documents/constants";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
 import { describeDocumentHistoryEvent, formatNumber } from "@/features/documents/utils";
+import { formatIsoDate } from "@/lib/formatters";
 
 interface DocumentsPreviewDialogProps {
   open: boolean;
@@ -135,7 +136,7 @@ export function DocumentsPreviewDialog({
                       <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-semibold mb-3">Operación</p>
                       <div className="grid grid-cols-2 gap-y-2 text-sm text-slate-600">
                         <p>Fecha:</p>
-                        <p className="font-medium text-slate-800">{new Date(selectedDocument.issue_date).toLocaleDateString("es-AR")}</p>
+                        <p className="font-medium text-slate-800">{formatIsoDate(selectedDocument.issue_date)}</p>
                         
                         <p>Estado:</p>
                         <p className="font-medium text-slate-800">{STATUS_LABEL[selectedDocument.status]}</p>
@@ -168,7 +169,7 @@ export function DocumentsPreviewDialog({
                         {selectedDocument.valid_until ? (
                           <>
                             <p>Validez:</p>
-                            <p className="font-medium text-slate-800">{new Date(selectedDocument.valid_until).toLocaleDateString("es-AR")}</p>
+                            <p className="font-medium text-slate-800">{formatIsoDate(selectedDocument.valid_until)}</p>
                           </>
                         ) : null}
                         
@@ -248,7 +249,9 @@ export function DocumentsPreviewDialog({
                   {selectedDocument.notes && (
                     <div className="rounded-2xl border border-border bg-background/50 p-4">
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold mb-2">Notas</p>
-                      <p className="text-sm leading-relaxed text-foreground/80">{selectedDocument.notes}</p>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-foreground/80">
+                        {selectedDocument.notes}
+                      </p>
                     </div>
                   )}
                 </div>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DOC_LABEL, DOC_TYPE_CLASS, STATUS_CLASS, STATUS_LABEL, STATUS_VARIANT } from "@/features/documents/constants";
 import type { DocRow, DocStatus } from "@/features/documents/types";
 import { formatNumber } from "@/features/documents/utils";
+import { formatIsoDate } from "@/lib/formatters";
 
 interface DocumentsDataTableProps {
   documents: DocRow[];
@@ -114,7 +115,7 @@ export function DocumentsDataTable({
     {
       accessorKey: "issue_date",
       header: () => "Fecha",
-      cell: ({ row }) => new Date(row.original.issue_date).toLocaleDateString("es-AR"),
+      cell: ({ row }) => formatIsoDate(row.original.issue_date),
       meta: {
         className: "w-[120px]",
         cellClassName: "py-2.5",
