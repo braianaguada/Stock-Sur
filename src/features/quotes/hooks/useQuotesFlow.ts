@@ -5,6 +5,7 @@ import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { invalidateQuoteQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
+import { businessDateFromTimestamp } from "@/lib/formatters";
 import type { QuoteFormState, QuoteLine, QuoteLineRow, QuoteListRow } from "@/features/quotes/types";
 
 type ToastFn = (params: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
@@ -184,7 +185,7 @@ export function useQuotesFlow(params: {
           @media print{button{display:none}}</style></head><body>
           <h1>${escapeHtml(appName)} - Presupuesto #${quote.quote_number}</h1>
           <p class="meta">Cliente: <strong>${escapeHtml(quote.customer_name ?? "-")}</strong></p>
-          <p class="meta">Fecha: ${new Date(quote.created_at).toLocaleDateString("es-AR")}</p>
+          <p class="meta">Fecha: ${businessDateFromTimestamp(quote.created_at)}</p>
           ${quote.notes ? `<p class="meta">Notas: ${escapeHtmlWithLineBreaks(quote.notes)}</p>` : ""}
           <table><thead><tr><th>Descripción</th><th style="text-align:right">Cant.</th><th style="text-align:right">P. Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
           <tbody>${linesHtml}</tbody></table>

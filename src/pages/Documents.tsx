@@ -47,7 +47,7 @@ import type {
   PriceListItemRow,
 } from "@/features/documents/types";
 import { calculatePriceFromCostBase, formatNumber } from "@/features/documents/utils";
-import { formatIsoDate } from "@/lib/formatters";
+import { formatDateTime, formatIsoDate } from "@/lib/formatters";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 
@@ -514,7 +514,7 @@ export default function DocumentsPage() {
           ${document.doc_type === "REMITO" && document.external_invoice_number ? `<p class="muted"><strong>Factura externa:</strong> ${escapeHtml(document.external_invoice_number)}</p>` : ""}
           ${document.source_document_type && document.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${escapeHtml(DOC_LABEL[document.source_document_type])} ${escapeHtml(document.source_document_number_snapshot)}</p>` : ""}
           ${document.internal_remito_type ? `<p class="muted"><strong>Imputacion:</strong> ${escapeHtml(INTERNAL_REMITO_LABEL[document.internal_remito_type])}</p>` : ""}
-          <p class="muted"><strong>Creado:</strong> ${new Date(document.created_at).toLocaleString("es-AR")}</p>
+          <p class="muted"><strong>Creado:</strong> ${formatDateTime(document.created_at)}</p>
         </div>
       </div>
 

@@ -2,8 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { currency, formatDocumentNumber } from "@/lib/formatters";
-import { formatIsoDate } from "@/lib/formatters";
+import { currency, formatDocumentNumber, formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL } from "../constants";
 import type { CashSaleRow, DocumentEventQuickRow, DocumentLineQuickRow, DocumentQuickRow } from "../types";
 import { describeDocumentEvent } from "../utils";
@@ -170,9 +169,9 @@ export function CashDocumentPreviewDialog({
                                   <p className="mt-1 text-sm leading-5 text-slate-500">{event.event_type.replaceAll("_", " ")}</p>
                                 </div>
                                 <div className="shrink-0 text-right">
-                                  <Badge variant="outline">{new Date(event.created_at).toLocaleDateString("es-AR")}</Badge>
+                                  <Badge variant="outline">{formatTimestampDate(event.created_at)}</Badge>
                                   <p className="mt-2 text-xs text-slate-400">
-                                    {new Date(event.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                                    {formatTimestampTime(event.created_at)}
                                   </p>
                                 </div>
                               </div>

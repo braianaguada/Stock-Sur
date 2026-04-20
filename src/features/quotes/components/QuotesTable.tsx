@@ -5,6 +5,7 @@ import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { QUOTE_STATUS_LABELS, QUOTE_STATUS_VARIANTS } from "@/features/quotes/constants";
+import { businessDateFromTimestamp } from "@/lib/formatters";
 import type { QuoteListRow } from "@/features/quotes/types";
 
 type QuotesTableProps = {
@@ -58,7 +59,7 @@ export function QuotesTable({
       header: () => "Fecha",
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
-          {new Date(row.original.created_at).toLocaleDateString("es-AR")}
+          {businessDateFromTimestamp(row.original.created_at)}
         </span>
       ),
     },

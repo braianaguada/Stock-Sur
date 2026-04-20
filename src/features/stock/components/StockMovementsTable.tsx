@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
+import { formatDateTime } from "@/lib/formatters";
 import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type { Movement, MovementType } from "@/features/stock/types";
 
@@ -27,7 +28,7 @@ export function StockMovementsTable({
       header: () => "Fecha/Hora",
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
-          {new Date(row.original.created_at).toLocaleString("es-AR")}
+          {formatDateTime(row.original.created_at)}
         </span>
       ),
     },

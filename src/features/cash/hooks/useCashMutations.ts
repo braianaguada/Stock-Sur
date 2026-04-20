@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
-import { formatDocumentNumber } from "@/lib/formatters";
+import { businessDateFromTimestamp, formatDocumentNumber } from "@/lib/formatters";
 import type {
   CashClosureRow,
   CashPendingReceiptState,
@@ -52,11 +52,7 @@ export function useCashMutations({
   );
   const getDocumentBusinessDate = (remito?: RemitoOption | null) =>
     remito?.issue_date
-      ?? (remito?.created_at
-        ? new Date(remito.created_at).toLocaleDateString("en-CA", {
-            timeZone: "America/Argentina/Buenos_Aires",
-          })
-        : businessDate);
+      ?? (remito?.created_at ? businessDateFromTimestamp(remito.created_at) : businessDate);
 
   const createSaleMutation = useMutation({
     mutationFn: async (form: CashSaleFormState) => {

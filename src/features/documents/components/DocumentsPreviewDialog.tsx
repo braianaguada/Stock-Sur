@@ -13,7 +13,7 @@ import {
 } from "@/features/documents/constants";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
 import { describeDocumentHistoryEvent, formatNumber } from "@/features/documents/utils";
-import { formatIsoDate } from "@/lib/formatters";
+import { formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 
 interface DocumentsPreviewDialogProps {
   open: boolean;
@@ -305,10 +305,10 @@ export function DocumentsPreviewDialog({
                                 </span>
                                 <div className="mt-2 flex items-center gap-2">
                                   <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border-border/60 bg-muted/30 ${toneColors.text}`}>
-                                    {new Date(event.created_at).toLocaleDateString("es-AR")}
+                                    {formatTimestampDate(event.created_at)}
                                   </Badge>
                                   <span className="text-[10px] text-muted-foreground/60 font-mono">
-                                    {new Date(event.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                                    {formatTimestampTime(event.created_at)}
                                   </span>
                                 </div>
                               </div>

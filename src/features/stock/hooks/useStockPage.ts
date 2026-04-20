@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { clearSessionDraft, useSessionDraft } from "@/hooks/use-session-draft";
 import { invalidateStockQueries } from "@/lib/invalidate";
+import { businessDateFromTimestamp } from "@/lib/formatters";
 import { queryKeys } from "@/lib/query-keys";
 import type {
   DemandProfile,
@@ -328,7 +329,7 @@ export function useStockPage() {
           const outQty = Math.max(0, quantity);
           row.out_365d += outQty;
           const moveDate = new Date(movement.created_at);
-          row.out_days_365.add(movement.created_at.slice(0, 10));
+          row.out_days_365.add(businessDateFromTimestamp(movement.created_at));
           const monthDiff =
             (now.getFullYear() - moveDate.getFullYear()) * 12 +
             (now.getMonth() - moveDate.getMonth());
