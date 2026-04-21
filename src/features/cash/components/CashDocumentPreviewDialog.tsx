@@ -121,6 +121,12 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                     </div>
 
                     <div className="mt-4 grid gap-4">
+                      {detailSale.notes ? (
+                        <div className="rounded-xl border border-border/60 bg-background/80 px-4 py-3">
+                          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Observaciones</p>
+                          <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground/85">{detailSale.notes}</p>
+                        </div>
+                      ) : null}
                       {linkedDocument.notes ? (
                         <div className="rounded-xl border border-border/60 bg-background/80 px-4 py-3">
                           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Notas</p>
