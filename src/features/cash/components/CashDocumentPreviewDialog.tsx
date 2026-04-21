@@ -216,10 +216,11 @@ export function CashDocumentPreviewDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2">
           {detailSale && canAttachReceipt(detailSale) ? (
             <Button
-              variant="outline"
+              variant="default"
+              className="shadow-sm"
               onClick={() => {
                 onOpenChange(false);
                 onAssignReceipt(detailSale);
