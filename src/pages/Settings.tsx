@@ -74,13 +74,13 @@ export default function SettingsPage() {
         <PageHeader
           eyebrow="Branding y operacion"
           title="Configuracion"
-          subtitle={`Empresa, identidad visual y encabezados de documentos para ${currentCompany.name}. Todo lo que definas aca se refleja en menus, PDFs y branding compartido.`}
+          subtitle={`Empresa, identidad visual y encabezados de documentos para ${form.app_name || currentCompany.name}. Todo lo que definas aca se refleja en menus, PDFs y branding compartido.`}
         />
 
         <div className="hidden rounded-3xl border bg-gradient-to-r from-[hsl(var(--accent))] via-card to-card p-6">
           <h1 className="text-2xl font-bold tracking-tight">Configuracion</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Empresa, identidad visual y encabezados de documentos para {currentCompany.name}. Todo lo que definas aca se refleja en menus, PDFs y branding compartido.
+            Empresa, identidad visual y encabezados de documentos para {form.app_name || currentCompany.name}. Todo lo que definas aca se refleja en menus, PDFs y branding compartido.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <div className="rounded-full border bg-background/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">

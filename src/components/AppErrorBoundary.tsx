@@ -43,7 +43,7 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="w-full max-w-lg rounded-3xl border bg-card p-8 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Stock Sur</p>
+          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Sistema comercial</p>
           <h1 className="mt-3 text-2xl font-semibold text-foreground">La pantalla encontró un error</h1>
           <p className="mt-3 text-sm text-muted-foreground">
             Evitamos que la aplicación quede en blanco para que puedas recuperarte rápido.
