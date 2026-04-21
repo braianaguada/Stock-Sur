@@ -251,7 +251,10 @@ export function useCashData({
     () => sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE"),
     [sales],
   );
-  const salesReferenceRows = allSalesReferencesQuery.data ?? [];
+  const salesReferenceRows = useMemo(
+    () => allSalesReferencesQuery.data ?? [],
+    [allSalesReferencesQuery.data],
+  );
   const assignedRemitoIds = useMemo(
     () => new Set(
       salesReferenceRows
