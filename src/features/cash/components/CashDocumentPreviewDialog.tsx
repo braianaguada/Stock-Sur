@@ -2,7 +2,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useCompanyTheme } from "@/hooks/useCompanyTheme";
 import { currency, formatDocumentNumber, formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL } from "../constants";
 import type { CashSaleRow, DocumentEventQuickRow, DocumentLineQuickRow, DocumentQuickRow } from "../types";
@@ -29,26 +28,6 @@ type CashDocumentPreviewDialogProps = {
 
 export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps) {
   const { open, onOpenChange, detailSale, linkedDocument, linkedDocumentLines, linkedDocumentEvents, companyBrand, canAttachReceipt, canCancelSale, onAssignReceipt, onCancelSale, cancelPending } = props;
-  const theme = useCompanyTheme({
-    app_name: companyBrand.appName,
-    legal_name: companyBrand.appName,
-    tax_id: null,
-    address: null,
-    phone: null,
-    whatsapp: null,
-    email: null,
-    logo_url: companyBrand.logoUrl,
-    primary_color: "#1f4f99",
-    secondary_color: "#c62828",
-    accent_color: "#eef3fb",
-    document_tagline: companyBrand.documentTagline,
-    document_footer: null,
-    default_point_of_sale: 1,
-    allow_issue_remitos_without_stock: false,
-    auto_close_cash_enabled: false,
-    auto_close_cash_time: null,
-  });
-  const accent = theme.primaryColor;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -86,7 +65,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                             <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">{companyBrand.documentTagline ?? "Documentacion comercial"}</p>
                           </div>
                         </div>
-                        <div className="rounded-2xl border px-4 py-3 shadow-sm" style={{ borderColor: accent, background: `color-mix(in srgb, ${accent} 8%, transparent)` }}>
+                        <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 shadow-sm">
                           <p className="text-[10px] uppercase tracking-[0.24em] text-foreground/60">Documento</p>
                           <p className="mt-1 text-lg font-semibold text-foreground">Remito</p>
                           <p className="mt-2 font-mono text-sm text-foreground/80">{formatDocumentNumber(linkedDocument.point_of_sale, linkedDocument.document_number)}</p>
@@ -117,7 +96,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                         <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Items</p>
                         <p className="mt-1 text-sm text-muted-foreground">Detalle principal de la venta asociada.</p>
                       </div>
-                      <div className="rounded-2xl border px-4 py-3 text-right" style={{ borderColor: accent, background: `color-mix(in srgb, ${accent} 8%, transparent)` }}>
+                      <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-right">
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total documento</p>
                         <p className="mt-1 text-3xl font-black tracking-tight text-foreground">{currency.format(Number(linkedDocument.total))}</p>
                       </div>

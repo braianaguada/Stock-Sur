@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
 import type { CompanySettings } from "@/contexts/company-brand-context";
-import { useCompanyTheme } from "@/hooks/useCompanyTheme";
 import { CUSTOMER_KIND_LABEL, DOC_LABEL, DOC_TYPE_CLASS, STATUS_LABEL } from "@/features/documents/constants";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
 import { describeDocumentHistoryEvent, formatNumber } from "@/features/documents/utils";
@@ -45,9 +44,6 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     onClearExternalInvoice,
     isUpdatingExternalInvoice,
   } = props;
-  const theme = useCompanyTheme(companySettings);
-  const accent = theme.primaryColor;
-
   const handleSetExternalInvoice = () => {
     if (!selectedDocument) return;
     const currentValue = selectedDocument.external_invoice_number ?? "";
@@ -91,10 +87,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                           </p>
                         </div>
                       </div>
-                      <div
-                        className="rounded-2xl border px-4 py-3 shadow-sm"
-                        style={{ borderColor: accent, background: `color-mix(in srgb, ${accent} 8%, transparent)` }}
-                      >
+                      <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 shadow-sm">
                         <p className="text-[10px] uppercase tracking-[0.24em] text-foreground/60">Documento</p>
                         <p className="mt-1 text-lg font-semibold text-foreground">{DOC_LABEL[selectedDocument.doc_type]}</p>
                         <p className="mt-2 font-mono text-sm text-foreground/80">
@@ -104,7 +97,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                     </div>
 
                     {sourceDocumentLabel ? (
-                      <div className="mt-4 rounded-2xl border px-4 py-3" style={{ borderColor: accent, background: `color-mix(in srgb, ${accent} 10%, transparent)` }}>
+                      <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
                         <p className="text-[10px] uppercase tracking-[0.22em] font-semibold text-foreground/60">Origen</p>
                         <p className="mt-1 text-sm font-medium text-foreground">{sourceDocumentLabel}</p>
                       </div>
@@ -157,7 +150,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Items</p>
                       <p className="mt-1 text-sm text-muted-foreground">Detalle principal del documento.</p>
                     </div>
-                    <div className="rounded-2xl border px-4 py-3 text-right" style={{ borderColor: accent, background: `color-mix(in srgb, ${accent} 8%, transparent)` }}>
+                    <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-right">
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total del documento</p>
                       <p className="mt-1 text-3xl font-black tracking-tight text-foreground">
                         ${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
