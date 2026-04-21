@@ -31,7 +31,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
+      <DialogContent className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl font-semibold tracking-tight text-foreground/90">Vista previa del documento</DialogTitle>
           <DialogDescription>Documento asociado a la venta y su trazabilidad.</DialogDescription>
