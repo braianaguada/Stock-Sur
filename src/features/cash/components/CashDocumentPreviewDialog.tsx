@@ -69,7 +69,7 @@ export function CashDocumentPreviewDialog({
           </div>
         ) : null}
 
-        <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,380px)]">
+        <div className="grid min-h-0 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,380px)]">
           {linkedDocument ? (
             <>
               <div className="min-h-0 min-w-0 overflow-y-scroll pr-1 pb-2 custom-scrollbar">
@@ -140,7 +140,7 @@ export function CashDocumentPreviewDialog({
                 </div>
               </div>
 
-              <aside className="min-h-0 overflow-y-scroll pr-1 pb-2 custom-scrollbar">
+              <aside className="min-h-0 overflow-y-scroll pr-1 pb-2 custom-scrollbar xl:min-w-[320px]">
                 <section className="rounded-3xl border border-border/50 bg-card/50 p-5 shadow-sm backdrop-blur-xl">
                   <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground font-semibold">Historial de eventos</p>
                   <p className="mt-1 text-sm text-muted-foreground">Línea de tiempo del documento.</p>
