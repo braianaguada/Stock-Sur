@@ -72,7 +72,7 @@ export function CashDocumentPreviewDialog({
         <div className="grid min-h-0 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,380px)]">
           {linkedDocument ? (
             <>
-              <div className="min-h-0 min-w-0 overflow-y-scroll pr-1 pb-2 custom-scrollbar">
+              <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable]">
                 <div className="space-y-5">
                   <section className="relative overflow-hidden rounded-[28px] border border-slate-200/70 bg-white p-6 text-slate-900 shadow-[0_20px_60px_rgba(15,23,42,0.08)] md:p-8">
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_36%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.08),_transparent_32%)]" />
@@ -156,7 +156,7 @@ export function CashDocumentPreviewDialog({
                 </div>
               </div>
 
-              <aside className="min-h-0 overflow-y-scroll pr-1 pb-2 custom-scrollbar xl:min-w-[320px]">
+              <aside className="min-h-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable] xl:min-w-[320px]">
                 <section className="rounded-3xl border border-border/50 bg-card/50 p-5 shadow-sm backdrop-blur-xl">
                   <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground font-semibold">Historial de eventos</p>
                   <p className="mt-1 text-sm text-muted-foreground">Línea de tiempo del documento.</p>

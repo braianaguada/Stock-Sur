@@ -222,7 +222,7 @@ export function useDocumentsData({
           .from("cash_sales")
           .select("id", { count: "exact", head: true })
           .eq("company_id", currentCompanyId)
-          .eq("status", "REGISTRADA")
+          .neq("status", "ANULADA")
           .eq("document_id", selectedDocument.id),
       ];
 
