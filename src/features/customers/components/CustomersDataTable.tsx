@@ -1,14 +1,15 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Trash2 } from "lucide-react";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Customer } from "@/features/customers/types";
 
 type CustomersDataTableProps = {
-  customers: Customer[];
+  customers: Customer[]; 
   isLoading: boolean;
+  onOpenAccount: (customer: Customer) => void;
   onEdit: (customer: Customer) => void;
   onDelete: (customer: Customer) => void;
 };
@@ -16,6 +17,7 @@ type CustomersDataTableProps = {
 export function CustomersDataTable({
   customers,
   isLoading,
+  onOpenAccount,
   onEdit,
   onDelete,
 }: CustomersDataTableProps) {
@@ -54,6 +56,9 @@ export function CustomersDataTable({
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => onOpenAccount(row.original)}>
+            <Eye className="h-4 w-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -73,11 +78,11 @@ export function CustomersDataTable({
         </div>
       ),
       meta: {
-        className: "w-[96px]",
+        className: "w-[132px]",
         cellClassName: "text-right",
       },
     },
-  ], [onDelete, onEdit]);
+  ], [onDelete, onEdit, onOpenAccount]);
 
   return (
     <DataTable

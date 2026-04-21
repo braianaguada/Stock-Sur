@@ -7,17 +7,26 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { CustomerFormDialog, type CustomerFormState } from "@/features/customers/components/CustomerFormDialog";
+import { CustomerAccountCreditDialog, type CustomerAccountCreditFormState } from "@/features/customers/components/CustomerAccountCreditDialog";
+import { CustomerAccountDialog } from "@/features/customers/components/CustomerAccountDialog";
 import { CustomersDataTable } from "@/features/customers/components/CustomersDataTable";
+import { useCustomerAccountData } from "@/features/customers/hooks/useCustomerAccountData";
 import { useCustomersPage } from "@/features/customers/hooks/useCustomersPage";
+import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
+import { invalidateCustomerQueries } from "@/lib/invalidate";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 
 export default function CustomersPage() {
   const { currentCompany, user } = useAuth();
   const { toast } = useToast();
+  const qc = useQueryClient();
   const {
     customerToDelete,
     customers,
     dialogOpen,
+    accountCustomer,
     editing,
     form,
     isLoading,
@@ -26,6 +35,7 @@ export default function CustomersPage() {
     search,
     setCustomerToDelete,
     setDialogOpen,
+    setAccountCustomer,
     setForm,
     setSearch,
     openCreate,
@@ -34,6 +44,54 @@ export default function CustomersPage() {
     companyId: currentCompany?.id,
     userId: user?.id,
     toast,
+  });
+  const [creditDialogOpen, setCreditDialogOpen] = useState(false);
+  const [creditForm, setCreditForm] = useState<CustomerAccountCreditFormState>({
+    amount: "",
+    business_date: new Date().toISOString().slice(0, 10),
+    description: "Cobro manual de cuenta corriente",
+    notes: "",
+  });
+  const accountData = useCustomerAccountData(currentCompany?.id, accountCustomer?.id ?? null);
+
+  const creditMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentCompany?.id || !accountCustomer?.id) throw new Error("Falta cliente o empresa");
+      const amount = Number(creditForm.amount);
+      const { error } = await supabase.rpc("register_customer_account_credit_manual", {
+        p_company_id: currentCompany.id,
+        p_customer_id: accountCustomer.id,
+        p_amount: amount,
+        p_description: creditForm.description,
+        p_business_date: creditForm.business_date,
+        p_notes: creditForm.notes || null,
+        p_metadata: {
+          kind: "manual_receipt",
+          source: "customer_account_dialog",
+        },
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await invalidateCustomerQueries(qc);
+      await qc.invalidateQueries({ queryKey: ["customer-account-summary"] });
+      await qc.invalidateQueries({ queryKey: ["customer-account-movements"] });
+      setCreditDialogOpen(false);
+      setCreditForm({
+        amount: "",
+        business_date: new Date().toISOString().slice(0, 10),
+        description: "Cobro manual de cuenta corriente",
+        notes: "",
+      });
+      toast({ title: "Cobro registrado" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "Error al registrar cobro",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    },
   });
 
   return (
@@ -72,13 +130,14 @@ export default function CustomersPage() {
           <CustomersDataTable
             customers={customers}
             isLoading={isLoading}
+            onOpenAccount={(customer) => setAccountCustomer(customer)}
             onEdit={openEdit}
             onDelete={setCustomerToDelete}
           />
         </DataCard>
       </div>
 
-        <CustomerFormDialog
+      <CustomerFormDialog
         open={dialogOpen}
         editingCustomer={editing}
         form={form}
@@ -86,6 +145,31 @@ export default function CustomersPage() {
         onOpenChange={setDialogOpen}
         onFormChange={setForm}
         onSubmit={() => saveMutation.mutate()}
+      />
+
+      <CustomerAccountDialog
+        open={Boolean(accountCustomer)}
+        customer={accountCustomer}
+        summary={accountData.summary}
+        movements={accountData.movements}
+        isLoading={accountData.isLoading}
+        onRegisterCredit={() => setCreditDialogOpen(true)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreditDialogOpen(false);
+            setAccountCustomer(null);
+          }
+        }}
+      />
+
+      <CustomerAccountCreditDialog
+        open={creditDialogOpen}
+        customer={accountCustomer}
+        form={creditForm}
+        isSaving={creditMutation.isPending}
+        onOpenChange={setCreditDialogOpen}
+        onFormChange={setCreditForm}
+        onSubmit={() => creditMutation.mutate()}
       />
 
       <ConfirmDeleteDialog
