@@ -210,6 +210,42 @@ export function useDocumentsData({
     [documentsById, selectedDocId],
   );
 
+  const { data: selectedDocumentCashUsage = false } = useQuery({
+    queryKey: ["documents", "cash-usage", selectedDocId],
+    enabled: Boolean(selectedDocument?.doc_type === "REMITO" && selectedDocId && currentCompanyId),
+    queryFn: async () => {
+      if (!selectedDocument || !currentCompanyId) return false;
+
+      const invoiceNumber = selectedDocument.external_invoice_number?.trim() ?? "";
+      const queries = [
+        supabase
+          .from("cash_sales")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", currentCompanyId)
+          .neq("status", "ANULADA")
+          .eq("document_id", selectedDocument.id),
+      ];
+
+      if (invoiceNumber) {
+        queries.push(
+          supabase
+            .from("cash_sales")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", currentCompanyId)
+            .neq("status", "ANULADA")
+            .eq("receipt_kind", "FACTURA")
+            .eq("receipt_reference", invoiceNumber),
+        );
+      }
+
+      const results = await Promise.all(queries);
+      return results.some((result) => {
+        if (result.error) throw result.error;
+        return (result.count ?? 0) > 0;
+      });
+    },
+  });
+
   const sourceDocument = useMemo(
     () => (selectedDocument?.source_document_id ? documentsById.get(selectedDocument.source_document_id) ?? null : null),
     [documentsById, selectedDocument?.source_document_id],
@@ -237,6 +273,7 @@ export function useDocumentsData({
     isLoading,
     selectedLines,
     selectedEvents,
+    selectedDocumentCashUsage,
     selectedDocument,
     sourceDocument,
     sourceDocumentLabel,

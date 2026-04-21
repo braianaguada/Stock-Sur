@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDocumentNumber } from "@/lib/formatters";
+import { businessDateFromTimestamp, formatDocumentNumber } from "@/lib/formatters";
 import { queryKeys } from "@/lib/query-keys";
 import type {
   CashClosureHistoryRow,
@@ -104,9 +104,7 @@ export function useCashData({
       if (error) throw error;
       return ((data ?? []) as RemitoOption[]).filter((remito) => {
         const issueDateMatches = remito.issue_date === businessDate;
-        const createdDateMatches = new Date(remito.created_at).toLocaleDateString("en-CA", {
-          timeZone: "America/Argentina/Buenos_Aires",
-        }) === businessDate;
+        const createdDateMatches = businessDateFromTimestamp(remito.created_at) === businessDate;
         return issueDateMatches || createdDateMatches;
       });
     },

@@ -75,5 +75,13 @@ export function LineItemsTable({
     ];
   }, [currencyFormatter, showOrder, showSku]);
 
-  return <DataTable columns={columns} data={rows} emptyMessage="Sin lineas para mostrar" />;
+  return (
+    <DataTable
+      columns={columns}
+      data={rows}
+      emptyMessage="Sin lineas para mostrar"
+      rowClassName="odd:bg-background/35 hover:bg-primary/5"
+      cellClassName="py-3.5 text-sm text-foreground/90"
+    />
+  );
 }

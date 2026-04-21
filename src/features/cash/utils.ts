@@ -1,4 +1,4 @@
-﻿import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber } from "@/lib/formatters";
+import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber, formatTime, todayBusinessDateInputValue } from "@/lib/formatters";
 import { escapeHtml, escapeHtmlWithLineBreaks } from "@/lib/print";
 import { PAYMENT_LABEL, RECEIPT_LABEL } from "./constants";
 import type {
@@ -10,10 +10,7 @@ import type {
 } from "./types";
 
 export function todayDateInputValue() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  const local = new Date(now.getTime() - offset * 60_000);
-  return local.toISOString().slice(0, 10);
+  return todayBusinessDateInputValue();
 }
 
 export function formatRemitoOptionLabel(remito: RemitoOption) {
@@ -167,7 +164,7 @@ export function buildCashClosurePrintHtml({
 }) {
   const rows = sales.map((sale) => `
       <tr>
-        <td>${new Date(sale.sold_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</td>
+        <td>${formatTime(sale.sold_at)}</td>
         <td>${escapeHtml(sale.customer_name_snapshot ?? "Consumidor final")}</td>
         <td>${escapeHtml(PAYMENT_LABEL[sale.payment_method])}</td>
         <td>${escapeHtml(sale.receipt_reference ?? RECEIPT_LABEL[sale.receipt_kind])}</td>
@@ -212,7 +209,7 @@ export function buildCashClosurePrintHtml({
         <div class="header">
           <div>
             <div class="title">Cierre diario ${formatBusinessDate(closure.business_date)}</div>
-            <div class="sub">Generado por ${escapeHtml(appName)} · ${closure.status === "CERRADO" ? `Cerrado ${formatDateTime(closure.closed_at)}` : "Caja abierta"}</div>
+            <div class="sub">Generado por ${escapeHtml(appName)} � ${closure.status === "CERRADO" ? `Cerrado ${formatDateTime(closure.closed_at)}` : "Caja abierta"}</div>
           </div>
           <div class="status">
             <div class="k">Estado</div>
@@ -292,4 +289,5 @@ export function buildCashClosurePrintHtml({
       </div>
     </body></html>`;
 }
+
 

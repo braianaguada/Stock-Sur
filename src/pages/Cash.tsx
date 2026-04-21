@@ -15,6 +15,7 @@ import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { getErrorMessage } from "@/lib/errors";
 import { canAttachCashReceipt, canCancelCashSale, canCloseCash, canCreateCashSale } from "@/lib/permissions";
 import { openPrintWindow } from "@/lib/print";
+import { currentTimeInBuenosAires } from "@/lib/formatters";
 import { Plus } from "lucide-react";
 import { CashClosureTab } from "@/features/cash/components/CashClosureTab";
 import { CashHistoryTab } from "@/features/cash/components/CashHistoryTab";
@@ -209,13 +210,13 @@ export default function CashPage() {
     const todayBusinessDate = todayDateInputValue();
     if (businessDate !== todayBusinessDate) return;
 
-    const now = new Date();
-    const local = new Date(now.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
-    const currentMinutes = local.getHours() * 60 + local.getMinutes();
-    const [hour, minute] = companySettings.auto_close_cash_time.split(":").map(Number);
-    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return;
+    const { hour: currentHour, minute: currentMinute } = currentTimeInBuenosAires();
+    if (!Number.isFinite(currentHour) || !Number.isFinite(currentMinute)) return;
+    const currentMinutes = currentHour * 60 + currentMinute;
+    const [limitHour, limitMinute] = companySettings.auto_close_cash_time.split(":").map(Number);
+    if (!Number.isFinite(limitHour) || !Number.isFinite(limitMinute)) return;
 
-    const limitMinutes = hour * 60 + minute;
+    const limitMinutes = limitHour * 60 + limitMinute;
     const closureKey = `${businessDate}:${closure.id}:${companySettings.auto_close_cash_time}`;
     if (currentMinutes < limitMinutes || autoCloseTriggeredRef.current === closureKey) return;
 

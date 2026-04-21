@@ -1,5 +1,6 @@
 import type { MovementType } from "@/features/stock/types";
 import { buildItemDisplayName } from "@/lib/item-display";
+import { monthKeyFromTimestamp } from "@/lib/formatters";
 
 type DashboardItem = {
   id: string;
@@ -134,10 +135,7 @@ export function buildDashboardInsights({
     else if (movement.type === "OUT") stockByItemId.set(movement.item_id, current - quantity);
     else stockByItemId.set(movement.item_id, current + quantity);
 
-    const movementDate = new Date(movement.created_at);
-    if (Number.isNaN(movementDate.getTime())) continue;
-
-    const key = `${movementDate.getFullYear()}-${String(movementDate.getMonth() + 1).padStart(2, "0")}`;
+    const key = monthKeyFromTimestamp(movement.created_at);
     const bucketIndex = movementBucketIndex.get(key);
     if (bucketIndex === undefined) continue;
 

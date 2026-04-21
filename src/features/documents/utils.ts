@@ -1,6 +1,6 @@
 import { formatDocumentNumber } from "@/lib/formatters";
 import { STATUS_LABEL } from "./constants";
-import type { DocEventRow, DocStatus, DocType, PriceListRow } from "./types";
+import type { DocEventRow, DocStatus, PriceListRow } from "./types";
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);

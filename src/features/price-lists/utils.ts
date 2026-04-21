@@ -1,3 +1,5 @@
+import { formatDateTime as formatTimestampDateTime } from "@/lib/formatters";
+
 export const parseNonNegative = (value: string, fallback = 0) => {
   const parsed = Number(value.replace(",", "."));
   if (!Number.isFinite(parsed)) return fallback;
@@ -11,7 +13,7 @@ export const formatMoney = (value: number) =>
   value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export const formatDateTime = (value: string | null) =>
-  value ? new Date(value).toLocaleString("es-AR") : "-";
+  value ? formatTimestampDateTime(value) : "-";
 
 export const formatPercentDelta = (value: number | null) => {
   if (value === null || !Number.isFinite(value)) return "-";
