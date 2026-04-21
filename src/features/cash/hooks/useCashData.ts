@@ -40,7 +40,7 @@ export function useCashData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customers")
-        .select("id, name, cuit")
+        .select("id, name, cuit, is_occasional")
         .eq("company_id", currentCompanyId!)
         .order("name")
         .limit(200);

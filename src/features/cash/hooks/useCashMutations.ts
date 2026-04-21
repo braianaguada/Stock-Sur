@@ -67,6 +67,9 @@ export function useCashMutations({
       }
 
       const selectedCustomer = customersById.get(form.customerId);
+      if (form.paymentMethod === "CUENTA_CORRIENTE" && selectedCustomer?.is_occasional) {
+        throw new Error("El cliente ocasional no puede usarse en cuenta corriente");
+      }
       const selectedRemito = remitosById.get(form.selectedRemitoId);
       const selectedReference =
         form.receiptKind === "REMITO"

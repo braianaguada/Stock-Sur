@@ -345,6 +345,92 @@ export type Database = {
           },
         ]
       }
+      customer_account_entries: {
+        Row: {
+          amount: number
+          business_date: string
+          cash_sale_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          currency: string
+          customer_id: string
+          description: string
+          document_id: string | null
+          entry_type: Database["public"]["Enums"]["customer_account_entry_type"]
+          id: string
+          metadata: Json
+          notes: string | null
+          origin_id: string
+          origin_type: Database["public"]["Enums"]["customer_account_origin_type"]
+        }
+        Insert: {
+          amount: number
+          business_date?: string
+          cash_sale_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string
+          currency?: string
+          customer_id: string
+          description: string
+          document_id?: string | null
+          entry_type: Database["public"]["Enums"]["customer_account_entry_type"]
+          id?: string
+          metadata?: Json
+          notes?: string | null
+          origin_id: string
+          origin_type: Database["public"]["Enums"]["customer_account_origin_type"]
+        }
+        Update: {
+          amount?: number
+          business_date?: string
+          cash_sale_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          currency?: string
+          customer_id?: string
+          description?: string
+          document_id?: string | null
+          entry_type?: Database["public"]["Enums"]["customer_account_entry_type"]
+          id?: string
+          metadata?: Json
+          notes?: string | null
+          origin_id?: string
+          origin_type?: Database["public"]["Enums"]["customer_account_origin_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_account_entries_cash_sale_id_fkey"
+            columns: ["cash_sale_id"]
+            isOneToOne: false
+            referencedRelation: "cash_sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_account_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_account_entries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_account_entries_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string
@@ -2113,6 +2199,24 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      customer_account_eligible_document: {
+        Args: { p_document_id: string }
+        Returns: boolean
+      }
+      customer_account_summary: {
+        Args: { p_company_id: string; p_customer_id: string }
+        Returns: {
+          balance: number
+          company_id: string
+          customer_id: string
+          last_amount: number | null
+          last_entry_type: Database["public"]["Enums"]["customer_account_entry_type"] | null
+          last_movement_at: string | null
+          last_origin_id: string | null
+          last_origin_type: Database["public"]["Enums"]["customer_account_origin_type"] | null
+          movements_count: number
+        }[]
+      }
       cancel_cash_sale: {
         Args: { p_reason?: string; p_sale_id: string }
         Returns: {
@@ -2139,6 +2243,116 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "cash_sales"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      record_customer_account_entry: {
+        Args: {
+          p_amount: number
+          p_business_date?: string
+          p_cash_sale_id?: string
+          p_company_id: string
+          p_customer_id: string
+          p_description: string
+          p_document_id?: string
+          p_entry_type: Database["public"]["Enums"]["customer_account_entry_type"]
+          p_metadata?: Json
+          p_notes?: string
+          p_origin_id: string
+          p_origin_type: Database["public"]["Enums"]["customer_account_origin_type"]
+        }
+        Returns: {
+          amount: number
+          business_date: string
+          cash_sale_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          currency: string
+          customer_id: string
+          description: string
+          document_id: string | null
+          entry_type: Database["public"]["Enums"]["customer_account_entry_type"]
+          id: string
+          metadata: Json
+          notes: string | null
+          origin_id: string
+          origin_type: Database["public"]["Enums"]["customer_account_origin_type"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "customer_account_entries"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      register_customer_account_debit_from_document: {
+        Args: {
+          p_amount?: number
+          p_company_id: string
+          p_customer_id: string
+          p_description?: string
+          p_document_id: string
+          p_metadata?: Json
+          p_notes?: string
+        }
+        Returns: {
+          amount: number
+          business_date: string
+          cash_sale_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          currency: string
+          customer_id: string
+          description: string
+          document_id: string | null
+          entry_type: Database["public"]["Enums"]["customer_account_entry_type"]
+          id: string
+          metadata: Json
+          notes: string | null
+          origin_id: string
+          origin_type: Database["public"]["Enums"]["customer_account_origin_type"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "customer_account_entries"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      register_customer_account_credit_from_cash_sale: {
+        Args: {
+          p_amount?: number
+          p_cash_sale_id: string
+          p_company_id: string
+          p_customer_id: string
+          p_description?: string
+          p_metadata?: Json
+          p_notes?: string
+        }
+        Returns: {
+          amount: number
+          business_date: string
+          cash_sale_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          currency: string
+          customer_id: string
+          description: string
+          document_id: string | null
+          entry_type: Database["public"]["Enums"]["customer_account_entry_type"]
+          id: string
+          metadata: Json
+          notes: string | null
+          origin_id: string
+          origin_type: Database["public"]["Enums"]["customer_account_origin_type"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "customer_account_entries"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -2405,6 +2619,8 @@ export type Database = {
         | "PENDIENTE_COMPROBANTE"
         | "COMPROBANTADA"
         | "ANULADA"
+      customer_account_entry_type: "DEBIT" | "CREDIT"
+      customer_account_origin_type: "DOCUMENT" | "CASH_SALE" | "MANUAL"
       company_status: "ACTIVE" | "INACTIVE"
       company_user_status: "ACTIVE" | "INACTIVE"
       document_customer_kind: "GENERAL" | "INTERNO" | "EMPRESA"
@@ -2573,6 +2789,8 @@ export const Constants = {
         "COMPROBANTADA",
         "ANULADA",
       ],
+      customer_account_entry_type: ["DEBIT", "CREDIT"],
+      customer_account_origin_type: ["DOCUMENT", "CASH_SALE", "MANUAL"],
       company_status: ["ACTIVE", "INACTIVE"],
       company_user_status: ["ACTIVE", "INACTIVE"],
       document_customer_kind: ["GENERAL", "INTERNO", "EMPRESA"],

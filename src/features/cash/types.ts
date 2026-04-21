@@ -14,6 +14,7 @@ export type CustomerOption = {
   id: string;
   name: string;
   cuit: string | null;
+  is_occasional: boolean;
 };
 
 export type RemitoOption = {
