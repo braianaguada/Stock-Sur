@@ -60,7 +60,8 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
             <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable]">
               <div className="space-y-4">
                 <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm">
-                  <div className="border-b border-border/60 bg-gradient-to-r from-primary/10 via-transparent to-transparent px-5 py-4 sm:px-6">
+                  <div className="h-1 w-full bg-gradient-to-r from-primary/80 via-primary/35 to-transparent" />
+                  <div className="border-b border-border/60 px-5 py-4 sm:px-6">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       <div className="min-w-0">
                         <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
@@ -95,27 +96,38 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                     ) : null}
                   </div>
 
-                  <div className="grid gap-0 lg:grid-cols-[1fr_0.9fr]">
-                    <div className="border-b border-border/60 px-5 py-5 lg:border-b-0 lg:border-r sm:px-6">
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p>
-                      <p className="mt-2 text-xl font-semibold text-foreground">{selectedDocument.customer_name ?? "Cliente ocasional"}</p>
-                      <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-                        <p>Tipo: <span className="font-medium text-foreground">{CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]}</span></p>
-                        <p>CUIT: <span className="font-mono">{selectedDocument.customer_tax_id ?? "-"}</span></p>
-                        <p>Cond. fiscal: <span className="font-medium text-foreground">{selectedDocument.customer_tax_condition ?? "-"}</span></p>
-                        <p>PDV: <span className="font-mono text-foreground">{String(selectedDocument.point_of_sale).padStart(4, "0")}</span></p>
-                        <p>Fecha: <span className="font-medium text-foreground">{formatIsoDate(selectedDocument.issue_date)}</span></p>
-                        <p>Estado: <span className="font-medium text-foreground">{STATUS_LABEL[selectedDocument.status]}</span></p>
+                  <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+                    <div className="border-b border-border/60 px-5 py-4 lg:border-b-0 lg:border-r sm:px-6">
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p>
+                          <p className="mt-1 text-base font-semibold text-foreground">{selectedDocument.customer_name ?? "Cliente ocasional"}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Tipo: <span className="text-foreground">{CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]}</span></p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Fiscal</p>
+                          <p className="mt-1 text-sm text-foreground">CUIT: <span className="font-mono">{selectedDocument.customer_tax_id ?? "-"}</span></p>
+                          <p className="mt-1 text-xs text-muted-foreground">Cond. fiscal: <span className="text-foreground">{selectedDocument.customer_tax_condition ?? "-"}</span></p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
+                          <p className="mt-1 text-sm text-foreground">Fecha: <span className="font-medium">{formatIsoDate(selectedDocument.issue_date)}</span></p>
+                          <p className="mt-1 text-xs text-muted-foreground">Estado: <span className="text-foreground">{STATUS_LABEL[selectedDocument.status]}</span></p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Referencia</p>
+                          <p className="mt-1 text-sm text-foreground">PDV: <span className="font-mono">{String(selectedDocument.point_of_sale).padStart(4, "0")}</span></p>
+                          {selectedDocument.valid_until ? <p className="mt-1 text-xs text-muted-foreground">Validez: <span className="text-foreground">{formatIsoDate(selectedDocument.valid_until)}</span></p> : null}
+                        </div>
                       </div>
                     </div>
-                    <div className="px-5 py-5 sm:px-6">
+                    <div className="px-5 py-4 sm:px-6">
                       <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
-                      <div className="mt-4 space-y-2 text-sm">
+                      <div className="mt-3 space-y-1.5 text-sm">
                         {selectedDocument.payment_terms ? <p className="text-muted-foreground">Condición: <span className="text-foreground">{selectedDocument.payment_terms}</span></p> : null}
                         {selectedDocument.salesperson ? <p className="text-muted-foreground">Vendedor: <span className="text-foreground">{selectedDocument.salesperson}</span></p> : null}
-                        {selectedDocument.valid_until ? <p className="text-muted-foreground">Validez: <span className="text-foreground">{formatIsoDate(selectedDocument.valid_until)}</span></p> : null}
-                        {selectedDocument.doc_type === "REMITO" && selectedDocument.external_invoice_number ? <p className="text-muted-foreground">Factura: <span className="font-mono text-foreground">{selectedDocument.external_invoice_number}</span></p> : null}
                         {selectedDocument.delivery_address ? <p className="text-muted-foreground">Entrega: <span className="text-foreground">{selectedDocument.delivery_address}</span></p> : null}
+                        {selectedDocument.doc_type === "REMITO" && selectedDocument.external_invoice_number ? <p className="text-muted-foreground">Factura: <span className="font-mono text-foreground">{selectedDocument.external_invoice_number}</span></p> : null}
                       </div>
 
                       {selectedDocument.doc_type === "REMITO" && !isExternalInvoiceLocked ? (
@@ -146,7 +158,13 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+                  <div className="mt-4 grid gap-4">
+                    {selectedDocument.notes ? (
+                      <div className="rounded-xl border border-border/60 bg-background/80 px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Notas</p>
+                        <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground/85">{selectedDocument.notes}</p>
+                      </div>
+                    ) : null}
                     <div className="overflow-hidden rounded-xl border border-border/60 bg-background">
                       <LineItemsTable
                         rows={selectedLines.map((line) => ({
@@ -163,13 +181,6 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                         showSku
                       />
                     </div>
-
-                    {selectedDocument.notes ? (
-                      <div className="rounded-xl border border-border/60 bg-background/70 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Notas</p>
-                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/85">{selectedDocument.notes}</p>
-                      </div>
-                    ) : null}
                   </div>
                 </section>
               </div>

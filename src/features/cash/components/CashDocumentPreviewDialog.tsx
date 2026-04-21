@@ -52,7 +52,8 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
               <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable]">
                 <div className="space-y-4">
                   <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm">
-                    <div className="border-b border-border/60 bg-gradient-to-r from-primary/10 via-transparent to-transparent px-5 py-4 sm:px-6">
+                  <div className="h-1 w-full bg-gradient-to-r from-primary/80 via-primary/35 to-transparent" />
+                  <div className="border-b border-border/60 px-5 py-4 sm:px-6">
                       <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="min-w-0">
                           <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Remito</Badge>
@@ -74,18 +75,34 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                       </div>
                     </div>
 
-                    <div className="grid gap-0 lg:grid-cols-[1fr_0.9fr]">
-                      <div className="border-b border-border/60 px-5 py-5 lg:border-b-0 lg:border-r sm:px-6">
-                        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p>
-                        <p className="mt-2 text-xl font-semibold text-foreground">{linkedDocument.customer_name ?? "Cliente ocasional"}</p>
+                    <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+                      <div className="border-b border-border/60 px-5 py-4 lg:border-b-0 lg:border-r sm:px-6">
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p>
+                            <p className="mt-1 text-base font-semibold text-foreground">{linkedDocument.customer_name ?? "Cliente ocasional"}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">Venta asociada</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
+                            <p className="mt-1 text-sm text-foreground">Fecha: <span className="font-medium">{formatIsoDate(linkedDocument.issue_date)}</span></p>
+                            <p className="mt-1 text-xs text-muted-foreground">Estado: <span className="text-foreground">{DOC_STATUS_LABEL[linkedDocument.status]}</span></p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Referencia</p>
+                            <p className="mt-1 text-sm text-foreground">PDV: <span className="font-mono">{String(linkedDocument.point_of_sale).padStart(4, "0")}</span></p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Factura externa</p>
+                            <p className="mt-1 text-sm text-foreground">{linkedDocument.external_invoice_number ?? "Sin asociar"}</p>
+                          </div>
+                        </div>
                       </div>
-                      <div className="px-5 py-5 sm:px-6">
+                      <div className="px-5 py-4 sm:px-6">
                         <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
-                        <div className="mt-4 space-y-2 text-sm">
-                          <p className="text-muted-foreground">Fecha: <span className="text-foreground">{formatIsoDate(linkedDocument.issue_date)}</span></p>
-                          <p className="text-muted-foreground">Estado: <span className="text-foreground">{DOC_STATUS_LABEL[linkedDocument.status]}</span></p>
-                          <p className="text-muted-foreground">Punto de venta: <span className="font-mono text-foreground">{String(linkedDocument.point_of_sale).padStart(4, "0")}</span></p>
-                          {linkedDocument.external_invoice_number ? <p className="text-muted-foreground">Factura externa: <span className="font-mono text-foreground">{linkedDocument.external_invoice_number}</span></p> : null}
+                        <div className="mt-3 space-y-1.5 text-sm">
+                          <p className="text-muted-foreground">Estado interno: <span className="text-foreground">{DOC_STATUS_LABEL[linkedDocument.status]}</span></p>
+                          <p className="text-muted-foreground">Comprobante: <span className="font-mono text-foreground">{formatDocumentNumber(linkedDocument.point_of_sale, linkedDocument.document_number)}</span></p>
                         </div>
                       </div>
                     </div>
@@ -103,7 +120,13 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                       </div>
                     </div>
 
-                    <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+                    <div className="mt-4 grid gap-4">
+                      {linkedDocument.notes ? (
+                        <div className="rounded-xl border border-border/60 bg-background/80 px-4 py-3">
+                          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Notas</p>
+                          <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground/85">{linkedDocument.notes}</p>
+                        </div>
+                      ) : null}
                       <div className="overflow-hidden rounded-xl border border-border/60 bg-background">
                         <LineItemsTable
                           rows={linkedDocumentLines.map((line) => ({
@@ -118,10 +141,6 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                           showOrder
                           currencyFormatter={(value) => currency.format(Number(value))}
                         />
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-background/70 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Notas</p>
-                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/85">{linkedDocument.notes ?? "Sin observaciones cargadas."}</p>
                       </div>
                     </div>
                   </section>
