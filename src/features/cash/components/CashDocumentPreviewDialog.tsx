@@ -72,7 +72,7 @@ export function CashDocumentPreviewDialog({
         <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,380px)]">
           {linkedDocument ? (
             <>
-              <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 custom-scrollbar">
+              <div className="min-h-0 min-w-0 overflow-y-scroll pr-1 pb-2 custom-scrollbar">
                 <div className="space-y-5">
                   <section className="relative overflow-hidden rounded-[28px] border border-slate-200/70 bg-white p-6 text-slate-900 shadow-[0_20px_60px_rgba(15,23,42,0.08)] md:p-8">
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_36%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.08),_transparent_32%)]" />
@@ -137,26 +137,10 @@ export function CashDocumentPreviewDialog({
                       </p>
                     </div>
                   </section>
-
-                  <section className="rounded-3xl border border-slate-200/80 bg-white shadow-sm ring-1 ring-black/[0.02]">
-                    <LineItemsTable
-                      rows={linkedDocumentLines.map((line) => ({
-                        id: line.id,
-                        line_order: line.line_order,
-                        description: line.description,
-                        quantity: line.quantity,
-                        unit: line.unit,
-                        unit_price: line.unit_price,
-                        total: line.line_total,
-                      }))}
-                      showOrder
-                      currencyFormatter={(value) => currency.format(Number(value))}
-                    />
-                  </section>
                 </div>
               </div>
 
-              <aside className="min-h-0 overflow-y-auto pr-1 pb-2 custom-scrollbar">
+              <aside className="min-h-0 overflow-y-scroll pr-1 pb-2 custom-scrollbar">
                 <section className="rounded-3xl border border-border/50 bg-card/50 p-5 shadow-sm backdrop-blur-xl">
                   <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground font-semibold">Historial de eventos</p>
                   <p className="mt-1 text-sm text-muted-foreground">Línea de tiempo del documento.</p>
@@ -206,6 +190,22 @@ export function CashDocumentPreviewDialog({
                       })}
                     </div>
                   )}
+                </section>
+
+                <section className="mt-5 rounded-3xl border border-slate-200/80 bg-white shadow-sm ring-1 ring-black/[0.02]">
+                  <LineItemsTable
+                    rows={linkedDocumentLines.map((line) => ({
+                      id: line.id,
+                      line_order: line.line_order,
+                      description: line.description,
+                      quantity: line.quantity,
+                      unit: line.unit,
+                      unit_price: line.unit_price,
+                      total: line.line_total,
+                    }))}
+                    showOrder
+                    currencyFormatter={(value) => currency.format(Number(value))}
+                  />
                 </section>
               </aside>
             </>
