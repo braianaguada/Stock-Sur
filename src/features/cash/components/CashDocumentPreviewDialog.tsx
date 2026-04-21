@@ -185,7 +185,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                   <p className="text-sm font-semibold leading-5 text-foreground">{described.title}</p>
-                                  <p className="mt-1 text-sm leading-5 text-muted-foreground">{event.event_type.replaceAll("_", " ")}</p>
+                                  <p className="mt-1 text-sm leading-5 text-muted-foreground">{described.detail}</p>
                                 </div>
                                 <div className="shrink-0 text-right">
                                   <Badge variant="outline" className="border-slate-300 bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-700">
