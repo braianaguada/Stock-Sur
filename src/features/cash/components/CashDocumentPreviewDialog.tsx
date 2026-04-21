@@ -191,8 +191,10 @@ export function CashDocumentPreviewDialog({
                                   <p className="mt-1 text-sm leading-5 text-muted-foreground">{event.event_type.replaceAll("_", " ")}</p>
                                 </div>
                                 <div className="shrink-0 text-right">
-                                  <Badge variant="outline" className="font-mono text-[10px]">{formatTimestampDate(event.created_at)}</Badge>
-                                  <p className="mt-2 text-xs font-mono text-muted-foreground/70">{formatTimestampTime(event.created_at)}</p>
+                                  <Badge variant="outline" className="border-slate-300 bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                                    {formatTimestampDate(event.created_at)}
+                                  </Badge>
+                                  <p className="mt-2 text-xs font-mono text-muted-foreground">{formatTimestampTime(event.created_at)}</p>
                                 </div>
                               </div>
                               {index === 0 ? (
