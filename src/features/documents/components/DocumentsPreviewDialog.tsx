@@ -1,7 +1,7 @@
-import { CheckCircle2, Clock, FileText, LucideIcon, PlayCircle, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, LucideIcon, PlayCircle, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { CUSTOMER_KIND_LABEL, DOC_LABEL, DOC_TYPE_CLASS, STATUS_LABEL } from "@/features/documents/constants";
@@ -31,19 +31,8 @@ const HISTORY_TONE_COLORS: Record<string, { bg: string; border: string; text: st
 };
 
 export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
-  const {
-    open,
-    onOpenChange,
-    selectedDocument,
-    selectedLines,
-    selectedEvents,
-    sourceDocumentLabel,
-    companySettings,
-    isExternalInvoiceLocked,
-    onSetExternalInvoice,
-    onClearExternalInvoice,
-    isUpdatingExternalInvoice,
-  } = props;
+  const { open, onOpenChange, selectedDocument, selectedLines, selectedEvents, sourceDocumentLabel, companySettings, isExternalInvoiceLocked, onSetExternalInvoice, onClearExternalInvoice, isUpdatingExternalInvoice } = props;
+
   const handleSetExternalInvoice = () => {
     if (!selectedDocument) return;
     const currentValue = selectedDocument.external_invoice_number ?? "";
@@ -63,48 +52,50 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
       <DialogContent className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl font-semibold tracking-tight text-foreground/90">Vista previa del documento</DialogTitle>
+          <DialogDescription>Documento comercial y trazabilidad.</DialogDescription>
         </DialogHeader>
 
         {selectedDocument ? (
           <div className="grid flex-1 min-h-0 gap-4 2xl:grid-cols-[minmax(0,1.95fr)_minmax(380px,460px)]">
             <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable]">
-              <div className="space-y-5">
+              <div className="space-y-4">
                 <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm">
-                  <div className="border-b border-border/60 px-5 py-4 sm:px-6">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="space-y-3">
+                  <div className="border-b border-border/60 bg-gradient-to-r from-primary/10 via-transparent to-transparent px-5 py-4 sm:px-6">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="min-w-0">
                         <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
                           {DOC_LABEL[selectedDocument.doc_type]}
                         </Badge>
-                        <div className="space-y-1">
+                        <div className="mt-3 flex items-center gap-4">
                           {companySettings.logo_url ? (
-                            <img src={companySettings.logo_url} alt={companySettings.app_name} className="h-12 w-auto max-w-[220px] object-contain" />
+                            <img src={companySettings.logo_url} alt={companySettings.app_name} className="h-11 w-auto max-w-[180px] object-contain" />
                           ) : (
                             <p className="text-2xl font-semibold tracking-tight text-foreground">{companySettings.app_name}</p>
                           )}
-                          <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
+                          <span className="h-8 w-px bg-border/70" />
+                          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
                             {companySettings.document_tagline ?? "Documentacion comercial"}
                           </p>
                         </div>
                       </div>
-                      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 shadow-sm">
-                        <p className="text-[10px] uppercase tracking-[0.24em] text-foreground/60">Documento</p>
+                      <div className="min-w-[180px] border-l border-border/60 pl-4 text-right">
+                        <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Documento</p>
                         <p className="mt-1 text-lg font-semibold text-foreground">{DOC_LABEL[selectedDocument.doc_type]}</p>
-                        <p className="mt-2 font-mono text-sm text-foreground/80">
-                          {formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}
-                        </p>
+                        <p className="mt-2 font-mono text-sm text-foreground/80">{formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}</p>
                       </div>
                     </div>
 
                     {sourceDocumentLabel ? (
-                      <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-                        <p className="text-[10px] uppercase tracking-[0.22em] font-semibold text-foreground/60">Origen</p>
-                        <p className="mt-1 text-sm font-medium text-foreground">{sourceDocumentLabel}</p>
+                      <div className="mt-4 rounded-xl border border-border/60 bg-background/70 px-4 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-[10px] uppercase tracking-[0.22em] font-semibold text-muted-foreground">Origen</p>
+                          <p className="text-xs font-mono text-foreground/80">{sourceDocumentLabel}</p>
+                        </div>
                       </div>
                     ) : null}
                   </div>
 
-                  <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
+                  <div className="grid gap-0 lg:grid-cols-[1fr_0.9fr]">
                     <div className="border-b border-border/60 px-5 py-5 lg:border-b-0 lg:border-r sm:px-6">
                       <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p>
                       <p className="mt-2 text-xl font-semibold text-foreground">{selectedDocument.customer_name ?? "Cliente ocasional"}</p>
@@ -117,7 +108,6 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                         <p>Estado: <span className="font-medium text-foreground">{STATUS_LABEL[selectedDocument.status]}</span></p>
                       </div>
                     </div>
-
                     <div className="px-5 py-5 sm:px-6">
                       <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
                       <div className="mt-4 space-y-2 text-sm">
@@ -152,34 +142,34 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                     </div>
                     <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-right">
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total del documento</p>
-                      <p className="mt-1 text-3xl font-black tracking-tight text-foreground">
-                        ${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                      </p>
+                      <p className="mt-1 text-3xl font-black tracking-tight text-foreground">${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
                     </div>
                   </div>
 
-                  {selectedDocument.notes ? (
-                    <div className="mt-4 rounded-xl border border-border/60 bg-background/70 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Notas</p>
-                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/85">{selectedDocument.notes}</p>
+                  <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+                    <div className="overflow-hidden rounded-xl border border-border/60 bg-background">
+                      <LineItemsTable
+                        rows={selectedLines.map((line) => ({
+                          id: line.id,
+                          line_order: line.line_order,
+                          sku: line.sku_snapshot,
+                          description: line.description,
+                          quantity: line.quantity,
+                          unit: line.unit,
+                          unit_price: line.unit_price,
+                          total: line.line_total,
+                        }))}
+                        showOrder
+                        showSku
+                      />
                     </div>
-                  ) : null}
 
-                  <div className="mt-4 overflow-hidden rounded-xl border border-border/60 bg-background">
-                    <LineItemsTable
-                      rows={selectedLines.map((line) => ({
-                        id: line.id,
-                        line_order: line.line_order,
-                        sku: line.sku_snapshot,
-                        description: line.description,
-                        quantity: line.quantity,
-                        unit: line.unit,
-                        unit_price: line.unit_price,
-                        total: line.line_total,
-                      }))}
-                      showOrder
-                      showSku
-                    />
+                    {selectedDocument.notes ? (
+                      <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Notas</p>
+                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/85">{selectedDocument.notes}</p>
+                      </div>
+                    ) : null}
                   </div>
                 </section>
               </div>
@@ -207,7 +197,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       const toneColors = HISTORY_TONE_COLORS[described.tone] || HISTORY_TONE_COLORS.neutral;
                       const Icon = toneColors.icon;
                       return (
-                          <div key={event.id} className="grid grid-cols-[14px_minmax(0,1fr)] gap-3 rounded-xl border border-border/60 bg-background/80 p-4">
+                        <div key={event.id} className="grid grid-cols-[14px_minmax(0,1fr)] gap-3 rounded-xl border border-border/60 bg-background/80 p-4">
                           <div className="relative flex justify-center">
                             <div className="absolute top-0 bottom-0 w-px bg-border/70" />
                             <div className={`relative mt-1.5 flex h-6 w-6 items-center justify-center rounded-full border ${toneColors.bg} ${toneColors.border}`}>

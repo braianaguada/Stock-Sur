@@ -38,7 +38,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
         </DialogHeader>
 
         {detailSale && linkedDocument ? (
-        <div className="grid gap-4 rounded-2xl border border-border/60 bg-card/80 p-4 shadow-sm md:grid-cols-4">
+          <div className="grid gap-4 rounded-2xl border border-border/60 bg-card/80 p-4 shadow-sm md:grid-cols-4">
             <div><p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p><p className="mt-1 font-semibold">{detailSale.customer_name_snapshot ?? "Consumidor final"}</p></div>
             <div><p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Pago</p><p className="mt-1 font-semibold">{PAYMENT_LABEL[detailSale.payment_method]}</p></div>
             <div><p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Comprobante</p><p className="mt-1 font-semibold">{detailSale.receipt_reference ?? RECEIPT_LABEL[detailSale.receipt_kind]}</p></div>
@@ -50,30 +50,31 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
           {linkedDocument ? (
             <>
               <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable]">
-                <div className="space-y-5">
+                <div className="space-y-4">
                   <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm">
-                    <div className="border-b border-border/60 px-5 py-4 sm:px-6">
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="space-y-3">
+                    <div className="border-b border-border/60 bg-gradient-to-r from-primary/10 via-transparent to-transparent px-5 py-4 sm:px-6">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="min-w-0">
                           <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Remito</Badge>
-                          <div className="space-y-1">
+                          <div className="mt-3 flex items-center gap-4">
                             {companyBrand.logoUrl ? (
-                              <img src={companyBrand.logoUrl} alt={companyBrand.appName} className="h-12 w-auto max-w-[220px] object-contain" />
+                              <img src={companyBrand.logoUrl} alt={companyBrand.appName} className="h-11 w-auto max-w-[180px] object-contain" />
                             ) : (
                               <p className="text-2xl font-semibold tracking-tight text-foreground">{companyBrand.appName}</p>
                             )}
-                            <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">{companyBrand.documentTagline ?? "Documentacion comercial"}</p>
+                            <span className="h-8 w-px bg-border/70" />
+                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{companyBrand.documentTagline ?? "Documentacion comercial"}</p>
                           </div>
                         </div>
-                        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 shadow-sm">
-                          <p className="text-[10px] uppercase tracking-[0.24em] text-foreground/60">Documento</p>
+                        <div className="min-w-[180px] border-l border-border/60 pl-4 text-right">
+                          <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Documento</p>
                           <p className="mt-1 text-lg font-semibold text-foreground">Remito</p>
                           <p className="mt-2 font-mono text-sm text-foreground/80">{formatDocumentNumber(linkedDocument.point_of_sale, linkedDocument.document_number)}</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
+                    <div className="grid gap-0 lg:grid-cols-[1fr_0.9fr]">
                       <div className="border-b border-border/60 px-5 py-5 lg:border-b-0 lg:border-r sm:px-6">
                         <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p>
                         <p className="mt-2 text-xl font-semibold text-foreground">{linkedDocument.customer_name ?? "Cliente ocasional"}</p>
@@ -102,25 +103,26 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                       </div>
                     </div>
 
-                    <div className="mt-4 rounded-xl border border-border/60 bg-background/70 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Notas</p>
-                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/85">{linkedDocument.notes ?? "Sin observaciones cargadas."}</p>
-                    </div>
-
-                    <div className="mt-4 overflow-hidden rounded-xl border border-border/60 bg-background">
-                      <LineItemsTable
-                        rows={linkedDocumentLines.map((line) => ({
-                          id: line.id,
-                          line_order: line.line_order,
-                          description: line.description,
-                          quantity: line.quantity,
-                          unit: line.unit,
-                          unit_price: line.unit_price,
-                          total: line.line_total,
-                        }))}
-                        showOrder
-                        currencyFormatter={(value) => currency.format(Number(value))}
-                      />
+                    <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+                      <div className="overflow-hidden rounded-xl border border-border/60 bg-background">
+                        <LineItemsTable
+                          rows={linkedDocumentLines.map((line) => ({
+                            id: line.id,
+                            line_order: line.line_order,
+                            description: line.description,
+                            quantity: line.quantity,
+                            unit: line.unit,
+                            unit_price: line.unit_price,
+                            total: line.line_total,
+                          }))}
+                          showOrder
+                          currencyFormatter={(value) => currency.format(Number(value))}
+                        />
+                      </div>
+                      <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Notas</p>
+                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/85">{linkedDocument.notes ?? "Sin observaciones cargadas."}</p>
+                      </div>
                     </div>
                   </section>
                 </div>
