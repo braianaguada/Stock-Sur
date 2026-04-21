@@ -144,3 +144,52 @@ begin
   return v_doc;
 end;
 $$;
+
+create or replace function public.prevent_used_remito_external_invoice_changes()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_invoice_number text;
+begin
+  if new.doc_type <> 'REMITO' then
+    return new;
+  end if;
+
+  v_invoice_number := nullif(btrim(coalesce(new.external_invoice_number, '')), '');
+  if v_invoice_number is null then
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE'
+     and coalesce(old.external_invoice_number, '') = coalesce(new.external_invoice_number, '')
+     and coalesce(old.external_invoice_date, 'infinity'::date) = coalesce(new.external_invoice_date, 'infinity'::date)
+     and coalesce(old.external_invoice_status, 'VOIDED'::public.external_invoice_status) = coalesce(new.external_invoice_status, 'VOIDED'::public.external_invoice_status) then
+    return new;
+  end if;
+
+  perform 1
+  from public.cash_sales
+  where company_id = new.company_id
+    and status <> 'ANULADA'
+    and (
+      document_id = new.id
+      or receipt_kind = 'FACTURA' and receipt_reference = v_invoice_number
+    );
+
+  if found then
+    raise exception 'No se puede modificar la factura externa porque el remito ya fue usado en caja';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_prevent_used_remito_external_invoice_changes on public.documents;
+create trigger trg_prevent_used_remito_external_invoice_changes
+before update of external_invoice_number, external_invoice_date, external_invoice_status
+on public.documents
+for each row
+execute function public.prevent_used_remito_external_invoice_changes();
