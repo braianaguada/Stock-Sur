@@ -168,30 +168,32 @@ export function DocumentsPreviewDialog({
                         ) : null}
                       </div>
                       {selectedDocument.doc_type === "REMITO" ? (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant="default"
-                            size="sm"
-                            className="shadow-sm"
-                            onClick={handleSetExternalInvoice}
-                            disabled={isUpdatingExternalInvoice || isExternalInvoiceLocked}
-                          >
-                            {selectedDocument.external_invoice_number ? "Editar factura externa" : "Registrar factura externa"}
-                          </Button>
-                          {selectedDocument.external_invoice_number ? (
+                        !isExternalInvoiceLocked ? (
+                          <div className="mt-4 flex flex-wrap gap-2">
                             <Button
                               type="button"
-                              variant="destructive"
+                              variant="default"
                               size="sm"
                               className="shadow-sm"
-                              onClick={handleClearExternalInvoice}
-                              disabled={isUpdatingExternalInvoice || isExternalInvoiceLocked}
+                              onClick={handleSetExternalInvoice}
+                              disabled={isUpdatingExternalInvoice}
                             >
-                              Quitar factura externa
+                              {selectedDocument.external_invoice_number ? "Editar factura externa" : "Registrar factura externa"}
                             </Button>
-                          ) : null}
-                        </div>
+                            {selectedDocument.external_invoice_number ? (
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                className="shadow-sm"
+                                onClick={handleClearExternalInvoice}
+                                disabled={isUpdatingExternalInvoice}
+                              >
+                                Quitar factura externa
+                              </Button>
+                            ) : null}
+                          </div>
+                        ) : null
                       ) : null}
                     </div>
                   </div>

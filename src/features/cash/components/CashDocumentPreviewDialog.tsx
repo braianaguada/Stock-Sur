@@ -137,6 +137,22 @@ export function CashDocumentPreviewDialog({
                       </p>
                     </div>
                   </section>
+
+                  <section className="rounded-3xl border border-slate-200/80 bg-white shadow-sm ring-1 ring-black/[0.02]">
+                    <LineItemsTable
+                      rows={linkedDocumentLines.map((line) => ({
+                        id: line.id,
+                        line_order: line.line_order,
+                        description: line.description,
+                        quantity: line.quantity,
+                        unit: line.unit,
+                        unit_price: line.unit_price,
+                        total: line.line_total,
+                      }))}
+                      showOrder
+                      currencyFormatter={(value) => currency.format(Number(value))}
+                    />
+                  </section>
                 </div>
               </div>
 
@@ -192,21 +208,6 @@ export function CashDocumentPreviewDialog({
                   )}
                 </section>
 
-                <section className="mt-5 rounded-3xl border border-slate-200/80 bg-white shadow-sm ring-1 ring-black/[0.02]">
-                  <LineItemsTable
-                    rows={linkedDocumentLines.map((line) => ({
-                      id: line.id,
-                      line_order: line.line_order,
-                      description: line.description,
-                      quantity: line.quantity,
-                      unit: line.unit,
-                      unit_price: line.unit_price,
-                      total: line.line_total,
-                    }))}
-                    showOrder
-                    currencyFormatter={(value) => currency.format(Number(value))}
-                  />
-                </section>
               </aside>
             </>
           ) : (
