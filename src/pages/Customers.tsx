@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { CustomerFormDialog, type CustomerFormState } from "@/features/customers/components/CustomerFormDialog";
+import { CustomerAccountDialog } from "@/features/customers/components/CustomerAccountDialog";
 import { CustomersDataTable } from "@/features/customers/components/CustomersDataTable";
+import { useCustomerAccountData } from "@/features/customers/hooks/useCustomerAccountData";
 import { useCustomersPage } from "@/features/customers/hooks/useCustomersPage";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 
@@ -30,11 +32,14 @@ export default function CustomersPage() {
     setSearch,
     openCreate,
     openEdit,
+    accountCustomer,
+    setAccountCustomer,
   } = useCustomersPage({
     companyId: currentCompany?.id,
     userId: user?.id,
     toast,
   });
+  const accountData = useCustomerAccountData(currentCompany?.id ?? null, accountCustomer?.id ?? null);
 
   return (
     <AppLayout>
@@ -73,12 +78,13 @@ export default function CustomersPage() {
             customers={customers}
             isLoading={isLoading}
             onEdit={openEdit}
+            onOpenAccount={setAccountCustomer}
             onDelete={setCustomerToDelete}
           />
         </DataCard>
       </div>
 
-        <CustomerFormDialog
+      <CustomerFormDialog
         open={dialogOpen}
         editingCustomer={editing}
         form={form}
@@ -100,6 +106,17 @@ export default function CustomersPage() {
           if (!customerToDelete) return;
           deleteMutation.mutate(customerToDelete.id);
           setCustomerToDelete(null);
+        }}
+      />
+
+      <CustomerAccountDialog
+        open={Boolean(accountCustomer)}
+        customer={accountCustomer}
+        summary={accountData.summary}
+        movements={accountData.movements}
+        isLoading={accountData.isLoading}
+        onOpenChange={(open) => {
+          if (!open) setAccountCustomer(null);
         }}
       />
     </AppLayout>

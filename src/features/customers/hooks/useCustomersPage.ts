@@ -30,6 +30,7 @@ export function useCustomersPage({
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [accountCustomer, setAccountCustomer] = useState<Customer | null>(null);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [form, setForm] = useState<CustomerFormState>(EMPTY_FORM);
@@ -134,8 +135,10 @@ export function useCustomersPage({
     setCustomerToDelete,
     setDialogOpen,
     setForm,
+    setAccountCustomer,
     setSearch,
     openCreate,
     openEdit,
+    accountCustomer,
   };
 }
