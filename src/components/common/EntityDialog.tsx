@@ -30,7 +30,7 @@ export function EntityDialog({
 }: EntityDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn("sm:max-w-2xl", contentClassName)}>
+      <DialogContent className={cn("sm:max-w-xl max-h-[88vh] overflow-y-auto", contentClassName)}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
