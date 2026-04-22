@@ -155,14 +155,19 @@ export function useStockPage() {
       const searchTerm = deferredItemSearch.trim();
       let matchingItemIdsFromAlias: string[] = [];
 
-      const { data: aliasMatches, error: aliasError } = await supabase
-        .from("item_aliases")
-        .select("item_id")
-        .eq("company_id", currentCompany!.id)
-        .ilike("alias", `%${searchTerm}%`)
-        .limit(200);
-      if (aliasError) throw aliasError;
-      matchingItemIdsFromAlias = [...new Set((aliasMatches ?? []).map((row) => row.item_id))];
+      try {
+        const { data: aliasMatches, error: aliasError } = await supabase
+          .from("item_aliases")
+          .select("item_id")
+          .eq("company_id", currentCompany!.id)
+          .ilike("alias", `%${searchTerm}%`)
+          .limit(200);
+        if (!aliasError) {
+          matchingItemIdsFromAlias = [...new Set((aliasMatches ?? []).map((row) => row.item_id))];
+        }
+      } catch {
+        matchingItemIdsFromAlias = [];
+      }
 
       const query = supabase
         .from("items")
@@ -187,7 +192,17 @@ export function useStockPage() {
         .limit(20);
       if (error) throw error;
 
-      return (data ?? []) as SearchableItem[];
+      const remoteResults = (data ?? []) as SearchableItem[];
+      if (remoteResults.length > 0) return remoteResults;
+
+      const normalized = searchTerm.toLowerCase();
+      return recentItems.filter((item) =>
+        item.name.toLowerCase().includes(normalized) ||
+        item.sku.toLowerCase().includes(normalized) ||
+        (item.brand ?? "").toLowerCase().includes(normalized) ||
+        (item.model ?? "").toLowerCase().includes(normalized) ||
+        (item.attributes ?? "").toLowerCase().includes(normalized),
+      );
     },
   });
 
