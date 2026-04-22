@@ -185,7 +185,7 @@ export function buildItemAiSearchCandidates(params: {
     .map(({ score: _score, ...candidate }) => candidate satisfies ItemSearchAiCandidate);
 }
 
-export async function fetchItemAiSearch(params: {
+async function fetchItemAiSearch(params: {
   query: string;
   items: Item[];
   aliases: ItemSearchAliasRecord[];

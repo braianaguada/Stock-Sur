@@ -183,7 +183,7 @@ export function rankNaturalItemSearch(params: {
     .map((entry) => entry.item);
 }
 
-export function naturalSearchHint(query: string) {
+function naturalSearchHint(query: string) {
   const normalized = normalizeSearchText(query);
   if (!normalized) return null;
   if (normalized.includes("1/2")) return "Incluye equivalencias como media o medio.";

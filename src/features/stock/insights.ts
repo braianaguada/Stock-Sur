@@ -194,7 +194,7 @@ export function countStockInsightTones(insights: StockInsight[]) {
   );
 }
 
-export function countCriticalStockRows(rows: StockRow[]) {
+function countCriticalStockRows(rows: StockRow[]) {
   return rows.filter((row) => row.health === "RED").length;
 }
 

@@ -1,4 +1,4 @@
-import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber, formatTime, todayBusinessDateInputValue } from "@/lib/formatters";
+﻿import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber, formatTime, todayBusinessDateInputValue } from "@/lib/formatters";
 import { escapeHtml, escapeHtmlWithLineBreaks } from "@/lib/print";
 import { PAYMENT_LABEL, RECEIPT_LABEL } from "./constants";
 import type {
@@ -40,34 +40,6 @@ export function buildReceiptSearchText(remito: RemitoOption) {
       amount,
     ].filter(Boolean).join(" "),
   );
-}
-
-export function getClosureSituation(sale: CashSaleRow, hasClosedClosureForDay: boolean) {
-  if (sale.status === "ANULADA") {
-    return {
-      label: "Anulada",
-      className: "border-rose-200 bg-rose-50 text-rose-700",
-    };
-  }
-
-  if (sale.closure_id) {
-    return {
-      label: "En caja cerrada",
-      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    };
-  }
-
-  if (hasClosedClosureForDay) {
-    return {
-      label: "Venta post cierre",
-      className: "border-violet-200 bg-violet-50 text-violet-700",
-    };
-  }
-
-  return {
-    label: "Pendiente de cierre",
-    className: "border-sky-200 bg-sky-50 text-sky-700",
-  };
 }
 
 export function describeDocumentEvent(event: DocumentEventQuickRow) {
@@ -209,7 +181,7 @@ export function buildCashClosurePrintHtml({
         <div class="header">
           <div>
             <div class="title">Cierre diario ${formatBusinessDate(closure.business_date)}</div>
-            <div class="sub">Generado por ${escapeHtml(appName)} � ${closure.status === "CERRADO" ? `Cerrado ${formatDateTime(closure.closed_at)}` : "Caja abierta"}</div>
+            <div class="sub">Generado por ${escapeHtml(appName)} · ${closure.status === "CERRADO" ? `Cerrado ${formatDateTime(closure.closed_at)}` : "Caja abierta"}</div>
           </div>
           <div class="status">
             <div class="k">Estado</div>
@@ -289,5 +261,6 @@ export function buildCashClosurePrintHtml({
       </div>
     </body></html>`;
 }
+
 
 

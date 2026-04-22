@@ -1,7 +1,7 @@
 import { getErrorMessage } from "@/lib/errors";
 import { IMPERSONATION_ACCESS_TOKEN_STORAGE_KEY } from "@/integrations/supabase/client";
 
-export const IMPERSONATION_META_STORAGE_KEY = "stock-sur.impersonation-meta";
+const IMPERSONATION_META_STORAGE_KEY = "stock-sur.impersonation-meta";
 
 export type ImpersonationMeta = {
   impersonationId: string;
@@ -12,7 +12,7 @@ export type ImpersonationMeta = {
   expiresAt: number | null;
 };
 
-export function parseJwtPayload(token: string): Record<string, unknown> | null {
+function parseJwtPayload(token: string): Record<string, unknown> | null {
   try {
     const [, payload] = token.split(".");
     if (!payload) return null;

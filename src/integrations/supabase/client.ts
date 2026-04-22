@@ -51,6 +51,5 @@ export const supabase = {
 
 export {
   authClient as supabaseAuth,
-  dataClient as supabaseData,
   IMPERSONATION_ACCESS_TOKEN_STORAGE_KEY,
 };

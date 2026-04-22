@@ -6,14 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { CustomerAccountDialog } from "@/features/customers/components/CustomerAccountDialog";
 import { CustomerFormDialog, type CustomerFormState } from "@/features/customers/components/CustomerFormDialog";
 import { CustomersDataTable } from "@/features/customers/components/CustomersDataTable";
+import type { Customer } from "@/features/customers/types";
 import { useCustomersPage } from "@/features/customers/hooks/useCustomersPage";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 
 export default function CustomersPage() {
   const { currentCompany, user } = useAuth();
   const { toast } = useToast();
+  const [accountCustomer, setAccountCustomer] = useState<Customer | null>(null);
   const {
     customerToDelete,
     customers,
@@ -72,13 +75,14 @@ export default function CustomersPage() {
           <CustomersDataTable
             customers={customers}
             isLoading={isLoading}
+            onViewAccount={setAccountCustomer}
             onEdit={openEdit}
             onDelete={setCustomerToDelete}
           />
         </DataCard>
       </div>
 
-        <CustomerFormDialog
+      <CustomerFormDialog
         open={dialogOpen}
         editingCustomer={editing}
         form={form}
@@ -101,6 +105,16 @@ export default function CustomersPage() {
           deleteMutation.mutate(customerToDelete.id);
           setCustomerToDelete(null);
         }}
+      />
+
+      <CustomerAccountDialog
+        open={!!accountCustomer}
+        companyId={currentCompany?.id}
+        customer={accountCustomer}
+        onOpenChange={(open) => {
+          if (!open) setAccountCustomer(null);
+        }}
+        onToast={toast}
       />
     </AppLayout>
   );

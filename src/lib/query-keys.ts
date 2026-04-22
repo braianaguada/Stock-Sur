@@ -10,6 +10,10 @@ export const queryKeys = {
   customers: {
     list: (companyId: string | null, search: string) => ["customers", companyId ?? "no-company", search] as const,
     all: () => ["customers"] as const,
+    accountSummary: (companyId: string | null, customerId: string | null) =>
+      ["customer-account-summary", companyId ?? "no-company", customerId ?? "no-customer"] as const,
+    accountEntries: (companyId: string | null, customerId: string | null) =>
+      ["customer-account-entries", companyId ?? "no-company", customerId ?? "no-customer"] as const,
   },
   items: {
     catalog: (
@@ -57,12 +61,6 @@ export const queryKeys = {
     all: () => ["documents"] as const,
     lines: (documentId: string | null) => ["document-lines", documentId] as const,
     events: (documentId: string | null) => ["document-events", documentId] as const,
-  },
-  pending: {
-    lines: (companyId: string | null, search: string) => ["pending-lines", companyId ?? "no-company", search] as const,
-    linesAll: () => ["pending-lines"] as const,
-    itemsSearch: (companyId: string | null, search: string) => ["items-search", companyId ?? "no-company", search] as const,
-    itemsSearchAll: () => ["items-search"] as const,
   },
   stock: {
     recentItems: (companyId: string | null, userId: string | null | undefined) =>

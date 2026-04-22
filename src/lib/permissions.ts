@@ -5,15 +5,15 @@ type CompanyAccessContext = {
   companyPermissionCodes?: string[];
 };
 
-export function isSuperAdmin(roles: AppRole[]) {
+function isSuperAdmin(roles: AppRole[]) {
   return roles.includes("superadmin");
 }
 
-export function hasAnyRole(roles: AppRole[]) {
+function hasAnyRole(roles: AppRole[]) {
   return roles.length > 0;
 }
 
-export function hasRole(roles: AppRole[], role: AppRole) {
+function hasRole(roles: AppRole[], role: AppRole) {
   return roles.includes(role);
 }
 
@@ -54,10 +54,6 @@ export function canCloseCash(roles: AppRole[]) {
 }
 
 export function canCancelCashSale(roles: AppRole[]) {
-  return hasAnyRole(roles);
-}
-
-export function canViewCashHistory(roles: AppRole[]) {
   return hasAnyRole(roles);
 }
 

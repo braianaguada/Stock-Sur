@@ -51,7 +51,7 @@ export const PRICING_MODE_LABEL: Record<LinePricingMode, string> = {
   MANUAL_PRICE: "Precio manual",
 };
 
-export const HISTORY_TONE_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
+const HISTORY_TONE_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
   neutral: "border-slate-200 bg-slate-50 text-slate-700",
   info: "border-blue-200 bg-blue-50 text-blue-700",
   success: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -59,7 +59,7 @@ export const HISTORY_TONE_CLASS: Record<"neutral" | "info" | "success" | "warnin
   danger: "border-rose-200 bg-rose-50 text-rose-700",
 };
 
-export const HISTORY_DOT_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
+const HISTORY_DOT_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
   neutral: "bg-slate-400 shadow-slate-200",
   info: "bg-blue-500 shadow-blue-200",
   success: "bg-emerald-500 shadow-emerald-200",
