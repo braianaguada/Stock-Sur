@@ -17,6 +17,7 @@ type StockMovementDialogProps = {
   form: StockMovementForm;
   itemSearch: string;
   availableItems: SearchableItem[];
+  stockByItemId: Map<string, number>;
   selectedItem: SearchableItem | null;
   searchingItems: boolean;
   isSaving: boolean;
@@ -32,6 +33,7 @@ export function StockMovementDialog({
   form,
   itemSearch,
   availableItems,
+  stockByItemId,
   selectedItem,
   searchingItems,
   isSaving,
@@ -55,7 +57,7 @@ export function StockMovementDialog({
           <Input
             value={itemSearch}
             onChange={(event) => onItemSearchChange(event.target.value)}
-            placeholder="Buscar por nombre, SKU, marca, modelo o alias..."
+            placeholder="Buscar por nombre, SKU, marca, modelo o atributos..."
           />
           <div className="max-h-52 overflow-auto rounded-md border">
             {itemSearch.trim() === "" && availableItems.length === 0 ? (
@@ -73,7 +75,7 @@ export function StockMovementDialog({
                     onSelectedItemChange(item);
                     onFormChange({ ...form, item_id: item.id });
                   }}
-                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted ${
+                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted ${
                     selectedItem?.id === item.id ? "bg-muted" : ""
                   }`}
                 >
@@ -95,18 +97,25 @@ export function StockMovementDialog({
                       })}
                     </span>
                   </span>
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                    Stock actual: {stockByItemId.get(item.id) ?? 0}
+                  </span>
                 </button>
               ))
             )}
           </div>
           {selectedItem ? (
             <p className="text-sm text-muted-foreground">
-              Seleccionado: <span className="font-medium text-foreground">{buildItemDisplayName({
-                name: selectedItem.name,
-                brand: selectedItem.brand,
-                model: selectedItem.model,
-                attributes: selectedItem.attributes,
-              })}</span>
+              Seleccionado:{" "}
+              <span className="font-medium text-foreground">
+                {buildItemDisplayName({
+                  name: selectedItem.name,
+                  brand: selectedItem.brand,
+                  model: selectedItem.model,
+                  attributes: selectedItem.attributes,
+                })}
+              </span>
+              <span className="ml-2">| Stock actual: {stockByItemId.get(selectedItem.id) ?? 0}</span>
             </p>
           ) : null}
         </div>
@@ -139,6 +148,24 @@ export function StockMovementDialog({
             />
           </div>
         </div>
+
+        {form.type === "ADJUSTMENT" ? (
+          <div className="space-y-2">
+            <Label>Sentido del ajuste</Label>
+            <Select
+              value={form.adjustment_direction}
+              onValueChange={(value) => onFormChange({ ...form, adjustment_direction: value as "ADD" | "REMOVE" })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ADD">Sumar stock</SelectItem>
+                <SelectItem value="REMOVE">Restar stock</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
 
         <div className="space-y-2">
           <Label>Referencia</Label>

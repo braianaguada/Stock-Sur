@@ -22,6 +22,7 @@ const NEW_STOCK_MOVEMENT_DRAFT_KEY = "stock:new-movement-draft";
 const DEFAULT_STOCK_MOVEMENT_FORM: StockMovementForm = {
   item_id: "",
   type: "IN",
+  adjustment_direction: "ADD",
   quantity: "",
   reference: "",
 };
@@ -61,6 +62,14 @@ function normalizeItem(item: SearchableItem | null | undefined) {
     : null;
 }
 
+function normalizeMovementForm(form: Partial<StockMovementForm> | null | undefined): StockMovementForm {
+  return {
+    ...DEFAULT_STOCK_MOVEMENT_FORM,
+    ...(form ?? {}),
+    adjustment_direction: form?.adjustment_direction === "REMOVE" ? "REMOVE" : "ADD",
+  };
+}
+
 export function useStockPage() {
   const initialDraft = useMemo(() => readStoredDraft(), []);
   const { toast } = useToast();
@@ -68,8 +77,10 @@ export function useStockPage() {
   const { user, currentCompany } = useAuth();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
+  const [movementSearch, setMovementSearch] = useState("");
+  const deferredMovementSearch = useDeferredValue(movementSearch);
   const [dialogOpen, setDialogOpen] = useState(initialDraft?.open === true);
-  const [form, setForm] = useState<StockMovementForm>(initialDraft?.form ?? DEFAULT_STOCK_MOVEMENT_FORM);
+  const [form, setForm] = useState<StockMovementForm>(normalizeMovementForm(initialDraft?.form));
   const [itemSearch, setItemSearch] = useState(initialDraft?.itemSearch ?? "");
   const deferredItemSearch = useDeferredValue(itemSearch);
   const [selectedItem, setSelectedItem] = useState<SearchableItem | null>(
@@ -164,6 +175,7 @@ export function useStockPage() {
         `sku.ilike.%${searchTerm}%`,
         `brand.ilike.%${searchTerm}%`,
         `model.ilike.%${searchTerm}%`,
+        `attributes.ilike.%${searchTerm}%`,
       ];
       if (matchingItemIdsFromAlias.length > 0) {
         searchFilters.push(`id.in.(${matchingItemIdsFromAlias.join(",")})`);
@@ -406,7 +418,10 @@ export function useStockPage() {
         const normalizedSearch = deferredSearch.toLowerCase();
         rows = rows.filter((row) =>
           row.item_name.toLowerCase().includes(normalizedSearch) ||
-          row.item_sku.toLowerCase().includes(normalizedSearch),
+          row.item_sku.toLowerCase().includes(normalizedSearch) ||
+          (row.item_brand ?? "").toLowerCase().includes(normalizedSearch) ||
+          (row.item_model ?? "").toLowerCase().includes(normalizedSearch) ||
+          (row.item_attributes ?? "").toLowerCase().includes(normalizedSearch),
         );
       }
 
@@ -451,6 +466,29 @@ export function useStockPage() {
     },
   });
 
+  const stockByItemId = useMemo(
+    () => new Map(stockRows.map((row) => [row.item_id, row.total])),
+    [stockRows],
+  );
+
+  const filteredMovements = useMemo(() => {
+    const normalizedSearch = deferredMovementSearch.trim().toLowerCase();
+    if (!normalizedSearch) return movements;
+
+    return movements.filter((movement) => {
+      const item = movement.items;
+      return (
+        movement.reference?.toLowerCase().includes(normalizedSearch) ||
+        movement.created_by_name?.toLowerCase().includes(normalizedSearch) ||
+        item?.name?.toLowerCase().includes(normalizedSearch) ||
+        item?.sku?.toLowerCase().includes(normalizedSearch) ||
+        item?.brand?.toLowerCase().includes(normalizedSearch) ||
+        item?.model?.toLowerCase().includes(normalizedSearch) ||
+        item?.attributes?.toLowerCase().includes(normalizedSearch)
+      );
+    });
+  }, [deferredMovementSearch, movements]);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!form.item_id) throw new Error("Selecciona un item");
@@ -469,11 +507,13 @@ export function useStockPage() {
         throw new Error("Este producto se mueve por unidad entera. Ingresa una cantidad sin decimales.");
       }
 
+      const signedQuantity = form.type === "ADJUSTMENT" && form.adjustment_direction === "REMOVE" ? -quantity : quantity;
+
       const { error } = await supabase.from("stock_movements").insert({
         company_id: currentCompany.id,
         item_id: form.item_id,
         type: form.type,
-        quantity,
+        quantity: signedQuantity,
         reference: form.reference || null,
         created_by: user?.id ?? undefined,
       });
@@ -519,14 +559,18 @@ export function useStockPage() {
     form,
     itemSearch,
     availableItems,
+    stockByItemId,
     selectedItem,
     searchingItems,
     stockRows,
     loadingStock,
     movements,
+    filteredMovements,
     loadingMovements,
     search,
     setSearch,
+    movementSearch,
+    setMovementSearch,
     isSaving: saveMutation.isPending,
     openCreateMovement,
     handleDialogOpenChange,

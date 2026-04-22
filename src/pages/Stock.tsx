@@ -66,14 +66,18 @@ export default function StockPage() {
     form,
     itemSearch,
     availableItems,
+    stockByItemId,
     selectedItem,
     searchingItems,
     stockRows,
     loadingStock,
     movements,
+    filteredMovements,
     loadingMovements,
     search,
     setSearch,
+    movementSearch,
+    setMovementSearch,
     isSaving,
     openCreateMovement,
     handleDialogOpenChange,
@@ -190,7 +194,7 @@ export default function StockPage() {
     pageSize: stockPageSize,
   });
   const movementsPagination = usePaginationSlice({
-    items: movements,
+    items: filteredMovements,
     page: movementsPage,
     pageSize: movementsPageSize,
   });
@@ -365,6 +369,19 @@ export default function StockPage() {
           </TabsContent>
 
           <TabsContent value="movements" className="space-y-5 pt-1">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                aria-label="Buscar movimiento"
+                placeholder="Buscar por producto, marca, atributos o referencia..."
+                className="pl-9"
+                value={movementSearch}
+                onChange={(event) => {
+                  setMovementSearch(event.target.value);
+                  setMovementsPage(1);
+                }}
+              />
+            </div>
             <DataCard>
               <StockMovementsTable
                 movements={movementsPagination.pagedItems}
@@ -378,7 +395,7 @@ export default function StockPage() {
             <DataTablePagination
               page={movementsPagination.page}
               totalPages={movementsPagination.totalPages}
-              totalItems={movements.length}
+              totalItems={filteredMovements.length}
               rangeStart={movementsPagination.rangeStart}
               rangeEnd={movementsPagination.rangeEnd}
               pageSize={movementsPageSize}
@@ -399,6 +416,7 @@ export default function StockPage() {
         form={form}
         itemSearch={itemSearch}
         availableItems={availableItems}
+        stockByItemId={stockByItemId}
         selectedItem={selectedItem}
         searchingItems={searchingItems}
         isSaving={isSaving}
