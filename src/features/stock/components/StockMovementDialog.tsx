@@ -105,14 +105,6 @@ export function StockMovementDialog({
                           attributes: item.attributes,
                         })}
                       </span>
-                      <span className="block truncate text-[11px] text-muted-foreground">
-                        {buildItemDisplayMeta({
-                          sku: item.sku,
-                          brand: item.brand,
-                          model: item.model,
-                          attributes: item.attributes,
-                        })}
-                      </span>
                     </span>
                     <Badge
                       variant="outline"
@@ -139,14 +131,6 @@ export function StockMovementDialog({
                   <p className="truncate text-sm font-semibold text-foreground">
                     {buildItemDisplayName({
                       name: selectedItem.name,
-                      brand: selectedItem.brand,
-                      model: selectedItem.model,
-                      attributes: selectedItem.attributes,
-                    })}
-                  </p>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    {buildItemDisplayMeta({
-                      sku: selectedItem.sku,
                       brand: selectedItem.brand,
                       model: selectedItem.model,
                       attributes: selectedItem.attributes,
