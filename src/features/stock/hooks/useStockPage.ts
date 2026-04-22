@@ -208,11 +208,20 @@ export function useStockPage() {
 
   const availableItems = useMemo(() => {
     const map = new Map<string, SearchableItem>();
-    for (const item of recentItems) map.set(item.id, item);
-    for (const item of searchedItems) map.set(item.id, item);
+    const hasSearch = deferredItemSearch.trim().length > 0;
+
+    if (hasSearch) {
+      for (const item of searchedItems) map.set(item.id, item);
+      for (const item of recentItems) {
+        if (!map.has(item.id)) map.set(item.id, item);
+      }
+    } else {
+      for (const item of recentItems) map.set(item.id, item);
+    }
+
     if (selectedItem) map.set(selectedItem.id, selectedItem);
     return Array.from(map.values());
-  }, [recentItems, searchedItems, selectedItem]);
+  }, [deferredItemSearch, recentItems, searchedItems, selectedItem]);
 
   const itemsById = useMemo(
     () => new Map(availableItems.map((item) => [item.id, item])),
