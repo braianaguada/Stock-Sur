@@ -93,6 +93,6 @@ export function matchImportLine(args: {
   return { itemId: null, reason: "NONE" };
 }
 
-export function buildSuggestedAlias(rawDescription: string): string {
+function buildSuggestedAlias(rawDescription: string): string {
   return normalizeText(rawDescription).slice(0, 80).trim();
 }

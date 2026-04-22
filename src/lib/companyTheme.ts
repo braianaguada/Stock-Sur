@@ -46,7 +46,7 @@ export const THEME_OPTIONS: ThemeOption[] = [
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-export const normalizeHex = (value: string | null | undefined, fallback = "#1f4f99") => {
+const normalizeHex = (value: string | null | undefined, fallback = "#1f4f99") => {
   const normalized = (value ?? "").trim().replace("#", "");
   if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return fallback;
   return `#${normalized.toLowerCase()}`;
@@ -413,7 +413,7 @@ export const inferThemePreset = (settings: Pick<CompanySettings, "primary_color"
   return bestMatch?.id ?? "professional";
 };
 
-export const getCompanyThemeState = (settings: Pick<CompanySettings, "primary_color" | "secondary_color" | "accent_color">) => {
+const getCompanyThemeState = (settings: Pick<CompanySettings, "primary_color" | "secondary_color" | "accent_color">) => {
   const presetId = inferThemePreset(settings);
   return deriveTheme(presetId, settings.primary_color);
 };

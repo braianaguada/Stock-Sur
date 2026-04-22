@@ -2,13 +2,13 @@ import { formatDocumentNumber } from "@/lib/formatters";
 import { STATUS_LABEL } from "./constants";
 import type { DocEventRow, DocStatus, PriceListRow } from "./types";
 
-export const isRecord = (value: unknown): value is Record<string, unknown> =>
+const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 export const formatNumber = (n: number | null, pointOfSale: number) =>
   n === null ? "BORRADOR" : formatDocumentNumber(pointOfSale, n);
 
-export function applyPriceListRounding(value: number, roundMode: PriceListRow["round_mode"], roundTo: number | null) {
+function applyPriceListRounding(value: number, roundMode: PriceListRow["round_mode"], roundTo: number | null) {
   switch (roundMode) {
     case "integer":
       return Math.round(value);
@@ -27,7 +27,7 @@ export function applyPriceListRounding(value: number, roundMode: PriceListRow["r
   }
 }
 
-export function roundMoney(value: number) {
+function roundMoney(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 

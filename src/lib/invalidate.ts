@@ -13,6 +13,10 @@ export async function invalidateItemQueries(queryClient: QueryClient) {
 
 export async function invalidateCustomerQueries(queryClient: QueryClient) {
   await queryClient.invalidateQueries({ queryKey: queryKeys.customers.all() });
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["customer-account-summary"] }),
+    queryClient.invalidateQueries({ queryKey: ["customer-account-entries"] }),
+  ]);
 }
 
 export async function invalidateDocumentQueries(queryClient: QueryClient) {
@@ -42,13 +46,6 @@ export async function invalidatePricingQueries(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: queryKeys.pricing.listProductsAll() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.pricing.listHistoryAll() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.documents.priceListItemsAll() }),
-  ]);
-}
-
-export async function invalidatePendingQueries(queryClient: QueryClient) {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: queryKeys.pending.linesAll() }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.pending.itemsSearchAll() }),
   ]);
 }
 

@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { LOCAL_MAPPING_PREFIX } from "@/features/suppliers/constants";
 import type { CatalogImportLine, SupplierCatalogLinePayload } from "@/features/suppliers/types";
 
-export function getLocalSupplierImportMappingKey(supplierId: string, fileType: "xlsx" | "pdf") {
+function getLocalSupplierImportMappingKey(supplierId: string, fileType: "xlsx" | "pdf") {
   return `${LOCAL_MAPPING_PREFIX}:${supplierId}:${fileType}`;
 }
 
