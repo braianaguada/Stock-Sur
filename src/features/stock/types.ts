@@ -55,6 +55,7 @@ export interface SearchableItem {
 export interface StockMovementForm {
   item_id: string;
   type: MovementType;
+  adjustment_direction: "ADD" | "REMOVE";
   quantity: string;
   reference: string;
 }

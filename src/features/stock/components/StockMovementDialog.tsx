@@ -1,4 +1,4 @@
-import { EntityDialog } from "@/components/common/EntityDialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntityDialog } from "@/components/common/EntityDialog";
 import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
+import { cn } from "@/lib/utils";
+import { Package } from "lucide-react";
 import type { MovementType, SearchableItem, StockMovementForm } from "@/features/stock/types";
 
 type StockMovementDialogProps = {
@@ -17,6 +20,7 @@ type StockMovementDialogProps = {
   form: StockMovementForm;
   itemSearch: string;
   availableItems: SearchableItem[];
+  stockByItemId: Map<string, number>;
   selectedItem: SearchableItem | null;
   searchingItems: boolean;
   isSaving: boolean;
@@ -27,11 +31,18 @@ type StockMovementDialogProps = {
   onSelectedItemChange: (item: SearchableItem | null) => void;
 };
 
+function stockTone(stock: number) {
+  if (stock <= 0) return "destructive";
+  if (stock <= 5) return "warning";
+  return "success";
+}
+
 export function StockMovementDialog({
   open,
   form,
   itemSearch,
   availableItems,
+  stockByItemId,
   selectedItem,
   searchingItems,
   isSaving,
@@ -41,6 +52,9 @@ export function StockMovementDialog({
   onItemSearchChange,
   onSelectedItemChange,
 }: StockMovementDialogProps) {
+  const selectedStock = selectedItem ? (stockByItemId.get(selectedItem.id) ?? 0) : 0;
+  const selectedTone = stockTone(selectedStock);
+
   return (
     <EntityDialog open={open} onOpenChange={onOpenChange} title="Nuevo movimiento">
       <form
@@ -55,9 +69,9 @@ export function StockMovementDialog({
           <Input
             value={itemSearch}
             onChange={(event) => onItemSearchChange(event.target.value)}
-            placeholder="Buscar por nombre, SKU, marca, modelo o alias..."
+            placeholder="Buscar por nombre, SKU, marca, modelo o atributos..."
           />
-          <div className="max-h-52 overflow-auto rounded-md border">
+          <div className="max-h-52 overflow-auto rounded-2xl border border-border/80 bg-background/95 shadow-sm">
             {itemSearch.trim() === "" && availableItems.length === 0 ? (
               <p className="px-3 py-2 text-sm text-muted-foreground">Escribí para buscar un ítem.</p>
             ) : searchingItems ? (
@@ -65,59 +79,85 @@ export function StockMovementDialog({
             ) : availableItems.length === 0 ? (
               <p className="px-3 py-2 text-sm text-muted-foreground">No se encontraron ítems.</p>
             ) : (
-              availableItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    onSelectedItemChange(item);
-                    onFormChange({ ...form, item_id: item.id });
-                  }}
-                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted ${
-                    selectedItem?.id === item.id ? "bg-muted" : ""
-                  }`}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">
-                      {buildItemDisplayName({
-                        name: item.name,
-                        brand: item.brand,
-                        model: item.model,
-                        attributes: item.attributes,
-                      })}
+              availableItems.map((item) => {
+                const itemStock = stockByItemId.get(item.id) ?? 0;
+                const tone = stockTone(itemStock);
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectedItemChange(item);
+                      onFormChange({ ...form, item_id: item.id });
+                    }}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/80",
+                      selectedItem?.id === item.id && "bg-primary/10",
+                    )}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold text-foreground">
+                        {buildItemDisplayName({
+                          name: item.name,
+                          brand: item.brand,
+                          model: item.model,
+                          attributes: item.attributes,
+                        })}
+                      </span>
                     </span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {buildItemDisplayMeta({
-                        sku: item.sku,
-                        brand: item.brand,
-                        model: item.model,
-                        attributes: item.attributes,
-                      })}
-                    </span>
-                  </span>
-                </button>
-              ))
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                      "shrink-0 rounded-full px-3 py-1 text-xs font-semibold tabular-nums",
+                      tone === "destructive" && "border-red-500/30 bg-red-500/10 text-red-400",
+                      tone === "warning" && "border-amber-500/30 bg-amber-500/10 text-amber-400",
+                      tone === "success" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+                    )}
+                  >
+                      {itemStock}
+                    </Badge>
+                  </button>
+                );
+              })
             )}
           </div>
+
           {selectedItem ? (
-            <p className="text-sm text-muted-foreground">
-              Seleccionado: <span className="font-medium text-foreground">{buildItemDisplayName({
-                name: selectedItem.name,
-                brand: selectedItem.brand,
-                model: selectedItem.model,
-                attributes: selectedItem.attributes,
-              })}</span>
-            </p>
+            <div className="rounded-2xl border border-border/70 bg-muted/30 px-4 py-2.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Seleccionado</p>
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {buildItemDisplayName({
+                      name: selectedItem.name,
+                      brand: selectedItem.brand,
+                      model: selectedItem.model,
+                      attributes: selectedItem.attributes,
+                    })}
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tabular-nums",
+                    selectedTone === "destructive" && "border-red-500/30 bg-red-500/10 text-red-400",
+                    selectedTone === "warning" && "border-amber-500/30 bg-amber-500/10 text-amber-400",
+                    selectedTone === "success" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+                  )}
+                >
+                  <Package className="h-4 w-4" />
+                  {selectedStock}
+                </Badge>
+              </div>
+            </div>
           ) : null}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Tipo</Label>
-            <Select
-              value={form.type}
-              onValueChange={(value) => onFormChange({ ...form, type: value as MovementType })}
-            >
+            <Select value={form.type} onValueChange={(value) => onFormChange({ ...form, type: value as MovementType })}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -139,6 +179,24 @@ export function StockMovementDialog({
             />
           </div>
         </div>
+
+        {form.type === "ADJUSTMENT" ? (
+          <div className="space-y-2">
+            <Label>Sentido del ajuste</Label>
+            <Select
+              value={form.adjustment_direction}
+              onValueChange={(value) => onFormChange({ ...form, adjustment_direction: value as "ADD" | "REMOVE" })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ADD">Sumar stock</SelectItem>
+                <SelectItem value="REMOVE">Restar stock</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
 
         <div className="space-y-2">
           <Label>Referencia</Label>
