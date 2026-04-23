@@ -1,4 +1,4 @@
-import { formatDateTime as formatTimestampDateTime, formatMoney } from "@/lib/formatters";
+import { formatDateTime as formatTimestampDateTime } from "@/lib/formatters";
 
 export const parseNonNegative = (value: string, fallback = 0) => {
   const parsed = Number(value.replace(",", "."));

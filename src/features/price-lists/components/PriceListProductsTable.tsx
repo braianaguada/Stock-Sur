@@ -6,7 +6,7 @@ import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PriceListProductRow } from "@/features/price-lists/types";
-import { formatMoney } from "@/features/price-lists/utils";
+import { formatMoney } from "@/lib/formatters";
 
 type PriceListProductsTableProps = {
   rows: PriceListProductRow[];
