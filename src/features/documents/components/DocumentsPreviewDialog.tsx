@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, LucideIcon, PlayCircle, XCircle } from "lucide-react";
+﻿import { CheckCircle2, Clock, LucideIcon, PlayCircle, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -49,12 +49,14 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
   };
 
   return (
-    <EntityDialog`r`n      open={open}`r`n      onOpenChange={onOpenChange}`r`n      title="Vista previa del documento"`r`n      description="Documento comercial y trazabilidad."`r`n      contentClassName="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl"`r`n    >
-      <DialogContent className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
-        <DialogHeader className="shrink-0">
-          <DialogTitle className="text-xl font-semibold tracking-tight text-foreground/90">Vista previa del documento</DialogTitle>
-          <DialogDescription>Documento comercial y trazabilidad.</DialogDescription>
-        </DialogHeader>
+    <EntityDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Vista previa del documento"
+      description="Documento comercial y trazabilidad."
+      contentClassName="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl"
+    >
+      <div className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
 
         {selectedDocument ? (
           <div className="grid flex-1 min-h-0 gap-4 2xl:grid-cols-[minmax(0,1.95fr)_minmax(380px,460px)]">
@@ -111,7 +113,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                           <p className="mt-1 text-xs text-muted-foreground">Cond. fiscal: <span className="text-foreground">{selectedDocument.customer_tax_condition ?? "-"}</span></p>
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">OperaciÃ³n</p>
                           <p className="mt-1 text-sm text-foreground">Fecha: <span className="font-medium">{formatBusinessDate(selectedDocument.issue_date)}</span></p>
                           <p className="mt-1 text-xs text-muted-foreground">Estado: <span className="text-foreground">{STATUS_LABEL[selectedDocument.status]}</span></p>
                         </div>
@@ -123,9 +125,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       </div>
                     </div>
                     <div className="px-5 py-4 sm:px-6">
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">OperaciÃ³n</p>
                       <div className="mt-3 space-y-1.5 text-sm">
-                        {selectedDocument.payment_terms ? <p className="text-muted-foreground">Condición: <span className="text-foreground">{selectedDocument.payment_terms}</span></p> : null}
+                        {selectedDocument.payment_terms ? <p className="text-muted-foreground">CondiciÃ³n: <span className="text-foreground">{selectedDocument.payment_terms}</span></p> : null}
                         {selectedDocument.salesperson ? <p className="text-muted-foreground">Vendedor: <span className="text-foreground">{selectedDocument.salesperson}</span></p> : null}
                         {selectedDocument.delivery_address ? <p className="text-muted-foreground">Entrega: <span className="text-foreground">{selectedDocument.delivery_address}</span></p> : null}
                         {selectedDocument.doc_type === "REMITO" && selectedDocument.external_invoice_number ? <p className="text-muted-foreground">Factura: <span className="font-mono text-foreground">{selectedDocument.external_invoice_number}</span></p> : null}
@@ -232,7 +234,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                                 <p className="mt-2 text-xs font-mono text-muted-foreground">{formatTimestampTime(event.created_at)}</p>
                               </div>
                             </div>
-                            {index === 0 ? <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-emerald-500 font-semibold">Más reciente</p> : null}
+                            {index === 0 ? <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-emerald-500 font-semibold">MÃ¡s reciente</p> : null}
                           </div>
                         </div>
                       );
@@ -244,9 +246,10 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
             </aside>
           </div>
         ) : null}
-      </DialogContent>
-    </Dialog>
+      </div>
+    </EntityDialog>
   );
 }
+
 
 

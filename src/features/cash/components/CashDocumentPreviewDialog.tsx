@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+﻿import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
@@ -31,12 +31,14 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
   const { open, onOpenChange, detailSale, linkedDocument, linkedDocumentLines, linkedDocumentEvents, companyBrand, canAttachReceipt, canCancelSale, onAssignReceipt, onCancelSale, cancelPending } = props;
 
   return (
-    <EntityDialog`r`n      open={open}`r`n      onOpenChange={onOpenChange}`r`n      title="Vista previa del documento"`r`n      description="Documento asociado a la venta y su trazabilidad."`r`n      contentClassName="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl"`r`n    >
-      <DialogContent className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
-        <DialogHeader className="shrink-0">
-          <DialogTitle className="text-xl font-semibold tracking-tight text-foreground/90">Vista previa del documento</DialogTitle>
-          <DialogDescription>Documento asociado a la venta y su trazabilidad.</DialogDescription>
-        </DialogHeader>
+    <EntityDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Vista previa del documento"
+      description="Documento asociado a la venta y su trazabilidad."
+      contentClassName="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl"
+    >
+      <div className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
 
         {detailSale && linkedDocument ? (
           <Card className="border-border/60 bg-card/80 shadow-sm">
@@ -87,7 +89,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                             <p className="mt-1 text-xs text-muted-foreground">Venta asociada</p>
                           </div>
                           <div>
-                            <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
+                            <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">OperaciÃ³n</p>
                             <p className="mt-1 text-sm text-foreground">Fecha: <span className="font-medium">{formatBusinessDate(linkedDocument.issue_date)}</span></p>
                             <p className="mt-1 text-xs text-muted-foreground">Estado: <span className="text-foreground">{DOC_STATUS_LABEL[linkedDocument.status]}</span></p>
                           </div>
@@ -102,7 +104,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                         </div>
                       </div>
                       <div className="px-5 py-4 sm:px-6">
-                        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">OperaciÃ³n</p>
                         <div className="mt-3 space-y-1.5 text-sm">
                           <p className="text-muted-foreground">Estado interno: <span className="text-foreground">{DOC_STATUS_LABEL[linkedDocument.status]}</span></p>
                           <p className="text-muted-foreground">Comprobante: <span className="font-mono text-foreground">{formatDocumentNumber(linkedDocument.point_of_sale, linkedDocument.document_number)}</span></p>
@@ -166,7 +168,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
 
                   {linkedDocumentEvents.length === 0 ? (
                     <div className="mt-5 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center">
-                      <p className="text-sm font-medium text-muted-foreground">Todavía no hay eventos registrados para este documento.</p>
+                      <p className="text-sm font-medium text-muted-foreground">TodavÃ­a no hay eventos registrados para este documento.</p>
                     </div>
                   ) : (
                     <div className="mt-5 space-y-3">
@@ -200,7 +202,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                                   <p className="mt-2 text-xs font-mono text-muted-foreground">{formatTimestampTime(event.created_at)}</p>
                                 </div>
                               </div>
-                              {index === 0 ? <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-emerald-500 font-semibold">Más reciente</p> : null}
+                              {index === 0 ? <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-emerald-500 font-semibold">MÃ¡s reciente</p> : null}
                             </div>
                           </div>
                         );
@@ -233,9 +235,10 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
           ) : null}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </EntityDialog>
   );
 }
+
 
 

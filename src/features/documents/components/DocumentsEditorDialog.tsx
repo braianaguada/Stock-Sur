@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
@@ -137,7 +137,8 @@ export function DocumentsEditorDialog({
         }}
         className="space-y-4"
       >
-        <Card className="border-border/70 bg-card/60 shadow-sm">`r`n          <CardContent className="p-0">
+        <Card className="border-border/70 bg-card/60 shadow-sm">
+          <CardContent className="p-0">
           <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
             <div className="p-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 items-start">
               <div className="space-y-2">
@@ -248,7 +249,7 @@ export function DocumentsEditorDialog({
                     <SelectContent>
                       <SelectItem value="GENERAL">Cliente general</SelectItem>
                       {form.doc_type === "REMITO" ? (
-                          <SelectItem value="INTERNO">Personal / técnico interno</SelectItem>
+                          <SelectItem value="INTERNO">Personal / tÃ©cnico interno</SelectItem>
                       ) : null}
                       <SelectItem value="EMPRESA">Empresa</SelectItem>
                     </SelectContent>
@@ -301,7 +302,7 @@ export function DocumentsEditorDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Condición fiscal</Label>
+                  <Label>CondiciÃ³n fiscal</Label>
                   <Input
                     value={form.customer_tax_condition}
                     placeholder="Opcional"
@@ -315,7 +316,7 @@ export function DocumentsEditorDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Condición de venta</Label>
+                  <Label>CondiciÃ³n de venta</Label>
                   <Input
                     value={form.payment_terms}
                     placeholder="Opcional"
@@ -338,7 +339,7 @@ export function DocumentsEditorDialog({
 
                 {form.doc_type === "PRESUPUESTO" ? (
                   <div className="space-y-2">
-                    <Label>Válido hasta</Label>
+                    <Label>VÃ¡lido hasta</Label>
                     <Input
                       type="date"
                       value={form.valid_until}
@@ -364,7 +365,7 @@ export function DocumentsEditorDialog({
 
                 {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? (
                   <div className="space-y-2">
-                    <Label>Imputación del remito</Label>
+                    <Label>ImputaciÃ³n del remito</Label>
                     <Select
                       value={form.internal_remito_type || "__none__"}
                       onValueChange={(value) =>
@@ -386,14 +387,15 @@ export function DocumentsEditorDialog({
               </div>
             </CollapsibleContent>
           </Collapsible>
-        </div>
+          </CardContent>
+        </Card>
 
         <div className="space-y-4 rounded-xl border border-border/70 bg-card/60 p-4 relative">
           <div className="flex flex-col gap-1">
             <Label className="text-base">Productos ({lines.length})</Label>
             <p className="text-sm text-muted-foreground mr-[200px]">
               Busca en la lista activa ({selectedPriceList?.name ?? "Ninguna"}) y agrega productos. 
-              <span className="hidden sm:inline"> Presiona <strong>Enter</strong> para sumar rápidamente el primero.</span>
+              <span className="hidden sm:inline"> Presiona <strong>Enter</strong> para sumar rÃ¡pidamente el primero.</span>
             </p>
           </div>
 
@@ -460,9 +462,9 @@ export function DocumentsEditorDialog({
             {lines.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-sm text-muted-foreground bg-muted/10">
                 <Search className="h-8 w-8 mb-3 text-muted-foreground/30" />
-                No tienes ningún producto agregado.
+                No tienes ningÃºn producto agregado.
                 <br />
-                Usa el buscador para añadirlos.
+                Usa el buscador para aÃ±adirlos.
               </div>
             ) : (
               <div className="sticky top-0 z-20 hidden rounded-md border border-border/40 bg-muted/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-md xl:grid xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:gap-3">
@@ -653,3 +655,4 @@ export function DocumentsEditorDialog({
     </EntityDialog>
   );
 }
+
