@@ -21,22 +21,26 @@ export function SuppliersTable(props: {
     {
       accessorKey: "name",
       header: () => "Nombre",
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      cell: ({ row }) => <span className="block truncate font-medium">{row.original.name}</span>,
+      meta: { className: "w-[220px]" },
     },
     {
       accessorKey: "contact_name",
       header: () => "Contacto",
-      cell: ({ row }) => row.original.contact_name ?? "-",
+      cell: ({ row }) => <span className="block truncate">{row.original.contact_name ?? "-"}</span>,
+      meta: { className: "w-[180px]" },
     },
     {
       accessorKey: "email",
       header: () => "Email",
-      cell: ({ row }) => row.original.email ?? "-",
+      cell: ({ row }) => <span className="block truncate">{row.original.email ?? "-"}</span>,
+      meta: { className: "w-[220px]" },
     },
     {
       accessorKey: "whatsapp",
       header: () => "WhatsApp",
-      cell: ({ row }) => row.original.whatsapp ? `+${normalizeWhatsappNumber(row.original.whatsapp)}` : "-",
+      cell: ({ row }) => <span className="block truncate font-mono text-xs">{row.original.whatsapp ? `+${normalizeWhatsappNumber(row.original.whatsapp)}` : "-"}</span>,
+      meta: { className: "w-[150px]" },
     },
     {
       accessorKey: "is_active",
@@ -83,6 +87,8 @@ export function SuppliersTable(props: {
         isLoading={isLoading}
         loadingMessage="Cargando..."
         emptyMessage="No se encontraron proveedores"
+        className="table-fixed"
+        stickyHeader
       />
     </div>
   );

@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -71,86 +72,93 @@ export function StockMovementDialog({
             onChange={(event) => onItemSearchChange(event.target.value)}
             placeholder="Buscar por nombre, SKU, marca, modelo o atributos..."
           />
-          <div className="max-h-52 overflow-auto rounded-2xl border border-border/80 bg-background/95 shadow-sm">
-            {itemSearch.trim() === "" && availableItems.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">Escribí para buscar un ítem.</p>
-            ) : searchingItems ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">Buscando ítems...</p>
-            ) : availableItems.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">No se encontraron ítems.</p>
-            ) : (
-              availableItems.map((item) => {
-                const itemStock = stockByItemId.get(item.id) ?? 0;
-                const tone = stockTone(itemStock);
+          <Card className="overflow-hidden">
+            <CardHeader className="border-b border-border/70 bg-muted/25 py-3">
+              <CardTitle className="text-sm">Resultados</CardTitle>
+            </CardHeader>
+            <CardContent className="max-h-52 overflow-auto p-0">
+              {itemSearch.trim() === "" && availableItems.length === 0 ? (
+                <p className="px-3 py-2 text-sm text-muted-foreground">Escribí para buscar un ítem.</p>
+              ) : searchingItems ? (
+                <p className="px-3 py-2 text-sm text-muted-foreground">Buscando ítems...</p>
+              ) : availableItems.length === 0 ? (
+                <p className="px-3 py-2 text-sm text-muted-foreground">No se encontraron ítems.</p>
+              ) : (
+                availableItems.map((item) => {
+                  const itemStock = stockByItemId.get(item.id) ?? 0;
+                  const tone = stockTone(itemStock);
 
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      onSelectedItemChange(item);
-                      onFormChange({ ...form, item_id: item.id });
-                    }}
-                    className={cn(
-                      "flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/80",
-                      selectedItem?.id === item.id && "bg-primary/10",
-                    )}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-semibold text-foreground">
-                        {buildItemDisplayName({
-                          name: item.name,
-                          brand: item.brand,
-                          model: item.model,
-                          attributes: item.attributes,
-                        })}
-                      </span>
-                    </span>
-                    <Badge
-                      variant="outline"
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        onSelectedItemChange(item);
+                        onFormChange({ ...form, item_id: item.id });
+                      }}
                       className={cn(
-                      "shrink-0 rounded-full px-3 py-1 text-xs font-semibold tabular-nums",
-                      tone === "destructive" && "border-red-500/30 bg-red-500/10 text-red-400",
-                      tone === "warning" && "border-amber-500/30 bg-amber-500/10 text-amber-400",
-                      tone === "success" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-                    )}
-                  >
-                      {itemStock}
-                    </Badge>
-                  </button>
-                );
-              })
-            )}
-          </div>
+                        "flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/80",
+                        selectedItem?.id === item.id && "bg-primary/10",
+                      )}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold text-foreground">
+                          {buildItemDisplayName({
+                            name: item.name,
+                            brand: item.brand,
+                            model: item.model,
+                            attributes: item.attributes,
+                          })}
+                        </span>
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "shrink-0 rounded-full px-3 py-1 text-xs font-semibold tabular-nums",
+                          tone === "destructive" && "border-red-500/30 bg-red-500/10 text-red-400",
+                          tone === "warning" && "border-amber-500/30 bg-amber-500/10 text-amber-400",
+                          tone === "success" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+                        )}
+                      >
+                        {itemStock}
+                      </Badge>
+                    </button>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
 
           {selectedItem ? (
-            <div className="rounded-2xl border border-border/70 bg-muted/30 px-4 py-2.5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Seleccionado</p>
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {buildItemDisplayName({
-                      name: selectedItem.name,
-                      brand: selectedItem.brand,
-                      model: selectedItem.model,
-                      attributes: selectedItem.attributes,
-                    })}
-                  </p>
+            <Card className="border-border/70 bg-muted/20">
+              <CardContent className="py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Seleccionado</p>
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {buildItemDisplayName({
+                        name: selectedItem.name,
+                        brand: selectedItem.brand,
+                        model: selectedItem.model,
+                        attributes: selectedItem.attributes,
+                      })}
+                    </p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tabular-nums",
+                      selectedTone === "destructive" && "border-red-500/30 bg-red-500/10 text-red-400",
+                      selectedTone === "warning" && "border-amber-500/30 bg-amber-500/10 text-amber-400",
+                      selectedTone === "success" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+                    )}
+                  >
+                    <Package className="h-4 w-4" />
+                    {selectedStock}
+                  </Badge>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tabular-nums",
-                    selectedTone === "destructive" && "border-red-500/30 bg-red-500/10 text-red-400",
-                    selectedTone === "warning" && "border-amber-500/30 bg-amber-500/10 text-amber-400",
-                    selectedTone === "success" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-                  )}
-                >
-                  <Package className="h-4 w-4" />
-                  {selectedStock}
-                </Badge>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ) : null}
         </div>
 

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
 
-export type CustomerAccountSummary = {
+type CustomerAccountSummary = {
   company_id: string;
   customer_id: string;
   balance: number;
@@ -14,7 +14,7 @@ export type CustomerAccountSummary = {
   last_amount: number | null;
 };
 
-export type CustomerAccountEntry = {
+type CustomerAccountEntry = {
   id: string;
   business_date: string;
   created_at: string;

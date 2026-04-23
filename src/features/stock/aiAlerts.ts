@@ -19,7 +19,7 @@ type StockAiResponse = {
   };
 };
 
-export interface StockAiResult {
+interface StockAiResult {
   summary: string | null;
   alerts: StockInsight[];
   model: string | null;

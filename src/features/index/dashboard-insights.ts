@@ -32,30 +32,30 @@ type BuildDashboardInsightsInput = {
   now?: Date;
 };
 
-export type DashboardMetric = {
+type DashboardMetric = {
   label: string;
   value: number;
   hint: string;
 };
 
-export type DashboardDonutSlice = {
+type DashboardDonutSlice = {
   name: string;
   value: number;
   fill: string;
 };
 
-export type DashboardSeriesPoint = {
+type DashboardSeriesPoint = {
   label: string;
   in: number;
   out: number;
 };
 
-export type DashboardCategoryPoint = {
+type DashboardCategoryPoint = {
   category: string;
   value: number;
 };
 
-export type DashboardTopItem = {
+type DashboardTopItem = {
   itemId: string;
   name: string;
   sku: string | null;
@@ -64,7 +64,7 @@ export type DashboardTopItem = {
   stockValue: number;
 };
 
-export type DashboardInsights = {
+type DashboardInsights = {
   metrics: {
     inventoryValue: number;
     inventoryUnits: number;

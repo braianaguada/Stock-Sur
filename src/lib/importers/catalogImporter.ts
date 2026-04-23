@@ -1,12 +1,29 @@
-type XlsxModule = typeof import("xlsx");
+﻿type XlsxModule = typeof import("xlsx");
 type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 import { loadPdfJs, loadTesseract, loadXlsx } from "@/lib/lazy-vendors";
+import {
+  buildPdfDescriptionFromRow,
+  detectBlocks,
+  detectCurrency,
+  fillMergedCells,
+  getActiveColumns,
+  isLikelyDate,
+  isLikelyPdfNoiseValue,
+  isLikelyPriceValue,
+  isLikelyStatusValue,
+  isLikelySupplierCodeValue,
+  looksLikeHeaderRow,
+  normalizeCellValue,
+  parseFlexibleNumber,
+  pickPdfPriceCell,
+  sanitizeHeaderRow,
+} from "@/lib/importers/catalogImporterHelpers";
 type MergeRange = {
   s: { r: number; c: number };
   e: { r: number; c: number };
 };
 
-export type MatchStatus = "MATCHED" | "PENDING" | "NEW";
+type MatchStatus = "MATCHED" | "PENDING" | "NEW";
 
 export interface CatalogImportLine {
   supplier_code: string | null;
@@ -44,7 +61,7 @@ export interface ParsedSheetData {
   detectedBlocks: number;
 }
 
-export interface ColumnHeuristicScore {
+interface ColumnHeuristicScore {
   index: number;
   key: string;
   label: string;
@@ -52,7 +69,7 @@ export interface ColumnHeuristicScore {
   priceScore: number;
 }
 
-export interface ColumnDetectionResult {
+interface ColumnDetectionResult {
   descriptionColumn: string;
   priceColumn: string;
   supplierCodeColumn: string | null;
@@ -61,14 +78,14 @@ export interface ColumnDetectionResult {
   scores: ColumnHeuristicScore[];
 }
 
-export interface MappingSelectionCore {
+interface MappingSelectionCore {
   descriptionColumn: string;
   priceColumn: string;
   currencyColumn: string | null;
   supplierCodeColumn: string | null;
 }
 
-export interface PdfMappingSelectionCore {
+interface PdfMappingSelectionCore {
   descriptionColumn: string;
   priceColumn: string;
   codeColumn: string | null;
@@ -76,7 +93,7 @@ export interface PdfMappingSelectionCore {
   filterRowsWithoutPrice: boolean;
 }
 
-export interface PdfColumnDetectionResult {
+interface PdfColumnDetectionResult {
   descriptionColumn: string;
   priceColumn: string;
   codeColumn: string | null;
@@ -99,7 +116,7 @@ export interface PdfTableCandidate {
   sourceMode: ParsePdfMode;
 }
 
-export interface ParsePdfOptions {
+interface ParsePdfOptions {
   preferPrice: "first" | "last";
   defaultCurrency: "ARS" | "USD";
   maxPages: number;
@@ -120,7 +137,7 @@ export interface ParsePdfResult {
   table: PdfTableCandidate | null;
 }
 
-export interface PdfParseCandidateMetrics {
+interface PdfParseCandidateMetrics {
   lines: CatalogImportLine[];
   chars: number;
   tableRows: string[][];
@@ -161,28 +178,28 @@ const MAX_IMPORT_ROWS = 10000;
 const HEADER_COL_PREFIX = "col_";
 const DESCRIPTION_KEYWORDS = [
   "descripcion",
-  "descripción",
+  "descripciÃ³n",
   "description",
   "producto",
   "item",
   "articulo",
-  "artículo",
+  "artÃ­culo",
   "detalle",
   "nombre",
   "model",
   "modelo",
   "code+desc",
   "codigo descripcion",
-  "código descripción",
+  "cÃ³digo descripciÃ³n",
 ];
 const PRICE_KEYWORDS = ["precio", "costo", "cost", "importe", "lista", "price", "unitario", "pvp", "$", "ars", "usd"];
 const CURRENCY_KEYWORDS = ["moneda", "currency", "curr", "divisa"];
-const CODE_KEYWORDS = ["codigo", "código", "cod", "sku", "ean", "upc", "ref", "referencia"];
+const CODE_KEYWORDS = ["codigo", "cÃ³digo", "cod", "sku", "ean", "upc", "ref", "referencia"];
 
 
 const PDF_IGNORE_PATTERNS = [
-  /^(pagina|p[aá]gina)\s+\d+$/i,
-  /^pm materiales el[eé]ctricos$/i,
+  /^(pagina|p[aÃ¡]gina)\s+\d+$/i,
+  /^pm materiales el[eÃ©]ctricos$/i,
   /^pablo molise$/i,
   /^contactos?:?$/i,
   /^neto$/i,
@@ -190,139 +207,24 @@ const PDF_IGNORE_PATTERNS = [
   /^producto$/i,
   /^s\/stock$/i,
 ];
-const PDF_CATALOG_HINTS = ["codigo", "código", "precio", "u$s", "usd", "ars", "neto", "descuento"];
+const PDF_CATALOG_HINTS = ["codigo", "cÃ³digo", "precio", "u$s", "usd", "ars", "neto", "descuento"];
 const PDF_TECHNICAL_HINTS = ["voltaje", "rpm", "prof.", "altura", "base", "a cm", "b cm", "c cm", "pulg."];
 const PDF_TECHNICAL_PREFIXES = [
-  /^caracter[ií]sticas?:/i,
-  /^datos t[eé]cnicos?:/i,
+  /^caracter[iÃ­]sticas?:/i,
+  /^datos t[eÃ©]cnicos?:/i,
   /^carga /i,
   /^contactos?:?$/i,
-  /^programaci[oó]n/i,
-  /^tiempo m[ií]nimo/i,
-  /^alimentaci[oó]n/i,
-  /^modo(s)? de operaci[oó]n/i,
+  /^programaci[oÃ³]n/i,
+  /^tiempo m[iÃ­]nimo/i,
+  /^alimentaci[oÃ³]n/i,
+  /^modo(s)? de operaci[oÃ³]n/i,
   /^control de /i,
   /^pantalla /i,
-  /^funci[oó]n /i,
+  /^funci[oÃ³]n /i,
   /^registro /i,
   /^\*/i,
 ];
 
-function sanitizeHeaderRow(rawHeaders: string[]): string[] {
-  const used = new Set<string>();
-  return rawHeaders.map((raw, index) => {
-    const base = (raw ?? "").trim() || `${HEADER_COL_PREFIX}${index + 1}`;
-    let value = base;
-    let suffix = 2;
-    while (used.has(value)) {
-      value = `${base}_${suffix}`;
-      suffix += 1;
-    }
-    used.add(value);
-    return value;
-  });
-}
-
-function normalizeCellValue(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
-  return String(value).replace(/\u00A0/g, " ").trim();
-}
-
-function isLikelyDate(value: string): boolean {
-  const normalized = value.trim();
-  if (!normalized) return false;
-  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(normalized)) return true;
-  if (/^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(normalized)) return true;
-  return false;
-}
-
-function looksLikeHeaderRow(row: string[]): boolean {
-  const nonEmpty = row.map((cell) => cell.trim()).filter(Boolean);
-  if (nonEmpty.length < 2) return false;
-  const alphaCells = nonEmpty.filter((cell) => /[a-zA-Záéíóúñ]/i.test(cell)).length;
-  const numericCells = nonEmpty.filter((cell) => parseFlexibleNumber(cell) !== null).length;
-  return alphaCells >= 2 && numericCells <= Math.floor(nonEmpty.length / 2);
-}
-
-function fillMergedCells(matrix: string[][], merges: MergeRange[] | undefined): string[][] {
-  if (!merges || merges.length === 0) return matrix;
-  const out = matrix.map((row) => [...row]);
-  merges.forEach((range) => {
-    const value = out[range.s.r]?.[range.s.c] ?? "";
-    for (let r = range.s.r; r <= range.e.r; r += 1) {
-      for (let c = range.s.c; c <= range.e.c; c += 1) {
-        if (!out[r]) out[r] = [];
-        if (!out[r][c]) out[r][c] = value;
-      }
-    }
-  });
-  return out;
-}
-
-function getActiveColumns(row: string[]): number {
-  return row.filter((cell) => cell.trim().length > 0).length;
-}
-
-function isSectionLikeRow(row: string[]): boolean {
-  const nonEmpty = row.filter((cell) => cell.trim().length > 0);
-  if (nonEmpty.length <= 1) return true;
-  const numeric = nonEmpty.filter((cell) => parseFlexibleNumber(cell) !== null).length;
-  return numeric === 0 && nonEmpty.join(" ").length > 30;
-}
-
-function detectBlocks(rows: string[][]): Array<{ start: number; end: number }> {
-  const blocks: Array<{ start: number; end: number }> = [];
-  let currentStart: number | null = null;
-  let sparseStreak = 0;
-  rows.forEach((row, index) => {
-    const activeColumns = getActiveColumns(row);
-    const isSparse = activeColumns < 2;
-    if (!isSparse && currentStart === null) currentStart = index;
-    if (currentStart !== null) {
-      if (isSparse && !isSectionLikeRow(row)) sparseStreak += 1;
-      else sparseStreak = 0;
-      if (sparseStreak >= 2) {
-        blocks.push({ start: currentStart, end: Math.max(currentStart, index - sparseStreak) });
-        currentStart = null;
-        sparseStreak = 0;
-      }
-    }
-  });
-  if (currentStart !== null) blocks.push({ start: currentStart, end: rows.length - 1 });
-  return blocks.filter((b) => b.end - b.start >= 1);
-}
-
-export function parseFlexibleNumber(raw: string): number | null {
-  const value = raw.trim();
-  if (!value) return null;
-  let normalized = value
-    .replace(/\s+/g, "")
-    .replace(/[\u00A0\u202F]/g, "")
-    .replace(/[$€£¥]/g, "")
-    .replace(/(ars|usd|eur|u\$s|us\$)/gi, "")
-    .replace(/[^\d,.-]/g, "");
-  if (!normalized) return null;
-  const hasComma = normalized.includes(",");
-  const hasDot = normalized.includes(".");
-  if (hasComma && hasDot) {
-    normalized = normalized.lastIndexOf(",") > normalized.lastIndexOf(".")
-      ? normalized.replace(/\./g, "").replace(",", ".")
-      : normalized.replace(/,/g, "");
-  } else if (hasComma) {
-    const commaCount = (normalized.match(/,/g) ?? []).length;
-    normalized = commaCount > 1
-      ? normalized.replace(/,/g, (match, offset) => (offset === normalized.lastIndexOf(",") ? "." : ""))
-      : normalized.replace(",", ".");
-  } else if (hasDot) {
-    const dotCount = (normalized.match(/\./g) ?? []).length;
-    normalized = dotCount > 1
-      ? normalized.replace(/\./g, (match, offset) => (offset === normalized.lastIndexOf(".") ? "." : ""))
-      : normalized;
-  }
-  const parsed = Number.parseFloat(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
 
 export function detectColumnsHeuristic(headers: string[], rows: string[][]): ColumnDetectionResult {
   const scores: ColumnHeuristicScore[] = headers.map((header, colIndex) => {
@@ -332,7 +234,7 @@ export function detectColumnsHeuristic(headers: string[], rows: string[][]): Col
     const numericCount = numericValues.filter((value) => value !== null).length;
     const decimalCount = values.filter((value) => /[,.]\d{1,3}$/.test(value)).length;
     const longTextCount = values.filter((value) => value.length >= 8).length;
-    const textCount = values.filter((value) => /[a-zA-Záéíóúñ]/i.test(value)).length;
+    const textCount = values.filter((value) => /[a-zA-ZÃ¡Ã©Ã­Ã³ÃºÃ±]/i.test(value)).length;
     const dateLikeCount = values.filter((value) => isLikelyDate(value)).length;
     const uniqueRatio = values.length ? new Set(values.map((value) => value.toLowerCase())).size / values.length : 0;
     const headerLower = header.toLowerCase();
@@ -446,7 +348,7 @@ function isLikelySupplierCodeValue(value: string): boolean {
   const normalized = value.trim();
   if (!normalized || normalized.length > 24) return false;
   if (/\s{2,}/.test(normalized)) return false;
-  if (/^(pagina|página|descuento|neto|contactos?|caracteristicas?|características)$/i.test(normalized)) return false;
+  if (/^(pagina|pÃ¡gina|descuento|neto|contactos?|caracteristicas?|caracterÃ­sticas)$/i.test(normalized)) return false;
   if (/^[A-Za-z]+$/.test(normalized) && normalized !== normalized.toUpperCase()) return false;
   return /^[A-Z0-9][A-Z0-9\-_/+.()]{1,23}$/i.test(normalized);
 }
@@ -454,7 +356,7 @@ function isLikelySupplierCodeValue(value: string): boolean {
 function isLikelyPdfNoiseValue(value: string): boolean {
   const normalized = value.trim();
   if (!normalized) return true;
-  return /@|tel|cel|p[aá]gina|descuento|neto|pmmateriales/i.test(normalized);
+  return /@|tel|cel|p[aÃ¡]gina|descuento|neto|pmmateriales/i.test(normalized);
 }
 
 function isLikelyStatusValue(value: string): boolean {
@@ -536,7 +438,7 @@ export function detectPdfColumnsHeuristic(headers: string[], rows: string[][]): 
     const total = values.length || 1;
     const priceLikeRatio = values.filter((value) => isLikelyPriceValue(value)).length / total;
     const codeLikeRatio = values.filter((value) => isLikelySupplierCodeValue(value)).length / total;
-    const textRatio = values.filter((value) => /[a-zA-ZÁÉÍÓÚÑáéíóúñ]/.test(value)).length / total;
+    const textRatio = values.filter((value) => /[a-zA-ZÃÃ‰ÃÃ“ÃšÃ‘Ã¡Ã©Ã­Ã³ÃºÃ±]/.test(value)).length / total;
     const longTextRatio = values.filter((value) => value.length >= 10).length / total;
     const noiseRatio = values.filter((value) => isLikelyPdfNoiseValue(value)).length / total;
     const populatedRatio = values.length / rows.length;
@@ -602,7 +504,7 @@ export function normalizePdfRowsToLines({
 
     const rawDescription = buildPdfDescriptionFromRow(row, descriptionIndex, codeIndex, pickedPrice.index);
     if (!rawDescription || rawDescription.length < 3) return;
-    if (!/[a-zA-ZÁÉÍÓÚÑáéíóúñ]/.test(rawDescription)) return;
+    if (!/[a-zA-ZÃÃ‰ÃÃ“ÃšÃ‘Ã¡Ã©Ã­Ã³ÃºÃ±]/.test(rawDescription)) return;
 
     const explicitCode = codeIndex !== undefined ? String(row[codeIndex] ?? "").trim() : "";
     const inferredCode = row.map((cell) => String(cell ?? "").trim()).find((cell) => isLikelySupplierCodeValue(cell)) ?? "";
@@ -817,7 +719,7 @@ function isLikelyTechnicalContinuationLine(value: string) {
 function isLikelySectionHeading(value: string) {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (!normalized) return false;
-  if (/^l[íi]nea\b/i.test(normalized)) return true;
+  if (/^l[Ã­i]nea\b/i.test(normalized)) return true;
   if (/^(interruptores horarios|llaves a tecla|difusores|desagote rigido|termostatos? de ambiente)/i.test(normalized)) return true;
   return false;
 }
@@ -863,7 +765,7 @@ function finalizePendingPdfProduct(pending: PendingPdfProduct | null): CatalogIm
   if (!pending || !pending.priceValue || pending.priceValue <= 0) return null;
   const rawDescription = pending.descriptionParts.join(" ").replace(/\s+/g, " ").trim();
   if (!rawDescription || rawDescription.length < 3) return null;
-  if (!/[a-zA-ZÃ¡Ã©Ã­Ã³ÃºÃ±]/i.test(rawDescription)) return null;
+  if (!/[a-zA-ZÃƒÂ¡ÃƒÂ©ÃƒÂ­ÃƒÂ³ÃƒÂºÃƒÂ±]/i.test(rawDescription)) return null;
   if (isLikelyTechnicalDescription(rawDescription)) return null;
   return {
     supplier_code: pending.supplierCode,
@@ -1026,7 +928,7 @@ function extractPdfLineCandidate(
   if (!line || line.length < 4) return null;
   if (isLikelyPdfNoiseValue(line)) return null;
   if (PDF_IGNORE_PATTERNS.some((pattern) => pattern.test(line.trim()))) return null;
-  if (/^[*•]/.test(line)) return null;
+  if (/^[*â€¢]/.test(line)) return null;
   const chunks = line.split(/\s{2,}/).filter(Boolean);
   const candidateString = chunks.length > 1 ? chunks.join(" | ") : line;
   const numberMatches = [...candidateString.matchAll(/-?\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d+)?|-?\d+(?:[.,]\d+)?/g)];
@@ -1056,7 +958,7 @@ function extractPdfLineCandidate(
   if (context.pageHasTechnicalTable) confidence -= 0.05;
   if (description.length >= 18) confidence += 0.05;
   if (description.length < 8) confidence -= 0.08;
-  if (!/[a-zA-Záéíóúñ]/i.test(description)) return null;
+  if (!/[a-zA-ZÃ¡Ã©Ã­Ã³ÃºÃ±]/i.test(description)) return null;
   return {
     supplier_code: supplierCode,
     raw_description: description,
@@ -1303,3 +1205,4 @@ export async function parsePdfToLines(
       : null,
   };
 }
+

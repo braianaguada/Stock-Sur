@@ -67,10 +67,12 @@ export function UserAccessDialog(props: {
       )}
     >
       <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
-        <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+        <Card className="border-border/60 bg-muted/20 shadow-none">
+          <CardContent className="px-4 py-3">
           <p className="font-medium">{selectedUser?.full_name?.trim() || "Sin nombre cargado"}</p>
           <p className="text-sm text-muted-foreground">{selectedUser?.email}</p>
-        </div>
+          </CardContent>
+        </Card>
 
         <div className="space-y-2">
           <Label>Empresa</Label>
@@ -165,7 +167,8 @@ export function UserAccessDialog(props: {
             </Card>
           </div>
 
-          <div className="max-h-[320px] space-y-4 overflow-y-auto rounded-2xl border bg-muted/10 p-4">
+          <Card className="max-h-[320px] overflow-y-auto border-border/60 bg-muted/10 shadow-none">
+            <CardContent className="space-y-4 p-4">
             {Object.entries(permissionOptionsByModule).map(([moduleName, modulePermissions]) => (
               <div key={moduleName} className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -213,7 +216,8 @@ export function UserAccessDialog(props: {
                 </div>
               </div>
             ))}
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </EntityDialog>

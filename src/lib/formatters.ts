@@ -4,6 +4,10 @@ export const currency = new Intl.NumberFormat("es-AR", {
   minimumFractionDigits: 2,
 });
 
+export function formatMoney(value: number) {
+  return value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 const AR_TIME_ZONE = "America/Argentina/Buenos_Aires";
 
 export function formatTime(value: string) {
@@ -31,10 +35,6 @@ export function formatBusinessDate(value: string) {
   const [year, month, day] = value.split("-");
   if (!year || !month || !day) return value;
   return `${day}/${month}/${year}`;
-}
-
-export function formatIsoDate(value: string) {
-  return formatBusinessDate(value);
 }
 
 export function businessDateFromTimestamp(value: string) {

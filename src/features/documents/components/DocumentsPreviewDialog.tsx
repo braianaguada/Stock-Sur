@@ -1,13 +1,14 @@
 import { CheckCircle2, Clock, LucideIcon, PlayCircle, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { EntityDialog } from "@/components/common/EntityDialog";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { CUSTOMER_KIND_LABEL, DOC_LABEL, DOC_TYPE_CLASS, STATUS_LABEL } from "@/features/documents/constants";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
 import { describeDocumentHistoryEvent, formatNumber } from "@/features/documents/utils";
-import { formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
+import { formatBusinessDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 
 interface DocumentsPreviewDialogProps {
   open: boolean;
@@ -48,7 +49,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <EntityDialog`r`n      open={open}`r`n      onOpenChange={onOpenChange}`r`n      title="Vista previa del documento"`r`n      description="Documento comercial y trazabilidad."`r`n      contentClassName="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl"`r`n    >
       <DialogContent className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl font-semibold tracking-tight text-foreground/90">Vista previa del documento</DialogTitle>
@@ -59,9 +60,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
           <div className="grid flex-1 min-h-0 gap-4 2xl:grid-cols-[minmax(0,1.95fr)_minmax(380px,460px)]">
             <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable]">
               <div className="space-y-4">
-                <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm">
+                <Card className="overflow-hidden border-border/60 bg-card/90 shadow-sm">
                   <div className="h-1 w-full bg-gradient-to-r from-primary/80 via-primary/35 to-transparent" />
-                  <div className="border-b border-border/60 px-5 py-4 sm:px-6">
+                  <CardHeader className="border-b border-border/60 px-5 py-4 sm:px-6">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       <div className="min-w-0">
                         <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
@@ -94,9 +95,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                         </div>
                       </div>
                     ) : null}
-                  </div>
+                  </CardHeader>
 
-                  <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+                  <CardContent className="grid gap-0 p-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
                     <div className="border-b border-border/60 px-5 py-4 lg:border-b-0 lg:border-r sm:px-6">
                       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <div>
@@ -111,13 +112,13 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                         </div>
                         <div>
                           <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
-                          <p className="mt-1 text-sm text-foreground">Fecha: <span className="font-medium">{formatIsoDate(selectedDocument.issue_date)}</span></p>
+                          <p className="mt-1 text-sm text-foreground">Fecha: <span className="font-medium">{formatBusinessDate(selectedDocument.issue_date)}</span></p>
                           <p className="mt-1 text-xs text-muted-foreground">Estado: <span className="text-foreground">{STATUS_LABEL[selectedDocument.status]}</span></p>
                         </div>
                         <div>
                           <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Referencia</p>
                           <p className="mt-1 text-sm text-foreground">PDV: <span className="font-mono">{String(selectedDocument.point_of_sale).padStart(4, "0")}</span></p>
-                          {selectedDocument.valid_until ? <p className="mt-1 text-xs text-muted-foreground">Validez: <span className="text-foreground">{formatIsoDate(selectedDocument.valid_until)}</span></p> : null}
+                          {selectedDocument.valid_until ? <p className="mt-1 text-xs text-muted-foreground">Validez: <span className="text-foreground">{formatBusinessDate(selectedDocument.valid_until)}</span></p> : null}
                         </div>
                       </div>
                     </div>
@@ -143,11 +144,12 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                         </div>
                       ) : null}
                     </div>
-                  </div>
-                </section>
+                  </CardContent>
+                </Card>
 
-                <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
-                  <div className="flex flex-wrap items-end justify-between gap-4">
+                <Card className="border-border/60 bg-card/90 shadow-sm">
+                  <CardHeader className="pb-3">
+                    <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Items</p>
                       <p className="mt-1 text-sm text-muted-foreground">Detalle principal del documento.</p>
@@ -156,9 +158,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total del documento</p>
                       <p className="mt-1 text-3xl font-black tracking-tight text-foreground">${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
                     </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-4">
+                    </div>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
                     {selectedDocument.notes ? (
                       <div className="rounded-xl border border-border/60 bg-background/80 px-4 py-3">
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Notas</p>
@@ -181,13 +183,14 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                         showSku
                       />
                     </div>
-                  </div>
-                </section>
+                  </CardContent>
+                </Card>
               </div>
             </div>
 
             <aside className="min-h-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable] 2xl:min-w-[380px]">
-              <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+              <Card className="border-border/60 bg-card/90 shadow-sm">
+                <CardHeader className="pb-3">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Historial</p>
                 <p className="mt-1 text-sm text-muted-foreground">Trazabilidad del documento.</p>
                 {sourceDocumentLabel ? (
@@ -195,7 +198,8 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                     Origen: {sourceDocumentLabel}
                   </Badge>
                 ) : null}
-
+                </CardHeader>
+                <CardContent>
                 {selectedEvents.length === 0 ? (
                   <div className="mt-5 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center">
                     <Clock className="mx-auto h-8 w-8 text-muted-foreground/40" />
@@ -235,7 +239,8 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                     })}
                   </div>
                 )}
-              </section>
+                </CardContent>
+              </Card>
             </aside>
           </div>
         ) : null}
@@ -243,3 +248,5 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     </Dialog>
   );
 }
+
+

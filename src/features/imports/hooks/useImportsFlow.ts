@@ -5,7 +5,8 @@ import { getErrorMessage } from "@/lib/errors";
 import { isRowEmpty, parsePrice } from "@/lib/importParserCore";
 import { matchImportLine } from "@/lib/matching";
 import { buildImportPreviewRows } from "@/features/imports/utils";
-import type { ImportMappingState, ImportStep, ParsedRow } from "@/features/imports/types";
+import type { ImportMappingState, ImportStep } from "@/features/imports/types";
+import type { ParsedRow } from "@/lib/importParserCore";
 
 type ToastFn = (params: {
   title: string;

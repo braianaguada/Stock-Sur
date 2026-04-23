@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type DataTableColumnHeaderProps = {
@@ -22,13 +23,15 @@ export function DataTableColumnHeader({
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="sm"
       onClick={onToggleSort}
-      className={cn("inline-flex items-center gap-1 font-medium text-left hover:text-foreground", className)}
+      className={cn("-ml-3 h-8 px-3 font-medium text-left hover:bg-muted/50", className)}
     >
       <span>{title}</span>
       <Icon className="h-3.5 w-3.5" />
-    </button>
+    </Button>
   );
 }

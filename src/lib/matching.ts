@@ -1,12 +1,12 @@
-export type MatchReason = "SUPPLIER_CODE" | "ALIAS_TOKEN" | "ALIAS_CONTAINS" | "NONE";
+type MatchReason = "SUPPLIER_CODE" | "ALIAS_TOKEN" | "ALIAS_CONTAINS" | "NONE";
 
-export interface AliasRecord {
+interface AliasRecord {
   item_id: string;
   alias: string;
   is_supplier_code: boolean;
 }
 
-export interface MatchResult {
+interface MatchResult {
   itemId: string | null;
   reason: MatchReason;
 }
@@ -93,6 +93,3 @@ export function matchImportLine(args: {
   return { itemId: null, reason: "NONE" };
 }
 
-function buildSuggestedAlias(rawDescription: string): string {
-  return normalizeText(rawDescription).slice(0, 80).trim();
-}

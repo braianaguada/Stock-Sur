@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EntityDialog } from "@/components/common/EntityDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CustomerAccountCreditDialog } from "./CustomerAccountCreditDialog";
 import type { Customer } from "@/features/customers/types";
@@ -24,12 +24,13 @@ export function CustomerAccountDialog({ open, companyId, customer, onOpenChange,
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Cuenta corriente - {customer?.name ?? "-"}</DialogTitle>
-            <DialogDescription>{customer?.cuit ?? "Sin CUIT"}</DialogDescription>
-          </DialogHeader>
+      <EntityDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        title={`Cuenta corriente - ${customer?.name ?? "-"}`}
+        description={customer?.cuit ?? "Sin CUIT"}
+        contentClassName="sm:max-w-4xl"
+      >
 
           {customer?.is_occasional ? (
             <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
@@ -100,8 +101,7 @@ export function CustomerAccountDialog({ open, companyId, customer, onOpenChange,
               </TableBody>
             </Table>
           </div>
-        </DialogContent>
-      </Dialog>
+      </EntityDialog>
 
       <CustomerAccountCreditDialog
         open={openCredit}

@@ -1,4 +1,4 @@
-import { formatDateTime as formatTimestampDateTime } from "@/lib/formatters";
+import { formatDateTime as formatTimestampDateTime, formatMoney } from "@/lib/formatters";
 
 export const parseNonNegative = (value: string, fallback = 0) => {
   const parsed = Number(value.replace(",", "."));
@@ -8,9 +8,6 @@ export const parseNonNegative = (value: string, fallback = 0) => {
 
 export const sanitizeNonNegativeDraft = (value: string) =>
   value.replace(",", ".").replace(/-/g, "");
-
-export const formatMoney = (value: number) =>
-  value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export const formatDateTime = (value: string | null) =>
   value ? formatTimestampDateTime(value) : "-";

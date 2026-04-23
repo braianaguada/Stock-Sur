@@ -164,15 +164,16 @@ export function SupplierCatalogDialog({
                 const Icon = item.icon;
                 const active = catalogUiTab === item.key;
                 return (
-                  <button
+                  <Button
                     key={item.key}
                     type="button"
                     onClick={() => onCatalogUiTabChange(item.key)}
+                    variant={active ? "secondary" : "ghost"}
                     className={cn(
-                      "rounded-xl border p-3 text-left transition-colors",
+                      "h-auto w-full justify-start rounded-xl border p-3 text-left",
                       active
-                        ? "border-primary bg-primary/8 text-primary"
-                        : "border-border bg-background hover:border-primary/40 hover:bg-background",
+                        ? "border-primary/40 bg-primary/8 text-primary"
+                        : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-background",
                     )}
                   >
                     <div className="flex items-start gap-3">
@@ -184,7 +185,7 @@ export function SupplierCatalogDialog({
                         <div className="mt-1 text-xs text-muted-foreground">{item.helper}</div>
                       </div>
                     </div>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -267,7 +268,8 @@ export function SupplierCatalogDialog({
                     />
                   </div>
 
-                  <div className="rounded-2xl border border-dashed bg-muted/20 p-5">
+                  <Card className="border-dashed border-border/60 bg-muted/20 shadow-none">
+                    <CardContent className="space-y-3 p-5">
                     <div className="space-y-3">
                       <div>
                         <div className="font-medium">Archivo a procesar</div>
@@ -289,7 +291,8 @@ export function SupplierCatalogDialog({
                         </div>
                       ) : null}
                     </div>
-                  </div>
+                    </CardContent>
+                  </Card>
 
                   <div className="flex flex-wrap gap-3">
                     <Button onClick={onUpload} disabled={isUploading || !selectedFile}>
@@ -311,14 +314,17 @@ export function SupplierCatalogDialog({
                   <CardDescription>Senales utiles despues del parseo.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
-                  <div className="rounded-lg border p-3">
+                  <Card className="border-border/60">
+                    <CardContent className="p-3">
                     <div className="font-medium">Estrategia</div>
                     <div className="mt-1 text-muted-foreground">
                       Excel/CSV va por parser logico. PDF pasa por parser estructural y, si hace falta, por motores externos como Mistral OCR o Gemini antes de la revision final.
                     </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                   {lastDiagnostics ? (
-                    <div className="rounded-lg border p-3">
+                    <Card className="border-border/60">
+                      <CardContent className="p-3">
                       <div className="font-medium">Ultima importacion tabular</div>
                       <div className="mt-2 space-y-1 text-muted-foreground">
                         <div>Filas validas: {lastDiagnostics.keptRows} / {lastDiagnostics.totalRows}</div>
@@ -331,11 +337,14 @@ export function SupplierCatalogDialog({
                           Ver detalle de filas descartadas
                         </Button>
                       ) : null}
-                    </div>
+                      </CardContent>
+                    </Card>
                   ) : (
-                    <div className="rounded-lg border p-3 text-muted-foreground">
+                    <Card className="border-border/60">
+                      <CardContent className="p-3 text-muted-foreground">
                       Todavia no hay diagnostico de importacion en esta sesion.
-                    </div>
+                      </CardContent>
+                    </Card>
                   )}
                 </CardContent>
               </Card>
@@ -376,16 +385,17 @@ export function SupplierCatalogDialog({
                               </div>
                             ) : (
                               (versionsByCatalog[catalog.id] ?? []).map((version) => (
-                                <button
+                                <Button
                                   type="button"
                                   key={version.id}
                                   onClick={() => onSelectVersion(version.id)}
                                   className={cn(
-                                    "rounded-xl border p-4 text-left transition-colors",
+                                    "h-auto w-full rounded-xl border p-4 text-left transition-colors justify-start",
                                     activeVersionId === version.id
                                       ? "border-primary bg-primary/6"
-                                      : "bg-background hover:border-primary/40",
+                                      : "border-border bg-background hover:border-primary/40",
                                   )}
+                                  variant={activeVersionId === version.id ? "secondary" : "ghost"}
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div>
@@ -403,7 +413,7 @@ export function SupplierCatalogDialog({
                                     <div>Tipo: {version.file_type.toUpperCase()}</div>
                                     <div>Items importados: {version.line_count}</div>
                                   </div>
-                                </button>
+                                </Button>
                               ))
                             )}
                           </div>
@@ -463,15 +473,18 @@ export function SupplierCatalogDialog({
                   <CardDescription>Selecciona productos, cantidades y genera el mensaje.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
-                  <div className="min-h-[240px] overflow-auto rounded-xl border">
+                  <Card className="min-h-[240px] overflow-hidden border-border/60 bg-background shadow-sm">
+                    <CardContent className="p-0">
                     <SupplierOrderTable
                       rows={orderLines}
                       onQuantityChange={onOrderQuantityChange}
                       onRemove={onRemoveOrderItem}
                     />
-                  </div>
+                    </CardContent>
+                  </Card>
 
-                  <div className="rounded-xl border bg-muted/20 p-4">
+                  <Card className="border-border/60 bg-muted/20 shadow-sm">
+                    <CardContent className="p-4">
                     <div className="text-sm text-muted-foreground">Total estimado</div>
                     <div className="mt-3 grid gap-2">
                       {Object.entries(orderTotalsByCurrency).length > 0 ? (
@@ -489,7 +502,8 @@ export function SupplierCatalogDialog({
                         <div className="text-lg font-semibold">0.00</div>
                       )}
                     </div>
-                  </div>
+                    </CardContent>
+                  </Card>
 
                   {!selectedSupplier?.whatsapp || !selectedSupplier?.email ? (
                     <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-700">

@@ -125,9 +125,11 @@ export function CashClosureTab({
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-4">
-            <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/40 p-4 text-sm leading-7 text-muted-foreground">
+            <Card className="border-border/60 bg-[hsl(var(--panel))]/40">
+              <CardContent className="p-4 text-sm leading-7 text-muted-foreground">
               El conteo físico del efectivo se completa sobre el resumen impreso. Desde esta pantalla solo cerrás la caja del sistema y dejás observaciones.
-            </div>
+              </CardContent>
+            </Card>
             <div className="space-y-2">
               <Label htmlFor="close-notes">Observaciones del cierre</Label>
               <Textarea
@@ -140,9 +142,10 @@ export function CashClosureTab({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/42 p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resumen operativo</h3>
-            <div className="mt-4 space-y-3 text-sm">
+          <Card className="border-border/60 bg-[hsl(var(--panel))]/42">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resumen operativo</h3>
+              <div className="mt-4 space-y-3 text-sm">
               <div className="flex items-center justify-between">
                 <span>Efectivo esperado</span>
                 <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_to_render ?? 0))}</span>
@@ -170,8 +173,9 @@ export function CashClosureTab({
                     : "todavía abierto"}
                 </p>
               </div>
-            </div>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

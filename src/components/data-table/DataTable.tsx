@@ -31,6 +31,7 @@ type DataTableProps<TData> = {
   rowClassName?: string;
   cellClassName?: string;
   reserveEmptyRows?: number;
+  stickyHeader?: boolean;
 };
 
 export function DataTable<TData>({
@@ -47,6 +48,7 @@ export function DataTable<TData>({
   rowClassName,
   cellClassName,
   reserveEmptyRows = 0,
+  stickyHeader = false,
 }: DataTableProps<TData>) {
   const table = useReactTable({
     data,
@@ -74,12 +76,12 @@ export function DataTable<TData>({
       : 0;
 
   return (
-    <Table className={className}>
-      <TableHeader>
+    <Table className={className} aria-busy={isLoading}>
+      <TableHeader className={cn(stickyHeader && "sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80")}>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
-              <TableHead key={header.id} className={cn(header.column.columnDef.meta?.className)}>
+              <TableHead key={header.id} className={cn("bg-muted/30 align-middle", header.column.columnDef.meta?.className)}>
                 {header.isPlaceholder
                   ? null
                   : flexRender(header.column.columnDef.header, header.getContext())}
@@ -91,13 +93,13 @@ export function DataTable<TData>({
       <TableBody>
         {isLoading ? (
           <TableRow>
-            <TableCell colSpan={visibleColumnCount} className="py-6 text-center text-muted-foreground">
+            <TableCell colSpan={visibleColumnCount} className="py-10 text-center text-sm text-muted-foreground">
               {loadingMessage}
             </TableCell>
           </TableRow>
         ) : rows.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={visibleColumnCount} className="py-6 text-center text-muted-foreground">
+            <TableCell colSpan={visibleColumnCount} className="py-10 text-center text-sm text-muted-foreground">
               {emptyMessage}
             </TableCell>
           </TableRow>

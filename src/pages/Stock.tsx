@@ -112,8 +112,8 @@ export default function StockPage() {
   };
   const alertToneLabel: Record<StockHealth, string> = {
     GREEN: "OK",
-    YELLOW: "Atencion",
-    RED: "Critico",
+    YELLOW: "Atención",
+    RED: "Crítico",
     GRAY: "Info",
   };
   const alertRowClass: Record<StockHealth, string> = {
@@ -141,9 +141,9 @@ export default function StockPage() {
     GRAY: "border-border/70 bg-muted text-foreground",
   } as const;
   const demandProfileLabel: Record<DemandProfile, string> = {
-    LOW: "Rotacion baja",
-    MEDIUM: "Rotacion media",
-    HIGH: "Rotacion alta",
+    LOW: "Rotación baja",
+    MEDIUM: "Rotación media",
+    HIGH: "Rotación alta",
   };
   const demandProfileClass: Record<DemandProfile, string> = {
     LOW: "border-border/70 bg-muted text-foreground",
@@ -225,34 +225,41 @@ export default function StockPage() {
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsContent value="summary" className="space-y-6 pt-1">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <StatCard
-                label="Riesgo critico"
-                value={insightCounts.RED}
-                tone="danger"
-                className="bg-[radial-gradient(circle_at_bottom_right,rgba(248,113,113,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(248,113,113,0.55)]"
-              />
-              <StatCard
-                label="Atencion"
-                value={insightCounts.YELLOW}
-                tone="warning"
-                className="shadow-[0_24px_50px_-28px_rgba(250,204,21,0.42)]"
-              />
-              <StatCard
-                label="Oportunidades"
-                value={insightCounts.BLUE}
-                tone="success"
-                className="bg-[radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(16,185,129,0.55)]"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {insightSummary ?? "La IA prioriza riesgo de quiebre, aceleracion de consumo, sobrestock y stock inmovilizado sobre el snapshot actual."}
-            </p>
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-              <span>Fuente: {insightSource}</span>
-              {insightModel ? <span>Modelo: {insightModel}</span> : null}
-              {aiAlertsQuery.isFetching ? <span>Actualizando lectura IA...</span> : null}
-            </div>
+            <Card className="overflow-hidden">
+              <CardHeader className="border-b border-border/70 bg-[hsl(var(--panel))]/55">
+                <CardTitle className="text-lg">Lectura del stock</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5 pt-6">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <StatCard
+                    label="Riesgo crítico"
+                    value={insightCounts.RED}
+                    tone="danger"
+                    className="bg-[radial-gradient(circle_at_bottom_right,rgba(248,113,113,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(248,113,113,0.55)]"
+                  />
+                  <StatCard
+                    label="Atención"
+                    value={insightCounts.YELLOW}
+                    tone="warning"
+                    className="shadow-[0_24px_50px_-28px_rgba(250,204,21,0.42)]"
+                  />
+                  <StatCard
+                    label="Oportunidades"
+                    value={insightCounts.BLUE}
+                    tone="success"
+                    className="bg-[radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(16,185,129,0.55)]"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {insightSummary ?? "La IA prioriza riesgo de quiebre, aceleración de consumo, sobrestock y stock inmovilizado sobre el snapshot actual."}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  <span>Fuente: {insightSource}</span>
+                  {insightModel ? <span>Modelo: {insightModel}</span> : null}
+                  {aiAlertsQuery.isFetching ? <span>Actualizando lectura IA...</span> : null}
+                </div>
+              </CardContent>
+            </Card>
             {displayedAlerts.length > 0 ? (
               <Card className="overflow-hidden">
                 <CardHeader className="border-b border-border/70 bg-[hsl(var(--panel))]/55">

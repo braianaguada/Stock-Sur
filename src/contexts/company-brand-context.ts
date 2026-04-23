@@ -44,7 +44,7 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   auto_close_cash_time: null,
 };
 
-export interface CompanyBrandContextValue {
+interface CompanyBrandContextValue {
   settings: CompanySettings;
   isLoading: boolean;
 }

@@ -160,6 +160,7 @@ export function StockCurrentTable({
       rowClassName="h-12"
       cellClassName="h-12 py-0"
       reserveEmptyRows={pageSize}
+      stickyHeader
     />
   );
 }

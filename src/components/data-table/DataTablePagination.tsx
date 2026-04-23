@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+﻿import { ChevronFirst, ChevronLeft, ChevronRight, ChevronLast } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -35,7 +35,7 @@ export function DataTablePagination({
   itemLabel = "registros",
 }: DataTablePaginationProps) {
   return (
-    <div className="flex flex-col gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-white/70 bg-card/90 px-4 py-3 shadow-[var(--shadow-xs)] md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-border/60 bg-card/90 px-4 py-3 shadow-[var(--shadow-xs)] md:flex-row md:items-center md:justify-between">
       <p className="text-sm text-muted-foreground">
         Mostrando {rangeStart}-{rangeEnd} de {totalItems} {itemLabel}
       </p>
@@ -43,7 +43,7 @@ export function DataTablePagination({
         {pageSize !== undefined && pageSizeOptions && onPageSizeChange ? (
           <div className="flex items-center gap-2">
             <Label htmlFor="data-table-page-size" className="text-sm text-muted-foreground">
-              Por página
+              Filas
             </Label>
             <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value))}>
               <SelectTrigger id="data-table-page-size" className="w-[96px]">
@@ -59,7 +59,10 @@ export function DataTablePagination({
             </Select>
           </div>
         ) : null}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <Button type="button" variant="outline" size="icon" onClick={() => onPageChange(1)} disabled={page <= 1}>
+            <ChevronFirst className="h-4 w-4" />
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -80,6 +83,9 @@ export function DataTablePagination({
             disabled={page >= totalPages}
           >
             <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="outline" size="icon" onClick={() => onPageChange(totalPages)} disabled={page >= totalPages}>
+            <ChevronLast className="h-4 w-4" />
           </Button>
         </div>
       </div>

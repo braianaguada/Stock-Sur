@@ -81,6 +81,12 @@ function stockChip(total: number | undefined, demand?: string | null) {
   );
 }
 
+function demandBadgeLabel(demand?: string | null) {
+  if (demand === "HIGH") return "Alta";
+  if (demand === "MEDIUM") return "Media";
+  return "Baja";
+}
+
 function ItemsDataTableComponent({
   items,
   isLoading,
@@ -186,7 +192,7 @@ function ItemsDataTableComponent({
               <span>{stockChip(total, row.original.demand_profile)}</span>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">
-              {total === undefined ? "No se registró stock para este ítem" : `${total} unidades en stock`}
+              {total === undefined ? "No se registr� stock para este �tem" : `${total} unidades en stock`}
             </TooltipContent>
           </Tooltip>
         );
@@ -285,7 +291,7 @@ function ItemsDataTableComponent({
       header: () => "Demanda",
       cell: ({ row }) => (
         <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
-          {row.original.demand_profile === "HIGH" ? "Alta" : row.original.demand_profile === "MEDIUM" ? "Media" : "Baja"}
+          {demandBadgeLabel(row.original.demand_profile)}
         </Badge>
       ),
       meta: {
@@ -345,7 +351,7 @@ function ItemsDataTableComponent({
       data={items}
       isLoading={isLoading}
       loadingMessage="Cargando..."
-      emptyMessage="No se encontraron ítems"
+      emptyMessage="No se encontraron �tems"
       className="table-fixed min-w-[1680px]"
       sorting={sorting}
       columnVisibility={columnVisibility}
@@ -367,3 +373,4 @@ export const ItemsDataTable = memo(ItemsDataTableComponent, (prev, next) => (
   && prev.sortDirection === next.sortDirection
   && prev.stockByItemId === next.stockByItemId
 ));
+

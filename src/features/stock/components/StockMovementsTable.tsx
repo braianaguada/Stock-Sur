@@ -97,7 +97,11 @@ export function StockMovementsTable({
       data={movements}
       isLoading={isLoading}
       emptyMessage="Sin movimientos"
+      className="table-fixed"
+      rowClassName="h-12"
+      cellClassName="h-12 py-0"
       reserveEmptyRows={pageSize}
+      stickyHeader
     />
   );
 }

@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef } from "react";
 import type { VisibilityState } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EntityDialog } from "@/components/common/EntityDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -112,7 +112,7 @@ export function PriceListDetailDialog({
   }, [open, selectedList?.id, scrollActiveTabToTop]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <EntityDialog`r`n      open={open}`r`n      onOpenChange={onOpenChange}`r`n      title={selectedList?.name ?? "Detalle de lista"}`r`n      contentClassName="flex h-[92vh] max-h-[92vh] max-w-6xl flex-col overflow-hidden"`r`n    >
       <DialogContent className="flex h-[92vh] max-h-[92vh] max-w-6xl flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>{selectedList?.name ?? "Detalle de lista"}</DialogTitle>
@@ -132,22 +132,26 @@ export function PriceListDetailDialog({
 
             <TabsContent value="products" className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
               <div className="shrink-0 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/42 px-4 py-3 text-sm">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {renderPricingSummary(selectedList)}
-                    <Badge
-                      variant="outline"
-                      className={selectedList.status === "UPDATED"
-                        ? "px-2.5 py-0.5 text-[10px] border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200"
-                        : "px-2.5 py-0.5 text-[10px] border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200"}
-                    >
-                      {PRICE_LIST_STATUS_LABEL[selectedList.status]}
-                    </Badge>
-                  </div>
-                  <div className="text-muted-foreground">
-                    Ultimo recalculo: {formatDateTime(selectedList.last_recalculated_at)} - {renderUserName(selectedList.last_recalculated_by)}
-                  </div>
-                </div>
+                <Card className="border-border/60 bg-[hsl(var(--panel))]/42">
+                  <CardContent className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {renderPricingSummary(selectedList)}
+                      <Badge
+                        variant="outline"
+                        className={
+                          selectedList.status === "UPDATED"
+                            ? "px-2.5 py-0.5 text-[10px] border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200"
+                            : "px-2.5 py-0.5 text-[10px] border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200"
+                        }
+                      >
+                        {PRICE_LIST_STATUS_LABEL[selectedList.status]}
+                      </Badge>
+                    </div>
+                    <div className="text-muted-foreground">
+                      Ultimo recalculo: {formatDateTime(selectedList.last_recalculated_at)} - {renderUserName(selectedList.last_recalculated_by)}
+                    </div>
+                  </CardContent>
+                </Card>
                 <Collapsible open={productColumnsOpen} onOpenChange={onProductColumnsOpenChange}>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="relative max-w-sm flex-1 min-w-[260px]">
@@ -284,13 +288,15 @@ export function PriceListDetailDialog({
                   </CardContent>
                 </Card>
               ) : (
-                <div className="overflow-hidden rounded-xl border border-border/60 bg-card/65 shadow-[var(--shadow-xs)]">
-                  <div className="hidden grid-cols-[minmax(0,1.4fr)_160px_180px] items-center gap-4 border-b border-border/60 bg-[hsl(var(--panel))]/45 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground md:grid">
-                    <span>Evento</span>
-                    <span className="text-right">Productos</span>
-                    <span className="text-right">Fecha y usuario</span>
-                  </div>
-                  <div className="divide-y divide-border/60">
+                <Card className="border-border/60 bg-card/65 shadow-[var(--shadow-xs)]">
+                  <CardHeader className="hidden border-b border-border/60 bg-[hsl(var(--panel))]/45 px-4 py-2 md:grid md:grid-cols-[minmax(0,1.4fr)_160px_180px]">
+                    <div className="grid grid-cols-[minmax(0,1.4fr)_160px_180px] gap-4 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      <span>Evento</span>
+                      <span className="text-right">Productos</span>
+                      <span className="text-right">Fecha y usuario</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="divide-y divide-border/60 p-0">
                     {selectedListHistory.map((row) => (
                       <div key={row.id} className="grid gap-2 px-4 py-3 md:grid-cols-[minmax(0,1.4fr)_160px_180px] md:items-center md:gap-4">
                         <div className="min-w-0">
@@ -307,8 +313,8 @@ export function PriceListDetailDialog({
                         </div>
                       </div>
                     ))}
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
           </Tabs>
@@ -317,3 +323,4 @@ export function PriceListDetailDialog({
     </Dialog>
   );
 }
+

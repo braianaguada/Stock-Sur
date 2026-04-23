@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+﻿import { Suspense, lazy, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -47,7 +47,7 @@ import type {
   PriceListItemRow,
 } from "@/features/documents/types";
 import { calculatePriceFromCostBase, formatNumber } from "@/features/documents/utils";
-import { formatDateTime, formatIsoDate } from "@/lib/formatters";
+import { formatDateTime, formatBusinessDate } from "@/lib/formatters";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 
@@ -490,7 +490,7 @@ export default function DocumentsPage() {
         <div class="docbox">
           <h2>${escapeHtml(DOC_LABEL[document.doc_type])}</h2>
           <p class="docline"><strong>Nro:</strong> ${escapeHtml(formatNumber(document.document_number, document.point_of_sale))}</p>
-          <p class="docline"><strong>Fecha:</strong> ${formatIsoDate(document.issue_date)}</p>
+          <p class="docline"><strong>Fecha:</strong> ${formatBusinessDate(document.issue_date)}</p>
           <p class="docline"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[document.status])}</p>
         </div>
       </div>
@@ -510,7 +510,7 @@ export default function DocumentsPage() {
           <p class="muted"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[document.status])}</p>
           ${document.payment_terms ? `<p class="muted"><strong>Condicion de venta:</strong> ${escapeHtml(document.payment_terms)}</p>` : ""}
           ${document.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${escapeHtml(document.salesperson)}</p>` : ""}
-          ${document.valid_until ? `<p class="muted"><strong>Valido hasta:</strong> ${formatIsoDate(document.valid_until)}</p>` : ""}
+          ${document.valid_until ? `<p class="muted"><strong>Valido hasta:</strong> ${formatBusinessDate(document.valid_until)}</p>` : ""}
           ${document.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${escapeHtml(document.delivery_address)}</p>` : ""}
           ${document.doc_type === "REMITO" && document.external_invoice_number ? `<p class="muted"><strong>Factura externa:</strong> ${escapeHtml(document.external_invoice_number)}</p>` : ""}
           ${document.source_document_type && document.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${escapeHtml(DOC_LABEL[document.source_document_type])} ${escapeHtml(document.source_document_number_snapshot)}</p>` : ""}
@@ -708,3 +708,4 @@ export default function DocumentsPage() {
     </AppLayout>
   );
 }
+

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { PRICING_MODE_LABEL } from "@/features/documents/constants";
 import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
+import { formatMoney } from "@/lib/formatters";
 import type {
   CustomerKind,
   DocType,
@@ -53,10 +54,6 @@ interface DocumentsEditorDialogProps {
   onSubmit: () => void;
   onResetDraftForm: () => void;
   isSubmitting: boolean;
-}
-
-function formatMoney(value: number) {
-  return `$${value.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
 }
 
 export function DocumentsEditorDialog({
@@ -140,7 +137,7 @@ export function DocumentsEditorDialog({
         }}
         className="space-y-4"
       >
-        <div className="rounded-xl border border-border/70 bg-card/60 shadow-sm relative">
+        <Card className="border-border/70 bg-card/60 shadow-sm">`r`n          <CardContent className="p-0">
           <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
             <div className="p-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 items-start">
               <div className="space-y-2">

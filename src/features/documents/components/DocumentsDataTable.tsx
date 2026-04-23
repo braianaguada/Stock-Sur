@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, Copy, Eye, FileDown, Pencil, Send } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DOC_LABEL, DOC_TYPE_CLASS, STATUS_CLASS, STATUS_LABEL, STATUS_VARIANT } from "@/features/documents/constants";
 import type { DocRow, DocStatus } from "@/features/documents/types";
 import { formatNumber } from "@/features/documents/utils";
-import { formatIsoDate } from "@/lib/formatters";
+import { formatBusinessDate } from "@/lib/formatters";
 
 interface DocumentsDataTableProps {
   documents: DocRow[];
@@ -115,7 +115,7 @@ export function DocumentsDataTable({
     {
       accessorKey: "issue_date",
       header: () => "Fecha",
-      cell: ({ row }) => formatIsoDate(row.original.issue_date),
+      cell: ({ row }) => formatBusinessDate(row.original.issue_date),
       meta: {
         className: "w-[120px]",
         cellClassName: "py-2.5",
@@ -226,7 +226,9 @@ export function DocumentsDataTable({
         rowClassName="h-11"
         cellClassName="h-11 py-0"
         reserveEmptyRows={pageSize}
+        stickyHeader
       />
     </div>
   );
 }
+

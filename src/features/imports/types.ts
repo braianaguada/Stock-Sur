@@ -1,5 +1,3 @@
-import type { ParsedRow } from "@/lib/importParserCore";
-
 export type ImportStep = "upload" | "map" | "preview" | "done";
 
 export interface ImportMappingState {
@@ -13,5 +11,3 @@ export interface ImportPreviewRow {
   raw_description: string;
   price: number;
 }
-
-export type { ParsedRow };

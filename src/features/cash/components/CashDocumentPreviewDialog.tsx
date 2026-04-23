@@ -1,8 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { currency, formatDocumentNumber, formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
+import { EntityDialog } from "@/components/common/EntityDialog";
+import { currency, formatDocumentNumber, formatBusinessDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL } from "../constants";
 import type { CashSaleRow, DocumentEventQuickRow, DocumentLineQuickRow, DocumentQuickRow } from "../types";
 import { describeDocumentEvent } from "../utils";
@@ -30,7 +31,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
   const { open, onOpenChange, detailSale, linkedDocument, linkedDocumentLines, linkedDocumentEvents, companyBrand, canAttachReceipt, canCancelSale, onAssignReceipt, onCancelSale, cancelPending } = props;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <EntityDialog`r`n      open={open}`r`n      onOpenChange={onOpenChange}`r`n      title="Vista previa del documento"`r`n      description="Documento asociado a la venta y su trazabilidad."`r`n      contentClassName="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl"`r`n    >
       <DialogContent className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl font-semibold tracking-tight text-foreground/90">Vista previa del documento</DialogTitle>
@@ -38,12 +39,14 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
         </DialogHeader>
 
         {detailSale && linkedDocument ? (
-          <div className="grid gap-4 rounded-2xl border border-border/60 bg-card/80 p-4 shadow-sm md:grid-cols-4">
+          <Card className="border-border/60 bg-card/80 shadow-sm">
+            <CardContent className="grid gap-4 p-4 md:grid-cols-4">
             <div><p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cliente</p><p className="mt-1 font-semibold">{detailSale.customer_name_snapshot ?? "Consumidor final"}</p></div>
             <div><p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Pago</p><p className="mt-1 font-semibold">{PAYMENT_LABEL[detailSale.payment_method]}</p></div>
             <div><p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Comprobante</p><p className="mt-1 font-semibold">{detailSale.receipt_reference ?? RECEIPT_LABEL[detailSale.receipt_kind]}</p></div>
             <div><p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Importe</p><p className="mt-1 font-semibold">{currency.format(Number(detailSale.amount_total))}</p></div>
-          </div>
+            </CardContent>
+          </Card>
         ) : null}
 
         <div className="grid flex-1 min-h-0 gap-4 2xl:grid-cols-[minmax(0,1.95fr)_minmax(380px,460px)]">
@@ -51,7 +54,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
             <>
               <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable]">
                 <div className="space-y-4">
-                  <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm">
+                  <Card className="overflow-hidden border-border/60 bg-card/90 shadow-sm">
                   <div className="h-1 w-full bg-gradient-to-r from-primary/80 via-primary/35 to-transparent" />
                   <div className="border-b border-border/60 px-5 py-4 sm:px-6">
                       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -85,7 +88,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                           </div>
                           <div>
                             <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
-                            <p className="mt-1 text-sm text-foreground">Fecha: <span className="font-medium">{formatIsoDate(linkedDocument.issue_date)}</span></p>
+                            <p className="mt-1 text-sm text-foreground">Fecha: <span className="font-medium">{formatBusinessDate(linkedDocument.issue_date)}</span></p>
                             <p className="mt-1 text-xs text-muted-foreground">Estado: <span className="text-foreground">{DOC_STATUS_LABEL[linkedDocument.status]}</span></p>
                           </div>
                           <div>
@@ -106,9 +109,10 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                         </div>
                       </div>
                     </div>
-                  </section>
+                  </Card>
 
-                  <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+                  <Card className="border-border/60 bg-card/90 shadow-sm">
+                    <CardContent className="p-5">
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div>
                         <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Items</p>
@@ -149,12 +153,14 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                         />
                       </div>
                     </div>
-                  </section>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
 
               <aside className="min-h-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable] 2xl:min-w-[380px]">
-                <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+                <Card className="border-border/60 bg-card/90 shadow-sm">
+                  <CardContent className="p-5">
                   <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Historial</p>
                   <p className="mt-1 text-sm text-muted-foreground">Trazabilidad de la venta y del remito.</p>
 
@@ -201,7 +207,8 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                       })}
                     </div>
                   )}
-                </section>
+                  </CardContent>
+                </Card>
               </aside>
             </>
           ) : (
@@ -230,3 +237,5 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
     </Dialog>
   );
 }
+
+

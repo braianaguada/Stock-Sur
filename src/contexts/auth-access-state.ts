@@ -4,14 +4,14 @@ import type { AppRole } from "@/lib/permissions";
 import type { CompanySummary } from "@/contexts/AuthContext";
 import type { ImpersonationMeta } from "@/contexts/auth-impersonation";
 
-export type AuthStateSnapshot = {
+type AuthStateSnapshot = {
   companies: CompanySummary[];
   currentCompanyId: string | null;
   effectiveUser: User;
   roles: AppRole[];
 };
 
-export type CompanyAccessSnapshot = {
+type CompanyAccessSnapshot = {
   companyPermissionCodes: string[];
   companyRoleCodes: string[];
 };

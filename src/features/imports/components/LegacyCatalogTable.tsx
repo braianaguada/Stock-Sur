@@ -3,7 +3,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Checkbox } from "@/components/ui/checkbox";
 
-export type LegacyCatalogTableRow = {
+type LegacyCatalogTableRow = {
   id: string;
   codigo: string;
   articulo: string;

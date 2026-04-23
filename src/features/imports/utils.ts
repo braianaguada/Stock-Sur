@@ -1,5 +1,6 @@
 import { parsePrice } from "@/lib/importParserCore";
-import type { ImportMappingState, ImportPreviewRow, ParsedRow } from "@/features/imports/types";
+import type { ImportMappingState, ImportPreviewRow } from "@/features/imports/types";
+import type { ParsedRow } from "@/lib/importParserCore";
 
 export function buildImportPreviewRows(rows: ParsedRow[], mapping: ImportMappingState): ImportPreviewRow[] {
   return rows.slice(0, 50).map((row) => ({

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { currency, formatTime } from "@/lib/formatters";
@@ -69,12 +70,15 @@ export function CashReceiptDialog({
       )}
     >
       <div className="space-y-4">
-        <div className="rounded-xl border bg-muted/30 p-3 text-sm">
-          <p className="font-medium">{selectedSale?.customer_name_snapshot ?? "Consumidor final"}</p>
-          <p className="text-muted-foreground">
-            {selectedSale ? `${formatTime(selectedSale.sold_at)} · ${currency.format(Number(selectedSale.amount_total))}` : ""}
-          </p>
-        </div>
+        <Card className="border-border/60 bg-muted/30 shadow-none">
+          <CardContent className="p-3 text-sm">
+            <p className="font-medium">{selectedSale?.customer_name_snapshot ?? "Consumidor final"}</p>
+            <p className="text-muted-foreground">
+              {selectedSale ? `${formatTime(selectedSale.sold_at)} · ${currency.format(Number(selectedSale.amount_total))}` : ""}
+            </p>
+          </CardContent>
+        </Card>
+
         <div className="space-y-2">
           <Label>Tipo de comprobante</Label>
           <Select value={pendingReceiptKind} onValueChange={(value) => onPendingReceiptKindChange(value as ReceiptKind)}>
@@ -85,6 +89,7 @@ export function CashReceiptDialog({
             </SelectContent>
           </Select>
         </div>
+
         {pendingReceiptKind === "REMITO" || pendingReceiptKind === "FACTURA" ? (
           <div className="space-y-2">
             <Label>{pendingReceiptKind === "REMITO" ? "Remito emitido" : "Remito facturado"}</Label>
@@ -101,11 +106,14 @@ export function CashReceiptDialog({
             </Select>
           </div>
         ) : null}
+
         {pendingReceiptKind === "FACTURA" ? (
-          <div className="rounded-xl border bg-muted/30 p-3 text-sm">
-            <p className="text-muted-foreground">La caja toma el monto y la referencia desde el remito facturado seleccionado.</p>
-            <p className="mt-1 font-mono font-medium">{pendingReceiptReference || "Sin factura asociada"}</p>
-          </div>
+          <Card className="border-border/60 bg-muted/30 shadow-none">
+            <CardContent className="p-3 text-sm">
+              <p className="text-muted-foreground">La caja toma el monto y la referencia desde el remito facturado seleccionado.</p>
+              <p className="mt-1 font-mono font-medium">{pendingReceiptReference || "Sin factura asociada"}</p>
+            </CardContent>
+          </Card>
         ) : null}
       </div>
     </EntityDialog>

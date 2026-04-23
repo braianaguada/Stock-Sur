@@ -94,7 +94,7 @@ export function CashSalesTab({
     },
     {
       id: "closure_situation",
-      header: () => "Situaci√≥n",
+      header: () => "SituaciÛn",
       cell: ({ row }) => {
         const closureSituation = getClosureSituationWithClosure(row.original, effectiveClosure);
         return (
@@ -135,8 +135,8 @@ export function CashSalesTab({
     <Card className="shadow-sm">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <CardTitle>Movimientos del d√≠a</CardTitle>
-          <CardDescription>Vista r√°pida para controlar lo cargado y detectar pendientes antes del cierre.</CardDescription>
+          <CardTitle>Movimientos del dÌa</CardTitle>
+          <CardDescription>Vista r·pida para controlar lo cargado y detectar pendientes antes del cierre.</CardDescription>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="w-fit">{totalItems} registros</Badge>
@@ -161,7 +161,7 @@ export function CashSalesTab({
             data={filteredSales}
             isLoading={salesLoading}
             loadingMessage="Cargando ventas..."
-            emptyMessage="Todav√≠a no hay ventas registradas para esta fecha."
+            emptyMessage="TodavÌa no hay ventas registradas para esta fecha."
             className="table-fixed"
             rowClassName="h-11"
           />
@@ -186,3 +186,4 @@ export function CashSalesTab({
     </Card>
   );
 }
+

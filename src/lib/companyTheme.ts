@@ -1,11 +1,11 @@
-import type { CompanySettings } from "@/contexts/company-brand-context";
+﻿import type { CompanySettings } from "@/contexts/company-brand-context";
 
 type Rgb = { r: number; g: number; b: number };
 type Hsl = { h: number; s: number; l: number };
 
 export type CompanyThemePresetId = "professional" | "industrial" | "premium-dark" | "minimal";
 
-export type ThemeOption = {
+type ThemeOption = {
   id: CompanyThemePresetId;
   name: string;
   description: string;
@@ -38,7 +38,7 @@ export const THEME_OPTIONS: ThemeOption[] = [
   {
     id: "minimal",
     name: "Minimal claro",
-    description: "Neutro cálido, más editorial y con menos ruido visual.",
+    description: "Neutro cálido, mÃ¡s editorial y con menos ruido visual.",
     appearance: "light",
     defaultPrimary: "#586277",
   },
@@ -440,3 +440,4 @@ export const applyCompanyTheme = (settings: Pick<CompanySettings, "primary_color
     root.style.setProperty(`--${name}`, value);
   }
 };
+

@@ -57,21 +57,26 @@ export function UserDetailDialog(props: {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Resumen operativo</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/52 px-4 py-3.5">
+                <Card className="border-border/65 bg-[hsl(var(--panel))]/52 shadow-none">
+                  <CardContent className="px-4 py-3.5">
                   <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     <Building2 className="h-3.5 w-3.5" />
                     Empresas
                   </div>
                   <p className="mt-2 text-2xl font-bold">{selectedUser.companies?.length ?? 0}</p>
-                </div>
-                <div className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/52 px-4 py-3.5">
+                  </CardContent>
+                </Card>
+                <Card className="border-border/65 bg-[hsl(var(--panel))]/52 shadow-none">
+                  <CardContent className="px-4 py-3.5">
                   <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     <Shield className="h-3.5 w-3.5" />
                     Roles globales
                   </div>
                   <p className="mt-2 text-2xl font-bold">{selectedUser.global_roles?.length ?? 0}</p>
-                </div>
-                <div className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/52 px-4 py-3.5">
+                  </CardContent>
+                </Card>
+                <Card className="border-border/65 bg-[hsl(var(--panel))]/52 shadow-none">
+                  <CardContent className="px-4 py-3.5">
                   <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     <BadgeCheck className="h-3.5 w-3.5" />
                     Membresias activas
@@ -79,8 +84,10 @@ export function UserDetailDialog(props: {
                   <p className="mt-2 text-2xl font-bold">
                     {selectedUser.companies?.filter((company) => company.status === "ACTIVE").length ?? 0}
                   </p>
-                </div>
-                <div className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/52 px-4 py-3.5">
+                  </CardContent>
+                </Card>
+                <Card className="border-border/65 bg-[hsl(var(--panel))]/52 shadow-none">
+                  <CardContent className="px-4 py-3.5">
                   <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     <Shield className="h-3.5 w-3.5" />
                     Roles empresa
@@ -88,7 +95,8 @@ export function UserDetailDialog(props: {
                   <p className="mt-2 text-2xl font-bold">
                     {selectedUser.companies?.reduce((sum, company) => sum + (company.roles?.length ?? 0), 0) ?? 0}
                   </p>
-                </div>
+                  </CardContent>
+                </Card>
               </CardContent>
             </Card>
           </div>

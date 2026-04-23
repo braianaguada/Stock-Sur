@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EntityDialog } from "@/components/common/EntityDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,12 +66,22 @@ export function CustomerAccountCreditDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Registrar cobro</DialogTitle>
-          <DialogDescription>{customerName}</DialogDescription>
-        </DialogHeader>
+    <EntityDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Registrar cobro"
+      description={customerName}
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancelar</Button>
+          <Button onClick={submit} disabled={isSaving || !amount}>
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Registrar
+          </Button>
+        </>
+      }
+      contentClassName="sm:max-w-lg"
+    >
         <div className="grid gap-4">
           <div className="space-y-2">
             <Label>Importe</Label>
@@ -90,14 +100,6 @@ export function CustomerAccountCreditDialog({
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancelar</Button>
-          <Button onClick={submit} disabled={isSaving || !amount}>
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Registrar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </EntityDialog>
   );
 }
