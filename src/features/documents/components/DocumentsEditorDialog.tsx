@@ -2,7 +2,7 @@
 import { Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Card, CardContent } from "@/components/ui/card";import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -655,5 +655,7 @@ export function DocumentsEditorDialog({
     </EntityDialog>
   );
 }
+
+
 
 
