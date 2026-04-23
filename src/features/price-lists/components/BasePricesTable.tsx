@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { BasePriceRow } from "@/features/price-lists/types";
-import { formatDateTime, formatMoney, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
+import { formatDateTime, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
+import { formatMoney } from "@/lib/formatters";
 
 type BasePricesTableProps = {
   rows: BasePriceRow[];
