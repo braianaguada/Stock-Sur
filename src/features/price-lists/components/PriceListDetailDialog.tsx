@@ -112,12 +112,13 @@ export function PriceListDetailDialog({
   }, [open, selectedList?.id, scrollActiveTabToTop]);
 
   return (
-    <EntityDialog`r`n      open={open}`r`n      onOpenChange={onOpenChange}`r`n      title={selectedList?.name ?? "Detalle de lista"}`r`n      contentClassName="flex h-[92vh] max-h-[92vh] max-w-6xl flex-col overflow-hidden"`r`n    >
-      <DialogContent className="flex h-[92vh] max-h-[92vh] max-w-6xl flex-col overflow-hidden">
-        <DialogHeader className="shrink-0">
-          <DialogTitle>{selectedList?.name ?? "Detalle de lista"}</DialogTitle>
-        </DialogHeader>
-        {selectedList ? (
+    <EntityDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={selectedList?.name ?? "Detalle de lista"}
+      contentClassName="flex h-[92vh] max-h-[92vh] max-w-6xl flex-col overflow-hidden"
+    >
+      {selectedList ? (
           <Tabs
             key={`${selectedList.id}-${open ? "open" : "closed"}`}
             value={detailTab}
@@ -318,9 +319,8 @@ export function PriceListDetailDialog({
               )}
             </TabsContent>
           </Tabs>
-        ) : null}
-      </DialogContent>
-    </Dialog>
+      ) : null}
+    </EntityDialog>
   );
 }
 
