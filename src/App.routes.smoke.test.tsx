@@ -36,6 +36,8 @@ vi.mock("./pages/PriceLists", () => ({ default: () => <div>route:price-lists</di
 vi.mock("./pages/Imports", () => ({ default: () => <div>route:imports</div> }));
 vi.mock("./pages/Quotes", () => ({ default: () => <div>route:quotes</div> }));
 vi.mock("./pages/Documents", () => ({ default: () => <div>route:documents</div> }));
+vi.mock("./pages/ServiceDocuments", () => ({ default: () => <div>route:service-documents</div> }));
+vi.mock("./pages/PrintServiceDocument", () => ({ default: () => <div>route:print-service-document</div> }));
 vi.mock("./pages/Cash", () => ({ default: () => <div>route:cash</div> }));
 vi.mock("./pages/Customers", () => ({ default: () => <div>route:customers</div> }));
 vi.mock("./pages/Users", () => ({ default: () => <div>route:users</div> }));
@@ -63,6 +65,8 @@ describe("App route smoke test", () => {
     ["/imports", "route:imports"],
     ["/quotes", "route:quotes"],
     ["/documents", "route:documents"],
+    ["/services/documents", "route:service-documents"],
+    ["/print/service-document/doc-1", "route:print-service-document"],
     ["/cash", "route:cash"],
     ["/customers", "route:customers"],
     ["/users", "route:users"],

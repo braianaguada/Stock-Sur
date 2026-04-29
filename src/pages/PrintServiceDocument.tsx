@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { currency, formatIsoDate } from "@/lib/formatters";
@@ -8,6 +9,7 @@ import type { ServiceDocumentLine } from "@/features/services/types";
 export default function PrintServiceDocumentPage() {
   const { id } = useParams();
   const { settings } = useCompanyBrand();
+  const printRequestedRef = useRef(false);
   const { selectedDocument, selectedLines } = useServiceDocuments({
     companyId: null,
     search: "",
@@ -15,10 +17,17 @@ export default function PrintServiceDocumentPage() {
     documentId: id ?? null,
   });
 
+  const companyContact = [settings.phone, settings.email, settings.whatsapp].filter(Boolean).join(" | ");
+
+  useEffect(() => {
+    if (!selectedDocument || printRequestedRef.current) return;
+    printRequestedRef.current = true;
+    const timer = window.setTimeout(() => window.print(), 350);
+    return () => window.clearTimeout(timer);
+  }, [selectedDocument]);
+
   if (!id) return <div className="p-8">Documento no encontrado</div>;
   if (!selectedDocument) return <div className="p-8">Cargando presupuesto...</div>;
-
-  const companyContact = [settings.phone, settings.email, settings.whatsapp].filter(Boolean).join(" | ");
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-5 text-slate-900 print:bg-white print:p-0">
