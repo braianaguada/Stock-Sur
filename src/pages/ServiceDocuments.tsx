@@ -41,7 +41,7 @@ function buildInitialForm(settings: ReturnType<typeof useCompanyBrand>["settings
 }
 
 export default function ServiceDocumentsPage() {
-  const { currentCompany, user } = useAuth();
+  const { currentCompany, user, companyRoleCodes, companyPermissionCodes } = useAuth();
   const { settings } = useCompanyBrand();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -129,10 +129,6 @@ export default function ServiceDocumentsPage() {
     }
   };
 
-  const openDuplicate = (document: ServiceDocument) => {
-    duplicateMutation.mutate(document.id);
-  };
-
   const canTransition = (document: ServiceDocument, target: ServiceDocumentStatus) => {
     if (document.status === target) return false;
     if (document.status === "CANCELLED") return false;
@@ -145,6 +141,37 @@ export default function ServiceDocumentsPage() {
   };
 
   const canConvertToRemito = (document: ServiceDocument) => document.type === "QUOTE" && document.status === "APPROVED";
+
+  const canManageServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.create");
+  const canEditServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.edit");
+  const canApproveServiceDocuments =
+    companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.approve");
+  const canCancelServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.cancel");
+  const canPrintServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.print");
+
+  const confirmAction = (message: string) => window.confirm(message);
+
+  const triggerTransition = (document: ServiceDocument, targetStatus: ServiceDocumentStatus) => {
+    const labels: Record<ServiceDocumentStatus, string> = {
+      DRAFT: "Borrador",
+      SENT: "Enviado",
+      APPROVED: "Aprobado",
+      REJECTED: "Rechazado",
+      CANCELLED: "Anulado",
+    };
+    if (!confirmAction(`Cambiar el documento ${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")} a ${labels[targetStatus]}?`)) return;
+    transitionMutation.mutate({ documentId: document.id, targetStatus });
+  };
+
+  const triggerDuplicate = (document: ServiceDocument) => {
+    if (!confirmAction(`Duplicar el documento ${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")} ?`)) return;
+    duplicateMutation.mutate(document.id);
+  };
+
+  const triggerRemito = (document: ServiceDocument) => {
+    if (!confirmAction(`Convertir el documento ${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")} en remito de servicio?`)) return;
+    convertToRemitoMutation.mutate(document.id);
+  };
 
   const updateLine = (index: number, patch: Partial<ServiceDocumentLine>) => {
     setLines((previous) =>
@@ -171,7 +198,7 @@ export default function ServiceDocumentsPage() {
           eyebrow="Servicios"
           title="Documentos"
           subtitle="Presupuestos de servicio manuales, separados de stock, caja e items."
-          actions={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto</Button>}
+          actions={<Button onClick={openCreate} disabled={!canManageServiceDocuments}><Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto</Button>}
         />
 
         <FilterBar>
@@ -217,40 +244,46 @@ export default function ServiceDocumentsPage() {
                   <TableCell className="text-right">{currency.format(Number(document.total ?? 0))}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex flex-wrap justify-end gap-1.5">
-                      {canTransition(document, "SENT") ? (
-                        <Button type="button" variant="ghost" size="icon" title="Enviar" onClick={() => transitionMutation.mutate({ documentId: document.id, targetStatus: "SENT" })} disabled={transitionMutation.isPending}>
+                      {canManageServiceDocuments && canTransition(document, "SENT") ? (
+                        <Button type="button" variant="ghost" size="icon" title="Enviar" onClick={() => triggerTransition(document, "SENT")} disabled={transitionMutation.isPending}>
                           <Send className="h-4 w-4" />
                         </Button>
                       ) : null}
-                      {canTransition(document, "APPROVED") ? (
-                        <Button type="button" variant="ghost" size="icon" title="Aprobar" onClick={() => transitionMutation.mutate({ documentId: document.id, targetStatus: "APPROVED" })} disabled={transitionMutation.isPending}>
+                      {canApproveServiceDocuments && canTransition(document, "APPROVED") ? (
+                        <Button type="button" variant="ghost" size="icon" title="Aprobar" onClick={() => triggerTransition(document, "APPROVED")} disabled={transitionMutation.isPending}>
                           <Check className="h-4 w-4" />
                         </Button>
                       ) : null}
-                      {canTransition(document, "REJECTED") ? (
-                        <Button type="button" variant="ghost" size="icon" title="Rechazar" onClick={() => transitionMutation.mutate({ documentId: document.id, targetStatus: "REJECTED" })} disabled={transitionMutation.isPending}>
+                      {canApproveServiceDocuments && canTransition(document, "REJECTED") ? (
+                        <Button type="button" variant="ghost" size="icon" title="Rechazar" onClick={() => triggerTransition(document, "REJECTED")} disabled={transitionMutation.isPending}>
                           <X className="h-4 w-4" />
                         </Button>
                       ) : null}
-                      {canTransition(document, "CANCELLED") ? (
-                        <Button type="button" variant="ghost" size="icon" title="Anular" onClick={() => transitionMutation.mutate({ documentId: document.id, targetStatus: "CANCELLED" })} disabled={transitionMutation.isPending}>
+                      {canCancelServiceDocuments && canTransition(document, "CANCELLED") ? (
+                        <Button type="button" variant="ghost" size="icon" title="Anular" onClick={() => triggerTransition(document, "CANCELLED")} disabled={transitionMutation.isPending}>
                           <Slash className="h-4 w-4" />
                         </Button>
                       ) : null}
-                      {canConvertToRemito(document) ? (
-                        <Button type="button" variant="ghost" size="icon" title="Convertir a remito" onClick={() => convertToRemitoMutation.mutate(document.id)} disabled={convertToRemitoMutation.isPending}>
+                      {canManageServiceDocuments && canConvertToRemito(document) ? (
+                        <Button type="button" variant="ghost" size="icon" title="Convertir a remito" onClick={() => triggerRemito(document)} disabled={convertToRemitoMutation.isPending}>
                           <Truck className="h-4 w-4" />
                         </Button>
                       ) : null}
-                      <Button type="button" variant="ghost" size="icon" title="Duplicar" onClick={() => openDuplicate(document)} disabled={duplicateMutation.isPending}>
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" variant="ghost" size="icon" title="Imprimir" onClick={() => window.open(`/print/service-document/${document.id}`, "_blank")}>
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" variant="ghost" size="icon" title="Editar" disabled={document.status !== "DRAFT"} onClick={() => openEdit(document)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      {canManageServiceDocuments ? (
+                        <Button type="button" variant="ghost" size="icon" title="Duplicar" onClick={() => triggerDuplicate(document)} disabled={duplicateMutation.isPending}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                      {canPrintServiceDocuments ? (
+                        <Button type="button" variant="ghost" size="icon" title="Imprimir" onClick={() => window.open(`/print/service-document/${document.id}`, "_blank")}>
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                      {canEditServiceDocuments && document.status === "DRAFT" ? (
+                        <Button type="button" variant="ghost" size="icon" title="Editar" onClick={() => openEdit(document)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      ) : null}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -325,7 +358,10 @@ export default function ServiceDocumentsPage() {
                     <div key={event.id} className="flex items-start justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm">
                       <div>
                         <div className="font-medium">{describeEvent(event)}</div>
-                        <div className="text-muted-foreground">{new Date(event.created_at).toLocaleString("es-AR")}</div>
+                        <div className="text-muted-foreground">
+                          {new Date(event.created_at).toLocaleString("es-AR")}
+                          {event.created_by ? ` · ${event.created_by.slice(0, 8)}` : ""}
+                        </div>
                       </div>
                     </div>
                   ))}

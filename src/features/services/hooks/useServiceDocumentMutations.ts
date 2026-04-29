@@ -14,7 +14,6 @@ export function calculateServiceLineTotal(line: ServiceDocumentLine) {
 
 export function useServiceDocumentMutations(params: {
   companyId: string | null;
-  userId: string | undefined;
   editingDocumentId: string | null;
   form: ServiceDocumentForm;
   lines: ServiceDocumentLine[];
