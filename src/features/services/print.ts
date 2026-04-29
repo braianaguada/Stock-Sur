@@ -4,11 +4,16 @@ import { SERVICE_STATUS_LABEL } from "./constants";
 import type { ServiceDocument, ServiceDocumentLine } from "./types";
 
 type CompanyPrintSettings = {
+  app_name?: string | null;
+  legal_name?: string | null;
   name?: string | null;
   address?: string | null;
   phone?: string | null;
   email?: string | null;
   whatsapp?: string | null;
+  logo_url?: string | null;
+  document_tagline?: string | null;
+  document_footer?: string | null;
 };
 
 export function buildServiceDocumentPrintHtml(params: {
@@ -18,6 +23,10 @@ export function buildServiceDocumentPrintHtml(params: {
 }) {
   const { document, lines, settings } = params;
   const companyContact = [settings.phone, settings.email, settings.whatsapp].filter(Boolean).join(" | ");
+  const companyName = settings.legal_name || settings.app_name || settings.name || "Stock Sur";
+  const logoBlock = settings.logo_url
+    ? `<img src="${escapeHtml(settings.logo_url)}" alt="${escapeHtml(companyName)}" class="logo" />`
+    : `<div class="brand-fallback">${escapeHtml(companyName.toUpperCase())}</div>`;
   const rows = lines
     .map((line, index) => `
       <tr>
@@ -40,24 +49,27 @@ export function buildServiceDocumentPrintHtml(params: {
           *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
           @page{size:A4;margin:8mm}
           body{margin:0;background:#eef2f7;color:#07152f;font-family:Inter,Arial,sans-serif;font-size:10px;line-height:1.35}
-          .sheet{width:176mm;min-height:281mm;margin:8mm auto;background:#fff;border:1px solid #d6dee9;border-radius:14px;padding:8mm;box-shadow:0 24px 70px rgba(15,23,42,.14)}
-          .hero{display:grid;grid-template-columns:1fr 1.05fr;gap:5mm}
+          .sheet{width:190mm;max-width:190mm;min-height:277mm;margin:6mm auto;background:#fff;border:1px solid #d6dbe3;border-radius:22px;padding:8mm;box-shadow:0 20px 60px rgba(15,23,42,.08)}
+          .hero{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:stretch}
           .brand-card,.doc-card,.info-card,.notes-card,.totalbox{border:1px solid #dbe4ef;border-radius:12px}
-          .brand-card{min-height:47mm;padding:8mm 5mm;background:linear-gradient(145deg,#fff,#f1f6fd);display:flex;flex-direction:column;justify-content:space-between}
-          .pill{display:inline-flex;width:max-content;border:1px solid #cbd8e8;border-radius:999px;padding:2px 9px;color:#718097;font-size:8px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
-          .brand{font-size:18px;font-weight:900;letter-spacing:.03em}
-          .muted{color:#607089}
-          .company-lines{font-size:9px}
-          .doc-card{min-height:47mm;padding:8mm 5mm;background:linear-gradient(145deg,#101b30,#1d2c45);color:#fff;display:flex;flex-direction:column;justify-content:space-between}
-          .doc-card h1{margin:0;font-size:18px;letter-spacing:.01em}
-          .doc-meta{font-size:9px;font-weight:800;line-height:1.55}
+          .brand-card{min-height:150px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#ffffff 0%,#f5f9ff 60%,#eef4ff 100%);border:1px solid #dbe7f5;display:flex;flex-direction:column;justify-content:space-between}
+          .brand-copy{display:flex;flex-direction:column;gap:8px}
+          .pill{display:inline-flex;width:max-content;border:1px solid #dbe3ee;border-radius:999px;background:#fff;padding:6px 12px;color:#475569;font-size:10px;font-weight:800;letter-spacing:.22em;text-transform:uppercase}
+          .logo{max-height:76px;max-width:235px;object-fit:contain;align-self:center;margin-top:4px;filter:drop-shadow(0 10px 20px rgba(15,23,42,.10))}
+          .brand-fallback{font-size:28px;font-weight:900;letter-spacing:.05em;color:#0f172a;align-self:center;margin-top:10px}
+          .brand{font-size:20px;font-weight:800;letter-spacing:.04em;color:#0f172a}
+          .muted{color:#475569}
+          .company-lines{font-size:12px;margin:2px 0}
+          .doc-card{min-height:150px;padding:18px;border-radius:18px;background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);color:#f8fafc;display:flex;flex-direction:column;justify-content:flex-start}
+          .doc-card h1{margin:0 0 10px 0;font-size:22px;letter-spacing:.01em}
+          .doc-meta{font-size:12px;font-weight:800;line-height:1.5}
           .doc-meta span{color:#9bc8ff}
-          .badge{display:inline-flex;width:max-content;border:1px solid rgba(255,255,255,.24);border-radius:999px;padding:3px 9px;font-size:9px;font-weight:800;background:rgba(255,255,255,.08)}
-          .grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-top:4mm}
-          .info-card{padding:4mm;background:#fff}
-          .label{font-size:8px;text-transform:uppercase;color:#64748b;font-weight:900;letter-spacing:.16em}
+          .badge{display:inline-flex;width:max-content;margin-top:auto;border:1px solid rgba(255,255,255,.24);border-radius:999px;padding:4px 10px;font-size:10px;font-weight:800;background:rgba(255,255,255,.08)}
+          .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+          .info-card{padding:14px;border-radius:16px;background:#fff}
+          .label{font-size:10px;text-transform:uppercase;color:#64748b;font-weight:900;letter-spacing:.18em}
           .value{margin-top:2px;font-weight:800}
-          .text{margin-top:4mm;padding:0 1mm;font-size:10px}
+          .text{margin-top:14px;padding:0 1mm;font-size:12px}
           table{width:100%;border-collapse:separate;border-spacing:0;margin-top:4mm;border:1px solid #dbe4ef;border-radius:12px;overflow:hidden}
           th{background:#edf3f9;color:#183153;text-align:left;font-size:8px;font-weight:900;padding:6px 8px;border-bottom:1px solid #dbe4ef}
           td{padding:7px 8px;border-bottom:1px solid #e6edf5;vertical-align:top}
@@ -76,7 +88,7 @@ export function buildServiceDocumentPrintHtml(params: {
           .closing{margin-top:4mm}
           .notes-card{min-height:19mm;border-style:dashed;padding:4mm;background:#fff}
           .signature{margin-top:5mm;width:52mm;border-top:1px solid #9aa8bc;padding-top:6px;text-align:center;color:#64748b}
-          .footer{display:flex;justify-content:space-between;margin-top:6mm;color:#64748b;font-size:8px}
+          .footer{display:flex;justify-content:space-between;margin-top:6mm;color:#64748b;font-size:9px}
           .print-action{display:block;margin:12px auto 0;border:0;border-radius:999px;background:#0f172a;color:#fff;padding:9px 16px;font-weight:700;cursor:pointer}
           @media print{
             body{background:#fff}
@@ -91,11 +103,14 @@ export function buildServiceDocumentPrintHtml(params: {
             <div class="brand-card">
               <span class="pill">Presupuesto</span>
               <div>
-              <div class="brand">${escapeHtml(settings.name || "Stock Sur")}</div>
+              <div class="brand-copy">
+                ${logoBlock}
+              </div>
+              <div class="brand">${escapeHtml(companyName)}</div>
                 <div class="muted company-lines">${escapeHtml(settings.address || "")}</div>
                 <div class="muted company-lines">${escapeHtml(companyContact)}</div>
               </div>
-              <div class="muted">Documentacion comercial</div>
+              <div class="muted">${escapeHtml(settings.document_tagline ?? "Documentacion comercial")}</div>
             </div>
             <div class="doc-card">
               <div>
@@ -141,8 +156,8 @@ export function buildServiceDocumentPrintHtml(params: {
           <section class="closing notes-card"><strong>Notas:</strong> ${escapeHtmlWithLineBreaks(document.closing_text || "-")}</section>
           <section class="signature">Firma y aclaracion</section>
           <section class="footer">
-            <span>Generado por ${escapeHtml(settings.name || "Stock Sur")}</span>
-            <span>Este documento no reemplaza comprobantes fiscales</span>
+            <span>Generado por ${escapeHtml(companyName)}</span>
+            <span>${escapeHtml(settings.document_footer ?? "Este documento no reemplaza comprobantes fiscales")}</span>
           </section>
         </main>
         <button class="print-action" onclick="window.print()">Imprimir / Guardar PDF</button>
