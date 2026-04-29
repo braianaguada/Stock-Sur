@@ -12,6 +12,16 @@ export function calculateServiceLineTotal(line: ServiceDocumentLine) {
   return quantity > 0 && unitPrice > 0 ? quantity * unitPrice : Number(line.line_total ?? 0);
 }
 
+async function insertServiceDocumentEvent(payload: {
+  document_id: string;
+  event_type: string;
+  payload?: Record<string, unknown>;
+  created_by: string | undefined;
+}) {
+  const { error } = await serviceDb.from("service_document_events").insert(payload);
+  if (error) console.warn("No se pudo registrar el evento del documento de servicio:", error.message);
+}
+
 export function useServiceDocumentMutations(params: {
   companyId: string | null;
   userId: string | undefined;
@@ -97,13 +107,12 @@ export function useServiceDocumentMutations(params: {
       const { error: lineError } = await serviceDb.from("service_document_lines").insert(linePayload);
       if (lineError) throw lineError;
 
-      const { error: eventError } = await serviceDb.from("service_document_events").insert({
+      await insertServiceDocumentEvent({
         document_id: documentId,
         event_type: editingDocumentId ? "UPDATED" : "CREATED",
         payload: { line_count: validLines.length, total },
         created_by: userId,
       });
-      if (eventError) throw eventError;
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
@@ -171,13 +180,12 @@ export function useServiceDocumentMutations(params: {
       const { error: insertLinesError } = await serviceDb.from("service_document_lines").insert(duplicatedLines);
       if (insertLinesError) throw insertLinesError;
 
-      const { error: eventError } = await serviceDb.from("service_document_events").insert({
+      await insertServiceDocumentEvent({
         document_id: (data as { id: string }).id,
         event_type: "DUPLICATED",
         payload: { source_document_id: sourceDocumentId },
         created_by: userId,
       });
-      if (eventError) throw eventError;
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
@@ -244,13 +252,12 @@ export function useServiceDocumentMutations(params: {
       const { error: insertLinesError } = await serviceDb.from("service_document_lines").insert(duplicatedLines);
       if (insertLinesError) throw insertLinesError;
 
-      const { error: eventError } = await serviceDb.from("service_document_events").insert({
+      await insertServiceDocumentEvent({
         document_id: (data as { id: string }).id,
         event_type: "CONVERTED_TO_REMITO",
         payload: { source_document_id: sourceDocumentId },
         created_by: userId,
       });
-      if (eventError) throw eventError;
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
@@ -270,13 +277,12 @@ export function useServiceDocumentMutations(params: {
       });
       if (error) throw error;
 
-      const { error: eventError } = await serviceDb.from("service_document_events").insert({
+      await insertServiceDocumentEvent({
         document_id: params.documentId,
         event_type: "STATUS_CHANGED",
         payload: { to: params.targetStatus },
         created_by: userId,
       });
-      if (eventError) throw eventError;
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
