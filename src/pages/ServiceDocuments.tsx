@@ -18,7 +18,7 @@ import { currency, todayBusinessDateInputValue, formatIsoDate } from "@/lib/form
 import { EMPTY_SERVICE_LINE, DEFAULT_SERVICE_TEXTS, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
 import { useServiceDocuments } from "@/features/services/hooks/useServiceDocuments";
-import type { ServiceDocument, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
+import type { ServiceDocument, ServiceDocumentEvent, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
 
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
 
@@ -52,7 +52,7 @@ export default function ServiceDocumentsPage() {
   const [form, setForm] = useState<ServiceDocumentForm>(() => buildInitialForm(settings));
   const [lines, setLines] = useState<ServiceDocumentLine[]>([{ ...EMPTY_SERVICE_LINE }]);
 
-  const { customers, documents, selectedDocument, selectedLines, isLoading } = useServiceDocuments({
+  const { customers, documents, selectedDocument, selectedLines, selectedEvents, isLoading } = useServiceDocuments({
     companyId: currentCompany?.id ?? null,
     search: deferredSearch,
     status,
@@ -110,6 +110,23 @@ export default function ServiceDocumentsPage() {
     if (document.status !== "DRAFT") return;
     setEditingDocumentId(document.id);
     setDialogOpen(true);
+  };
+
+  const describeEvent = (event: ServiceDocumentEvent) => {
+    switch (event.event_type) {
+      case "CREATED":
+        return "Documento creado";
+      case "UPDATED":
+        return "Documento actualizado";
+      case "STATUS_CHANGED":
+        return `Estado cambiado a ${(event.payload?.to as string | undefined) ?? "actualizado"}`;
+      case "DUPLICATED":
+        return "Documento duplicado";
+      case "CONVERTED_TO_REMITO":
+        return "Convertido a remito";
+      default:
+        return event.event_type.replaceAll("_", " ");
+    }
   };
 
   const openDuplicate = (document: ServiceDocument) => {
@@ -299,6 +316,22 @@ export default function ServiceDocumentsPage() {
                 <div className="mt-2 flex justify-between text-lg font-bold"><span>Total</span><span>{currency.format(total)}</span></div>
               </div>
             </section>
+
+            {selectedEvents.length > 0 ? (
+              <section className="grid gap-2 rounded-lg border bg-muted/20 p-4">
+                <Label>Historial</Label>
+                <div className="grid gap-2">
+                  {selectedEvents.map((event) => (
+                    <div key={event.id} className="flex items-start justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm">
+                      <div>
+                        <div className="font-medium">{describeEvent(event)}</div>
+                        <div className="text-muted-foreground">{new Date(event.created_at).toLocaleString("es-AR")}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </div>
 
           <DialogFooter>

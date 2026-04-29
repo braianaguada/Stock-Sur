@@ -55,3 +55,12 @@ export type ServiceDocumentForm = {
   closing_text: string;
   currency: string;
 };
+
+export type ServiceDocumentEvent = {
+  id: string;
+  document_id: string;
+  event_type: string;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+  created_by: string | null;
+};

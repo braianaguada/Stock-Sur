@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { serviceDb } from "../db";
-import type { ServiceDocument, ServiceDocumentStatus } from "../types";
+import type { ServiceDocument, ServiceDocumentEvent, ServiceDocumentStatus } from "../types";
 
 export function useServiceDocuments(params: {
   companyId: string | null;
@@ -79,11 +79,26 @@ export function useServiceDocuments(params: {
     },
   });
 
+  const eventsQuery = useQuery({
+    queryKey: ["service-document-events", documentId ?? "no-document"],
+    enabled: Boolean(documentId),
+    queryFn: async () => {
+      const { data, error } = await serviceDb
+        .from("service_document_events")
+        .select("id, document_id, event_type, payload, created_at, created_by")
+        .eq("document_id", documentId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as ServiceDocumentEvent[];
+    },
+  });
+
   return {
     customers: customersQuery.data ?? [],
     documents: documentsQuery.data ?? [],
     selectedDocument: documentQuery.data ?? null,
     selectedLines: linesQuery.data ?? [],
+    selectedEvents: eventsQuery.data ?? [],
     isLoading: documentsQuery.isLoading,
   };
 }
