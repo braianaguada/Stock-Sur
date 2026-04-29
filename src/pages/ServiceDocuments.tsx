@@ -17,8 +17,10 @@ import { useToast } from "@/hooks/use-toast";
 import { currency, todayBusinessDateInputValue, formatIsoDate } from "@/lib/formatters";
 import { EMPTY_SERVICE_LINE, DEFAULT_SERVICE_TEXTS, SERVICE_STATUS_LABEL } from "@/features/services/constants";
 import { ServiceDocumentPreviewDialog } from "@/features/services/components/ServiceDocumentPreviewDialog";
+import { serviceDb } from "@/features/services/db";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
 import { useServiceDocuments } from "@/features/services/hooks/useServiceDocuments";
+import { openServiceDocumentPrintWindow } from "@/features/services/print";
 import type { ServiceDocument, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
 
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
@@ -121,8 +123,39 @@ export default function ServiceDocumentsPage() {
     setPreviewOpen(true);
   };
 
-  const openPrint = (documentId: string) => {
-    window.open(`/print/service-document/${documentId}`, "_blank");
+  const openPrint = async (documentId: string) => {
+    try {
+      const { data: documentData, error: documentError } = await serviceDb
+        .from("service_documents")
+        .select("*, customers(id, name, cuit, email, phone)")
+        .eq("id", documentId)
+        .single();
+      if (documentError) throw documentError;
+
+      const { data: linesData, error: linesError } = await serviceDb
+        .from("service_document_lines")
+        .select("*")
+        .eq("document_id", documentId)
+        .order("sort_order");
+      if (linesError) throw linesError;
+
+      const win = openServiceDocumentPrintWindow({
+        document: documentData as ServiceDocument,
+        lines: (linesData ?? []) as ServiceDocumentLine[],
+        settings,
+      });
+
+      if (!win) {
+        window.open(`/print/service-document/${documentId}`, "_blank", "noopener,noreferrer");
+      }
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "No se pudo imprimir",
+        description: "Reintentá en unos segundos o abrí el detalle del presupuesto.",
+        variant: "destructive",
+      });
+    }
   };
 
   const updateLine = (index: number, patch: Partial<ServiceDocumentLine>) => {
