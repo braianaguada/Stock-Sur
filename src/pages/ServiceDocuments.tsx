@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Edit, Plus, Printer, Search, Trash2 } from "lucide-react";
+import { Edit, Eye, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { FilterBar, PageHeader } from "@/components/ui/page";
@@ -16,6 +16,7 @@ import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { currency, todayBusinessDateInputValue, formatIsoDate } from "@/lib/formatters";
 import { EMPTY_SERVICE_LINE, DEFAULT_SERVICE_TEXTS, SERVICE_STATUS_LABEL } from "@/features/services/constants";
+import { ServiceDocumentPreviewDialog } from "@/features/services/components/ServiceDocumentPreviewDialog";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
 import { useServiceDocuments } from "@/features/services/hooks/useServiceDocuments";
 import type { ServiceDocument, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
@@ -46,6 +47,8 @@ export default function ServiceDocumentsPage() {
   const deferredSearch = useDeferredValue(search);
   const [status, setStatus] = useState<ServiceDocumentStatus | "ALL">("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(null);
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
   const [form, setForm] = useState<ServiceDocumentForm>(() => buildInitialForm(settings));
   const [lines, setLines] = useState<ServiceDocumentLine[]>([{ ...EMPTY_SERVICE_LINE }]);
@@ -54,7 +57,7 @@ export default function ServiceDocumentsPage() {
     companyId: currentCompany?.id ?? null,
     search: deferredSearch,
     status,
-    documentId: editingDocumentId,
+    documentId: editingDocumentId ?? previewDocumentId,
   });
 
   const total = useMemo(
@@ -106,8 +109,20 @@ export default function ServiceDocumentsPage() {
 
   const openEdit = (document: ServiceDocument) => {
     if (document.status !== "DRAFT") return;
+    setPreviewOpen(false);
+    setPreviewDocumentId(null);
     setEditingDocumentId(document.id);
     setDialogOpen(true);
+  };
+
+  const openPreview = (documentId: string) => {
+    setEditingDocumentId(null);
+    setPreviewDocumentId(documentId);
+    setPreviewOpen(true);
+  };
+
+  const openPrint = (documentId: string) => {
+    window.open(`/print/service-document/${documentId}`, "_blank");
   };
 
   const updateLine = (index: number, patch: Partial<ServiceDocumentLine>) => {
@@ -181,7 +196,10 @@ export default function ServiceDocumentsPage() {
                   <TableCell className="text-right">{currency.format(Number(document.total ?? 0))}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button type="button" variant="ghost" size="icon" title="Imprimir" onClick={() => window.open(`/print/service-document/${document.id}`, "_blank")}>
+                      <Button type="button" variant="ghost" size="icon" title="Ver detalle" onClick={() => openPreview(document.id)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" variant="ghost" size="icon" title="Imprimir" onClick={() => openPrint(document.id)}>
                         <Printer className="h-4 w-4" />
                       </Button>
                       <Button type="button" variant="ghost" size="icon" title="Editar" disabled={document.status !== "DRAFT"} onClick={() => openEdit(document)}>
@@ -197,67 +215,80 @@ export default function ServiceDocumentsPage() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-        <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
-          <DialogHeader><DialogTitle>{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle></DialogHeader>
+        <DialogContent className="max-h-[92vh] max-w-[min(96vw,1180px)] overflow-y-auto p-0">
+          <DialogHeader className="border-b border-border/60 px-5 py-3">
+            <DialogTitle className="text-lg">{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle>
+          </DialogHeader>
 
-          <div className="grid gap-5">
-            <section className="grid gap-3 md:grid-cols-5">
+          <div className="grid gap-4 px-5 py-4">
+            <section className="grid gap-3 rounded-xl border border-border/60 bg-card/60 p-3 md:grid-cols-6">
               <div className="md:col-span-2">
-                <Label>Cliente</Label>
+                <Label className="text-xs">Cliente</Label>
                 <Select value={form.customer_id} onValueChange={(value) => setForm((current) => ({ ...current, customer_id: value }))}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
                   <SelectContent>{customers.map((customer) => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="md:col-span-1"><Label>Referencia</Label><Input value={form.reference} onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))} /></div>
-              <div><Label>Fecha</Label><Input type="date" value={form.issue_date} onChange={(event) => setForm((current) => ({ ...current, issue_date: event.target.value }))} /></div>
-              <div><Label>Vigencia</Label><Input type="date" value={form.valid_until} onChange={(event) => setForm((current) => ({ ...current, valid_until: event.target.value }))} /></div>
-              <div><Label>Estado</Label><Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value as ServiceDocumentStatus }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPTIONS.filter((option) => option !== "ALL").map((option) => <SelectItem key={option} value={option}>{SERVICE_STATUS_LABEL[option]}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label className="text-xs">Referencia</Label><Input className="h-9" value={form.reference} onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))} /></div>
+              <div><Label className="text-xs">Fecha</Label><Input className="h-9" type="date" value={form.issue_date} onChange={(event) => setForm((current) => ({ ...current, issue_date: event.target.value }))} /></div>
+              <div><Label className="text-xs">Vigencia</Label><Input className="h-9" type="date" value={form.valid_until} onChange={(event) => setForm((current) => ({ ...current, valid_until: event.target.value }))} /></div>
+              <div><Label className="text-xs">Estado</Label><Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value as ServiceDocumentStatus }))}><SelectTrigger className="h-9"><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPTIONS.filter((option) => option !== "ALL").map((option) => <SelectItem key={option} value={option}>{SERVICE_STATUS_LABEL[option]}</SelectItem>)}</SelectContent></Select></div>
             </section>
 
             <section className="grid gap-3">
-              <Label>Texto introductorio</Label>
-              <Textarea rows={3} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
+              <Label className="text-xs">Texto introductorio</Label>
+              <Textarea className="min-h-20" rows={3} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
               <div className="overflow-x-auto rounded-lg border">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Descripcion</TableHead><TableHead className="w-28">Cantidad</TableHead><TableHead className="w-28">Unidad</TableHead><TableHead className="w-36">Precio</TableHead><TableHead className="w-36 text-right">Total</TableHead><TableHead className="w-12" /></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Descripcion</TableHead><TableHead className="w-24">Cantidad</TableHead><TableHead className="w-24">Unidad</TableHead><TableHead className="w-28">Precio</TableHead><TableHead className="w-28 text-right">Total</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
                   <TableBody>{lines.map((line, index) => (
                     <TableRow key={index}>
-                      <TableCell><Textarea rows={2} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
-                      <TableCell><Input type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /></TableCell>
-                      <TableCell><Input value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /></TableCell>
-                      <TableCell><Input type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /></TableCell>
-                      <TableCell className="text-right">{currency.format(calculateServiceLineTotal(line))}</TableCell>
-                      <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeLine(index)} disabled={lines.length === 1}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                      <TableCell className="py-2"><Textarea className="min-h-16 resize-y" rows={2} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
+                      <TableCell className="py-2"><Input className="h-9" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /></TableCell>
+                      <TableCell className="py-2"><Input className="h-9" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /></TableCell>
+                      <TableCell className="py-2"><Input className="h-9" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /></TableCell>
+                      <TableCell className="py-2 text-right font-medium">{currency.format(calculateServiceLineTotal(line))}</TableCell>
+                      <TableCell className="py-2"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => removeLine(index)} disabled={lines.length === 1}><Trash2 className="h-4 w-4" /></Button></TableCell>
                     </TableRow>
                   ))}</TableBody>
                 </Table>
               </div>
-              <Button type="button" variant="outline" className="w-fit" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, sort_order: current.length + 1 }])}><Plus className="mr-2 h-4 w-4" /> Agregar linea</Button>
+              <Button type="button" size="sm" variant="outline" className="w-fit" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, sort_order: current.length + 1 }])}><Plus className="mr-2 h-4 w-4" /> Agregar linea</Button>
             </section>
 
             <section className="grid gap-3 md:grid-cols-3">
-              <div><Label>Plazo de entrega</Label><Textarea rows={3} value={form.delivery_time} onChange={(event) => setForm((current) => ({ ...current, delivery_time: event.target.value }))} /></div>
-              <div><Label>Condiciones de pago</Label><Textarea rows={3} value={form.payment_terms} onChange={(event) => setForm((current) => ({ ...current, payment_terms: event.target.value }))} /></div>
-              <div><Label>Lugar de entrega</Label><Textarea rows={3} value={form.delivery_location} onChange={(event) => setForm((current) => ({ ...current, delivery_location: event.target.value }))} /></div>
+              <div><Label className="text-xs">Plazo de entrega</Label><Textarea className="min-h-20" rows={3} value={form.delivery_time} onChange={(event) => setForm((current) => ({ ...current, delivery_time: event.target.value }))} /></div>
+              <div><Label className="text-xs">Condiciones de pago</Label><Textarea className="min-h-20" rows={3} value={form.payment_terms} onChange={(event) => setForm((current) => ({ ...current, payment_terms: event.target.value }))} /></div>
+              <div><Label className="text-xs">Lugar de entrega</Label><Textarea className="min-h-20" rows={3} value={form.delivery_location} onChange={(event) => setForm((current) => ({ ...current, delivery_location: event.target.value }))} /></div>
             </section>
 
-            <section className="grid gap-3">
-              <Label>Cierre</Label>
-              <Textarea rows={3} value={form.closing_text} onChange={(event) => setForm((current) => ({ ...current, closing_text: event.target.value }))} />
-              <div className="ml-auto w-full max-w-sm rounded-lg border bg-muted/30 p-4">
+            <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+              <div><Label className="text-xs">Cierre</Label><Textarea className="min-h-20" rows={3} value={form.closing_text} onChange={(event) => setForm((current) => ({ ...current, closing_text: event.target.value }))} /></div>
+              <div className="self-end rounded-lg border bg-muted/30 p-4">
                 <div className="flex justify-between text-sm"><span>Subtotal</span><span>{currency.format(total)}</span></div>
                 <div className="mt-2 flex justify-between text-lg font-bold"><span>Total</span><span>{currency.format(total)}</span></div>
               </div>
             </section>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="border-t border-border/60 bg-muted/20 px-5 py-3">
             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button type="button" onClick={() => upsertMutation.mutate()} disabled={upsertMutation.isPending}>{upsertMutation.isPending ? "Guardando..." : "Guardar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ServiceDocumentPreviewDialog
+        open={previewOpen}
+        onOpenChange={(open) => {
+          setPreviewOpen(open);
+          if (!open) setPreviewDocumentId(null);
+        }}
+        document={previewDocumentId ? selectedDocument : null}
+        lines={previewDocumentId ? selectedLines : []}
+        onEdit={openEdit}
+        onPrint={openPrint}
+      />
     </AppLayout>
   );
 }
