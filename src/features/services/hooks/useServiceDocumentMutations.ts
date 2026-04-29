@@ -107,5 +107,70 @@ export function useServiceDocumentMutations(params: {
     },
   });
 
-  return { upsertMutation };
+  const duplicateMutation = useMutation({
+    mutationFn: async (sourceDocumentId: string) => {
+      if (!companyId) throw new Error("Selecciona una empresa antes de duplicar presupuestos de servicio");
+
+      const { data: document, error: documentError } = await serviceDb
+        .from("service_documents")
+        .select("*")
+        .eq("id", sourceDocumentId)
+        .single();
+      if (documentError) throw documentError;
+
+      const { data: sourceLines, error: linesError } = await serviceDb
+        .from("service_document_lines")
+        .select("*")
+        .eq("document_id", sourceDocumentId)
+        .order("sort_order");
+      if (linesError) throw linesError;
+
+      const payload = {
+        company_id: companyId,
+        customer_id: document.customer_id,
+        type: "QUOTE",
+        status: "DRAFT",
+        reference: document.reference,
+        issue_date: new Date().toISOString().slice(0, 10),
+        valid_until: null,
+        delivery_time: document.delivery_time,
+        payment_terms: document.payment_terms,
+        delivery_location: document.delivery_location,
+        intro_text: document.intro_text,
+        closing_text: document.closing_text,
+        subtotal: document.subtotal,
+        total: document.total,
+        currency: document.currency,
+        created_by: userId,
+      };
+
+      const { data, error } = await serviceDb
+        .from("service_documents")
+        .insert(payload)
+        .select("id")
+        .single();
+      if (error) throw error;
+
+      const duplicatedLines = (sourceLines ?? []).map((line) => ({
+        document_id: (data as { id: string }).id,
+        description: line.description,
+        quantity: line.quantity,
+        unit: line.unit,
+        unit_price: line.unit_price,
+        line_total: line.line_total,
+        sort_order: line.sort_order,
+      }));
+      const { error: insertLinesError } = await serviceDb.from("service_document_lines").insert(duplicatedLines);
+      if (insertLinesError) throw insertLinesError;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
+      toast({ title: "Presupuesto duplicado" });
+    },
+    onError: (error: unknown) => {
+      toast({ title: "No se pudo duplicar", description: getErrorMessage(error), variant: "destructive" });
+    },
+  });
+
+  return { upsertMutation, duplicateMutation };
 }

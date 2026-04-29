@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Edit, Plus, Printer, Search, Trash2 } from "lucide-react";
+import { Copy, Edit, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { FilterBar, PageHeader } from "@/components/ui/page";
@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { currency, todayBusinessDateInputValue, formatIsoDate } from "@/lib/formatters";
-import { EMPTY_SERVICE_LINE, DEFAULT_SERVICE_TEXTS, SERVICE_STATUS_LABEL } from "@/features/services/constants";
+import { EMPTY_SERVICE_LINE, DEFAULT_SERVICE_TEXTS, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
 import { useServiceDocuments } from "@/features/services/hooks/useServiceDocuments";
 import type { ServiceDocument, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
@@ -23,17 +23,19 @@ import type { ServiceDocument, ServiceDocumentForm, ServiceDocumentLine, Service
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
 
 function buildInitialForm(settings: ReturnType<typeof useCompanyBrand>["settings"]): ServiceDocumentForm {
+  const validDays = settings.service_default_valid_days ?? 0;
+  const validUntil = validDays > 0 ? new Date(Date.now() + validDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) : "";
   return {
     customer_id: "",
     status: "DRAFT",
     reference: "",
     issue_date: todayBusinessDateInputValue(),
-    valid_until: "",
+    valid_until: validUntil,
     intro_text: settings.document_tagline || DEFAULT_SERVICE_TEXTS.intro_text,
-    delivery_time: DEFAULT_SERVICE_TEXTS.delivery_time,
-    payment_terms: DEFAULT_SERVICE_TEXTS.payment_terms,
-    delivery_location: settings.address || DEFAULT_SERVICE_TEXTS.delivery_location,
-    closing_text: settings.document_footer || DEFAULT_SERVICE_TEXTS.closing_text,
+    delivery_time: settings.service_default_delivery_time || DEFAULT_SERVICE_TEXTS.delivery_time,
+    payment_terms: settings.service_default_payment_terms || DEFAULT_SERVICE_TEXTS.payment_terms,
+    delivery_location: settings.service_default_delivery_location || settings.address || DEFAULT_SERVICE_TEXTS.delivery_location,
+    closing_text: settings.service_default_closing_text || settings.document_footer || DEFAULT_SERVICE_TEXTS.closing_text,
     currency: "ARS",
   };
 }
@@ -86,7 +88,7 @@ export default function ServiceDocumentsPage() {
     setLines([{ ...EMPTY_SERVICE_LINE }]);
   };
 
-  const { upsertMutation } = useServiceDocumentMutations({
+  const { upsertMutation, duplicateMutation } = useServiceDocumentMutations({
     companyId: currentCompany?.id ?? null,
     userId: user?.id,
     editingDocumentId,
@@ -108,6 +110,10 @@ export default function ServiceDocumentsPage() {
     if (document.status !== "DRAFT") return;
     setEditingDocumentId(document.id);
     setDialogOpen(true);
+  };
+
+  const openDuplicate = (document: ServiceDocument) => {
+    duplicateMutation.mutate(document.id);
   };
 
   const updateLine = (index: number, patch: Partial<ServiceDocumentLine>) => {
@@ -171,16 +177,19 @@ export default function ServiceDocumentsPage() {
               {isLoading ? (
                 <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Cargando...</TableCell></TableRow>
               ) : documents.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Sin presupuestos de servicio</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No hay presupuestos de servicio para mostrar</TableCell></TableRow>
               ) : documents.map((document) => (
                 <TableRow key={document.id}>
-                  <TableCell className="font-medium">SERV-{String(document.number).padStart(6, "0")}</TableCell>
+                  <TableCell className="font-medium">{SERVICE_DOCUMENT_PREFIX}-{String(document.number).padStart(6, "0")}</TableCell>
                   <TableCell>{document.customers?.name ?? "Sin cliente"}</TableCell>
                   <TableCell>{formatIsoDate(document.issue_date)}</TableCell>
                   <TableCell><Badge variant="outline">{SERVICE_STATUS_LABEL[document.status]}</Badge></TableCell>
                   <TableCell className="text-right">{currency.format(Number(document.total ?? 0))}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-1.5">
+                      <Button type="button" variant="ghost" size="icon" title="Duplicar" onClick={() => openDuplicate(document)} disabled={duplicateMutation.isPending}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
                       <Button type="button" variant="ghost" size="icon" title="Imprimir" onClick={() => window.open(`/print/service-document/${document.id}`, "_blank")}>
                         <Printer className="h-4 w-4" />
                       </Button>
@@ -198,7 +207,9 @@ export default function ServiceDocumentsPage() {
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
         <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
-          <DialogHeader><DialogTitle>{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle>
+          </DialogHeader>
 
           <div className="grid gap-5">
             <section className="grid gap-3 md:grid-cols-5">
