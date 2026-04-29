@@ -18,6 +18,8 @@ export const DEFAULT_SERVICE_TEXTS = {
   delivery_location: "En instalaciones del cliente o lugar a coordinar.",
 };
 
+export const SERVICE_DOCUMENT_PREFIX = "SERV";
+
 export const EMPTY_SERVICE_LINE: ServiceDocumentLine = {
   description: "",
   quantity: 1,

@@ -203,6 +203,30 @@ export default function SettingsPage() {
                   <Label>Pie de documento</Label>
                   <Textarea value={form.document_footer} onChange={(e) => setForm((prev) => ({ ...prev, document_footer: e.target.value }))} rows={3} />
                 </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Default de servicios: introduccion</Label>
+                  <Textarea value={form.service_default_intro_text} onChange={(e) => setForm((prev) => ({ ...prev, service_default_intro_text: e.target.value }))} rows={3} />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Default de servicios: cierre</Label>
+                  <Textarea value={form.service_default_closing_text} onChange={(e) => setForm((prev) => ({ ...prev, service_default_closing_text: e.target.value }))} rows={3} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Plazo de entrega por defecto</Label>
+                  <Input value={form.service_default_delivery_time} onChange={(e) => setForm((prev) => ({ ...prev, service_default_delivery_time: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Condiciones de pago por defecto</Label>
+                  <Input value={form.service_default_payment_terms} onChange={(e) => setForm((prev) => ({ ...prev, service_default_payment_terms: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Lugar de entrega por defecto</Label>
+                  <Input value={form.service_default_delivery_location} onChange={(e) => setForm((prev) => ({ ...prev, service_default_delivery_location: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Vigencia por defecto (dias)</Label>
+                  <Input type="number" min={1} value={form.service_default_valid_days} onChange={(e) => setForm((prev) => ({ ...prev, service_default_valid_days: e.target.value }))} />
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -16,6 +16,12 @@ export interface CompanySettings {
   accent_color: string;
   document_tagline: string | null;
   document_footer: string | null;
+  service_default_intro_text: string | null;
+  service_default_closing_text: string | null;
+  service_default_delivery_time: string | null;
+  service_default_payment_terms: string | null;
+  service_default_delivery_location: string | null;
+  service_default_valid_days: number | null;
   default_point_of_sale: number;
   allow_issue_remitos_without_stock: boolean;
   auto_close_cash_enabled: boolean;
@@ -36,8 +42,14 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   primary_color: "#1f4f99",
   secondary_color: "#c62828",
   accent_color: "#eef3fb",
-  document_tagline: "Documentación comercial",
+  document_tagline: "DocumentaciÃ³n comercial",
   document_footer: "Este documento no reemplaza comprobantes fiscales",
+  service_default_intro_text: null,
+  service_default_closing_text: null,
+  service_default_delivery_time: null,
+  service_default_payment_terms: null,
+  service_default_delivery_location: null,
+  service_default_valid_days: null,
   default_point_of_sale: 1,
   allow_issue_remitos_without_stock: false,
   auto_close_cash_enabled: false,
