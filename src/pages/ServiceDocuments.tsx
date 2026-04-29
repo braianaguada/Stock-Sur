@@ -14,34 +14,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
-import { currency, todayBusinessDateInputValue, formatIsoDate } from "@/lib/formatters";
-import { EMPTY_SERVICE_LINE, DEFAULT_SERVICE_TEXTS, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
+import { currency, formatIsoDate } from "@/lib/formatters";
+import { EMPTY_SERVICE_LINE, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
+import { buildInitialServiceDocumentForm, canConvertServiceDocumentToRemito, canTransitionServiceDocument } from "@/features/services/logic";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
 import { useServiceDocuments } from "@/features/services/hooks/useServiceDocuments";
 import type { ServiceDocument, ServiceDocumentEvent, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
 
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
 
-function buildInitialForm(settings: ReturnType<typeof useCompanyBrand>["settings"]): ServiceDocumentForm {
-  const validDays = settings.service_default_valid_days ?? 0;
-  const validUntil = validDays > 0 ? new Date(Date.now() + validDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) : "";
-  return {
-    customer_id: "",
-    status: "DRAFT",
-    reference: "",
-    issue_date: todayBusinessDateInputValue(),
-    valid_until: validUntil,
-    intro_text: settings.document_tagline || DEFAULT_SERVICE_TEXTS.intro_text,
-    delivery_time: settings.service_default_delivery_time || DEFAULT_SERVICE_TEXTS.delivery_time,
-    payment_terms: settings.service_default_payment_terms || DEFAULT_SERVICE_TEXTS.payment_terms,
-    delivery_location: settings.service_default_delivery_location || settings.address || DEFAULT_SERVICE_TEXTS.delivery_location,
-    closing_text: settings.service_default_closing_text || settings.document_footer || DEFAULT_SERVICE_TEXTS.closing_text,
-    currency: "ARS",
-  };
-}
-
 export default function ServiceDocumentsPage() {
-  const { currentCompany, user, companyRoleCodes, companyPermissionCodes } = useAuth();
+  const { currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
   const { settings } = useCompanyBrand();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -49,7 +32,7 @@ export default function ServiceDocumentsPage() {
   const [status, setStatus] = useState<ServiceDocumentStatus | "ALL">("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
-  const [form, setForm] = useState<ServiceDocumentForm>(() => buildInitialForm(settings));
+  const [form, setForm] = useState<ServiceDocumentForm>(() => buildInitialServiceDocumentForm(settings));
   const [lines, setLines] = useState<ServiceDocumentLine[]>([{ ...EMPTY_SERVICE_LINE }]);
 
   const { customers, documents, selectedDocument, selectedLines, selectedEvents, isLoading } = useServiceDocuments({
@@ -84,13 +67,12 @@ export default function ServiceDocumentsPage() {
 
   const resetForm = () => {
     setEditingDocumentId(null);
-    setForm(buildInitialForm(settings));
+    setForm(buildInitialServiceDocumentForm(settings));
     setLines([{ ...EMPTY_SERVICE_LINE }]);
   };
 
   const { upsertMutation, duplicateMutation, convertToRemitoMutation, transitionMutation } = useServiceDocumentMutations({
     companyId: currentCompany?.id ?? null,
-    userId: user?.id,
     editingDocumentId,
     form,
     lines,
@@ -128,19 +110,6 @@ export default function ServiceDocumentsPage() {
         return event.event_type.replaceAll("_", " ");
     }
   };
-
-  const canTransition = (document: ServiceDocument, target: ServiceDocumentStatus) => {
-    if (document.status === target) return false;
-    if (document.status === "CANCELLED") return false;
-    if (document.status === "REJECTED") return false;
-    if (target === "SENT") return document.status === "DRAFT";
-    if (target === "APPROVED") return document.status === "DRAFT" || document.status === "SENT";
-    if (target === "REJECTED") return document.status === "DRAFT" || document.status === "SENT";
-    if (target === "CANCELLED") return document.status === "DRAFT" || document.status === "SENT" || document.status === "APPROVED";
-    return false;
-  };
-
-  const canConvertToRemito = (document: ServiceDocument) => document.type === "QUOTE" && document.status === "APPROVED";
 
   const canManageServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.create");
   const canEditServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.edit");
@@ -244,27 +213,27 @@ export default function ServiceDocumentsPage() {
                   <TableCell className="text-right">{currency.format(Number(document.total ?? 0))}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex flex-wrap justify-end gap-1.5">
-                      {canManageServiceDocuments && canTransition(document, "SENT") ? (
+                      {canManageServiceDocuments && canTransitionServiceDocument(document, "SENT") ? (
                         <Button type="button" variant="ghost" size="icon" title="Enviar" onClick={() => triggerTransition(document, "SENT")} disabled={transitionMutation.isPending}>
                           <Send className="h-4 w-4" />
                         </Button>
                       ) : null}
-                      {canApproveServiceDocuments && canTransition(document, "APPROVED") ? (
+                      {canApproveServiceDocuments && canTransitionServiceDocument(document, "APPROVED") ? (
                         <Button type="button" variant="ghost" size="icon" title="Aprobar" onClick={() => triggerTransition(document, "APPROVED")} disabled={transitionMutation.isPending}>
                           <Check className="h-4 w-4" />
                         </Button>
                       ) : null}
-                      {canApproveServiceDocuments && canTransition(document, "REJECTED") ? (
+                      {canApproveServiceDocuments && canTransitionServiceDocument(document, "REJECTED") ? (
                         <Button type="button" variant="ghost" size="icon" title="Rechazar" onClick={() => triggerTransition(document, "REJECTED")} disabled={transitionMutation.isPending}>
                           <X className="h-4 w-4" />
                         </Button>
                       ) : null}
-                      {canCancelServiceDocuments && canTransition(document, "CANCELLED") ? (
+                      {canCancelServiceDocuments && canTransitionServiceDocument(document, "CANCELLED") ? (
                         <Button type="button" variant="ghost" size="icon" title="Anular" onClick={() => triggerTransition(document, "CANCELLED")} disabled={transitionMutation.isPending}>
                           <Slash className="h-4 w-4" />
                         </Button>
                       ) : null}
-                      {canManageServiceDocuments && canConvertToRemito(document) ? (
+                      {canManageServiceDocuments && canConvertServiceDocumentToRemito(document) ? (
                         <Button type="button" variant="ghost" size="icon" title="Convertir a remito" onClick={() => triggerRemito(document)} disabled={convertToRemitoMutation.isPending}>
                           <Truck className="h-4 w-4" />
                         </Button>
