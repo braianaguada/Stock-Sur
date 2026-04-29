@@ -62,6 +62,14 @@ export const queryKeys = {
     lines: (documentId: string | null) => ["document-lines", documentId] as const,
     events: (documentId: string | null) => ["document-events", documentId] as const,
   },
+  serviceDocuments: {
+    customers: (companyId: string | null) => ["service-documents-customers", companyId ?? "no-company"] as const,
+    list: (companyId: string | null, search: string, status: string) =>
+      ["service-documents", companyId ?? "no-company", search, status] as const,
+    all: () => ["service-documents"] as const,
+    detail: (documentId: string | null) => ["service-document", documentId ?? "no-document"] as const,
+    lines: (documentId: string | null) => ["service-document-lines", documentId ?? "no-document"] as const,
+  },
   stock: {
     recentItems: (companyId: string | null, userId: string | null | undefined) =>
       ["stock-recent-items", companyId ?? "no-company", userId ?? "no-user"] as const,
