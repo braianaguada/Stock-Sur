@@ -12,16 +12,6 @@ export function calculateServiceLineTotal(line: ServiceDocumentLine) {
   return quantity > 0 && unitPrice > 0 ? quantity * unitPrice : Number(line.line_total ?? 0);
 }
 
-async function insertServiceDocumentEvent(payload: {
-  document_id: string;
-  event_type: string;
-  payload?: Record<string, unknown>;
-  created_by: string | undefined;
-}) {
-  const { error } = await serviceDb.from("service_document_events").insert(payload);
-  if (error) console.warn("No se pudo registrar el evento del documento de servicio:", error.message);
-}
-
 export function useServiceDocumentMutations(params: {
   companyId: string | null;
   userId: string | undefined;
@@ -31,7 +21,7 @@ export function useServiceDocumentMutations(params: {
   toast: ToastFn;
   onDone: () => void;
 }) {
-  const { companyId, userId, editingDocumentId, form, lines, toast, onDone } = params;
+  const { companyId, editingDocumentId, form, lines, toast, onDone } = params;
   const qc = useQueryClient();
 
   const upsertMutation = useMutation({
@@ -50,69 +40,29 @@ export function useServiceDocumentMutations(params: {
 
       if (validLines.length === 0) throw new Error("Agrega al menos una linea de servicio");
 
-      const total = validLines.reduce((sum, line) => sum + Number(line.line_total ?? 0), 0);
-      const payload = {
-        company_id: companyId,
-        customer_id: form.customer_id,
-        type: "QUOTE",
-        status: form.status,
-        reference: form.reference.trim() || null,
-        issue_date: form.issue_date,
-        valid_until: form.valid_until || null,
-        delivery_time: form.delivery_time.trim() || null,
-        payment_terms: form.payment_terms.trim() || null,
-        delivery_location: form.delivery_location.trim() || null,
-        intro_text: form.intro_text.trim() || null,
-        closing_text: form.closing_text.trim() || null,
-        subtotal: total,
-        total,
-        currency: form.currency || "ARS",
-        created_by: userId,
-      };
-
-      let documentId = editingDocumentId;
-      if (documentId) {
-        const { error } = await serviceDb
-          .from("service_documents")
-          .update(payload)
-          .eq("id", documentId)
-          .eq("status", "DRAFT");
-        if (error) throw error;
-
-        const { error: deleteError } = await serviceDb
-          .from("service_document_lines")
-          .delete()
-          .eq("document_id", documentId);
-        if (deleteError) throw deleteError;
-      } else {
-        const { data, error } = await serviceDb
-          .from("service_documents")
-          .insert(payload)
-          .select("id")
-          .single();
-        if (error) throw error;
-        documentId = (data as { id: string }).id;
-      }
-
-      const linePayload = validLines.map((line) => ({
-        document_id: documentId,
-        description: line.description,
-        quantity: line.quantity,
-        unit: line.unit?.trim() || null,
-        unit_price: line.unit_price,
-        line_total: line.line_total,
-        sort_order: line.sort_order,
-      }));
-
-      const { error: lineError } = await serviceDb.from("service_document_lines").insert(linePayload);
-      if (lineError) throw lineError;
-
-      await insertServiceDocumentEvent({
-        document_id: documentId,
-        event_type: editingDocumentId ? "UPDATED" : "CREATED",
-        payload: { line_count: validLines.length, total },
-        created_by: userId,
+      const { error } = await serviceDb.rpc("save_service_document", {
+        p_document_id: editingDocumentId,
+        p_company_id: companyId,
+        p_customer_id: form.customer_id,
+        p_status: form.status,
+        p_reference: form.reference.trim() || null,
+        p_issue_date: form.issue_date,
+        p_valid_until: form.valid_until || null,
+        p_delivery_time: form.delivery_time.trim() || null,
+        p_payment_terms: form.payment_terms.trim() || null,
+        p_delivery_location: form.delivery_location.trim() || null,
+        p_intro_text: form.intro_text.trim() || null,
+        p_closing_text: form.closing_text.trim() || null,
+        p_currency: form.currency || "ARS",
+        p_lines: validLines.map((line) => ({
+          description: line.description,
+          quantity: line.quantity,
+          unit: line.unit?.trim() || null,
+          unit_price: line.unit_price,
+          line_total: line.line_total,
+        })),
       });
+      if (error) throw error;
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
@@ -128,64 +78,11 @@ export function useServiceDocumentMutations(params: {
     mutationFn: async (sourceDocumentId: string) => {
       if (!companyId) throw new Error("Selecciona una empresa antes de duplicar presupuestos de servicio");
 
-      const { data: document, error: documentError } = await serviceDb
-        .from("service_documents")
-        .select("*")
-        .eq("id", sourceDocumentId)
-        .single();
-      if (documentError) throw documentError;
-
-      const { data: sourceLines, error: linesError } = await serviceDb
-        .from("service_document_lines")
-        .select("*")
-        .eq("document_id", sourceDocumentId)
-        .order("sort_order");
-      if (linesError) throw linesError;
-
-      const payload = {
-        company_id: companyId,
-        customer_id: document.customer_id,
-        type: "QUOTE",
-        status: "DRAFT",
-        reference: document.reference,
-        issue_date: new Date().toISOString().slice(0, 10),
-        valid_until: null,
-        delivery_time: document.delivery_time,
-        payment_terms: document.payment_terms,
-        delivery_location: document.delivery_location,
-        intro_text: document.intro_text,
-        closing_text: document.closing_text,
-        subtotal: document.subtotal,
-        total: document.total,
-        currency: document.currency,
-        created_by: userId,
-      };
-
-      const { data, error } = await serviceDb
-        .from("service_documents")
-        .insert(payload)
-        .select("id")
-        .single();
-      if (error) throw error;
-
-      const duplicatedLines = (sourceLines ?? []).map((line) => ({
-        document_id: (data as { id: string }).id,
-        description: line.description,
-        quantity: line.quantity,
-        unit: line.unit,
-        unit_price: line.unit_price,
-        line_total: line.line_total,
-        sort_order: line.sort_order,
-      }));
-      const { error: insertLinesError } = await serviceDb.from("service_document_lines").insert(duplicatedLines);
-      if (insertLinesError) throw insertLinesError;
-
-      await insertServiceDocumentEvent({
-        document_id: (data as { id: string }).id,
-        event_type: "DUPLICATED",
-        payload: { source_document_id: sourceDocumentId },
-        created_by: userId,
+      const { error } = await serviceDb.rpc("create_service_document_copy", {
+        p_source_document_id: sourceDocumentId,
+        p_target_type: "QUOTE",
       });
+      if (error) throw error;
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
@@ -200,64 +97,11 @@ export function useServiceDocumentMutations(params: {
     mutationFn: async (sourceDocumentId: string) => {
       if (!companyId) throw new Error("Selecciona una empresa antes de convertir a remito");
 
-      const { data: document, error: documentError } = await serviceDb
-        .from("service_documents")
-        .select("*")
-        .eq("id", sourceDocumentId)
-        .single();
-      if (documentError) throw documentError;
-
-      const { data: sourceLines, error: linesError } = await serviceDb
-        .from("service_document_lines")
-        .select("*")
-        .eq("document_id", sourceDocumentId)
-        .order("sort_order");
-      if (linesError) throw linesError;
-
-      const payload = {
-        company_id: companyId,
-        customer_id: document.customer_id,
-        type: "REMITO",
-        status: "DRAFT",
-        reference: document.reference,
-        issue_date: new Date().toISOString().slice(0, 10),
-        valid_until: null,
-        delivery_time: document.delivery_time,
-        payment_terms: document.payment_terms,
-        delivery_location: document.delivery_location,
-        intro_text: document.intro_text,
-        closing_text: document.closing_text,
-        subtotal: document.subtotal,
-        total: document.total,
-        currency: document.currency,
-        created_by: userId,
-      };
-
-      const { data, error } = await serviceDb
-        .from("service_documents")
-        .insert(payload)
-        .select("id")
-        .single();
-      if (error) throw error;
-
-      const duplicatedLines = (sourceLines ?? []).map((line) => ({
-        document_id: (data as { id: string }).id,
-        description: line.description,
-        quantity: line.quantity,
-        unit: line.unit,
-        unit_price: line.unit_price,
-        line_total: line.line_total,
-        sort_order: line.sort_order,
-      }));
-      const { error: insertLinesError } = await serviceDb.from("service_document_lines").insert(duplicatedLines);
-      if (insertLinesError) throw insertLinesError;
-
-      await insertServiceDocumentEvent({
-        document_id: (data as { id: string }).id,
-        event_type: "CONVERTED_TO_REMITO",
-        payload: { source_document_id: sourceDocumentId },
-        created_by: userId,
+      const { error } = await serviceDb.rpc("create_service_document_copy", {
+        p_source_document_id: sourceDocumentId,
+        p_target_type: "REMITO",
       });
+      if (error) throw error;
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
@@ -277,12 +121,6 @@ export function useServiceDocumentMutations(params: {
       });
       if (error) throw error;
 
-      await insertServiceDocumentEvent({
-        document_id: params.documentId,
-        event_type: "STATUS_CHANGED",
-        payload: { to: params.targetStatus },
-        created_by: userId,
-      });
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
