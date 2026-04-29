@@ -1,5 +1,5 @@
 import { currency, formatIsoDate } from "@/lib/formatters";
-import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
+import { escapeHtml, escapeHtmlWithLineBreaks } from "@/lib/print";
 import { SERVICE_STATUS_LABEL } from "./constants";
 import type { ServiceDocument, ServiceDocumentLine } from "./types";
 
@@ -11,7 +11,7 @@ type CompanyPrintSettings = {
   whatsapp?: string | null;
 };
 
-export function openServiceDocumentPrintWindow(params: {
+export function buildServiceDocumentPrintHtml(params: {
   document: ServiceDocument;
   lines: ServiceDocumentLine[];
   settings: CompanyPrintSettings;
@@ -30,7 +30,7 @@ export function openServiceDocumentPrintWindow(params: {
     `)
     .join("");
 
-  const html = `<!doctype html>
+  return `<!doctype html>
     <html>
       <head>
         <title>Presupuesto SERV-${String(document.number).padStart(6, "0")}</title>
@@ -119,12 +119,26 @@ export function openServiceDocumentPrintWindow(params: {
         <button class="print-action" onclick="window.print()">Imprimir / Guardar PDF</button>
       </body>
     </html>`;
+}
 
-  const win = openPrintWindow(html, "noopener,noreferrer,width=980,height=720");
-  if (!win) return null;
+export function writeServiceDocumentPrintWindow(win: Window, html: string) {
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
   window.setTimeout(() => {
     win.focus();
+    if (window.__STOCK_SUR_PRINT_SMOKE__) {
+      window.__STOCK_SUR_PRINT_CALLED__ = (window.__STOCK_SUR_PRINT_CALLED__ ?? 0) + 1;
+      return;
+    }
     win.print();
   }, 250);
-  return win;
+}
+
+declare global {
+  interface Window {
+    __STOCK_SUR_PRINT_SMOKE__?: boolean;
+    __STOCK_SUR_PRINT_CALLED__?: number;
+  }
 }

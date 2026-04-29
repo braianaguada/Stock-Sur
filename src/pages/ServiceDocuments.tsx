@@ -20,7 +20,7 @@ import { ServiceDocumentPreviewDialog } from "@/features/services/components/Ser
 import { serviceDb } from "@/features/services/db";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
 import { useServiceDocuments } from "@/features/services/hooks/useServiceDocuments";
-import { openServiceDocumentPrintWindow } from "@/features/services/print";
+import { buildServiceDocumentPrintHtml, writeServiceDocumentPrintWindow } from "@/features/services/print";
 import type { ServiceDocument, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
 
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
@@ -124,6 +124,20 @@ export default function ServiceDocumentsPage() {
   };
 
   const openPrint = async (documentId: string) => {
+    const printWindow = window.open("", "_blank", "width=980,height=720");
+    if (!printWindow) {
+      toast({
+        title: "No se pudo abrir la impresion",
+        description: "El navegador bloqueo la ventana emergente. Habilitala para Stock Sur y reintentá.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write("<!doctype html><title>Preparando impresion...</title><body style='font-family:Arial,sans-serif;padding:24px'>Preparando impresion...</body>");
+    printWindow.document.close();
+
     try {
       const { data: documentData, error: documentError } = await serviceDb
         .from("service_documents")
@@ -139,17 +153,15 @@ export default function ServiceDocumentsPage() {
         .order("sort_order");
       if (linesError) throw linesError;
 
-      const win = openServiceDocumentPrintWindow({
+      const html = buildServiceDocumentPrintHtml({
         document: documentData as ServiceDocument,
         lines: (linesData ?? []) as ServiceDocumentLine[],
         settings,
       });
-
-      if (!win) {
-        window.open(`/print/service-document/${documentId}`, "_blank", "noopener,noreferrer");
-      }
+      writeServiceDocumentPrintWindow(printWindow, html);
     } catch (error) {
       console.error(error);
+      printWindow.close();
       toast({
         title: "No se pudo imprimir",
         description: "Reintentá en unos segundos o abrí el detalle del presupuesto.",
