@@ -172,5 +172,23 @@ export function useServiceDocumentMutations(params: {
     },
   });
 
-  return { upsertMutation, duplicateMutation };
+  const transitionMutation = useMutation({
+    mutationFn: async (params: { documentId: string; targetStatus: string }) => {
+      if (!companyId) throw new Error("Selecciona una empresa antes de cambiar estados");
+      const { error } = await serviceDb.rpc("transition_service_document_status", {
+        p_document_id: params.documentId,
+        p_target_status: params.targetStatus,
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
+      toast({ title: "Estado actualizado" });
+    },
+    onError: (error: unknown) => {
+      toast({ title: "No se pudo cambiar el estado", description: getErrorMessage(error), variant: "destructive" });
+    },
+  });
+
+  return { upsertMutation, duplicateMutation, transitionMutation };
 }

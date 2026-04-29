@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Copy, Edit, Plus, Printer, Search, Trash2 } from "lucide-react";
+import { Check, Copy, Edit, Plus, Printer, Search, Slash, Send, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { FilterBar, PageHeader } from "@/components/ui/page";
@@ -88,7 +88,7 @@ export default function ServiceDocumentsPage() {
     setLines([{ ...EMPTY_SERVICE_LINE }]);
   };
 
-  const { upsertMutation, duplicateMutation } = useServiceDocumentMutations({
+  const { upsertMutation, duplicateMutation, transitionMutation } = useServiceDocumentMutations({
     companyId: currentCompany?.id ?? null,
     userId: user?.id,
     editingDocumentId,
@@ -114,6 +114,17 @@ export default function ServiceDocumentsPage() {
 
   const openDuplicate = (document: ServiceDocument) => {
     duplicateMutation.mutate(document.id);
+  };
+
+  const canTransition = (document: ServiceDocument, target: ServiceDocumentStatus) => {
+    if (document.status === target) return false;
+    if (document.status === "CANCELLED") return false;
+    if (document.status === "REJECTED") return false;
+    if (target === "SENT") return document.status === "DRAFT";
+    if (target === "APPROVED") return document.status === "DRAFT" || document.status === "SENT";
+    if (target === "REJECTED") return document.status === "DRAFT" || document.status === "SENT";
+    if (target === "CANCELLED") return document.status === "DRAFT" || document.status === "SENT" || document.status === "APPROVED";
+    return false;
   };
 
   const updateLine = (index: number, patch: Partial<ServiceDocumentLine>) => {
@@ -186,7 +197,27 @@ export default function ServiceDocumentsPage() {
                   <TableCell><Badge variant="outline">{SERVICE_STATUS_LABEL[document.status]}</Badge></TableCell>
                   <TableCell className="text-right">{currency.format(Number(document.total ?? 0))}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1.5">
+                    <div className="flex flex-wrap justify-end gap-1.5">
+                      {canTransition(document, "SENT") ? (
+                        <Button type="button" variant="ghost" size="icon" title="Enviar" onClick={() => transitionMutation.mutate({ documentId: document.id, targetStatus: "SENT" })} disabled={transitionMutation.isPending}>
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                      {canTransition(document, "APPROVED") ? (
+                        <Button type="button" variant="ghost" size="icon" title="Aprobar" onClick={() => transitionMutation.mutate({ documentId: document.id, targetStatus: "APPROVED" })} disabled={transitionMutation.isPending}>
+                          <Check className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                      {canTransition(document, "REJECTED") ? (
+                        <Button type="button" variant="ghost" size="icon" title="Rechazar" onClick={() => transitionMutation.mutate({ documentId: document.id, targetStatus: "REJECTED" })} disabled={transitionMutation.isPending}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                      {canTransition(document, "CANCELLED") ? (
+                        <Button type="button" variant="ghost" size="icon" title="Anular" onClick={() => transitionMutation.mutate({ documentId: document.id, targetStatus: "CANCELLED" })} disabled={transitionMutation.isPending}>
+                          <Slash className="h-4 w-4" />
+                        </Button>
+                      ) : null}
                       <Button type="button" variant="ghost" size="icon" title="Duplicar" onClick={() => openDuplicate(document)} disabled={duplicateMutation.isPending}>
                         <Copy className="h-4 w-4" />
                       </Button>

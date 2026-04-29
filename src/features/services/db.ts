@@ -13,8 +13,11 @@ export type UntypedQueryBuilder = {
   delete: () => UntypedQueryBuilder;
 };
 
+type RpcResult<T> = Promise<{ data: T | null; error: Error | null }>;
+
 type UntypedSupabase = {
   from: (table: string) => UntypedQueryBuilder;
+  rpc: (fn: string, params?: Record<string, unknown>) => RpcResult<unknown>;
 };
 
 export const serviceDb = supabase as unknown as UntypedSupabase;
