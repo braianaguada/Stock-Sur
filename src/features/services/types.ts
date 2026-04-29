@@ -13,7 +13,7 @@ export type ServiceDocument = {
   company_id: string;
   customer_id: string | null;
   customers?: ServiceCustomer | null;
-  type: "QUOTE";
+  type: "QUOTE" | "REMITO";
   status: ServiceDocumentStatus;
   number: number;
   reference: string | null;

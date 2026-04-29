@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Check, Copy, Edit, Plus, Printer, Search, Slash, Send, X } from "lucide-react";
+import { Check, Copy, Edit, Plus, Printer, Search, Slash, Send, Truck, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { FilterBar, PageHeader } from "@/components/ui/page";
@@ -88,7 +88,7 @@ export default function ServiceDocumentsPage() {
     setLines([{ ...EMPTY_SERVICE_LINE }]);
   };
 
-  const { upsertMutation, duplicateMutation, transitionMutation } = useServiceDocumentMutations({
+  const { upsertMutation, duplicateMutation, convertToRemitoMutation, transitionMutation } = useServiceDocumentMutations({
     companyId: currentCompany?.id ?? null,
     userId: user?.id,
     editingDocumentId,
@@ -126,6 +126,8 @@ export default function ServiceDocumentsPage() {
     if (target === "CANCELLED") return document.status === "DRAFT" || document.status === "SENT" || document.status === "APPROVED";
     return false;
   };
+
+  const canConvertToRemito = (document: ServiceDocument) => document.type === "QUOTE" && document.status === "APPROVED";
 
   const updateLine = (index: number, patch: Partial<ServiceDocumentLine>) => {
     setLines((previous) =>
@@ -216,6 +218,11 @@ export default function ServiceDocumentsPage() {
                       {canTransition(document, "CANCELLED") ? (
                         <Button type="button" variant="ghost" size="icon" title="Anular" onClick={() => transitionMutation.mutate({ documentId: document.id, targetStatus: "CANCELLED" })} disabled={transitionMutation.isPending}>
                           <Slash className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                      {canConvertToRemito(document) ? (
+                        <Button type="button" variant="ghost" size="icon" title="Convertir a remito" onClick={() => convertToRemitoMutation.mutate(document.id)} disabled={convertToRemitoMutation.isPending}>
+                          <Truck className="h-4 w-4" />
                         </Button>
                       ) : null}
                       <Button type="button" variant="ghost" size="icon" title="Duplicar" onClick={() => openDuplicate(document)} disabled={duplicateMutation.isPending}>

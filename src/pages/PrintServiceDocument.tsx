@@ -17,6 +17,7 @@ export default function PrintServiceDocumentPage() {
 
   if (!id) return <div className="p-8">Documento no encontrado</div>;
   if (!selectedDocument) return <div className="p-8">Cargando presupuesto...</div>;
+  const isRemito = selectedDocument.type === "REMITO";
 
   return (
     <main className="min-h-screen bg-slate-100 py-6 print:bg-white print:py-0">
@@ -39,7 +40,7 @@ export default function PrintServiceDocumentPage() {
             </div>
           </div>
           <div className="rounded-lg bg-slate-900 p-5 text-white">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Presupuesto de servicio</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-300">{isRemito ? "Remito de servicio" : "Presupuesto de servicio"}</p>
             <p className="mt-3 text-3xl font-bold">SERV-{String(selectedDocument.number).padStart(6, "0")}</p>
             <p className="mt-3 text-sm text-slate-200">Fecha: {formatIsoDate(selectedDocument.issue_date)}</p>
             {selectedDocument.valid_until ? <p className="text-sm text-slate-200">Vigencia: {formatIsoDate(selectedDocument.valid_until)}</p> : null}
