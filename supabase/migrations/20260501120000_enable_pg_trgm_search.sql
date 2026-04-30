@@ -50,4 +50,3 @@ create index if not exists documents_company_external_invoice_trgm_idx
 
 create index if not exists documents_company_doc_number_idx
   on public.documents (company_id, document_number);
-

@@ -75,6 +75,7 @@ function buildEmptyDocumentForm(defaultPointOfSale: number, defaultCustomerId = 
     doc_type: "PRESUPUESTO",
     point_of_sale: defaultPointOfSale,
     customer_id: defaultCustomerId,
+    technician_id: "",
     customer_name: "",
     customer_tax_condition: "",
     customer_tax_id: "",
@@ -109,6 +110,7 @@ export default function DocumentsPage() {
 
   const {
     customers,
+    technicians,
     items,
     priceLists,
     availableItems,
@@ -261,6 +263,7 @@ export default function DocumentsPage() {
     issueMutation,
     transitionMutation,
     cloneAsRemitoMutation,
+    cloneAsReturnMutation,
     setExternalInvoiceMutation,
     clearExternalInvoiceMutation,
   } = useDocumentsMutations({
@@ -268,6 +271,7 @@ export default function DocumentsPage() {
     userId: user?.id,
     documents,
     customers,
+    technicians,
     lines,
     form,
     totalDraft,
@@ -626,6 +630,9 @@ export default function DocumentsPage() {
             if (!canCloneBudgetToRemito(roles)) return;
             cloneAsRemitoMutation.mutate(documentId);
           }}
+          onGenerateReturn={(documentId) => {
+            cloneAsReturnMutation.mutate(documentId);
+          }}
           canPrintDocument={canPrintDocument(roles)}
           canEditDocumentDraft={canEditDocumentDraft(roles)}
           canIssueRemito={canIssueRemito(roles)}
@@ -666,6 +673,7 @@ export default function DocumentsPage() {
             setLines={setLines}
             totalDraft={totalDraft}
             customers={customers}
+            technicians={technicians}
             priceLists={priceLists}
             availableItems={availableItems}
             onAddItem={onAddItem}

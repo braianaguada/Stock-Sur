@@ -25,6 +25,11 @@ type CustomerOption = {
   name: string;
 };
 
+type TechnicianOption = {
+  id: string;
+  name: string;
+};
+
 type AvailableItemOption = {
   id: string;
   sku: string;
@@ -45,6 +50,7 @@ interface DocumentsEditorDialogProps {
   setLines: React.Dispatch<React.SetStateAction<LineDraft[]>>;
   totalDraft: number;
   customers: CustomerOption[];
+  technicians: TechnicianOption[];
   priceLists: PriceListRow[];
   availableItems: AvailableItemOption[];
   onPriceListChange: (priceListId: string) => void;
@@ -69,6 +75,7 @@ export function DocumentsEditorDialog({
   setLines,
   totalDraft,
   customers,
+  technicians,
   priceLists,
   availableItems,
   onPriceListChange,
@@ -275,6 +282,29 @@ export function DocumentsEditorDialog({
                       {customers.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
                           {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tecnico</Label>
+                  <Select
+                    value={form.technician_id || "__none__"}
+                    onValueChange={(value) =>
+                      setForm((previousForm) => ({
+                        ...previousForm,
+                        technician_id: value === "__none__" ? "" : value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger><SelectValue placeholder="Sin seleccionar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin seleccionar</SelectItem>
+                      {technicians.map((technician) => (
+                        <SelectItem key={technician.id} value={technician.id}>
+                          {technician.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
