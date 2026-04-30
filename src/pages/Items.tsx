@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { VisibilityState } from "@tanstack/react-table";
@@ -19,6 +19,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
+import { useSearch } from "@/hooks/useSearch";
 import { useAuth } from "@/contexts/AuthContext";
 import { PackageX, Plus, Search } from "lucide-react";
 import { cleanText, normalizeAlias } from "@/lib/clean";
@@ -145,8 +146,7 @@ function sortItems(items: Item[], sortBy: ItemSortField, sortDirection: SortDire
 
 export default function ItemsPage() {
   const { currentCompany, user } = useAuth();
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
+  const { search, deferredSearch, setSearch, trimmedSearch } = useSearch();
   const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
@@ -185,7 +185,7 @@ export default function ItemsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [deferredSearch, categoryFilter, statusFilter, pageSize, sortBy, sortDirection]);
+  }, [trimmedSearch, categoryFilter, statusFilter, pageSize, sortBy, sortDirection]);
 
   useEffect(() => {
     if (!currentCompany || editingItem) return;
@@ -327,7 +327,7 @@ export default function ItemsPage() {
 
   const items = useMemo(() => {
     const allItems = itemsQuery.data ?? [];
-    const searchTerm = deferredSearch.trim();
+    const searchTerm = trimmedSearch;
     const baseItems = searchTerm
       ? rankNaturalItemSearch({
         items: allItems,
@@ -359,7 +359,7 @@ export default function ItemsPage() {
     }
 
     return sorted;
-  }, [aliasesSearchQuery.data, deferredSearch, itemsQuery.data, sortBy, sortDirection, stockByItemId, supplierFilter, stockFilter]);
+  }, [aliasesSearchQuery.data, itemsQuery.data, sortBy, sortDirection, stockByItemId, supplierFilter, stockFilter, trimmedSearch]);
 
   const totalItems = items.length;
   const paginatedItems = useMemo(() => {
