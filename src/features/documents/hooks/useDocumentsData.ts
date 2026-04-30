@@ -162,7 +162,7 @@ export function useDocumentsData({
       if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
       if (trimmedSearch) {
         const n = Number.parseInt(trimmedSearch, 10);
-        const clauses = [`customer_name.ilike.%${trimmedSearch}%`];
+        const clauses = [`customer_name.ilike.%${trimmedSearch}%`, `external_invoice_number.ilike.%${trimmedSearch}%`];
         if (Number.isFinite(n)) clauses.push(`document_number.eq.${n}`);
         q = q.or(clauses.join(","));
       }
