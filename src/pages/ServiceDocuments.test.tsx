@@ -62,9 +62,14 @@ import ServiceDocumentsPage from "./ServiceDocuments";
 describe("ServiceDocumentsPage", () => {
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   it("shows preview and print actions and opens preview dialog", () => {
+    const write = vi.fn();
+    const focus = vi.fn();
+    vi.stubGlobal("open", vi.fn(() => ({ document: { open: vi.fn(), write, close: vi.fn() }, focus })));
+
     render(<ServiceDocumentsPage />);
 
     expect(screen.getByText("Documentos")).toBeInTheDocument();
@@ -74,5 +79,8 @@ describe("ServiceDocumentsPage", () => {
     fireEvent.click(screen.getByTitle("Vista previa"));
     expect(screen.getByText("Vista previa del presupuesto de servicio")).toBeInTheDocument();
     expect(screen.getAllByText("Cliente Demo").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByText("Abrir impresión"));
+    expect(window.open).toHaveBeenCalled();
   });
 });
