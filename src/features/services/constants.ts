@@ -5,7 +5,7 @@ export const SERVICE_STATUS_LABEL: Record<ServiceDocumentStatus, string> = {
   SENT: "Enviado",
   APPROVED: "Aprobado",
   REJECTED: "Rechazado",
-  CANCELLED: "Cancelado",
+  CANCELLED: "Anulado",
 };
 
 export const DEFAULT_SERVICE_TEXTS = {
@@ -17,6 +17,8 @@ export const DEFAULT_SERVICE_TEXTS = {
   payment_terms: "50% de anticipo y saldo contra finalizacion del servicio.",
   delivery_location: "En instalaciones del cliente o lugar a coordinar.",
 };
+
+export const SERVICE_DOCUMENT_PREFIX = "SERV";
 
 export const EMPTY_SERVICE_LINE: ServiceDocumentLine = {
   description: "",

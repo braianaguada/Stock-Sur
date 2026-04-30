@@ -13,7 +13,7 @@ export type ServiceDocument = {
   company_id: string;
   customer_id: string | null;
   customers?: ServiceCustomer | null;
-  type: "QUOTE";
+  type: "QUOTE" | "REMITO";
   status: ServiceDocumentStatus;
   number: number;
   reference: string | null;
@@ -54,4 +54,13 @@ export type ServiceDocumentForm = {
   delivery_location: string;
   closing_text: string;
   currency: string;
+};
+
+export type ServiceDocumentEvent = {
+  id: string;
+  document_id: string;
+  event_type: string;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+  created_by: string | null;
 };
