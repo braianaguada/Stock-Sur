@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { FilterBar, PageHeader } from "@/components/ui/page";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -188,6 +189,28 @@ export default function ServiceDocumentsPage() {
         </FilterBar>
 
         <section className="data-panel overflow-hidden">
+          {isLoading ? (
+            <div className="grid gap-3 p-6">
+              <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+              <div className="h-24 animate-pulse rounded-lg border bg-muted/30" />
+              <div className="h-24 animate-pulse rounded-lg border bg-muted/30" />
+              <div className="h-24 animate-pulse rounded-lg border bg-muted/30" />
+            </div>
+          ) : documents.length === 0 ? (
+            <Card className="m-4 border-dashed">
+              <CardContent className="flex flex-col items-start gap-3 p-6">
+                <div>
+                  <h3 className="text-base font-semibold">Todavía no hay presupuestos de servicio</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Creá el primero para empezar a registrar trabajos manuales sin tocar stock ni caja.
+                  </p>
+                </div>
+                <Button onClick={openCreate} disabled={!canManageServiceDocuments}>
+                  <Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -259,6 +282,7 @@ export default function ServiceDocumentsPage() {
               ))}
             </TableBody>
           </Table>
+          )}
         </section>
       </div>
 
