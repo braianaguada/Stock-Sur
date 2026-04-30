@@ -106,7 +106,7 @@ export default function ServiceDocumentsPage() {
       case "UPDATED":
         return "Documento actualizado";
       case "STATUS_CHANGED":
-        return `Estado cambiado a ${(event.payload?.to as string | undefined) ?? "actualizado"}`;
+        return `Estado cambiado a ${SERVICE_STATUS_LABEL[(event.payload?.to as ServiceDocumentStatus | undefined) ?? "DRAFT"] ?? "actualizado"}`;
       case "DUPLICATED":
         return "Documento duplicado";
       case "CONVERTED_TO_REMITO":
@@ -146,7 +146,7 @@ export default function ServiceDocumentsPage() {
       .shell{width:190mm;max-width:190mm;margin:0 auto;padding:6mm 0}
       .sheet{border:1px solid #dbe3ee;border-radius:22px;padding:8mm;background:#fff;box-shadow:0 20px 60px rgba(15,23,42,.08)}
       .head{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;padding-bottom:16px;border-bottom:1px solid #dbe3ee}
-      .brand{min-height:140px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#ffffff 0%,#f5f9ff 60%,#eef4ff 100%);border:1px solid #dbe7f5;display:flex;flex-direction:column;justify-content:space-between}
+      .brand{min-height:140px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#ffffff 0%,#f5f9ff 60%,#eef4ff 100%);border:1px solid #dbe7f5;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px}
       .eyebrow{display:inline-flex;width:max-content;border:1px solid #dbe3ee;border-radius:999px;background:#fff;padding:6px 12px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#475569}
       .brand-name{font-size:20px;font-weight:800;color:#0f172a;letter-spacing:.04em}
       .muted{color:#475569;font-size:12px;margin:2px 0}
@@ -479,7 +479,7 @@ export default function ServiceDocumentsPage() {
                     <div className="h-1 w-full bg-gradient-to-r from-primary/80 via-primary/35 to-transparent" />
                     <div className="border-b border-border/60 px-5 py-4 sm:px-6">
                       <div className="grid gap-3 lg:grid-cols-[1.15fr_.85fr]">
-                        <div className="rounded-2xl border border-border/60 bg-background/60 p-3.5">
+                        <div className="rounded-2xl border border-border/60 bg-background/60 p-3.5 text-center">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <Badge variant="outline">{SERVICE_STATUS_LABEL[previewDocument.status]}</Badge>
                             <div className="text-right">
@@ -487,7 +487,7 @@ export default function ServiceDocumentsPage() {
                               <p className="mt-1 text-lg font-semibold text-foreground">{SERVICE_DOCUMENT_PREFIX}-{String(previewDocument.number).padStart(6, "0")}</p>
                             </div>
                           </div>
-                          <div className="mt-4 flex items-center gap-4 border-t border-border/60 pt-4">
+                          <div className="mt-4 flex flex-col items-center justify-center gap-2 border-t border-border/60 pt-4">
                             {settings.logo_url ? <img src={settings.logo_url} alt={settings.app_name} className="h-12 w-12 rounded-full object-contain" /> : null}
                             <div className="min-w-0">
                               <p className="text-xl font-semibold tracking-tight text-foreground">{settings.legal_name ?? settings.app_name}</p>
@@ -618,6 +618,3 @@ export default function ServiceDocumentsPage() {
     </AppLayout>
   );
 }
-
-
-
