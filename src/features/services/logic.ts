@@ -1,6 +1,13 @@
 import { DEFAULT_SERVICE_TEXTS } from "./constants";
 import type { ServiceDocument, ServiceDocumentForm, ServiceDocumentStatus } from "./types";
 
+function toLocalDateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function buildInitialServiceDocumentForm(settings: {
   document_tagline?: string | null;
   document_footer?: string | null;
@@ -13,12 +20,13 @@ export function buildInitialServiceDocumentForm(settings: {
   address?: string | null;
 }): ServiceDocumentForm {
   const validDays = settings.service_default_valid_days ?? 0;
-  const validUntil = validDays > 0 ? new Date(Date.now() + validDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) : "";
+  const issueDate = new Date();
+  const validUntil = validDays > 0 ? toLocalDateInputValue(new Date(issueDate.getFullYear(), issueDate.getMonth(), issueDate.getDate() + validDays)) : "";
   return {
     customer_id: "",
     status: "DRAFT",
     reference: "",
-    issue_date: new Date().toISOString().slice(0, 10),
+    issue_date: toLocalDateInputValue(issueDate),
     valid_until: validUntil,
     intro_text: settings.document_tagline || settings.service_default_intro_text || DEFAULT_SERVICE_TEXTS.intro_text,
     delivery_time: settings.service_default_delivery_time || DEFAULT_SERVICE_TEXTS.delivery_time,

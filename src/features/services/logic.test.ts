@@ -34,6 +34,16 @@ describe("service document logic", () => {
     expect(form.status).toBe("DRAFT");
   });
 
+  it("uses the local date for new service documents", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 3, 29, 23, 30, 0));
+
+    const form = buildInitialServiceDocumentForm({ service_default_valid_days: 1 });
+
+    expect(form.issue_date).toBe("2026-04-29");
+    expect(form.valid_until).toBe("2026-04-30");
+  });
+
   it("allows only the expected status transitions", () => {
     expect(canTransitionServiceDocument({ status: "DRAFT" }, "SENT")).toBe(true);
     expect(canTransitionServiceDocument({ status: "SENT" }, "APPROVED")).toBe(true);
