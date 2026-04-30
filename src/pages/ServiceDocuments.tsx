@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Check, Copy, Edit, Plus, Printer, Search, Slash, Send, Truck, X } from "lucide-react";
+import { Check, Copy, Edit, Plus, Printer, Search, Slash, Send, Trash2, Truck, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { FilterBar, PageHeader } from "@/components/ui/page";
