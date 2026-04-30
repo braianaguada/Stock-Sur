@@ -205,12 +205,12 @@ export default function ServiceDocumentsPage() {
               <div className="h-24 animate-pulse rounded-lg border bg-muted/30" />
             </div>
           ) : documents.length === 0 ? (
-            <Card className="m-4 border-dashed">
+            <Card className="m-4 border-dashed bg-muted/15">
               <CardContent className="flex flex-col items-start gap-3 p-6">
                 <div>
-                  <h3 className="text-base font-semibold">Todavía no hay presupuestos de servicio</h3>
+                  <h3 className="text-base font-semibold">Todav�a no hay presupuestos de servicio</h3>
                   <p className="text-sm text-muted-foreground">
-                    Creá el primero para empezar a registrar trabajos manuales sin tocar stock ni caja.
+                    Cre� el primero para empezar a registrar trabajos manuales sin tocar stock ni caja.
                   </p>
                 </div>
                 <Button onClick={openCreate} disabled={!canManageServiceDocuments}>
@@ -278,7 +278,7 @@ export default function ServiceDocumentsPage() {
                         <Eye className="h-4 w-4" />
                       </Button>
                       {canPrintServiceDocuments ? (
-                        <Button asChild type="button" variant="ghost" size="icon" title="Imprimir">
+                        <Button asChild variant="ghost" size="icon" title="Imprimir">
                           <a href={`/print/service-document/${document.id}`} target="_blank" rel="noreferrer">
                             <Printer className="h-4 w-4" />
                           </a>
@@ -366,7 +366,7 @@ export default function ServiceDocumentsPage() {
                         <div className="font-medium">{describeEvent(event)}</div>
                         <div className="text-muted-foreground">
                           {new Date(event.created_at).toLocaleString("es-AR")}
-                          {event.created_by ? ` · ${event.created_by.slice(0, 8)}` : ""}
+                          {event.created_by ? ` � ${event.created_by.slice(0, 8)}` : ""}
                         </div>
                       </div>
                     </div>
@@ -437,3 +437,4 @@ export default function ServiceDocumentsPage() {
     </AppLayout>
   );
 }
+
