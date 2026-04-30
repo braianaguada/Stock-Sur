@@ -459,15 +459,34 @@ export default function ServiceDocumentsPage() {
               </div>
               <aside className="min-h-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable] 2xl:min-w-[380px]">
                 <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
-                  <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Resumen</p>
-                  <div className="mt-5 space-y-3">
-                    {previewDocument.closing_text ? (
-                      <div className="rounded-xl border border-border/60 bg-background/80 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Cierre</p>
-                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground/85">{previewDocument.closing_text}</p>
-                      </div>
-                    ) : null}
-                  </div>
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Historial</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Trazabilidad del documento.</p>
+                  {selectedEvents.length === 0 ? (
+                    <div className="mt-5 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center">
+                        <p className="mt-1 text-sm font-medium text-muted-foreground">Sin eventos registrados</p>
+                    </div>
+                  ) : (
+                    <div className="mt-5 space-y-3">
+                      {selectedEvents.map((event, index) => (
+                        <div key={event.id} className="grid grid-cols-[14px_minmax(0,1fr)] gap-3 rounded-xl border border-border/60 bg-background/80 p-4">
+                          <div className="relative flex justify-center">
+                            <div className="absolute top-0 bottom-0 w-px bg-border/70" />
+                            <div className="relative mt-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-slate-100">
+                              <span className="h-2 w-2 rounded-full bg-slate-500" />
+                            </div>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold leading-5 text-foreground">{describeEvent(event)}</p>
+                            <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                              {new Date(event.created_at).toLocaleString("es-AR")}
+                              {event.created_by ? ` · ${event.created_by.slice(0, 8)}` : ""}
+                            </p>
+                            {index === 0 ? <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-emerald-500 font-semibold">Más reciente</p> : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </section>
               </aside>
             </div>
