@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
+import { useSearch } from "@/hooks/useSearch";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { buildItemDisplayName } from "@/lib/item-display";
 import { getErrorMessage } from "@/lib/errors";
@@ -95,8 +96,7 @@ export default function DocumentsPage() {
   const { settings: companySettings } = useCompanyBrand();
   const defaultPointOfSale = companySettings.default_point_of_sale ?? 1;
 
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
+  const { search, deferredSearch, setSearch, trimmedSearch } = useSearch();
   const [typeFilter, setTypeFilter] = useState<DocType | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<DocStatus | "ALL">("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -124,7 +124,7 @@ export default function DocumentsPage() {
     selectedDocument,
     sourceDocumentLabel,
   } = useDocumentsData({
-    search: deferredSearch,
+    search: trimmedSearch,
     typeFilter,
     statusFilter,
     selectedDocId,
@@ -153,7 +153,7 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     setDocumentsPage(1);
-  }, [deferredSearch, typeFilter, statusFilter, documentsPageSize]);
+  }, [trimmedSearch, typeFilter, statusFilter, documentsPageSize]);
 
   useEffect(() => {
     if (form.price_list_id || priceLists.length === 0) return;

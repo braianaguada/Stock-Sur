@@ -1,10 +1,11 @@
-import { useDeferredValue, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { getErrorMessage } from "@/lib/errors";
 import { invalidateCustomerQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import { supabase } from "@/integrations/supabase/client";
+import { useSearch } from "@/hooks/useSearch";
 import type { CustomerFormState } from "@/features/customers/components/CustomerFormDialog";
 import type { Customer } from "@/features/customers/types";
 
@@ -27,8 +28,7 @@ export function useCustomersPage({
   userId,
   toast,
 }: UseCustomersPageOptions) {
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
+  const { search, deferredSearch, setSearch, trimmedSearch } = useSearch();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
@@ -36,12 +36,12 @@ export function useCustomersPage({
   const qc = useQueryClient();
 
   const customersQuery = useQuery({
-    queryKey: queryKeys.customers.list(companyId ?? null, deferredSearch),
+    queryKey: queryKeys.customers.list(companyId ?? null, trimmedSearch),
     enabled: Boolean(companyId),
     queryFn: async () => {
       let query = supabase.from("customers").select("*").eq("company_id", companyId!).order("name");
-      if (deferredSearch) {
-        query = query.or(`name.ilike.%${deferredSearch}%,cuit.ilike.%${deferredSearch}%`);
+      if (trimmedSearch) {
+        query = query.or(`name.ilike.%${trimmedSearch}%,cuit.ilike.%${trimmedSearch}%`);
       }
       const { data, error } = await query.limit(200);
       if (error) throw error;
