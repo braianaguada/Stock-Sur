@@ -429,12 +429,12 @@ function ItemsDataTableComponent({
             <Copy className="h-3.5 w-3.5" />
           </Button>
           <Button asChild variant="ghost" size="icon" className="h-7 w-7" title="Abrir stock">
-            <Link to="/stock">
+            <Link to={`/stock?itemId=${encodeURIComponent(row.original.id)}`}>
               <Boxes className="h-3.5 w-3.5" />
             </Link>
           </Button>
           <Button asChild variant="ghost" size="icon" className="h-7 w-7" title="Abrir precios">
-            <Link to="/price-lists">
+            <Link to={`/price-lists?itemId=${encodeURIComponent(row.original.id)}`}>
               <Tags className="h-3.5 w-3.5" />
             </Link>
           </Button>
