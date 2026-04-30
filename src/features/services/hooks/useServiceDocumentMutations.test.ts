@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useServiceDocumentMutations } from "./useServiceDocumentMutations";
+import { calculateServiceLineTotal, useServiceDocumentMutations } from "./useServiceDocumentMutations";
 
 const { rpc, invalidateQueries, toast } = vi.hoisted(() => ({
   rpc: vi.fn(),
@@ -105,5 +105,11 @@ describe("useServiceDocumentMutations", () => {
     expect(rpc).toHaveBeenCalledWith("create_service_document_copy", expect.objectContaining({ p_target_type: "QUOTE" }));
     expect(rpc).toHaveBeenCalledWith("create_service_document_copy", expect.objectContaining({ p_target_type: "REMITO" }));
     expect(rpc).toHaveBeenCalledWith("transition_service_document_status", expect.objectContaining({ p_document_id: "doc-3", p_target_status: "APPROVED" }));
+  });
+
+  it("calculates service line totals defensively", () => {
+    expect(calculateServiceLineTotal({ quantity: 2, unit_price: 10, line_total: 0 } as never)).toBe(20);
+    expect(calculateServiceLineTotal({ quantity: 0, unit_price: 10, line_total: 15 } as never)).toBe(15);
+    expect(calculateServiceLineTotal({ quantity: 2, unit_price: 0, line_total: 15 } as never)).toBe(15);
   });
 });
