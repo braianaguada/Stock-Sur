@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { currency, formatIsoDate } from "@/lib/formatters";
@@ -14,6 +15,12 @@ export default function PrintServiceDocumentPage() {
     status: "ALL",
     documentId: id ?? null,
   });
+
+  useEffect(() => {
+    if (selectedDocument) {
+      window.print();
+    }
+  }, [selectedDocument]);
 
   if (!id) return <div className="p-8">Documento no encontrado</div>;
   if (!selectedDocument) return <div className="p-8">Cargando presupuesto...</div>;
@@ -100,7 +107,6 @@ export default function PrintServiceDocumentPage() {
 
         {selectedDocument.closing_text ? <p className="mt-5 whitespace-pre-line text-sm leading-6 text-slate-700">{selectedDocument.closing_text}</p> : null}
       </section>
-      <button className="print-action mx-auto mt-4 block rounded-full bg-slate-900 px-5 py-2 text-sm font-medium text-white" onClick={() => window.print()}>Imprimir / Guardar PDF</button>
     </main>
   );
 }

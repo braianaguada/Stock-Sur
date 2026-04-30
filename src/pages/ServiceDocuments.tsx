@@ -196,7 +196,7 @@ export default function ServiceDocumentsPage() {
         <div class="totals"><div class="totals-box"><div style="display:flex;justify-content:space-between;font-size:12px"><span>Subtotal</span><span>${currency.format(Number(document.subtotal ?? 0))}</span></div><div class="totals-value" style="display:flex;justify-content:space-between"><span>Total</span><span>${currency.format(Number(document.total ?? 0))}</span></div></div></div>
       </div>
       ${document.closing_text ? `<div class="section"><p class="section-title">Cierre</p><div class="text">${escapeHtmlWithLineBreaks(document.closing_text)}</div></div>` : ""}
-      </div></div><button class="print-action" onclick="window.print()">Imprimir / Guardar PDF</button></body></html>`, "noopener,noreferrer,width=1200,height=900");
+      </div></div><button class="print-action" onclick="window.print()">Imprimir / Guardar PDF</button></body></html>`);
     win?.focus();
   };
 
@@ -374,13 +374,13 @@ export default function ServiceDocumentsPage() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-        <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
+      <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle>
             <DialogDescription>Formulario de presupuesto de servicio manual.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-6">
-            <section className="grid gap-4 rounded-xl border bg-muted/10 p-4 md:grid-cols-5">
+          <div className="grid gap-4">
+            <section className="grid gap-3 rounded-xl border bg-muted/10 p-4 md:grid-cols-5">
               <div className="md:col-span-2">
                 <Label>Cliente</Label>
                 <Select value={form.customer_id} onValueChange={(value) => setForm((current) => ({ ...current, customer_id: value }))}>
@@ -393,7 +393,7 @@ export default function ServiceDocumentsPage() {
               <div><Label>Vigencia</Label><Input type="date" value={form.valid_until} onChange={(event) => setForm((current) => ({ ...current, valid_until: event.target.value }))} /></div>
               <div><Label>Estado</Label><Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value as ServiceDocumentStatus }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPTIONS.filter((option) => option !== "ALL").map((option) => <SelectItem key={option} value={option}>{SERVICE_STATUS_LABEL[option]}</SelectItem>)}</SelectContent></Select></div>
             </section>
-            <section className="grid gap-4 rounded-xl border bg-muted/10 p-4">
+            <section className="grid gap-3 rounded-xl border bg-muted/10 p-4">
               <Label>Texto introductorio</Label>
               <Textarea rows={3} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
               <div className="overflow-x-auto rounded-lg border bg-background">
@@ -415,12 +415,12 @@ export default function ServiceDocumentsPage() {
                 <Plus className="mr-2 h-4 w-4" /> Agregar línea
               </Button>
             </section>
-            <section className="grid gap-4 rounded-xl border bg-muted/10 p-4 md:grid-cols-3">
+            <section className="grid gap-3 rounded-xl border bg-muted/10 p-4 md:grid-cols-3">
               <div><Label>Plazo de entrega</Label><Textarea rows={3} value={form.delivery_time} onChange={(event) => setForm((current) => ({ ...current, delivery_time: event.target.value }))} /></div>
               <div><Label>Condiciones de pago</Label><Textarea rows={3} value={form.payment_terms} onChange={(event) => setForm((current) => ({ ...current, payment_terms: event.target.value }))} /></div>
               <div><Label>Lugar de entrega</Label><Textarea rows={3} value={form.delivery_location} onChange={(event) => setForm((current) => ({ ...current, delivery_location: event.target.value }))} /></div>
             </section>
-            <section className="grid gap-4 rounded-xl border bg-muted/10 p-4">
+            <section className="grid gap-3 rounded-xl border bg-muted/10 p-4">
               <Label>Cierre</Label>
               <Textarea rows={3} value={form.closing_text} onChange={(event) => setForm((current) => ({ ...current, closing_text: event.target.value }))} />
               <div className="ml-auto w-full max-w-sm rounded-lg border bg-background p-4 shadow-sm">
@@ -493,18 +493,22 @@ export default function ServiceDocumentsPage() {
                       </div>
                       <div className="px-5 py-4 sm:px-6">
                         <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
-                        <div className="mt-3 space-y-1.5 text-sm">
+                        <div className="mt-3 space-y-1 text-sm leading-5">
                           {previewDocument.reference ? <p className="text-muted-foreground">Referencia: <span className="text-foreground">{previewDocument.reference}</span></p> : null}
                           {previewDocument.delivery_time ? <p className="text-muted-foreground">Plazo: <span className="text-foreground">{previewDocument.delivery_time}</span></p> : null}
                           {previewDocument.payment_terms ? <p className="text-muted-foreground">Pago: <span className="text-foreground">{previewDocument.payment_terms}</span></p> : null}
                           {previewDocument.delivery_location ? <p className="text-muted-foreground">Entrega: <span className="text-foreground">{previewDocument.delivery_location}</span></p> : null}
-                          {previewDocument.intro_text ? <p className="text-muted-foreground">Intro: <span className="text-foreground whitespace-pre-line">{previewDocument.intro_text}</span></p> : null}
-                          {previewDocument.closing_text ? <p className="text-muted-foreground">Cierre: <span className="text-foreground whitespace-pre-line">{previewDocument.closing_text}</span></p> : null}
                           {previewDocument.type === "REMITO" && previewDocument.source_document_number_snapshot ? <p className="text-muted-foreground">Origen: <span className="text-foreground">{previewDocument.source_document_number_snapshot}</span></p> : null}
                         </div>
                       </div>
                     </div>
                   </section>
+                  {previewDocument.intro_text ? (
+                    <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+                      <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Introducción</p>
+                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/85">{previewDocument.intro_text}</p>
+                    </section>
+                  ) : null}
                   <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div>
@@ -537,6 +541,12 @@ export default function ServiceDocumentsPage() {
                       </Table>
                     </div>
                   </section>
+                  {previewDocument.closing_text ? (
+                    <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+                      <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Cierre</p>
+                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/85">{previewDocument.closing_text}</p>
+                    </section>
+                  ) : null}
                 </div>
               </div>
               <aside className="min-h-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable] 2xl:min-w-[380px]">
