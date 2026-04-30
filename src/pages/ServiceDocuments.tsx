@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Check, Copy, Edit, Eye, Plus, Printer, Search, Slash, Send, Trash2, Truck, X } from "lucide-react";
+import { Check, Copy, Edit, Eye, Plus, Printer, Search, Slash, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { FilterBar, PageHeader } from "@/components/ui/page";
@@ -19,7 +19,7 @@ import { currency, formatIsoDate } from "@/lib/formatters";
 import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
 import { serviceDb } from "@/features/services/db";
 import { EMPTY_SERVICE_LINE, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
-import { buildInitialServiceDocumentForm, canConvertServiceDocumentToRemito, canTransitionServiceDocument } from "@/features/services/logic";
+import { buildInitialServiceDocumentForm, canTransitionServiceDocument } from "@/features/services/logic";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
 import { useServiceDocuments } from "@/features/services/hooks/useServiceDocuments";
 import type { ServiceDocument, ServiceDocumentEvent, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
@@ -72,7 +72,7 @@ export default function ServiceDocumentsPage() {
     setLines([{ ...EMPTY_SERVICE_LINE }]);
   };
 
-  const { upsertMutation, duplicateMutation, convertToRemitoMutation, transitionMutation } = useServiceDocumentMutations({
+  const { upsertMutation, duplicateMutation, transitionMutation } = useServiceDocumentMutations({
     companyId: currentCompany?.id ?? null,
     editingDocumentId,
     form,
@@ -194,7 +194,7 @@ export default function ServiceDocumentsPage() {
           ${document.customers?.cuit ? `<p class="muted"><strong>CUIT:</strong> ${escapeHtml(document.customers.cuit)}</p>` : ""}
         </div>
         <div class="meta-card">
-          <p class="meta-title">Operaci贸n</p>
+          <p class="meta-title">Operaci髇</p>
           ${document.reference ? `<p class="muted"><strong>Referencia:</strong> ${escapeHtml(document.reference)}</p>` : ""}
           ${document.delivery_time ? `<p class="muted"><strong>Plazo de entrega:</strong> ${escapeHtml(document.delivery_time)}</p>` : ""}
           ${document.payment_terms ? `<p class="muted"><strong>Condiciones de pago:</strong> ${escapeHtml(document.payment_terms)}</p>` : ""}
@@ -204,7 +204,7 @@ export default function ServiceDocumentsPage() {
       ${document.intro_text ? `<div class="section"><p class="section-title">Texto introductorio</p><div class="text">${escapeHtmlWithLineBreaks(document.intro_text)}</div></div>` : ""}
       <div class="section">
         <p class="section-title">Lineas</p>
-        <table><thead><tr><th>Descripci贸n</th><th style="width:72px;text-align:right">Cant.</th><th style="width:110px;text-align:right">Total</th></tr></thead>
+        <table><thead><tr><th>Descripci髇</th><th style="width:72px;text-align:right">Cant.</th><th style="width:110px;text-align:right">Total</th></tr></thead>
         <tbody>${documentLines.map((line) => `<tr><td>${escapeHtml(line.description)}</td><td style="text-align:right">${Number(line.quantity ?? 0).toLocaleString("es-AR")}</td><td style="text-align:right">${currency.format(Number(line.line_total ?? 0))}</td></tr>`).join("")}</tbody></table>
         <div class="totals"><div class="totals-box"><div style="display:flex;justify-content:space-between;font-size:12px"><span>Subtotal</span><span>${currency.format(Number(document.subtotal ?? 0))}</span></div><div class="totals-value" style="display:flex;justify-content:space-between"><span>Total</span><span>${currency.format(Number(document.total ?? 0))}</span></div></div></div>
       </div>
@@ -229,11 +229,6 @@ export default function ServiceDocumentsPage() {
   const triggerDuplicate = (document: ServiceDocument) => {
     if (!confirmAction(`Duplicar el documento ${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")} ?`)) return;
     duplicateMutation.mutate(document.id);
-  };
-
-  const triggerRemito = (document: ServiceDocument) => {
-    if (!confirmAction(`Convertir el documento ${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")} en remito de servicio?`)) return;
-    convertToRemitoMutation.mutate(document.id);
   };
 
   const updateLine = (index: number, patch: Partial<ServiceDocumentLine>) => {
@@ -354,26 +349,21 @@ export default function ServiceDocumentsPage() {
                             <Slash className="h-4 w-4" />
                           </Button>
                         ) : null}
-                        {canManageServiceDocuments && canConvertServiceDocumentToRemito(document) ? (
-                          <Button type="button" variant="ghost" size="icon" title="Convertir a remito" onClick={() => triggerRemito(document)} disabled={convertToRemitoMutation.isPending}>
-                            <Truck className="h-4 w-4" />
-                          </Button>
-                        ) : null}
                         {canManageServiceDocuments ? (
-                          <Button type="button" variant="ghost" size="icon" title="Duplicar" onClick={() => triggerDuplicate(document)} disabled={duplicateMutation.isPending}>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Duplicar" onClick={() => triggerDuplicate(document)} disabled={duplicateMutation.isPending}>
                             <Copy className="h-4 w-4" />
                           </Button>
                         ) : null}
-                        <Button type="button" variant="ghost" size="icon" title="Vista previa" onClick={() => openPreview(document)}>
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Vista previa" onClick={() => openPreview(document)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         {canPrintServiceDocuments ? (
-                          <Button type="button" variant="ghost" size="icon" title="Imprimir" onClick={() => void openServicePrint(document)}>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Imprimir" onClick={() => void openServicePrint(document)}>
                             <Printer className="h-4 w-4" />
                           </Button>
                         ) : null}
                         {canEditServiceDocuments && document.status === "DRAFT" ? (
-                          <Button type="button" variant="ghost" size="icon" title="Editar" onClick={() => openEdit(document)}>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Editar" onClick={() => openEdit(document)}>
                             <Edit className="h-4 w-4" />
                           </Button>
                         ) : null}
@@ -412,7 +402,7 @@ export default function ServiceDocumentsPage() {
               <Textarea rows={3} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
               <div className="overflow-x-auto rounded-lg border bg-background">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Descripci贸n</TableHead><TableHead className="w-28">Cantidad</TableHead><TableHead className="w-28">Unidad</TableHead><TableHead className="w-36">Precio</TableHead><TableHead className="w-36 text-right">Total</TableHead><TableHead className="w-12" /></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Descripci髇</TableHead><TableHead className="w-28">Cantidad</TableHead><TableHead className="w-28">Unidad</TableHead><TableHead className="w-36">Precio</TableHead><TableHead className="w-36 text-right">Total</TableHead><TableHead className="w-12" /></TableRow></TableHeader>
                   <TableBody>{lines.map((line, index) => (
                     <TableRow key={index}>
                       <TableCell><Textarea rows={2} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
@@ -519,7 +509,7 @@ export default function ServiceDocumentsPage() {
                         </div>
                       </div>
                       <div className="px-5 py-4 sm:px-6">
-                        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operaci贸n</p>
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operaci髇</p>
                         <div className="mt-3 space-y-1 text-sm leading-5">
                           {previewDocument.reference ? <p className="text-muted-foreground">Referencia: <span className="text-foreground">{previewDocument.reference}</span></p> : null}
                           {previewDocument.delivery_time ? <p className="text-muted-foreground">Plazo: <span className="text-foreground">{previewDocument.delivery_time}</span></p> : null}
@@ -532,14 +522,14 @@ export default function ServiceDocumentsPage() {
                   </section>
                   {previewDocument.intro_text ? (
                     <section className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
-                      <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Introducci贸n</p>
+                      <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Introducci髇</p>
                       <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/85">{previewDocument.intro_text}</p>
                     </section>
                   ) : null}
                   <section className="rounded-2xl border border-border/60 bg-card/90 p-3 shadow-sm">
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">L铆neas</p>
+                        <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">L韓eas</p>
                         <p className="mt-1 text-sm text-muted-foreground">Detalle principal del documento.</p>
                       </div>
                       <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-right">
@@ -551,7 +541,7 @@ export default function ServiceDocumentsPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Descripci贸n</TableHead>
+                            <TableHead>Descripci髇</TableHead>
                             <TableHead className="w-28 text-right">Cantidad</TableHead>
                             <TableHead className="w-32 text-right">Total</TableHead>
                           </TableRow>
@@ -621,3 +611,6 @@ export default function ServiceDocumentsPage() {
     </AppLayout>
   );
 }
+
+
+
