@@ -26,7 +26,7 @@ export interface DocumentFormState {
   doc_type: DocType;
   point_of_sale: number;
   customer_id: string;
-  technician_id: string;
+  technician_id?: string;
   customer_name: string;
   customer_tax_condition: string;
   customer_tax_id: string;
@@ -48,7 +48,8 @@ export interface DocRow {
   document_number: number | null;
   issue_date: string;
   customer_id: string | null;
-  technician_id: string | null;
+  technician_id?: string | null;
+  origin_document_id?: string | null;
   customer_name: string | null;
   customer_tax_id: string | null;
   customer_tax_condition: string | null;
