@@ -125,6 +125,10 @@ export default function ServiceDocumentsPage() {
   const confirmAction = (message: string) => window.confirm(message);
 
   const openServicePrint = async (document: ServiceDocument) => {
+    const win = openPrintWindow(`<!doctype html><html><head><title>Imprimiendo...</title><style>
+      html,body{margin:0;padding:0;background:#fff}
+      body{font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#334155}
+      </style></head><body>Preparando impresión...</body></html>`);
     const { data: lineRows } = await serviceDb
       .from("service_document_lines")
       .select("id, document_id, description, quantity, unit, unit_price, line_total, sort_order")
@@ -132,7 +136,9 @@ export default function ServiceDocumentsPage() {
       .order("sort_order");
     const documentLines = (lineRows ?? []) as ServiceDocumentLine[];
     const title = `${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")}`;
-    const win = openPrintWindow(`<!doctype html><html><head><title>${escapeHtml(title)}</title>
+    if (!win) return;
+    win.document.open();
+    win.document.write(`<!doctype html><html><head><title>${escapeHtml(title)}</title>
       <style>
       @page{size:A4 portrait;margin:10mm}
       html,body{margin:0;padding:0}
@@ -188,7 +194,7 @@ export default function ServiceDocumentsPage() {
           ${document.customers?.cuit ? `<p class="muted"><strong>CUIT:</strong> ${escapeHtml(document.customers.cuit)}</p>` : ""}
         </div>
         <div class="meta-card">
-          <p class="meta-title">Operacion</p>
+          <p class="meta-title">Operación</p>
           ${document.reference ? `<p class="muted"><strong>Referencia:</strong> ${escapeHtml(document.reference)}</p>` : ""}
           ${document.delivery_time ? `<p class="muted"><strong>Plazo de entrega:</strong> ${escapeHtml(document.delivery_time)}</p>` : ""}
           ${document.payment_terms ? `<p class="muted"><strong>Condiciones de pago:</strong> ${escapeHtml(document.payment_terms)}</p>` : ""}
@@ -198,13 +204,14 @@ export default function ServiceDocumentsPage() {
       ${document.intro_text ? `<div class="section"><p class="section-title">Texto introductorio</p><div class="text">${escapeHtmlWithLineBreaks(document.intro_text)}</div></div>` : ""}
       <div class="section">
         <p class="section-title">Lineas</p>
-        <table><thead><tr><th>Descripcion</th><th style="width:72px;text-align:right">Cant.</th><th style="width:110px;text-align:right">Total</th></tr></thead>
+        <table><thead><tr><th>Descripción</th><th style="width:72px;text-align:right">Cant.</th><th style="width:110px;text-align:right">Total</th></tr></thead>
         <tbody>${documentLines.map((line) => `<tr><td>${escapeHtml(line.description)}</td><td style="text-align:right">${Number(line.quantity ?? 0).toLocaleString("es-AR")}</td><td style="text-align:right">${currency.format(Number(line.line_total ?? 0))}</td></tr>`).join("")}</tbody></table>
         <div class="totals"><div class="totals-box"><div style="display:flex;justify-content:space-between;font-size:12px"><span>Subtotal</span><span>${currency.format(Number(document.subtotal ?? 0))}</span></div><div class="totals-value" style="display:flex;justify-content:space-between"><span>Total</span><span>${currency.format(Number(document.total ?? 0))}</span></div></div></div>
       </div>
       ${document.closing_text ? `<div class="section"><p class="section-title">Cierre</p><div class="text">${escapeHtmlWithLineBreaks(document.closing_text)}</div></div>` : ""}
       </div></div><button class="print-action" onclick="window.print()">Imprimir / Guardar PDF</button></body></html>`);
-    win?.focus();
+    win.document.close();
+    win.focus();
   };
 
   const triggerTransition = (document: ServiceDocument, targetStatus: ServiceDocumentStatus) => {
@@ -468,30 +475,43 @@ export default function ServiceDocumentsPage() {
             <DialogDescription>Documento de servicio y trazabilidad.</DialogDescription>
           </DialogHeader>
           {previewDocument ? (
-            <div className="grid flex-1 min-h-0 gap-4 2xl:grid-cols-[minmax(0,1.95fr)_minmax(380px,460px)]">
+            <div className="grid flex-1 min-h-0 gap-3 2xl:grid-cols-[minmax(0,1.85fr)_minmax(360px,430px)]">
               <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable]">
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm">
                     <div className="h-1 w-full bg-gradient-to-r from-primary/80 via-primary/35 to-transparent" />
                     <div className="border-b border-border/60 px-5 py-4 sm:px-6">
-                      <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <Badge variant="outline">{SERVICE_STATUS_LABEL[previewDocument.status]}</Badge>
-                          <div className="mt-3">
-                            <p className="text-2xl font-semibold tracking-tight text-foreground">{previewDocument.customers?.name ?? "Sin cliente"}</p>
-                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Presupuesto de servicio</p>
+                      <div className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
+                        <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <Badge variant="outline">{SERVICE_STATUS_LABEL[previewDocument.status]}</Badge>
+                            <div className="text-right">
+                              <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Documento</p>
+                              <p className="mt-1 text-lg font-semibold text-foreground">{SERVICE_DOCUMENT_PREFIX}-{String(previewDocument.number).padStart(6, "0")}</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 flex items-center gap-4 border-t border-border/60 pt-4">
+                            {settings.logo_url ? <img src={settings.logo_url} alt={settings.app_name} className="h-12 w-12 rounded-full object-contain" /> : null}
+                            <div className="min-w-0">
+                              <p className="text-xl font-semibold tracking-tight text-foreground">{settings.legal_name ?? settings.app_name}</p>
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{settings.document_tagline ?? "Documentacion comercial"}</p>
+                            </div>
                           </div>
                         </div>
-                        <div className="min-w-[180px] border-l border-border/60 pl-4 text-right">
-                          <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Documento</p>
-                          <p className="mt-1 text-lg font-semibold text-foreground">{SERVICE_DOCUMENT_PREFIX}-{String(previewDocument.number).padStart(6, "0")}</p>
-                          <p className="mt-2 text-sm text-muted-foreground">{formatIsoDate(previewDocument.issue_date)}</p>
+                        <div className="rounded-2xl border border-border/60 bg-gradient-to-b from-slate-950 to-slate-900 p-4 text-white">
+                          <p className="text-[10px] uppercase tracking-[0.24em] text-slate-300">Servicio</p>
+                          <p className="mt-2 text-2xl font-semibold tracking-tight">{previewDocument.type === "REMITO" ? "Remito de servicio" : "Presupuesto de servicio"}</p>
+                          <div className="mt-4 space-y-1 text-sm text-slate-200">
+                            <p><span className="text-slate-400">Fecha:</span> {formatIsoDate(previewDocument.issue_date)}</p>
+                            <p><span className="text-slate-400">Estado:</span> {SERVICE_STATUS_LABEL[previewDocument.status]}</p>
+                            {previewDocument.valid_until ? <p><span className="text-slate-400">Vigencia:</span> {formatIsoDate(previewDocument.valid_until)}</p> : null}
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+                    <div className="grid gap-0 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,.92fr)]">
                       <div className="border-b border-border/60 px-5 py-4 lg:border-b-0 lg:border-r sm:px-6">
-                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="grid gap-2 sm:grid-cols-2">
                           <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p><p className="mt-1 text-sm font-semibold text-foreground">{previewDocument.customers?.name ?? "Sin cliente"}</p></div>
                           <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Referencia</p><p className="mt-1 text-sm text-foreground">{previewDocument.reference || "-"}</p></div>
                           <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Vigencia</p><p className="mt-1 text-sm text-foreground">{previewDocument.valid_until ? formatIsoDate(previewDocument.valid_until) : "-"}</p></div>
@@ -516,7 +536,7 @@ export default function ServiceDocumentsPage() {
                       <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/85">{previewDocument.intro_text}</p>
                     </section>
                   ) : null}
-                  <section className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
+                  <section className="rounded-2xl border border-border/60 bg-card/90 p-3 shadow-sm">
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div>
                         <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Líneas</p>
@@ -557,17 +577,17 @@ export default function ServiceDocumentsPage() {
                 </div>
               </div>
               <aside className="min-h-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable] 2xl:min-w-[380px]">
-                <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+                <section className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
                   <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Historial</p>
                   <p className="mt-1 text-sm text-muted-foreground">Trazabilidad del documento.</p>
                   {selectedEvents.length === 0 ? (
-                    <div className="mt-5 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center">
-                        <p className="mt-1 text-sm font-medium text-muted-foreground">Sin eventos registrados</p>
+                    <div className="mt-4 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-4 py-6 text-center">
+                      <p className="mt-1 text-sm font-medium text-muted-foreground">Sin eventos registrados</p>
                     </div>
                   ) : (
-                    <div className="mt-5 space-y-3">
+                    <div className="mt-4 space-y-2.5">
                       {selectedEvents.map((event, index) => (
-                        <div key={event.id} className="grid grid-cols-[14px_minmax(0,1fr)] gap-3 rounded-xl border border-border/60 bg-background/80 p-4">
+                        <div key={event.id} className="grid grid-cols-[14px_minmax(0,1fr)] gap-3 rounded-xl border border-border/60 bg-background/80 p-3.5">
                           <div className="relative flex justify-center">
                             <div className="absolute top-0 bottom-0 w-px bg-border/70" />
                             <div className="relative mt-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-slate-100">
