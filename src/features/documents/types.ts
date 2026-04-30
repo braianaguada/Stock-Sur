@@ -1,4 +1,4 @@
-export type DocType = "PRESUPUESTO" | "REMITO";
+export type DocType = "PRESUPUESTO" | "REMITO" | "REMITO_DEVOLUCION";
 export type DocStatus = "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO";
 export type CustomerKind = "GENERAL" | "INTERNO" | "EMPRESA";
 export type InternalRemitoType = "CUENTA_CORRIENTE" | "DESCUENTO_SUELDO";

@@ -1,6 +1,10 @@
 import type { CustomerKind, DocStatus, DocType, InternalRemitoType, LineDraft, LinePricingMode } from "./types";
 
-export const DOC_LABEL: Record<DocType, string> = { PRESUPUESTO: "Presupuesto", REMITO: "Remito" };
+export const DOC_LABEL: Record<DocType, string> = {
+  PRESUPUESTO: "Presupuesto",
+  REMITO: "Remito",
+  REMITO_DEVOLUCION: "Devolucion de remito",
+};
 
 export const STATUS_LABEL: Record<DocStatus, string> = {
   BORRADOR: "Borrador",
@@ -32,6 +36,7 @@ export const STATUS_CLASS: Record<DocStatus, string> = {
 export const DOC_TYPE_CLASS: Record<DocType, string> = {
   PRESUPUESTO: "border-blue-200 bg-blue-50 text-blue-700",
   REMITO: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  REMITO_DEVOLUCION: "border-amber-200 bg-amber-50 text-amber-700",
 };
 
 export const CUSTOMER_KIND_LABEL: Record<CustomerKind, string> = {
