@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { VisibilityState } from "@tanstack/react-table";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +26,7 @@ import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { invalidateItemQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import { rankNaturalItemSearch, type ItemSearchAliasRecord } from "@/features/items/search";
-import { type Item, type ItemAlias } from "@/features/items/types";
+import { type Item, type ItemAlias, type ItemOperationalMeta } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
@@ -41,10 +40,32 @@ import {
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const NEW_ITEM_DRAFT_KEY = "items:new-item-draft";
 const ITEM_TABLE_COLUMNS_KEY = "items:table-columns";
+
+type PricingBaseRow = {
+  item_id: string;
+  base_cost: number;
+};
+
+type PriceListRow = {
+  id: string;
+  name: string;
+  status: string | null;
+};
+
+type PriceListItemRow = {
+  item_id: string;
+  price_list_id: string;
+  calculated_price: number;
+  is_active: boolean;
+};
 const DEFAULT_ITEM_COLUMN_VISIBILITY: VisibilityState = {
   sku: true,
   name: true,
   stock: true,
+  base_cost: true,
+  main_price: true,
+  margin_pct: true,
+  operational_status: true,
   supplier: true,
   brand: true,
   model: true,
@@ -60,6 +81,10 @@ const ITEM_COLUMN_OPTIONS: Array<{ id: keyof typeof DEFAULT_ITEM_COLUMN_VISIBILI
   { id: "sku", label: "SKU" },
   { id: "name", label: "Nombre" },
   { id: "stock", label: "Stock" },
+  { id: "base_cost", label: "Costo base" },
+  { id: "main_price", label: "Precio principal" },
+  { id: "margin_pct", label: "Margen" },
+  { id: "operational_status", label: "Estado operativo" },
   { id: "supplier", label: "Proveedor" },
   { id: "brand", label: "Marca" },
   { id: "model", label: "Modelo" },
@@ -293,6 +318,94 @@ export default function ItemsPage() {
 
   const stockByItemId = useMemo(() => stockQuery.data ?? new Map<string, number>(), [stockQuery.data]);
 
+  const pricingBaseQuery = useQuery({
+    queryKey: ["items-operational-pricing-base", currentCompany?.id ?? null],
+    enabled: Boolean(currentCompany),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("item_pricing_base")
+        .select("item_id, base_cost")
+        .eq("company_id", currentCompany!.id);
+      if (error) throw error;
+      return (data ?? []) as PricingBaseRow[];
+    },
+  });
+
+  const priceListsQuery = useQuery({
+    queryKey: ["items-operational-price-lists", currentCompany?.id ?? null],
+    enabled: Boolean(currentCompany),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("price_lists")
+        .select("id, name, status")
+        .eq("company_id", currentCompany!.id)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as PriceListRow[];
+    },
+  });
+
+  const priceListItemsQuery = useQuery({
+    queryKey: ["items-operational-price-list-items", currentCompany?.id ?? null],
+    enabled: Boolean(currentCompany),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("price_list_items")
+        .select("item_id, price_list_id, calculated_price, is_active")
+        .eq("company_id", currentCompany!.id)
+        .eq("is_active", true);
+      if (error) throw error;
+      return (data ?? []) as PriceListItemRow[];
+    },
+  });
+
+  const operationalMetaByItemId = useMemo(() => {
+    const baseCostByItemId = new Map(
+      (pricingBaseQuery.data ?? []).map((row) => [row.item_id, Number(row.base_cost) || 0]),
+    );
+    const priceListById = new Map((priceListsQuery.data ?? []).map((row) => [row.id, row]));
+    const preferredPriceListIds = (priceListsQuery.data ?? [])
+      .filter((row) => row.status === "UPDATED")
+      .map((row) => row.id);
+    const fallbackPriceListIds = (priceListsQuery.data ?? []).map((row) => row.id);
+    const orderedPriceListIds = preferredPriceListIds.length > 0 ? preferredPriceListIds : fallbackPriceListIds;
+    const priceRowsByItemId = new Map<string, PriceListItemRow[]>();
+
+    for (const row of priceListItemsQuery.data ?? []) {
+      const rows = priceRowsByItemId.get(row.item_id) ?? [];
+      rows.push(row);
+      priceRowsByItemId.set(row.item_id, rows);
+    }
+
+    const map = new Map<string, ItemOperationalMeta>();
+    for (const item of itemsQuery.data ?? []) {
+      const baseCost = baseCostByItemId.get(item.id) ?? null;
+      const priceRows = priceRowsByItemId.get(item.id) ?? [];
+      const mainPriceRow =
+        orderedPriceListIds
+          .map((priceListId) => priceRows.find((row) => row.price_list_id === priceListId))
+          .find(Boolean) ?? priceRows[0] ?? null;
+      const mainPrice = mainPriceRow ? Number(mainPriceRow.calculated_price) || 0 : null;
+      const marginPct =
+        baseCost && baseCost > 0 && mainPrice && mainPrice > 0
+          ? ((mainPrice - baseCost) / mainPrice) * 100
+          : null;
+
+      map.set(item.id, {
+        stock: stockByItemId.get(item.id) ?? null,
+        base_cost: baseCost,
+        main_price: mainPrice,
+        main_price_list_name: mainPriceRow ? priceListById.get(mainPriceRow.price_list_id)?.name ?? null : null,
+        margin_pct: marginPct,
+      });
+    }
+
+    return map;
+  }, [itemsQuery.data, priceListItemsQuery.data, priceListsQuery.data, pricingBaseQuery.data, stockByItemId]);
+
   const stockStats = useMemo(() => {
     const all = itemsQuery.data ?? [];
     const stats = {
@@ -367,7 +480,14 @@ export default function ItemsPage() {
     return items.slice(from, from + pageSize);
   }, [items, page, pageSize]);
   const isSearchSyncing = search.trim() !== deferredSearch.trim();
-  const shouldHideResults = isSearchSyncing || itemsQuery.isLoading || (hasActiveSearch && aliasesSearchQuery.isLoading);
+  const shouldHideResults =
+    isSearchSyncing ||
+    itemsQuery.isLoading ||
+    stockQuery.isLoading ||
+    pricingBaseQuery.isLoading ||
+    priceListsQuery.isLoading ||
+    priceListItemsQuery.isLoading ||
+    (hasActiveSearch && aliasesSearchQuery.isLoading);
   const visibleItems = shouldHideResults ? [] : paginatedItems;
   const visibleTotalItems = shouldHideResults ? 0 : totalItems;
   const visibleTotalPages = Math.max(1, Math.ceil(visibleTotalItems / pageSize));
@@ -711,6 +831,14 @@ export default function ItemsPage() {
     setDialogOpen(true);
   };
 
+  const copySku = async (item: Item) => {
+    try {
+      await navigator.clipboard.writeText(item.sku);
+      toast({ title: "SKU copiado", description: item.sku });
+    } catch {
+      toast({ title: "No se pudo copiar el SKU", description: item.sku, variant: "destructive" });
+    }
+  };
 
   const addAlias = () => {
     const alias = cleanText(newAlias);
@@ -920,11 +1048,13 @@ export default function ItemsPage() {
             sortBy={sortBy}
             sortDirection={sortDirection}
             stockByItemId={stockByItemId}
+            operationalMetaByItemId={operationalMetaByItemId}
             onSort={toggleSort}
             onSelectionChange={setSelectedItemIds}
             onEdit={openEdit}
             onDelete={setItemToDelete}
             onRestore={(itemId) => restoreMutation.mutate(itemId)}
+            onCopySku={copySku}
           />
         </DataCard>
         <DataTablePagination

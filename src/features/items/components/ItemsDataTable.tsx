@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react";
+import { Link } from "react-router-dom";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { Package, PackageX, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { Boxes, Copy, Package, PackageX, Pencil, RotateCcw, Tags, Trash2 } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
@@ -8,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { Item } from "@/features/items/types";
+import type { Item, ItemOperationalMeta } from "@/features/items/types";
 
 export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "attributes" | "category" | "is_active" | "created_at" | "stock";
 export type SortDirection = "asc" | "desc";
@@ -23,11 +24,13 @@ type ItemsDataTableProps = {
   sortDirection: SortDirection;
   /** Map of item_id → total stock quantity (from stock-current query) */
   stockByItemId: Map<string, number>;
+  operationalMetaByItemId: Map<string, ItemOperationalMeta>;
   onSort: (field: ItemSortField) => void;
   onSelectionChange: (next: string[]) => void;
   onEdit: (item: Item) => void;
   onDelete: (item: Item) => void;
   onRestore: (itemId: string) => void;
+  onCopySku: (item: Item) => void;
 };
 
 const sortFieldByColumnId: Record<string, ItemSortField> = {
@@ -81,6 +84,46 @@ function stockChip(total: number | undefined, demand?: string | null) {
   );
 }
 
+function formatMoney(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "-";
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatMargin(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "-";
+  return `${value.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%`;
+}
+
+function operationalBadges(meta: ItemOperationalMeta | undefined, demand?: string | null) {
+  const stock = meta?.stock;
+  const baseCost = meta?.base_cost;
+  const mainPrice = meta?.main_price;
+  const badges: Array<{ label: string; className: string }> = [];
+
+  if (baseCost === null || baseCost === undefined || baseCost <= 0) {
+    badges.push({ label: "Sin costo", className: "border-orange-500/40 bg-orange-500/10 text-orange-700" });
+  }
+  if (mainPrice === null || mainPrice === undefined || mainPrice <= 0) {
+    badges.push({ label: "Sin precio", className: "border-violet-500/40 bg-violet-500/10 text-violet-700" });
+  }
+  if (stock === null || stock === undefined || stock <= 0) {
+    badges.push({ label: "Sin stock", className: "border-rose-500/40 bg-rose-500/10 text-rose-700" });
+  } else {
+    const isLow = (demand === "HIGH" && stock < 15) || (demand === "MEDIUM" && stock < 5) || stock < 2;
+    if (isLow) badges.push({ label: "Stock bajo", className: "border-amber-500/40 bg-amber-500/10 text-amber-700" });
+  }
+
+  if (badges.length === 0) {
+    badges.push({ label: "OK", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700" });
+  }
+
+  return badges;
+}
+
 function ItemsDataTableComponent({
   items,
   isLoading,
@@ -90,11 +133,13 @@ function ItemsDataTableComponent({
   sortBy,
   sortDirection,
   stockByItemId,
+  operationalMetaByItemId,
   onSort,
   onSelectionChange,
   onEdit,
   onDelete,
   onRestore,
+  onCopySku,
 }: ItemsDataTableProps) {
   const allVisibleSelected = items.length > 0 && items.every((item) => selectedItemIds.includes(item.id));
 
@@ -193,6 +238,69 @@ function ItemsDataTableComponent({
       },
       meta: {
         className: "w-[130px]",
+        cellClassName: "py-1.5",
+      },
+    },
+    {
+      id: "base_cost",
+      header: () => "Costo base",
+      cell: ({ row }) => {
+        const meta = operationalMetaByItemId.get(row.original.id);
+        return <span className="block text-right text-xs font-medium">{formatMoney(meta?.base_cost)}</span>;
+      },
+      meta: {
+        className: "w-[120px]",
+        cellClassName: "py-1.5",
+      },
+    },
+    {
+      id: "main_price",
+      header: () => "Precio principal",
+      cell: ({ row }) => {
+        const meta = operationalMetaByItemId.get(row.original.id);
+        return (
+          <div className="min-w-0 text-right">
+            <span className="block text-xs font-semibold">{formatMoney(meta?.main_price)}</span>
+            {meta?.main_price_list_name ? (
+              <span className="block truncate text-[10px] text-muted-foreground">{meta.main_price_list_name}</span>
+            ) : null}
+          </div>
+        );
+      },
+      meta: {
+        className: "w-[140px]",
+        cellClassName: "py-1.5",
+      },
+    },
+    {
+      id: "margin_pct",
+      header: () => "Margen",
+      cell: ({ row }) => {
+        const meta = operationalMetaByItemId.get(row.original.id);
+        return <span className="block text-right text-xs">{formatMargin(meta?.margin_pct)}</span>;
+      },
+      meta: {
+        className: "w-[90px]",
+        cellClassName: "py-1.5",
+      },
+    },
+    {
+      id: "operational_status",
+      header: () => "Estado operativo",
+      cell: ({ row }) => {
+        const meta = operationalMetaByItemId.get(row.original.id);
+        return (
+          <div className="flex flex-wrap gap-1">
+            {operationalBadges(meta, row.original.demand_profile).map((badge) => (
+              <Badge key={badge.label} variant="outline" className={`h-5 px-1.5 text-[10px] ${badge.className}`}>
+                {badge.label}
+              </Badge>
+            ))}
+          </div>
+        );
+      },
+      meta: {
+        className: "w-[190px]",
         cellClassName: "py-1.5",
       },
     },
@@ -317,6 +425,19 @@ function ItemsDataTableComponent({
       header: () => "Acciones",
       cell: ({ row }) => (
         <div className="flex gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onCopySku(row.original)} title="Copiar SKU">
+            <Copy className="h-3.5 w-3.5" />
+          </Button>
+          <Button asChild variant="ghost" size="icon" className="h-7 w-7" title="Abrir stock">
+            <Link to={`/stock?itemId=${encodeURIComponent(row.original.id)}`}>
+              <Boxes className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="icon" className="h-7 w-7" title="Abrir precios">
+            <Link to={`/price-lists?itemId=${encodeURIComponent(row.original.id)}`}>
+              <Tags className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(row.original)}>
             <Pencil className="h-3.5 w-3.5" />
           </Button>
@@ -332,11 +453,11 @@ function ItemsDataTableComponent({
         </div>
       ),
       meta: {
-        className: "w-[104px]",
+        className: "w-[180px]",
         cellClassName: "py-1.5",
       },
     },
-  ], [allVisibleSelected, items, onDelete, onEdit, onRestore, onSelectionChange, onSort, selectedItemIds, sortBy, sortDirection, stockByItemId]);
+  ], [allVisibleSelected, items, onCopySku, onDelete, onEdit, onRestore, onSelectionChange, onSort, operationalMetaByItemId, selectedItemIds, sortBy, sortDirection, stockByItemId]);
 
   return (
     <div className="overflow-x-auto">
@@ -346,7 +467,7 @@ function ItemsDataTableComponent({
       isLoading={isLoading}
       loadingMessage="Cargando..."
       emptyMessage="No se encontraron ítems"
-      className="table-fixed min-w-[1680px]"
+      className="table-fixed min-w-[2020px]"
       sorting={sorting}
       columnVisibility={columnVisibility}
       rowClassName="h-9"
@@ -366,4 +487,5 @@ export const ItemsDataTable = memo(ItemsDataTableComponent, (prev, next) => (
   && prev.sortBy === next.sortBy
   && prev.sortDirection === next.sortDirection
   && prev.stockByItemId === next.stockByItemId
+  && prev.operationalMetaByItemId === next.operationalMetaByItemId
 ));
