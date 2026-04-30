@@ -19,6 +19,7 @@ interface DocumentsDataTableProps {
   onTransition: (documentId: string, status: DocStatus) => void;
   onIssueRemito: (documentId: string) => void;
   onCloneAsRemito: (documentId: string) => void;
+  onGenerateReturn: (documentId: string) => void;
   canPrintDocument: boolean;
   canEditDocumentDraft: boolean;
   canIssueRemito: boolean;
@@ -36,6 +37,7 @@ export function DocumentsDataTable({
   onTransition,
   onIssueRemito,
   onCloneAsRemito,
+  onGenerateReturn,
   canPrintDocument,
   canEditDocumentDraft,
   canIssueRemito,
@@ -184,9 +186,14 @@ export function DocumentsDataTable({
               </Button>
             ) : null}
             {doc.doc_type === "REMITO" && doc.status === "EMITIDO" ? (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular remito" disabled={!canTransitionDocumentTo("ANULADO")}>
-                <Ban className="h-4 w-4" />
-              </Button>
+              <>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onGenerateReturn(doc.id)} title="Generar devolución">
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular remito" disabled={!canTransitionDocumentTo("ANULADO")}>
+                  <Ban className="h-4 w-4" />
+                </Button>
+              </>
             ) : null}
           </div>
         );
@@ -202,12 +209,13 @@ export function DocumentsDataTable({
     canIssueRemito,
     canPrintDocument,
     canTransitionDocumentTo,
-    onCloneAsRemito,
+    onGenerateReturn,
     onEditDraft,
     onIssueRemito,
     onOpenDetail,
     onPrint,
     onTransition,
+    onCloneAsRemito,
   ]);
 
   return (
