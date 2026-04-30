@@ -276,10 +276,8 @@ export default function ServiceDocumentsPage() {
                           <Eye className="h-4 w-4" />
                         </Button>
                         {canPrintServiceDocuments ? (
-                          <Button asChild variant="ghost" size="icon" title="Imprimir">
-                            <a href={`/print/service-document/${document.id}`} target="_blank" rel="noreferrer">
-                              <Printer className="h-4 w-4" />
-                            </a>
+                          <Button type="button" variant="ghost" size="icon" title="Imprimir" onClick={() => window.open(`/print/service-document/${document.id}`, "_blank", "noopener,noreferrer")}>
+                            <Printer className="h-4 w-4" />
                           </Button>
                         ) : null}
                         {canEditServiceDocuments && document.status === "DRAFT" ? (
@@ -379,55 +377,107 @@ export default function ServiceDocumentsPage() {
       </Dialog>
 
       <Dialog open={Boolean(previewDocumentId)} onOpenChange={(open) => { if (!open) setPreviewDocumentId(null); }}>
-        <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
+        <DialogContent className="flex h-[min(92vh,920px)] max-w-[min(97vw,1520px)] flex-col overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle>Vista previa del presupuesto de servicio</DialogTitle>
-            <DialogDescription>Revisión rápida del documento antes de imprimir.</DialogDescription>
+            <DialogTitle className="text-xl font-semibold tracking-tight text-foreground/90">Vista previa del presupuesto de servicio</DialogTitle>
+            <DialogDescription>Documento de servicio y trazabilidad.</DialogDescription>
           </DialogHeader>
           {previewDocument ? (
-            <div className="grid gap-6">
-              <section className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-xl border bg-muted/10 p-4">
-                  <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Cliente</div>
-                  <div className="mt-2 font-medium">{previewDocument.customers?.name ?? "Sin cliente"}</div>
-                  <div className="text-sm text-muted-foreground">{previewDocument.reference || "-"}</div>
+            <div className="grid flex-1 min-h-0 gap-4 2xl:grid-cols-[minmax(0,1.95fr)_minmax(380px,460px)]">
+              <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable]">
+                <div className="space-y-4">
+                  <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm">
+                    <div className="h-1 w-full bg-gradient-to-r from-primary/80 via-primary/35 to-transparent" />
+                    <div className="border-b border-border/60 px-5 py-4 sm:px-6">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <Badge variant="outline">{SERVICE_STATUS_LABEL[previewDocument.status]}</Badge>
+                          <div className="mt-3">
+                            <p className="text-2xl font-semibold tracking-tight text-foreground">{previewDocument.customers?.name ?? "Sin cliente"}</p>
+                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Presupuesto de servicio</p>
+                          </div>
+                        </div>
+                        <div className="min-w-[180px] border-l border-border/60 pl-4 text-right">
+                          <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Documento</p>
+                          <p className="mt-1 text-lg font-semibold text-foreground">{SERVICE_DOCUMENT_PREFIX}-{String(previewDocument.number).padStart(6, "0")}</p>
+                          <p className="mt-2 text-sm text-muted-foreground">{formatIsoDate(previewDocument.issue_date)}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+                      <div className="border-b border-border/60 px-5 py-4 lg:border-b-0 lg:border-r sm:px-6">
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p><p className="mt-1 text-base font-semibold text-foreground">{previewDocument.customers?.name ?? "Sin cliente"}</p></div>
+                          <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Referencia</p><p className="mt-1 text-sm text-foreground">{previewDocument.reference || "-"}</p></div>
+                          <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Vigencia</p><p className="mt-1 text-sm text-foreground">{previewDocument.valid_until ? formatIsoDate(previewDocument.valid_until) : "-"}</p></div>
+                          <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Estado</p><p className="mt-1 text-sm text-foreground">{SERVICE_STATUS_LABEL[previewDocument.status]}</p></div>
+                        </div>
+                      </div>
+                      <div className="px-5 py-4 sm:px-6">
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
+                        <div className="mt-3 space-y-1.5 text-sm">
+                          {previewDocument.delivery_time ? <p className="text-muted-foreground">Plazo: <span className="text-foreground">{previewDocument.delivery_time}</span></p> : null}
+                          {previewDocument.payment_terms ? <p className="text-muted-foreground">Pago: <span className="text-foreground">{previewDocument.payment_terms}</span></p> : null}
+                          {previewDocument.delivery_location ? <p className="text-muted-foreground">Entrega: <span className="text-foreground">{previewDocument.delivery_location}</span></p> : null}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                  <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+                    <div className="flex flex-wrap items-end justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Líneas</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Detalle principal del documento.</p>
+                      </div>
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-right">
+                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total del documento</p>
+                        <p className="mt-1 text-3xl font-black tracking-tight text-foreground">{currency.format(Number(previewDocument.total ?? 0))}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 overflow-hidden rounded-xl border border-border/60 bg-background">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Descripción</TableHead>
+                            <TableHead className="w-28 text-right">Cantidad</TableHead>
+                            <TableHead className="w-32 text-right">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {previewLines.map((line) => (
+                            <TableRow key={line.id ?? `${line.sort_order}-${line.description}`}>
+                              <TableCell>{line.description}</TableCell>
+                              <TableCell className="text-right">{line.quantity ?? "-"}</TableCell>
+                              <TableCell className="text-right">{currency.format(Number(line.line_total ?? 0))}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </section>
                 </div>
-                <div className="rounded-xl border bg-muted/10 p-4">
-                  <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total</div>
-                  <div className="mt-2 text-2xl font-bold">{currency.format(Number(previewDocument.total ?? 0))}</div>
-                  <div className="text-sm text-muted-foreground">{SERVICE_STATUS_LABEL[previewDocument.status]}</div>
-                </div>
-              </section>
-              <section className="overflow-x-auto rounded-xl border bg-background">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Descripción</TableHead>
-                      <TableHead className="w-28 text-right">Cantidad</TableHead>
-                      <TableHead className="w-32 text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {previewLines.map((line) => (
-                      <TableRow key={line.id ?? `${line.sort_order}-${line.description}`}>
-                        <TableCell>{line.description}</TableCell>
-                        <TableCell className="text-right">{line.quantity ?? "-"}</TableCell>
-                        <TableCell className="text-right">{currency.format(Number(line.line_total ?? 0))}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </section>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setPreviewDocumentId(null)}>Cerrar</Button>
-                <Button asChild>
-                  <a href={`/print/service-document/${previewDocument.id}`} target="_blank" rel="noreferrer">Abrir impresión</a>
-                </Button>
               </div>
+              <aside className="min-h-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable] 2xl:min-w-[380px]">
+                <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Resumen</p>
+                  <div className="mt-5 space-y-3">
+                    {previewDocument.closing_text ? (
+                      <div className="rounded-xl border border-border/60 bg-background/80 px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Cierre</p>
+                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground/85">{previewDocument.closing_text}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                </section>
+              </aside>
             </div>
           ) : (
             <div className="py-8 text-center text-sm text-muted-foreground">No se pudo cargar la vista previa.</div>
           )}
+          <div className="flex justify-end gap-2 px-5 pb-5">
+            <Button variant="outline" onClick={() => setPreviewDocumentId(null)}>Cerrar</Button>
+            <Button type="button" onClick={() => window.open(`/print/service-document/${previewDocument.id}`, "_blank", "noopener,noreferrer")}>Abrir impresión</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </AppLayout>

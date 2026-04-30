@@ -279,11 +279,11 @@ begin
   )
   select
     v_doc.id,
-    trim(coalesce(line_item->>'description', '')),
-    nullif(line_item->>'quantity', '')::numeric,
-    nullif(line_item->>'unit', ''),
-    nullif(line_item->>'unit_price', '')::numeric,
-    coalesce(nullif(line_item->>'line_total', '')::numeric, 0),
+    trim(coalesce(line_item.value->>'description', '')),
+    nullif(line_item.value->>'quantity', '')::numeric,
+    nullif(line_item.value->>'unit', ''),
+    nullif(line_item.value->>'unit_price', '')::numeric,
+    coalesce(nullif(line_item.value->>'line_total', '')::numeric, 0),
     row_number() over ()
   from jsonb_array_elements(coalesce(p_lines, '[]'::jsonb)) with ordinality as line_item(value, ord)
   where trim(coalesce(line_item.value->>'description', '')) <> ''

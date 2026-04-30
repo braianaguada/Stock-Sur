@@ -69,7 +69,7 @@ describe("ServiceDocumentsPage", () => {
 
     expect(screen.getByText("Documentos")).toBeInTheDocument();
     expect(screen.getByTitle("Vista previa")).toBeInTheDocument();
-    expect(screen.getByTitle("Imprimir")).toHaveAttribute("href", "/print/service-document/doc-1");
+    expect(screen.getByTitle("Imprimir")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle("Vista previa"));
     expect(screen.getByText("Vista previa del presupuesto de servicio")).toBeInTheDocument();
