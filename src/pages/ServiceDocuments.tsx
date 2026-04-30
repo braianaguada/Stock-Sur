@@ -112,7 +112,7 @@ export default function ServiceDocumentsPage() {
       case "CONVERTED_TO_REMITO":
         return "Convertido a remito";
       default:
-        return event.event_type.replaceAll("_", " ");
+        return "Evento";
     }
   };
 
@@ -175,7 +175,7 @@ export default function ServiceDocumentsPage() {
           <div>
             <span class="eyebrow">${escapeHtml(document.type === "REMITO" ? "Remito de servicio" : "Presupuesto de servicio")}</span>
             <p class="brand-name" style="margin:14px 0 0 0">${escapeHtml(settings.legal_name ?? settings.app_name)}</p>
-            <p class="muted">${escapeHtml(settings.document_tagline ?? "Documentacion comercial")}</p>
+            <p class="muted">${escapeHtml(settings.document_tagline ?? "Documentaci贸n comercial")}</p>
           </div>
           ${settings.logo_url ? `<img src="${escapeHtml(settings.logo_url)}" alt="${escapeHtml(settings.app_name)}" style="max-height:72px;max-width:240px;object-fit:contain" />` : ""}
         </div>
@@ -194,7 +194,7 @@ export default function ServiceDocumentsPage() {
           ${document.customers?.cuit ? `<p class="muted"><strong>CUIT:</strong> ${escapeHtml(document.customers.cuit)}</p>` : ""}
         </div>
         <div class="meta-card">
-          <p class="meta-title">Operaci髇</p>
+          <p class="meta-title">Operaci贸n</p>
           ${document.reference ? `<p class="muted"><strong>Referencia:</strong> ${escapeHtml(document.reference)}</p>` : ""}
           ${document.delivery_time ? `<p class="muted"><strong>Plazo de entrega:</strong> ${escapeHtml(document.delivery_time)}</p>` : ""}
           ${document.payment_terms ? `<p class="muted"><strong>Condiciones de pago:</strong> ${escapeHtml(document.payment_terms)}</p>` : ""}
@@ -203,8 +203,8 @@ export default function ServiceDocumentsPage() {
       </div>
       ${document.intro_text ? `<div class="section"><p class="section-title">Texto introductorio</p><div class="text">${escapeHtmlWithLineBreaks(document.intro_text)}</div></div>` : ""}
       <div class="section">
-        <p class="section-title">Lineas</p>
-        <table><thead><tr><th>Descripci髇</th><th style="width:72px;text-align:right">Cant.</th><th style="width:110px;text-align:right">Total</th></tr></thead>
+        <p class="section-title">L铆neas</p>
+        <table><thead><tr><th>Descripci贸n</th><th style="width:72px;text-align:right">Cant.</th><th style="width:110px;text-align:right">Total</th></tr></thead>
         <tbody>${documentLines.map((line) => `<tr><td>${escapeHtml(line.description)}</td><td style="text-align:right">${Number(line.quantity ?? 0).toLocaleString("es-AR")}</td><td style="text-align:right">${currency.format(Number(line.line_total ?? 0))}</td></tr>`).join("")}</tbody></table>
         <div class="totals"><div class="totals-box"><div style="display:flex;justify-content:space-between;font-size:12px"><span>Subtotal</span><span>${currency.format(Number(document.subtotal ?? 0))}</span></div><div class="totals-value" style="display:flex;justify-content:space-between"><span>Total</span><span>${currency.format(Number(document.total ?? 0))}</span></div></div></div>
       </div>
@@ -330,40 +330,40 @@ export default function ServiceDocumentsPage() {
                     <TableCell className="text-right">
                       <div className="flex flex-wrap justify-end gap-1.5">
                         {canManageServiceDocuments && canTransitionServiceDocument(document, "SENT") ? (
-                          <Button type="button" variant="ghost" size="icon" title="Enviar" onClick={() => triggerTransition(document, "SENT")} disabled={transitionMutation.isPending}>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" title="Enviar" onClick={() => triggerTransition(document, "SENT")} disabled={transitionMutation.isPending}>
                             <Send className="h-4 w-4" />
                           </Button>
                         ) : null}
                         {canApproveServiceDocuments && canTransitionServiceDocument(document, "APPROVED") ? (
-                          <Button type="button" variant="ghost" size="icon" title="Aprobar" onClick={() => triggerTransition(document, "APPROVED")} disabled={transitionMutation.isPending}>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-500 hover:text-emerald-400" title="Aprobar" onClick={() => triggerTransition(document, "APPROVED")} disabled={transitionMutation.isPending}>
                             <Check className="h-4 w-4" />
                           </Button>
                         ) : null}
                         {canApproveServiceDocuments && canTransitionServiceDocument(document, "REJECTED") ? (
-                          <Button type="button" variant="ghost" size="icon" title="Rechazar" onClick={() => triggerTransition(document, "REJECTED")} disabled={transitionMutation.isPending}>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-400" title="Rechazar" onClick={() => triggerTransition(document, "REJECTED")} disabled={transitionMutation.isPending}>
                             <X className="h-4 w-4" />
                           </Button>
                         ) : null}
                         {canCancelServiceDocuments && canTransitionServiceDocument(document, "CANCELLED") ? (
-                          <Button type="button" variant="ghost" size="icon" title="Anular" onClick={() => triggerTransition(document, "CANCELLED")} disabled={transitionMutation.isPending}>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" title="Anular" onClick={() => triggerTransition(document, "CANCELLED")} disabled={transitionMutation.isPending}>
                             <Slash className="h-4 w-4" />
                           </Button>
                         ) : null}
                         {canManageServiceDocuments ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Duplicar" onClick={() => triggerDuplicate(document)} disabled={duplicateMutation.isPending}>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-violet-500 hover:text-violet-400" title="Duplicar" onClick={() => triggerDuplicate(document)} disabled={duplicateMutation.isPending}>
                             <Copy className="h-4 w-4" />
                           </Button>
                         ) : null}
-                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Vista previa" onClick={() => openPreview(document)}>
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-sky-500 hover:text-sky-400" title="Vista previa" onClick={() => openPreview(document)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         {canPrintServiceDocuments ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Imprimir" onClick={() => void openServicePrint(document)}>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-amber-500 hover:text-amber-400" title="Imprimir" onClick={() => void openServicePrint(document)}>
                             <Printer className="h-4 w-4" />
                           </Button>
                         ) : null}
                         {canEditServiceDocuments && document.status === "DRAFT" ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Editar" onClick={() => openEdit(document)}>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-amber-500 hover:text-amber-400" title="Editar" onClick={() => openEdit(document)}>
                             <Edit className="h-4 w-4" />
                           </Button>
                         ) : null}
@@ -383,8 +383,8 @@ export default function ServiceDocumentsPage() {
             <DialogTitle>{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle>
             <DialogDescription>Formulario de presupuesto de servicio manual.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4">
-            <section className="grid gap-3 rounded-xl border bg-muted/10 p-4 md:grid-cols-5">
+          <div className="grid gap-2.5">
+            <section className="grid gap-2 rounded-xl border bg-muted/10 p-3 md:grid-cols-5">
               <div className="md:col-span-2">
                 <Label>Cliente</Label>
                 <Select value={form.customer_id} onValueChange={(value) => setForm((current) => ({ ...current, customer_id: value }))}>
@@ -397,12 +397,12 @@ export default function ServiceDocumentsPage() {
               <div><Label>Vigencia</Label><Input type="date" value={form.valid_until} onChange={(event) => setForm((current) => ({ ...current, valid_until: event.target.value }))} /></div>
               <div><Label>Estado</Label><Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value as ServiceDocumentStatus }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPTIONS.filter((option) => option !== "ALL").map((option) => <SelectItem key={option} value={option}>{SERVICE_STATUS_LABEL[option]}</SelectItem>)}</SelectContent></Select></div>
             </section>
-            <section className="grid gap-3 rounded-xl border bg-muted/10 p-4">
+            <section className="grid gap-2.5 rounded-xl border bg-muted/10 p-3.5">
               <Label>Texto introductorio</Label>
-              <Textarea rows={3} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
+              <Textarea rows={2} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
               <div className="overflow-x-auto rounded-lg border bg-background">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Descripci髇</TableHead><TableHead className="w-28">Cantidad</TableHead><TableHead className="w-28">Unidad</TableHead><TableHead className="w-36">Precio</TableHead><TableHead className="w-36 text-right">Total</TableHead><TableHead className="w-12" /></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Descripci贸n</TableHead><TableHead className="w-28">Cantidad</TableHead><TableHead className="w-28">Unidad</TableHead><TableHead className="w-36">Precio</TableHead><TableHead className="w-36 text-right">Total</TableHead><TableHead className="w-12" /></TableRow></TableHeader>
                   <TableBody>{lines.map((line, index) => (
                     <TableRow key={index}>
                       <TableCell><Textarea rows={2} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
@@ -419,21 +419,21 @@ export default function ServiceDocumentsPage() {
                 <Plus className="mr-2 h-4 w-4" /> Agregar l铆nea
               </Button>
             </section>
-            <section className="grid gap-3 rounded-xl border bg-muted/10 p-4 md:grid-cols-3">
-              <div><Label>Plazo de entrega</Label><Textarea rows={3} value={form.delivery_time} onChange={(event) => setForm((current) => ({ ...current, delivery_time: event.target.value }))} /></div>
-              <div><Label>Condiciones de pago</Label><Textarea rows={3} value={form.payment_terms} onChange={(event) => setForm((current) => ({ ...current, payment_terms: event.target.value }))} /></div>
-              <div><Label>Lugar de entrega</Label><Textarea rows={3} value={form.delivery_location} onChange={(event) => setForm((current) => ({ ...current, delivery_location: event.target.value }))} /></div>
+            <section className="grid gap-2 rounded-xl border bg-muted/10 p-3 md:grid-cols-3">
+              <div><Label>Plazo de entrega</Label><Textarea rows={2} value={form.delivery_time} onChange={(event) => setForm((current) => ({ ...current, delivery_time: event.target.value }))} /></div>
+              <div><Label>Condiciones de pago</Label><Textarea rows={2} value={form.payment_terms} onChange={(event) => setForm((current) => ({ ...current, payment_terms: event.target.value }))} /></div>
+              <div><Label>Lugar de entrega</Label><Textarea rows={2} value={form.delivery_location} onChange={(event) => setForm((current) => ({ ...current, delivery_location: event.target.value }))} /></div>
             </section>
-            <section className="grid gap-3 rounded-xl border bg-muted/10 p-4">
+            <section className="grid gap-2.5 rounded-xl border bg-muted/10 p-3.5">
               <Label>Cierre</Label>
-              <Textarea rows={3} value={form.closing_text} onChange={(event) => setForm((current) => ({ ...current, closing_text: event.target.value }))} />
-              <div className="ml-auto w-full max-w-sm rounded-lg border bg-background p-4 shadow-sm">
+              <Textarea rows={2} value={form.closing_text} onChange={(event) => setForm((current) => ({ ...current, closing_text: event.target.value }))} />
+              <div className="ml-auto w-full max-w-sm rounded-lg border bg-background p-3.5 shadow-sm">
                 <div className="flex justify-between text-sm"><span>Subtotal</span><span>{currency.format(total)}</span></div>
                 <div className="mt-2 flex justify-between text-lg font-bold"><span>Total</span><span>{currency.format(total)}</span></div>
               </div>
             </section>
             {selectedEvents.length > 0 ? (
-              <section className="grid gap-3 rounded-xl border bg-muted/10 p-4">
+              <section className="grid gap-2.5 rounded-xl border bg-muted/10 p-3.5">
                 <Label>Historial</Label>
                 <div className="grid gap-2">
                   {selectedEvents.map((event) => (
@@ -471,8 +471,8 @@ export default function ServiceDocumentsPage() {
                   <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm">
                     <div className="h-1 w-full bg-gradient-to-r from-primary/80 via-primary/35 to-transparent" />
                     <div className="border-b border-border/60 px-5 py-4 sm:px-6">
-                      <div className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
-                        <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
+                      <div className="grid gap-3 lg:grid-cols-[1.15fr_.85fr]">
+                        <div className="rounded-2xl border border-border/60 bg-background/60 p-3.5">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <Badge variant="outline">{SERVICE_STATUS_LABEL[previewDocument.status]}</Badge>
                             <div className="text-right">
@@ -484,11 +484,11 @@ export default function ServiceDocumentsPage() {
                             {settings.logo_url ? <img src={settings.logo_url} alt={settings.app_name} className="h-12 w-12 rounded-full object-contain" /> : null}
                             <div className="min-w-0">
                               <p className="text-xl font-semibold tracking-tight text-foreground">{settings.legal_name ?? settings.app_name}</p>
-                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{settings.document_tagline ?? "Documentacion comercial"}</p>
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{settings.document_tagline ?? "Documentaci贸n comercial"}</p>
                             </div>
                           </div>
                         </div>
-                        <div className="rounded-2xl border border-border/60 bg-gradient-to-b from-slate-950 to-slate-900 p-4 text-white">
+                        <div className="rounded-2xl border border-border/60 bg-gradient-to-b from-slate-950 to-slate-900 p-3.5 text-white">
                           <p className="text-[10px] uppercase tracking-[0.24em] text-slate-300">Servicio</p>
                           <p className="mt-2 text-2xl font-semibold tracking-tight">{previewDocument.type === "REMITO" ? "Remito de servicio" : "Presupuesto de servicio"}</p>
                           <div className="mt-4 space-y-1 text-sm text-slate-200">
@@ -509,7 +509,7 @@ export default function ServiceDocumentsPage() {
                         </div>
                       </div>
                       <div className="px-5 py-4 sm:px-6">
-                        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operaci髇</p>
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operaci贸n</p>
                         <div className="mt-3 space-y-1 text-sm leading-5">
                           {previewDocument.reference ? <p className="text-muted-foreground">Referencia: <span className="text-foreground">{previewDocument.reference}</span></p> : null}
                           {previewDocument.delivery_time ? <p className="text-muted-foreground">Plazo: <span className="text-foreground">{previewDocument.delivery_time}</span></p> : null}
@@ -521,15 +521,15 @@ export default function ServiceDocumentsPage() {
                     </div>
                   </section>
                   {previewDocument.intro_text ? (
-                    <section className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
-                      <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Introducci髇</p>
+                    <section className="rounded-2xl border border-border/60 bg-card/90 p-3.5 shadow-sm">
+                      <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Introducci贸n</p>
                       <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/85">{previewDocument.intro_text}</p>
                     </section>
                   ) : null}
-                  <section className="rounded-2xl border border-border/60 bg-card/90 p-3 shadow-sm">
+                  <section className="rounded-2xl border border-border/60 bg-card/90 p-2.5 shadow-sm">
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">L韓eas</p>
+                        <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">L铆neas</p>
                         <p className="mt-1 text-sm text-muted-foreground">Detalle principal del documento.</p>
                       </div>
                       <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-right">
@@ -541,7 +541,7 @@ export default function ServiceDocumentsPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Descripci髇</TableHead>
+                            <TableHead>Descripci贸n</TableHead>
                             <TableHead className="w-28 text-right">Cantidad</TableHead>
                             <TableHead className="w-32 text-right">Total</TableHead>
                           </TableRow>
@@ -559,7 +559,7 @@ export default function ServiceDocumentsPage() {
                     </div>
                   </section>
                   {previewDocument.closing_text ? (
-                    <section className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
+                    <section className="rounded-2xl border border-border/60 bg-card/90 p-3.5 shadow-sm">
                       <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Cierre</p>
                       <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/85">{previewDocument.closing_text}</p>
                     </section>
@@ -567,20 +567,20 @@ export default function ServiceDocumentsPage() {
                 </div>
               </div>
               <aside className="min-h-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable] 2xl:min-w-[380px]">
-                <section className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
+                <section className="rounded-2xl border border-border/60 bg-card/90 p-3.5 shadow-sm">
                   <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Historial</p>
                   <p className="mt-1 text-sm text-muted-foreground">Trazabilidad del documento.</p>
                   {selectedEvents.length === 0 ? (
-                    <div className="mt-4 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-4 py-6 text-center">
+                    <div className="mt-3 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-3 py-5 text-center">
                       <p className="mt-1 text-sm font-medium text-muted-foreground">Sin eventos registrados</p>
                     </div>
                   ) : (
-                    <div className="mt-4 space-y-2.5">
+                    <div className="mt-3 space-y-2">
                       {selectedEvents.map((event, index) => (
-                        <div key={event.id} className="grid grid-cols-[14px_minmax(0,1fr)] gap-3 rounded-xl border border-border/60 bg-background/80 p-3.5">
+                        <div key={event.id} className="grid grid-cols-[12px_minmax(0,1fr)] gap-2.5 rounded-xl border border-border/60 bg-background/80 p-3">
                           <div className="relative flex justify-center">
                             <div className="absolute top-0 bottom-0 w-px bg-border/70" />
-                            <div className="relative mt-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-slate-100">
+                            <div className="relative mt-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-slate-100">
                               <span className="h-2 w-2 rounded-full bg-slate-500" />
                             </div>
                           </div>
@@ -602,7 +602,7 @@ export default function ServiceDocumentsPage() {
           ) : (
             <div className="py-8 text-center text-sm text-muted-foreground">No se pudo cargar la vista previa.</div>
           )}
-          <div className="flex justify-end gap-2 px-5 pb-5">
+          <div className="flex justify-end gap-2 px-5 pb-5 pt-2">
             <Button variant="outline" onClick={() => setPreviewDocumentId(null)}>Cerrar</Button>
             <Button type="button" onClick={() => void openServicePrint(previewDocument)}>Abrir impresi贸n</Button>
           </div>
