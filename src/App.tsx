@@ -22,6 +22,7 @@ const DocumentsPage = lazy(() => import("./pages/Documents"));
 const ServiceDocumentsPage = lazy(() => import("./pages/ServiceDocuments"));
 const PrintServiceDocumentPage = lazy(() => import("./pages/PrintServiceDocument"));
 const CustomersPage = lazy(() => import("./pages/Customers"));
+const TechniciansPage = lazy(() => import("./pages/Technicians"));
 const UsersPage = lazy(() => import("./pages/Users"));
 const LegacyCatalogImportPage = lazy(() => import("./pages/LegacyCatalogImport"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
@@ -86,6 +87,7 @@ const App = () => (
                   <Route path="/print/service-document/:id" element={<ProtectedRoute><PrintServiceDocumentPage /></ProtectedRoute>} />
                   <Route path="/cash" element={<ProtectedRoute><CashPage /></ProtectedRoute>} />
                   <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
+                  <Route path="/technicians" element={<ProtectedRoute><TechniciansPage /></ProtectedRoute>} />
                   <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                   <Route path="/items/catalog/import-legacy" element={<ProtectedRoute><LegacyCatalogImportPage /></ProtectedRoute>} />

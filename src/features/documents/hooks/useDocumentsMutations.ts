@@ -21,6 +21,7 @@ type UseDocumentsMutationsParams = {
   userId: string | undefined;
   documents: DocRow[];
   customers: Array<{ id: string; name: string; cuit: string | null }>;
+  technicians: Array<{ id: string; name: string }>;
   lines: LineDraft[];
   form: DocumentFormState;
   totalDraft: number;
@@ -123,6 +124,7 @@ export function useDocumentsMutations({
   userId,
   documents,
   customers,
+  technicians,
   lines,
   form,
   totalDraft,
@@ -143,11 +145,19 @@ export function useDocumentsMutations({
     [documents],
   );
 
+  const techniciansById = useMemo(
+    () => new Map(technicians.map((technician) => [technician.id, technician])),
+    [technicians],
+  );
+
   const upsertDraftMutation = useMutation({
     mutationFn: async () => {
       if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
       if (form.customer_id && !customersById.has(form.customer_id)) {
         throw new Error("El cliente seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+      if (form.technician_id && !techniciansById.has(form.technician_id)) {
+        throw new Error("El tecnico seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
       }
       if (editingDocId && !documentsById.has(editingDocId)) {
         throw new Error("El borrador que intentas editar ya no esta disponible. Recarga Documentos e intenta de nuevo");
@@ -196,6 +206,7 @@ export function useDocumentsMutations({
             status: "BORRADOR",
             point_of_sale: form.point_of_sale,
             customer_id: form.customer_id || null,
+            technician_id: form.technician_id || null,
             customer_name: customerName || null,
             customer_tax_condition: form.customer_tax_condition || null,
             customer_tax_id: customerTaxId,
@@ -223,6 +234,7 @@ export function useDocumentsMutations({
             doc_type: form.doc_type,
             point_of_sale: form.point_of_sale,
             customer_id: form.customer_id || null,
+            technician_id: form.technician_id || null,
             customer_name: customerName || null,
             customer_tax_condition: form.customer_tax_condition || null,
             customer_tax_id: customerTaxId,
@@ -400,6 +412,7 @@ export function useDocumentsMutations({
           status: "BORRADOR",
           point_of_sale: src.point_of_sale,
           customer_id: src.customer_id,
+          technician_id: src.technician_id,
           customer_name: src.customer_name,
           customer_tax_condition: src.customer_tax_condition,
           customer_tax_id: src.customer_tax_id,
@@ -481,6 +494,110 @@ export function useDocumentsMutations({
     },
   });
 
+  const cloneAsReturnMutation = useMutation({
+    mutationFn: async (sourceId: string) => {
+      if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
+      if (!documentsById.has(sourceId)) {
+        throw new Error("El remito seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+      const { data: src, error: srcErr } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("id", sourceId)
+        .single();
+      if (srcErr) throw srcErr;
+
+      const { data: srcLines, error: lineErr } = await supabase
+        .from("document_lines")
+        .select("*")
+        .eq("document_id", sourceId)
+        .order("line_order");
+      if (lineErr) throw lineErr;
+
+      if (src.doc_type !== "REMITO") {
+        throw new Error("Solo se puede generar devolucion desde un remito");
+      }
+      if (src.status !== "EMITIDO") {
+        throw new Error("Solo se puede devolver un remito emitido");
+      }
+
+      const { data: newDoc, error: newDocErr } = await supabase
+        .from("documents")
+        .insert({
+          company_id: currentCompanyId,
+          doc_type: "REMITO_DEVOLUCION",
+          status: "BORRADOR",
+          point_of_sale: src.point_of_sale,
+          customer_id: src.customer_id,
+          technician_id: src.technician_id,
+          customer_name: src.customer_name,
+          customer_tax_condition: src.customer_tax_condition,
+          customer_tax_id: src.customer_tax_id,
+          customer_kind: src.customer_kind,
+          payment_terms: src.payment_terms,
+          delivery_address: src.delivery_address,
+          salesperson: src.salesperson,
+          price_list_id: src.price_list_id,
+          origin_document_id: src.id,
+          source_document_id: src.id,
+          source_document_type: src.doc_type,
+          source_document_number_snapshot: formatNumber(src.document_number, src.point_of_sale),
+          notes: src.notes,
+          subtotal: 0,
+          tax_total: 0,
+          total: 0,
+          created_by: userId,
+        })
+        .select("id")
+        .single();
+      if (newDocErr) throw newDocErr;
+
+      const linesPayload = (srcLines ?? []).map((line) => ({
+        document_id: newDoc.id,
+        line_order: line.line_order,
+        item_id: line.item_id,
+        sku_snapshot: line.sku_snapshot,
+        description: line.description,
+        unit: line.unit,
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        pricing_mode: line.pricing_mode,
+        suggested_unit_price: line.suggested_unit_price,
+        base_cost_snapshot: line.base_cost_snapshot,
+        list_flete_pct_snapshot: line.list_flete_pct_snapshot,
+        list_utilidad_pct_snapshot: line.list_utilidad_pct_snapshot,
+        list_impuesto_pct_snapshot: line.list_impuesto_pct_snapshot,
+        manual_margin_pct: line.manual_margin_pct,
+        price_overridden_by: line.price_overridden_by,
+        price_overridden_at: line.price_overridden_at,
+        line_total: line.line_total,
+        created_by: userId,
+      }));
+      const { error: insErr } = await supabase.from("document_lines").insert(linesPayload);
+      if (insErr) throw insErr;
+
+      await supabase.from("document_events").insert({
+        document_id: newDoc.id,
+        event_type: "CREATED",
+        payload: {
+          source: "remito_return",
+          source_document_id: src.id,
+          source_number: formatNumber(src.document_number, src.point_of_sale),
+        },
+        created_by: userId,
+      });
+
+      return newDoc.id as string;
+    },
+    onSuccess: () => {
+      void invalidateDocumentQueries(qc);
+      toast({ title: "Devolucion borrador creada" });
+    },
+    onError: (error: unknown) => {
+      toast({ title: "No se pudo generar la devolucion", description: getErrorMessage(error), variant: "destructive" });
+    },
+  });
+
   const setExternalInvoiceMutation = useMutation({
     mutationFn: async ({
       documentId,
@@ -542,7 +659,11 @@ export function useDocumentsMutations({
     issueMutation,
     transitionMutation,
     cloneAsRemitoMutation,
+    cloneAsReturnMutation,
     setExternalInvoiceMutation,
     clearExternalInvoiceMutation,
   };
 }
+      if (form.technician_id && !techniciansById.has(form.technician_id)) {
+        throw new Error("El tecnico seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }

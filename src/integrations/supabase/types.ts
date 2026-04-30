@@ -609,6 +609,47 @@ export type Database = {
           },
         ]
       }
+      technicians: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technicians_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_events: {
         Row: {
           created_at: string
@@ -795,6 +836,7 @@ export type Database = {
             | null
           issue_date: string
           notes: string | null
+          origin_document_id: string | null
           payment_terms: string | null
           point_of_sale: number
           price_list_id: string | null
@@ -810,6 +852,7 @@ export type Database = {
           total: number
           updated_at: string
           valid_until: string | null
+          technician_id: string | null
         }
         Insert: {
           company_id: string
@@ -830,6 +873,7 @@ export type Database = {
             | null
           issue_date?: string
           notes?: string | null
+          origin_document_id?: string | null
           payment_terms?: string | null
           point_of_sale?: number
           price_list_id?: string | null
@@ -845,6 +889,7 @@ export type Database = {
           total?: number
           updated_at?: string
           valid_until?: string | null
+          technician_id?: string | null
         }
         Update: {
           company_id?: string
@@ -865,6 +910,7 @@ export type Database = {
             | null
           issue_date?: string
           notes?: string | null
+          origin_document_id?: string | null
           payment_terms?: string | null
           point_of_sale?: number
           price_list_id?: string | null
@@ -880,6 +926,7 @@ export type Database = {
           total?: number
           updated_at?: string
           valid_until?: string | null
+          technician_id?: string | null
         }
         Relationships: [
           {
@@ -2415,7 +2462,7 @@ export type Database = {
         | "RECHAZADO"
         | "EMITIDO"
         | "ANULADO"
-      document_type: "PRESUPUESTO" | "REMITO"
+      document_type: "PRESUPUESTO" | "REMITO" | "REMITO_DEVOLUCION"
       internal_remito_type: "CUENTA_CORRIENTE" | "DESCUENTO_SUELDO"
       item_demand_profile: "LOW" | "MEDIUM" | "HIGH"
       match_status: "MATCHED" | "PENDING" | "NEW"
@@ -2584,7 +2631,7 @@ export const Constants = {
         "EMITIDO",
         "ANULADO",
       ],
-      document_type: ["PRESUPUESTO", "REMITO"],
+      document_type: ["PRESUPUESTO", "REMITO", "REMITO_DEVOLUCION"],
       internal_remito_type: ["CUENTA_CORRIENTE", "DESCUENTO_SUELDO"],
       item_demand_profile: ["LOW", "MEDIUM", "HIGH"],
       match_status: ["MATCHED", "PENDING", "NEW"],
