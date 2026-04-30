@@ -5,7 +5,7 @@ export const SERVICE_STATUS_LABEL: Record<ServiceDocumentStatus, string> = {
   SENT: "Enviado",
   APPROVED: "Aprobado",
   REJECTED: "Rechazado",
-  CANCELLED: "Cancelado",
+  CANCELLED: "Anulado",
 };
 
 export const DEFAULT_SERVICE_TEXTS = {

@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Check, Copy, Edit, Eye, Plus, Printer, Search, Slash, Send, Trash2, X } from "lucide-react";
+import { Ban, Check, Copy, Edit, Eye, Plus, Printer, Search, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { FilterBar, PageHeader } from "@/components/ui/page";
@@ -25,6 +25,14 @@ import { useServiceDocuments } from "@/features/services/hooks/useServiceDocumen
 import type { ServiceDocument, ServiceDocumentEvent, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
 
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
+
+const SERVICE_STATUS_BADGE_CLASS: Record<ServiceDocumentStatus, string> = {
+  DRAFT: "border-slate-500/30 bg-slate-500/10 text-slate-300",
+  SENT: "border-sky-500/30 bg-sky-500/10 text-sky-300",
+  APPROVED: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  REJECTED: "border-rose-500/30 bg-rose-500/10 text-rose-300",
+  CANCELLED: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+};
 
 export default function ServiceDocumentsPage() {
   const { currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
@@ -227,6 +235,10 @@ export default function ServiceDocumentsPage() {
   };
 
   const triggerDuplicate = (document: ServiceDocument) => {
+    if (document.status === "CANCELLED") {
+      toast({ title: "No se puede duplicar", description: "Los documentos anulados no se pueden duplicar.", variant: "destructive" });
+      return;
+    }
     if (!confirmAction(`Duplicar el documento ${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")} ?`)) return;
     duplicateMutation.mutate(document.id);
   };
@@ -324,7 +336,7 @@ export default function ServiceDocumentsPage() {
                     <TableCell>{document.customers?.name ?? "Sin cliente"}</TableCell>
                     <TableCell>{formatIsoDate(document.issue_date)}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{SERVICE_STATUS_LABEL[document.status]}</Badge>
+                      <Badge variant="outline" className={SERVICE_STATUS_BADGE_CLASS[document.status]}>{SERVICE_STATUS_LABEL[document.status]}</Badge>
                     </TableCell>
                     <TableCell className="text-right">{currency.format(Number(document.total ?? 0))}</TableCell>
                     <TableCell className="text-right">
@@ -345,11 +357,11 @@ export default function ServiceDocumentsPage() {
                           </Button>
                         ) : null}
                         {canCancelServiceDocuments && canTransitionServiceDocument(document, "CANCELLED") ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" title="Anular" onClick={() => triggerTransition(document, "CANCELLED")} disabled={transitionMutation.isPending}>
-                            <Slash className="h-4 w-4" />
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-amber-500 hover:text-amber-400" title="Anular" onClick={() => triggerTransition(document, "CANCELLED")} disabled={transitionMutation.isPending}>
+                            <Ban className="h-4 w-4" />
                           </Button>
                         ) : null}
-                        {canManageServiceDocuments ? (
+                        {canManageServiceDocuments && document.status !== "CANCELLED" ? (
                           <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-violet-500 hover:text-violet-400" title="Duplicar" onClick={() => triggerDuplicate(document)} disabled={duplicateMutation.isPending}>
                             <Copy className="h-4 w-4" />
                           </Button>
@@ -481,7 +493,7 @@ export default function ServiceDocumentsPage() {
                       <div className="grid gap-3 lg:grid-cols-[1.15fr_.85fr]">
                         <div className="rounded-2xl border border-border/60 bg-background/60 p-3.5 text-center">
                           <div className="flex flex-wrap items-center justify-between gap-3">
-                            <Badge variant="outline">{SERVICE_STATUS_LABEL[previewDocument.status]}</Badge>
+                            <Badge variant="outline" className={SERVICE_STATUS_BADGE_CLASS[previewDocument.status]}>{SERVICE_STATUS_LABEL[previewDocument.status]}</Badge>
                             <div className="text-right">
                               <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Documento</p>
                               <p className="mt-1 text-lg font-semibold text-foreground">{SERVICE_DOCUMENT_PREFIX}-{String(previewDocument.number).padStart(6, "0")}</p>
@@ -495,13 +507,13 @@ export default function ServiceDocumentsPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="rounded-2xl border border-border/60 bg-gradient-to-b from-slate-950 to-slate-900 p-3.5 text-white">
-                          <p className="text-[10px] uppercase tracking-[0.24em] text-slate-300">Servicio</p>
+                        <div className="rounded-2xl border border-primary/25 bg-primary/10 p-3.5 text-foreground shadow-sm">
+                          <p className="text-[10px] uppercase tracking-[0.24em] text-primary">Servicio</p>
                           <p className="mt-2 text-2xl font-semibold tracking-tight">{previewDocument.type === "REMITO" ? "Remito de servicio" : "Presupuesto de servicio"}</p>
-                          <div className="mt-4 space-y-1 text-sm text-slate-200">
-                            <p><span className="text-slate-400">Fecha:</span> {formatIsoDate(previewDocument.issue_date)}</p>
-                            <p><span className="text-slate-400">Estado:</span> {SERVICE_STATUS_LABEL[previewDocument.status]}</p>
-                            {previewDocument.valid_until ? <p><span className="text-slate-400">Vigencia:</span> {formatIsoDate(previewDocument.valid_until)}</p> : null}
+                          <div className="mt-4 space-y-1 text-sm text-muted-foreground">
+                            <p><span className="text-foreground/70">Fecha:</span> {formatIsoDate(previewDocument.issue_date)}</p>
+                            <p><span className="text-foreground/70">Estado:</span> {SERVICE_STATUS_LABEL[previewDocument.status]}</p>
+                            {previewDocument.valid_until ? <p><span className="text-foreground/70">Vigencia:</span> {formatIsoDate(previewDocument.valid_until)}</p> : null}
                           </div>
                         </div>
                       </div>
