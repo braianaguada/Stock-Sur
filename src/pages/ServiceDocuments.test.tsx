@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
@@ -56,6 +56,20 @@ vi.mock("@/features/services/hooks/useServiceDocumentMutations", () => ({
     transitionMutation: { mutate: vi.fn(), isPending: false },
   }),
 }));
+vi.mock("@/features/services/db", () => ({
+  serviceDb: {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          order: async () => ({
+            data: [{ id: "line-1", description: "Trabajo", quantity: 1, unit: "u", unit_price: 1500, line_total: 1500, sort_order: 1 }],
+            error: null,
+          }),
+        }),
+      }),
+    }),
+  },
+}));
 
 import ServiceDocumentsPage from "./ServiceDocuments";
 
@@ -65,7 +79,7 @@ describe("ServiceDocumentsPage", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows preview and print actions and opens preview dialog", () => {
+  it("shows preview and print actions and opens preview dialog", async () => {
     const write = vi.fn();
     const focus = vi.fn();
     vi.stubGlobal("open", vi.fn(() => ({ document: { open: vi.fn(), write, close: vi.fn() }, focus })));
@@ -81,6 +95,6 @@ describe("ServiceDocumentsPage", () => {
     expect(screen.getAllByText("Cliente Demo").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByText("Abrir impresión"));
-    expect(window.open).toHaveBeenCalled();
+    await waitFor(() => expect(window.open).toHaveBeenCalled());
   });
 });

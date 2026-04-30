@@ -17,6 +17,7 @@ import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { currency, formatIsoDate } from "@/lib/formatters";
 import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
+import { serviceDb } from "@/features/services/db";
 import { EMPTY_SERVICE_LINE, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
 import { buildInitialServiceDocumentForm, canConvertServiceDocumentToRemito, canTransitionServiceDocument } from "@/features/services/logic";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
@@ -123,7 +124,13 @@ export default function ServiceDocumentsPage() {
 
   const confirmAction = (message: string) => window.confirm(message);
 
-  const openServicePrint = (document: ServiceDocument, documentLines: ServiceDocumentLine[]) => {
+  const openServicePrint = async (document: ServiceDocument) => {
+    const { data: lineRows } = await serviceDb
+      .from("service_document_lines")
+      .select("id, document_id, description, quantity, unit, unit_price, line_total, sort_order")
+      .eq("document_id", document.id)
+      .order("sort_order");
+    const documentLines = (lineRows ?? []) as ServiceDocumentLine[];
     const title = `${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")}`;
     const win = openPrintWindow(`<!doctype html><html><head><title>${escapeHtml(title)}</title>
       <style>
@@ -354,7 +361,7 @@ export default function ServiceDocumentsPage() {
                           <Eye className="h-4 w-4" />
                         </Button>
                         {canPrintServiceDocuments ? (
-                          <Button type="button" variant="ghost" size="icon" title="Imprimir" onClick={() => openServicePrint(document, selectedDocument?.id === document.id ? selectedLines : [])}>
+                          <Button type="button" variant="ghost" size="icon" title="Imprimir" onClick={() => void openServicePrint(document)}>
                             <Printer className="h-4 w-4" />
                           </Button>
                         ) : null}
@@ -484,8 +491,8 @@ export default function ServiceDocumentsPage() {
                     </div>
                     <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
                       <div className="border-b border-border/60 px-5 py-4 lg:border-b-0 lg:border-r sm:px-6">
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                          <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p><p className="mt-1 text-base font-semibold text-foreground">{previewDocument.customers?.name ?? "Sin cliente"}</p></div>
+                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                          <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p><p className="mt-1 text-sm font-semibold text-foreground">{previewDocument.customers?.name ?? "Sin cliente"}</p></div>
                           <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Referencia</p><p className="mt-1 text-sm text-foreground">{previewDocument.reference || "-"}</p></div>
                           <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Vigencia</p><p className="mt-1 text-sm text-foreground">{previewDocument.valid_until ? formatIsoDate(previewDocument.valid_until) : "-"}</p></div>
                           <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Estado</p><p className="mt-1 text-sm text-foreground">{SERVICE_STATUS_LABEL[previewDocument.status]}</p></div>
@@ -504,12 +511,12 @@ export default function ServiceDocumentsPage() {
                     </div>
                   </section>
                   {previewDocument.intro_text ? (
-                    <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+                    <section className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
                       <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Introducción</p>
                       <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/85">{previewDocument.intro_text}</p>
                     </section>
                   ) : null}
-                  <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+                  <section className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div>
                         <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Líneas</p>
@@ -520,7 +527,7 @@ export default function ServiceDocumentsPage() {
                         <p className="mt-1 text-3xl font-black tracking-tight text-foreground">{currency.format(Number(previewDocument.total ?? 0))}</p>
                       </div>
                     </div>
-                    <div className="mt-4 overflow-hidden rounded-xl border border-border/60 bg-background">
+                    <div className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-background">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -542,7 +549,7 @@ export default function ServiceDocumentsPage() {
                     </div>
                   </section>
                   {previewDocument.closing_text ? (
-                    <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+                    <section className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
                       <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Cierre</p>
                       <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/85">{previewDocument.closing_text}</p>
                     </section>
@@ -587,7 +594,7 @@ export default function ServiceDocumentsPage() {
           )}
           <div className="flex justify-end gap-2 px-5 pb-5">
             <Button variant="outline" onClick={() => setPreviewDocumentId(null)}>Cerrar</Button>
-            <Button type="button" onClick={() => openServicePrint(previewDocument, previewLines)}>Abrir impresión</Button>
+            <Button type="button" onClick={() => void openServicePrint(previewDocument)}>Abrir impresión</Button>
           </div>
         </DialogContent>
       </Dialog>
