@@ -19,6 +19,8 @@ const PriceListsPage = lazy(() => import("./pages/PriceLists"));
 const ImportsPage = lazy(() => import("./pages/Imports"));
 const QuotesPage = lazy(() => import("./pages/Quotes"));
 const DocumentsPage = lazy(() => import("./pages/Documents"));
+const ServiceDocumentsPage = lazy(() => import("./pages/ServiceDocuments"));
+const PrintServiceDocumentPage = lazy(() => import("./pages/PrintServiceDocument"));
 const CustomersPage = lazy(() => import("./pages/Customers"));
 const UsersPage = lazy(() => import("./pages/Users"));
 const LegacyCatalogImportPage = lazy(() => import("./pages/LegacyCatalogImport"));
@@ -80,6 +82,8 @@ const App = () => (
                   <Route path="/imports" element={<ProtectedRoute><ImportsPage /></ProtectedRoute>} />
                   <Route path="/quotes" element={<ProtectedRoute><QuotesPage /></ProtectedRoute>} />
                   <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
+                  <Route path="/services/documents" element={<ProtectedRoute><ServiceDocumentsPage /></ProtectedRoute>} />
+                  <Route path="/print/service-document/:id" element={<ProtectedRoute><PrintServiceDocumentPage /></ProtectedRoute>} />
                   <Route path="/cash" element={<ProtectedRoute><CashPage /></ProtectedRoute>} />
                   <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
                   <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
