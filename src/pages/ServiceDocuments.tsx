@@ -6,7 +6,7 @@ import { FilterBar, PageHeader } from "@/components/ui/page";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -44,10 +44,7 @@ export default function ServiceDocumentsPage() {
     documentId: editingDocumentId ?? previewDocumentId,
   });
 
-  const total = useMemo(
-    () => lines.reduce((sum, line) => sum + calculateServiceLineTotal(line), 0),
-    [lines],
-  );
+  const total = useMemo(() => lines.reduce((sum, line) => sum + calculateServiceLineTotal(line), 0), [lines]);
 
   useEffect(() => {
     if (!selectedDocument || !editingDocumentId) return;
@@ -119,8 +116,7 @@ export default function ServiceDocumentsPage() {
 
   const canManageServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.create");
   const canEditServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.edit");
-  const canApproveServiceDocuments =
-    companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.approve");
+  const canApproveServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.approve");
   const canCancelServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.cancel");
   const canPrintServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.print");
 
@@ -168,15 +164,17 @@ export default function ServiceDocumentsPage() {
   return (
     <AppLayout>
       <div className="page-shell">
-        {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para crear presupuestos de servicio." />
-        ) : null}
+        {!currentCompany ? <CompanyAccessNotice description="Necesitas una empresa activa para crear presupuestos de servicio." /> : null}
 
         <PageHeader
           eyebrow="Servicios"
           title="Documentos"
           subtitle="Presupuestos de servicio manuales, separados de stock, caja e items."
-          actions={<Button onClick={openCreate} disabled={!canManageServiceDocuments}><Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto</Button>}
+          actions={
+            <Button onClick={openCreate} disabled={!canManageServiceDocuments}>
+              <Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto
+            </Button>
+          }
         />
 
         <FilterBar>
@@ -189,7 +187,9 @@ export default function ServiceDocumentsPage() {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={option}>{option === "ALL" ? "Todos" : SERVICE_STATUS_LABEL[option]}</SelectItem>
+                  <SelectItem key={option} value={option}>
+                    {option === "ALL" ? "Todos" : SERVICE_STATUS_LABEL[option]}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -206,11 +206,11 @@ export default function ServiceDocumentsPage() {
             </div>
           ) : documents.length === 0 ? (
             <Card className="m-4 border-dashed bg-muted/15">
-              <CardContent className="flex flex-col items-start gap-3 p-6">
-                <div>
-                  <h3 className="text-base font-semibold">Todav�a no hay presupuestos de servicio</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Cre� el primero para empezar a registrar trabajos manuales sin tocar stock ni caja.
+              <CardContent className="flex flex-col items-start gap-3 p-6 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold">Todavía no hay presupuestos de servicio</h3>
+                  <p className="max-w-2xl text-sm text-muted-foreground">
+                    Creá el primero para empezar a registrar trabajos manuales sin tocar stock, caja ni cuenta corriente.
                   </p>
                 </div>
                 <Button onClick={openCreate} disabled={!canManageServiceDocuments}>
@@ -219,82 +219,80 @@ export default function ServiceDocumentsPage() {
               </CardContent>
             </Card>
           ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Numero</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Cargando...</TableCell></TableRow>
-              ) : documents.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No hay presupuestos de servicio para mostrar</TableCell></TableRow>
-              ) : documents.map((document) => (
-                <TableRow key={document.id}>
-                  <TableCell className="font-medium">{SERVICE_DOCUMENT_PREFIX}-{String(document.number).padStart(6, "0")}</TableCell>
-                  <TableCell>{document.customers?.name ?? "Sin cliente"}</TableCell>
-                  <TableCell>{formatIsoDate(document.issue_date)}</TableCell>
-                  <TableCell><Badge variant="outline">{SERVICE_STATUS_LABEL[document.status]}</Badge></TableCell>
-                  <TableCell className="text-right">{currency.format(Number(document.total ?? 0))}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex flex-wrap justify-end gap-1.5">
-                      {canManageServiceDocuments && canTransitionServiceDocument(document, "SENT") ? (
-                        <Button type="button" variant="ghost" size="icon" title="Enviar" onClick={() => triggerTransition(document, "SENT")} disabled={transitionMutation.isPending}>
-                          <Send className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      {canApproveServiceDocuments && canTransitionServiceDocument(document, "APPROVED") ? (
-                        <Button type="button" variant="ghost" size="icon" title="Aprobar" onClick={() => triggerTransition(document, "APPROVED")} disabled={transitionMutation.isPending}>
-                          <Check className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      {canApproveServiceDocuments && canTransitionServiceDocument(document, "REJECTED") ? (
-                        <Button type="button" variant="ghost" size="icon" title="Rechazar" onClick={() => triggerTransition(document, "REJECTED")} disabled={transitionMutation.isPending}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      {canCancelServiceDocuments && canTransitionServiceDocument(document, "CANCELLED") ? (
-                        <Button type="button" variant="ghost" size="icon" title="Anular" onClick={() => triggerTransition(document, "CANCELLED")} disabled={transitionMutation.isPending}>
-                          <Slash className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      {canManageServiceDocuments && canConvertServiceDocumentToRemito(document) ? (
-                        <Button type="button" variant="ghost" size="icon" title="Convertir a remito" onClick={() => triggerRemito(document)} disabled={convertToRemitoMutation.isPending}>
-                          <Truck className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      {canManageServiceDocuments ? (
-                        <Button type="button" variant="ghost" size="icon" title="Duplicar" onClick={() => triggerDuplicate(document)} disabled={duplicateMutation.isPending}>
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      <Button type="button" variant="ghost" size="icon" title="Vista previa" onClick={() => openPreview(document)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {canPrintServiceDocuments ? (
-                        <Button asChild variant="ghost" size="icon" title="Imprimir">
-                          <a href={`/print/service-document/${document.id}`} target="_blank" rel="noreferrer">
-                            <Printer className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      ) : null}
-                      {canEditServiceDocuments && document.status === "DRAFT" ? (
-                        <Button type="button" variant="ghost" size="icon" title="Editar" onClick={() => openEdit(document)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                    </div>
-                  </TableCell>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Numero</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {documents.map((document) => (
+                  <TableRow key={document.id}>
+                    <TableCell className="font-medium">{SERVICE_DOCUMENT_PREFIX}-{String(document.number).padStart(6, "0")}</TableCell>
+                    <TableCell>{document.customers?.name ?? "Sin cliente"}</TableCell>
+                    <TableCell>{formatIsoDate(document.issue_date)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{SERVICE_STATUS_LABEL[document.status]}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">{currency.format(Number(document.total ?? 0))}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        {canManageServiceDocuments && canTransitionServiceDocument(document, "SENT") ? (
+                          <Button type="button" variant="ghost" size="icon" title="Enviar" onClick={() => triggerTransition(document, "SENT")} disabled={transitionMutation.isPending}>
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        {canApproveServiceDocuments && canTransitionServiceDocument(document, "APPROVED") ? (
+                          <Button type="button" variant="ghost" size="icon" title="Aprobar" onClick={() => triggerTransition(document, "APPROVED")} disabled={transitionMutation.isPending}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        {canApproveServiceDocuments && canTransitionServiceDocument(document, "REJECTED") ? (
+                          <Button type="button" variant="ghost" size="icon" title="Rechazar" onClick={() => triggerTransition(document, "REJECTED")} disabled={transitionMutation.isPending}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        {canCancelServiceDocuments && canTransitionServiceDocument(document, "CANCELLED") ? (
+                          <Button type="button" variant="ghost" size="icon" title="Anular" onClick={() => triggerTransition(document, "CANCELLED")} disabled={transitionMutation.isPending}>
+                            <Slash className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        {canManageServiceDocuments && canConvertServiceDocumentToRemito(document) ? (
+                          <Button type="button" variant="ghost" size="icon" title="Convertir a remito" onClick={() => triggerRemito(document)} disabled={convertToRemitoMutation.isPending}>
+                            <Truck className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        {canManageServiceDocuments ? (
+                          <Button type="button" variant="ghost" size="icon" title="Duplicar" onClick={() => triggerDuplicate(document)} disabled={duplicateMutation.isPending}>
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        <Button type="button" variant="ghost" size="icon" title="Vista previa" onClick={() => openPreview(document)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {canPrintServiceDocuments ? (
+                          <Button asChild variant="ghost" size="icon" title="Imprimir">
+                            <a href={`/print/service-document/${document.id}`} target="_blank" rel="noreferrer">
+                              <Printer className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        ) : null}
+                        {canEditServiceDocuments && document.status === "DRAFT" ? (
+                          <Button type="button" variant="ghost" size="icon" title="Editar" onClick={() => openEdit(document)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </section>
       </div>
@@ -303,10 +301,10 @@ export default function ServiceDocumentsPage() {
         <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle>
+            <DialogDescription>Formulario de presupuesto de servicio manual.</DialogDescription>
           </DialogHeader>
-
-          <div className="grid gap-5">
-            <section className="grid gap-3 md:grid-cols-5">
+          <div className="grid gap-6">
+            <section className="grid gap-4 rounded-xl border bg-muted/10 p-4 md:grid-cols-5">
               <div className="md:col-span-2">
                 <Label>Cliente</Label>
                 <Select value={form.customer_id} onValueChange={(value) => setForm((current) => ({ ...current, customer_id: value }))}>
@@ -319,13 +317,12 @@ export default function ServiceDocumentsPage() {
               <div><Label>Vigencia</Label><Input type="date" value={form.valid_until} onChange={(event) => setForm((current) => ({ ...current, valid_until: event.target.value }))} /></div>
               <div><Label>Estado</Label><Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value as ServiceDocumentStatus }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPTIONS.filter((option) => option !== "ALL").map((option) => <SelectItem key={option} value={option}>{SERVICE_STATUS_LABEL[option]}</SelectItem>)}</SelectContent></Select></div>
             </section>
-
-            <section className="grid gap-3">
+            <section className="grid gap-4 rounded-xl border bg-muted/10 p-4">
               <Label>Texto introductorio</Label>
               <Textarea rows={3} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
-              <div className="overflow-x-auto rounded-lg border">
+              <div className="overflow-x-auto rounded-lg border bg-background">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Descripcion</TableHead><TableHead className="w-28">Cantidad</TableHead><TableHead className="w-28">Unidad</TableHead><TableHead className="w-36">Precio</TableHead><TableHead className="w-36 text-right">Total</TableHead><TableHead className="w-12" /></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Descripción</TableHead><TableHead className="w-28">Cantidad</TableHead><TableHead className="w-28">Unidad</TableHead><TableHead className="w-36">Precio</TableHead><TableHead className="w-36 text-right">Total</TableHead><TableHead className="w-12" /></TableRow></TableHeader>
                   <TableBody>{lines.map((line, index) => (
                     <TableRow key={index}>
                       <TableCell><Textarea rows={2} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
@@ -338,26 +335,25 @@ export default function ServiceDocumentsPage() {
                   ))}</TableBody>
                 </Table>
               </div>
-              <Button type="button" variant="outline" className="w-fit" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, sort_order: current.length + 1 }])}><Plus className="mr-2 h-4 w-4" /> Agregar linea</Button>
+              <Button type="button" variant="outline" className="w-fit" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, sort_order: current.length + 1 }])}>
+                <Plus className="mr-2 h-4 w-4" /> Agregar línea
+              </Button>
             </section>
-
-            <section className="grid gap-3 md:grid-cols-3">
+            <section className="grid gap-4 rounded-xl border bg-muted/10 p-4 md:grid-cols-3">
               <div><Label>Plazo de entrega</Label><Textarea rows={3} value={form.delivery_time} onChange={(event) => setForm((current) => ({ ...current, delivery_time: event.target.value }))} /></div>
               <div><Label>Condiciones de pago</Label><Textarea rows={3} value={form.payment_terms} onChange={(event) => setForm((current) => ({ ...current, payment_terms: event.target.value }))} /></div>
               <div><Label>Lugar de entrega</Label><Textarea rows={3} value={form.delivery_location} onChange={(event) => setForm((current) => ({ ...current, delivery_location: event.target.value }))} /></div>
             </section>
-
-            <section className="grid gap-3">
+            <section className="grid gap-4 rounded-xl border bg-muted/10 p-4">
               <Label>Cierre</Label>
               <Textarea rows={3} value={form.closing_text} onChange={(event) => setForm((current) => ({ ...current, closing_text: event.target.value }))} />
-              <div className="ml-auto w-full max-w-sm rounded-lg border bg-muted/30 p-4">
+              <div className="ml-auto w-full max-w-sm rounded-lg border bg-background p-4 shadow-sm">
                 <div className="flex justify-between text-sm"><span>Subtotal</span><span>{currency.format(total)}</span></div>
                 <div className="mt-2 flex justify-between text-lg font-bold"><span>Total</span><span>{currency.format(total)}</span></div>
               </div>
             </section>
-
             {selectedEvents.length > 0 ? (
-              <section className="grid gap-2 rounded-lg border bg-muted/20 p-4">
+              <section className="grid gap-3 rounded-xl border bg-muted/10 p-4">
                 <Label>Historial</Label>
                 <div className="grid gap-2">
                   {selectedEvents.map((event) => (
@@ -366,7 +362,7 @@ export default function ServiceDocumentsPage() {
                         <div className="font-medium">{describeEvent(event)}</div>
                         <div className="text-muted-foreground">
                           {new Date(event.created_at).toLocaleString("es-AR")}
-                          {event.created_by ? ` � ${event.created_by.slice(0, 8)}` : ""}
+                          {event.created_by ? ` · ${event.created_by.slice(0, 8)}` : ""}
                         </div>
                       </div>
                     </div>
@@ -375,7 +371,6 @@ export default function ServiceDocumentsPage() {
               </section>
             ) : null}
           </div>
-
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button type="button" onClick={() => upsertMutation.mutate()} disabled={upsertMutation.isPending}>{upsertMutation.isPending ? "Guardando..." : "Guardar"}</Button>
@@ -387,26 +382,27 @@ export default function ServiceDocumentsPage() {
         <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Vista previa del presupuesto de servicio</DialogTitle>
+            <DialogDescription>Revisión rápida del documento antes de imprimir.</DialogDescription>
           </DialogHeader>
           {previewDocument ? (
-            <div className="grid gap-5">
+            <div className="grid gap-6">
               <section className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-lg border p-4">
+                <div className="rounded-xl border bg-muted/10 p-4">
                   <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Cliente</div>
                   <div className="mt-2 font-medium">{previewDocument.customers?.name ?? "Sin cliente"}</div>
                   <div className="text-sm text-muted-foreground">{previewDocument.reference || "-"}</div>
                 </div>
-                <div className="rounded-lg border p-4">
+                <div className="rounded-xl border bg-muted/10 p-4">
                   <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total</div>
                   <div className="mt-2 text-2xl font-bold">{currency.format(Number(previewDocument.total ?? 0))}</div>
                   <div className="text-sm text-muted-foreground">{SERVICE_STATUS_LABEL[previewDocument.status]}</div>
                 </div>
               </section>
-              <section className="overflow-x-auto rounded-lg border">
+              <section className="overflow-x-auto rounded-xl border bg-background">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Descripcion</TableHead>
+                      <TableHead>Descripción</TableHead>
                       <TableHead className="w-28 text-right">Cantidad</TableHead>
                       <TableHead className="w-32 text-right">Total</TableHead>
                     </TableRow>
@@ -437,4 +433,3 @@ export default function ServiceDocumentsPage() {
     </AppLayout>
   );
 }
-
