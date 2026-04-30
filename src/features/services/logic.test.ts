@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildInitialServiceDocumentForm, canConvertServiceDocumentToRemito, canTransitionServiceDocument } from "./logic";
+import { calculateServiceLineTotal } from "./hooks/useServiceDocumentMutations";
 
 describe("service document logic", () => {
   afterEach(() => {
@@ -46,5 +47,11 @@ describe("service document logic", () => {
     expect(canConvertServiceDocumentToRemito({ type: "QUOTE", status: "APPROVED" })).toBe(true);
     expect(canConvertServiceDocumentToRemito({ type: "QUOTE", status: "SENT" })).toBe(false);
     expect(canConvertServiceDocumentToRemito({ type: "REMITO", status: "APPROVED" })).toBe(false);
+  });
+
+  it("calculates service line totals defensively", () => {
+    expect(calculateServiceLineTotal({ quantity: 2, unit_price: 10, line_total: 0 } as never)).toBe(20);
+    expect(calculateServiceLineTotal({ quantity: 0, unit_price: 10, line_total: 15 } as never)).toBe(15);
+    expect(calculateServiceLineTotal({ quantity: 2, unit_price: 0, line_total: 15 } as never)).toBe(15);
   });
 });
