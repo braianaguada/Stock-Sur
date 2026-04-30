@@ -378,63 +378,67 @@ export default function ServiceDocumentsPage() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-      <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
+        <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto p-0">
           <DialogHeader>
-            <DialogTitle>{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle>
-            <DialogDescription>Formulario de presupuesto de servicio manual.</DialogDescription>
+            <div className="px-5 pt-5">
+              <DialogTitle>{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle>
+              <DialogDescription>Formulario de presupuesto de servicio manual.</DialogDescription>
+            </div>
           </DialogHeader>
-          <div className="grid gap-2.5">
-            <section className="grid gap-2 rounded-xl border bg-muted/10 p-3 md:grid-cols-5">
-              <div className="md:col-span-2">
-                <Label>Cliente</Label>
-                <Select value={form.customer_id} onValueChange={(value) => setForm((current) => ({ ...current, customer_id: value }))}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
-                  <SelectContent>{customers.map((customer) => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}</SelectContent>
-                </Select>
+          <div className="grid gap-3 px-5 pb-4">
+            <section className="rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm">
+              <div className="grid gap-2.5 md:grid-cols-5">
+                <div className="space-y-1 md:col-span-2">
+                  <Label className="text-xs">Cliente</Label>
+                  <Select value={form.customer_id} onValueChange={(value) => setForm((current) => ({ ...current, customer_id: value }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
+                    <SelectContent>{customers.map((customer) => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 md:col-span-1"><Label className="text-xs">Referencia</Label><Input className="h-9" value={form.reference} onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))} /></div>
+                <div className="space-y-1"><Label className="text-xs">Fecha</Label><Input className="h-9" type="date" value={form.issue_date} onChange={(event) => setForm((current) => ({ ...current, issue_date: event.target.value }))} /></div>
+                <div className="space-y-1"><Label className="text-xs">Vigencia</Label><Input className="h-9" type="date" value={form.valid_until} onChange={(event) => setForm((current) => ({ ...current, valid_until: event.target.value }))} /></div>
+                <div className="space-y-1"><Label className="text-xs">Estado</Label><Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value as ServiceDocumentStatus }))}><SelectTrigger className="h-9"><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPTIONS.filter((option) => option !== "ALL").map((option) => <SelectItem key={option} value={option}>{SERVICE_STATUS_LABEL[option]}</SelectItem>)}</SelectContent></Select></div>
               </div>
-              <div className="md:col-span-1"><Label>Referencia</Label><Input value={form.reference} onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))} /></div>
-              <div><Label>Fecha</Label><Input type="date" value={form.issue_date} onChange={(event) => setForm((current) => ({ ...current, issue_date: event.target.value }))} /></div>
-              <div><Label>Vigencia</Label><Input type="date" value={form.valid_until} onChange={(event) => setForm((current) => ({ ...current, valid_until: event.target.value }))} /></div>
-              <div><Label>Estado</Label><Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value as ServiceDocumentStatus }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPTIONS.filter((option) => option !== "ALL").map((option) => <SelectItem key={option} value={option}>{SERVICE_STATUS_LABEL[option]}</SelectItem>)}</SelectContent></Select></div>
             </section>
-            <section className="grid gap-2.5 rounded-xl border bg-muted/10 p-3.5">
-              <Label>Texto introductorio</Label>
-              <Textarea rows={2} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
+
+            <section className="grid gap-2 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm">
+              <Label className="text-xs">Texto introductorio</Label>
+              <Textarea className="min-h-14 resize-none text-sm" rows={2} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
               <div className="overflow-x-auto rounded-lg border bg-background">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Descripción</TableHead><TableHead className="w-28">Cantidad</TableHead><TableHead className="w-28">Unidad</TableHead><TableHead className="w-36">Precio</TableHead><TableHead className="w-36 text-right">Total</TableHead><TableHead className="w-12" /></TableRow></TableHeader>
+                  <TableHeader><TableRow className="h-9"><TableHead>Descripción</TableHead><TableHead className="w-24">Cantidad</TableHead><TableHead className="w-24">Unidad</TableHead><TableHead className="w-32">Precio</TableHead><TableHead className="w-32 text-right">Total</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
                   <TableBody>{lines.map((line, index) => (
-                    <TableRow key={index}>
-                      <TableCell><Textarea rows={2} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
-                      <TableCell><Input type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /></TableCell>
-                      <TableCell><Input value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /></TableCell>
-                      <TableCell><Input type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /></TableCell>
-                      <TableCell className="text-right">{currency.format(calculateServiceLineTotal(line))}</TableCell>
-                      <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeLine(index)} disabled={lines.length === 1}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                    <TableRow key={index} className="h-12">
+                      <TableCell className="py-1.5"><Textarea className="min-h-12 resize-none text-sm" rows={2} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
+                      <TableCell className="py-1.5"><Input className="h-9" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /></TableCell>
+                      <TableCell className="py-1.5"><Input className="h-9" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /></TableCell>
+                      <TableCell className="py-1.5"><Input className="h-9" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /></TableCell>
+                      <TableCell className="py-1.5 text-right text-sm font-semibold">{currency.format(calculateServiceLineTotal(line))}</TableCell>
+                      <TableCell className="py-1.5"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeLine(index)} disabled={lines.length === 1}><Trash2 className="h-4 w-4" /></Button></TableCell>
                     </TableRow>
                   ))}</TableBody>
                 </Table>
               </div>
-              <Button type="button" variant="outline" className="w-fit" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, sort_order: current.length + 1 }])}>
+              <Button type="button" variant="outline" size="sm" className="h-9 w-fit" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, sort_order: current.length + 1 }])}>
                 <Plus className="mr-2 h-4 w-4" /> Agregar línea
               </Button>
             </section>
-            <section className="grid gap-2 rounded-xl border bg-muted/10 p-3 md:grid-cols-3">
-              <div><Label>Plazo de entrega</Label><Textarea rows={2} value={form.delivery_time} onChange={(event) => setForm((current) => ({ ...current, delivery_time: event.target.value }))} /></div>
-              <div><Label>Condiciones de pago</Label><Textarea rows={2} value={form.payment_terms} onChange={(event) => setForm((current) => ({ ...current, payment_terms: event.target.value }))} /></div>
-              <div><Label>Lugar de entrega</Label><Textarea rows={2} value={form.delivery_location} onChange={(event) => setForm((current) => ({ ...current, delivery_location: event.target.value }))} /></div>
+
+            <section className="grid gap-2.5 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm md:grid-cols-3">
+              <div className="space-y-1"><Label className="text-xs">Plazo de entrega</Label><Textarea className="min-h-14 resize-none text-sm" rows={2} value={form.delivery_time} onChange={(event) => setForm((current) => ({ ...current, delivery_time: event.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Condiciones de pago</Label><Textarea className="min-h-14 resize-none text-sm" rows={2} value={form.payment_terms} onChange={(event) => setForm((current) => ({ ...current, payment_terms: event.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Lugar de entrega</Label><Textarea className="min-h-14 resize-none text-sm" rows={2} value={form.delivery_location} onChange={(event) => setForm((current) => ({ ...current, delivery_location: event.target.value }))} /></div>
             </section>
-            <section className="grid gap-2.5 rounded-xl border bg-muted/10 p-3.5">
-              <Label>Cierre</Label>
-              <Textarea rows={2} value={form.closing_text} onChange={(event) => setForm((current) => ({ ...current, closing_text: event.target.value }))} />
-              <div className="ml-auto w-full max-w-sm rounded-lg border bg-background p-3.5 shadow-sm">
-                <div className="flex justify-between text-sm"><span>Subtotal</span><span>{currency.format(total)}</span></div>
-                <div className="mt-2 flex justify-between text-lg font-bold"><span>Total</span><span>{currency.format(total)}</span></div>
-              </div>
+
+            <section className="grid gap-2 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm">
+              <Label className="text-xs">Cierre</Label>
+              <Textarea className="min-h-16 resize-none text-sm" rows={2} value={form.closing_text} onChange={(event) => setForm((current) => ({ ...current, closing_text: event.target.value }))} />
             </section>
+
             {selectedEvents.length > 0 ? (
-              <section className="grid gap-2.5 rounded-xl border bg-muted/10 p-3.5">
-                <Label>Historial</Label>
+              <section className="grid gap-2 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm">
+                <Label className="text-xs">Historial</Label>
                 <div className="grid gap-2">
                   {selectedEvents.map((event) => (
                     <div key={event.id} className="flex items-start justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm">
@@ -451,13 +455,16 @@ export default function ServiceDocumentsPage() {
               </section>
             ) : null}
           </div>
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 z-10 flex-row items-center justify-between border-t bg-background/95 px-5 py-3 backdrop-blur">
+            <div className="mr-auto">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Total documento</p>
+              <p className="text-xl font-extrabold tracking-tight">{currency.format(total)}</p>
+            </div>
             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button type="button" onClick={() => upsertMutation.mutate()} disabled={upsertMutation.isPending}>{upsertMutation.isPending ? "Guardando..." : "Guardar"}</Button>
+            <Button type="button" className="px-6" onClick={() => upsertMutation.mutate()} disabled={upsertMutation.isPending}>{upsertMutation.isPending ? "Guardando..." : "Guardar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       <Dialog open={Boolean(previewDocumentId)} onOpenChange={(open) => { if (!open) setPreviewDocumentId(null); }}>
         <DialogContent className="flex h-[min(92vh,920px)] max-w-[min(97vw,1520px)] flex-col overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
           <DialogHeader>
