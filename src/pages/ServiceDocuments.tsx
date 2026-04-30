@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Check, Copy, Edit, Plus, Printer, Search, Slash, Send, Trash2, Truck, X } from "lucide-react";
+import { Check, Copy, Edit, Eye, Plus, Printer, Search, Slash, Send, Trash2, Truck, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { FilterBar, PageHeader } from "@/components/ui/page";
@@ -32,6 +32,7 @@ export default function ServiceDocumentsPage() {
   const deferredSearch = useDeferredValue(search);
   const [status, setStatus] = useState<ServiceDocumentStatus | "ALL">("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(null);
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
   const [form, setForm] = useState<ServiceDocumentForm>(() => buildInitialServiceDocumentForm(settings));
   const [lines, setLines] = useState<ServiceDocumentLine[]>([{ ...EMPTY_SERVICE_LINE }]);
@@ -40,7 +41,7 @@ export default function ServiceDocumentsPage() {
     companyId: currentCompany?.id ?? null,
     search: deferredSearch,
     status,
-    documentId: editingDocumentId,
+    documentId: editingDocumentId ?? previewDocumentId,
   });
 
   const total = useMemo(
@@ -87,6 +88,10 @@ export default function ServiceDocumentsPage() {
   const openCreate = () => {
     resetForm();
     setDialogOpen(true);
+  };
+
+  const openPreview = (document: ServiceDocument) => {
+    setPreviewDocumentId(document.id);
   };
 
   const openEdit = (document: ServiceDocument) => {
@@ -156,6 +161,9 @@ export default function ServiceDocumentsPage() {
   const removeLine = (index: number) => {
     setLines((previous) => previous.filter((_, lineIndex) => lineIndex !== index));
   };
+
+  const previewDocument = selectedDocument ?? null;
+  const previewLines = selectedLines;
 
   return (
     <AppLayout>
@@ -266,9 +274,14 @@ export default function ServiceDocumentsPage() {
                           <Copy className="h-4 w-4" />
                         </Button>
                       ) : null}
+                      <Button type="button" variant="ghost" size="icon" title="Vista previa" onClick={() => openPreview(document)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       {canPrintServiceDocuments ? (
-                        <Button type="button" variant="ghost" size="icon" title="Imprimir" onClick={() => window.open(`/print/service-document/${document.id}`, "_blank")}>
-                          <Printer className="h-4 w-4" />
+                        <Button asChild type="button" variant="ghost" size="icon" title="Imprimir">
+                          <a href={`/print/service-document/${document.id}`} target="_blank" rel="noreferrer">
+                            <Printer className="h-4 w-4" />
+                          </a>
                         </Button>
                       ) : null}
                       {canEditServiceDocuments && document.status === "DRAFT" ? (
@@ -367,6 +380,58 @@ export default function ServiceDocumentsPage() {
             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button type="button" onClick={() => upsertMutation.mutate()} disabled={upsertMutation.isPending}>{upsertMutation.isPending ? "Guardando..." : "Guardar"}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(previewDocumentId)} onOpenChange={(open) => { if (!open) setPreviewDocumentId(null); }}>
+        <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Vista previa del presupuesto de servicio</DialogTitle>
+          </DialogHeader>
+          {previewDocument ? (
+            <div className="grid gap-5">
+              <section className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-lg border p-4">
+                  <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Cliente</div>
+                  <div className="mt-2 font-medium">{previewDocument.customers?.name ?? "Sin cliente"}</div>
+                  <div className="text-sm text-muted-foreground">{previewDocument.reference || "-"}</div>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total</div>
+                  <div className="mt-2 text-2xl font-bold">{currency.format(Number(previewDocument.total ?? 0))}</div>
+                  <div className="text-sm text-muted-foreground">{SERVICE_STATUS_LABEL[previewDocument.status]}</div>
+                </div>
+              </section>
+              <section className="overflow-x-auto rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Descripcion</TableHead>
+                      <TableHead className="w-28 text-right">Cantidad</TableHead>
+                      <TableHead className="w-32 text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {previewLines.map((line) => (
+                      <TableRow key={line.id ?? `${line.sort_order}-${line.description}`}>
+                        <TableCell>{line.description}</TableCell>
+                        <TableCell className="text-right">{line.quantity ?? "-"}</TableCell>
+                        <TableCell className="text-right">{currency.format(Number(line.line_total ?? 0))}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </section>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setPreviewDocumentId(null)}>Cerrar</Button>
+                <Button asChild>
+                  <a href={`/print/service-document/${previewDocument.id}`} target="_blank" rel="noreferrer">Abrir impresión</a>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-sm text-muted-foreground">No se pudo cargar la vista previa.</div>
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>
