@@ -44,8 +44,8 @@ interface DocumentsEditorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingDocId: string | null;
-  form: DocumentFormState;
-  setForm: React.Dispatch<React.SetStateAction<DocumentFormState>>;
+  documentForm: DocumentFormState;
+  setDocumentForm: React.Dispatch<React.SetStateAction<DocumentFormState>>;
   lines: LineDraft[];
   setLines: React.Dispatch<React.SetStateAction<LineDraft[]>>;
   totalDraft: number;
@@ -69,8 +69,8 @@ export function DocumentsEditorDialog({
   open,
   onOpenChange,
   editingDocId,
-  form,
-  setForm,
+  documentForm,
+  setDocumentForm,
   lines,
   setLines,
   totalDraft,
@@ -89,8 +89,8 @@ export function DocumentsEditorDialog({
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const selectedPriceList = useMemo(
-    () => priceLists.find((priceList) => priceList.id === form.price_list_id) ?? null,
-    [form.price_list_id, priceLists],
+    () => priceLists.find((priceList) => priceList.id === documentForm.price_list_id) ?? null,
+    [documentForm.price_list_id, priceLists],
   );
 
   const lineCountByItemId = useMemo(() => {
@@ -104,14 +104,14 @@ export function DocumentsEditorDialog({
 
   const filteredItems = useMemo(() => {
     const query = itemSearch.trim().toLowerCase();
-    if (!form.price_list_id || query.length === 0) return [];
+    if (!documentForm.price_list_id || query.length === 0) return [];
 
     return availableItems
       .filter((item) =>
         [item.sku, item.name, item.unit ?? ""].some((value) => value.toLowerCase().includes(query)),
       )
       .slice(0, 8);
-  }, [availableItems, form.price_list_id, itemSearch]);
+  }, [availableItems, documentForm.price_list_id, itemSearch]);
 
   const updateLine = (index: number, patch: Partial<LineDraft>) => {
     setLines((previousLines) =>
@@ -153,9 +153,9 @@ export function DocumentsEditorDialog({
               <div className="space-y-2">
                 <Label>Tipo *</Label>
                 <Select
-                  value={form.doc_type}
+                  value={documentForm.doc_type}
                   onValueChange={(value) =>
-                    setForm((previousForm) => {
+                    setDocumentForm((previousForm) => {
                       const nextDocType = value as DocType;
                       const nextCustomerKind =
                         nextDocType === "PRESUPUESTO" && previousForm.customer_kind === "INTERNO"
@@ -186,9 +186,9 @@ export function DocumentsEditorDialog({
                 <Input
                   type="number"
                   min={1}
-                  value={form.point_of_sale}
+                  value={documentForm.point_of_sale}
                   onChange={(event) =>
-                    setForm((previousForm) => ({
+                    setDocumentForm((previousForm) => ({
                       ...previousForm,
                       point_of_sale: Math.max(1, Number(event.target.value) || 1),
                     }))
@@ -198,7 +198,7 @@ export function DocumentsEditorDialog({
 
               <div className="space-y-2 md:col-span-2 xl:col-span-1">
                 <Label>Lista de precios *</Label>
-                <Select value={form.price_list_id} onValueChange={onPriceListChange}>
+                <Select value={documentForm.price_list_id} onValueChange={onPriceListChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar lista" />
                   </SelectTrigger>
@@ -229,9 +229,9 @@ export function DocumentsEditorDialog({
                   <Input
                     type="number"
                     min={1}
-                    value={form.point_of_sale}
+                    value={documentForm.point_of_sale}
                     onChange={(event) =>
-                      setForm((previousForm) => ({
+                      setDocumentForm((previousForm) => ({
                         ...previousForm,
                         point_of_sale: Math.max(1, Number(event.target.value) || 1),
                       }))
@@ -242,9 +242,9 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>Tipo de cliente</Label>
                   <Select
-                    value={form.customer_kind}
+                    value={documentForm.customer_kind}
                     onValueChange={(value) =>
-                      setForm((previousForm) => ({
+                      setDocumentForm((previousForm) => ({
                         ...previousForm,
                         customer_kind: value as CustomerKind,
                         internal_remito_type:
@@ -257,7 +257,7 @@ export function DocumentsEditorDialog({
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="GENERAL">Cliente general</SelectItem>
-                      {form.doc_type === "REMITO" ? (
+                      {documentForm.doc_type === "REMITO" ? (
                           <SelectItem value="INTERNO">Personal / técnico interno</SelectItem>
                       ) : null}
                       <SelectItem value="EMPRESA">Empresa</SelectItem>
@@ -268,9 +268,9 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>Cliente registrado</Label>
                   <Select
-                    value={form.customer_id || "__none__"}
+                    value={documentForm.customer_id || "__none__"}
                     onValueChange={(value) =>
-                      setForm((previousForm) => ({
+                      setDocumentForm((previousForm) => ({
                         ...previousForm,
                         customer_id: value === "__none__" ? "" : value,
                       }))
@@ -291,9 +291,9 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>Tecnico</Label>
                   <Select
-                    value={form.technician_id || "__none__"}
+                    value={documentForm.technician_id || "__none__"}
                     onValueChange={(value) =>
-                      setForm((previousForm) => ({
+                      setDocumentForm((previousForm) => ({
                         ...previousForm,
                         technician_id: value === "__none__" ? "" : value,
                       }))
@@ -314,10 +314,10 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2 md:col-span-2">
                   <Label>Nombre cliente</Label>
                   <Input
-                    value={form.customer_name}
+                    value={documentForm.customer_name}
                     placeholder="Cliente ocasional"
                     onChange={(event) =>
-                      setForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
+                      setDocumentForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
                     }
                   />
                 </div>
@@ -325,10 +325,10 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>CUIT</Label>
                   <Input
-                    value={form.customer_tax_id}
+                    value={documentForm.customer_tax_id}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
+                      setDocumentForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
                     }
                   />
                 </div>
@@ -336,10 +336,10 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>Condición fiscal</Label>
                   <Input
-                    value={form.customer_tax_condition}
+                    value={documentForm.customer_tax_condition}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setForm((previousForm) => ({
+                      setDocumentForm((previousForm) => ({
                         ...previousForm,
                         customer_tax_condition: event.target.value,
                       }))
@@ -350,10 +350,10 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>Condición de venta</Label>
                   <Input
-                    value={form.payment_terms}
+                    value={documentForm.payment_terms}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
+                      setDocumentForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
                     }
                   />
                 </div>
@@ -361,47 +361,47 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>Vendedor</Label>
                   <Input
-                    value={form.salesperson}
+                    value={documentForm.salesperson}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
+                      setDocumentForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
                     }
                   />
                 </div>
 
-                {form.doc_type === "PRESUPUESTO" ? (
+                {documentForm.doc_type === "PRESUPUESTO" ? (
                   <div className="space-y-2">
                     <Label>Válido hasta</Label>
                     <Input
                       type="date"
-                      value={form.valid_until}
+                      value={documentForm.valid_until}
                       onChange={(event) =>
-                        setForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
+                        setDocumentForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
                       }
                     />
                   </div>
                 ) : null}
 
-                {form.doc_type === "REMITO" ? (
+                {documentForm.doc_type === "REMITO" ? (
                   <div className="space-y-2 md:col-span-2">
                     <Label>Domicilio de entrega</Label>
                     <Input
-                      value={form.delivery_address}
+                      value={documentForm.delivery_address}
                       placeholder="Opcional"
                       onChange={(event) =>
-                        setForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
+                        setDocumentForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
                       }
                     />
                   </div>
                 ) : null}
 
-                {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? (
+                {documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO" ? (
                   <div className="space-y-2">
                     <Label>Imputación del remito</Label>
                     <Select
-                      value={form.internal_remito_type || "__none__"}
+                      value={documentForm.internal_remito_type || "__none__"}
                       onValueChange={(value) =>
-                        setForm((previousForm) => ({
+                        setDocumentForm((previousForm) => ({
                           ...previousForm,
                           internal_remito_type:
                             value === "__none__" ? "" : (value as InternalRemitoType),
@@ -435,10 +435,10 @@ export function DocumentsEditorDialog({
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                   value={itemSearch}
-                  disabled={!form.price_list_id || priceLists.length === 0}
+                  disabled={!documentForm.price_list_id || priceLists.length === 0}
                   className="pl-10"
                   placeholder={
-                    form.price_list_id
+                    documentForm.price_list_id
                       ? "Buscar producto por SKU, nombre o unidad"
                       : "Selecciona una lista para habilitar la busqueda"
                   }
@@ -664,9 +664,9 @@ export function DocumentsEditorDialog({
           <Textarea
             className="resize-none min-h-[80px]"
             placeholder="Aclaraciones adicionales del documento..."
-            value={form.notes}
+            value={documentForm.notes}
             onChange={(event) =>
-              setForm((previousForm) => ({ ...previousForm, notes: event.target.value }))
+              setDocumentForm((previousForm) => ({ ...previousForm, notes: event.target.value }))
             }
           />
         </div>
@@ -686,3 +686,4 @@ export function DocumentsEditorDialog({
     </EntityDialog>
   );
 }
+
