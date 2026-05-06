@@ -2,6 +2,7 @@ import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 import type { Technician } from "../types";
 
 export type TechnicianFormState = {
@@ -37,7 +38,10 @@ export function TechnicianFormDialog({ open, editingTechnician, form, isSaving, 
           <Input value={form.notes} onChange={(e) => onFormChange({ ...form, notes: e.target.value })} />
         </div>
         <div className="flex justify-end">
-          <Button type="submit" disabled={isSaving}>{isSaving ? "Guardando..." : "Guardar"}</Button>
+          <Button type="submit" disabled={isSaving}>
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {isSaving ? "Guardando..." : "Guardar"}
+          </Button>
         </div>
       </form>
     </EntityDialog>

@@ -1,5 +1,6 @@
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page";
@@ -23,6 +24,7 @@ export default function TechniciansPage() {
   const [editing, setEditing] = useState<Technician | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [items, setItems] = useState<Technician[]>([]);
+  const [technicianToDelete, setTechnicianToDelete] = useState<Technician | null>(null);
 
   const load = useCallback(async () => {
     if (!currentCompany?.id) return;
@@ -53,8 +55,8 @@ export default function TechniciansPage() {
   return (
     <AppLayout>
       <PageHeader
-        title="Tecnicos"
-        description="CRUD basico"
+        title="Técnicos"
+        description="Gestion simple de tecnicos con feedback consistente."
         actions={
           <div className="flex gap-2">
             <div className="relative">
@@ -78,14 +80,36 @@ export default function TechniciansPage() {
               <Button variant="ghost" size="icon" onClick={() => { setEditing(t); setForm({ name: t.name, phone: t.phone ?? "", notes: t.notes ?? "" }); setDialogOpen(true); }}>
                 <Pencil className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={async () => { await supabase.from("technicians").delete().eq("id", t.id); void load(); }}>
+              <Button variant="ghost" size="icon" onClick={() => setTechnicianToDelete(t)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           </div>
         ))}
       </div>
-      <TechnicianFormDialog open={dialogOpen} editingTechnician={editing} form={form} isSaving={false} onOpenChange={setDialogOpen} onFormChange={setForm} onSubmit={() => { void save().catch((error) => toast({ title: "Error", description: String(error), variant: "destructive" })); }} />
+      <TechnicianFormDialog
+        open={dialogOpen}
+        editingTechnician={editing}
+        form={form}
+        isSaving={saveMutation.isPending}
+        onOpenChange={setDialogOpen}
+        onFormChange={setForm}
+        onSubmit={() => { saveMutation.mutate(); }}
+      />
+      <ConfirmDeleteDialog
+        open={!!technicianToDelete}
+        onOpenChange={(open) => {
+          if (!open) setTechnicianToDelete(null);
+        }}
+        title="Eliminar técnico"
+        description={technicianToDelete ? `Esta accion eliminara a "${technicianToDelete.name}" de forma permanente.` : ""}
+        isPending={deleteMutation.isPending}
+        onConfirm={() => {
+          if (!technicianToDelete) return;
+          deleteMutation.mutate(technicianToDelete.id);
+          setTechnicianToDelete(null);
+        }}
+      />
     </AppLayout>
   );
 }

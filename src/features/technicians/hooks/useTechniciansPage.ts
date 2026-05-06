@@ -2,6 +2,7 @@ import { useDeferredValue, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
+import { invalidateTechnicianQueries } from "@/lib/invalidate";
 import type { Technician } from "../types";
 import type { TechnicianFormState } from "../components/TechnicianFormDialog";
 
@@ -40,8 +41,19 @@ export function useTechniciansPage({ companyId, userId, toast }: UseTechniciansP
       const { error } = await q;
       if (error) throw error;
     },
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["technicians"] }); setDialogOpen(false); setEditing(null); setForm(EMPTY_FORM); },
-    onError: (error) => toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" }),
+    onSuccess: async () => { await invalidateTechnicianQueries(qc); setDialogOpen(false); setEditing(null); setForm(EMPTY_FORM); toast({ title: editing ? "Tecnico actualizado" : "Tecnico creado" }); },
+    onError: (error) => toast({ title: "No se pudo guardar", description: getErrorMessage(error), variant: "destructive" }),
   });
-  return { technicians: techniciansQuery.data ?? [], isLoading: techniciansQuery.isLoading, search, setSearch, dialogOpen, setDialogOpen, editing, setEditing, form, setForm, saveMutation, openCreate: () => { setEditing(null); setForm(EMPTY_FORM); setDialogOpen(true); }, openEdit: (t: Technician) => { setEditing(t); setForm({ name: t.name, phone: t.phone ?? "", notes: t.notes ?? "" }); setDialogOpen(true); } };
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("technicians").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await invalidateTechnicianQueries(qc);
+      toast({ title: "Tecnico eliminado" });
+    },
+    onError: (error) => toast({ title: "No se pudo eliminar", description: getErrorMessage(error), variant: "destructive" }),
+  });
+  return { technicians: techniciansQuery.data ?? [], isLoading: techniciansQuery.isLoading, search, setSearch, dialogOpen, setDialogOpen, editing, setEditing, form, setForm, saveMutation, deleteMutation, openCreate: () => { setEditing(null); setForm(EMPTY_FORM); setDialogOpen(true); }, openEdit: (t: Technician) => { setEditing(t); setForm({ name: t.name, phone: t.phone ?? "", notes: t.notes ?? "" }); setDialogOpen(true); } };
 }
