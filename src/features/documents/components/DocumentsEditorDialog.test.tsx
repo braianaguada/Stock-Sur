@@ -54,7 +54,7 @@ describe("DocumentsEditorDialog", () => {
           price_list_id: "",
           notes: "",
         }}
-        setDocumentForm={vi.fn()}
+        setDraftForm={vi.fn()}
         lines={[]}
         setLines={vi.fn()}
         totalDraft={0}

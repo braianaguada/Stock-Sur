@@ -46,7 +46,7 @@ interface DocumentsEditorDialogProps {
   onOpenChange: (open: boolean) => void;
   editingDocId: string | null;
   documentForm: DocumentFormState;
-  setDocumentForm: React.Dispatch<React.SetStateAction<DocumentFormState>>;
+  setDraftForm: React.Dispatch<React.SetStateAction<DocumentFormState>>;
   lines: LineDraft[];
   setLines: React.Dispatch<React.SetStateAction<LineDraft[]>>;
   totalDraft: number;
@@ -71,7 +71,7 @@ export function DocumentsEditorDialog({
   onOpenChange,
   editingDocId,
   documentForm,
-  setDocumentForm,
+  setDraftForm,
   lines,
   setLines,
   totalDraft,
@@ -156,7 +156,7 @@ export function DocumentsEditorDialog({
                 <Select
                   value={documentForm.doc_type}
                   onValueChange={(value) =>
-                    setDocumentForm((previousForm) => {
+                    setDraftForm((previousForm) => {
                       const nextDocType = value as DocType;
                       const nextCustomerKind =
                         nextDocType === "PRESUPUESTO" && previousForm.customer_kind === "INTERNO"
@@ -189,7 +189,7 @@ export function DocumentsEditorDialog({
                   min={1}
                   value={documentForm.point_of_sale}
                   onChange={(event) =>
-                    setDocumentForm((previousForm) => ({
+                    setDraftForm((previousForm) => ({
                       ...previousForm,
                       point_of_sale: Math.max(1, Number(event.target.value) || 1),
                     }))
@@ -232,7 +232,7 @@ export function DocumentsEditorDialog({
                     min={1}
                     value={documentForm.point_of_sale}
                     onChange={(event) =>
-                      setDocumentForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         point_of_sale: Math.max(1, Number(event.target.value) || 1),
                       }))
@@ -245,7 +245,7 @@ export function DocumentsEditorDialog({
                   <Select
                     value={documentForm.customer_kind}
                     onValueChange={(value) =>
-                      setDocumentForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         customer_kind: value as CustomerKind,
                         internal_remito_type:
@@ -271,7 +271,7 @@ export function DocumentsEditorDialog({
                   <Select
                     value={documentForm.customer_id || "__none__"}
                     onValueChange={(value) =>
-                      setDocumentForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         customer_id: value === "__none__" ? "" : value,
                       }))
@@ -294,7 +294,7 @@ export function DocumentsEditorDialog({
                   <Select
                     value={documentForm.technician_id || "__none__"}
                     onValueChange={(value) =>
-                      setDocumentForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         technician_id: value === "__none__" ? "" : value,
                       }))
@@ -318,7 +318,7 @@ export function DocumentsEditorDialog({
                     value={documentForm.customer_name}
                     placeholder="Cliente ocasional"
                     onChange={(event) =>
-                      setDocumentForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
+                      setDraftForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
                     }
                   />
                 </div>
@@ -329,7 +329,7 @@ export function DocumentsEditorDialog({
                     value={documentForm.customer_tax_id}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setDocumentForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
+                      setDraftForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
                     }
                   />
                 </div>
@@ -340,7 +340,7 @@ export function DocumentsEditorDialog({
                     value={documentForm.customer_tax_condition}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setDocumentForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         customer_tax_condition: event.target.value,
                       }))
@@ -354,7 +354,7 @@ export function DocumentsEditorDialog({
                     value={documentForm.payment_terms}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setDocumentForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
+                      setDraftForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
                     }
                   />
                 </div>
@@ -365,7 +365,7 @@ export function DocumentsEditorDialog({
                     value={documentForm.salesperson}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setDocumentForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
+                      setDraftForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
                     }
                   />
                 </div>
@@ -377,7 +377,7 @@ export function DocumentsEditorDialog({
                       type="date"
                       value={documentForm.valid_until}
                       onChange={(event) =>
-                        setDocumentForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
+                        setDraftForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
                       }
                     />
                   </div>
@@ -390,7 +390,7 @@ export function DocumentsEditorDialog({
                       value={documentForm.delivery_address}
                       placeholder="Opcional"
                       onChange={(event) =>
-                        setDocumentForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
+                        setDraftForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
                       }
                     />
                   </div>
@@ -402,7 +402,7 @@ export function DocumentsEditorDialog({
                     <Select
                       value={documentForm.internal_remito_type || "__none__"}
                       onValueChange={(value) =>
-                        setDocumentForm((previousForm) => ({
+                        setDraftForm((previousForm) => ({
                           ...previousForm,
                           internal_remito_type:
                             value === "__none__" ? "" : (value as InternalRemitoType),
@@ -667,7 +667,7 @@ export function DocumentsEditorDialog({
             placeholder="Aclaraciones adicionales del documento..."
             value={documentForm.notes}
             onChange={(event) =>
-              setDocumentForm((previousForm) => ({ ...previousForm, notes: event.target.value }))
+              setDraftForm((previousForm) => ({ ...previousForm, notes: event.target.value }))
             }
           />
         </div>

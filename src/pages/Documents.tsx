@@ -678,7 +678,7 @@ export default function DocumentsPage() {
             onOpenChange={setDialogOpen}
             editingDocId={editingDocId}
             documentForm={draftForm}
-            setDocumentForm={setDraftForm}
+            setDraftForm={setDraftForm}
             lines={lines}
             setLines={setLines}
             totalDraft={totalDraft}
