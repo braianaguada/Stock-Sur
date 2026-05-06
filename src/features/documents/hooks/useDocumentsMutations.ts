@@ -664,6 +664,3 @@ export function useDocumentsMutations({
     clearExternalInvoiceMutation,
   };
 }
-      if (form.technician_id && !techniciansById.has(form.technician_id)) {
-        throw new Error("El tecnico seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
-      }
