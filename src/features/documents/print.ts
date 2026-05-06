@@ -139,6 +139,10 @@ export function buildDocumentPrintHtml({
     .meta-line{display:grid;grid-template-columns:22mm minmax(0,1fr);gap:2mm;align-items:baseline;padding:.5mm 0}
     .meta-line span{font-size:7.3px}
     .meta-line strong{font-size:8.7px;font-weight:650;overflow-wrap:anywhere}
+    .notes{min-height:15mm;border:1px dashed #c8d1df;border-radius:6px;padding:2.8mm;background:#fbfcfe}
+    .notes strong{display:block;margin-bottom:1.5mm;color:#475569;font-size:7.5px;letter-spacing:.16em;text-transform:uppercase}
+    .notes pre{margin:0;color:#334155;font-family:inherit;font-size:8.3px;line-height:1.35;white-space:pre-wrap}
+    .service-notes{margin-top:3.6mm}
     .lines-section{margin-top:4.5mm}
     .section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:4mm;margin-bottom:1.8mm}
     .section-title{margin:0;color:#475569;font-size:7.5px;font-weight:850;letter-spacing:.2em;text-transform:uppercase}
@@ -162,17 +166,13 @@ export function buildDocumentPrintHtml({
     .c-total{font-weight:800}
     .empty-row{text-align:center;color:#64748b;padding:8mm}
     .summary-row{margin-top:auto;display:grid;grid-template-columns:minmax(0,1fr) 52mm;gap:6mm;align-items:start;padding-top:4mm}
-    .notes-signature{display:grid;gap:10mm}
-    .notes{min-height:15mm;border:1px dashed #c8d1df;border-radius:6px;padding:2.8mm;background:#fbfcfe}
-    .notes strong{display:block;margin-bottom:1.5mm;color:#475569;font-size:7.5px;letter-spacing:.16em;text-transform:uppercase}
-    .notes pre{margin:0;color:#334155;font-family:inherit;font-size:8.3px;line-height:1.35;white-space:pre-wrap}
     .totals{border-top:1.5px solid #cfd8e5;background:#fff}
     .totals-line{display:flex;justify-content:space-between;gap:3mm;padding:1.6mm 0;border-bottom:1px solid #e2e8f0;color:#475569;font-size:8.1px}
     .totals-line strong{color:#0f172a}
     .grand-total{padding:2.6mm 0 0;border-top:2px solid var(--accent);color:#0f172a}
     .grand-total span{display:block;color:#475569;font-size:7px;font-weight:850;letter-spacing:.18em;text-transform:uppercase}
     .grand-total strong{display:block;margin-top:.8mm;font-size:18px;line-height:1;font-weight:950;letter-spacing:0}
-    .signature-row{display:none;grid-template-columns:1fr 1fr 1fr;gap:8mm;color:#475569;font-size:7.6px}
+    .signature-row{display:none;grid-template-columns:1fr 1fr 1fr;gap:8mm;margin-top:5mm;color:#475569;font-size:7.6px}
     .is-remito .signature-row{display:grid}
     .signature-line{padding-top:8mm;border-top:1px solid #cbd5e1;text-align:center}
     .footer{display:flex;justify-content:space-between;gap:5mm;margin-top:4mm;padding-top:2.5mm;border-top:1px solid #e2e8f0;color:#64748b;font-size:7.7px;line-height:1.3}
@@ -241,6 +241,11 @@ export function buildDocumentPrintHtml({
           </div>
         </section>
 
+        <section class="notes service-notes avoid-break">
+          <strong>Notas</strong>
+          <pre>${escapeHtml(document.notes ?? "-")}</pre>
+        </section>
+
         <section class="lines-section">
           <div class="section-head">
             <p class="section-title">Productos</p>
@@ -262,16 +267,10 @@ export function buildDocumentPrintHtml({
         </section>
 
         <section class="summary-row avoid-break">
-          <div class="notes-signature">
-            <div class="notes">
-              <strong>Notas</strong>
-              <pre>${escapeHtml(document.notes ?? "-")}</pre>
-            </div>
-            <div class="signature-row">
-              <div class="signature-line">Recibi conforme</div>
-              <div class="signature-line">Aclaracion</div>
-              <div class="signature-line">Documento</div>
-            </div>
+          <div class="signature-row">
+            <div class="signature-line">Recibi conforme</div>
+            <div class="signature-line">Aclaracion</div>
+            <div class="signature-line">Documento</div>
           </div>
           <div class="totals">
             <div class="totals-line"><span>Subtotal</span><strong>${moneyFormatter.format(Number(document.subtotal ?? 0))}</strong></div>
