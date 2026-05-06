@@ -109,7 +109,7 @@ export function DocumentsEditorDialog({
 
     return availableItems
       .filter((item) =>
-        [item.sku, item.name, item.unit ?? ""].some((value) => value.toLowerCase().includes(query)),
+        [item.sku, item.name, item.unit ?? "", item.attributes ?? "", item.brand ?? "", item.model ?? ""].some((value) => value.toLowerCase().includes(query)),
       )
       .slice(0, 8);
   }, [availableItems, documentForm.price_list_id, itemSearch]);
@@ -683,6 +683,7 @@ export function DocumentsEditorDialog({
     </EntityDialog>
   );
 }
+
 
 
 
