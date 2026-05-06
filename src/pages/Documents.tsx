@@ -21,7 +21,7 @@ import {
   canPrintDocument,
   canTransitionDocumentTo,
 } from "@/lib/permissions";
-import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
+import { escapeHtml, openPrintWindow } from "@/lib/print";
 import { Plus, Search } from "lucide-react";
 import { FilterBar, PageHeader } from "@/components/ui/page";
 import {
@@ -422,17 +422,20 @@ export default function DocumentsPage() {
       >
     >;
 
+    const documentTypeLabel = DOC_LABEL[document.doc_type];
+    const documentNumber = formatNumber(document.document_number, document.point_of_sale);
+    const title = `${documentTypeLabel} ${documentNumber}`;
     const rows = printableLines
       .map(
         (line) => `
       <tr>
-        <td>${line.line_order}</td>
-        <td>${escapeHtml(line.sku_snapshot ?? "-")}</td>
-        <td>${escapeHtml(line.description)}</td>
-        <td style="text-align:right">${Number(line.quantity).toLocaleString("es-AR")}</td>
-        <td>${escapeHtml(line.unit ?? "un")}</td>
-        <td style="text-align:right">$${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
-        <td style="text-align:right">$${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
+        <td class="col-idx">${line.line_order}</td>
+        <td class="col-sku">${escapeHtml(line.sku_snapshot ?? "-")}</td>
+        <td class="col-desc">${escapeHtml(line.description)}</td>
+        <td class="col-qty">${Number(line.quantity).toLocaleString("es-AR")}</td>
+        <td class="col-unit">${escapeHtml(line.unit ?? "un")}</td>
+        <td class="col-money">${currency.format(Number(line.unit_price))}</td>
+        <td class="col-money col-total">${currency.format(Number(line.line_total))}</td>
       </tr>
     `,
       )
@@ -442,47 +445,63 @@ export default function DocumentsPage() {
       ? `<img src="${escapeHtml(companySettings.logo_url)}" alt="${escapeHtml(companySettings.app_name)}" style="max-height:110px;max-width:320px;object-fit:contain;filter:drop-shadow(0 10px 20px rgba(15,23,42,.10))" />`
       : `<div style="font-size:30px;font-weight:800;letter-spacing:.05em;color:#0f172a">${escapeHtml(companySettings.app_name.toUpperCase())}</div>`;
 
-    const win = openPrintWindow(`<!doctype html><html><head><title>${escapeHtml(DOC_LABEL[document.doc_type])} ${escapeHtml(formatNumber(document.document_number, document.point_of_sale))}</title>
+    const win = openPrintWindow(`<!doctype html><html><head><title>${escapeHtml(title)}</title>
       <style>
-      @page{size:A4 portrait;margin:10mm}
+      @page{size:A4 portrait;margin:9mm}
       html,body{margin:0;padding:0}
-      body{font-family:Arial,sans-serif;color:#0f172a;background:#f8fafc}
-      .print-shell{width:190mm;max-width:190mm;margin:0 auto;padding:6mm 0}
-      .sheet{border:1px solid #d6dbe3;border-radius:22px;padding:8mm;background:#fff;box-shadow:0 20px 60px rgba(15,23,42,.08);box-sizing:border-box}
-      .head{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:stretch;margin-bottom:18px}
-      .brand{display:flex;flex-direction:column;justify-content:space-between;min-height:150px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#ffffff 0%,#f5f9ff 60%,#eef4ff 100%);border:1px solid #dbe7f5}
-      .brand-copy{display:flex;flex-direction:column;gap:8px}
-      .eyebrow{display:inline-flex;width:max-content;border:1px solid #dbe3ee;border-radius:999px;background:#ffffff;padding:6px 12px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#475569}
-      .muted{color:#475569;font-size:12px;margin:2px 0}
-      .brand-name{font-size:20px;font-weight:800;color:#0f172a;letter-spacing:.04em}
-      .docbox{padding:18px;border-radius:18px;min-width:290px;background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);color:#f8fafc}
-      .docbox h2{margin:0 0 10px 0;font-size:22px}
-      .docline{font-size:12px;color:#dbeafe;margin:6px 0}
-      .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-      .meta-card{border:1px solid #e2e8f0;border-radius:16px;padding:14px;background:#fff}
-      .meta-title{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#64748b;margin:0 0 10px 0}
-      table{width:100%;border-collapse:separate;border-spacing:0;margin-top:8px;overflow:hidden;border:1px solid #dbe3ee;border-radius:16px}
-      th,td{padding:10px 12px;font-size:12px;border-bottom:1px solid #e8eef5}
-      th{background:#eef4f8;text-align:left;color:#334155}
+      body{font-family:Arial,sans-serif;color:#0f172a;background:#eef2f7}
+      .print-shell{width:192mm;max-width:192mm;margin:0 auto;padding:8mm 0}
+      .sheet{border:1px solid #d6dbe3;border-radius:18px;padding:7mm 8mm;background:#fff;box-shadow:0 16px 40px rgba(15,23,42,.08);box-sizing:border-box}
+      .head{display:grid;grid-template-columns:minmax(0,1.15fr) 76mm;gap:10mm;align-items:stretch;margin-bottom:8mm}
+      .brand{display:flex;flex-direction:column;justify-content:space-between;min-height:42mm;padding:5mm;border-radius:14px;background:linear-gradient(135deg,#ffffff 0%,#f6f9fc 100%);border:1px solid #dbe3ee}
+      .brand-copy{display:flex;flex-direction:column;gap:4mm}
+      .eyebrow{display:inline-flex;width:max-content;border:1px solid #dbe3ee;border-radius:999px;background:#fff;padding:5px 10px;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#475569}
+      .muted{color:#475569;font-size:11px;line-height:1.45;margin:0}
+      .brand-name{font-size:18px;font-weight:800;color:#0f172a;letter-spacing:.02em;margin:0}
+      .docbox{padding:5mm;border-radius:14px;min-width:0;background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);color:#f8fafc}
+      .docbox h2{margin:0 0 4mm 0;font-size:18px;line-height:1.1}
+      .docline{font-size:11px;color:#dbeafe;margin:0 0 2.5mm 0;line-height:1.35}
+      .docline strong,.muted strong{font-weight:700}
+      .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-bottom:6mm}
+      .meta-card{border:1px solid #e2e8f0;border-radius:12px;padding:4mm;background:#fff}
+      .meta-title{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#64748b;margin:0 0 2.5mm 0;font-weight:700}
+      .meta-card p{margin:0 0 1.5mm 0}
+      .section-title{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#64748b;margin:0 0 2.5mm 0;font-weight:700}
+      table{width:100%;border-collapse:collapse;margin-top:0;border:1px solid #dbe3ee;border-radius:12px;overflow:hidden}
+      th,td{padding:6px 8px;font-size:11px;border-bottom:1px solid #e8eef5;vertical-align:top}
+      th{background:#eef4f8;text-align:left;color:#334155;font-size:9px;letter-spacing:.08em;text-transform:uppercase}
       tbody tr:nth-child(even){background:#fbfdff}
       tbody tr:last-child td{border-bottom:none}
-      .totals{display:flex;justify-content:flex-end;margin-top:16px}
-      .totals-box{min-width:260px;border:1px solid #dbe3ee;background:linear-gradient(180deg,#f8fbff 0%,#eef5ff 100%);border-radius:18px;padding:14px 16px}
-      .totals-label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#64748b}
-      .totals-value{margin-top:6px;font-size:26px;font-weight:800;color:#0f172a}
-      .notes{margin-top:16px;border:1px dashed #cbd5e1;border-radius:18px;padding:14px 16px;font-size:12px;min-height:56px;background:#fcfcfd}
-      .foot{margin-top:22px;font-size:11px;color:#64748b;display:flex;justify-content:space-between;gap:16px}
-      .print-action{display:block;margin:16px auto 0;padding:10px 16px;border:none;border-radius:999px;background:#0f172a;color:#fff;cursor:pointer}
+      .col-idx{width:8mm;text-align:center}
+      .col-sku{width:22mm;font-family:monospace}
+      .col-qty{width:13mm;text-align:right}
+      .col-unit{width:14mm}
+      .col-money{width:22mm;text-align:right;white-space:nowrap}
+      .col-desc{width:auto}
+      .col-total{font-weight:700}
+      .totals{display:flex;justify-content:flex-end;margin-top:6mm}
+      .totals-box{min-width:58mm;border:1px solid #dbe3ee;background:linear-gradient(180deg,#f8fbff 0%,#eef5ff 100%);border-radius:14px;padding:4mm 5mm}
+      .totals-label{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#64748b}
+      .totals-value{margin-top:2mm;font-size:22px;font-weight:800;color:#0f172a}
+      .notes{margin-top:6mm;border:1px dashed #cbd5e1;border-radius:12px;padding:4mm 5mm;font-size:11px;min-height:14mm;background:#fcfcfd}
+      .notes pre{margin:0;white-space:pre-wrap;font-family:inherit;line-height:1.45}
+      .foot{margin-top:5mm;font-size:10px;color:#64748b;display:flex;justify-content:space-between;gap:4mm;line-height:1.4}
+      .print-action{display:block;margin:14px auto 0;padding:10px 16px;border:none;border-radius:999px;background:#0f172a;color:#fff;cursor:pointer}
+      .avoid-break{break-inside:avoid;page-break-inside:avoid}
       @media print{
         body{background:#fff}
-        .print-shell{width:190mm;max-width:190mm;padding:0}
+        .print-shell{width:192mm;max-width:192mm;padding:0}
         .sheet{border:none;box-shadow:none;border-radius:0;padding:0}
         .print-action{display:none}
+        .avoid-break{break-inside:avoid;page-break-inside:avoid}
+        tr{break-inside:avoid;page-break-inside:avoid}
+        thead{display:table-header-group}
+        tfoot{display:table-footer-group}
       }
       </style></head><body>
       <div class="print-shell">
       <div class="sheet">
-      <div class="head">
+      <div class="head avoid-break">
         <div class="brand">
           <div class="brand-copy">
             <span class="eyebrow">${escapeHtml(DOC_LABEL[document.doc_type])}</span>
@@ -495,21 +514,23 @@ export default function DocumentsPage() {
         </div>
         <div class="docbox">
           <h2>${escapeHtml(DOC_LABEL[document.doc_type])}</h2>
-          <p class="docline"><strong>Nro:</strong> ${escapeHtml(formatNumber(document.document_number, document.point_of_sale))}</p>
+          <p class="docline"><strong>Nro:</strong> ${escapeHtml(documentNumber)}</p>
           <p class="docline"><strong>Fecha:</strong> ${formatIsoDate(document.issue_date)}</p>
           <p class="docline"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[document.status])}</p>
+          ${document.valid_until ? `<p class="docline"><strong>Vigencia:</strong> ${formatIsoDate(document.valid_until)}</p>` : ""}
+          ${document.external_invoice_number ? `<p class="docline"><strong>Factura externa:</strong> ${escapeHtml(document.external_invoice_number)}</p>` : ""}
         </div>
       </div>
 
-      <div class="meta-grid">
-        <div class="meta-card">
+      <div class="meta-grid avoid-break">
+        <div class="meta-card avoid-break">
           <p class="meta-title">Cliente</p>
           <p class="muted"><strong>Cliente:</strong> ${escapeHtml(document.customer_name ?? "Cliente ocasional")}</p>
           <p class="muted"><strong>Tipo:</strong> ${escapeHtml(CUSTOMER_KIND_LABEL[document.customer_kind])}</p>
           <p class="muted"><strong>CUIT:</strong> ${escapeHtml(document.customer_tax_id ?? "-")}</p>
           <p class="muted"><strong>Condicion fiscal:</strong> ${escapeHtml(document.customer_tax_condition ?? "-")}</p>
         </div>
-        <div class="meta-card">
+        <div class="meta-card avoid-break">
           <p class="meta-title">Operacion</p>
           <p class="muted"><strong>Punto de venta:</strong> ${String(document.point_of_sale).padStart(4, "0")}</p>
           <p class="muted"><strong>Tipo:</strong> ${escapeHtml(DOC_LABEL[document.doc_type])}</p>
@@ -518,22 +539,26 @@ export default function DocumentsPage() {
           ${document.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${escapeHtml(document.salesperson)}</p>` : ""}
           ${document.valid_until ? `<p class="muted"><strong>Valido hasta:</strong> ${formatIsoDate(document.valid_until)}</p>` : ""}
           ${document.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${escapeHtml(document.delivery_address)}</p>` : ""}
-          ${document.doc_type === "REMITO" && document.external_invoice_number ? `<p class="muted"><strong>Factura externa:</strong> ${escapeHtml(document.external_invoice_number)}</p>` : ""}
           ${document.source_document_type && document.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${escapeHtml(DOC_LABEL[document.source_document_type])} ${escapeHtml(document.source_document_number_snapshot)}</p>` : ""}
           ${document.internal_remito_type ? `<p class="muted"><strong>Imputacion:</strong> ${escapeHtml(INTERNAL_REMITO_LABEL[document.internal_remito_type])}</p>` : ""}
           <p class="muted"><strong>Creado:</strong> ${formatDateTime(document.created_at)}</p>
         </div>
       </div>
 
+      ${document.intro_text ? `<div class="avoid-break"><p class="section-title">Observaciones</p><div class="notes"><pre>${escapeHtml(document.intro_text)}</pre></div></div>` : ""}
+
+      <div class="avoid-break">
+        <p class="section-title">Lineas</p>
+      </div>
       <table>
         <thead>
-          <tr><th>#</th><th>SKU</th><th>Descripcion</th><th>Cant.</th><th>Unidad</th><th>P.Unit.</th><th>Importe</th></tr>
+          <tr><th>#</th><th>SKU</th><th>Descripcion</th><th style="text-align:right">Cant.</th><th>Un.</th><th style="text-align:right">P.Unit.</th><th style="text-align:right">Importe</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
 
       <div class="totals"><div class="totals-box"><div class="totals-label">Total documento</div><div class="totals-value">$${Number(document.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div></div></div>
-      <div class="notes"><strong>Notas:</strong> ${escapeHtmlWithLineBreaks(document.notes ?? "-")}</div>
+      <div class="notes"><strong>Notas:</strong><pre>${escapeHtml(document.notes ?? "-")}</pre></div>
 
       <div class="foot"><span>Generado por ${escapeHtml(companySettings.app_name)}</span><span>${escapeHtml(companySettings.document_footer ?? "Este documento no reemplaza comprobantes fiscales")}</span></div>
       </div>

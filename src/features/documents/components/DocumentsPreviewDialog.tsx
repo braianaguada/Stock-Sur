@@ -49,7 +49,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
+      <DialogContent className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-slate-100/95 shadow-2xl backdrop-blur-xl">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl font-semibold tracking-tight text-foreground/90">Vista previa del documento</DialogTitle>
           <DialogDescription>Documento comercial y trazabilidad.</DialogDescription>
@@ -59,7 +59,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
           <div className="grid flex-1 min-h-0 gap-4 2xl:grid-cols-[minmax(0,1.95fr)_minmax(380px,460px)]">
             <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable]">
               <div className="space-y-4">
-                <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm">
+                <section className="overflow-hidden rounded-[28px] border border-border/60 bg-white shadow-sm">
                   <div className="h-1 w-full bg-gradient-to-r from-primary/80 via-primary/35 to-transparent" />
                   <div className="border-b border-border/60 px-5 py-4 sm:px-6">
                     <div className="flex flex-wrap items-center justify-between gap-4">
@@ -146,7 +146,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+                <section className="rounded-[28px] border border-border/60 bg-white p-5 shadow-sm">
                   <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Items</p>
@@ -187,7 +187,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
             </div>
 
             <aside className="min-h-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable] 2xl:min-w-[380px]">
-              <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm">
+              <section className="rounded-[28px] border border-border/60 bg-white p-5 shadow-sm">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Historial</p>
                 <p className="mt-1 text-sm text-muted-foreground">Trazabilidad del documento.</p>
                 {sourceDocumentLabel ? (
