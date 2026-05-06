@@ -140,6 +140,7 @@ export default function PriceListsPage() {
   const stockByItemId = useMemo(() => stockQuery.data ?? new Map<string, number>(), [stockQuery.data]);
 
   const {
+    baseRows,
     pagedBaseRows,
     priceLists,
     profileNameByUserId,
