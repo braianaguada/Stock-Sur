@@ -180,7 +180,7 @@ export function useDocumentsData({
         if (Number.isFinite(n)) clauses.push(`document_number.eq.${n}`);
         q = q.or(clauses.join(","));
       }
-      const { data, error } = await q.limit(300);
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as DocRow[];
     },
