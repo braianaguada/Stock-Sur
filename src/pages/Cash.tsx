@@ -37,6 +37,7 @@ import {
   buildReceiptSearchText,
   formatRemitoOptionLabel,
   normalizeReceiptSearch,
+  shouldAutoCloseCashClosure,
   todayDateInputValue,
 } from "@/features/cash/utils";
 import { PageHeader } from "@/components/ui/page";
@@ -205,22 +206,20 @@ export default function CashPage() {
   useEffect(() => {
     if (!currentCompany) return;
     if (!closure || closure.status !== "ABIERTO") return;
-    if (!companySettings.auto_close_cash_enabled || !companySettings.auto_close_cash_time) return;
-
-    const todayBusinessDate = todayDateInputValue();
-    if (businessDate !== todayBusinessDate) return;
-
     const { hour: currentHour, minute: currentMinute } = currentTimeInBuenosAires();
-    if (!Number.isFinite(currentHour) || !Number.isFinite(currentMinute)) return;
-    const currentMinutes = currentHour * 60 + currentMinute;
-    const [limitHour, limitMinute] = companySettings.auto_close_cash_time.split(":").map(Number);
-    if (!Number.isFinite(limitHour) || !Number.isFinite(limitMinute)) return;
+    const result = shouldAutoCloseCashClosure({
+      enabled: companySettings.auto_close_cash_enabled,
+      configuredTime: companySettings.auto_close_cash_time,
+      businessDate,
+      todayBusinessDate: todayDateInputValue(),
+      currentHour,
+      currentMinute,
+      closureId: closure.id,
+      triggeredKey: autoCloseTriggeredRef.current,
+    });
 
-    const limitMinutes = limitHour * 60 + limitMinute;
-    const closureKey = `${businessDate}:${closure.id}:${companySettings.auto_close_cash_time}`;
-    if (currentMinutes < limitMinutes || autoCloseTriggeredRef.current === closureKey) return;
-
-    autoCloseTriggeredRef.current = closureKey;
+    if (!result.shouldClose) return;
+    autoCloseTriggeredRef.current = result.nextTriggeredKey;
     closeClosureMutation.mutate({
       countedCashTotal: Number(closure.expected_cash_to_render ?? 0),
       countedPointTotal: Number(closure.expected_point_sales_total ?? 0),

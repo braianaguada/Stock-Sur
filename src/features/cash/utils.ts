@@ -13,6 +13,46 @@ export function todayDateInputValue() {
   return todayBusinessDateInputValue();
 }
 
+export function shouldAutoCloseCashClosure({
+  enabled,
+  configuredTime,
+  businessDate,
+  todayBusinessDate,
+  currentHour,
+  currentMinute,
+  closureId,
+  triggeredKey,
+}: {
+  enabled: boolean;
+  configuredTime: string | null | undefined;
+  businessDate: string;
+  todayBusinessDate: string;
+  currentHour: number;
+  currentMinute: number;
+  closureId: string;
+  triggeredKey: string | null;
+}) {
+  if (!enabled || !configuredTime) return { shouldClose: false, nextTriggeredKey: triggeredKey };
+  if (businessDate !== todayBusinessDate) return { shouldClose: false, nextTriggeredKey: triggeredKey };
+  if (!Number.isFinite(currentHour) || !Number.isFinite(currentMinute)) {
+    return { shouldClose: false, nextTriggeredKey: triggeredKey };
+  }
+
+  const [limitHour, limitMinute] = configuredTime.split(":").map(Number);
+  if (!Number.isFinite(limitHour) || !Number.isFinite(limitMinute)) {
+    return { shouldClose: false, nextTriggeredKey: triggeredKey };
+  }
+
+  const currentMinutes = currentHour * 60 + currentMinute;
+  const limitMinutes = limitHour * 60 + limitMinute;
+  const closureKey = `${businessDate}:${closureId}:${configuredTime}`;
+  if (currentMinutes < limitMinutes || triggeredKey === closureKey) {
+    return { shouldClose: false, nextTriggeredKey: triggeredKey };
+  }
+
+  return { shouldClose: true, nextTriggeredKey: closureKey };
+}
+
 export function formatRemitoOptionLabel(remito: RemitoOption) {
   const number = formatDocumentNumber(remito.point_of_sale, remito.document_number);
   const invoice = remito.external_invoice_number && remito.external_invoice_status === "ACTIVE"
