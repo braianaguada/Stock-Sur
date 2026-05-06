@@ -251,4 +251,48 @@ describe("critical database rules", () => {
       await expect(client.query(`select * from public.clear_document_external_invoice($1)`, [documentId])).rejects.toThrow();
     });
   });
+
+  it("cierra caja y calcula el efectivo esperado", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await setActor(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedPermission(companyUserId, "cash.view");
+      await seedPermission(companyUserId, "cash.close");
+      await client.query(
+        `
+        insert into public.company_settings (company_id, app_name, primary_color, secondary_color, accent_color, default_point_of_sale, allow_issue_remitos_without_stock, auto_close_cash_enabled)
+        values ($1, 'Test', '#000000', '#111111', '#222222', 1, false, false)
+        on conflict (company_id) do update set auto_close_cash_enabled = excluded.auto_close_cash_enabled
+        `,
+        [companyId],
+      );
+
+      const closureResult = await client.query(
+        `select * from public.get_or_create_cash_closure(current_date, $1)`,
+        [companyId],
+      );
+      const closureId = closureResult.rows[0].id;
+
+      await client.query(
+        `
+        insert into public.cash_sales (id, business_date, sold_at, payment_method, receipt_kind, status, amount_total, created_by, created_at, updated_at, company_id)
+        values ($1, current_date, now(), 'EFECTIVO', 'PENDIENTE', 'REGISTRADA', 120, $2, now(), now(), $3)
+        `,
+        [crypto.randomUUID(), userId, companyId],
+      );
+
+      const closed = await client.query(
+        `select status, expected_cash_to_render, cash_difference from public.close_cash_closure($1, $2, $3, $4, $5)`,
+        [closureId, 120, null, null, "Cierre de prueba"],
+      );
+
+      expect(closed.rows[0].status).toBe("CERRADO");
+      expect(Number(closed.rows[0].expected_cash_to_render)).toBe(120);
+      expect(Number(closed.rows[0].cash_difference)).toBe(0);
+    });
+  });
 });
