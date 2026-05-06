@@ -172,7 +172,7 @@ export function buildDocumentPrintHtml({
     .grand-total{padding:2.6mm 0 0;border-top:2px solid var(--accent);color:#0f172a}
     .grand-total span{display:block;color:#475569;font-size:7px;font-weight:850;letter-spacing:.18em;text-transform:uppercase}
     .grand-total strong{display:block;margin-top:.8mm;font-size:18px;line-height:1;font-weight:950;letter-spacing:0}
-    .signature-row{display:none;grid-template-columns:1fr 1fr 1fr;gap:8mm;margin-top:5mm;color:#475569;font-size:7.6px}
+    .signature-row{display:none;grid-template-columns:1fr 1fr 1fr;gap:8mm;margin-top:12mm;color:#475569;font-size:7.6px}
     .is-remito .signature-row{display:grid}
     .signature-line{padding-top:8mm;border-top:1px solid #cbd5e1;text-align:center}
     .footer{display:flex;justify-content:space-between;gap:5mm;margin-top:4mm;padding-top:2.5mm;border-top:1px solid #e2e8f0;color:#64748b;font-size:7.7px;line-height:1.3}

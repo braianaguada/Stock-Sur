@@ -78,6 +78,7 @@ describe("buildDocumentPrintHtml", () => {
     expect(html).toContain("status-chip");
     expect(html).toContain("notes service-notes avoid-break");
     expect(html).toContain(".service-notes{margin-top:3.6mm}");
+    expect(html).toContain(".signature-row{display:none;grid-template-columns:1fr 1fr 1fr;gap:8mm;margin-top:12mm");
     expect(html).toContain(".signature-line{padding-top:8mm");
     expect(html).toContain("Recibi conforme");
     expect(html).toContain("break-inside:avoid");
