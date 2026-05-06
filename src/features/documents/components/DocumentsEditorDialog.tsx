@@ -440,8 +440,8 @@ export function DocumentsEditorDialog({
                   className="pl-10"
                   placeholder={
                     documentForm.price_list_id
-                      ? "Buscar producto por SKU, nombre o unidad"
-                      : "Selecciona una lista para habilitar la busqueda"
+                      ? "Buscar por SKU, nombre, marca, modelo o atributos"
+                      : "Selecciona una lista para habilitar la b˙squeda"
                   }
                   onChange={(event) => setItemSearch(event.target.value)}
                   onKeyDown={(event) => {
@@ -484,7 +484,7 @@ export function DocumentsEditorDialog({
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">
-                  No hay coincidencias en la lista seleccionada.
+                  No hay coincidencias para mostrar.
                 </div>
               )
             ) : null}
@@ -494,9 +494,9 @@ export function DocumentsEditorDialog({
             {lines.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-sm text-muted-foreground bg-muted/10">
                 <Search className="h-8 w-8 mb-3 text-muted-foreground/30" />
-                No tienes ning√∫n producto agregado.
+                No hay productos agregados.
                 <br />
-                Usa el buscador para a√±adirlos.
+                Usa el buscador para aÒadirlos.
               </div>
             ) : (
               <div className="sticky top-0 z-20 hidden rounded-md border border-border/40 bg-muted/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-md xl:grid xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:gap-3">
@@ -506,7 +506,7 @@ export function DocumentsEditorDialog({
                 <div>Margen %</div>
                 <div>Precio unitario</div>
                 <div>Total</div>
-                <div className="text-right">Acs</div>
+                <div className="text-right">Acciones</div>
               </div>
             )}
 
@@ -674,7 +674,7 @@ export function DocumentsEditorDialog({
 
         <div className="sticky bottom-0 z-30 flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/95 px-5 py-4 shadow-[var(--shadow-md)] backdrop-blur-md">
           <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-0.5">Total Documento</span>
+            <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-0.5">Total del documento</span>
             <span className="text-2xl font-extrabold tracking-tight text-foreground">
               {formatMoney(totalDraft)}
             </span>
@@ -688,4 +688,6 @@ export function DocumentsEditorDialog({
     </EntityDialog>
   );
 }
+
+
 

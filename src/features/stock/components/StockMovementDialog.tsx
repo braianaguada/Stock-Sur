@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+﻿import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,11 +73,11 @@ export function StockMovementDialog({
           />
           <div className="max-h-52 overflow-auto rounded-2xl border border-border/80 bg-background/95 shadow-sm">
             {itemSearch.trim() === "" && availableItems.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">Escribí para buscar un ítem.</p>
+              <p className="px-3 py-2 text-sm text-muted-foreground">Escribe para buscar un ítem.</p>
             ) : searchingItems ? (
               <p className="px-3 py-2 text-sm text-muted-foreground">Buscando ítems...</p>
             ) : availableItems.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">No se encontraron ítems.</p>
+              <p className="px-3 py-2 text-sm text-muted-foreground">No hay ítems para mostrar.</p>
             ) : (
               availableItems.map((item) => {
                 const itemStock = stockByItemId.get(item.id) ?? 0;
@@ -217,3 +217,4 @@ export function StockMovementDialog({
     </EntityDialog>
   );
 }
+

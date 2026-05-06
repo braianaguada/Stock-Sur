@@ -96,7 +96,7 @@ export function StockMovementsTable({
       columns={columns}
       data={movements}
       isLoading={isLoading}
-      emptyMessage="Sin movimientos"
+      emptyMessage="No hay movimientos para mostrar"
       reserveEmptyRows={pageSize}
     />
   );

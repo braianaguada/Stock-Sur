@@ -41,7 +41,7 @@ export function useCustomersPage({
     queryFn: async () => {
       let query = supabase.from("customers").select("*").eq("company_id", companyId!).order("name");
       if (trimmedSearch) {
-        query = query.or(`name.ilike.%${trimmedSearch}%,cuit.ilike.%${trimmedSearch}%`);
+        query = query.or(`name.ilike.%${trimmedSearch}%,cuit.ilike.%${trimmedSearch}%,email.ilike.%${trimmedSearch}%,phone.ilike.%${trimmedSearch}%`);
       }
       const { data, error } = await query.limit(200);
       if (error) throw error;

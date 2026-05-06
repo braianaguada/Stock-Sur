@@ -28,7 +28,7 @@ export function useTechniciansPage({ companyId, userId, toast }: UseTechniciansP
     enabled: Boolean(companyId),
     queryFn: async () => {
       let q = supabase.from("technicians").select("*").eq("company_id", companyId!).order("name");
-      if (deferredSearch) q = q.or(`name.ilike.%${deferredSearch}%,phone.ilike.%${deferredSearch}%`);
+      if (deferredSearch) q = q.or(`name.ilike.%${deferredSearch}%,phone.ilike.%${deferredSearch}%,notes.ilike.%${deferredSearch}%`);
       const { data, error } = await q.limit(200);
       if (error) throw error;
       return (data ?? []) as Technician[];

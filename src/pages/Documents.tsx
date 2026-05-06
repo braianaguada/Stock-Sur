@@ -562,10 +562,10 @@ export default function DocumentsPage() {
         />
 
         <FilterBar>
-          <div className="relative w-full md:max-w-sm">
+          <div className="relative max-w-sm flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar cliente o numero..."
+              placeholder="Buscar por cliente, CUIT, número o factura externa..."
               className="pl-9"
               value={search}
               onChange={(event) => setSearch(event.target.value)}

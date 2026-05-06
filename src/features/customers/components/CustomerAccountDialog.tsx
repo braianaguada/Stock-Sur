@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +48,7 @@ export function CustomerAccountDialog({ open, companyId, customer, onOpenChange,
               <div className="mt-2 text-2xl font-semibold">{summary?.movements_count ?? 0}</div>
             </div>
             <div className="rounded-lg border p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Ultimo movimiento</div>
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Último movimiento</div>
               <div className="mt-2 text-sm font-medium">
                 {summary?.last_movement_at ? new Date(summary.last_movement_at).toLocaleString("es-AR") : "-"}
               </div>
@@ -80,7 +80,7 @@ export function CustomerAccountDialog({ open, companyId, customer, onOpenChange,
                 {!isLoading && entries.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                      Sin movimientos
+                      No hay movimientos para mostrar
                     </TableCell>
                   </TableRow>
                 ) : null}
@@ -88,7 +88,7 @@ export function CustomerAccountDialog({ open, companyId, customer, onOpenChange,
                   <TableRow key={entry.id}>
                     <TableCell>{new Date(entry.business_date).toLocaleDateString("es-AR")}</TableCell>
                     <TableCell>
-                      <Badge variant={entry.entry_type === "DEBIT" ? "destructive" : "secondary"}>
+                      <Badge variant={entry.entry_type === "DEBIT" ? "destructive" : "outline"}>
                         {entry.entry_type}
                       </Badge>
                     </TableCell>
@@ -115,3 +115,4 @@ export function CustomerAccountDialog({ open, companyId, customer, onOpenChange,
     </>
   );
 }
+
