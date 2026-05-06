@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
 import type { VisibilityState } from "@tanstack/react-table";
@@ -22,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, RefreshCcw, Search } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCcw, Search, X } from "lucide-react";
 import { BasePricesTable } from "@/features/price-lists/components/BasePricesTable";
 import { PriceListCreateDialog } from "@/features/price-lists/components/PriceListCreateDialog";
 import { PriceListDetailDialog } from "@/features/price-lists/components/PriceListDetailDialog";
@@ -31,6 +32,7 @@ import type { PriceListFormState } from "@/features/price-lists/types";
 import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
 import { formatDateTime } from "@/features/price-lists/utils";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
+import { formatMoney } from "@/features/price-lists/utils";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const PRICE_LISTS_UI_STATE_KEY = "price-lists:ui-state";
@@ -80,6 +82,7 @@ const pricingChipClass = {
 
 export default function PriceListsPage() {
   const { currentCompany, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const storageKey = currentCompany ? `${PRICE_LISTS_UI_STATE_KEY}:${currentCompany.id}` : null;
   const baseColumnsStorageKey = `${PRICE_BASE_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
   const detailColumnsStorageKey = `${PRICE_DETAIL_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
@@ -106,6 +109,10 @@ export default function PriceListsPage() {
   const [createForm, setCreateForm] = useState<PriceListFormState>(DEFAULT_PRICE_LIST_FORM);
   const [configDraft, setConfigDraft] = useState<PriceListFormState | null>(null);
   const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "no_stock">("all");
+  const [consultSearch, setConsultSearch] = useState("");
+  const [consultListId, setConsultListId] = useState<string | null>(null);
+  const [consultCategory, setConsultCategory] = useState<string>("all");
+  const itemIdFromQuery = searchParams.get("itemId");
 
   const stockQuery = useQuery({
     queryKey: ["items-stock-totals", currentCompany?.id ?? null],
@@ -139,6 +146,7 @@ export default function PriceListsPage() {
     selectedList,
     selectedListHistory,
     pagedSelectedListProducts,
+    snapshotsByListAndItemId,
     updateBaseCostMutation,
     createListMutation,
     updateListConfigMutation,
@@ -156,6 +164,17 @@ export default function PriceListsPage() {
     listSearch,
     selectedListId,
   });
+
+  useEffect(() => {
+    if (consultListId || priceLists.length === 0) return;
+    setConsultListId(priceLists[0].id);
+  }, [consultListId, priceLists]);
+
+  useEffect(() => {
+    if (!itemIdFromQuery || priceLists.length === 0 || consultListId) return;
+    const match = priceLists.find((list) => (snapshotsByListAndItemId.get(list.id)?.has(itemIdFromQuery) ?? false));
+    if (match) setConsultListId(match.id);
+  }, [consultListId, itemIdFromQuery, priceLists, snapshotsByListAndItemId]);
 
   useEffect(() => {
     if (!storageKey || typeof window === "undefined") return;
@@ -318,6 +337,45 @@ export default function PriceListsPage() {
     </div>
   );
 
+  const consultationRows = consultListId
+    ? (() => {
+      const listSnapshots = snapshotsByListAndItemId.get(consultListId) ?? new Map();
+      return baseRows.map((row) => {
+        const snapshot = listSnapshots.get(row.item_id);
+        return {
+          ...row,
+          price_list_id: consultListId,
+          calculated_price: snapshot?.calculated_price ?? null,
+          needs_recalculation: snapshot?.needs_recalculation ?? false,
+          last_calculated_at: snapshot?.last_calculated_at ?? null,
+          has_price: Boolean(snapshot),
+        };
+      });
+    })()
+    : [];
+
+  const consultationCategories = Array.from(
+    new Set(consultationRows.flatMap((row) => (row.category ? [row.category] : []))),
+  ).sort((a, b) => a.localeCompare(b, "es"));
+
+  const filteredConsultationRows = consultationRows.filter((row) => {
+    if (consultCategory !== "all" && row.category !== consultCategory) return false;
+    if (itemIdFromQuery) return row.item_id === itemIdFromQuery;
+    const term = consultSearch.trim().toLowerCase();
+    if (!term) return true;
+    return [row.sku, row.name, row.attributes, row.brand, row.model, row.category]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(term));
+  });
+
+  const selectedQueryItem = consultationRows.find((row) => row.item_id === itemIdFromQuery) ?? null;
+
+  const clearQueryItem = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("itemId");
+    setSearchParams(next, { replace: true });
+  };
+
   return (
     <AppLayout>
       <div className="page-shell">
@@ -434,6 +492,56 @@ export default function PriceListsPage() {
           </TabsContent>
 
           <TabsContent value="lists" className="space-y-5 pt-1">
+            <DataCard className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Consulta rápida</h3>
+                  <p className="text-sm text-muted-foreground">Filtrá por lista, categoría o SKU y destacá un producto desde Productos.</p>
+                </div>
+                {itemIdFromQuery ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">itemId activo</Badge>
+                    <Button variant="ghost" size="sm" onClick={clearQueryItem}>
+                      <X className="mr-2 h-4 w-4" /> Limpiar filtro
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+              <FilterBar>
+                <div className="relative min-w-[260px] max-w-sm flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input placeholder="SKU, nombre, alias..." className="pl-9" value={consultSearch} onChange={(e) => setConsultSearch(e.target.value)} />
+                </div>
+                <Select value={consultListId ?? ""} onValueChange={setConsultListId}>
+                  <SelectTrigger className="w-full md:w-56">
+                    <SelectValue placeholder="Lista de precio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priceLists.map((list) => <SelectItem key={list.id} value={list.id}>{list.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={consultCategory} onValueChange={setConsultCategory}>
+                  <SelectTrigger className="w-full md:w-56">
+                    <SelectValue placeholder="Categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las categorías</SelectItem>
+                    {consultationCategories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" onClick={() => { setConsultSearch(""); setConsultCategory("all"); }}>
+                  Limpiar filtros
+                </Button>
+                  <Button asChild variant="ghost">
+                    <Link to="/items"><ArrowLeft className="mr-2 h-4 w-4" /> Volver a productos</Link>
+                  </Button>
+              </FilterBar>
+              {selectedQueryItem ? (
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3 text-sm">
+                  <span className="font-medium">Seleccionado:</span> {selectedQueryItem.sku ?? "Sin SKU"} - {selectedQueryItem.name}
+                </div>
+              ) : null}
+            </DataCard>
             <FilterBar>
               <div className="relative max-w-sm">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -445,6 +553,46 @@ export default function PriceListsPage() {
                 />
               </div>
             </FilterBar>
+            <DataCard>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1100px] text-sm">
+                  <thead className="border-b text-left text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="p-3">SKU</th>
+                      <th className="p-3">Producto</th>
+                      <th className="p-3">Costo base</th>
+                      <th className="p-3">Precio lista</th>
+                      <th className="p-3">Margen aprox.</th>
+                      <th className="p-3">Estado</th>
+                      <th className="p-3">Lista</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredConsultationRows.length === 0 ? (
+                      <tr><td className="p-6 text-center text-muted-foreground" colSpan={7}>No hay resultados para esta consulta.</td></tr>
+                    ) : filteredConsultationRows.map((row) => {
+                      const price = row.calculated_price ?? 0;
+                      const marginPct = price > 0 ? ((price - row.base_cost) / price) * 100 : null;
+                      const state = !row.base_cost ? "Sin costo" : !row.has_price ? "Sin precio" : row.needs_recalculation ? "Precio de lista" : "Precio manual";
+                      return (
+                        <tr key={row.item_id} className={row.item_id === itemIdFromQuery ? "bg-primary/5" : ""}>
+                          <td className="p-3 font-mono text-xs">{row.sku ?? "-"}</td>
+                          <td className="p-3">
+                            <div className="font-medium">{row.name}</div>
+                            <div className="text-xs text-muted-foreground">{row.category ?? "Sin categoría"}</div>
+                          </td>
+                          <td className="p-3">{formatMoney(row.base_cost)}</td>
+                          <td className="p-3">{row.has_price ? formatMoney(price) : "-"}</td>
+                          <td className="p-3">{marginPct === null ? "-" : `${marginPct.toFixed(1)}%`}</td>
+                          <td className="p-3"><Badge variant="outline">{state}</Badge></td>
+                          <td className="p-3 text-muted-foreground">{formatDateTime(row.last_calculated_at)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </DataCard>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {priceLists.length === 0 ? (
                 <Card className="md:col-span-2 xl:col-span-3">
