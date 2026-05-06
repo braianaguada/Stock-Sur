@@ -432,25 +432,20 @@ export function DocumentsEditorDialog({
           </div>
 
           <div className="space-y-3">
-            <div className="relative w-full">
+            <div className="relative max-w-sm flex-1 min-w-[200px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                  value={itemSearch}
-                  disabled={!documentForm.price_list_id || priceLists.length === 0}
-                  className="pl-10"
-                  placeholder={
-                    documentForm.price_list_id
-                      ? "Buscar por SKU, nombre, marca, modelo o atributos"
-                      : "Selecciona una lista para habilitar la búsqueda"
+                value={itemSearch}
+                className="pl-10"
+                placeholder="Buscar por SKU, nombre, marca, modelo o atributos"
+                onChange={(event) => setItemSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && filteredItems.length > 0) {
+                    event.preventDefault();
+                    handleAddItem(filteredItems[0].id);
                   }
-                  onChange={(event) => setItemSearch(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && filteredItems.length > 0) {
-                      event.preventDefault();
-                      handleAddItem(filteredItems[0].id);
-                    }
-                  }}
-                />
+                }}
+              />
             </div>
 
             {itemSearch.trim().length > 0 ? (
@@ -484,7 +479,7 @@ export function DocumentsEditorDialog({
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">
-                  No hay coincidencias para mostrar.
+                  No hay resultados para mostrar.
                 </div>
               )
             ) : null}
@@ -494,9 +489,9 @@ export function DocumentsEditorDialog({
             {lines.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-sm text-muted-foreground bg-muted/10">
                 <Search className="h-8 w-8 mb-3 text-muted-foreground/30" />
-                No hay productos agregados.
+                Todavía no hay productos agregados.
                 <br />
-                Usa el buscador para añadirlos.
+                Usa el buscador para agregarlos.
               </div>
             ) : (
               <div className="sticky top-0 z-20 hidden rounded-md border border-border/40 bg-muted/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-md xl:grid xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:gap-3">
@@ -688,6 +683,9 @@ export function DocumentsEditorDialog({
     </EntityDialog>
   );
 }
+
+
+
 
 
 
