@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { searchIncludes } from "@/lib/search";
 import type {
   CatalogLine,
   Supplier,
@@ -14,12 +15,16 @@ export async function fetchSuppliers(params: {
   let query = supabase.from("suppliers").select("*").eq("company_id", params.companyId).order("name");
   if (params.statusFilter === "active") query = query.eq("is_active", true);
   if (params.statusFilter === "inactive") query = query.eq("is_active", false);
-  if (params.search) {
-    query = query.or(`name.ilike.%${params.search}%,contact_name.ilike.%${params.search}%`);
-  }
   const { data, error } = await query.limit(200);
   if (error) throw error;
-  return (data ?? []) as Supplier[];
+  const rows = (data ?? []) as Supplier[];
+  if (!params.search) return rows;
+  return rows.filter((supplier) =>
+    searchIncludes(
+      [supplier.name, supplier.contact_name, supplier.email, supplier.whatsapp].filter(Boolean).join(" "),
+      params.search,
+    ),
+  );
 }
 
 export async function fetchSupplierCatalogs(companyId: string, supplierId: string) {
@@ -95,11 +100,11 @@ export async function fetchSupplierCatalogLines(params: {
     .order("row_index", { ascending: true, nullsFirst: false })
     .limit(250);
 
-  if (params.search) {
-    query = query.or(`raw_description.ilike.%${params.search}%,supplier_code.ilike.%${params.search}%`);
-  }
-
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as CatalogLine[];
+  const rows = (data ?? []) as CatalogLine[];
+  if (!params.search) return rows;
+  return rows.filter((line) =>
+    searchIncludes([line.raw_description, line.supplier_code].filter(Boolean).join(" "), params.search),
+  );
 }

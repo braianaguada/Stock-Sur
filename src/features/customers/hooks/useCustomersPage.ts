@@ -6,6 +6,7 @@ import { invalidateCustomerQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearch } from "@/hooks/useSearch";
+import { searchIncludes } from "@/lib/search";
 import type { CustomerFormState } from "@/features/customers/components/CustomerFormDialog";
 import type { Customer } from "@/features/customers/types";
 
@@ -40,12 +41,13 @@ export function useCustomersPage({
     enabled: Boolean(companyId),
     queryFn: async () => {
       let query = supabase.from("customers").select("*").eq("company_id", companyId!).order("name");
-      if (trimmedSearch) {
-        query = query.or(`name.ilike.%${trimmedSearch}%,cuit.ilike.%${trimmedSearch}%`);
-      }
       const { data, error } = await query.limit(200);
       if (error) throw error;
-      return data as Customer[];
+      const rows = (data ?? []) as Customer[];
+      if (!trimmedSearch) return rows;
+      return rows.filter((customer) =>
+        searchIncludes([customer.name, customer.cuit, customer.email, customer.phone].filter(Boolean).join(" "), trimmedSearch),
+      );
     },
   });
 

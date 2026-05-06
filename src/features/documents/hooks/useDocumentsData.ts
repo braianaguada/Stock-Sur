@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
 import { buildItemDisplayName } from "@/lib/item-display";
+import { searchIncludes } from "@/lib/search";
 import { DOC_LABEL } from "../constants";
 import type {
   DocEventRow,
@@ -174,15 +175,28 @@ export function useDocumentsData({
         .order("created_at", { ascending: false });
       if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
       if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
-      if (trimmedSearch) {
-        const n = Number.parseInt(trimmedSearch, 10);
-        const clauses = [`customer_name.ilike.%${trimmedSearch}%`, `external_invoice_number.ilike.%${trimmedSearch}%`];
-        if (Number.isFinite(n)) clauses.push(`document_number.eq.${n}`);
-        q = q.or(clauses.join(","));
-      }
       const { data, error } = await q.limit(300);
       if (error) throw error;
-      return (data ?? []) as DocRow[];
+      const rows = (data ?? []) as DocRow[];
+      if (!trimmedSearch) return rows;
+      const numberQuery = Number.parseInt(trimmedSearch, 10);
+      return rows.filter((document) =>
+        searchIncludes(
+          [
+            document.customer_name,
+            document.customer_tax_id,
+            document.external_invoice_number,
+            document.salesperson,
+            document.payment_terms,
+            document.delivery_address,
+            document.notes,
+            document.doc_type,
+            document.status,
+            document.document_number != null ? String(document.document_number) : "",
+          ].filter(Boolean).join(" "),
+          trimmedSearch,
+        ) || (Number.isFinite(numberQuery) && document.document_number === numberQuery),
+      );
     },
   });
 

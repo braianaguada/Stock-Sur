@@ -151,6 +151,14 @@ describe("critical database rules", () => {
       const result = await client.query(`select status, document_number from public.issue_document($1)`, [documentId]);
       expect(result.rows[0].status).toBe("EMITIDO");
       expect(result.rows[0].document_number).toBe(1);
+
+      const stock = await client.query(
+        `select coalesce(sum(case type when 'IN' then quantity when 'OUT' then -quantity else quantity end), 0) as balance
+         from public.stock_movements
+         where company_id = $1 and item_id = $2`,
+        [companyId, itemId],
+      );
+      expect(Number(stock.rows[0].balance)).toBe(-2);
     });
   });
 
