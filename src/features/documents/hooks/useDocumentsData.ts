@@ -191,6 +191,21 @@ export function useDocumentsData({
     [documents],
   );
 
+  const { data: selectedDocument = null } = useQuery({
+    queryKey: ["documents", "detail", selectedDocId],
+    enabled: Boolean(selectedDocId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
+        .eq("company_id", currentCompanyId!)
+        .eq("id", selectedDocId!)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as DocRow | null;
+    },
+  });
+
   const { data: selectedLines = [] } = useQuery({
     queryKey: queryKeys.documents.lines(selectedDocId),
     enabled: !!selectedDocId,
@@ -218,11 +233,6 @@ export function useDocumentsData({
       return (data ?? []) as DocEventRow[];
     },
   });
-
-  const selectedDocument = useMemo(
-    () => (selectedDocId ? documentsById.get(selectedDocId) ?? null : null),
-    [documentsById, selectedDocId],
-  );
 
   const { data: selectedDocumentCashUsage = false } = useQuery({
     queryKey: ["documents", "cash-usage", selectedDocId],

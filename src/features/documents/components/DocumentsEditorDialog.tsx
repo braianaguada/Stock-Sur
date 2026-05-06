@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,7 @@ export function DocumentsEditorDialog({
 }: DocumentsEditorDialogProps) {
   const [itemSearch, setItemSearch] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const deferredItemSearch = useDeferredValue(itemSearch);
 
   const selectedPriceList = useMemo(
     () => priceLists.find((priceList) => priceList.id === documentForm.price_list_id) ?? null,
@@ -103,7 +104,7 @@ export function DocumentsEditorDialog({
   }, [lines]);
 
   const filteredItems = useMemo(() => {
-    const query = itemSearch.trim().toLowerCase();
+    const query = deferredItemSearch.trim().toLowerCase();
     if (!documentForm.price_list_id || query.length === 0) return [];
 
     return availableItems
@@ -111,7 +112,7 @@ export function DocumentsEditorDialog({
         [item.sku, item.name, item.unit ?? ""].some((value) => value.toLowerCase().includes(query)),
       )
       .slice(0, 8);
-  }, [availableItems, documentForm.price_list_id, itemSearch]);
+  }, [availableItems, documentForm.price_list_id, deferredItemSearch]);
 
   const updateLine = (index: number, patch: Partial<LineDraft>) => {
     setLines((previousLines) =>
