@@ -83,8 +83,10 @@ export function buildDocumentPrintHtml({
     : "Pendiente de numeracion";
   const densityClass = getDensityClass(lines.length);
   const documentToneClass = getDocumentTone(document.doc_type);
+  const documentKindClass = document.doc_type === "PRESUPUESTO" ? "is-budget" : "is-remito";
   const legalName = companySettings.legal_name ?? companySettings.app_name;
   const title = `${documentTypeLabel} ${documentNumber}`;
+  const totalLabel = document.doc_type === "PRESUPUESTO" ? "Total presupuesto" : "Total documento";
   const sourceLabel =
     document.source_document_type && document.source_document_number_snapshot
       ? `${DOC_LABEL[document.source_document_type]} ${document.source_document_number_snapshot}`
@@ -172,6 +174,12 @@ export function buildDocumentPrintHtml({
     .grand-total{padding:2.6mm 0 0;border-top:2px solid var(--accent);color:#0f172a}
     .grand-total span{display:block;color:#475569;font-size:7px;font-weight:850;letter-spacing:.18em;text-transform:uppercase}
     .grand-total strong{display:block;margin-top:.8mm;font-size:18px;line-height:1;font-weight:950;letter-spacing:0}
+    .is-budget .summary-row{grid-template-columns:66mm;justify-content:end}
+    .is-budget .totals{border:1px solid #c7d2fe;border-top:3px solid var(--accent);border-radius:7px;padding:2.2mm 3mm;background:linear-gradient(180deg,#fff 0%,var(--accent-soft) 100%)}
+    .is-budget .totals-line{padding:1.35mm 0;font-size:8.3px}
+    .is-budget .grand-total{margin-top:1mm;padding:2.5mm 0 0;border-top:2px solid var(--accent)}
+    .is-budget .grand-total span{color:var(--accent-ink)}
+    .is-budget .grand-total strong{font-size:21px;color:#0f172a}
     .signature-row{display:none;grid-template-columns:1fr 1fr 1fr;gap:8mm;margin-top:12mm;color:#475569;font-size:7.6px}
     .is-remito .signature-row{display:grid}
     .signature-line{padding-top:8mm;border-top:1px solid #cbd5e1;text-align:center}
@@ -189,7 +197,7 @@ export function buildDocumentPrintHtml({
 </head>
 <body>
   <div class="preview-shell">
-    <article class="sheet ${documentToneClass} ${densityClass} ${document.doc_type === "REMITO" || document.doc_type === "REMITO_DEVOLUCION" ? "is-remito" : ""}">
+    <article class="sheet ${documentToneClass} ${densityClass} ${documentKindClass}">
       <div class="top-rule"></div>
       <div class="content">
         <header class="header avoid-break">
@@ -275,7 +283,7 @@ export function buildDocumentPrintHtml({
           <div class="totals">
             <div class="totals-line"><span>Subtotal</span><strong>${moneyFormatter.format(Number(document.subtotal ?? 0))}</strong></div>
             <div class="totals-line"><span>IVA / Imp.</span><strong>${moneyFormatter.format(Number(document.tax_total ?? 0))}</strong></div>
-            <div class="grand-total"><span>Total documento</span><strong>${moneyFormatter.format(Number(document.total ?? 0))}</strong></div>
+            <div class="grand-total"><span>${escapeHtml(totalLabel)}</span><strong>${moneyFormatter.format(Number(document.total ?? 0))}</strong></div>
           </div>
         </section>
 

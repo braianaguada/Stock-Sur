@@ -104,4 +104,27 @@ describe("buildDocumentPrintHtml", () => {
     expect(html).toContain("Pendiente de numeracion");
     expect(html).toContain("doc-number is-pending");
   });
+
+  it("uses a budget-specific totals close", () => {
+    const html = buildDocumentPrintHtml({
+      document: {
+        ...document,
+        doc_type: "PRESUPUESTO",
+        technician_id: null,
+        source_document_type: null,
+        source_document_number_snapshot: null,
+        external_invoice_number: null,
+        external_invoice_date: null,
+      },
+      lines: [line],
+      companySettings: DEFAULT_COMPANY_SETTINGS,
+    });
+
+    expect(html).toContain("tone-budget");
+    expect(html).toContain("is-budget");
+    expect(html).toContain(".is-budget .summary-row{grid-template-columns:66mm;justify-content:end}");
+    expect(html).toContain(".is-budget .totals{border:1px solid #c7d2fe");
+    expect(html).toContain("Total presupuesto");
+    expect(html).not.toContain("Total documento");
+  });
 });
