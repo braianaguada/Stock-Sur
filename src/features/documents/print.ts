@@ -59,6 +59,18 @@ function buildRows(lines: PrintableLine[]) {
     .join("");
 }
 
+function getDensityClass(lineCount: number) {
+  if (lineCount >= 19) return "density-dense";
+  if (lineCount >= 9) return "density-compact";
+  return "density-normal";
+}
+
+function getDocumentTone(docType: DocRow["doc_type"]) {
+  if (docType === "PRESUPUESTO") return "tone-budget";
+  if (docType === "REMITO_DEVOLUCION") return "tone-return";
+  return "tone-remito";
+}
+
 export function buildDocumentPrintHtml({
   document,
   lines,
@@ -67,6 +79,8 @@ export function buildDocumentPrintHtml({
 }: BuildDocumentPrintHtmlParams) {
   const documentTypeLabel = DOC_LABEL[document.doc_type];
   const documentNumber = formatNumber(document.document_number, document.point_of_sale);
+  const densityClass = getDensityClass(lines.length);
+  const documentToneClass = getDocumentTone(document.doc_type);
   const legalName = companySettings.legal_name ?? companySettings.app_name;
   const title = `${documentTypeLabel} ${documentNumber}`;
   const sourceLabel =
@@ -94,57 +108,70 @@ export function buildDocumentPrintHtml({
     body{font-family:Inter,Arial,sans-serif;color:#101828;background:#e7ebf0}
     .preview-shell{width:210mm;margin:0 auto;padding:6mm 0 10mm}
     .sheet{width:210mm;min-height:297mm;margin:0 auto;display:flex;flex-direction:column;background:#fff;border:1px solid #d0d7e2;border-radius:10px;box-shadow:0 18px 44px rgba(15,23,42,.12);overflow:hidden}
-    .top-rule{height:4px;background:linear-gradient(90deg,#0f172a 0%,#2563eb 46%,#16a34a 100%)}
-    .content{display:flex;min-height:calc(297mm - 4px);flex:1;flex-direction:column;padding:11mm 12mm 9mm}
-    .header{display:grid;grid-template-columns:minmax(0,1fr) 64mm;gap:8mm;align-items:start;border-bottom:1px solid #d9e0ea;padding-bottom:5mm}
-    .brand{display:grid;grid-template-columns:34mm minmax(0,1fr);gap:5mm;align-items:center;min-width:0}
-    .brand-logo{max-width:34mm;max-height:27mm;object-fit:contain}
-    .brand-fallback{width:27mm;height:27mm;display:grid;place-items:center;border-radius:7px;background:#111827;color:white;font-weight:850;font-size:20px}
+    .tone-budget{--accent:#2563eb;--accent-soft:#eff6ff;--accent-ink:#1d4ed8}
+    .tone-remito{--accent:#15803d;--accent-soft:#f0fdf4;--accent-ink:#166534}
+    .tone-return{--accent:#b45309;--accent-soft:#fffbeb;--accent-ink:#92400e}
+    .top-rule{height:4px;background:linear-gradient(90deg,#0f172a 0%,var(--accent) 100%)}
+    .content{display:flex;min-height:calc(297mm - 4px);flex:1;flex-direction:column;padding:10mm 11mm 8.5mm}
+    .header{display:grid;grid-template-columns:minmax(0,1fr) 63mm;gap:7mm;align-items:start;border-bottom:1px solid #d9e0ea;padding-bottom:4.5mm}
+    .brand{display:grid;grid-template-columns:43mm minmax(0,1fr);gap:5mm;align-items:center;min-width:0}
+    .brand-mark{display:grid;place-items:center;min-height:32mm;padding:1.5mm;border-right:1px solid #e3e8f0}
+    .brand-logo{max-width:40mm;max-height:31mm;object-fit:contain}
+    .brand-fallback{width:31mm;height:31mm;display:grid;place-items:center;border-radius:7px;background:#111827;color:white;font-weight:850;font-size:21px}
     .brand-title{margin:0;color:#0f172a;font-size:18px;font-weight:850;line-height:1.08;letter-spacing:0}
-    .brand-sub{margin:1.5mm 0 0;color:#475569;font-size:8.5px;line-height:1.35}
-    .company-meta{display:flex;flex-wrap:wrap;gap:1.5mm 4mm;margin-top:2.6mm;color:#64748b;font-size:8.5px;line-height:1.25}
-    .doc-card{border:1px solid #d7deea;border-radius:7px;padding:4mm;background:#f8fafc}
-    .doc-kind{margin:0;color:#0f172a;font-size:18px;font-weight:850;line-height:1}
-    .doc-number{margin:2.5mm 0 0;color:#1e40af;font-family:Consolas,monospace;font-size:11px;font-weight:800}
-    .doc-meta{display:grid;grid-template-columns:1fr 1fr;gap:1.5mm 3mm;margin-top:3.5mm}
-    .badge-line span,.meta-line span{display:block;color:#64748b;font-size:7.5px;font-weight:750;letter-spacing:.08em;text-transform:uppercase}
-    .badge-line strong,.meta-line strong{display:block;margin-top:.5mm;color:#0f172a;font-size:9px;line-height:1.22}
-    .meta-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:4mm;margin-top:4mm}
-    .box{border:1px solid #dfe5ee;border-radius:7px;padding:3.5mm;background:#fff}
-    .box-title{margin:0 0 2.2mm;color:#475569;font-size:7.5px;font-weight:850;letter-spacing:.18em;text-transform:uppercase}
-    .meta-line{display:grid;grid-template-columns:24mm minmax(0,1fr);gap:2mm;align-items:baseline;padding:1mm 0;border-top:1px solid #edf1f6}
-    .meta-line:first-of-type{border-top:0;padding-top:0}
+    .brand-sub{margin:1.3mm 0 0;color:#475569;font-size:8.4px;line-height:1.3}
+    .company-meta{display:grid;grid-template-columns:1fr 1fr;gap:1mm 4mm;margin-top:2.8mm;color:#64748b;font-size:8px;line-height:1.22}
+    .company-meta span{overflow-wrap:anywhere}
+    .doc-card{border:1px solid #cfd8e5;border-top:3px solid var(--accent);border-radius:6px;padding:3.5mm 4mm;background:linear-gradient(180deg,var(--accent-soft) 0%,#fff 100%)}
+    .doc-kicker{margin:0 0 1.5mm;color:var(--accent-ink);font-size:7px;font-weight:900;letter-spacing:.22em;text-transform:uppercase}
+    .doc-kind{margin:0;color:#0f172a;font-size:18px;font-weight:900;line-height:1}
+    .doc-number{margin:2mm 0 0;color:#0f172a;font-family:Consolas,monospace;font-size:10.5px;font-weight:850}
+    .doc-meta{display:grid;grid-template-columns:1fr 1fr;gap:1.4mm 3mm;margin-top:3mm}
+    .status-chip{display:inline-block;width:max-content;margin-top:.3mm;border:1px solid color-mix(in srgb,var(--accent) 45%,white);border-radius:999px;padding:.5mm 1.6mm;background:#fff;color:var(--accent-ink);font-size:8px;font-weight:850}
+    .badge-line span,.meta-line span{display:block;color:#64748b;font-size:7.3px;font-weight:780;letter-spacing:.08em;text-transform:uppercase}
+    .badge-line strong,.meta-line strong{display:block;margin-top:.35mm;color:#0f172a;font-size:8.8px;line-height:1.18}
+    .meta-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:5mm;margin-top:4mm}
+    .box{padding-top:2.4mm;border-top:1.5px solid #cfd8e5}
+    .box-title{margin:0 0 1.8mm;color:#334155;font-size:7.6px;font-weight:900;letter-spacing:.2em;text-transform:uppercase}
+    .meta-line{display:grid;grid-template-columns:23mm minmax(0,1fr);gap:2mm;align-items:baseline;padding:.65mm 0}
     .meta-line span{font-size:7.3px}
     .meta-line strong{font-size:8.7px;font-weight:650;overflow-wrap:anywhere}
-    .lines-section{margin-top:4mm}
+    .lines-section{margin-top:4.5mm}
     .section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:4mm;margin-bottom:1.8mm}
     .section-title{margin:0;color:#475569;font-size:7.5px;font-weight:850;letter-spacing:.2em;text-transform:uppercase}
     .line-count{color:#64748b;font-size:8px}
-    table{width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #d8e0ea}
-    th{height:5.2mm;background:#eef3f8;color:#334155;font-size:7.2px;font-weight:850;letter-spacing:.08em;text-align:left;text-transform:uppercase;border-bottom:1px solid #d8e0ea;padding:1.3mm 1.5mm}
-    td{height:5.8mm;color:#111827;font-size:8.15px;line-height:1.14;vertical-align:top;border-bottom:1px solid #e6ebf2;padding:1.35mm 1.5mm}
+    table{width:100%;border-collapse:collapse;table-layout:fixed;border-top:1.5px solid #cfd8e5;border-bottom:1px solid #d8e0ea}
+    th{height:5mm;background:#f5f7fa;color:#334155;font-size:7px;font-weight:850;letter-spacing:.08em;text-align:left;text-transform:uppercase;border-bottom:1px solid #d8e0ea;padding:1.2mm 1.4mm}
+    td{height:5.5mm;color:#111827;font-size:8px;line-height:1.12;vertical-align:top;border-bottom:1px solid #e6ebf2;padding:1.2mm 1.4mm}
+    .density-compact th{height:4.6mm;padding:1mm 1.25mm}
+    .density-compact td{height:5mm;font-size:7.8px;padding:1mm 1.25mm}
+    .density-dense th{height:4.2mm;font-size:6.7px;padding:.8mm 1mm}
+    .density-dense td{height:4.55mm;font-size:7.45px;line-height:1.08;padding:.8mm 1mm}
     tbody tr:nth-child(even){background:#fbfcfe}
     tbody tr:last-child td{border-bottom:0}
     tr{break-inside:avoid;page-break-inside:avoid}
     thead{display:table-header-group}
     .c-index{width:8mm;text-align:center;color:#64748b}
-    .c-sku{width:22mm;font-family:Consolas,monospace;font-size:7.8px;overflow-wrap:anywhere}
+    .c-sku{width:20mm;font-family:Consolas,monospace;font-size:7.5px;overflow-wrap:anywhere}
     .c-desc{width:auto;font-weight:650;overflow-wrap:anywhere}
     .c-qty{width:13mm;text-align:right}
-    .c-unit{width:10mm;text-transform:lowercase}
+    .c-unit{width:8mm;text-transform:lowercase}
     .c-money{width:21mm;text-align:right;white-space:nowrap}
     .c-total{font-weight:800}
     .empty-row{text-align:center;color:#64748b;padding:8mm}
-    .summary-row{margin-top:auto;display:grid;grid-template-columns:minmax(0,1fr) 53mm;gap:5mm;align-items:end;padding-top:4mm}
-    .notes{min-height:18mm;border:1px dashed #c8d1df;border-radius:7px;padding:3mm;background:#fbfcfe}
+    .summary-row{margin-top:auto;display:grid;grid-template-columns:minmax(0,1fr) 52mm;gap:6mm;align-items:end;padding-top:4mm}
+    .notes{min-height:15mm;border:1px dashed #c8d1df;border-radius:6px;padding:2.8mm;background:#fbfcfe}
     .notes strong{display:block;margin-bottom:1.5mm;color:#475569;font-size:7.5px;letter-spacing:.16em;text-transform:uppercase}
     .notes pre{margin:0;color:#334155;font-family:inherit;font-size:8.3px;line-height:1.35;white-space:pre-wrap}
-    .totals{border:1px solid #cfd8e5;border-radius:8px;overflow:hidden;background:#f8fafc}
-    .totals-line{display:flex;justify-content:space-between;gap:3mm;padding:2mm 3mm;border-bottom:1px solid #e2e8f0;color:#475569;font-size:8.2px}
+    .totals{border:1px solid #cfd8e5;border-left:3px solid var(--accent);border-radius:6px;overflow:hidden;background:#fff}
+    .totals-line{display:flex;justify-content:space-between;gap:3mm;padding:1.8mm 2.8mm;border-bottom:1px solid #e2e8f0;color:#475569;font-size:8.1px}
     .totals-line strong{color:#0f172a}
-    .grand-total{padding:3mm;background:#0f172a;color:white}
-    .grand-total span{display:block;color:#cbd5e1;font-size:7px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
-    .grand-total strong{display:block;margin-top:1mm;font-size:19px;line-height:1;font-weight:900;letter-spacing:0}
+    .grand-total{padding:2.8mm;background:#f8fafc;color:#0f172a}
+    .grand-total span{display:block;color:#475569;font-size:7px;font-weight:850;letter-spacing:.18em;text-transform:uppercase}
+    .grand-total strong{display:block;margin-top:.8mm;font-size:18px;line-height:1;font-weight:950;letter-spacing:0}
+    .signature-row{display:none;grid-template-columns:1fr 1fr 1fr;gap:8mm;margin-top:5mm;color:#475569;font-size:7.6px}
+    .is-remito .signature-row{display:grid}
+    .signature-line{padding-top:6mm;border-top:1px solid #cbd5e1;text-align:center}
     .footer{display:flex;justify-content:space-between;gap:5mm;margin-top:4mm;padding-top:2.5mm;border-top:1px solid #e2e8f0;color:#64748b;font-size:7.7px;line-height:1.3}
     .print-action{display:block;margin:5mm auto 0;border:0;border-radius:999px;background:#0f172a;color:#fff;padding:10px 16px;font-size:13px;font-weight:750;box-shadow:0 10px 22px rgba(15,23,42,.20);cursor:pointer}
     .avoid-break{break-inside:avoid;page-break-inside:avoid}
@@ -159,12 +186,12 @@ export function buildDocumentPrintHtml({
 </head>
 <body>
   <div class="preview-shell">
-    <article class="sheet">
+    <article class="sheet ${documentToneClass} ${densityClass} ${document.doc_type === "REMITO" || document.doc_type === "REMITO_DEVOLUCION" ? "is-remito" : ""}">
       <div class="top-rule"></div>
       <div class="content">
         <header class="header avoid-break">
           <section class="brand">
-            ${logoMarkup}
+            <div class="brand-mark">${logoMarkup}</div>
             <div>
               <h1 class="brand-title">${escapeHtml(legalName)}</h1>
               <p class="brand-sub">${escapeHtml(companySettings.document_tagline ?? "Documentacion comercial")}</p>
@@ -177,11 +204,12 @@ export function buildDocumentPrintHtml({
             </div>
           </section>
           <section class="doc-card">
+            <p class="doc-kicker">Documento</p>
             <h2 class="doc-kind">${escapeHtml(documentTypeLabel)}</h2>
             <p class="doc-number">${escapeHtml(documentNumber)}</p>
             <div class="doc-meta">
               ${optionalBadge("Fecha", formatIsoDate(document.issue_date))}
-              ${optionalBadge("Estado", STATUS_LABEL[document.status])}
+              <div class="badge-line"><span>Estado</span><strong class="status-chip">${escapeHtml(STATUS_LABEL[document.status])}</strong></div>
               ${document.valid_until ? optionalBadge("Validez", formatIsoDate(document.valid_until)) : ""}
               ${optionalBadge("PDV", String(document.point_of_sale).padStart(4, "0"))}
             </div>
@@ -235,6 +263,11 @@ export function buildDocumentPrintHtml({
           <div class="notes">
             <strong>Notas</strong>
             <pre>${escapeHtml(document.notes ?? "-")}</pre>
+            <div class="signature-row">
+              <div class="signature-line">Recibi conforme</div>
+              <div class="signature-line">Aclaracion</div>
+              <div class="signature-line">Documento</div>
+            </div>
           </div>
           <div class="totals">
             <div class="totals-line"><span>Subtotal</span><strong>${moneyFormatter.format(Number(document.subtotal ?? 0))}</strong></div>
