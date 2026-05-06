@@ -162,7 +162,7 @@ export function buildDocumentPrintHtml({
     .c-total{font-weight:800}
     .empty-row{text-align:center;color:#64748b;padding:8mm}
     .summary-row{margin-top:auto;display:grid;grid-template-columns:minmax(0,1fr) 52mm;gap:6mm;align-items:start;padding-top:4mm}
-    .notes-signature{display:grid;gap:5mm}
+    .notes-signature{display:grid;gap:10mm}
     .notes{min-height:15mm;border:1px dashed #c8d1df;border-radius:6px;padding:2.8mm;background:#fbfcfe}
     .notes strong{display:block;margin-bottom:1.5mm;color:#475569;font-size:7.5px;letter-spacing:.16em;text-transform:uppercase}
     .notes pre{margin:0;color:#334155;font-family:inherit;font-size:8.3px;line-height:1.35;white-space:pre-wrap}
@@ -174,7 +174,7 @@ export function buildDocumentPrintHtml({
     .grand-total strong{display:block;margin-top:.8mm;font-size:18px;line-height:1;font-weight:950;letter-spacing:0}
     .signature-row{display:none;grid-template-columns:1fr 1fr 1fr;gap:8mm;color:#475569;font-size:7.6px}
     .is-remito .signature-row{display:grid}
-    .signature-line{padding-top:6mm;border-top:1px solid #cbd5e1;text-align:center}
+    .signature-line{padding-top:8mm;border-top:1px solid #cbd5e1;text-align:center}
     .footer{display:flex;justify-content:space-between;gap:5mm;margin-top:4mm;padding-top:2.5mm;border-top:1px solid #e2e8f0;color:#64748b;font-size:7.7px;line-height:1.3}
     .print-action{display:block;margin:5mm auto 0;border:0;border-radius:999px;background:#0f172a;color:#fff;padding:10px 16px;font-size:13px;font-weight:750;box-shadow:0 10px 22px rgba(15,23,42,.20);cursor:pointer}
     .avoid-break{break-inside:avoid;page-break-inside:avoid}

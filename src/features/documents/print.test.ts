@@ -77,6 +77,8 @@ describe("buildDocumentPrintHtml", () => {
     expect(html).not.toContain("<th class=\"c-sku\">SKU</th>");
     expect(html).toContain("status-chip");
     expect(html).toContain("notes-signature");
+    expect(html).toContain(".notes-signature{display:grid;gap:10mm}");
+    expect(html).toContain(".signature-line{padding-top:8mm");
     expect(html).toContain("Recibi conforme");
     expect(html).toContain("break-inside:avoid");
     expect(html).toContain(".summary-row{margin-top:auto");
