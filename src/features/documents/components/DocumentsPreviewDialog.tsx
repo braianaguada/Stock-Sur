@@ -36,6 +36,18 @@ const moneyFormatter = new Intl.NumberFormat("es-AR", {
   minimumFractionDigits: 2,
 });
 
+const DOC_ACCENT_CLASS: Record<DocRow["doc_type"], string> = {
+  PRESUPUESTO: "from-blue-500 via-sky-400 to-slate-900",
+  REMITO: "from-emerald-500 via-sky-500 to-slate-900",
+  REMITO_DEVOLUCION: "from-amber-500 via-orange-400 to-slate-900",
+};
+
+const DOC_TOTAL_ACCENT_CLASS: Record<DocRow["doc_type"], string> = {
+  PRESUPUESTO: "border-blue-500/60",
+  REMITO: "border-emerald-500/60",
+  REMITO_DEVOLUCION: "border-amber-500/70",
+};
+
 function formatMoney(value: number | string | null | undefined) {
   return moneyFormatter.format(Number(value) || 0);
 }
@@ -91,7 +103,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
             <div className="min-h-0 min-w-0 overflow-y-auto pr-1 [scrollbar-gutter:stable]">
               <div className="mx-auto max-w-[1040px] rounded-[22px] border border-slate-300 bg-white p-5 shadow-sm">
                 <div className="overflow-hidden rounded-[18px] border border-slate-200">
-                  <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 via-sky-500 to-slate-900" />
+                  <div className={`h-1.5 w-full bg-gradient-to-r ${DOC_ACCENT_CLASS[selectedDocument.doc_type]}`} />
 
                   <header className="grid gap-5 border-b border-slate-200 p-5 xl:grid-cols-[minmax(0,1fr)_280px]">
                     <div className="flex min-w-0 items-center gap-5">
@@ -192,12 +204,12 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                     </div>
                   </section>
 
-                  {selectedDocument.notes ? (
-                    <section className="border-b border-slate-200 bg-slate-50/70 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Notas</p>
-                      <p className="mt-2 whitespace-pre-wrap break-words text-sm font-medium leading-6 text-slate-800">{selectedDocument.notes}</p>
-                    </section>
-                  ) : null}
+                  <section className="border-b border-slate-200 bg-slate-50/70 p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Notas</p>
+                    <p className="mt-2 min-h-6 whitespace-pre-wrap break-words text-sm font-medium leading-6 text-slate-800">
+                      {selectedDocument.notes?.trim() || "-"}
+                    </p>
+                  </section>
 
                   <section className="p-5">
                     <div className="mb-3 flex items-end justify-between gap-4">
@@ -246,12 +258,10 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
 
                     <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
                       <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Firma / conformidad</p>
-                        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-                          <div className="border-t border-slate-400 pt-2 text-xs font-semibold text-slate-500">Firma</div>
-                          <div className="border-t border-slate-400 pt-2 text-xs font-semibold text-slate-500">Aclaracion</div>
-                          <div className="border-t border-slate-400 pt-2 text-xs font-semibold text-slate-500">Documento</div>
-                        </div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Resumen</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          Vista previa operativa del documento. La firma se reserva para la impresion o PDF final.
+                        </p>
                       </div>
                       <div className="overflow-hidden rounded-2xl border border-slate-200">
                         <div className="space-y-2 bg-slate-50 p-4 text-sm">
@@ -259,7 +269,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                             <span>Subtotal</span>
                             <span className="font-mono">{formatMoney(selectedDocument.subtotal)}</span>
                           </div>
-                          <div className="flex justify-between gap-4 border-b border-emerald-500/60 pb-3 text-slate-600">
+                          <div className={`flex justify-between gap-4 border-b pb-3 text-slate-600 ${DOC_TOTAL_ACCENT_CLASS[selectedDocument.doc_type]}`}>
                             <span>IVA / imp.</span>
                             <span className="font-mono">{formatMoney(selectedDocument.tax_total)}</span>
                           </div>
