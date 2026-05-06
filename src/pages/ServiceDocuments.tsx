@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { currency, formatIsoDate } from "@/lib/formatters";
 import { openPrintWindow } from "@/lib/print";
 import { serviceDb } from "@/features/services/db";
+import { ServiceDocumentPreviewDialog } from "@/features/services/components/ServiceDocumentPreviewDialog";
 import { EMPTY_SERVICE_LINE, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
 import { buildInitialServiceDocumentForm, canTransitionServiceDocument } from "@/features/services/logic";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
@@ -406,156 +407,16 @@ export default function ServiceDocumentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={Boolean(previewDocumentId)} onOpenChange={(open) => { if (!open) setPreviewDocumentId(null); }}>
-        <DialogContent className="flex h-[min(92vh,920px)] max-w-[min(97vw,1520px)] flex-col overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold tracking-tight text-foreground/90">Vista previa del presupuesto de servicio</DialogTitle>
-            <DialogDescription>Documento de servicio y trazabilidad.</DialogDescription>
-          </DialogHeader>
-          {previewDocument ? (
-            <div className="grid flex-1 min-h-0 gap-3 2xl:grid-cols-[minmax(0,1.85fr)_minmax(360px,430px)]">
-              <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable]">
-                <div className="space-y-3">
-                  <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm">
-                    <div className="h-1 w-full bg-gradient-to-r from-primary/80 via-primary/35 to-transparent" />
-                    <div className="border-b border-border/60 px-5 py-4 sm:px-6">
-                      <div className="grid gap-3 lg:grid-cols-[1.15fr_.85fr]">
-                        <div className="rounded-2xl border border-border/60 bg-background/60 p-3.5 text-center">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <Badge variant="outline" className={SERVICE_STATUS_BADGE_CLASS[previewDocument.status]}>{SERVICE_STATUS_LABEL[previewDocument.status]}</Badge>
-                            <div className="text-right">
-                              <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Documento</p>
-                              <p className="mt-1 text-lg font-semibold text-foreground">{SERVICE_DOCUMENT_PREFIX}-{String(previewDocument.number).padStart(6, "0")}</p>
-                            </div>
-                          </div>
-                          <div className="mt-4 flex flex-col items-center justify-center gap-2 border-t border-border/60 pt-4">
-                            {settings.logo_url ? <img src={settings.logo_url} alt={settings.app_name} className="h-12 w-12 rounded-full object-contain" /> : null}
-                            <div className="min-w-0">
-                              <p className="text-xl font-semibold tracking-tight text-foreground">{settings.legal_name ?? settings.app_name}</p>
-                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{settings.document_tagline ?? "Documentación comercial"}</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="rounded-2xl border border-primary/25 bg-primary/10 p-3.5 text-foreground shadow-sm">
-                          <p className="text-[10px] uppercase tracking-[0.24em] text-primary">Servicio</p>
-                          <p className="mt-2 text-2xl font-semibold tracking-tight">{previewDocument.type === "REMITO" ? "Remito de servicio" : "Presupuesto de servicio"}</p>
-                          <div className="mt-4 space-y-1 text-sm text-muted-foreground">
-                            <p><span className="text-foreground/70">Fecha:</span> {formatIsoDate(previewDocument.issue_date)}</p>
-                            <p><span className="text-foreground/70">Estado:</span> {SERVICE_STATUS_LABEL[previewDocument.status]}</p>
-                            {previewDocument.valid_until ? <p><span className="text-foreground/70">Vigencia:</span> {formatIsoDate(previewDocument.valid_until)}</p> : null}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid gap-0 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,.92fr)]">
-                      <div className="border-b border-border/60 px-5 py-4 lg:border-b-0 lg:border-r sm:px-6">
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p><p className="mt-1 text-sm font-semibold text-foreground">{previewDocument.customers?.name ?? "Sin cliente"}</p></div>
-                          <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Referencia</p><p className="mt-1 text-sm text-foreground">{previewDocument.reference || "-"}</p></div>
-                          <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Vigencia</p><p className="mt-1 text-sm text-foreground">{previewDocument.valid_until ? formatIsoDate(previewDocument.valid_until) : "-"}</p></div>
-                          <div><p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Estado</p><p className="mt-1 text-sm text-foreground">{SERVICE_STATUS_LABEL[previewDocument.status]}</p></div>
-                        </div>
-                      </div>
-                      <div className="px-5 py-4 sm:px-6">
-                        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
-                        <div className="mt-3 space-y-1 text-sm leading-5">
-                          {previewDocument.reference ? <p className="text-muted-foreground">Referencia: <span className="text-foreground">{previewDocument.reference}</span></p> : null}
-                          {previewDocument.delivery_time ? <p className="text-muted-foreground">Plazo: <span className="text-foreground">{previewDocument.delivery_time}</span></p> : null}
-                          {previewDocument.payment_terms ? <p className="text-muted-foreground">Pago: <span className="text-foreground">{previewDocument.payment_terms}</span></p> : null}
-                          {previewDocument.delivery_location ? <p className="text-muted-foreground">Entrega: <span className="text-foreground">{previewDocument.delivery_location}</span></p> : null}
-                          {previewDocument.type === "REMITO" && previewDocument.source_document_number_snapshot ? <p className="text-muted-foreground">Origen: <span className="text-foreground">{previewDocument.source_document_number_snapshot}</span></p> : null}
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                  {previewDocument.intro_text ? (
-                    <section className="rounded-2xl border border-border/60 bg-card/90 p-3.5 shadow-sm">
-                      <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Introducción</p>
-                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/85">{previewDocument.intro_text}</p>
-                    </section>
-                  ) : null}
-                  <section className="rounded-2xl border border-border/60 bg-card/90 p-2.5 shadow-sm">
-                    <div className="flex flex-wrap items-end justify-between gap-4">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Líneas</p>
-                        <p className="mt-1 text-sm text-muted-foreground">Detalle principal del documento.</p>
-                      </div>
-                      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-right">
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total del documento</p>
-                        <p className="mt-1 text-3xl font-black tracking-tight text-foreground">{currency.format(Number(previewDocument.total ?? 0))}</p>
-                      </div>
-                    </div>
-                    <div className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-background">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Descripción</TableHead>
-                            <TableHead className="w-28 text-right">Cantidad</TableHead>
-                            <TableHead className="w-32 text-right">Total</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {previewLines.map((line) => (
-                            <TableRow key={line.id ?? `${line.sort_order}-${line.description}`}>
-                              <TableCell>{line.description}</TableCell>
-                              <TableCell className="text-right">{line.quantity ?? "-"}</TableCell>
-                              <TableCell className="text-right">{currency.format(Number(line.line_total ?? 0))}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </section>
-                  {previewDocument.closing_text ? (
-                    <section className="rounded-2xl border border-border/60 bg-card/90 p-3.5 shadow-sm">
-                      <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Cierre</p>
-                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/85">{previewDocument.closing_text}</p>
-                    </section>
-                  ) : null}
-                </div>
-              </div>
-              <aside className="min-h-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable] 2xl:min-w-[380px]">
-                <section className="rounded-2xl border border-border/60 bg-card/90 p-3.5 shadow-sm">
-                  <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Historial</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Trazabilidad del documento.</p>
-                  {selectedEvents.length === 0 ? (
-                    <div className="mt-3 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-3 py-5 text-center">
-                      <p className="mt-1 text-sm font-medium text-muted-foreground">Sin eventos registrados</p>
-                    </div>
-                  ) : (
-                    <div className="mt-3 space-y-2">
-                      {selectedEvents.map((event, index) => (
-                        <div key={event.id} className="grid grid-cols-[12px_minmax(0,1fr)] gap-2.5 rounded-xl border border-border/60 bg-background/80 p-3">
-                          <div className="relative flex justify-center">
-                            <div className="absolute top-0 bottom-0 w-px bg-border/70" />
-                            <div className="relative mt-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-slate-100">
-                              <span className="h-2 w-2 rounded-full bg-slate-500" />
-                            </div>
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold leading-5 text-foreground">{describeEvent(event)}</p>
-                            <p className="mt-1 text-sm leading-5 text-muted-foreground">
-                              {new Date(event.created_at).toLocaleString("es-AR")}
-                              {event.created_by ? ` · ${event.created_by.slice(0, 8)}` : ""}
-                            </p>
-                            {index === 0 ? <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-emerald-500 font-semibold">Más reciente</p> : null}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              </aside>
-            </div>
-          ) : (
-            <div className="py-8 text-center text-sm text-muted-foreground">No se pudo cargar la vista previa.</div>
-          )}
-          <div className="flex justify-end gap-2 px-5 pb-5 pt-2">
-            <Button variant="outline" onClick={() => setPreviewDocumentId(null)}>Cerrar</Button>
-            <Button type="button" onClick={() => void openServicePrint(previewDocument)}>Abrir impresión</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ServiceDocumentPreviewDialog
+        open={Boolean(previewDocumentId)}
+        onClose={() => setPreviewDocumentId(null)}
+        previewDocument={previewDocument}
+        previewLines={previewLines}
+        selectedEvents={selectedEvents}
+        settings={settings}
+        describeEvent={describeEvent}
+        onOpenPrint={(document) => void openServicePrint(document)}
+      />
     </AppLayout>
   );
 }
