@@ -23,7 +23,7 @@ type UseDocumentsMutationsParams = {
   customers: Array<{ id: string; name: string; cuit: string | null }>;
   technicians: Array<{ id: string; name: string }>;
   lines: LineDraft[];
-  form: DocumentFormState;
+  documentForm: DocumentFormState;
   totalDraft: number;
   editingDocId: string | null;
   priceByItem: Map<string, number>;
@@ -35,20 +35,20 @@ type UseDocumentsMutationsParams = {
 
 function normalizeDraftLine({
   line,
-  form,
+  documentForm,
   priceByItem,
   priceListItemByItemId,
   userId,
   nowIso,
 }: {
   line: LineDraft;
-  form: DocumentFormState;
+  documentForm: DocumentFormState;
   priceByItem: Map<string, number>;
   priceListItemByItemId: Map<string, PriceListItemRow>;
   userId: string | undefined;
   nowIso: string;
 }) {
-  if (!form.price_list_id || !line.item_id) {
+  if (!documentForm.price_list_id || !line.item_id) {
     return {
       ...line,
       pricing_mode: "MANUAL_PRICE" as const,
@@ -126,7 +126,7 @@ export function useDocumentsMutations({
   customers,
   technicians,
   lines,
-  form,
+  documentForm,
   totalDraft,
   editingDocId,
   priceByItem,
@@ -153,10 +153,10 @@ export function useDocumentsMutations({
   const upsertDraftMutation = useMutation({
     mutationFn: async () => {
       if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
-      if (form.customer_id && !customersById.has(form.customer_id)) {
+      if (documentForm.customer_id && !customersById.has(documentForm.customer_id)) {
         throw new Error("El cliente seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
       }
-      if (form.technician_id && !techniciansById.has(form.technician_id)) {
+      if (documentForm.technician_id && !techniciansById.has(documentForm.technician_id)) {
         throw new Error("El tecnico seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
       }
       if (editingDocId && !documentsById.has(editingDocId)) {
@@ -166,17 +166,17 @@ export function useDocumentsMutations({
       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
       if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
       if (totalDraft <= 0) throw new Error("El documento no puede guardarse con total cero");
-      if (!form.price_list_id) throw new Error("Selecciona una lista de precios para cargar productos");
-      if (form.doc_type === "PRESUPUESTO" && form.customer_kind === "INTERNO") {
+      if (!documentForm.price_list_id) throw new Error("Selecciona una lista de precios para cargar productos");
+      if (documentForm.doc_type === "PRESUPUESTO" && documentForm.customer_kind === "INTERNO") {
         throw new Error("Los presupuestos no aplican a personal interno");
       }
-      if (form.doc_type === "REMITO" && form.customer_kind === "INTERNO" && !form.internal_remito_type) {
+      if (documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO" && !documentForm.internal_remito_type) {
         throw new Error("El remito interno requiere definir si va a cuenta corriente o descuento de sueldo");
       }
-      if (form.customer_kind !== "INTERNO" && form.internal_remito_type) {
+      if (documentForm.customer_kind !== "INTERNO" && documentForm.internal_remito_type) {
         throw new Error("El tipo de remito interno solo aplica a remitos del personal interno");
       }
-      if (form.price_list_id && valid.some((line) => !line.item_id)) {
+      if (documentForm.price_list_id && valid.some((line) => !line.item_id)) {
         throw new Error("Con lista de precios activa, todas las lineas deben tener item");
       }
 
@@ -184,7 +184,7 @@ export function useDocumentsMutations({
       const normalizedLines = valid.map((line) =>
         normalizeDraftLine({
           line,
-          form,
+          documentForm,
           priceByItem,
           priceListItemByItemId,
           userId,
@@ -192,9 +192,9 @@ export function useDocumentsMutations({
         }),
       );
 
-      const pickedCustomer = form.customer_id ? customersById.get(form.customer_id) ?? null : null;
-      const customerName = pickedCustomer?.name ?? form.customer_name ?? "Cliente ocasional";
-      const customerTaxId = form.customer_tax_id || pickedCustomer?.cuit || null;
+      const pickedCustomer = documentForm.customer_id ? customersById.get(documentForm.customer_id) ?? null : null;
+      const customerName = pickedCustomer?.name ?? documentForm.customer_name ?? "Cliente ocasional";
+      const customerTaxId = documentForm.customer_tax_id || pickedCustomer?.cuit || null;
 
       let documentId = editingDocId;
       if (!documentId) {
@@ -202,22 +202,22 @@ export function useDocumentsMutations({
           .from("documents")
           .insert({
             company_id: currentCompanyId,
-            doc_type: form.doc_type,
+            doc_type: documentForm.doc_type,
             status: "BORRADOR",
-            point_of_sale: form.point_of_sale,
-            customer_id: form.customer_id || null,
-            technician_id: form.technician_id || null,
+            point_of_sale: documentForm.point_of_sale,
+            customer_id: documentForm.customer_id || null,
+            technician_id: documentForm.technician_id || null,
             customer_name: customerName || null,
-            customer_tax_condition: form.customer_tax_condition || null,
+            customer_tax_condition: documentForm.customer_tax_condition || null,
             customer_tax_id: customerTaxId,
-            customer_kind: form.customer_kind,
-            internal_remito_type: form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? form.internal_remito_type || null : null,
-            payment_terms: form.payment_terms || null,
-            delivery_address: form.delivery_address || null,
-            salesperson: form.salesperson || null,
-            valid_until: form.doc_type === "PRESUPUESTO" ? form.valid_until || null : null,
-            price_list_id: form.price_list_id || null,
-            notes: form.notes || null,
+            customer_kind: documentForm.customer_kind,
+            internal_remito_type: documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO" ? documentForm.internal_remito_type || null : null,
+            payment_terms: documentForm.payment_terms || null,
+            delivery_address: documentForm.delivery_address || null,
+            salesperson: documentForm.salesperson || null,
+            valid_until: documentForm.doc_type === "PRESUPUESTO" ? documentForm.valid_until || null : null,
+            price_list_id: documentForm.price_list_id || null,
+            notes: documentForm.notes || null,
             subtotal: totalDraft,
             tax_total: 0,
             total: totalDraft,
@@ -231,21 +231,21 @@ export function useDocumentsMutations({
         const { error: updErr } = await supabase
           .from("documents")
           .update({
-            doc_type: form.doc_type,
-            point_of_sale: form.point_of_sale,
-            customer_id: form.customer_id || null,
-            technician_id: form.technician_id || null,
+            doc_type: documentForm.doc_type,
+            point_of_sale: documentForm.point_of_sale,
+            customer_id: documentForm.customer_id || null,
+            technician_id: documentForm.technician_id || null,
             customer_name: customerName || null,
-            customer_tax_condition: form.customer_tax_condition || null,
+            customer_tax_condition: documentForm.customer_tax_condition || null,
             customer_tax_id: customerTaxId,
-            customer_kind: form.customer_kind,
-            internal_remito_type: form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? form.internal_remito_type || null : null,
-            payment_terms: form.payment_terms || null,
-            delivery_address: form.delivery_address || null,
-            salesperson: form.salesperson || null,
-            valid_until: form.doc_type === "PRESUPUESTO" ? form.valid_until || null : null,
-            price_list_id: form.price_list_id || null,
-            notes: form.notes || null,
+            customer_kind: documentForm.customer_kind,
+            internal_remito_type: documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO" ? documentForm.internal_remito_type || null : null,
+            payment_terms: documentForm.payment_terms || null,
+            delivery_address: documentForm.delivery_address || null,
+            salesperson: documentForm.salesperson || null,
+            valid_until: documentForm.doc_type === "PRESUPUESTO" ? documentForm.valid_until || null : null,
+            price_list_id: documentForm.price_list_id || null,
+            notes: documentForm.notes || null,
             subtotal: totalDraft,
             tax_total: 0,
             total: totalDraft,
@@ -664,6 +664,6 @@ export function useDocumentsMutations({
     clearExternalInvoiceMutation,
   };
 }
-      if (form.technician_id && !techniciansById.has(form.technician_id)) {
+      if (documentForm.technician_id && !techniciansById.has(documentForm.technician_id)) {
         throw new Error("El tecnico seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
       }

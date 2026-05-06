@@ -275,7 +275,7 @@ export default function DocumentsPage() {
     customers,
     technicians,
     lines,
-    form: documentForm,
+    documentForm,
     totalDraft,
     editingDocId,
     priceByItem,
