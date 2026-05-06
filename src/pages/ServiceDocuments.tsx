@@ -16,12 +16,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { currency, formatIsoDate } from "@/lib/formatters";
-import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
+import { openPrintWindow } from "@/lib/print";
 import { serviceDb } from "@/features/services/db";
 import { EMPTY_SERVICE_LINE, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
 import { buildInitialServiceDocumentForm, canTransitionServiceDocument } from "@/features/services/logic";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
 import { useServiceDocuments } from "@/features/services/hooks/useServiceDocuments";
+import { buildServiceDocumentPrintHtml } from "@/features/services/print";
 import type { ServiceDocument, ServiceDocumentEvent, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
 
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
@@ -143,81 +144,9 @@ export default function ServiceDocumentsPage() {
       .eq("document_id", document.id)
       .order("sort_order");
     const documentLines = (lineRows ?? []) as ServiceDocumentLine[];
-    const title = `${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")}`;
     if (!win) return;
     win.document.open();
-    win.document.write(`<!doctype html><html><head><title>${escapeHtml(title)}</title>
-      <style>
-      @page{size:A4 portrait;margin:10mm}
-      html,body{margin:0;padding:0}
-      body{font-family:Arial,sans-serif;color:#0f172a;background:#f8fafc}
-      .shell{width:190mm;max-width:190mm;margin:0 auto;padding:6mm 0}
-      .sheet{border:1px solid #dbe3ee;border-radius:22px;padding:8mm;background:#fff;box-shadow:0 20px 60px rgba(15,23,42,.08)}
-      .head{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;padding-bottom:16px;border-bottom:1px solid #dbe3ee}
-      .brand{min-height:140px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#ffffff 0%,#f5f9ff 60%,#eef4ff 100%);border:1px solid #dbe7f5;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px}
-      .eyebrow{display:inline-flex;width:max-content;border:1px solid #dbe3ee;border-radius:999px;background:#fff;padding:6px 12px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#475569}
-      .brand-name{font-size:20px;font-weight:800;color:#0f172a;letter-spacing:.04em}
-      .muted{color:#475569;font-size:12px;margin:2px 0}
-      .docbox{padding:18px;border-radius:18px;background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);color:#f8fafc}
-      .docbox h2{margin:0 0 10px 0;font-size:22px}
-      .docline{font-size:12px;color:#dbeafe;margin:6px 0}
-      .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
-      .meta-card{border:1px solid #e2e8f0;border-radius:16px;padding:14px;background:#fff}
-      .meta-title{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#64748b;margin:0 0 10px 0}
-      .section{margin-top:16px;border:1px solid #e2e8f0;border-radius:18px;padding:14px;background:#fff}
-      .section-title{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#64748b;margin:0 0 10px 0;font-weight:700}
-      table{width:100%;border-collapse:separate;border-spacing:0;margin-top:8px;overflow:hidden;border:1px solid #dbe3ee;border-radius:16px}
-      th,td{padding:10px 12px;font-size:12px;border-bottom:1px solid #e8eef5;vertical-align:top}
-      th{background:#eef4f8;text-align:left;color:#334155}
-      tbody tr:nth-child(even){background:#fbfdff}
-      tbody tr:last-child td{border-bottom:none}
-      .totals{display:flex;justify-content:flex-end;margin-top:16px}
-      .totals-box{min-width:260px;border:1px solid #dbe3ee;background:linear-gradient(180deg,#f8fbff 0%,#eef5ff 100%);border-radius:18px;padding:14px 16px}
-      .totals-value{margin-top:6px;font-size:26px;font-weight:800;color:#0f172a}
-      .text{white-space:pre-line;line-height:1.6;font-size:12px;color:#334155}
-      .print-action{display:block;margin:16px auto 0;padding:10px 16px;border:none;border-radius:999px;background:#0f172a;color:#fff;cursor:pointer}
-      @media print{body{background:#fff}.shell{width:190mm;max-width:190mm;padding:0}.sheet{border:none;box-shadow:none;border-radius:0;padding:0}.print-action{display:none}}
-      </style></head><body><div class="shell"><div class="sheet">
-      <div class="head">
-        <div class="brand">
-          <div>
-            <span class="eyebrow">${escapeHtml(document.type === "REMITO" ? "Remito de servicio" : "Presupuesto de servicio")}</span>
-            <p class="brand-name" style="margin:14px 0 0 0">${escapeHtml(settings.legal_name ?? settings.app_name)}</p>
-            <p class="muted">${escapeHtml(settings.document_tagline ?? "Documentación comercial")}</p>
-          </div>
-          ${settings.logo_url ? `<img src="${escapeHtml(settings.logo_url)}" alt="${escapeHtml(settings.app_name)}" style="max-height:72px;max-width:240px;object-fit:contain" />` : ""}
-        </div>
-        <div class="docbox">
-          <h2>${escapeHtml(document.type === "REMITO" ? "Remito de servicio" : "Presupuesto de servicio")}</h2>
-          <p class="docline"><strong>Nro:</strong> ${escapeHtml(title)}</p>
-          <p class="docline"><strong>Fecha:</strong> ${formatIsoDate(document.issue_date)}</p>
-          <p class="docline"><strong>Estado:</strong> ${escapeHtml(SERVICE_STATUS_LABEL[document.status])}</p>
-          ${document.valid_until ? `<p class="docline"><strong>Vigencia:</strong> ${formatIsoDate(document.valid_until)}</p>` : ""}
-        </div>
-      </div>
-      <div class="meta-grid">
-        <div class="meta-card">
-          <p class="meta-title">Cliente</p>
-          <p class="muted"><strong>Cliente:</strong> ${escapeHtml(document.customers?.name ?? "Sin cliente")}</p>
-          ${document.customers?.cuit ? `<p class="muted"><strong>CUIT:</strong> ${escapeHtml(document.customers.cuit)}</p>` : ""}
-        </div>
-        <div class="meta-card">
-          <p class="meta-title">Operación</p>
-          ${document.reference ? `<p class="muted"><strong>Referencia:</strong> ${escapeHtml(document.reference)}</p>` : ""}
-          ${document.delivery_time ? `<p class="muted"><strong>Plazo de entrega:</strong> ${escapeHtml(document.delivery_time)}</p>` : ""}
-          ${document.payment_terms ? `<p class="muted"><strong>Condiciones de pago:</strong> ${escapeHtml(document.payment_terms)}</p>` : ""}
-          ${document.delivery_location ? `<p class="muted"><strong>Lugar de entrega:</strong> ${escapeHtml(document.delivery_location)}</p>` : ""}
-        </div>
-      </div>
-      ${document.intro_text ? `<div class="section"><p class="section-title">Texto introductorio</p><div class="text">${escapeHtmlWithLineBreaks(document.intro_text)}</div></div>` : ""}
-      <div class="section">
-        <p class="section-title">Líneas</p>
-        <table><thead><tr><th>Descripción</th><th style="width:72px;text-align:right">Cant.</th><th style="width:110px;text-align:right">Total</th></tr></thead>
-        <tbody>${documentLines.map((line) => `<tr><td>${escapeHtml(line.description)}</td><td style="text-align:right">${Number(line.quantity ?? 0).toLocaleString("es-AR")}</td><td style="text-align:right">${currency.format(Number(line.line_total ?? 0))}</td></tr>`).join("")}</tbody></table>
-        <div class="totals"><div class="totals-box"><div style="display:flex;justify-content:space-between;font-size:12px"><span>Subtotal</span><span>${currency.format(Number(document.subtotal ?? 0))}</span></div><div class="totals-value" style="display:flex;justify-content:space-between"><span>Total</span><span>${currency.format(Number(document.total ?? 0))}</span></div></div></div>
-      </div>
-      ${document.closing_text ? `<div class="section"><p class="section-title">Cierre</p><div class="text">${escapeHtmlWithLineBreaks(document.closing_text)}</div></div>` : ""}
-      </div></div><button class="print-action" onclick="window.print()">Imprimir / Guardar PDF</button></body></html>`);
+    win.document.write(buildServiceDocumentPrintHtml({ document, lines: documentLines, companySettings: settings }));
     win.document.close();
     win.focus();
   };
