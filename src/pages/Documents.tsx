@@ -403,6 +403,12 @@ export default function DocumentsPage() {
   };
 
   const printDocument = async (document: DocRow) => {
+    const currency = new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "ARS",
+      minimumFractionDigits: 2,
+    });
+
     const { data: lineRows } = await supabase
       .from("document_lines")
       .select("line_order, sku_snapshot, description, unit, quantity, unit_price, line_total")
