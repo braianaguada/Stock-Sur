@@ -53,6 +53,7 @@ export function useDocumentDraftLoader({ documentsById }: UseDocumentDraftLoader
         doc_type: target.doc_type,
         point_of_sale: target.point_of_sale,
         customer_id: target.customer_id ?? "",
+        technician_id: target.technician_id ?? "",
         customer_name: target.customer_name ?? "",
         customer_tax_condition: target.customer_tax_condition ?? "",
         customer_tax_id: target.customer_tax_id ?? "",
