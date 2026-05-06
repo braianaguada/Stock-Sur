@@ -489,19 +489,19 @@ export function DocumentsEditorDialog({
             {lines.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-sm text-muted-foreground bg-muted/10">
                 <Search className="h-8 w-8 mb-3 text-muted-foreground/30" />
-                Todavía no hay productos agregados.
+                Todavia no hay productos agregados.
                 <br />
                 Usa el buscador para agregarlos.
               </div>
             ) : (
-              <div className="sticky top-0 z-20 hidden rounded-md border border-border/40 bg-muted/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-md xl:grid xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:gap-3">
+              <div className="sticky top-0 z-20 hidden rounded-md border border-border/40 bg-muted/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-md xl:grid xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_72px] xl:gap-3">
                 <div>Producto</div>
                 <div>Cantidad</div>
                 <div>Modo de precio</div>
                 <div>Margen %</div>
                 <div>Precio unitario</div>
                 <div>Total</div>
-                <div className="text-right">Acciones</div>
+                <div className="text-right whitespace-nowrap">Acciones</div>
               </div>
             )}
 
@@ -511,7 +511,7 @@ export function DocumentsEditorDialog({
 
               return (
                 <div key={`${line.item_id ?? "manual"}-${index}`} className="group rounded-lg border border-border/70 bg-background/80 px-3 py-2 hover:border-border transition-colors">
-                  <div className="grid gap-3 xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:items-center">
+                  <div className="grid gap-3 xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_72px] xl:items-center">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-foreground leading-5 break-words">
                         {line.sku_snapshot ? `${line.sku_snapshot} | ` : ""}
@@ -683,6 +683,7 @@ export function DocumentsEditorDialog({
     </EntityDialog>
   );
 }
+
 
 
 
