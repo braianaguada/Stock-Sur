@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CheckCircle2, Clock, LucideIcon, PlayCircle, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, FilePenLine, LucideIcon, PlayCircle, Trash2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -153,14 +153,37 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                     <div className="space-y-4 p-5">
                       <PreviewField label="Entrega" value={selectedDocument.delivery_address ?? "-"} />
                       <PreviewField label="Origen" value={sourceDocumentLabel ? <span className="font-mono">{sourceDocumentLabel}</span> : "-"} />
-                      <PreviewField label="Factura externa" value={selectedDocument.external_invoice_number ? <span className="font-mono">{selectedDocument.external_invoice_number}</span> : "-"} />
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Factura externa</p>
+                            <p className="mt-1 truncate font-mono text-sm font-black text-slate-950">
+                              {selectedDocument.external_invoice_number ?? "Sin factura asociada"}
+                            </p>
+                          </div>
+                          {selectedDocument.external_invoice_number ? (
+                            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                              Asociada
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </div>
                       {selectedDocument.doc_type === "REMITO" && !isExternalInvoiceLocked ? (
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          <Button type="button" size="sm" onClick={handleSetExternalInvoice} disabled={isUpdatingExternalInvoice}>
+                        <div className="grid gap-2 pt-1 sm:grid-cols-[minmax(0,1fr)_auto]">
+                          <Button type="button" size="sm" className="justify-start" onClick={handleSetExternalInvoice} disabled={isUpdatingExternalInvoice}>
+                            <FilePenLine className="h-4 w-4" />
                             {selectedDocument.external_invoice_number ? "Editar factura externa" : "Registrar factura externa"}
                           </Button>
                           {selectedDocument.external_invoice_number ? (
-                            <Button type="button" size="sm" variant="outline" onClick={handleClearExternalInvoice} disabled={isUpdatingExternalInvoice}>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800"
+                              onClick={handleClearExternalInvoice}
+                              disabled={isUpdatingExternalInvoice}
+                            >
+                              <Trash2 className="h-4 w-4" />
                               Quitar
                             </Button>
                           ) : null}
