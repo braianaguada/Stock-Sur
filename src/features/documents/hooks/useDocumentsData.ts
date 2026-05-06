@@ -127,24 +127,17 @@ export function useDocumentsData({
         }),
       }));
     }
-    return priceListItems
-      .filter((row) => row.items)
-      .map((row) => ({
-        id: row.items!.id,
-        sku: row.items!.sku,
-        name: row.items!.name,
-        display_name: buildItemDisplayName({
-          name: row.items!.name,
-          brand: row.items!.brand ?? null,
-          model: row.items!.model ?? null,
-          attributes: row.items!.attributes ?? null,
-        }),
-        brand: row.items!.brand ?? null,
-        model: row.items!.model ?? null,
-        attributes: row.items!.attributes ?? null,
-        unit: row.items!.unit,
-      }));
-  }, [items, selectedPriceListId, priceListItems]);
+
+    return items.map((item) => ({
+      ...item,
+      display_name: buildItemDisplayName({
+        name: item.name,
+        brand: "brand" in item ? (item.brand as string | null | undefined) : null,
+        model: "model" in item ? (item.model as string | null | undefined) : null,
+        attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
+      }),
+    }));
+  }, [items, selectedPriceListId]);
 
   const priceByItem = useMemo(() => {
     const map = new Map<string, number>();
@@ -176,7 +169,15 @@ export function useDocumentsData({
       if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
       if (trimmedSearch) {
         const n = Number.parseInt(trimmedSearch, 10);
-        const clauses = [`customer_name.ilike.%${trimmedSearch}%`, `external_invoice_number.ilike.%${trimmedSearch}%`];
+        const clauses = [
+          `customer_name.ilike.%${trimmedSearch}%`,
+          `customer_tax_id.ilike.%${trimmedSearch}%`,
+          `external_invoice_number.ilike.%${trimmedSearch}%`,
+          `notes.ilike.%${trimmedSearch}%`,
+          `delivery_address.ilike.%${trimmedSearch}%`,
+          `salesperson.ilike.%${trimmedSearch}%`,
+          `source_document_number_snapshot.ilike.%${trimmedSearch}%`,
+        ];
         if (Number.isFinite(n)) clauses.push(`document_number.eq.${n}`);
         q = q.or(clauses.join(","));
       }

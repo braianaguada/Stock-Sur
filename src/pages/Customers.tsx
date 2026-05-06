@@ -51,7 +51,7 @@ export default function CustomersPage() {
         <PageHeader
           eyebrow="Base comercial"
           title="Clientes"
-          description="Gestion de clientes con una lectura mas limpia para escritorio, manteniendo intactas altas, edicion y borrado."
+          description="Gesti�n de clientes con una lectura m�s limpia para escritorio."
           actions={(
             <Button onClick={openCreate} disabled={!currentCompany}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo cliente
@@ -60,10 +60,10 @@ export default function CustomersPage() {
         />
 
         <FilterBar>
-          <div className="relative max-w-sm">
+          <div className="relative max-w-sm flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nombre o CUIT..."
+              placeholder="Buscar por nombre, CUIT, email o tel�fono..."
               className="pl-9"
               value={search}
               onChange={(event) => setSearch(event.target.value)}

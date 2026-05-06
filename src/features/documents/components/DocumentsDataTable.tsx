@@ -224,7 +224,7 @@ export function DocumentsDataTable({
         columns={columns}
         data={documents}
         isLoading={isLoading}
-        emptyMessage="Sin documentos"
+        emptyMessage="No hay documentos para mostrar"
         className="table-fixed"
         rowClassName="h-11"
         cellClassName="h-11 py-0"

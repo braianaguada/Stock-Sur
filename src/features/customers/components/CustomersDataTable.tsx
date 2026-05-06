@@ -96,7 +96,7 @@ export function CustomersDataTable({
       columns={columns}
       data={customers}
       isLoading={isLoading}
-      emptyMessage="No se encontraron clientes"
+      emptyMessage="No hay clientes para mostrar"
     />
   );
 }

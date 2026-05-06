@@ -105,7 +105,7 @@ export default function DocumentsPage() {
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [documentsPage, setDocumentsPage] = useState(1);
   const [documentsPageSize, setDocumentsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
-  const [documentForm, setDocumentForm] = useState<DocumentFormState>(() =>
+  const [draftForm, setDraftForm] = useState<DocumentFormState>(() =>
     buildEmptyDocumentForm(defaultPointOfSale),
   );
   const [lines, setLines] = useState<LineDraft[]>([]);
@@ -130,7 +130,7 @@ export default function DocumentsPage() {
     typeFilter,
     statusFilter,
     selectedDocId,
-    selectedPriceListId: documentForm.price_list_id,
+    selectedPriceListId: draftForm.price_list_id,
     currentCompanyId: currentCompany?.id ?? null,
   });
 
@@ -158,14 +158,14 @@ export default function DocumentsPage() {
   }, [trimmedSearch, typeFilter, statusFilter, documentsPageSize]);
 
   useEffect(() => {
-    if (documentForm.price_list_id || priceLists.length === 0) return;
-    setDocumentForm((previousForm) => ({ ...previousForm, price_list_id: priceLists[0].id }));
-  }, [documentForm.price_list_id, priceLists]);
+    if (draftForm.price_list_id || priceLists.length === 0) return;
+    setDraftForm((previousForm) => ({ ...previousForm, price_list_id: priceLists[0].id }));
+  }, [draftForm.price_list_id, priceLists]);
 
   useEffect(() => {
-    if (documentForm.customer_id || !defaultCustomerId) return;
-    setDocumentForm((previousForm) => ({ ...previousForm, customer_id: defaultCustomerId }));
-  }, [defaultCustomerId, documentForm.customer_id]);
+    if (draftForm.customer_id || !defaultCustomerId) return;
+    setDraftForm((previousForm) => ({ ...previousForm, customer_id: defaultCustomerId }));
+  }, [defaultCustomerId, draftForm.customer_id]);
 
   const syncLineWithPriceList = useCallback(
     (
@@ -222,7 +222,7 @@ export default function DocumentsPage() {
   );
 
   useEffect(() => {
-    if (!documentForm.price_list_id) return;
+    if (!draftForm.price_list_id) return;
 
     setLines((previousLines) =>
       previousLines.map((line) => {
@@ -230,11 +230,11 @@ export default function DocumentsPage() {
         return syncLineWithPriceList(line, priceListItemByItemId.get(line.item_id));
       }),
     );
-  }, [documentForm.price_list_id, priceListItemByItemId, syncLineWithPriceList]);
+  }, [draftForm.price_list_id, priceListItemByItemId, syncLineWithPriceList]);
 
   const resetDraftForm = () => {
     setEditingDocId(null);
-    setDocumentForm(buildEmptyDocumentForm(defaultPointOfSale, defaultCustomerId));
+    setDraftForm(buildEmptyDocumentForm(defaultPointOfSale, defaultCustomerId));
     setLines([]);
   };
 
@@ -252,7 +252,7 @@ export default function DocumentsPage() {
     try {
       const draft = await loadDraftForEditing(documentId);
       setEditingDocId(draft.editingDocId);
-      setDocumentForm(draft.form);
+      setDraftForm(draft.form);
       setLines(draft.lines);
       setDialogOpen(true);
     } catch (error) {
@@ -275,7 +275,7 @@ export default function DocumentsPage() {
     customers,
     technicians,
     lines,
-    form: documentForm,
+    draftForm,
     totalDraft,
     editingDocId,
     priceByItem,
@@ -328,10 +328,10 @@ export default function DocumentsPage() {
         attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
       }),
       unit: item.unit || "un",
-      unit_price: documentForm.price_list_id ? priceByItem.get(itemId) ?? 0 : draftLines[index].unit_price,
+      unit_price: draftForm.price_list_id ? priceByItem.get(itemId) ?? 0 : draftLines[index].unit_price,
     };
 
-    draftLines[index] = documentForm.price_list_id
+    draftLines[index] = draftForm.price_list_id
       ? syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true)
       : {
           ...baseLine,
@@ -377,7 +377,7 @@ export default function DocumentsPage() {
   };
 
   const onPriceListChange = (priceListId: string) => {
-    if (priceListId === documentForm.price_list_id) return;
+    if (priceListId === draftForm.price_list_id) return;
 
     const hasLoadedLines = lines.some(
       (line) =>
@@ -394,7 +394,7 @@ export default function DocumentsPage() {
       if (!confirmed) return;
     }
 
-    setDocumentForm((previousForm) => ({ ...previousForm, price_list_id: priceListId }));
+    setDraftForm((previousForm) => ({ ...previousForm, price_list_id: priceListId }));
     setLines([]);
   };
 
@@ -562,10 +562,10 @@ export default function DocumentsPage() {
         />
 
         <FilterBar>
-          <div className="relative w-full md:max-w-sm">
+          <div className="relative max-w-sm flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar cliente o numero..."
+              placeholder="Buscar por cliente, CUIT, número o factura externa..."
               className="pl-9"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -677,8 +677,8 @@ export default function DocumentsPage() {
             open={dialogOpen}
             onOpenChange={setDialogOpen}
             editingDocId={editingDocId}
-            documentForm={documentForm}
-            setDocumentForm={setDocumentForm}
+            documentForm={draftForm}
+            setDraftForm={setDraftForm}
             lines={lines}
             setLines={setLines}
             totalDraft={totalDraft}

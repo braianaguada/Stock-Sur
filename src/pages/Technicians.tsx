@@ -56,15 +56,15 @@ export default function TechniciansPage() {
     <AppLayout>
       <PageHeader
         title="Técnicos"
-        description="Gestion simple de tecnicos con feedback consistente."
+        description="Gestión simple de técnicos con feedback consistente."
         actions={
           <div className="flex gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" placeholder="Buscar tecnico" />
+            <div className="relative max-w-sm flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" placeholder="Buscar por nombre, teléfono o nota..." />
             </div>
             <Button onClick={() => { setEditing(null); setForm(EMPTY_FORM); setDialogOpen(true); }}>
-              <Plus className="mr-2 h-4 w-4" />Nuevo
+              <Plus className="mr-2 h-4 w-4" /> Nuevo técnico
             </Button>
           </div>
         }
@@ -74,13 +74,13 @@ export default function TechniciansPage() {
           <div key={t.id} className="flex items-center justify-between gap-3 border-b p-3 last:border-b-0">
             <div>
               <div className="font-medium">{t.name}</div>
-              <div className="text-sm text-muted-foreground">{t.phone ?? "Sin telefono"}</div>
+              <div className="text-sm text-muted-foreground">{t.phone ?? "Sin teléfono"}</div>
             </div>
             <div className="flex gap-2">
               <Button variant="ghost" size="icon" onClick={() => { setEditing(t); setForm({ name: t.name, phone: t.phone ?? "", notes: t.notes ?? "" }); setDialogOpen(true); }}>
                 <Pencil className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setTechnicianToDelete(t)}>
+              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setTechnicianToDelete(t)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -102,7 +102,7 @@ export default function TechniciansPage() {
           if (!open) setTechnicianToDelete(null);
         }}
         title="Eliminar técnico"
-        description={technicianToDelete ? `Esta accion eliminara a "${technicianToDelete.name}" de forma permanente.` : ""}
+        description={technicianToDelete ? `Esta acción eliminará a "${technicianToDelete.name}" de forma permanente.` : ""}
         isPending={deleteMutation.isPending}
         onConfirm={() => {
           if (!technicianToDelete) return;

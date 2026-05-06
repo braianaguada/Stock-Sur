@@ -155,7 +155,7 @@ export function StockCurrentTable({
       data={rows}
       isLoading={isLoading}
       loadingMessage="Cargando..."
-      emptyMessage="Sin movimientos de stock"
+      emptyMessage="No hay stock para mostrar"
       className="table-fixed"
       rowClassName="h-12"
       cellClassName="h-12 py-0"

@@ -199,7 +199,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                 {selectedEvents.length === 0 ? (
                   <div className="mt-5 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center">
                     <Clock className="mx-auto h-8 w-8 text-muted-foreground/40" />
-                    <p className="mt-3 text-sm font-medium text-muted-foreground">Sin eventos registrados</p>
+                    <p className="mt-3 text-sm font-medium text-muted-foreground">No hay eventos para mostrar</p>
                   </div>
                 ) : (
                   <div className="mt-5 space-y-3">

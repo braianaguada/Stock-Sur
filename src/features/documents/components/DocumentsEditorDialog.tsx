@@ -46,7 +46,7 @@ interface DocumentsEditorDialogProps {
   onOpenChange: (open: boolean) => void;
   editingDocId: string | null;
   documentForm: DocumentFormState;
-  setDocumentForm: React.Dispatch<React.SetStateAction<DocumentFormState>>;
+  setDraftForm: React.Dispatch<React.SetStateAction<DocumentFormState>>;
   lines: LineDraft[];
   setLines: React.Dispatch<React.SetStateAction<LineDraft[]>>;
   totalDraft: number;
@@ -71,7 +71,7 @@ export function DocumentsEditorDialog({
   onOpenChange,
   editingDocId,
   documentForm,
-  setDocumentForm,
+  setDraftForm,
   lines,
   setLines,
   totalDraft,
@@ -109,7 +109,7 @@ export function DocumentsEditorDialog({
 
     return availableItems
       .filter((item) =>
-        [item.sku, item.name, item.unit ?? ""].some((value) => value.toLowerCase().includes(query)),
+        [item.sku, item.name, item.unit ?? "", item.attributes ?? "", item.brand ?? "", item.model ?? ""].some((value) => value.toLowerCase().includes(query)),
       )
       .slice(0, 8);
   }, [availableItems, documentForm.price_list_id, itemSearch]);
@@ -156,7 +156,7 @@ export function DocumentsEditorDialog({
                 <Select
                   value={documentForm.doc_type}
                   onValueChange={(value) =>
-                    setDocumentForm((previousForm) => {
+                    setDraftForm((previousForm) => {
                       const nextDocType = value as DocType;
                       const nextCustomerKind =
                         nextDocType === "PRESUPUESTO" && previousForm.customer_kind === "INTERNO"
@@ -189,7 +189,7 @@ export function DocumentsEditorDialog({
                   min={1}
                   value={documentForm.point_of_sale}
                   onChange={(event) =>
-                    setDocumentForm((previousForm) => ({
+                    setDraftForm((previousForm) => ({
                       ...previousForm,
                       point_of_sale: Math.max(1, Number(event.target.value) || 1),
                     }))
@@ -232,7 +232,7 @@ export function DocumentsEditorDialog({
                     min={1}
                     value={documentForm.point_of_sale}
                     onChange={(event) =>
-                      setDocumentForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         point_of_sale: Math.max(1, Number(event.target.value) || 1),
                       }))
@@ -245,7 +245,7 @@ export function DocumentsEditorDialog({
                   <Select
                     value={documentForm.customer_kind}
                     onValueChange={(value) =>
-                      setDocumentForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         customer_kind: value as CustomerKind,
                         internal_remito_type:
@@ -271,7 +271,7 @@ export function DocumentsEditorDialog({
                   <Select
                     value={documentForm.customer_id || "__none__"}
                     onValueChange={(value) =>
-                      setDocumentForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         customer_id: value === "__none__" ? "" : value,
                       }))
@@ -294,7 +294,7 @@ export function DocumentsEditorDialog({
                   <Select
                     value={documentForm.technician_id || "__none__"}
                     onValueChange={(value) =>
-                      setDocumentForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         technician_id: value === "__none__" ? "" : value,
                       }))
@@ -318,7 +318,7 @@ export function DocumentsEditorDialog({
                     value={documentForm.customer_name}
                     placeholder="Cliente ocasional"
                     onChange={(event) =>
-                      setDocumentForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
+                      setDraftForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
                     }
                   />
                 </div>
@@ -329,7 +329,7 @@ export function DocumentsEditorDialog({
                     value={documentForm.customer_tax_id}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setDocumentForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
+                      setDraftForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
                     }
                   />
                 </div>
@@ -340,7 +340,7 @@ export function DocumentsEditorDialog({
                     value={documentForm.customer_tax_condition}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setDocumentForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         customer_tax_condition: event.target.value,
                       }))
@@ -354,7 +354,7 @@ export function DocumentsEditorDialog({
                     value={documentForm.payment_terms}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setDocumentForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
+                      setDraftForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
                     }
                   />
                 </div>
@@ -365,7 +365,7 @@ export function DocumentsEditorDialog({
                     value={documentForm.salesperson}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setDocumentForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
+                      setDraftForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
                     }
                   />
                 </div>
@@ -377,7 +377,7 @@ export function DocumentsEditorDialog({
                       type="date"
                       value={documentForm.valid_until}
                       onChange={(event) =>
-                        setDocumentForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
+                        setDraftForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
                       }
                     />
                   </div>
@@ -390,7 +390,7 @@ export function DocumentsEditorDialog({
                       value={documentForm.delivery_address}
                       placeholder="Opcional"
                       onChange={(event) =>
-                        setDocumentForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
+                        setDraftForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
                       }
                     />
                   </div>
@@ -402,7 +402,7 @@ export function DocumentsEditorDialog({
                     <Select
                       value={documentForm.internal_remito_type || "__none__"}
                       onValueChange={(value) =>
-                        setDocumentForm((previousForm) => ({
+                        setDraftForm((previousForm) => ({
                           ...previousForm,
                           internal_remito_type:
                             value === "__none__" ? "" : (value as InternalRemitoType),
@@ -432,25 +432,20 @@ export function DocumentsEditorDialog({
           </div>
 
           <div className="space-y-3">
-            <div className="relative w-full">
+            <div className="relative max-w-sm flex-1 min-w-[200px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                  value={itemSearch}
-                  disabled={!documentForm.price_list_id || priceLists.length === 0}
-                  className="pl-10"
-                  placeholder={
-                    documentForm.price_list_id
-                      ? "Buscar producto por SKU, nombre o unidad"
-                      : "Selecciona una lista para habilitar la busqueda"
+                value={itemSearch}
+                className="pl-10"
+                placeholder="Buscar por SKU, nombre, marca, modelo o atributos"
+                onChange={(event) => setItemSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && filteredItems.length > 0) {
+                    event.preventDefault();
+                    handleAddItem(filteredItems[0].id);
                   }
-                  onChange={(event) => setItemSearch(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && filteredItems.length > 0) {
-                      event.preventDefault();
-                      handleAddItem(filteredItems[0].id);
-                    }
-                  }}
-                />
+                }}
+              />
             </div>
 
             {itemSearch.trim().length > 0 ? (
@@ -484,7 +479,7 @@ export function DocumentsEditorDialog({
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">
-                  No hay coincidencias en la lista seleccionada.
+                  No hay resultados para mostrar.
                 </div>
               )
             ) : null}
@@ -494,19 +489,19 @@ export function DocumentsEditorDialog({
             {lines.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-sm text-muted-foreground bg-muted/10">
                 <Search className="h-8 w-8 mb-3 text-muted-foreground/30" />
-                No tienes ningún producto agregado.
+                Todavia no hay productos agregados.
                 <br />
-                Usa el buscador para añadirlos.
+                Usa el buscador para agregarlos.
               </div>
             ) : (
-              <div className="sticky top-0 z-20 hidden rounded-md border border-border/40 bg-muted/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-md xl:grid xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:gap-3">
+              <div className="sticky top-0 z-20 hidden rounded-md border border-border/40 bg-muted/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-md xl:grid xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_72px] xl:gap-3">
                 <div>Producto</div>
                 <div>Cantidad</div>
                 <div>Modo de precio</div>
                 <div>Margen %</div>
                 <div>Precio unitario</div>
                 <div>Total</div>
-                <div className="text-right">Acs</div>
+                <div className="text-right whitespace-nowrap">Acciones</div>
               </div>
             )}
 
@@ -516,7 +511,7 @@ export function DocumentsEditorDialog({
 
               return (
                 <div key={`${line.item_id ?? "manual"}-${index}`} className="group rounded-lg border border-border/70 bg-background/80 px-3 py-2 hover:border-border transition-colors">
-                  <div className="grid gap-3 xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:items-center">
+                  <div className="grid gap-3 xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_72px] xl:items-center">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-foreground leading-5 break-words">
                         {line.sku_snapshot ? `${line.sku_snapshot} | ` : ""}
@@ -667,14 +662,14 @@ export function DocumentsEditorDialog({
             placeholder="Aclaraciones adicionales del documento..."
             value={documentForm.notes}
             onChange={(event) =>
-              setDocumentForm((previousForm) => ({ ...previousForm, notes: event.target.value }))
+              setDraftForm((previousForm) => ({ ...previousForm, notes: event.target.value }))
             }
           />
         </div>
 
         <div className="sticky bottom-0 z-30 flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/95 px-5 py-4 shadow-[var(--shadow-md)] backdrop-blur-md">
           <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-0.5">Total Documento</span>
+            <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-0.5">Total del documento</span>
             <span className="text-2xl font-extrabold tracking-tight text-foreground">
               {formatMoney(totalDraft)}
             </span>
@@ -688,5 +683,3 @@ export function DocumentsEditorDialog({
     </EntityDialog>
   );
 }
-
-
