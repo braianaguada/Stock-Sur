@@ -59,6 +59,7 @@ type PriceListDbRow = {
 };
 
 type PriceListSnapshotDbRow = {
+  price_list_id: string;
   item_id: string;
   base_cost: number;
   calculated_price: number;
@@ -169,9 +170,24 @@ export function usePriceListsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
-        .select("item_id, base_cost, calculated_price, needs_recalculation, last_calculated_at, last_calculated_by")
+        .select("price_list_id, item_id, base_cost, calculated_price, needs_recalculation, last_calculated_at, last_calculated_by")
         .eq("company_id", currentCompany!.id)
         .eq("price_list_id", selectedListId!)
+        .eq("is_active", true);
+      if (error) throw error;
+      return (data ?? []) as PriceListSnapshotDbRow[];
+    },
+  });
+
+  const { data: allListSnapshots = [] } = useQuery({
+    queryKey: ["price-list-items", currentCompany?.id ?? null],
+    enabled: Boolean(currentCompany),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("price_list_items")
+        .select("price_list_id, item_id, base_cost, calculated_price, needs_recalculation, last_calculated_at, last_calculated_by")
+        .eq("company_id", currentCompany!.id)
         .eq("is_active", true);
       if (error) throw error;
       return (data ?? []) as PriceListSnapshotDbRow[];
@@ -328,6 +344,16 @@ export function usePriceListsData({
     () => new Map(selectedListSnapshots.map((row) => [row.item_id, row])),
     [selectedListSnapshots],
   );
+
+  const snapshotsByListAndItemId = useMemo(() => {
+    const map = new Map<string, Map<string, PriceListSnapshotDbRow>>();
+    for (const row of allListSnapshots) {
+      const listMap = map.get(row.price_list_id) ?? new Map<string, PriceListSnapshotDbRow>();
+      listMap.set(row.item_id, row);
+      map.set(row.price_list_id, listMap);
+    }
+    return map;
+  }, [allListSnapshots]);
 
   const selectedListProducts = useMemo<PriceListProductRow[]>(() => {
     return baseRows.map((row) => {
@@ -517,6 +543,7 @@ export function usePriceListsData({
     pagedBaseRows: basePagination.pagedItems,
     priceLists,
     profileNameByUserId,
+    snapshotsByListAndItemId,
     selectedList,
     selectedListHistory,
     pagedSelectedListProducts: detailPagination.pagedItems,

@@ -108,9 +108,20 @@ export function DocumentsEditorDialog({
     if (!documentForm.price_list_id || query.length === 0) return [];
 
     return availableItems
-      .filter((item) =>
-        [item.sku, item.name, item.unit ?? "", item.attributes ?? "", item.brand ?? "", item.model ?? ""].some((value) => value.toLowerCase().includes(query)),
-      )
+      .filter((item) => {
+        const searchableText = [
+          item.sku,
+          item.name,
+          item.unit ?? "",
+          item.brand ?? "",
+          item.model ?? "",
+          item.attributes ?? "",
+          buildItemDisplayName(item),
+          buildItemDisplayMeta(item),
+        ].join(" ").toLowerCase();
+
+        return searchableText.includes(query);
+      })
       .slice(0, 8);
   }, [availableItems, documentForm.price_list_id, itemSearch]);
 
