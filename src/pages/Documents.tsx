@@ -234,7 +234,7 @@ export default function DocumentsPage() {
 
   const resetDraftForm = () => {
     setEditingDocId(null);
-    setDocumentForm(buildEmptyDocumentForm(defaultPointOfSale, defaultCustomerId));
+    setDraftForm(buildEmptyDocumentForm(defaultPointOfSale, defaultCustomerId));
     setLines([]);
   };
 
@@ -252,7 +252,7 @@ export default function DocumentsPage() {
     try {
       const draft = await loadDraftForEditing(documentId);
       setEditingDocId(draft.editingDocId);
-      setDocumentForm(draft.form);
+      setDraftForm(draft.form);
       setLines(draft.lines);
       setDialogOpen(true);
     } catch (error) {
@@ -394,7 +394,7 @@ export default function DocumentsPage() {
       if (!confirmed) return;
     }
 
-    setDocumentForm((previousForm) => ({ ...previousForm, price_list_id: priceListId }));
+    setDraftForm((previousForm) => ({ ...previousForm, price_list_id: priceListId }));
     setLines([]);
   };
 
