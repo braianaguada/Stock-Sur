@@ -64,8 +64,10 @@ describe("buildDocumentPrintHtml", () => {
       technicianName: "Tecnico Demo",
     });
 
-    expect(html).toContain("@page{size:A4 portrait;margin:8mm}");
-    expect(html).toContain(".sheet{width:194mm;min-height:281mm");
+    expect(html).toContain("@page{size:A4 portrait;margin:0}");
+    expect(html).toContain(".sheet{width:210mm;min-height:297mm");
+    expect(html).toContain(".content{display:flex;min-height:calc(297mm - 4px);flex:1;flex-direction:column;padding:11mm 12mm 9mm}");
+    expect(html).toContain(".brand-logo{max-width:34mm;max-height:27mm");
     expect(html).toContain("table-layout:fixed");
     expect(html).toContain("height:5.8mm");
     expect(html).toContain("break-inside:avoid");

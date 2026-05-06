@@ -88,19 +88,19 @@ export function buildDocumentPrintHtml({
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
   <style>
-    @page{size:A4 portrait;margin:8mm}
+    @page{size:A4 portrait;margin:0}
     *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     html,body{margin:0;padding:0}
     body{font-family:Inter,Arial,sans-serif;color:#101828;background:#e7ebf0}
-    .preview-shell{width:194mm;margin:0 auto;padding:6mm 0 10mm}
-    .sheet{width:194mm;min-height:281mm;margin:0 auto;display:flex;flex-direction:column;background:#fff;border:1px solid #d0d7e2;border-radius:10px;box-shadow:0 18px 44px rgba(15,23,42,.12);overflow:hidden}
+    .preview-shell{width:210mm;margin:0 auto;padding:6mm 0 10mm}
+    .sheet{width:210mm;min-height:297mm;margin:0 auto;display:flex;flex-direction:column;background:#fff;border:1px solid #d0d7e2;border-radius:10px;box-shadow:0 18px 44px rgba(15,23,42,.12);overflow:hidden}
     .top-rule{height:4px;background:linear-gradient(90deg,#0f172a 0%,#2563eb 46%,#16a34a 100%)}
-    .content{display:flex;min-height:calc(281mm - 4px);flex:1;flex-direction:column;padding:7mm 8mm 6mm}
-    .header{display:grid;grid-template-columns:minmax(0,1fr) 62mm;gap:7mm;align-items:start;border-bottom:1px solid #d9e0ea;padding-bottom:4.5mm}
-    .brand{display:grid;grid-template-columns:22mm minmax(0,1fr);gap:4mm;align-items:center;min-width:0}
-    .brand-logo{max-width:22mm;max-height:18mm;object-fit:contain}
-    .brand-fallback{width:18mm;height:18mm;display:grid;place-items:center;border-radius:6px;background:#111827;color:white;font-weight:800;font-size:15px}
-    .brand-title{margin:0;color:#0f172a;font-size:17px;font-weight:800;line-height:1.1;letter-spacing:0}
+    .content{display:flex;min-height:calc(297mm - 4px);flex:1;flex-direction:column;padding:11mm 12mm 9mm}
+    .header{display:grid;grid-template-columns:minmax(0,1fr) 64mm;gap:8mm;align-items:start;border-bottom:1px solid #d9e0ea;padding-bottom:5mm}
+    .brand{display:grid;grid-template-columns:34mm minmax(0,1fr);gap:5mm;align-items:center;min-width:0}
+    .brand-logo{max-width:34mm;max-height:27mm;object-fit:contain}
+    .brand-fallback{width:27mm;height:27mm;display:grid;place-items:center;border-radius:7px;background:#111827;color:white;font-weight:850;font-size:20px}
+    .brand-title{margin:0;color:#0f172a;font-size:18px;font-weight:850;line-height:1.08;letter-spacing:0}
     .brand-sub{margin:1.5mm 0 0;color:#475569;font-size:8.5px;line-height:1.35}
     .company-meta{display:flex;flex-wrap:wrap;gap:1.5mm 4mm;margin-top:2.6mm;color:#64748b;font-size:8.5px;line-height:1.25}
     .doc-card{border:1px solid #d7deea;border-radius:7px;padding:4mm;background:#f8fafc}
@@ -150,9 +150,9 @@ export function buildDocumentPrintHtml({
     .avoid-break{break-inside:avoid;page-break-inside:avoid}
     @media print{
       body{background:white}
-      .preview-shell{width:194mm;padding:0}
-      .sheet{width:194mm;min-height:281mm;border:0;border-radius:0;box-shadow:none}
-      .content{min-height:calc(281mm - 4px)}
+      .preview-shell{width:210mm;padding:0}
+      .sheet{width:210mm;min-height:297mm;border:0;border-radius:0;box-shadow:none}
+      .content{min-height:calc(297mm - 4px)}
       .print-action{display:none}
     }
   </style>
