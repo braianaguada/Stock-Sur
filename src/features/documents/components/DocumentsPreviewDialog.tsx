@@ -1,8 +1,8 @@
+import type { ReactNode } from "react";
 import { CheckCircle2, Clock, LucideIcon, PlayCircle, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LineItemsTable } from "@/components/common/LineItemsTable";
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { CUSTOMER_KIND_LABEL, DOC_LABEL, DOC_TYPE_CLASS, STATUS_LABEL } from "@/features/documents/constants";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
@@ -30,8 +30,39 @@ const HISTORY_TONE_COLORS: Record<string, { bg: string; border: string; text: st
   danger: { bg: "bg-rose-100", border: "border-rose-200", text: "text-rose-700", icon: XCircle },
 };
 
+const moneyFormatter = new Intl.NumberFormat("es-AR", {
+  style: "currency",
+  currency: "ARS",
+  minimumFractionDigits: 2,
+});
+
+function formatMoney(value: number | string | null | undefined) {
+  return moneyFormatter.format(Number(value) || 0);
+}
+
+function PreviewField({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold text-slate-900">{value || "-"}</p>
+    </div>
+  );
+}
+
 export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
-  const { open, onOpenChange, selectedDocument, selectedLines, selectedEvents, sourceDocumentLabel, companySettings, isExternalInvoiceLocked, onSetExternalInvoice, onClearExternalInvoice, isUpdatingExternalInvoice } = props;
+  const {
+    open,
+    onOpenChange,
+    selectedDocument,
+    selectedLines,
+    selectedEvents,
+    sourceDocumentLabel,
+    companySettings,
+    isExternalInvoiceLocked,
+    onSetExternalInvoice,
+    onClearExternalInvoice,
+    isUpdatingExternalInvoice,
+  } = props;
 
   const handleSetExternalInvoice = () => {
     if (!selectedDocument) return;
@@ -49,147 +80,182 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-slate-100/95 shadow-2xl backdrop-blur-xl">
-        <DialogHeader className="shrink-0">
-          <DialogTitle className="text-xl font-semibold tracking-tight text-foreground/90">Vista previa del documento</DialogTitle>
-          <DialogDescription>Documento comercial y trazabilidad.</DialogDescription>
+      <DialogContent className="flex h-[min(94vh,960px)] max-w-[min(98vw,1560px)] flex-col overflow-hidden border-slate-200 bg-slate-200/95 p-0 shadow-2xl backdrop-blur-xl">
+        <DialogHeader className="shrink-0 border-b border-slate-300/70 bg-white px-6 py-4">
+          <DialogTitle className="text-lg font-semibold tracking-tight text-slate-950">Vista previa del documento</DialogTitle>
+          <DialogDescription>Revision comercial, productos y trazabilidad.</DialogDescription>
         </DialogHeader>
 
         {selectedDocument ? (
-          <div className="grid flex-1 min-h-0 gap-4 2xl:grid-cols-[minmax(0,1.95fr)_minmax(380px,460px)]">
-            <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable]">
-              <div className="space-y-4">
-                <section className="overflow-hidden rounded-[28px] border border-border/60 bg-white shadow-sm">
-                  <div className="h-1 w-full bg-gradient-to-r from-primary/80 via-primary/35 to-transparent" />
-                  <div className="border-b border-border/60 px-5 py-4 sm:px-6">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="grid min-h-0 flex-1 gap-4 p-4 2xl:grid-cols-[minmax(0,1.9fr)_minmax(360px,440px)]">
+            <div className="min-h-0 min-w-0 overflow-y-auto pr-1 [scrollbar-gutter:stable]">
+              <div className="mx-auto max-w-[1040px] rounded-[22px] border border-slate-300 bg-white p-5 shadow-sm">
+                <div className="overflow-hidden rounded-[18px] border border-slate-200">
+                  <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 via-sky-500 to-slate-900" />
+
+                  <header className="grid gap-5 border-b border-slate-200 p-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+                    <div className="flex min-w-0 items-center gap-5">
+                      <div className="flex h-24 w-36 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                        {companySettings.logo_url ? (
+                          <img src={companySettings.logo_url} alt={companySettings.app_name} className="max-h-20 w-auto max-w-full object-contain" />
+                        ) : (
+                          <span className="text-3xl font-black text-slate-900">{companySettings.app_name.slice(0, 2).toUpperCase()}</span>
+                        )}
+                      </div>
                       <div className="min-w-0">
+                        <p className="text-2xl font-black tracking-tight text-slate-950">{companySettings.app_name}</p>
+                        <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
+                          {companySettings.document_tagline ?? "Documentacion comercial"}
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
+                          {companySettings.tax_id ? <span>CUIT {companySettings.tax_id}</span> : null}
+                          {companySettings.phone ? <span>Tel. {companySettings.phone}</span> : null}
+                          {companySettings.email ? <span>{companySettings.email}</span> : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-950 p-4 text-white">
+                      <div className="flex items-start justify-between gap-3">
                         <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
                           {DOC_LABEL[selectedDocument.doc_type]}
                         </Badge>
-                        <div className="mt-3 flex items-center gap-4">
-                          {companySettings.logo_url ? (
-                            <img src={companySettings.logo_url} alt={companySettings.app_name} className="h-11 w-auto max-w-[180px] object-contain" />
-                          ) : (
-                            <p className="text-2xl font-semibold tracking-tight text-foreground">{companySettings.app_name}</p>
-                          )}
-                          <span className="h-8 w-px bg-border/70" />
-                          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                            {companySettings.document_tagline ?? "Documentacion comercial"}
-                          </p>
-                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Documento</span>
                       </div>
-                      <div className="min-w-[180px] border-l border-border/60 pl-4 text-right">
-                        <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Documento</p>
-                        <p className="mt-1 text-lg font-semibold text-foreground">{DOC_LABEL[selectedDocument.doc_type]}</p>
-                        <p className="mt-2 font-mono text-sm text-foreground/80">{formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}</p>
-                      </div>
-                    </div>
-
-                    {sourceDocumentLabel ? (
-                      <div className="mt-4 rounded-xl border border-border/60 bg-background/70 px-4 py-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-[10px] uppercase tracking-[0.22em] font-semibold text-muted-foreground">Origen</p>
-                          <p className="text-xs font-mono text-foreground/80">{sourceDocumentLabel}</p>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
-                    <div className="border-b border-border/60 px-5 py-4 lg:border-b-0 lg:border-r sm:px-6">
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <p className="mt-4 text-2xl font-black tracking-tight">{DOC_LABEL[selectedDocument.doc_type]}</p>
+                      <p className="mt-2 font-mono text-sm text-slate-200">
+                        {selectedDocument.document_number === null ? "Pendiente de numeracion" : formatNumber(selectedDocument.document_number, selectedDocument.point_of_sale)}
+                      </p>
+                      <div className="mt-4 grid grid-cols-2 gap-3 text-[11px]">
                         <div>
-                          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p>
-                          <p className="mt-1 text-base font-semibold text-foreground">{selectedDocument.customer_name ?? "Cliente ocasional"}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">Tipo: <span className="text-foreground">{CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]}</span></p>
+                          <p className="font-bold uppercase tracking-[0.16em] text-slate-500">Fecha</p>
+                          <p className="mt-1 font-semibold">{formatIsoDate(selectedDocument.issue_date)}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Fiscal</p>
-                          <p className="mt-1 text-sm text-foreground">CUIT: <span className="font-mono">{selectedDocument.customer_tax_id ?? "-"}</span></p>
-                          <p className="mt-1 text-xs text-muted-foreground">Cond. fiscal: <span className="text-foreground">{selectedDocument.customer_tax_condition ?? "-"}</span></p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
-                          <p className="mt-1 text-sm text-foreground">Fecha: <span className="font-medium">{formatIsoDate(selectedDocument.issue_date)}</span></p>
-                          <p className="mt-1 text-xs text-muted-foreground">Estado: <span className="text-foreground">{STATUS_LABEL[selectedDocument.status]}</span></p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Referencia</p>
-                          <p className="mt-1 text-sm text-foreground">PDV: <span className="font-mono">{String(selectedDocument.point_of_sale).padStart(4, "0")}</span></p>
-                          {selectedDocument.valid_until ? <p className="mt-1 text-xs text-muted-foreground">Validez: <span className="text-foreground">{formatIsoDate(selectedDocument.valid_until)}</span></p> : null}
+                          <p className="font-bold uppercase tracking-[0.16em] text-slate-500">Estado</p>
+                          <p className="mt-1 font-semibold">{STATUS_LABEL[selectedDocument.status]}</p>
                         </div>
                       </div>
                     </div>
-                    <div className="px-5 py-4 sm:px-6">
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
-                      <div className="mt-3 space-y-1.5 text-sm">
-                        {selectedDocument.payment_terms ? <p className="text-muted-foreground">Condición: <span className="text-foreground">{selectedDocument.payment_terms}</span></p> : null}
-                        {selectedDocument.salesperson ? <p className="text-muted-foreground">Vendedor: <span className="text-foreground">{selectedDocument.salesperson}</span></p> : null}
-                        {selectedDocument.delivery_address ? <p className="text-muted-foreground">Entrega: <span className="text-foreground">{selectedDocument.delivery_address}</span></p> : null}
-                        {selectedDocument.doc_type === "REMITO" && selectedDocument.external_invoice_number ? <p className="text-muted-foreground">Factura: <span className="font-mono text-foreground">{selectedDocument.external_invoice_number}</span></p> : null}
-                      </div>
+                  </header>
 
+                  <section className="grid border-b border-slate-200 lg:grid-cols-[minmax(0,1fr)_320px]">
+                    <div className="grid gap-x-5 gap-y-4 border-b border-slate-200 p-5 sm:grid-cols-2 xl:grid-cols-4 lg:border-b-0 lg:border-r">
+                      <PreviewField label="Cliente" value={selectedDocument.customer_name ?? "Cliente ocasional"} />
+                      <PreviewField label="Tipo" value={CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]} />
+                      <PreviewField label="CUIT" value={<span className="font-mono">{selectedDocument.customer_tax_id ?? "-"}</span>} />
+                      <PreviewField label="Cond. fiscal" value={selectedDocument.customer_tax_condition ?? "-"} />
+                      <PreviewField label="PDV" value={<span className="font-mono">{String(selectedDocument.point_of_sale).padStart(4, "0")}</span>} />
+                      <PreviewField label="Validez" value={selectedDocument.valid_until ? formatIsoDate(selectedDocument.valid_until) : "-"} />
+                      <PreviewField label="Condicion" value={selectedDocument.payment_terms ?? "-"} />
+                      <PreviewField label="Vendedor" value={selectedDocument.salesperson ?? "-"} />
+                    </div>
+                    <div className="space-y-4 p-5">
+                      <PreviewField label="Entrega" value={selectedDocument.delivery_address ?? "-"} />
+                      <PreviewField label="Origen" value={sourceDocumentLabel ? <span className="font-mono">{sourceDocumentLabel}</span> : "-"} />
+                      <PreviewField label="Factura externa" value={selectedDocument.external_invoice_number ? <span className="font-mono">{selectedDocument.external_invoice_number}</span> : "-"} />
                       {selectedDocument.doc_type === "REMITO" && !isExternalInvoiceLocked ? (
-                        <div className="mt-5 flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 pt-1">
                           <Button type="button" size="sm" onClick={handleSetExternalInvoice} disabled={isUpdatingExternalInvoice}>
                             {selectedDocument.external_invoice_number ? "Editar factura externa" : "Registrar factura externa"}
                           </Button>
                           {selectedDocument.external_invoice_number ? (
-                            <Button type="button" size="sm" variant="destructive" onClick={handleClearExternalInvoice} disabled={isUpdatingExternalInvoice}>
-                              Quitar factura externa
+                            <Button type="button" size="sm" variant="outline" onClick={handleClearExternalInvoice} disabled={isUpdatingExternalInvoice}>
+                              Quitar
                             </Button>
                           ) : null}
                         </div>
                       ) : null}
                     </div>
-                  </div>
-                </section>
+                  </section>
 
-                <section className="rounded-[28px] border border-border/60 bg-white p-5 shadow-sm">
-                  <div className="flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Items</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Detalle principal del documento.</p>
-                    </div>
-                    <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-right">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total del documento</p>
-                      <p className="mt-1 text-3xl font-black tracking-tight text-foreground">${Number(selectedDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
-                    </div>
-                  </div>
+                  {selectedDocument.notes ? (
+                    <section className="border-b border-slate-200 bg-slate-50/70 p-5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Notas</p>
+                      <p className="mt-2 whitespace-pre-wrap break-words text-sm font-medium leading-6 text-slate-800">{selectedDocument.notes}</p>
+                    </section>
+                  ) : null}
 
-                  <div className="mt-4 grid gap-4">
-                    {selectedDocument.notes ? (
-                      <div className="rounded-xl border border-border/60 bg-background/80 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold">Notas</p>
-                        <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground/85">{selectedDocument.notes}</p>
+                  <section className="p-5">
+                    <div className="mb-3 flex items-end justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Productos</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {selectedLines.length} producto{selectedLines.length === 1 ? "" : "s"} cargado{selectedLines.length === 1 ? "" : "s"}
+                        </p>
                       </div>
-                    ) : null}
-                    <div className="overflow-hidden rounded-xl border border-border/60 bg-background">
-                      <LineItemsTable
-                        rows={selectedLines.map((line) => ({
-                          id: line.id,
-                          line_order: line.line_order,
-                          sku: line.sku_snapshot,
-                          description: line.description,
-                          quantity: line.quantity,
-                          unit: line.unit,
-                          unit_price: line.unit_price,
-                          total: line.line_total,
-                        }))}
-                        showOrder
-                        showSku
-                      />
                     </div>
-                  </div>
-                </section>
+
+                    <div className="overflow-hidden rounded-2xl border border-slate-200">
+                      <table className="w-full table-fixed border-collapse text-sm">
+                        <thead className="bg-slate-100 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                          <tr>
+                            <th className="w-12 px-3 py-3 text-left">#</th>
+                            <th className="px-3 py-3 text-left">Descripcion</th>
+                            <th className="w-20 px-3 py-3 text-right">Cant.</th>
+                            <th className="w-20 px-3 py-3 text-left">Unidad</th>
+                            <th className="w-28 px-3 py-3 text-right">P. unit.</th>
+                            <th className="w-28 px-3 py-3 text-right">Importe</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {selectedLines.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="px-3 py-8 text-center text-sm text-slate-500">
+                                Sin productos para mostrar
+                              </td>
+                            </tr>
+                          ) : (
+                            selectedLines.map((line) => (
+                              <tr key={line.id} className="hover:bg-emerald-50/40">
+                                <td className="px-3 py-3 text-xs font-bold text-slate-500">{line.line_order}</td>
+                                <td className="px-3 py-3 font-semibold leading-5 text-slate-900">{line.description}</td>
+                                <td className="px-3 py-3 text-right font-semibold text-slate-800">{Number(line.quantity).toLocaleString("es-AR")}</td>
+                                <td className="px-3 py-3 text-slate-600">{line.unit ?? "un"}</td>
+                                <td className="px-3 py-3 text-right font-mono text-xs text-slate-700">{formatMoney(line.unit_price)}</td>
+                                <td className="px-3 py-3 text-right font-mono text-xs font-black text-slate-950">{formatMoney(line.line_total)}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Firma / conformidad</p>
+                        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                          <div className="border-t border-slate-400 pt-2 text-xs font-semibold text-slate-500">Firma</div>
+                          <div className="border-t border-slate-400 pt-2 text-xs font-semibold text-slate-500">Aclaracion</div>
+                          <div className="border-t border-slate-400 pt-2 text-xs font-semibold text-slate-500">Documento</div>
+                        </div>
+                      </div>
+                      <div className="overflow-hidden rounded-2xl border border-slate-200">
+                        <div className="space-y-2 bg-slate-50 p-4 text-sm">
+                          <div className="flex justify-between gap-4 text-slate-600">
+                            <span>Subtotal</span>
+                            <span className="font-mono">{formatMoney(selectedDocument.subtotal)}</span>
+                          </div>
+                          <div className="flex justify-between gap-4 border-b border-emerald-500/60 pb-3 text-slate-600">
+                            <span>IVA / imp.</span>
+                            <span className="font-mono">{formatMoney(selectedDocument.tax_total)}</span>
+                          </div>
+                        </div>
+                        <div className="bg-slate-950 p-4 text-white">
+                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Total documento</p>
+                          <p className="mt-1 text-3xl font-black tracking-tight">{formatMoney(selectedDocument.total)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                </div>
               </div>
             </div>
 
-            <aside className="min-h-0 overflow-y-auto pr-1 pb-2 [scrollbar-gutter:stable] 2xl:min-w-[380px]">
-              <section className="rounded-[28px] border border-border/60 bg-white p-5 shadow-sm">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">Historial</p>
-                <p className="mt-1 text-sm text-muted-foreground">Trazabilidad del documento.</p>
+            <aside className="min-h-0 overflow-y-auto pr-1 [scrollbar-gutter:stable] 2xl:min-w-[360px]">
+              <section className="rounded-[22px] border border-slate-300 bg-white p-5 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Historial</p>
+                <p className="mt-1 text-sm text-slate-500">Trazabilidad del documento.</p>
                 {sourceDocumentLabel ? (
                   <Badge variant="secondary" className="mt-4 px-3 py-1 font-mono text-xs">
                     Origen: {sourceDocumentLabel}
@@ -197,9 +263,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                 ) : null}
 
                 {selectedEvents.length === 0 ? (
-                  <div className="mt-5 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center">
-                    <Clock className="mx-auto h-8 w-8 text-muted-foreground/40" />
-                    <p className="mt-3 text-sm font-medium text-muted-foreground">No hay eventos para mostrar</p>
+                  <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
+                    <Clock className="mx-auto h-8 w-8 text-slate-300" />
+                    <p className="mt-3 text-sm font-medium text-slate-500">No hay eventos para mostrar</p>
                   </div>
                 ) : (
                   <div className="mt-5 space-y-3">
@@ -208,9 +274,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       const toneColors = HISTORY_TONE_COLORS[described.tone] || HISTORY_TONE_COLORS.neutral;
                       const Icon = toneColors.icon;
                       return (
-                        <div key={event.id} className="grid grid-cols-[14px_minmax(0,1fr)] gap-3 rounded-xl border border-border/60 bg-background/80 p-4">
+                        <div key={event.id} className="grid grid-cols-[14px_minmax(0,1fr)] gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                           <div className="relative flex justify-center">
-                            <div className="absolute top-0 bottom-0 w-px bg-border/70" />
+                            <div className="absolute top-0 bottom-0 w-px bg-slate-200" />
                             <div className={`relative mt-1.5 flex h-6 w-6 items-center justify-center rounded-full border ${toneColors.bg} ${toneColors.border}`}>
                               <Icon className={`h-3.5 w-3.5 ${toneColors.text}`} strokeWidth={3} />
                             </div>
@@ -218,17 +284,17 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                           <div className="min-w-0">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <p className="text-sm font-semibold leading-5 text-foreground">{described.title}</p>
-                                <p className="mt-1 text-sm leading-5 text-muted-foreground">{described.detail}</p>
+                                <p className="text-sm font-semibold leading-5 text-slate-900">{described.title}</p>
+                                <p className="mt-1 text-sm leading-5 text-slate-500">{described.detail}</p>
                               </div>
                               <div className="shrink-0 text-right">
                                 <Badge variant="outline" className="border-slate-300 bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-700">
                                   {formatTimestampDate(event.created_at)}
                                 </Badge>
-                                <p className="mt-2 text-xs font-mono text-muted-foreground">{formatTimestampTime(event.created_at)}</p>
+                                <p className="mt-2 text-xs font-mono text-slate-500">{formatTimestampTime(event.created_at)}</p>
                               </div>
                             </div>
-                            {index === 0 ? <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-emerald-500 font-semibold">Más reciente</p> : null}
+                            {index === 0 ? <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-600">Mas reciente</p> : null}
                           </div>
                         </div>
                       );

@@ -49,11 +49,12 @@ export function buildServiceDocumentPrintHtml({
   const isRemito = document.type === "REMITO";
   const documentLabel = isRemito ? "Remito de servicio" : "Presupuesto de servicio";
   const documentNumber = `${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")}`;
-  const legalName = companySettings.legal_name ?? companySettings.app_name;
+  const legalName = companySettings.legal_name ?? companySettings.app_name ?? "Stock Sur";
+  const appName = companySettings.app_name ?? legalName;
   const densityClass = getDensityClass(lines.length);
   const totalLabel = isRemito ? "Total servicio" : "Total presupuesto";
   const logoMarkup = companySettings.logo_url
-    ? `<img class="brand-logo" src="${escapeHtml(companySettings.logo_url)}" alt="${escapeHtml(companySettings.app_name)}" />`
+    ? `<img class="brand-logo" src="${escapeHtml(companySettings.logo_url)}" alt="${escapeHtml(appName)}" />`
     : `<div class="brand-fallback">${escapeHtml(legalName.slice(0, 2).toUpperCase())}</div>`;
 
   return `<!doctype html>
