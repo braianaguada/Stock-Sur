@@ -67,13 +67,16 @@ describe("buildDocumentPrintHtml", () => {
     expect(html).toContain("@page{size:A4 portrait;margin:0}");
     expect(html).toContain(".sheet{width:210mm;min-height:297mm");
     expect(html).toContain(".content{display:flex;min-height:calc(297mm - 4px);flex:1;flex-direction:column;padding:10mm 11mm 8.5mm}");
-    expect(html).toContain(".brand{display:grid;grid-template-columns:43mm minmax(0,1fr)");
-    expect(html).toContain(".brand-logo{max-width:40mm;max-height:31mm");
+    expect(html).toContain(".brand{display:grid;grid-template-columns:55mm minmax(0,1fr)");
+    expect(html).toContain(".brand-logo{max-width:51mm;max-height:37mm");
     expect(html).toContain("table-layout:fixed");
     expect(html).toContain("height:5.5mm");
     expect(html).toContain(".density-compact");
     expect(html).toContain(".tone-remito");
+    expect(html).toContain("Productos");
+    expect(html).not.toContain("<th class=\"c-sku\">SKU</th>");
     expect(html).toContain("status-chip");
+    expect(html).toContain("notes-signature");
     expect(html).toContain("Recibi conforme");
     expect(html).toContain("break-inside:avoid");
     expect(html).toContain(".summary-row{margin-top:auto");
@@ -82,5 +85,20 @@ describe("buildDocumentPrintHtml", () => {
     expect(html).toContain("FA-0001-00000123");
     expect(html).toContain("0009-00000032");
     expect(html).toContain("Footer configurado");
+  });
+
+  it("shows pending numbering for draft documents", () => {
+    const html = buildDocumentPrintHtml({
+      document: {
+        ...document,
+        status: "BORRADOR",
+        document_number: null,
+      },
+      lines: [line],
+      companySettings: DEFAULT_COMPANY_SETTINGS,
+    });
+
+    expect(html).toContain("Pendiente de numeracion");
+    expect(html).toContain("doc-number is-pending");
   });
 });

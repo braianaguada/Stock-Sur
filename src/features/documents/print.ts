@@ -39,7 +39,7 @@ function optionalBadge(label: string, value: unknown) {
 
 function buildRows(lines: PrintableLine[]) {
   if (lines.length === 0) {
-    return `<tr><td colspan="7" class="empty-row">Sin lineas cargadas</td></tr>`;
+    return `<tr><td colspan="6" class="empty-row">Sin productos cargados</td></tr>`;
   }
 
   return lines
@@ -47,7 +47,6 @@ function buildRows(lines: PrintableLine[]) {
       (line) => `
         <tr>
           <td class="c-index">${line.line_order}</td>
-          <td class="c-sku">${escapeHtml(line.sku_snapshot ?? "-")}</td>
           <td class="c-desc">${escapeHtml(line.description)}</td>
           <td class="c-qty">${numberFormatter.format(Number(line.quantity))}</td>
           <td class="c-unit">${escapeHtml(line.unit ?? "un")}</td>
@@ -78,7 +77,10 @@ export function buildDocumentPrintHtml({
   technicianName,
 }: BuildDocumentPrintHtmlParams) {
   const documentTypeLabel = DOC_LABEL[document.doc_type];
-  const documentNumber = formatNumber(document.document_number, document.point_of_sale);
+  const hasDocumentNumber = document.document_number !== null && document.document_number !== undefined;
+  const documentNumber = hasDocumentNumber
+    ? formatNumber(document.document_number, document.point_of_sale)
+    : "Pendiente de numeracion";
   const densityClass = getDensityClass(lines.length);
   const documentToneClass = getDocumentTone(document.doc_type);
   const legalName = companySettings.legal_name ?? companySettings.app_name;
@@ -113,27 +115,28 @@ export function buildDocumentPrintHtml({
     .tone-return{--accent:#b45309;--accent-soft:#fffbeb;--accent-ink:#92400e}
     .top-rule{height:4px;background:linear-gradient(90deg,#0f172a 0%,var(--accent) 100%)}
     .content{display:flex;min-height:calc(297mm - 4px);flex:1;flex-direction:column;padding:10mm 11mm 8.5mm}
-    .header{display:grid;grid-template-columns:minmax(0,1fr) 63mm;gap:7mm;align-items:start;border-bottom:1px solid #d9e0ea;padding-bottom:4.5mm}
-    .brand{display:grid;grid-template-columns:43mm minmax(0,1fr);gap:5mm;align-items:center;min-width:0}
-    .brand-mark{display:grid;place-items:center;min-height:32mm;padding:1.5mm;border-right:1px solid #e3e8f0}
-    .brand-logo{max-width:40mm;max-height:31mm;object-fit:contain}
-    .brand-fallback{width:31mm;height:31mm;display:grid;place-items:center;border-radius:7px;background:#111827;color:white;font-weight:850;font-size:21px}
-    .brand-title{margin:0;color:#0f172a;font-size:18px;font-weight:850;line-height:1.08;letter-spacing:0}
-    .brand-sub{margin:1.3mm 0 0;color:#475569;font-size:8.4px;line-height:1.3}
-    .company-meta{display:grid;grid-template-columns:1fr 1fr;gap:1mm 4mm;margin-top:2.8mm;color:#64748b;font-size:8px;line-height:1.22}
+    .header{display:grid;grid-template-columns:minmax(0,1fr) 62mm;gap:7mm;align-items:start;border-bottom:1px solid #d9e0ea;padding-bottom:4mm}
+    .brand{display:grid;grid-template-columns:55mm minmax(0,1fr);gap:5mm;align-items:center;min-width:0}
+    .brand-mark{display:grid;place-items:center;min-height:38mm;padding:1.2mm;border-right:1px solid #e3e8f0}
+    .brand-logo{max-width:51mm;max-height:37mm;object-fit:contain}
+    .brand-fallback{width:36mm;height:36mm;display:grid;place-items:center;border-radius:7px;background:#111827;color:white;font-weight:850;font-size:23px}
+    .brand-title{margin:0;color:#0f172a;font-size:17.5px;font-weight:850;line-height:1.08;letter-spacing:0}
+    .brand-sub{margin:1.2mm 0 0;color:#475569;font-size:8.1px;line-height:1.25}
+    .company-meta{display:grid;grid-template-columns:1fr 1fr;gap:.8mm 3mm;margin-top:2.4mm;color:#64748b;font-size:7.7px;line-height:1.2}
     .company-meta span{overflow-wrap:anywhere}
     .doc-card{border:1px solid #cfd8e5;border-top:3px solid var(--accent);border-radius:6px;padding:3.5mm 4mm;background:linear-gradient(180deg,var(--accent-soft) 0%,#fff 100%)}
     .doc-kicker{margin:0 0 1.5mm;color:var(--accent-ink);font-size:7px;font-weight:900;letter-spacing:.22em;text-transform:uppercase}
     .doc-kind{margin:0;color:#0f172a;font-size:18px;font-weight:900;line-height:1}
-    .doc-number{margin:2mm 0 0;color:#0f172a;font-family:Consolas,monospace;font-size:10.5px;font-weight:850}
+    .doc-number{margin:2mm 0 0;color:#0f172a;font-family:Consolas,monospace;font-size:10.2px;font-weight:850}
+    .doc-number.is-pending{font-family:Inter,Arial,sans-serif;color:#475569;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
     .doc-meta{display:grid;grid-template-columns:1fr 1fr;gap:1.4mm 3mm;margin-top:3mm}
     .status-chip{display:inline-block;width:max-content;margin-top:.3mm;border:1px solid color-mix(in srgb,var(--accent) 45%,white);border-radius:999px;padding:.5mm 1.6mm;background:#fff;color:var(--accent-ink);font-size:8px;font-weight:850}
     .badge-line span,.meta-line span{display:block;color:#64748b;font-size:7.3px;font-weight:780;letter-spacing:.08em;text-transform:uppercase}
     .badge-line strong,.meta-line strong{display:block;margin-top:.35mm;color:#0f172a;font-size:8.8px;line-height:1.18}
-    .meta-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:5mm;margin-top:4mm}
-    .box{padding-top:2.4mm;border-top:1.5px solid #cfd8e5}
-    .box-title{margin:0 0 1.8mm;color:#334155;font-size:7.6px;font-weight:900;letter-spacing:.2em;text-transform:uppercase}
-    .meta-line{display:grid;grid-template-columns:23mm minmax(0,1fr);gap:2mm;align-items:baseline;padding:.65mm 0}
+    .meta-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:5mm;margin-top:3.3mm}
+    .box{padding-top:2mm;border-top:1.5px solid #cfd8e5}
+    .box-title{margin:0 0 1.5mm;color:#334155;font-size:7.5px;font-weight:900;letter-spacing:.2em;text-transform:uppercase}
+    .meta-line{display:grid;grid-template-columns:22mm minmax(0,1fr);gap:2mm;align-items:baseline;padding:.5mm 0}
     .meta-line span{font-size:7.3px}
     .meta-line strong{font-size:8.7px;font-weight:650;overflow-wrap:anywhere}
     .lines-section{margin-top:4.5mm}
@@ -152,24 +155,24 @@ export function buildDocumentPrintHtml({
     tr{break-inside:avoid;page-break-inside:avoid}
     thead{display:table-header-group}
     .c-index{width:8mm;text-align:center;color:#64748b}
-    .c-sku{width:20mm;font-family:Consolas,monospace;font-size:7.5px;overflow-wrap:anywhere}
     .c-desc{width:auto;font-weight:650;overflow-wrap:anywhere}
     .c-qty{width:13mm;text-align:right}
     .c-unit{width:8mm;text-transform:lowercase}
-    .c-money{width:21mm;text-align:right;white-space:nowrap}
+    .c-money{width:23mm;text-align:right;white-space:nowrap}
     .c-total{font-weight:800}
     .empty-row{text-align:center;color:#64748b;padding:8mm}
-    .summary-row{margin-top:auto;display:grid;grid-template-columns:minmax(0,1fr) 52mm;gap:6mm;align-items:end;padding-top:4mm}
+    .summary-row{margin-top:auto;display:grid;grid-template-columns:minmax(0,1fr) 52mm;gap:6mm;align-items:start;padding-top:4mm}
+    .notes-signature{display:grid;gap:5mm}
     .notes{min-height:15mm;border:1px dashed #c8d1df;border-radius:6px;padding:2.8mm;background:#fbfcfe}
     .notes strong{display:block;margin-bottom:1.5mm;color:#475569;font-size:7.5px;letter-spacing:.16em;text-transform:uppercase}
     .notes pre{margin:0;color:#334155;font-family:inherit;font-size:8.3px;line-height:1.35;white-space:pre-wrap}
-    .totals{border:1px solid #cfd8e5;border-left:3px solid var(--accent);border-radius:6px;overflow:hidden;background:#fff}
-    .totals-line{display:flex;justify-content:space-between;gap:3mm;padding:1.8mm 2.8mm;border-bottom:1px solid #e2e8f0;color:#475569;font-size:8.1px}
+    .totals{border-top:1.5px solid #cfd8e5;background:#fff}
+    .totals-line{display:flex;justify-content:space-between;gap:3mm;padding:1.6mm 0;border-bottom:1px solid #e2e8f0;color:#475569;font-size:8.1px}
     .totals-line strong{color:#0f172a}
-    .grand-total{padding:2.8mm;background:#f8fafc;color:#0f172a}
+    .grand-total{padding:2.6mm 0 0;border-top:2px solid var(--accent);color:#0f172a}
     .grand-total span{display:block;color:#475569;font-size:7px;font-weight:850;letter-spacing:.18em;text-transform:uppercase}
     .grand-total strong{display:block;margin-top:.8mm;font-size:18px;line-height:1;font-weight:950;letter-spacing:0}
-    .signature-row{display:none;grid-template-columns:1fr 1fr 1fr;gap:8mm;margin-top:5mm;color:#475569;font-size:7.6px}
+    .signature-row{display:none;grid-template-columns:1fr 1fr 1fr;gap:8mm;color:#475569;font-size:7.6px}
     .is-remito .signature-row{display:grid}
     .signature-line{padding-top:6mm;border-top:1px solid #cbd5e1;text-align:center}
     .footer{display:flex;justify-content:space-between;gap:5mm;margin-top:4mm;padding-top:2.5mm;border-top:1px solid #e2e8f0;color:#64748b;font-size:7.7px;line-height:1.3}
@@ -206,7 +209,7 @@ export function buildDocumentPrintHtml({
           <section class="doc-card">
             <p class="doc-kicker">Documento</p>
             <h2 class="doc-kind">${escapeHtml(documentTypeLabel)}</h2>
-            <p class="doc-number">${escapeHtml(documentNumber)}</p>
+            <p class="doc-number ${hasDocumentNumber ? "" : "is-pending"}">${escapeHtml(documentNumber)}</p>
             <div class="doc-meta">
               ${optionalBadge("Fecha", formatIsoDate(document.issue_date))}
               <div class="badge-line"><span>Estado</span><strong class="status-chip">${escapeHtml(STATUS_LABEL[document.status])}</strong></div>
@@ -240,14 +243,13 @@ export function buildDocumentPrintHtml({
 
         <section class="lines-section">
           <div class="section-head">
-            <p class="section-title">Lineas</p>
+            <p class="section-title">Productos</p>
             <span class="line-count">${lines.length} item${lines.length === 1 ? "" : "s"}</span>
           </div>
           <table>
             <thead>
               <tr>
                 <th class="c-index">#</th>
-                <th class="c-sku">SKU</th>
                 <th class="c-desc">Descripcion</th>
                 <th class="c-qty">Cant.</th>
                 <th class="c-unit">Un.</th>
@@ -260,9 +262,11 @@ export function buildDocumentPrintHtml({
         </section>
 
         <section class="summary-row avoid-break">
-          <div class="notes">
-            <strong>Notas</strong>
-            <pre>${escapeHtml(document.notes ?? "-")}</pre>
+          <div class="notes-signature">
+            <div class="notes">
+              <strong>Notas</strong>
+              <pre>${escapeHtml(document.notes ?? "-")}</pre>
+            </div>
             <div class="signature-row">
               <div class="signature-line">Recibi conforme</div>
               <div class="signature-line">Aclaracion</div>
