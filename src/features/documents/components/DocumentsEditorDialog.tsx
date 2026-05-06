@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -679,6 +680,7 @@ export function DocumentsEditorDialog({
             </span>
           </div>
           <Button type="submit" disabled={isSubmitting || priceLists.length === 0} className="h-11 rounded-full px-8 shadow-sm">
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {isSubmitting ? "Guardando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
           </Button>
         </div>
@@ -686,4 +688,5 @@ export function DocumentsEditorDialog({
     </EntityDialog>
   );
 }
+
 

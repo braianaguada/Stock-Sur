@@ -12,7 +12,7 @@ import {
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import { cn } from "@/lib/utils";
-import { Package } from "lucide-react";
+import { Loader2, Package } from "lucide-react";
 import type { MovementType, SearchableItem, StockMovementForm } from "@/features/stock/types";
 
 type StockMovementDialogProps = {
@@ -209,6 +209,7 @@ export function StockMovementDialog({
 
         <div className="flex justify-end">
           <Button type="submit" disabled={isSaving || !form.item_id}>
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {isSaving ? "Guardando..." : "Registrar"}
           </Button>
         </div>

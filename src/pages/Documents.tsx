@@ -622,10 +622,16 @@ export default function DocumentsPage() {
           onTransition={(documentId, targetStatus) => {
             const status = targetStatus as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO";
             if (!canTransitionDocumentTo(roles, status)) return;
+            if (status === "ANULADO") {
+              const confirmed = window.confirm("Vas a anular este documento. Esta accion no se puede deshacer.");
+              if (!confirmed) return;
+            }
             transitionMutation.mutate({ documentId, targetStatus: status });
           }}
           onIssueRemito={(documentId) => {
             if (!canIssueRemito(roles)) return;
+            const confirmed = window.confirm("Vas a emitir este remito. Verificá stock, cliente y líneas antes de continuar.");
+            if (!confirmed) return;
             issueMutation.mutate(documentId);
           }}
           onCloneAsRemito={(documentId) => {
@@ -633,6 +639,8 @@ export default function DocumentsPage() {
             cloneAsRemitoMutation.mutate(documentId);
           }}
           onGenerateReturn={(documentId) => {
+            const confirmed = window.confirm("Vas a generar una devolucion desde este remito. Confirmá que corresponde.");
+            if (!confirmed) return;
             cloneAsReturnMutation.mutate(documentId);
           }}
           canPrintDocument={canPrintDocument(roles)}
