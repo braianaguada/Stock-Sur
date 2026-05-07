@@ -238,7 +238,13 @@ export function ServiceDocumentPreviewDialog({
         )}
 
         <div className="flex shrink-0 justify-end gap-2 border-t border-slate-300/70 bg-white px-5 py-4">
-          <Button variant="outline" onClick={onClose}>Cerrar</Button>
+          <Button
+            variant="outline"
+            className="border-slate-400 bg-white text-slate-800 hover:border-slate-500 hover:bg-slate-100 hover:text-slate-950"
+            onClick={onClose}
+          >
+            Cerrar
+          </Button>
           <Button type="button" onClick={() => { if (previewDocument) onOpenPrint(previewDocument); }} disabled={!previewDocument}>
             Abrir impresión
           </Button>
