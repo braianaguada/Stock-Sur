@@ -1,4 +1,16 @@
 import type { ReactNode } from "react";
+import {
+  ArrowRightCircle,
+  ArrowRightLeft,
+  CheckCircle2,
+  Clock,
+  Copy,
+  FilePenLine,
+  FilePlus2,
+  LucideIcon,
+  PlayCircle,
+  XCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -6,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
 import type { ServiceDocument, ServiceDocumentEvent, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
-import { currency, formatIsoDate } from "@/lib/formatters";
+import { currency, formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 
 type ServiceDocumentPreviewDialogProps = {
   open: boolean;
@@ -14,8 +26,8 @@ type ServiceDocumentPreviewDialogProps = {
   previewDocument: ServiceDocument | null;
   previewLines: ServiceDocumentLine[];
   selectedEvents: ServiceDocumentEvent[];
+  eventUserNamesById: Map<string, string>;
   settings: CompanySettings;
-  describeEvent: (event: ServiceDocumentEvent) => string;
   onOpenPrint: (document: ServiceDocument) => void;
 };
 
@@ -37,8 +49,65 @@ const SERVICE_PREVIEW_TOTAL_ACCENT_CLASS: Record<ServiceDocument["type"], string
   REMITO: "border-teal-500/60",
 };
 
+const SERVICE_HISTORY_TONE_COLORS: Record<string, { border: string; text: string; line: string; icon: LucideIcon }> = {
+  neutral: { border: "border-slate-200", text: "text-slate-700", line: "bg-slate-200", icon: PlayCircle },
+  info: { border: "border-sky-200", text: "text-sky-700", line: "bg-sky-200", icon: FilePenLine },
+  success: { border: "border-emerald-200", text: "text-emerald-700", line: "bg-emerald-200", icon: CheckCircle2 },
+  warning: { border: "border-amber-200", text: "text-amber-700", line: "bg-amber-200", icon: Clock },
+  danger: { border: "border-rose-200", text: "text-rose-700", line: "bg-rose-200", icon: XCircle },
+};
+
 const formatDocumentNumber = (document: ServiceDocument) =>
   `${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")}`;
+
+function describeServiceHistoryEvent(event: ServiceDocumentEvent) {
+  switch (event.event_type) {
+    case "CREATED":
+      return { title: "Documento creado", detail: "Borrador inicial", tone: "neutral" as const };
+    case "UPDATED":
+      return { title: "Documento actualizado", detail: "Se guardaron cambios", tone: "info" as const };
+    case "STATUS_CHANGED": {
+      const from = typeof event.payload?.from === "string" ? event.payload.from : null;
+      const to = typeof event.payload?.to === "string" ? event.payload.to : null;
+      const fromLabel = from && from in SERVICE_STATUS_LABEL ? SERVICE_STATUS_LABEL[from as ServiceDocumentStatus] : from;
+      const toLabel = to && to in SERVICE_STATUS_LABEL ? SERVICE_STATUS_LABEL[to as ServiceDocumentStatus] : to;
+      const tone = to === "APPROVED" ? "success" : to === "REJECTED" ? "warning" : to === "CANCELLED" ? "danger" : "info";
+      return {
+        title: "Cambio de estado",
+        detail: fromLabel && toLabel ? `${fromLabel} -> ${toLabel}` : toLabel ? `Estado cambiado a ${toLabel}` : "Estado actualizado",
+        tone,
+      };
+    }
+    case "DUPLICATED":
+      return { title: "Documento duplicado", detail: "Creado a partir de otro documento de servicio", tone: "info" as const };
+    case "CONVERTED_TO_REMITO":
+      return { title: "Convertido a remito", detail: "Se genero un remito desde este presupuesto", tone: "success" as const };
+    default:
+      return { title: event.event_type.replaceAll("_", " "), detail: "Evento registrado", tone: "neutral" as const };
+  }
+}
+
+function getServiceHistoryIcon(eventType: string, fallback: LucideIcon) {
+  switch (eventType) {
+    case "CREATED":
+      return FilePlus2;
+    case "UPDATED":
+      return FilePenLine;
+    case "STATUS_CHANGED":
+      return ArrowRightCircle;
+    case "DUPLICATED":
+      return Copy;
+    case "CONVERTED_TO_REMITO":
+      return ArrowRightLeft;
+    default:
+      return fallback;
+  }
+}
+
+function getServiceEventActorName(event: ServiceDocumentEvent, eventUserNamesById: Map<string, string>) {
+  if (!event.created_by) return "Sistema";
+  return eventUserNamesById.get(event.created_by) ?? "Usuario sin nombre";
+}
 
 export function ServiceDocumentPreviewDialog({
   open,
@@ -46,8 +115,8 @@ export function ServiceDocumentPreviewDialog({
   previewDocument,
   previewLines,
   selectedEvents,
+  eventUserNamesById,
   settings,
-  describeEvent,
   onOpenPrint,
 }: ServiceDocumentPreviewDialogProps) {
   const documentTitle = previewDocument?.type === "REMITO" ? "Remito de servicio" : "Presupuesto de servicio";
@@ -203,31 +272,71 @@ export function ServiceDocumentPreviewDialog({
             </div>
 
             <aside className="min-h-0 overflow-y-auto pr-1 [scrollbar-gutter:stable]">
-              <section className="rounded-2xl border border-slate-300 bg-white p-4 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-[0.26em] text-slate-400">Historial</p>
-                <p className="mt-1 text-sm text-slate-500">Trazabilidad del documento.</p>
+              <section className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
+                <div className="border-b border-slate-200 p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.26em] text-slate-400">Historial</p>
+                      <p className="mt-1 text-sm text-slate-500">Trazabilidad del documento.</p>
+                    </div>
+                    <Badge variant="outline" className="border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                      {selectedEvents.length} evento{selectedEvents.length === 1 ? "" : "s"}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 border-b border-slate-200 bg-slate-50/80 p-4">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Estado actual</p>
+                    <p className="mt-2 text-sm font-black text-slate-950">{SERVICE_STATUS_LABEL[previewDocument.status]}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Creado</p>
+                    <p className="mt-2 text-sm font-black text-slate-950">{formatTimestampDate(previewDocument.created_at)}</p>
+                    <p className="mt-1 font-mono text-xs text-slate-500">{formatTimestampTime(previewDocument.created_at)}</p>
+                  </div>
+                </div>
+
                 {selectedEvents.length === 0 ? (
-                  <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-6 text-center">
+                  <div className="m-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-6 text-center">
+                    <Clock className="mx-auto h-8 w-8 text-slate-300" />
                     <p className="text-sm font-semibold text-slate-500">Sin eventos registrados</p>
                   </div>
                 ) : (
-                  <div className="mt-4 space-y-2">
-                    {selectedEvents.map((event, index) => (
-                      <div key={event.id} className="grid grid-cols-[18px_minmax(0,1fr)] gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <div className="relative flex justify-center">
-                          <div className="absolute top-2 bottom-0 w-px bg-slate-300" />
-                          <span className="relative mt-1 h-3 w-3 rounded-full bg-slate-950 shadow-[0_0_0_4px_rgba(15,23,42,0.10)]" />
+                  <div className="p-4">
+                    {selectedEvents.map((event, index) => {
+                      const described = describeServiceHistoryEvent(event);
+                      const toneColors = SERVICE_HISTORY_TONE_COLORS[described.tone] || SERVICE_HISTORY_TONE_COLORS.neutral;
+                      const Icon = getServiceHistoryIcon(event.event_type, toneColors.icon);
+                      const actorName = getServiceEventActorName(event, eventUserNamesById);
+                      const isLast = index === selectedEvents.length - 1;
+                      return (
+                        <div key={event.id} className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 pb-5 last:pb-0">
+                          <div className="relative flex justify-center">
+                            {!isLast ? <div className={`absolute top-9 bottom-[-20px] w-px ${toneColors.line}`} /> : null}
+                            <div className={`relative flex h-8 w-8 items-center justify-center rounded-full border bg-white shadow-sm ${toneColors.border}`}>
+                              <Icon className={`h-4 w-4 ${toneColors.text}`} strokeWidth={2.5} />
+                            </div>
+                          </div>
+                          <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-black leading-5 text-slate-950">{described.title}</p>
+                              {index === 0 ? (
+                                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
+                                  Reciente
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-1 text-sm leading-5 text-slate-600">{described.detail}</p>
+                            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-200 pt-3 text-xs text-slate-500">
+                              <span className="font-semibold text-slate-700">{actorName}</span>
+                              <span>{formatTimestampDate(event.created_at)}</span>
+                              <span className="font-mono">{formatTimestampTime(event.created_at)}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold leading-5 text-slate-950">{describeEvent(event)}</p>
-                          <p className="mt-1 text-xs leading-5 text-slate-500">
-                            {new Date(event.created_at).toLocaleString("es-AR")}
-                            {event.created_by ? ` - ${event.created_by.slice(0, 8)}` : ""}
-                          </p>
-                          {index === 0 ? <p className="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Mas reciente</p> : null}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </section>

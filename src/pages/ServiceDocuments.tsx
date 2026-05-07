@@ -49,7 +49,7 @@ export default function ServiceDocumentsPage() {
   const [form, setForm] = useState<ServiceDocumentForm>(() => buildInitialServiceDocumentForm(settings));
   const [lines, setLines] = useState<ServiceDocumentLine[]>([{ ...EMPTY_SERVICE_LINE }]);
 
-  const { customers, documents, selectedDocument, selectedLines, selectedEvents, isLoading } = useServiceDocuments({
+  const { customers, documents, selectedDocument, selectedLines, selectedEvents, eventUserNamesById, isLoading } = useServiceDocuments({
     companyId: currentCompany?.id ?? null,
     search: deferredSearch,
     status,
@@ -413,8 +413,8 @@ export default function ServiceDocumentsPage() {
         previewDocument={previewDocument}
         previewLines={previewLines}
         selectedEvents={selectedEvents}
+        eventUserNamesById={eventUserNamesById}
         settings={settings}
-        describeEvent={describeEvent}
         onOpenPrint={(document) => void openServicePrint(document)}
       />
     </AppLayout>
