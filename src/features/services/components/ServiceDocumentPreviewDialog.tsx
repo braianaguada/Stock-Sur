@@ -185,11 +185,15 @@ export function ServiceDocumentPreviewDialog({
                     <PreviewTextSection title="Cierre" value={previewDocument.closing_text} />
                     <div className={`self-start rounded-2xl border border-slate-200 border-t-4 bg-slate-50 p-4 ${SERVICE_PREVIEW_TOTAL_ACCENT_CLASS[previewDocument.type]}`}>
                       <div className="flex items-center justify-between border-b border-slate-200 pb-2 text-sm text-slate-600">
-                        <span>Subtotal</span>
+                        <span>Subtotal sin IVA</span>
                         <span className="font-semibold text-slate-950">{currency.format(Number(previewDocument.subtotal ?? previewDocument.total ?? 0))}</span>
                       </div>
+                      <div className="flex items-center justify-between border-b border-slate-200 py-2 text-sm text-slate-600">
+                        <span>IVA</span>
+                        <span className="font-semibold text-slate-500">No incluido</span>
+                      </div>
                       <div className="pt-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Total servicio</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Total sin IVA</p>
                         <p className="mt-1 text-3xl font-black tracking-tight text-slate-950">{currency.format(Number(previewDocument.total ?? 0))}</p>
                       </div>
                     </div>

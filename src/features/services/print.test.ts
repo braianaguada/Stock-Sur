@@ -67,7 +67,10 @@ describe("buildServiceDocumentPrintHtml", () => {
     expect(html).toContain("Trabajos");
     expect(html).toContain("Reparacion y puesta en marcha");
     expect(html).toContain("Recibi conforme");
-    expect(html).toContain("Total servicio");
+    expect(html).toContain("Subtotal sin IVA");
+    expect(html).toContain("IVA");
+    expect(html).toContain("No incluido");
+    expect(html).toContain("Total servicio sin IVA");
     expect(html).toContain("Footer configurado");
   });
 
@@ -84,7 +87,7 @@ describe("buildServiceDocumentPrintHtml", () => {
 
     expect(html).toContain("tone-service-quote is-service-quote");
     expect(html).toContain("Presupuesto de servicio");
-    expect(html).toContain("Total presupuesto");
+    expect(html).toContain("Total presupuesto sin IVA");
     expect(html).toContain(".is-service-quote .summary-row{grid-template-columns:66mm;justify-content:end}");
     expect(html).toContain(".is-service-quote .signature-row{display:none}");
   });

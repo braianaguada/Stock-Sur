@@ -52,7 +52,7 @@ export function buildServiceDocumentPrintHtml({
   const legalName = companySettings.legal_name ?? companySettings.app_name ?? "Stock Sur";
   const appName = companySettings.app_name ?? legalName;
   const densityClass = getDensityClass(lines.length);
-  const totalLabel = isRemito ? "Total servicio" : "Total presupuesto";
+  const totalLabel = isRemito ? "Total servicio sin IVA" : "Total presupuesto sin IVA";
   const logoMarkup = companySettings.logo_url
     ? `<img class="brand-logo" src="${escapeHtml(companySettings.logo_url)}" alt="${escapeHtml(appName)}" />`
     : `<div class="brand-fallback">${escapeHtml(legalName.slice(0, 2).toUpperCase())}</div>`;
@@ -231,7 +231,8 @@ export function buildServiceDocumentPrintHtml({
             <div class="signature-line">Documento</div>
           </div>
           <div class="totals">
-            <div class="totals-line"><span>Subtotal</span><strong>${currency.format(Number(document.subtotal ?? 0))}</strong></div>
+            <div class="totals-line"><span>Subtotal sin IVA</span><strong>${currency.format(Number(document.subtotal ?? 0))}</strong></div>
+            <div class="totals-line"><span>IVA</span><strong>No incluido</strong></div>
             <div class="grand-total"><span>${escapeHtml(totalLabel)}</span><strong>${currency.format(Number(document.total ?? 0))}</strong></div>
           </div>
         </section>
