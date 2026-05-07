@@ -234,13 +234,39 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("document_events")
-        .select("id, event_type, payload, created_at")
+        .select("id, event_type, payload, created_at, created_by")
         .eq("document_id", selectedDocId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as DocEventRow[];
     },
   });
+
+  const eventUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const event of selectedEvents) {
+      if (event.created_by) ids.add(event.created_by);
+    }
+    return Array.from(ids).sort();
+  }, [selectedEvents]);
+
+  const { data: eventProfiles = [] } = useQuery({
+    queryKey: ["documents", "event-profiles", eventUserIds],
+    enabled: eventUserIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", eventUserIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const eventUserNamesById = useMemo(
+    () => new Map(eventProfiles.map((profile) => [profile.user_id, profile.full_name?.trim() || "Usuario sin nombre"])),
+    [eventProfiles],
+  );
 
   const { data: selectedDocumentCashUsage = false } = useQuery({
     queryKey: ["documents", "cash-usage", selectedDocId],
@@ -306,6 +332,7 @@ export function useDocumentsData({
     isLoading,
     selectedLines,
     selectedEvents,
+    eventUserNamesById,
     selectedDocumentCashUsage,
     selectedDocument,
     sourceDocument,

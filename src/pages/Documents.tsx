@@ -116,6 +116,7 @@ export default function DocumentsPage() {
     isLoading,
     selectedLines,
     selectedEvents,
+    eventUserNamesById,
     selectedDocumentCashUsage,
     selectedDocument,
     sourceDocumentLabel,
@@ -613,6 +614,7 @@ export default function DocumentsPage() {
             selectedDocument={selectedDocument}
             selectedLines={selectedLines}
             selectedEvents={selectedEvents}
+            eventUserNamesById={eventUserNamesById}
             isExternalInvoiceLocked={selectedDocumentCashUsage}
             sourceDocumentLabel={sourceDocumentLabel}
             companySettings={companySettings}

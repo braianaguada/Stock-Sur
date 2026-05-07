@@ -1,5 +1,18 @@
 import type { ReactNode } from "react";
-import { CheckCircle2, Clock, FilePenLine, LucideIcon, PlayCircle, Trash2, XCircle } from "lucide-react";
+import {
+  ArrowRightCircle,
+  ArrowRightLeft,
+  CheckCircle2,
+  Clock,
+  FilePenLine,
+  FilePlus2,
+  Link2,
+  LucideIcon,
+  PlayCircle,
+  ReceiptText,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,6 +28,7 @@ interface DocumentsPreviewDialogProps {
   selectedDocument: DocRow | null;
   selectedLines: DocLineRow[];
   selectedEvents: DocEventRow[];
+  eventUserNamesById: Map<string, string>;
   sourceDocumentLabel: string | null;
   companySettings: CompanySettings;
   isExternalInvoiceLocked: boolean;
@@ -23,11 +37,12 @@ interface DocumentsPreviewDialogProps {
   isUpdatingExternalInvoice: boolean;
 }
 
-const HISTORY_TONE_COLORS: Record<string, { bg: string; border: string; text: string; icon: LucideIcon }> = {
-  neutral: { bg: "bg-slate-100", border: "border-slate-200", text: "text-slate-700", icon: PlayCircle },
-  success: { bg: "bg-emerald-100", border: "border-emerald-200", text: "text-emerald-700", icon: CheckCircle2 },
-  warning: { bg: "bg-amber-100", border: "border-amber-200", text: "text-amber-700", icon: Clock },
-  danger: { bg: "bg-rose-100", border: "border-rose-200", text: "text-rose-700", icon: XCircle },
+const HISTORY_TONE_COLORS: Record<string, { bg: string; border: string; text: string; line: string; icon: LucideIcon }> = {
+  neutral: { bg: "bg-slate-100", border: "border-slate-200", text: "text-slate-700", line: "bg-slate-200", icon: PlayCircle },
+  info: { bg: "bg-sky-100", border: "border-sky-200", text: "text-sky-700", line: "bg-sky-200", icon: FilePenLine },
+  success: { bg: "bg-emerald-100", border: "border-emerald-200", text: "text-emerald-700", line: "bg-emerald-200", icon: CheckCircle2 },
+  warning: { bg: "bg-amber-100", border: "border-amber-200", text: "text-amber-700", line: "bg-amber-200", icon: Clock },
+  danger: { bg: "bg-rose-100", border: "border-rose-200", text: "text-rose-700", line: "bg-rose-200", icon: XCircle },
 };
 
 const moneyFormatter = new Intl.NumberFormat("es-AR", {
@@ -52,6 +67,32 @@ function formatMoney(value: number | string | null | undefined) {
   return moneyFormatter.format(Number(value) || 0);
 }
 
+function getHistoryIcon(eventType: string, fallback: LucideIcon) {
+  switch (eventType) {
+    case "CREATED":
+      return FilePlus2;
+    case "UPDATED":
+      return FilePenLine;
+    case "STATUS_CHANGED":
+      return ArrowRightCircle;
+    case "REMITO_EMITIDO":
+      return CheckCircle2;
+    case "EXTERNAL_INVOICE_SET":
+    case "EXTERNAL_INVOICE_CLEARED":
+      return ReceiptText;
+    case "REMITO_CREATED_FROM_BUDGET":
+    case "REMIO_CREATED_FROM_BUDGET":
+      return ArrowRightLeft;
+    default:
+      return fallback;
+  }
+}
+
+function getEventActorName(event: DocEventRow, eventUserNamesById: Map<string, string>) {
+  if (!event.created_by) return "Sistema";
+  return eventUserNamesById.get(event.created_by) ?? "Usuario sin nombre";
+}
+
 function PreviewField({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="min-w-0">
@@ -68,6 +109,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     selectedDocument,
     selectedLines,
     selectedEvents,
+    eventUserNamesById,
     sourceDocumentLabel,
     companySettings,
     isExternalInvoiceLocked,
@@ -286,48 +328,85 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
             </div>
 
             <aside className="min-h-0 overflow-y-auto pr-1 [scrollbar-gutter:stable] 2xl:min-w-[360px]">
-              <section className="rounded-[22px] border border-slate-300 bg-white p-5 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Historial</p>
-                <p className="mt-1 text-sm text-slate-500">Trazabilidad del documento.</p>
+              <section className="overflow-hidden rounded-[22px] border border-slate-300 bg-white shadow-sm">
+                <div className="border-b border-slate-200 p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Historial</p>
+                      <p className="mt-1 text-sm text-slate-500">Trazabilidad del documento.</p>
+                    </div>
+                    <Badge variant="outline" className="border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                      {selectedEvents.length} evento{selectedEvents.length === 1 ? "" : "s"}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="space-y-3 border-b border-slate-200 bg-slate-50/80 p-5">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Estado actual</p>
+                      <p className="mt-2 text-sm font-black text-slate-950">{STATUS_LABEL[selectedDocument.status]}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Creado</p>
+                      <p className="mt-2 text-sm font-black text-slate-950">{formatTimestampDate(selectedDocument.created_at)}</p>
+                      <p className="mt-1 font-mono text-xs text-slate-500">{formatTimestampTime(selectedDocument.created_at)}</p>
+                    </div>
+                  </div>
+
                 {sourceDocumentLabel ? (
-                  <Badge variant="secondary" className="mt-4 px-3 py-1 font-mono text-xs">
-                    Origen: {sourceDocumentLabel}
-                  </Badge>
+                    <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sky-700 shadow-sm">
+                        <Link2 className="h-4 w-4" strokeWidth={2.5} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-500">Origen</p>
+                        <p className="mt-1 truncate text-sm font-black text-slate-950">{sourceDocumentLabel}</p>
+                      </div>
+                    </div>
                 ) : null}
+                </div>
 
                 {selectedEvents.length === 0 ? (
-                  <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
+                  <div className="m-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
                     <Clock className="mx-auto h-8 w-8 text-slate-300" />
                     <p className="mt-3 text-sm font-medium text-slate-500">No hay eventos para mostrar</p>
                   </div>
                 ) : (
-                  <div className="mt-5 space-y-3">
+                  <div className="p-5">
                     {selectedEvents.map((event, index) => {
                       const described = describeDocumentHistoryEvent(event);
                       const toneColors = HISTORY_TONE_COLORS[described.tone] || HISTORY_TONE_COLORS.neutral;
-                      const Icon = toneColors.icon;
+                      const Icon = getHistoryIcon(event.event_type, toneColors.icon);
+                      const actorName = getEventActorName(event, eventUserNamesById);
+                      const isLast = index === selectedEvents.length - 1;
                       return (
-                        <div key={event.id} className="grid grid-cols-[14px_minmax(0,1fr)] gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                        <div key={event.id} className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 pb-5 last:pb-0">
                           <div className="relative flex justify-center">
-                            <div className="absolute top-0 bottom-0 w-px bg-slate-200" />
-                            <div className={`relative mt-1.5 flex h-6 w-6 items-center justify-center rounded-full border ${toneColors.bg} ${toneColors.border}`}>
-                              <Icon className={`h-3.5 w-3.5 ${toneColors.text}`} strokeWidth={3} />
+                            {!isLast ? <div className={`absolute top-9 bottom-[-20px] w-px ${toneColors.line}`} /> : null}
+                            <div className={`relative flex h-8 w-8 items-center justify-center rounded-full border bg-white shadow-sm ${toneColors.border}`}>
+                              <Icon className={`h-4 w-4 ${toneColors.text}`} strokeWidth={2.5} />
                             </div>
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <p className="text-sm font-semibold leading-5 text-slate-900">{described.title}</p>
-                                <p className="mt-1 text-sm leading-5 text-slate-500">{described.detail}</p>
-                              </div>
-                              <div className="shrink-0 text-right">
-                                <Badge variant="outline" className="border-slate-300 bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-700">
-                                  {formatTimestampDate(event.created_at)}
-                                </Badge>
-                                <p className="mt-2 text-xs font-mono text-slate-500">{formatTimestampTime(event.created_at)}</p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm font-black leading-5 text-slate-950">{described.title}</p>
+                                  {index === 0 ? (
+                                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
+                                      Reciente
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="mt-1 text-sm leading-5 text-slate-600">{described.detail}</p>
                               </div>
                             </div>
-                            {index === 0 ? <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-600">Mas reciente</p> : null}
+                            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-200 pt-3 text-xs text-slate-500">
+                              <span className="font-semibold text-slate-700">{actorName}</span>
+                              <span>{formatTimestampDate(event.created_at)}</span>
+                              <span className="font-mono">{formatTimestampTime(event.created_at)}</span>
+                            </div>
                           </div>
                         </div>
                       );

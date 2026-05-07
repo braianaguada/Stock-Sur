@@ -99,6 +99,7 @@ export interface DocEventRow {
   event_type: string;
   payload: unknown;
   created_at: string;
+  created_by: string | null;
 }
 
 export interface PriceListRow {
