@@ -223,8 +223,8 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
 
                     <div className="overflow-hidden rounded-2xl border border-slate-200">
                       <table className="w-full table-fixed border-collapse text-sm">
-                        <thead className="bg-slate-100 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                          <tr>
+                        <thead className="bg-slate-950 text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">
+                          <tr className="border-slate-800">
                             <th className="w-12 px-3 py-3 text-left">#</th>
                             <th className="px-3 py-3 text-left">Descripcion</th>
                             <th className="w-20 px-3 py-3 text-right">Cant.</th>
