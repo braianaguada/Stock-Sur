@@ -59,7 +59,7 @@ export function ServiceDocumentPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
-      <DialogContent className="flex h-[min(94vh,960px)] max-w-[min(97vw,1540px)] flex-col overflow-hidden border-slate-300/80 bg-slate-200/95 p-0 shadow-2xl backdrop-blur-xl">
+      <DialogContent className="flex h-[min(94vh,960px)] max-w-[min(97vw,1540px)] flex-col overflow-hidden border-slate-300/80 bg-slate-200/95 p-0 shadow-2xl backdrop-blur-xl [&>button]:right-5 [&>button]:top-5 [&>button]:z-20 [&>button]:flex [&>button]:h-9 [&>button]:w-9 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-slate-300 [&>button]:bg-white [&>button]:text-slate-700 [&>button]:opacity-100 [&>button]:shadow-sm [&>button]:transition [&>button]:hover:border-slate-400 [&>button]:hover:bg-slate-100 [&>button]:hover:text-slate-950 [&>button]:focus:ring-slate-400 [&>button]:focus:ring-offset-slate-200 [&>button_svg]:h-4 [&>button_svg]:w-4">
         <DialogHeader className="border-b border-slate-300/70 bg-white px-5 py-4">
           <DialogTitle className="text-xl font-semibold tracking-tight text-slate-950">{previewTitle}</DialogTitle>
           <DialogDescription className="text-slate-500">Revision visual antes de imprimir o guardar el PDF.</DialogDescription>
