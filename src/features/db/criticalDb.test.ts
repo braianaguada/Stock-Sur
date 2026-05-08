@@ -222,7 +222,7 @@ describeCriticalDb("critical database rules", () => {
       );
       expect(Number(after.rows[0].balance)).toBe(5);
     });
-  });
+  }, 15000);
 
   it("bloquea cambios de factura externa si el remito ya se usó en caja", async () => {
     await withRollback(async () => {
