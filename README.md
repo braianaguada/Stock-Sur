@@ -107,12 +107,23 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - no genera stock, caja ni cuenta corriente
   - no esta disponible para `REMITO_DEVOLUCION`
   - agrega trazabilidad con `source_document_id`, `source_document_type`, `source_document_number_snapshot` y evento `DUPLICATED_FROM_DOCUMENT`
+- Combos de productos v1:
+  - nueva ruta `/combos` para crear combos reutilizables por empresa
+  - cada combo agrupa productos reales con cantidades y orden simple
+  - en documentos, el buscador permite agregar combos y se expanden a lineas reales
+  - no existe stock propio ni precio propio del combo en esta fase
+  - la logica de documentos sigue aplicando precios, redondeo y edicion manual por linea
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
+  - `supabase/migrations/20260508150000_product_combos.sql`
+  - `supabase/migrations/20260508160000_remote.sql`
 - Cobertura QA agregada para duplicado:
   - `src/features/documents/lib/duplicate.test.ts` cubre reglas de payload, fecha actual, bloqueo de devoluciones, trazabilidad y copia de lineas/snapshots sin reutilizar ids
   - `src/features/documents/components/DocumentsDataTable.test.tsx` cubre accion visible para `PRESUPUESTO`/`REMITO`, oculta para `REMITO_DEVOLUCION` y deshabilitada sin permiso de creacion
   - `src/features/db/criticalDb.test.ts` incluye casos de RPC real para duplicado de presupuesto/remito y bloqueo de devoluciones cuando se ejecuta con `DATABASE_URL` o variables `PG*` (`PGPASSWORD`, `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE`)
+- Cobertura QA agregada para combos:
+  - `src/features/combos/lib/buildComboLines.test.ts` cubre expansion de combo a lineas reales
+  - `src/features/documents/hooks/useDocumentsMutations.test.tsx` ahora mockea Supabase y valida la mutacion sin depender de env real
 - Validacion manual recomendada en staging:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
   - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
@@ -124,10 +135,14 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
 npm run db:push:staging
 npm run typecheck
 npm run lint
-npm run test -- --run src/features/documents/lib/duplicate.test.ts src/features/documents/components/DocumentsDataTable.test.tsx
 npm run test
 npm run build
 ```
+
+Notas:
+
+- `npm run test` deja `src/features/db/criticalDb.test.ts` en `skipped` si no hay `PGPASSWORD` configurado.
+- La migracion de combos ya se aplico en staging con `npm run db:push:staging --include-all` por una diferencia de historial remoto.
 
 ## How can I deploy this project?
 

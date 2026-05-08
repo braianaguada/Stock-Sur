@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { title: "Dashboard", url: "/" },
   { title: "Items", url: "/items" },
+  { title: "Combos", url: "/combos" },
   { title: "Stock", url: "/stock" },
   { title: "Proveedores", url: "/suppliers" },
   { title: "Precios", url: "/price-lists" },

@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { Client } from "pg";
 import crypto from "node:crypto";
 
 const DEFAULT_DB_HOST = "db.tihjnbfdjnjobxxecuaz.supabase.co";
@@ -12,19 +11,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
 
 const describeCriticalDb = DB_PASSWORD ? describe : describe.skip;
 
-const client = DATABASE_URL
-  ? new Client({
-      connectionString: DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
-    })
-  : new Client({
-      host: DB_HOST,
-      port: DB_PORT,
-      user: DB_USER,
-      password: DB_PASSWORD,
-      database: DB_NAME,
-      ssl: { rejectUnauthorized: false },
-    });
+let client: import("pg").Client;
 
 async function withRollback<T>(fn: () => Promise<T>): Promise<T> {
   await client.query("begin");
@@ -114,6 +101,20 @@ async function seedItem(companyId: string, userId: string) {
 
 describeCriticalDb("critical database rules", () => {
   beforeAll(async () => {
+    const { Client } = await new Function('return import("pg")')();
+    client = DATABASE_URL
+      ? new Client({
+          connectionString: DATABASE_URL,
+          ssl: { rejectUnauthorized: false },
+        })
+      : new Client({
+          host: DB_HOST,
+          port: DB_PORT,
+          user: DB_USER,
+          password: DB_PASSWORD,
+          database: DB_NAME,
+          ssl: { rejectUnauthorized: false },
+        });
     await client.connect();
   });
 

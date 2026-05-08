@@ -13,6 +13,7 @@ const queryClient = new QueryClient();
 const Index = lazy(() => import("./pages/Index"));
 const AuthPage = lazy(() => import("./pages/Auth"));
 const ItemsPage = lazy(() => import("./pages/Items"));
+const CombosPage = lazy(() => import("./pages/Combos"));
 const StockPage = lazy(() => import("./pages/Stock"));
 const SuppliersPage = lazy(() => import("./pages/Suppliers"));
 const PriceListsPage = lazy(() => import("./pages/PriceLists"));
@@ -77,6 +78,7 @@ const App = () => (
                   <Route path="/auth" element={<AuthRedirect />} />
                   <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                   <Route path="/items" element={<ProtectedRoute><ItemsPage /></ProtectedRoute>} />
+                  <Route path="/combos" element={<ProtectedRoute><CombosPage /></ProtectedRoute>} />
                   <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
                   <Route path="/suppliers" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
                   <Route path="/price-lists" element={<ProtectedRoute><PriceListsPage /></ProtectedRoute>} />

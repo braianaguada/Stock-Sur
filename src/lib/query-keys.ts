@@ -62,6 +62,10 @@ export const queryKeys = {
     lines: (documentId: string | null) => ["document-lines", documentId] as const,
     events: (documentId: string | null) => ["document-events", documentId] as const,
   },
+  combos: {
+    list: (companyId: string | null) => ["product-combos", companyId ?? "no-company"] as const,
+    all: () => ["product-combos"] as const,
+  },
   serviceDocuments: {
     customers: (companyId: string | null) => ["service-documents-customers", companyId ?? "no-company"] as const,
     list: (companyId: string | null, search: string, status: string) =>
