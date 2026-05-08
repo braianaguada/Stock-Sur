@@ -60,6 +60,63 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Estado actual de staging
+
+`staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
+Al 2026-05-08, los cambios principales incorporados en `staging` son:
+
+- Redisenio completo de impresion/PDF para documentos comerciales:
+  - `PRESUPUESTO`
+  - `REMITO`
+  - `REMITO_DEVOLUCION`
+- Redisenio completo de impresion/PDF para documentos de servicio:
+  - presupuesto de servicio
+  - remito de servicio
+- Layout A4 modernizado:
+  - encabezado compacto con logo y datos de empresa
+  - bloque de tipo, numero, fecha y estado
+  - datos de cliente/operacion mejor distribuidos
+  - notas separadas de la zona de firma
+  - tabla de productos/items mas compacta
+  - totales visualmente diferenciados
+  - footer documental
+- Mejoras de impresion:
+  - uso de `@media print`
+  - mejor manejo de saltos de pagina
+  - filas mas compactas
+  - mejor aprovechamiento de hoja A4
+  - boton de impresion fuera del area imprimible
+- Vistas previas modernizadas:
+  - documento comercial
+  - presupuesto/remito de servicio
+  - hoja centrada con fondo neutro
+  - barra inferior con acciones `Cerrar` y `Abrir impresion`
+  - boton de cierre corregido para tema oscuro
+  - tabla con encabezado oscuro en linea con servicios
+- Historial redisenado en previews:
+  - timeline visual
+  - iconos por tipo de evento
+  - colores por severidad/estado
+  - resumen de estado actual y fecha de creacion
+  - nombre del usuario cuando esta disponible en `profiles`
+  - fallback a `Sistema` o `Usuario sin nombre`
+- No se hicieron cambios de negocio en esta fase:
+  - no se modifico emision
+  - no se modifico stock
+  - no se modifico caja
+  - no se modifico cuenta corriente
+  - no se agregaron migraciones nuevas para este redisenio
+
+### Validaciones usadas para estos cambios
+
+```sh
+npm run typecheck
+npm run lint
+npm run test -- --run src/features/documents/print.test.ts src/features/documents/lib/returns.test.ts
+npm run test -- --run src/features/services/print.test.ts
+npm run build
+```
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
