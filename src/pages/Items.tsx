@@ -21,6 +21,7 @@ import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { PackageX, Plus, Search } from "lucide-react";
 import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
@@ -37,6 +38,7 @@ import {
   type ItemSortField,
   type SortDirection,
 } from "@/features/items/components/ItemsDataTable";
+import { getOperationalPrice } from "@/features/pricing/operational-price";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const NEW_ITEM_DRAFT_KEY = "items:new-item-draft";
@@ -172,6 +174,7 @@ function sortItems(items: Item[], sortBy: ItemSortField, sortDirection: SortDire
 
 export default function ItemsPage() {
   const { currentCompany, user } = useAuth();
+  const { settings: companySettings } = useCompanyBrand();
   const { search, deferredSearch, setSearch, trimmedSearch } = useSearch();
   const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -208,6 +211,10 @@ export default function ItemsPage() {
   const qc = useQueryClient();
   const aliasQueryKey = queryKeys.items.aliases(currentCompany?.id ?? null, editingItem?.id);
   const itemTableColumnsStorageKey = `${ITEM_TABLE_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
+  const priceRoundingConfig = useMemo(() => ({
+    enabled: companySettings.price_rounding_enabled,
+    increment: companySettings.price_rounding_increment,
+  }), [companySettings.price_rounding_enabled, companySettings.price_rounding_increment]);
 
   useEffect(() => {
     setPage(1);
@@ -389,7 +396,8 @@ export default function ItemsPage() {
         orderedPriceListIds
           .map((priceListId) => priceRows.find((row) => row.price_list_id === priceListId))
           .find(Boolean) ?? priceRows[0] ?? null;
-      const mainPrice = mainPriceRow ? Number(mainPriceRow.calculated_price) || 0 : null;
+      const mainPriceOriginal = mainPriceRow ? Number(mainPriceRow.calculated_price) || 0 : null;
+      const { operationalPrice: mainPrice } = getOperationalPrice(mainPriceOriginal, priceRoundingConfig);
       const marginPct =
         baseCost && baseCost > 0 && mainPrice && mainPrice > 0
           ? ((mainPrice - baseCost) / mainPrice) * 100
@@ -399,13 +407,14 @@ export default function ItemsPage() {
         stock: stockByItemId.get(item.id) ?? null,
         base_cost: baseCost,
         main_price: mainPrice,
+        main_price_original: mainPriceOriginal,
         main_price_list_name: mainPriceRow ? priceListById.get(mainPriceRow.price_list_id)?.name ?? null : null,
         margin_pct: marginPct,
       });
     }
 
     return map;
-  }, [itemsQuery.data, priceListItemsQuery.data, priceListsQuery.data, pricingBaseQuery.data, stockByItemId]);
+  }, [itemsQuery.data, priceListItemsQuery.data, priceListsQuery.data, priceRoundingConfig, pricingBaseQuery.data, stockByItemId]);
 
   const stockStats = useMemo(() => {
     const all = itemsQuery.data ?? [];
@@ -1050,6 +1059,7 @@ export default function ItemsPage() {
             sortDirection={sortDirection}
             stockByItemId={stockByItemId}
             operationalMetaByItemId={operationalMetaByItemId}
+            priceRoundingConfig={priceRoundingConfig}
             onSort={toggleSort}
             onSelectionChange={setSelectedItemIds}
             onEdit={openEdit}

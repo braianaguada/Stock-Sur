@@ -24,6 +24,7 @@ export interface ItemOperationalMeta {
   stock: number | null;
   base_cost: number | null;
   main_price: number | null;
+  main_price_original: number | null;
   main_price_list_name: string | null;
   margin_pct: number | null;
 }
