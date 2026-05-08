@@ -100,20 +100,23 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - resumen de estado actual y fecha de creacion
   - nombre del usuario cuando esta disponible en `profiles`
   - fallback a `Sistema` o `Usuario sin nombre`
-- No se hicieron cambios de negocio en esta fase:
-  - no se modifico emision
-  - no se modifico stock
-  - no se modifico caja
-  - no se modifico cuenta corriente
-  - no se agregaron migraciones nuevas para este redisenio
+- Duplicado operativo de documentos comerciales:
+  - disponible para `PRESUPUESTO` y `REMITO` desde tabla y vista previa
+  - crea un nuevo `BORRADOR` con cliente, tecnico, snapshots fiscales, condiciones, lista de precios, notas, lineas, precios y snapshots de pricing
+  - resetea numeracion, factura externa, estado emitido/aprobado, eventos previos y vinculos operativos
+  - no genera stock, caja ni cuenta corriente
+  - no esta disponible para `REMITO_DEVOLUCION`
+  - agrega trazabilidad con `source_document_id`, `source_document_type`, `source_document_number_snapshot` y evento `DUPLICATED_FROM_DOCUMENT`
+- Migraciones nuevas:
+  - `supabase/migrations/20260508143000_duplicate_documents.sql`
 
 ### Validaciones usadas para estos cambios
 
 ```sh
+npm run db:push:staging
 npm run typecheck
 npm run lint
-npm run test -- --run src/features/documents/print.test.ts src/features/documents/lib/returns.test.ts
-npm run test -- --run src/features/services/print.test.ts
+npm run test
 npm run build
 ```
 

@@ -594,6 +594,32 @@ export function useDocumentsMutations({
     },
   });
 
+  const duplicateDocumentMutation = useMutation({
+    mutationFn: async (sourceId: string) => {
+      if (!documentsById.has(sourceId)) {
+        throw new Error("El documento seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+
+      const { data, error } = await supabase.rpc("duplicate_document", {
+        p_document_id: sourceId,
+      });
+      if (error) throw error;
+
+      return data.id as string;
+    },
+    onSuccess: (newDocumentId) => {
+      void invalidateDocumentQueries(qc);
+      toast({
+        title: "Documento duplicado",
+        description: "Se creo un borrador nuevo con las mismas lineas y datos principales.",
+      });
+      return newDocumentId;
+    },
+    onError: (error: unknown) => {
+      toast({ title: "No se pudo duplicar el documento", description: getErrorMessage(error), variant: "destructive" });
+    },
+  });
+
   const setExternalInvoiceMutation = useMutation({
     mutationFn: async ({
       documentId,
@@ -656,6 +682,7 @@ export function useDocumentsMutations({
     transitionMutation,
     cloneAsRemitoMutation,
     cloneAsReturnMutation,
+    duplicateDocumentMutation,
     setExternalInvoiceMutation,
     clearExternalInvoiceMutation,
   };

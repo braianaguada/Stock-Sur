@@ -271,6 +271,7 @@ export default function DocumentsPage() {
     transitionMutation,
     cloneAsRemitoMutation,
     cloneAsReturnMutation,
+    duplicateDocumentMutation,
     setExternalInvoiceMutation,
     clearExternalInvoiceMutation,
   } = useDocumentsMutations({
@@ -564,6 +565,17 @@ export default function DocumentsPage() {
             if (!canCloneBudgetToRemito(roles)) return;
             cloneAsRemitoMutation.mutate(documentId);
           }}
+          onDuplicateDocument={(documentId) => {
+            if (!canCreateDocumentDraft(roles)) return;
+            const confirmed = window.confirm("Se creara un borrador nuevo con las mismas lineas y datos principales.");
+            if (!confirmed) return;
+            duplicateDocumentMutation.mutate(documentId, {
+              onSuccess: (newDocumentId) => {
+                setSelectedDocId(newDocumentId);
+                setDetailOpen(true);
+              },
+            });
+          }}
           onGenerateReturn={(documentId) => {
             const confirmed = window.confirm("Vas a generar una devolucion desde este remito. Confirmá que corresponde.");
             if (!confirmed) return;
@@ -574,6 +586,7 @@ export default function DocumentsPage() {
           canEditDocumentDraft={canEditDocumentDraft(roles)}
           canIssueRemito={canIssueRemito(roles)}
           canCloneBudgetToRemito={canCloneBudgetToRemito(roles)}
+          canDuplicateDocument={canCreateDocumentDraft(roles)}
           canTransitionDocumentTo={(status) =>
             status === "EMITIDO"
               ? false
@@ -659,6 +672,19 @@ export default function DocumentsPage() {
               if (!canPrintDocument(roles)) return;
               void printDocument(document);
             }}
+          onDuplicateDocument={(document) => {
+              if (!canCreateDocumentDraft(roles)) return;
+              const confirmed = window.confirm("Se creara un borrador nuevo con las mismas lineas y datos principales.");
+              if (!confirmed) return;
+              duplicateDocumentMutation.mutate(document.id, {
+                onSuccess: (newDocumentId) => {
+                  setSelectedDocId(newDocumentId);
+                  setDetailOpen(true);
+                },
+              });
+            }}
+            isDuplicatingDocument={duplicateDocumentMutation.isPending}
+            canDuplicateDocument={canCreateDocumentDraft(roles)}
           />
         </Suspense>
       ) : null}

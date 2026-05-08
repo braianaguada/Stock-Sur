@@ -19,12 +19,14 @@ interface DocumentsDataTableProps {
   onTransition: (documentId: string, status: DocStatus) => void;
   onIssueRemito: (documentId: string) => void;
   onCloneAsRemito: (documentId: string) => void;
+  onDuplicateDocument: (documentId: string) => void;
   onGenerateReturn: (documentId: string) => void;
   isIssuingDocument: boolean;
   canPrintDocument: boolean;
   canEditDocumentDraft: boolean;
   canIssueRemito: boolean;
   canCloneBudgetToRemito: boolean;
+  canDuplicateDocument: boolean;
   canTransitionDocumentTo: (status: DocStatus) => boolean;
 }
 
@@ -38,12 +40,14 @@ export function DocumentsDataTable({
   onTransition,
   onIssueRemito,
   onCloneAsRemito,
+  onDuplicateDocument,
   onGenerateReturn,
   isIssuingDocument,
   canPrintDocument,
   canEditDocumentDraft,
   canIssueRemito,
   canCloneBudgetToRemito,
+  canDuplicateDocument,
   canTransitionDocumentTo,
 }: DocumentsDataTableProps) {
   const columns = useMemo<ColumnDef<DocRow, unknown>[]>(() => [
@@ -143,6 +147,11 @@ export function DocumentsDataTable({
                 <Pencil className="h-4 w-4" />
               </Button>
             ) : null}
+            {doc.doc_type === "PRESUPUESTO" || doc.doc_type === "REMITO" ? (
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-indigo-500 hover:text-indigo-400" onClick={() => onDuplicateDocument(doc.id)} title="Duplicar" disabled={!canDuplicateDocument}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            ) : null}
             {doc.doc_type === "PRESUPUESTO" && doc.status === "BORRADOR" ? (
               <>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onTransition(doc.id, "ENVIADO")} title="Marcar como enviado" disabled={!canTransitionDocumentTo("ENVIADO")}>
@@ -214,6 +223,7 @@ export function DocumentsDataTable({
     canCloneBudgetToRemito,
     canEditDocumentDraft,
     canIssueRemito,
+    canDuplicateDocument,
     isIssuingDocument,
     canPrintDocument,
     canTransitionDocumentTo,
@@ -224,6 +234,7 @@ export function DocumentsDataTable({
     onPrint,
     onTransition,
     onCloneAsRemito,
+    onDuplicateDocument,
   ]);
 
   return (

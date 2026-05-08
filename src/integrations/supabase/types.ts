@@ -2305,6 +2305,50 @@ export type Database = {
         Returns: boolean
       }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
+      duplicate_document: {
+        Args: { p_document_id: string }
+        Returns: {
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_kind: Database["public"]["Enums"]["document_customer_kind"]
+          customer_name: string | null
+          customer_tax_condition: string | null
+          customer_tax_id: string | null
+          delivery_address: string | null
+          discount_total: number
+          doc_type: Database["public"]["Enums"]["document_type"]
+          document_number: number | null
+          id: string
+          internal_remito_type:
+            | Database["public"]["Enums"]["internal_remito_type"]
+            | null
+          issue_date: string
+          notes: string | null
+          payment_terms: string | null
+          point_of_sale: number
+          price_list_id: string | null
+          salesperson: string | null
+          source_document_id: string | null
+          source_document_number_snapshot: string | null
+          source_document_type:
+            | Database["public"]["Enums"]["document_type"]
+            | null
+          status: Database["public"]["Enums"]["document_status"]
+          subtotal: number
+          tax_total: number
+          total: number
+          updated_at: string
+          valid_until: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "documents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       issue_document: {
         Args: { p_document_id: string }
         Returns: {
