@@ -110,13 +110,16 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
 - Redondeo configurable de precios para documentos:
   - se configura por empresa desde **Configuracion > Redondeo de precios**
   - permite desactivar redondeo o redondear el precio sugerido a multiplos de 100, 500 o 1000
-  - se aplica solo al cargar productos en documentos y al normalizar nuevas lineas antes de guardar
-  - no modifica costos base, precios importados, listas originales ni snapshots de porcentajes
+  - documentos usan el precio operativo redondeado al cargar productos y al normalizar nuevas lineas antes de guardar
+  - consultas de listas de precios y productos muestran el mismo precio operativo redondeado como ayuda visual
+  - mantiene visible/accesible el precio exacto original con badge/tooltip `Redondeado desde $X`
+  - no modifica costos base, precios importados, `price_list_items`, listas originales ni snapshots de porcentajes
   - el usuario puede seguir cambiando el precio manualmente; ese override se respeta
   - cuando una linea nueva queda redondeada, el editor muestra un badge discreto `Redondeado` con el sugerido original en el tooltip
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
   - `supabase/migrations/20260508160000_company_price_rounding_settings.sql`
+  - no hubo migraciones adicionales para la visualizacion operativa de redondeo
 - Cobertura QA agregada para duplicado:
   - `src/features/documents/lib/duplicate.test.ts` cubre reglas de payload, fecha actual, bloqueo de devoluciones, trazabilidad y copia de lineas/snapshots sin reutilizar ids
   - `src/features/documents/components/DocumentsDataTable.test.tsx` cubre accion visible para `PRESUPUESTO`/`REMITO`, oculta para `REMITO_DEVOLUCION` y deshabilitada sin permiso de creacion
@@ -124,11 +127,14 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
 - Cobertura QA agregada para redondeo:
   - `src/features/pricing/rounding.test.ts` cubre redondeo desactivado, incrementos 100/500/1000, decimales, cero, null/undefined, negativos e incrementos invalidos
   - `src/features/documents/hooks/useDocumentsMutations.test.tsx` cubre que una linea nueva use el precio redondeado como `unit_price`, mantenga `base_cost_snapshot` y respete override manual
+  - `src/features/price-lists/components/PriceListProductsTable.test.tsx` cubre precio operativo redondeado, precio original cuando esta desactivado y no mutacion del valor persistido
+  - `src/features/items/components/ItemsDataTable.test.tsx` cubre el mismo criterio visual en productos y no mutacion de metadata operativa
 - Validacion manual recomendada en staging:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
   - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
   - confirmar que `REMITO_DEVOLUCION` no muestra accion de duplicado
   - activar redondeo a $500 en Configuracion, agregar un producto con precio sugerido decimal a un presupuesto/remito y confirmar que `Sug`, `Precio unitario` y total inicial usan el valor redondeado
+  - revisar Listas de precios y Productos para confirmar que muestran el precio operativo redondeado con referencia al precio original
   - editar manualmente el precio unitario y guardar/reabrir el borrador para confirmar que no se recalcula automaticamente
 
 ### Validaciones usadas para estos cambios
@@ -138,6 +144,7 @@ npm run db:push:staging
 npm run typecheck
 npm run lint
 npm run test -- --run src/features/pricing/rounding.test.ts src/features/documents/hooks/useDocumentsMutations.test.tsx
+npm run test -- --run src/features/price-lists/components/PriceListProductsTable.test.tsx src/features/items/components/ItemsDataTable.test.tsx
 npm run test -- --run src/features/documents/lib/duplicate.test.ts src/features/documents/components/DocumentsDataTable.test.tsx
 npm run test
 npm run build

@@ -15,6 +15,7 @@ import { PriceListProductsTable } from "@/features/price-lists/components/PriceL
 import { PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
 import type { PriceListFormState, PriceListHistoryRow, PriceListProductRow, PriceListSummary } from "@/features/price-lists/types";
 import { formatDateTime } from "@/features/price-lists/utils";
+import type { PriceRoundingConfig } from "@/features/pricing/rounding";
 
 type PriceListDetailDialogProps = {
   open: boolean;
@@ -33,6 +34,7 @@ type PriceListDetailDialogProps = {
   isSavingConfig: boolean;
   isDeleting: boolean;
   stockByItemId?: Map<string, number>;
+  priceRoundingConfig?: PriceRoundingConfig | null;
   renderUserName: (userId: string | null) => string;
   renderPricingSummary: (values: { flete_pct: number | null; utilidad_pct: number | null; impuesto_pct: number | null }) => JSX.Element;
   onOpenChange: (open: boolean) => void;
@@ -53,7 +55,7 @@ const PRODUCT_COLUMN_OPTIONS: Array<{ id: string; label: string }> = [
   { id: "name", label: "Nombre" },
   { id: "stock", label: "Stock" },
   { id: "attributes", label: "Atributos" },
-  { id: "calculated_price", label: "Precio lista" },
+  { id: "calculated_price", label: "Precio operativo" },
   { id: "needs_recalculation", label: "Estado" },
 ];
 
@@ -76,6 +78,7 @@ export function PriceListDetailDialog({
   renderUserName,
   renderPricingSummary,
   stockByItemId,
+  priceRoundingConfig,
   onOpenChange,
   onDetailTabChange,
   onDetailSearchChange,
@@ -195,7 +198,7 @@ export function PriceListDetailDialog({
               </div>
               <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
                 <div className="min-h-0 flex-1 overflow-auto">
-                  <PriceListProductsTable rows={pagedProducts} columnVisibility={productColumnVisibility} stockByItemId={stockByItemId} />
+                  <PriceListProductsTable rows={pagedProducts} columnVisibility={productColumnVisibility} stockByItemId={stockByItemId} priceRoundingConfig={priceRoundingConfig} />
                 </div>
                 <div className="shrink-0 border-t bg-background px-4 py-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

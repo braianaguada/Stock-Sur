@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { ArrowLeft, Plus, RefreshCcw, Search, X } from "lucide-react";
 import { BasePricesTable } from "@/features/price-lists/components/BasePricesTable";
 import { PriceListCreateDialog } from "@/features/price-lists/components/PriceListCreateDialog";
@@ -33,6 +34,8 @@ import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
 import { formatDateTime } from "@/features/price-lists/utils";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
 import { formatMoney } from "@/features/price-lists/utils";
+import { OperationalPriceDisplay } from "@/features/pricing/OperationalPriceDisplay";
+import { getOperationalPrice } from "@/features/pricing/operational-price";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const PRICE_LISTS_UI_STATE_KEY = "price-lists:ui-state";
@@ -82,6 +85,7 @@ const pricingChipClass = {
 
 export default function PriceListsPage() {
   const { currentCompany, user } = useAuth();
+  const { settings: companySettings } = useCompanyBrand();
   const [searchParams, setSearchParams] = useSearchParams();
   const storageKey = currentCompany ? `${PRICE_LISTS_UI_STATE_KEY}:${currentCompany.id}` : null;
   const baseColumnsStorageKey = `${PRICE_BASE_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
@@ -113,6 +117,10 @@ export default function PriceListsPage() {
   const [consultListId, setConsultListId] = useState<string | null>(null);
   const [consultCategory, setConsultCategory] = useState<string>("all");
   const itemIdFromQuery = searchParams.get("itemId");
+  const priceRoundingConfig = useMemo(() => ({
+    enabled: companySettings.price_rounding_enabled,
+    increment: companySettings.price_rounding_increment,
+  }), [companySettings.price_rounding_enabled, companySettings.price_rounding_increment]);
 
   const stockQuery = useQuery({
     queryKey: ["items-stock-totals", currentCompany?.id ?? null],
@@ -562,7 +570,7 @@ export default function PriceListsPage() {
                       <th className="p-3">SKU</th>
                       <th className="p-3">Producto</th>
                       <th className="p-3">Costo base</th>
-                      <th className="p-3">Precio lista</th>
+                      <th className="p-3">Precio operativo</th>
                       <th className="p-3">Margen aprox.</th>
                       <th className="p-3">Estado</th>
                       <th className="p-3">Lista</th>
@@ -573,7 +581,11 @@ export default function PriceListsPage() {
                       <tr><td className="p-6 text-center text-muted-foreground" colSpan={7}>No hay resultados para esta consulta.</td></tr>
                     ) : filteredConsultationRows.map((row) => {
                       const price = row.calculated_price ?? 0;
-                      const marginPct = price > 0 ? ((price - row.base_cost) / price) * 100 : null;
+                      const { operationalPrice } = getOperationalPrice(row.has_price ? price : null, priceRoundingConfig);
+                      const marginPct =
+                        typeof operationalPrice === "number" && operationalPrice > 0
+                          ? ((operationalPrice - row.base_cost) / operationalPrice) * 100
+                          : null;
                       const state = !row.base_cost ? "Sin costo" : !row.has_price ? "Sin precio" : row.needs_recalculation ? "Precio de lista" : "Precio manual";
                       return (
                         <tr key={row.item_id} className={row.item_id === itemIdFromQuery ? "bg-primary/5" : ""}>
@@ -583,7 +595,16 @@ export default function PriceListsPage() {
                             <div className="text-xs text-muted-foreground">{row.category ?? "Sin categoría"}</div>
                           </td>
                           <td className="p-3">{formatMoney(row.base_cost)}</td>
-                          <td className="p-3">{row.has_price ? formatMoney(price) : "-"}</td>
+                          <td className="p-3">
+                            {row.has_price ? (
+                              <OperationalPriceDisplay
+                                value={price}
+                                config={priceRoundingConfig}
+                                formatValue={formatMoney}
+                                valueClassName="text-sm font-semibold"
+                              />
+                            ) : "-"}
+                          </td>
                           <td className="p-3">{marginPct === null ? "-" : `${marginPct.toFixed(1)}%`}</td>
                           <td className="p-3"><Badge variant="outline">{state}</Badge></td>
                           <td className="p-3 text-muted-foreground">{formatDateTime(row.last_calculated_at)}</td>
@@ -678,6 +699,7 @@ export default function PriceListsPage() {
         isSavingConfig={updateListConfigMutation.isPending}
         isDeleting={deleteListMutation.isPending}
         stockByItemId={stockByItemId}
+        priceRoundingConfig={priceRoundingConfig}
         renderUserName={renderUserName}
         renderPricingSummary={renderPricingSummary}
         onOpenChange={setDetailDialogOpen}

@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Item, ItemOperationalMeta } from "@/features/items/types";
+import { OperationalPriceDisplay } from "@/features/pricing/OperationalPriceDisplay";
+import type { PriceRoundingConfig } from "@/features/pricing/rounding";
 
 export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "attributes" | "category" | "is_active" | "created_at" | "stock";
 export type SortDirection = "asc" | "desc";
@@ -25,6 +27,7 @@ type ItemsDataTableProps = {
   /** Map of item_id → total stock quantity (from stock-current query) */
   stockByItemId: Map<string, number>;
   operationalMetaByItemId: Map<string, ItemOperationalMeta>;
+  priceRoundingConfig?: PriceRoundingConfig | null;
   onSort: (field: ItemSortField) => void;
   onSelectionChange: (next: string[]) => void;
   onEdit: (item: Item) => void;
@@ -134,6 +137,7 @@ function ItemsDataTableComponent({
   sortDirection,
   stockByItemId,
   operationalMetaByItemId,
+  priceRoundingConfig,
   onSort,
   onSelectionChange,
   onEdit,
@@ -260,7 +264,13 @@ function ItemsDataTableComponent({
         const meta = operationalMetaByItemId.get(row.original.id);
         return (
           <div className="min-w-0 text-right">
-            <span className="block text-xs font-semibold">{formatMoney(meta?.main_price)}</span>
+            <OperationalPriceDisplay
+              value={meta?.main_price_original ?? meta?.main_price}
+              config={priceRoundingConfig}
+              formatValue={formatMoney}
+              valueClassName="text-xs font-semibold"
+              originalClassName="max-w-[120px]"
+            />
             {meta?.main_price_list_name ? (
               <span className="block truncate text-[10px] text-muted-foreground">{meta.main_price_list_name}</span>
             ) : null}
@@ -457,7 +467,7 @@ function ItemsDataTableComponent({
         cellClassName: "py-1.5",
       },
     },
-  ], [allVisibleSelected, items, onCopySku, onDelete, onEdit, onRestore, onSelectionChange, onSort, operationalMetaByItemId, selectedItemIds, sortBy, sortDirection, stockByItemId]);
+  ], [allVisibleSelected, items, onCopySku, onDelete, onEdit, onRestore, onSelectionChange, onSort, operationalMetaByItemId, priceRoundingConfig, selectedItemIds, sortBy, sortDirection, stockByItemId]);
 
   return (
     <div className="overflow-x-auto">
@@ -488,4 +498,5 @@ export const ItemsDataTable = memo(ItemsDataTableComponent, (prev, next) => (
   && prev.sortDirection === next.sortDirection
   && prev.stockByItemId === next.stockByItemId
   && prev.operationalMetaByItemId === next.operationalMetaByItemId
+  && prev.priceRoundingConfig === next.priceRoundingConfig
 ));
