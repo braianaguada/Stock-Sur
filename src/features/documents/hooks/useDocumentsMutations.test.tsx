@@ -4,6 +4,14 @@ import type { PropsWithChildren } from "react";
 import { normalizeDraftLine, useDocumentsMutations } from "./useDocumentsMutations";
 import type { DocumentFormState, LineDraft, PriceListItemRow } from "../types";
 
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    from: () => {
+      throw new Error("Supabase should not be called by these unit tests");
+    },
+  },
+}));
+
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({}),
   useMutation: (options: { mutationFn: () => Promise<unknown> }) => ({
