@@ -35,6 +35,8 @@ interface DocumentsPreviewDialogProps {
   onSetExternalInvoice: (documentId: string, externalInvoiceNumber: string) => void;
   onClearExternalInvoice: (documentId: string) => void;
   isUpdatingExternalInvoice: boolean;
+  canPrintDocument: boolean;
+  onOpenPrint: (document: DocRow) => void;
 }
 
 const HISTORY_TONE_COLORS: Record<string, { bg: string; border: string; text: string; line: string; icon: LucideIcon }> = {
@@ -116,6 +118,8 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     onSetExternalInvoice,
     onClearExternalInvoice,
     isUpdatingExternalInvoice,
+    canPrintDocument,
+    onOpenPrint,
   } = props;
 
   const handleSetExternalInvoice = () => {
@@ -417,6 +421,26 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
             </aside>
           </div>
         ) : null}
+
+        <div className="flex shrink-0 justify-end gap-2 border-t border-slate-300/70 bg-white px-5 py-4">
+          <Button
+            type="button"
+            variant="outline"
+            className="border-slate-400 bg-white text-slate-800 hover:border-slate-500 hover:bg-slate-100 hover:text-slate-950"
+            onClick={() => onOpenChange(false)}
+          >
+            Cerrar
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              if (selectedDocument) onOpenPrint(selectedDocument);
+            }}
+            disabled={!selectedDocument || !canPrintDocument}
+          >
+            Abrir impresion
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

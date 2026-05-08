@@ -631,6 +631,11 @@ export default function DocumentsPage() {
             isUpdatingExternalInvoice={
               setExternalInvoiceMutation.isPending || clearExternalInvoiceMutation.isPending
             }
+            canPrintDocument={canPrintDocument(roles)}
+            onOpenPrint={(document) => {
+              if (!canPrintDocument(roles)) return;
+              void printDocument(document);
+            }}
           />
         </Suspense>
       ) : null}
