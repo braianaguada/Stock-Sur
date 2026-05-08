@@ -29,6 +29,7 @@ import { DocumentsDataTable } from "@/features/documents/components/DocumentsDat
 import { useDocumentsData } from "@/features/documents/hooks/useDocumentsData";
 import { useDocumentDraftLoader } from "@/features/documents/hooks/useDocumentDraftLoader";
 import { useDocumentsMutations } from "@/features/documents/hooks/useDocumentsMutations";
+import { DUPLICATE_DOCUMENT_CONFIRMATION } from "@/features/documents/lib/duplicate";
 import { buildDocumentPrintHtml } from "@/features/documents/print";
 import type {
   CustomerKind,
@@ -271,6 +272,7 @@ export default function DocumentsPage() {
     transitionMutation,
     cloneAsRemitoMutation,
     cloneAsReturnMutation,
+    duplicateDocumentMutation,
     setExternalInvoiceMutation,
     clearExternalInvoiceMutation,
   } = useDocumentsMutations({
@@ -564,6 +566,17 @@ export default function DocumentsPage() {
             if (!canCloneBudgetToRemito(roles)) return;
             cloneAsRemitoMutation.mutate(documentId);
           }}
+          onDuplicateDocument={(documentId) => {
+            if (!canCreateDocumentDraft(roles)) return;
+            const confirmed = window.confirm(DUPLICATE_DOCUMENT_CONFIRMATION);
+            if (!confirmed) return;
+            duplicateDocumentMutation.mutate(documentId, {
+              onSuccess: (newDocumentId) => {
+                setSelectedDocId(newDocumentId);
+                setDetailOpen(true);
+              },
+            });
+          }}
           onGenerateReturn={(documentId) => {
             const confirmed = window.confirm("Vas a generar una devolucion desde este remito. Confirmá que corresponde.");
             if (!confirmed) return;
@@ -574,6 +587,7 @@ export default function DocumentsPage() {
           canEditDocumentDraft={canEditDocumentDraft(roles)}
           canIssueRemito={canIssueRemito(roles)}
           canCloneBudgetToRemito={canCloneBudgetToRemito(roles)}
+          canDuplicateDocument={canCreateDocumentDraft(roles)}
           canTransitionDocumentTo={(status) =>
             status === "EMITIDO"
               ? false
@@ -659,6 +673,19 @@ export default function DocumentsPage() {
               if (!canPrintDocument(roles)) return;
               void printDocument(document);
             }}
+          onDuplicateDocument={(document) => {
+              if (!canCreateDocumentDraft(roles)) return;
+              const confirmed = window.confirm(DUPLICATE_DOCUMENT_CONFIRMATION);
+              if (!confirmed) return;
+              duplicateDocumentMutation.mutate(document.id, {
+                onSuccess: (newDocumentId) => {
+                  setSelectedDocId(newDocumentId);
+                  setDetailOpen(true);
+                },
+              });
+            }}
+            isDuplicatingDocument={duplicateDocumentMutation.isPending}
+            canDuplicateDocument={canCreateDocumentDraft(roles)}
           />
         </Suspense>
       ) : null}

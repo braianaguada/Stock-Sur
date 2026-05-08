@@ -80,6 +80,17 @@ export function describeDocumentHistoryEvent(event: DocEventRow) {
         detail: "Se guardaron cambios",
         tone: "info" as const,
       };
+    case "DUPLICATED_FROM_DOCUMENT": {
+      const sourceNumber = typeof payload?.source_number === "string" ? payload.source_number : null;
+      const sourceDocType = typeof payload?.source_doc_type === "string" ? payload.source_doc_type : null;
+      return {
+        title: "Documento duplicado",
+        detail: sourceNumber
+          ? `Creado desde ${sourceDocType === "REMITO" ? "remito" : "presupuesto"} ${sourceNumber}`
+          : "Creado desde otro documento",
+        tone: "info" as const,
+      };
+    }
     case "STATUS_CHANGED": {
       const from = typeof payload?.from === "string" ? payload.from : null;
       const to = typeof payload?.to === "string" ? payload.to : null;

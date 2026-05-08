@@ -2,19 +2,29 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Client } from "pg";
 import crypto from "node:crypto";
 
-const DB_HOST = "db.tihjnbfdjnjobxxecuaz.supabase.co";
-const DB_PASSWORD = process.env.PGPASSWORD;
+const DEFAULT_DB_HOST = "db.tihjnbfdjnjobxxecuaz.supabase.co";
+const DB_PASSWORD = process.env.PGPASSWORD ?? "";
+const DB_HOST = process.env.PGHOST ?? DEFAULT_DB_HOST;
+const DB_PORT = Number(process.env.PGPORT ?? 5432);
+const DB_USER = process.env.PGUSER ?? "postgres";
+const DB_NAME = process.env.PGDATABASE ?? "postgres";
+const DATABASE_URL = process.env.DATABASE_URL;
 
 const describeCriticalDb = DB_PASSWORD ? describe : describe.skip;
 
-const client = new Client({
-  host: DB_HOST,
-  port: 5432,
-  user: "postgres",
-  password: DB_PASSWORD,
-  database: "postgres",
-  ssl: { rejectUnauthorized: false },
-});
+const client = DATABASE_URL
+  ? new Client({
+      connectionString: DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    })
+  : new Client({
+      host: DB_HOST,
+      port: DB_PORT,
+      user: DB_USER,
+      password: DB_PASSWORD,
+      database: DB_NAME,
+      ssl: { rejectUnauthorized: false },
+    });
 
 async function withRollback<T>(fn: () => Promise<T>): Promise<T> {
   await client.query("begin");
@@ -212,7 +222,7 @@ describeCriticalDb("critical database rules", () => {
       );
       expect(Number(after.rows[0].balance)).toBe(5);
     });
-  });
+  }, 15000);
 
   it("bloquea cambios de factura externa si el remito ya se usó en caja", async () => {
     await withRollback(async () => {
@@ -255,6 +265,118 @@ describeCriticalDb("critical database rules", () => {
 
       await expect(client.query(`select * from public.set_document_external_invoice($1, $2, current_date)`, [documentId, "F-001-0001"])).rejects.toThrow();
       await expect(client.query(`select * from public.clear_document_external_invoice($1)`, [documentId])).rejects.toThrow();
+    });
+  });
+
+  it("duplica presupuesto como borrador sin numero y conserva lineas", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await setActor(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedPermission(companyUserId, "documents.create");
+
+      const itemId = await seedItem(companyId, userId);
+      const sourceId = crypto.randomUUID();
+      await client.query(
+        `insert into public.documents (
+          id, doc_type, status, point_of_sale, document_number, issue_date, subtotal, discount_total, total, tax_total,
+          customer_name, customer_tax_id, customer_tax_condition, customer_kind, payment_terms, delivery_address,
+          salesperson, notes, created_by, created_at, updated_at, company_id
+        )
+        values (
+          $1, 'PRESUPUESTO', 'APROBADO', 3, 22, current_date - 5, 250, 0, 250, 0,
+          'Cliente Test', '20-123', 'RI', 'GENERAL', 'Contado', 'Deposito',
+          'Vendedor', 'Notas fuente', $2, now(), now(), $3
+        )`,
+        [sourceId, userId, companyId],
+      );
+      await client.query(
+        `insert into public.document_lines (
+          id, document_id, line_order, item_id, description, quantity, unit_price, discount_pct, line_total,
+          created_by, created_at, updated_at, tax_pct, pricing_mode, suggested_unit_price, base_cost_snapshot,
+          list_flete_pct_snapshot, list_utilidad_pct_snapshot, list_impuesto_pct_snapshot, manual_margin_pct
+        )
+        values ($1, $2, 1, $3, 'Line', 2, 125, 0, 250, $4, now(), now(), 0, 'MANUAL_PRICE', 150, 90, 10, 20, 21, 30)`,
+        [crypto.randomUUID(), sourceId, itemId, userId],
+      );
+
+      const duplicated = await client.query(`select * from public.duplicate_document($1)`, [sourceId]);
+      const newDoc = duplicated.rows[0];
+      expect(newDoc.doc_type).toBe("PRESUPUESTO");
+      expect(newDoc.status).toBe("BORRADOR");
+      expect(newDoc.document_number).toBeNull();
+      expect(newDoc.source_document_id).toBe(sourceId);
+      expect(newDoc.source_document_type).toBe("PRESUPUESTO");
+      expect(newDoc.source_document_number_snapshot).toBe("0003-00000022");
+
+      const lines = await client.query(
+        `select item_id, quantity, unit_price, pricing_mode, suggested_unit_price, base_cost_snapshot, manual_margin_pct
+         from public.document_lines where document_id = $1`,
+        [newDoc.id],
+      );
+      expect(lines.rowCount).toBe(1);
+      expect(lines.rows[0]).toMatchObject({ item_id: itemId, pricing_mode: "MANUAL_PRICE" });
+      expect(Number(lines.rows[0].quantity)).toBe(2);
+      expect(Number(lines.rows[0].unit_price)).toBe(125);
+      expect(Number(lines.rows[0].suggested_unit_price)).toBe(150);
+      expect(Number(lines.rows[0].base_cost_snapshot)).toBe(90);
+      expect(Number(lines.rows[0].manual_margin_pct)).toBe(30);
+    });
+  });
+
+  it("duplica remito sin factura externa ni movimientos de stock y bloquea devoluciones", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await setActor(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedPermission(companyUserId, "documents.create");
+
+      const itemId = await seedItem(companyId, userId);
+      const sourceId = crypto.randomUUID();
+      await client.query(
+        `insert into public.documents (
+          id, doc_type, status, point_of_sale, document_number, issue_date, subtotal, discount_total, total, tax_total,
+          customer_kind, external_invoice_number, external_invoice_date, external_invoice_status,
+          created_by, created_at, updated_at, company_id
+        )
+        values ($1, 'REMITO', 'EMITIDO', 1, 9, current_date - 2, 100, 0, 100, 0, 'GENERAL', 'F-001', current_date, 'ACTIVE', $2, now(), now(), $3)`,
+        [sourceId, userId, companyId],
+      );
+      await client.query(
+        `insert into public.document_lines (id, document_id, line_order, item_id, description, quantity, unit_price, discount_pct, line_total, created_by, created_at, updated_at, tax_pct, pricing_mode, suggested_unit_price)
+         values ($1, $2, 1, $3, 'Line', 1, 100, 0, 100, $4, now(), now(), 0, 'LIST_PRICE', 100)`,
+        [crypto.randomUUID(), sourceId, itemId, userId],
+      );
+
+      const duplicated = await client.query(`select * from public.duplicate_document($1)`, [sourceId]);
+      const newDoc = duplicated.rows[0];
+      expect(newDoc.doc_type).toBe("REMITO");
+      expect(newDoc.status).toBe("BORRADOR");
+      expect(newDoc.document_number).toBeNull();
+      expect(newDoc.external_invoice_number).toBeNull();
+      expect(newDoc.external_invoice_date).toBeNull();
+      expect(newDoc.external_invoice_status).toBeNull();
+
+      const stock = await client.query(
+        `select count(*)::int as count from public.stock_movements where company_id = $1 and reference ilike '%' || $2 || '%'`,
+        [companyId, newDoc.id],
+      );
+      expect(stock.rows[0].count).toBe(0);
+
+      const returnId = crypto.randomUUID();
+      await client.query(
+        `insert into public.documents (id, doc_type, status, point_of_sale, issue_date, subtotal, discount_total, total, tax_total, customer_kind, created_by, created_at, updated_at, company_id)
+         values ($1, 'REMITO_DEVOLUCION', 'BORRADOR', 1, current_date, 0, 0, 0, 0, 'GENERAL', $2, now(), now(), $3)`,
+        [returnId, userId, companyId],
+      );
+
+      await expect(client.query(`select * from public.duplicate_document($1)`, [returnId])).rejects.toThrow();
     });
   });
 

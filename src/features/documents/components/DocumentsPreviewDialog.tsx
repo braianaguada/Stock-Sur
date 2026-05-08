@@ -4,6 +4,7 @@ import {
   ArrowRightLeft,
   CheckCircle2,
   Clock,
+  Copy,
   FilePenLine,
   FilePlus2,
   Link2,
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { CUSTOMER_KIND_LABEL, DOC_LABEL, DOC_TYPE_CLASS, STATUS_LABEL } from "@/features/documents/constants";
+import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
 import { describeDocumentHistoryEvent, formatNumber } from "@/features/documents/utils";
 import { formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
@@ -38,6 +40,9 @@ interface DocumentsPreviewDialogProps {
   isUpdatingExternalInvoice: boolean;
   canPrintDocument: boolean;
   onOpenPrint: (document: DocRow) => void;
+  onDuplicateDocument: (document: DocRow) => void;
+  isDuplicatingDocument: boolean;
+  canDuplicateDocument: boolean;
 }
 
 const HISTORY_TONE_COLORS: Record<string, { bg: string; border: string; text: string; line: string; icon: LucideIcon }> = {
@@ -86,6 +91,8 @@ function getHistoryIcon(eventType: string, fallback: LucideIcon) {
     case "REMITO_CREATED_FROM_BUDGET":
     case "REMIO_CREATED_FROM_BUDGET":
       return ArrowRightLeft;
+    case "DUPLICATED_FROM_DOCUMENT":
+      return Copy;
     default:
       return fallback;
   }
@@ -122,6 +129,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     isUpdatingExternalInvoice,
     canPrintDocument,
     onOpenPrint,
+    onDuplicateDocument,
+    isDuplicatingDocument,
+    canDuplicateDocument,
   } = props;
 
   const handleSetExternalInvoice = () => {
@@ -451,6 +461,20 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
           >
             Abrir impresion
           </Button>
+          {selectedDocument && canDuplicateDocumentType(selectedDocument.doc_type) ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800"
+              onClick={() => {
+                if (selectedDocument) onDuplicateDocument(selectedDocument);
+              }}
+              disabled={isDuplicatingDocument || !canDuplicateDocument}
+            >
+              <Copy className="h-4 w-4" />
+              Duplicar
+            </Button>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

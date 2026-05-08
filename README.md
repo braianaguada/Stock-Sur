@@ -100,20 +100,32 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - resumen de estado actual y fecha de creacion
   - nombre del usuario cuando esta disponible en `profiles`
   - fallback a `Sistema` o `Usuario sin nombre`
-- No se hicieron cambios de negocio en esta fase:
-  - no se modifico emision
-  - no se modifico stock
-  - no se modifico caja
-  - no se modifico cuenta corriente
-  - no se agregaron migraciones nuevas para este redisenio
+- Duplicado operativo de documentos comerciales:
+  - disponible para `PRESUPUESTO` y `REMITO` desde tabla y vista previa
+  - crea un nuevo `BORRADOR` con cliente, tecnico, snapshots fiscales, condiciones, lista de precios, notas, lineas, precios y snapshots de pricing
+  - resetea numeracion, factura externa, estado emitido/aprobado, eventos previos y vinculos operativos
+  - no genera stock, caja ni cuenta corriente
+  - no esta disponible para `REMITO_DEVOLUCION`
+  - agrega trazabilidad con `source_document_id`, `source_document_type`, `source_document_number_snapshot` y evento `DUPLICATED_FROM_DOCUMENT`
+- Migraciones nuevas:
+  - `supabase/migrations/20260508143000_duplicate_documents.sql`
+- Cobertura QA agregada para duplicado:
+  - `src/features/documents/lib/duplicate.test.ts` cubre reglas de payload, fecha actual, bloqueo de devoluciones, trazabilidad y copia de lineas/snapshots sin reutilizar ids
+  - `src/features/documents/components/DocumentsDataTable.test.tsx` cubre accion visible para `PRESUPUESTO`/`REMITO`, oculta para `REMITO_DEVOLUCION` y deshabilitada sin permiso de creacion
+  - `src/features/db/criticalDb.test.ts` incluye casos de RPC real para duplicado de presupuesto/remito y bloqueo de devoluciones cuando se ejecuta con `DATABASE_URL` o variables `PG*` (`PGPASSWORD`, `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE`)
+- Validacion manual recomendada en staging:
+  - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
+  - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
+  - confirmar que `REMITO_DEVOLUCION` no muestra accion de duplicado
 
 ### Validaciones usadas para estos cambios
 
 ```sh
+npm run db:push:staging
 npm run typecheck
 npm run lint
-npm run test -- --run src/features/documents/print.test.ts src/features/documents/lib/returns.test.ts
-npm run test -- --run src/features/services/print.test.ts
+npm run test -- --run src/features/documents/lib/duplicate.test.ts src/features/documents/components/DocumentsDataTable.test.tsx
+npm run test
 npm run build
 ```
 
