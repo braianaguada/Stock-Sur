@@ -2,19 +2,29 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Client } from "pg";
 import crypto from "node:crypto";
 
-const DB_HOST = "db.tihjnbfdjnjobxxecuaz.supabase.co";
-const DB_PASSWORD = process.env.PGPASSWORD;
+const DEFAULT_DB_HOST = "db.tihjnbfdjnjobxxecuaz.supabase.co";
+const DB_PASSWORD = process.env.PGPASSWORD ?? "";
+const DB_HOST = process.env.PGHOST ?? DEFAULT_DB_HOST;
+const DB_PORT = Number(process.env.PGPORT ?? 5432);
+const DB_USER = process.env.PGUSER ?? "postgres";
+const DB_NAME = process.env.PGDATABASE ?? "postgres";
+const DATABASE_URL = process.env.DATABASE_URL;
 
 const describeCriticalDb = DB_PASSWORD ? describe : describe.skip;
 
-const client = new Client({
-  host: DB_HOST,
-  port: 5432,
-  user: "postgres",
-  password: DB_PASSWORD,
-  database: "postgres",
-  ssl: { rejectUnauthorized: false },
-});
+const client = DATABASE_URL
+  ? new Client({
+      connectionString: DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    })
+  : new Client({
+      host: DB_HOST,
+      port: DB_PORT,
+      user: DB_USER,
+      password: DB_PASSWORD,
+      database: DB_NAME,
+      ssl: { rejectUnauthorized: false },
+    });
 
 async function withRollback<T>(fn: () => Promise<T>): Promise<T> {
   await client.query("begin");
