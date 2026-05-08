@@ -5,6 +5,7 @@ import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DOC_LABEL, DOC_TYPE_CLASS, STATUS_CLASS, STATUS_LABEL, STATUS_VARIANT } from "@/features/documents/constants";
+import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocRow, DocStatus } from "@/features/documents/types";
 import { formatNumber } from "@/features/documents/utils";
 import { formatIsoDate } from "@/lib/formatters";
@@ -147,7 +148,7 @@ export function DocumentsDataTable({
                 <Pencil className="h-4 w-4" />
               </Button>
             ) : null}
-            {doc.doc_type === "PRESUPUESTO" || doc.doc_type === "REMITO" ? (
+            {canDuplicateDocumentType(doc.doc_type) ? (
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-indigo-500 hover:text-indigo-400" onClick={() => onDuplicateDocument(doc.id)} title="Duplicar" disabled={!canDuplicateDocument}>
                 <Copy className="h-4 w-4" />
               </Button>

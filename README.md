@@ -109,6 +109,14 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - agrega trazabilidad con `source_document_id`, `source_document_type`, `source_document_number_snapshot` y evento `DUPLICATED_FROM_DOCUMENT`
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
+- Cobertura QA agregada para duplicado:
+  - `src/features/documents/lib/duplicate.test.ts` cubre reglas de payload, fecha actual, bloqueo de devoluciones, trazabilidad y copia de lineas/snapshots sin reutilizar ids
+  - `src/features/documents/components/DocumentsDataTable.test.tsx` cubre accion visible para `PRESUPUESTO`/`REMITO`, oculta para `REMITO_DEVOLUCION` y deshabilitada sin permiso de creacion
+  - `src/features/db/criticalDb.test.ts` incluye casos de RPC real para duplicado de presupuesto/remito y bloqueo de devoluciones cuando se ejecuta con `PGPASSWORD`
+- Validacion manual recomendada en staging:
+  - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
+  - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
+  - confirmar que `REMITO_DEVOLUCION` no muestra accion de duplicado
 
 ### Validaciones usadas para estos cambios
 
@@ -116,6 +124,7 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
 npm run db:push:staging
 npm run typecheck
 npm run lint
+npm run test -- --run src/features/documents/lib/duplicate.test.ts src/features/documents/components/DocumentsDataTable.test.tsx
 npm run test
 npm run build
 ```

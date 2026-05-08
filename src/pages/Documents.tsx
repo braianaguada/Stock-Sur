@@ -29,6 +29,7 @@ import { DocumentsDataTable } from "@/features/documents/components/DocumentsDat
 import { useDocumentsData } from "@/features/documents/hooks/useDocumentsData";
 import { useDocumentDraftLoader } from "@/features/documents/hooks/useDocumentDraftLoader";
 import { useDocumentsMutations } from "@/features/documents/hooks/useDocumentsMutations";
+import { DUPLICATE_DOCUMENT_CONFIRMATION } from "@/features/documents/lib/duplicate";
 import { buildDocumentPrintHtml } from "@/features/documents/print";
 import type {
   CustomerKind,
@@ -567,7 +568,7 @@ export default function DocumentsPage() {
           }}
           onDuplicateDocument={(documentId) => {
             if (!canCreateDocumentDraft(roles)) return;
-            const confirmed = window.confirm("Se creara un borrador nuevo con las mismas lineas y datos principales.");
+            const confirmed = window.confirm(DUPLICATE_DOCUMENT_CONFIRMATION);
             if (!confirmed) return;
             duplicateDocumentMutation.mutate(documentId, {
               onSuccess: (newDocumentId) => {
@@ -674,7 +675,7 @@ export default function DocumentsPage() {
             }}
           onDuplicateDocument={(document) => {
               if (!canCreateDocumentDraft(roles)) return;
-              const confirmed = window.confirm("Se creara un borrador nuevo con las mismas lineas y datos principales.");
+              const confirmed = window.confirm(DUPLICATE_DOCUMENT_CONFIRMATION);
               if (!confirmed) return;
               duplicateDocumentMutation.mutate(document.id, {
                 onSuccess: (newDocumentId) => {

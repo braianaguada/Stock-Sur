@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { CUSTOMER_KIND_LABEL, DOC_LABEL, DOC_TYPE_CLASS, STATUS_LABEL } from "@/features/documents/constants";
+import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
 import { describeDocumentHistoryEvent, formatNumber } from "@/features/documents/utils";
 import { formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
@@ -460,7 +461,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
           >
             Abrir impresion
           </Button>
-          {selectedDocument?.doc_type === "PRESUPUESTO" || selectedDocument?.doc_type === "REMITO" ? (
+          {selectedDocument && canDuplicateDocumentType(selectedDocument.doc_type) ? (
             <Button
               type="button"
               variant="outline"
