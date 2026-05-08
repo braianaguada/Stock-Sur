@@ -5,6 +5,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { invalidateDocumentQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import { STATUS_LABEL } from "../constants";
+import { buildReturnDraftPayload } from "../lib/returns";
 import type {
   DocRow,
   DocStatus,
@@ -314,11 +315,17 @@ export function useDocumentsMutations({
       if (!currentDocument) {
         throw new Error("El documento seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
       }
-      if (currentDocument.doc_type !== "REMITO") {
-        throw new Error("Solo los remitos se emiten");
+      if (currentDocument.doc_type !== "REMITO" && currentDocument.doc_type !== "REMITO_DEVOLUCION") {
+        throw new Error("Solo los remitos y sus devoluciones se emiten");
       }
-      if (Number(currentDocument.total) <= 0) {
+      if (currentDocument.doc_type === "REMITO" && Number(currentDocument.total) <= 0) {
         throw new Error("No se puede emitir un remito con total cero");
+      }
+      if (currentDocument.doc_type === "REMITO_DEVOLUCION" && !currentDocument.origin_document_id) {
+        throw new Error("La devolucion debe referenciar un remito original");
+      }
+      if (currentDocument.doc_type === "REMITO_DEVOLUCION" && !currentDocument.technician_id) {
+        throw new Error("La devolucion debe estar asociada a un tecnico");
       }
       const { data: remitoLines, error: linesError } = await supabase
         .from("document_lines")
@@ -326,7 +333,7 @@ export function useDocumentsMutations({
         .eq("document_id", documentId);
       if (linesError) throw linesError;
       if ((remitoLines ?? []).some((line) => !line.item_id)) {
-        throw new Error("El remito tiene lineas sin item asociado y no se puede emitir");
+        throw new Error("El documento tiene lineas sin item asociado y no se puede emitir");
       }
       const { error } = await supabase.rpc("issue_document", { p_document_id: documentId });
       if (error) throw error;
@@ -520,39 +527,28 @@ export function useDocumentsMutations({
       if (src.status !== "EMITIDO") {
         throw new Error("Solo se puede devolver un remito emitido");
       }
+      if (!src.technician_id) {
+        throw new Error("La devolucion debe estar asociada a un tecnico");
+      }
+
+      const returnPayload = buildReturnDraftPayload({
+        originDocument: src,
+        originLines: srcLines ?? [],
+        sourceNumber: formatNumber(src.document_number, src.point_of_sale),
+      });
 
       const { data: newDoc, error: newDocErr } = await supabase
         .from("documents")
         .insert({
           company_id: currentCompanyId,
-          doc_type: "REMITO_DEVOLUCION",
-          status: "BORRADOR",
-          point_of_sale: src.point_of_sale,
-          customer_id: src.customer_id,
-          technician_id: src.technician_id,
-          customer_name: src.customer_name,
-          customer_tax_condition: src.customer_tax_condition,
-          customer_tax_id: src.customer_tax_id,
-          customer_kind: src.customer_kind,
-          payment_terms: src.payment_terms,
-          delivery_address: src.delivery_address,
-          salesperson: src.salesperson,
-          price_list_id: src.price_list_id,
-          origin_document_id: src.id,
-          source_document_id: src.id,
-          source_document_type: src.doc_type,
-          source_document_number_snapshot: formatNumber(src.document_number, src.point_of_sale),
-          notes: src.notes,
-          subtotal: 0,
-          tax_total: 0,
-          total: 0,
+          ...returnPayload.document,
           created_by: userId,
         })
         .select("id")
         .single();
       if (newDocErr) throw newDocErr;
 
-      const linesPayload = (srcLines ?? []).map((line) => ({
+      const linesPayload = returnPayload.lines.map((line) => ({
         document_id: newDoc.id,
         line_order: line.line_order,
         item_id: line.item_id,

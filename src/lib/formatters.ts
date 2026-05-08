@@ -6,6 +6,11 @@ export const currency = new Intl.NumberFormat("es-AR", {
 
 const AR_TIME_ZONE = "America/Argentina/Buenos_Aires";
 
+function parseValidDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function formatTime(value: string) {
   return new Intl.DateTimeFormat("es-AR", {
     timeZone: AR_TIME_ZONE,
@@ -83,20 +88,26 @@ export function todayBusinessDateInputValue() {
 }
 
 export function formatTimestampDate(value: string) {
+  const date = parseValidDate(value);
+  if (!date) return "-";
+
   return new Intl.DateTimeFormat("es-AR", {
     timeZone: AR_TIME_ZONE,
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 export function formatTimestampTime(value: string) {
+  const date = parseValidDate(value);
+  if (!date) return "-";
+
   return new Intl.DateTimeFormat("es-AR", {
     timeZone: AR_TIME_ZONE,
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 export function formatDocumentNumber(pointOfSale: number, documentNumber: number | null) {

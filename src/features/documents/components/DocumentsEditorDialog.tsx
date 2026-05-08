@@ -60,6 +60,7 @@ interface DocumentsEditorDialogProps {
   onSubmit: () => void;
   onResetDraftForm: () => void;
   isSubmitting: boolean;
+  sourceDocumentLabel?: string | null;
 }
 
 function formatMoney(value: number) {
@@ -85,10 +86,12 @@ export function DocumentsEditorDialog({
   onSubmit,
   onResetDraftForm,
   isSubmitting,
+  sourceDocumentLabel,
 }: DocumentsEditorDialogProps) {
   const [itemSearch, setItemSearch] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const deferredItemSearch = useDeferredValue(itemSearch);
+  const isReturn = documentForm.doc_type === "REMITO_DEVOLUCION";
 
   const selectedPriceList = useMemo(
     () => priceLists.find((priceList) => priceList.id === documentForm.price_list_id) ?? null,
@@ -150,7 +153,7 @@ export function DocumentsEditorDialog({
           onResetDraftForm();
         }
       }}
-      title={editingDocId ? "Editar borrador" : "Nuevo documento"}
+      title={editingDocId ? (isReturn ? "Editar devolucion" : "Editar borrador") : "Nuevo documento"}
       contentClassName="!w-[min(98vw,1680px)] sm:!w-[min(98vw,1680px)] !max-w-[1680px] sm:!max-w-[1680px] max-h-[92vh] overflow-x-hidden overflow-y-auto"
     >
       <form
@@ -160,11 +163,20 @@ export function DocumentsEditorDialog({
         }}
         className="space-y-4"
       >
+        {isReturn ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Devolucion de remito origen: <span className="font-semibold">{sourceDocumentLabel ?? "sin referencia visible"}</span>
+          </div>
+        ) : null}
+
         <div className="rounded-xl border border-border/70 bg-card/60 shadow-sm relative">
           <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
             <div className="p-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 items-start">
               <div className="space-y-2">
                 <Label>Tipo *</Label>
+                {isReturn ? (
+                  <Input value="Devolucion de remito" disabled />
+                ) : (
                 <Select
                   value={documentForm.doc_type}
                   onValueChange={(value) =>
@@ -192,6 +204,7 @@ export function DocumentsEditorDialog({
                     <SelectItem value="REMITO">Remito</SelectItem>
                   </SelectContent>
                 </Select>
+                )}
               </div>
 
               <div className="space-y-2 lg:hidden xl:block">
@@ -438,12 +451,16 @@ export function DocumentsEditorDialog({
           <div className="flex flex-col gap-1">
             <Label className="text-base">Productos ({lines.length})</Label>
             <p className="text-sm text-muted-foreground mr-[200px]">
-              Busca en la lista activa ({selectedPriceList?.name ?? "Ninguna"}) y agrega productos. 
-              <span className="hidden sm:inline"> Presiona <strong>Enter</strong> para sumar rápidamente el primero.</span>
+              {isReturn
+                ? "Ajusta las cantidades a devolver antes de emitir."
+                : `Busca en la lista activa (${selectedPriceList?.name ?? "Ninguna"}) y agrega productos.`}
+              {!isReturn ? (
+                <span className="hidden sm:inline"> Presiona <strong>Enter</strong> para sumar rápidamente el primero.</span>
+              ) : null}
             </p>
           </div>
 
-          <div className="space-y-3">
+          <div className={isReturn ? "hidden" : "space-y-3"}>
             <div className="relative max-w-sm flex-1 min-w-[200px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input

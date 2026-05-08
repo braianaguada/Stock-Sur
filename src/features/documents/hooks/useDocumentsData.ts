@@ -163,7 +163,7 @@ export function useDocumentsData({
     queryFn: async () => {
       let q = supabase
         .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, origin_document_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
         .eq("company_id", currentCompanyId!)
         .order("created_at", { ascending: false });
       if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
@@ -205,7 +205,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, origin_document_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
         .eq("company_id", currentCompanyId!)
         .eq("id", selectedDocId!)
         .maybeSingle();

@@ -30,6 +30,7 @@ interface DocumentsPreviewDialogProps {
   selectedEvents: DocEventRow[];
   eventUserNamesById: Map<string, string>;
   sourceDocumentLabel: string | null;
+  technicianName: string | null;
   companySettings: CompanySettings;
   isExternalInvoiceLocked: boolean;
   onSetExternalInvoice: (documentId: string, externalInvoiceNumber: string) => void;
@@ -113,6 +114,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     selectedEvents,
     eventUserNamesById,
     sourceDocumentLabel,
+    technicianName,
     companySettings,
     isExternalInvoiceLocked,
     onSetExternalInvoice,
@@ -207,10 +209,19 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       <PreviewField label="Validez" value={selectedDocument.valid_until ? formatIsoDate(selectedDocument.valid_until) : "-"} />
                       <PreviewField label="Condicion" value={selectedDocument.payment_terms ?? "-"} />
                       <PreviewField label="Vendedor" value={selectedDocument.salesperson ?? "-"} />
+                      <PreviewField label="Tecnico" value={technicianName ?? "-"} />
                     </div>
                     <div className="space-y-4 p-5">
                       <PreviewField label="Entrega" value={selectedDocument.delivery_address ?? "-"} />
                       <PreviewField label="Origen" value={sourceDocumentLabel ? <span className="font-mono">{sourceDocumentLabel}</span> : "-"} />
+                      {selectedDocument.doc_type === "REMITO_DEVOLUCION" ? (
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-600">Devolucion</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-900">
+                            Ingresa stock contra el remito origen al emitirse.
+                          </p>
+                        </div>
+                      ) : null}
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
