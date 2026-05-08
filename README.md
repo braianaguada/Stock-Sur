@@ -107,6 +107,13 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - no genera stock, caja ni cuenta corriente
   - no esta disponible para `REMITO_DEVOLUCION`
   - agrega trazabilidad con `source_document_id`, `source_document_type`, `source_document_number_snapshot` y evento `DUPLICATED_FROM_DOCUMENT`
+- Redondeo configurable de precios para documentos:
+  - se configura por empresa desde **Configuracion > Redondeo de precios**
+  - permite desactivar redondeo o redondear el precio sugerido a multiplos de 100, 500 o 1000
+  - se aplica solo al cargar productos en documentos y al normalizar nuevas lineas antes de guardar
+  - no modifica costos base, precios importados, listas originales ni snapshots de porcentajes
+  - el usuario puede seguir cambiando el precio manualmente; ese override se respeta
+  - cuando una linea nueva queda redondeada, el editor muestra un badge discreto `Redondeado` con el sugerido original en el tooltip
 - Combos de productos v1:
   - nueva ruta `/combos` para crear combos reutilizables por empresa
   - CRUD mejorado con edicion de cabecera, activacion/desactivacion y editor de lineas
@@ -137,6 +144,7 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - ventas anuladas y gastos anulados no suman; gastos efectivo reducen caja fisica y gastos no efectivo solo se informan como egreso
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
+  - `supabase/migrations/20260508160000_company_price_rounding_settings.sql`
   - `supabase/migrations/20260508150000_product_combos.sql`
   - `supabase/migrations/20260508160000_remote.sql`
   - `supabase/migrations/20260508170000_product_combos_rpc.sql`
@@ -145,6 +153,9 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - `src/features/documents/lib/duplicate.test.ts` cubre reglas de payload, fecha actual, bloqueo de devoluciones, trazabilidad y copia de lineas/snapshots sin reutilizar ids
   - `src/features/documents/components/DocumentsDataTable.test.tsx` cubre accion visible para `PRESUPUESTO`/`REMITO`, oculta para `REMITO_DEVOLUCION` y deshabilitada sin permiso de creacion
   - `src/features/db/criticalDb.test.ts` incluye casos de RPC real para duplicado de presupuesto/remito y bloqueo de devoluciones cuando se ejecuta con `DATABASE_URL` o variables `PG*` (`PGPASSWORD`, `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE`)
+- Cobertura QA agregada para redondeo:
+  - `src/features/pricing/rounding.test.ts` cubre redondeo desactivado, incrementos 100/500/1000, decimales, cero, null/undefined, negativos e incrementos invalidos
+  - `src/features/documents/hooks/useDocumentsMutations.test.tsx` cubre que una linea nueva use el precio redondeado como `unit_price`, mantenga `base_cost_snapshot` y respete override manual
 - Cobertura QA agregada para combos:
   - `src/features/combos/lib/buildComboLines.test.ts` cubre expansion de combo, multiplicador y validacion de entradas invalidas
   - `src/features/combos/lib/comboForm.test.ts` cubre la sincronizacion estable del formulario
@@ -158,6 +169,8 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
   - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
   - confirmar que `REMITO_DEVOLUCION` no muestra accion de duplicado
+  - activar redondeo a $500 en Configuracion, agregar un producto con precio sugerido decimal a un presupuesto/remito y confirmar que `Sug`, `Precio unitario` y total inicial usan el valor redondeado
+  - editar manualmente el precio unitario y guardar/reabrir el borrador para confirmar que no se recalcula automaticamente
 
 ### Validaciones usadas para estos cambios
 
@@ -165,6 +178,8 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
 npm run db:push:staging
 npm run typecheck
 npm run lint
+npm run test -- --run src/features/pricing/rounding.test.ts src/features/documents/hooks/useDocumentsMutations.test.tsx
+npm run test -- --run src/features/documents/lib/duplicate.test.ts src/features/documents/components/DocumentsDataTable.test.tsx
 npm run test
 npm run build
 ```

@@ -45,6 +45,7 @@ import type {
 } from "@/features/documents/types";
 import { calculatePriceFromCostBase, formatNumber } from "@/features/documents/utils";
 import { buildComboLines } from "@/features/combos/lib/buildComboLines";
+import { roundPrice } from "@/features/pricing/rounding";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 
@@ -91,6 +92,13 @@ export default function DocumentsPage() {
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
   const defaultPointOfSale = companySettings.default_point_of_sale ?? 1;
+  const priceRoundingConfig = useMemo(
+    () => ({
+      enabled: companySettings.price_rounding_enabled,
+      increment: companySettings.price_rounding_increment,
+    }),
+    [companySettings.price_rounding_enabled, companySettings.price_rounding_increment],
+  );
 
   const { search, deferredSearch, setSearch, trimmedSearch } = useSearch();
   const [typeFilter, setTypeFilter] = useState<DocType | "ALL">("ALL");
@@ -156,14 +164,16 @@ export default function DocumentsPage() {
   const applyRounding = useCallback(
     (price: number) => {
       const selectedPriceList = priceLists.find((priceList) => priceList.id === draftForm.price_list_id) ?? null;
-      if (!selectedPriceList || selectedPriceList.round_mode === "none") return price;
-      if (selectedPriceList.round_mode === "integer") return Math.round(price);
-      if (selectedPriceList.round_mode === "tens") return Math.round(price / 10) * 10;
-      if (selectedPriceList.round_mode === "hundreds") return Math.round(price / 100) * 100;
-      if (selectedPriceList.round_mode === "x99") return Math.floor(price / 100) * 100 + 99;
-      return price;
+      let nextPrice = price;
+      if (selectedPriceList && selectedPriceList.round_mode !== "none") {
+        if (selectedPriceList.round_mode === "integer") nextPrice = Math.round(price);
+        if (selectedPriceList.round_mode === "tens") nextPrice = Math.round(price / 10) * 10;
+        if (selectedPriceList.round_mode === "hundreds") nextPrice = Math.round(price / 100) * 100;
+        if (selectedPriceList.round_mode === "x99") nextPrice = Math.floor(price / 100) * 100 + 99;
+      }
+      return roundPrice(nextPrice, priceRoundingConfig);
     },
-    [draftForm.price_list_id, priceLists],
+    [draftForm.price_list_id, priceLists, priceRoundingConfig],
   );
   const documentsPagination = usePaginationSlice({
     items: documents,
@@ -197,8 +207,9 @@ export default function DocumentsPage() {
     ): LineDraft => {
       if (!priceListRow) return line;
 
-      const suggestedUnitPrice =
+      const unroundedSuggestedUnitPrice =
         priceByItem.get(priceListRow.item_id) ?? (Number(priceListRow.calculated_price) || 0);
+      const suggestedUnitPrice = roundPrice(unroundedSuggestedUnitPrice, priceRoundingConfig);
       const baseCost = Number(priceListRow.base_cost) || 0;
       const listFlete = priceListRow.flete_pct !== null ? Number(priceListRow.flete_pct) : null;
       const listUtilidad =
@@ -215,6 +226,8 @@ export default function DocumentsPage() {
         ...line,
         pricing_mode: nextMode,
         suggested_unit_price: suggestedUnitPrice,
+        unrounded_suggested_unit_price:
+          suggestedUnitPrice !== unroundedSuggestedUnitPrice ? unroundedSuggestedUnitPrice : null,
         base_cost_snapshot: baseCost,
         list_flete_pct_snapshot: listFlete,
         list_utilidad_pct_snapshot: listUtilidad,
@@ -240,7 +253,7 @@ export default function DocumentsPage() {
 
       return nextLine;
     },
-    [priceByItem],
+    [priceByItem, priceRoundingConfig],
   );
 
   useEffect(() => {
@@ -303,6 +316,7 @@ export default function DocumentsPage() {
     editingDocId,
     priceByItem,
     priceListItemByItemId,
+    priceRoundingConfig,
     resetDraftForm,
     setDialogOpen,
     toast,
@@ -351,7 +365,9 @@ export default function DocumentsPage() {
         attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
       }),
       unit: item.unit || "un",
-      unit_price: draftForm.price_list_id ? priceByItem.get(itemId) ?? 0 : draftLines[index].unit_price,
+      unit_price: draftForm.price_list_id
+        ? roundPrice(priceByItem.get(itemId) ?? 0, priceRoundingConfig)
+        : draftLines[index].unit_price,
     };
 
     draftLines[index] = draftForm.price_list_id

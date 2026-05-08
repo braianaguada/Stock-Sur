@@ -17,7 +17,11 @@ export function CompanyBrandProvider({ children }: { children: ReactNode }) {
         .eq("company_id", currentCompany!.id)
         .maybeSingle();
       if (error) throw error;
-      return (data ?? { ...DEFAULT_COMPANY_SETTINGS, company_id: currentCompany!.id }) as CompanySettings;
+      return {
+        ...DEFAULT_COMPANY_SETTINGS,
+        company_id: currentCompany!.id,
+        ...(data ?? {}),
+      } as CompanySettings;
     },
   });
 

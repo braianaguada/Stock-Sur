@@ -14,6 +14,7 @@ import type {
   PriceListItemRow,
 } from "../types";
 import { calculatePriceFromCostBase, formatNumber } from "../utils";
+import { roundPrice, type PriceRoundingConfig } from "@/features/pricing/rounding";
 
 type ToastFn = (args: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
 
@@ -29,16 +30,18 @@ type UseDocumentsMutationsParams = {
   editingDocId: string | null;
   priceByItem: Map<string, number>;
   priceListItemByItemId: Map<string, PriceListItemRow>;
+  priceRoundingConfig?: PriceRoundingConfig;
   resetDraftForm: () => void;
   setDialogOpen: (open: boolean) => void;
   toast: ToastFn;
 };
 
-function normalizeDraftLine({
+export function normalizeDraftLine({
   line,
   draftForm,
   priceByItem,
   priceListItemByItemId,
+  priceRoundingConfig,
   userId,
   nowIso,
 }: {
@@ -46,6 +49,7 @@ function normalizeDraftLine({
   draftForm: DocumentFormState;
   priceByItem: Map<string, number>;
   priceListItemByItemId: Map<string, PriceListItemRow>;
+  priceRoundingConfig?: PriceRoundingConfig;
   userId: string | undefined;
   nowIso: string;
 }) {
@@ -69,7 +73,8 @@ function normalizeDraftLine({
     throw new Error("Hay items sin precio en la lista seleccionada");
   }
 
-  const suggestedUnitPrice = priceByItem.get(line.item_id) ?? 0;
+  const unroundedSuggestedUnitPrice = priceByItem.get(line.item_id) ?? 0;
+  const suggestedUnitPrice = roundPrice(unroundedSuggestedUnitPrice, priceRoundingConfig);
   const baseCost = Number(priceRow.base_cost) || 0;
   const listFletePct = priceRow.flete_pct !== null ? Number(priceRow.flete_pct) : null;
   const listUtilidadPct = priceRow.utilidad_pct !== null ? Number(priceRow.utilidad_pct) : null;
@@ -132,6 +137,7 @@ export function useDocumentsMutations({
   editingDocId,
   priceByItem,
   priceListItemByItemId,
+  priceRoundingConfig,
   resetDraftForm,
   setDialogOpen,
   toast,
@@ -188,6 +194,7 @@ export function useDocumentsMutations({
             draftForm,
             priceByItem,
             priceListItemByItemId,
+            priceRoundingConfig,
             userId,
             nowIso,
           }),

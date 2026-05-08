@@ -485,6 +485,8 @@ export type Database = {
           legal_name: string | null
           logo_url: string | null
           phone: string | null
+          price_rounding_enabled: boolean
+          price_rounding_increment: number | null
           primary_color: string
           secondary_color: string
           tax_id: string | null
@@ -508,6 +510,8 @@ export type Database = {
           legal_name?: string | null
           logo_url?: string | null
           phone?: string | null
+          price_rounding_enabled?: boolean
+          price_rounding_increment?: number | null
           primary_color?: string
           secondary_color?: string
           tax_id?: string | null
@@ -531,6 +535,8 @@ export type Database = {
           legal_name?: string | null
           logo_url?: string | null
           phone?: string | null
+          price_rounding_enabled?: boolean
+          price_rounding_increment?: number | null
           primary_color?: string
           secondary_color?: string
           tax_id?: string | null

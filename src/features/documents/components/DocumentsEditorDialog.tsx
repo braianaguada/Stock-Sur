@@ -604,6 +604,16 @@ export function DocumentsEditorDialog({
                         <span>{line.unit || "un"}</span>
                         <span className="hidden sm:inline">&bull;</span>
                         <span>Sug: {formatMoney(line.suggested_unit_price)}</span>
+                        {line.unrounded_suggested_unit_price !== null
+                          && line.unrounded_suggested_unit_price !== undefined
+                          && line.unrounded_suggested_unit_price !== line.suggested_unit_price ? (
+                            <span
+                              className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
+                              title={`Original sugerido: ${formatMoney(line.unrounded_suggested_unit_price)}`}
+                            >
+                              Redondeado
+                            </span>
+                          ) : null}
                       </div>
                     </div>
 
