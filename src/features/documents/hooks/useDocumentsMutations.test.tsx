@@ -58,6 +58,7 @@ describe("useDocumentsMutations", () => {
           editingDocId: null,
           priceByItem: new Map(),
           priceListItemByItemId: new Map(),
+          priceRoundingConfig: { enabled: false, increment: null },
           resetDraftForm: vi.fn(),
           setDialogOpen: vi.fn(),
           toast: vi.fn(),
