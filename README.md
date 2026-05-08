@@ -114,10 +114,15 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - en documentos, el buscador permite agregar combos con multiplicador y se expanden a lineas reales
   - no existe stock propio ni precio propio del combo en esta fase
   - la logica de documentos sigue aplicando precios, redondeo y edicion manual por linea
+- Guardado atómico de combos:
+  - `/combos` guarda cabecera + lineas con la RPC `upsert_product_combo_with_lines`
+  - si falla una validacion o una linea, la operacion se revierte completa en Supabase
+  - al editar, se reemplaza el set de lineas dentro de la misma transaccion
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
   - `supabase/migrations/20260508150000_product_combos.sql`
   - `supabase/migrations/20260508160000_remote.sql`
+  - `supabase/migrations/20260508170000_product_combos_rpc.sql`
 - Cobertura QA agregada para duplicado:
   - `src/features/documents/lib/duplicate.test.ts` cubre reglas de payload, fecha actual, bloqueo de devoluciones, trazabilidad y copia de lineas/snapshots sin reutilizar ids
   - `src/features/documents/components/DocumentsDataTable.test.tsx` cubre accion visible para `PRESUPUESTO`/`REMITO`, oculta para `REMITO_DEVOLUCION` y deshabilitada sin permiso de creacion
@@ -152,6 +157,8 @@ Notas:
 
 - `npm run test` deja `src/features/db/criticalDb.test.ts` en `skipped` si no hay `PGPASSWORD` configurado.
 - La migracion de combos ya se aplico en staging con `npm run db:push:staging --include-all` por una diferencia de historial remoto.
+- El guardado de combos ya no persiste parcialidades cabecera/lineas: la escritura pasa por una RPC transaccional en Supabase.
+- Limitacion restante: la UI sigue siendo simple y no hay borrado fisico, importacion masiva ni combos dentro de combos.
 
 ## How can I deploy this project?
 

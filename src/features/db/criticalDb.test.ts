@@ -381,6 +381,113 @@ describeCriticalDb("critical database rules", () => {
     });
   });
 
+  it("guarda combos de manera atomica con rpc y reemplaza sus lineas al editar", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await setActor(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedPermission(companyUserId, "items.view");
+
+      const item1 = await seedItem(companyId, userId);
+      const item2 = await seedItem(companyId, userId);
+      const item3 = await seedItem(companyId, userId);
+
+      const created = await client.query(
+        `select public.upsert_product_combo_with_lines($1, null, $2, $3, true, $4::jsonb) as id`,
+        [
+          companyId,
+          "Kit AT",
+          "Base",
+          JSON.stringify([
+            { item_id: item1, quantity: 3, line_order: 1, notes: null },
+            { item_id: item2, quantity: 2, line_order: 2, notes: null },
+          ]),
+        ],
+      );
+      const comboId = created.rows[0].id as string;
+      const createdLines = await client.query(
+        `select item_id, quantity, line_order from public.product_combo_lines where combo_id = $1 order by line_order`,
+        [comboId],
+      );
+      expect(createdLines.rowCount).toBe(2);
+      expect(Number(createdLines.rows[0].quantity)).toBe(3);
+      expect(createdLines.rows[0].item_id).toBe(item1);
+
+      await client.query(
+        `select public.upsert_product_combo_with_lines($1, $2, $3, $4, false, $5::jsonb)`,
+        [
+          companyId,
+          comboId,
+          "Kit AT",
+          "Editado",
+          JSON.stringify([
+            { item_id: item2, quantity: 5, line_order: 1, notes: null },
+            { item_id: item3, quantity: 1, line_order: 2, notes: null },
+          ]),
+        ],
+      );
+
+      const updated = await client.query(`select description, is_active from public.product_combos where id = $1`, [comboId]);
+      expect(updated.rows[0].description).toBe("Editado");
+      expect(updated.rows[0].is_active).toBe(false);
+      const updatedLines = await client.query(
+        `select item_id, quantity from public.product_combo_lines where combo_id = $1 order by line_order`,
+        [comboId],
+      );
+      expect(updatedLines.rowCount).toBe(2);
+      expect(updatedLines.rows[0].item_id).toBe(item2);
+      expect(Number(updatedLines.rows[0].quantity)).toBe(5);
+      expect(updatedLines.rows[1].item_id).toBe(item3);
+    });
+  }, 15000);
+
+  it("rechaza combos invalidos sin dejar persistencia parcial", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await setActor(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedPermission(companyUserId, "items.view");
+
+      const item1 = await seedItem(companyId, userId);
+      const otherCompany = crypto.randomUUID();
+      await seedCompany(otherCompany);
+      const otherItem = await seedItem(otherCompany, userId);
+
+      await expect(
+        client.query(
+          `select public.upsert_product_combo_with_lines($1, null, $2, $3, true, $4::jsonb)`,
+          [
+            companyId,
+            "Combo invalido",
+            null,
+            JSON.stringify([{ item_id: item1, quantity: 0, line_order: 1, notes: null }]),
+          ],
+        ),
+      ).rejects.toThrow();
+
+      await expect(
+        client.query(
+          `select public.upsert_product_combo_with_lines($1, null, $2, $3, true, $4::jsonb)`,
+          [
+            companyId,
+            "Combo otro item",
+            null,
+            JSON.stringify([{ item_id: otherItem, quantity: 1, line_order: 1, notes: null }]),
+          ],
+        ),
+      ).rejects.toThrow();
+
+      const combos = await client.query(`select count(*)::int as count from public.product_combos where company_id = $1`, [companyId]);
+      expect(combos.rows[0].count).toBe(0);
+    });
+  }, 15000);
+
   it("cierra caja y calcula el efectivo esperado", async () => {
     await withRollback(async () => {
       const userId = crypto.randomUUID();

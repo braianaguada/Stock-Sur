@@ -15,6 +15,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { getErrorMessage } from "@/lib/errors";
 import type { ProductCombo, ProductComboFormLine, ProductComboLine } from "@/features/combos/types";
 import { EMPTY_PRODUCT_COMBO_LINE } from "@/features/combos/types";
+import { buildComboUpsertPayload } from "@/features/combos/lib/buildComboUpsertPayload";
 
 type ItemOption = {
   id: string;
@@ -144,65 +145,17 @@ export default function CombosPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!currentCompany?.id) throw new Error("Sin empresa activa");
-      const name = form.name.trim();
-      if (!name) throw new Error("El combo necesita un nombre");
-
-      const normalizedLines = form.lines
-        .map((line, index) => ({
-          item_id: line.item_id,
-          quantity: Number(line.quantity),
-          line_order: line.line_order || index + 1,
-          notes: line.notes.trim() || null,
-        }))
-        .filter((line) => line.item_id);
-
-      if (normalizedLines.length === 0) {
-        throw new Error("El combo necesita al menos un producto");
-      }
-
-      const uniqueItems = new Set<string>();
-      for (const line of normalizedLines) {
-        if (!Number.isFinite(line.quantity) || line.quantity <= 0) {
-          throw new Error("Todas las cantidades deben ser mayores a cero");
-        }
-        if (!itemsById.has(line.item_id)) {
-          throw new Error("No se puede usar un producto fuera de la empresa");
-        }
-        if (uniqueItems.has(line.item_id)) {
-          throw new Error("No se puede repetir el mismo producto dentro del combo");
-        }
-        uniqueItems.add(line.item_id);
-      }
-
-      const comboPayload = {
-        company_id: currentCompany.id,
-        name,
-        description: form.description.trim() || null,
-        is_active: form.is_active,
-      };
-
-      let comboId = form.id;
-      if (!comboId) {
-        const { data, error } = await supabase.from("product_combos").insert(comboPayload).select("id").single();
-        if (error) throw error;
-        comboId = data.id;
-      } else {
-        const { error } = await supabase.from("product_combos").update(comboPayload).eq("id", comboId);
-        if (error) throw error;
-        const { error: deleteError } = await supabase.from("product_combo_lines").delete().eq("combo_id", comboId);
-        if (deleteError) throw deleteError;
-      }
-
-      const linePayload = normalizedLines.map((line, index) => ({
-        combo_id: comboId,
-        item_id: line.item_id,
-        quantity: line.quantity,
-        line_order: line.line_order || index + 1,
-        notes: line.notes,
-      }));
-      const { error: insertLinesError } = await supabase.from("product_combo_lines").insert(linePayload);
-      if (insertLinesError) throw insertLinesError;
-      return comboId;
+      const payload = buildComboUpsertPayload({
+        companyId: currentCompany.id,
+        comboId: form.id,
+        name: form.name,
+        description: form.description,
+        isActive: form.is_active,
+        lines: form.lines,
+      });
+      const { data, error } = await supabase.rpc("upsert_product_combo_with_lines", payload);
+      if (error) throw error;
+      return data as string;
     },
     onSuccess: async (comboId) => {
       await qc.invalidateQueries({ queryKey: queryKeys.combos.all() });
