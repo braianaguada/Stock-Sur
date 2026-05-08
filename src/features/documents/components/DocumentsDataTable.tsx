@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Copy, Eye, FileDown, Pencil, Send } from "lucide-react";
+import { Ban, Copy, Eye, FileDown, Loader2, Pencil, Send } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ interface DocumentsDataTableProps {
   onIssueRemito: (documentId: string) => void;
   onCloneAsRemito: (documentId: string) => void;
   onGenerateReturn: (documentId: string) => void;
+  isIssuingDocument: boolean;
   canPrintDocument: boolean;
   canEditDocumentDraft: boolean;
   canIssueRemito: boolean;
@@ -38,6 +39,7 @@ export function DocumentsDataTable({
   onIssueRemito,
   onCloneAsRemito,
   onGenerateReturn,
+  isIssuingDocument,
   canPrintDocument,
   canEditDocumentDraft,
   canIssueRemito,
@@ -170,10 +172,10 @@ export function DocumentsDataTable({
                 </Button>
               </>
             ) : null}
-            {doc.doc_type === "REMITO" && doc.status === "BORRADOR" ? (
+            {(doc.doc_type === "REMITO" || doc.doc_type === "REMITO_DEVOLUCION") && doc.status === "BORRADOR" ? (
               <>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onIssueRemito(doc.id)} title="Emitir remito" disabled={!canIssueRemito}>
-                  <Send className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onIssueRemito(doc.id)} title={doc.doc_type === "REMITO_DEVOLUCION" ? "Emitir devolucion" : "Emitir remito"} disabled={!canIssueRemito || isIssuingDocument}>
+                  {isIssuingDocument ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular borrador" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" />
@@ -195,6 +197,11 @@ export function DocumentsDataTable({
                 </Button>
               </>
             ) : null}
+            {doc.doc_type === "REMITO_DEVOLUCION" && doc.status === "EMITIDO" ? (
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular devolucion" disabled={!canTransitionDocumentTo("ANULADO")}>
+                <Ban className="h-4 w-4" />
+              </Button>
+            ) : null}
           </div>
         );
       },
@@ -207,6 +214,7 @@ export function DocumentsDataTable({
     canCloneBudgetToRemito,
     canEditDocumentDraft,
     canIssueRemito,
+    isIssuingDocument,
     canPrintDocument,
     canTransitionDocumentTo,
     onGenerateReturn,

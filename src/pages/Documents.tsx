@@ -42,7 +42,7 @@ import type {
   LinePricingMode,
   PriceListItemRow,
 } from "@/features/documents/types";
-import { calculatePriceFromCostBase } from "@/features/documents/utils";
+import { calculatePriceFromCostBase, formatNumber } from "@/features/documents/utils";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 
@@ -133,6 +133,16 @@ export default function DocumentsPage() {
     () => new Map(documents.map((document) => [document.id, document])),
     [documents],
   );
+  const editingSourceDocumentLabel = useMemo(() => {
+    if (!editingDocId) return null;
+    const document = documentsById.get(editingDocId);
+    if (!document?.source_document_id) return null;
+    if (document.source_document_number_snapshot && document.source_document_type) {
+      return `${document.source_document_type} ${document.source_document_number_snapshot}`;
+    }
+    const source = documentsById.get(document.source_document_id);
+    return source ? `${source.doc_type} ${formatNumber(source.document_number, source.point_of_sale)}` : null;
+  }, [documentsById, editingDocId]);
   const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const totalDraft = useMemo(
     () => lines.reduce((accumulator, line) => accumulator + line.quantity * line.unit_price, 0),
@@ -491,6 +501,7 @@ export default function DocumentsPage() {
                 <SelectItem value="ALL">Todos</SelectItem>
                 <SelectItem value="PRESUPUESTO">Presupuestos</SelectItem>
                 <SelectItem value="REMITO">Remitos</SelectItem>
+                <SelectItem value="REMITO_DEVOLUCION">Devoluciones</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -540,7 +551,12 @@ export default function DocumentsPage() {
           }}
           onIssueRemito={(documentId) => {
             if (!canIssueRemito(roles)) return;
-            const confirmed = window.confirm("Vas a emitir este remito. Verificá stock, cliente y líneas antes de continuar.");
+            const document = documentsById.get(documentId);
+            const confirmed = window.confirm(
+              document?.doc_type === "REMITO_DEVOLUCION"
+                ? "Vas a emitir esta devolucion. Se registrara ingreso de stock por las cantidades cargadas."
+                : "Vas a emitir este remito. Verificá stock, cliente y líneas antes de continuar.",
+            );
             if (!confirmed) return;
             issueMutation.mutate(documentId);
           }}
@@ -553,6 +569,7 @@ export default function DocumentsPage() {
             if (!confirmed) return;
             cloneAsReturnMutation.mutate(documentId);
           }}
+          isIssuingDocument={issueMutation.isPending}
           canPrintDocument={canPrintDocument(roles)}
           canEditDocumentDraft={canEditDocumentDraft(roles)}
           canIssueRemito={canIssueRemito(roles)}
@@ -602,6 +619,7 @@ export default function DocumentsPage() {
             onSubmit={() => upsertDraftMutation.mutate()}
             onResetDraftForm={resetDraftForm}
             isSubmitting={upsertDraftMutation.isPending || !canCreateDocumentDraft(roles)}
+            sourceDocumentLabel={editingSourceDocumentLabel}
           />
         </Suspense>
       ) : null}
@@ -617,6 +635,11 @@ export default function DocumentsPage() {
             eventUserNamesById={eventUserNamesById}
             isExternalInvoiceLocked={selectedDocumentCashUsage}
             sourceDocumentLabel={sourceDocumentLabel}
+            technicianName={
+              selectedDocument?.technician_id
+                ? technicians.find((technician) => technician.id === selectedDocument.technician_id)?.name ?? null
+                : null
+            }
             companySettings={companySettings}
             onSetExternalInvoice={(documentId, externalInvoiceNumber) => {
               setExternalInvoiceMutation.mutate({
