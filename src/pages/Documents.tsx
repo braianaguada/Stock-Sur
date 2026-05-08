@@ -399,13 +399,15 @@ export default function DocumentsPage() {
     });
   };
 
-  const onAddCombo = (comboId: string) => {
+  const onAddCombo = (comboId: string, quantity: number) => {
     const combo = combosById.get(comboId);
-    if (!combo || !combo.is_active) return;
+    if (!combo || !combo.is_active || !Number.isFinite(quantity) || quantity <= 0) return;
     const comboLines = comboLinesByComboId.get(comboId) ?? [];
+    if (comboLines.length === 0) return;
     const builtLines = buildComboLines({
       comboName: combo.name,
       lines: comboLines,
+      multiplier: quantity,
       availableItems: items,
       priceByItem,
       priceListItemByItemId,

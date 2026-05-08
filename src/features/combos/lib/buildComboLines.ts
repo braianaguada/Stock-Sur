@@ -10,6 +10,7 @@ type ComboLineInput = {
 type BuildComboLinesParams = {
   comboName: string;
   lines: ComboLineInput[];
+  multiplier?: number;
   availableItems: Array<{ id: string; sku: string; name: string; unit?: string | null; brand?: string | null; model?: string | null; attributes?: string | null }>;
   priceByItem: Map<string, number>;
   priceListItemByItemId: Map<string, PriceListItemRow>;
@@ -36,7 +37,10 @@ const EMPTY_LINE = (itemId: string, quantity: number, userId?: string, nowIso?: 
   price_overridden_at: nowIso ?? null,
 });
 
-export function buildComboLines({ comboName, lines, availableItems, priceByItem, priceListItemByItemId, applyRounding, userId, nowIso }: BuildComboLinesParams) {
+export function buildComboLines({ comboName, lines, multiplier = 1, availableItems, priceByItem, priceListItemByItemId, applyRounding, userId, nowIso }: BuildComboLinesParams) {
+  if (!Number.isFinite(multiplier) || multiplier <= 0) {
+    throw new Error(`El multiplicador del combo ${comboName} debe ser mayor a cero`);
+  }
   const itemsById = new Map(availableItems.map((item) => [item.id, item]));
   return lines.map((line) => {
     const item = itemsById.get(line.item_id);
@@ -44,12 +48,13 @@ export function buildComboLines({ comboName, lines, availableItems, priceByItem,
     const priceRow = priceListItemByItemId.get(item.id);
     const suggestedUnitPrice = priceByItem.get(item.id) ?? (Number(priceRow?.calculated_price) || 0);
     const unitPrice = applyRounding(suggestedUnitPrice);
+    const expandedQuantity = line.quantity * multiplier;
     return {
-      ...EMPTY_LINE(item.id, line.quantity, userId, nowIso),
+      ...EMPTY_LINE(item.id, expandedQuantity, userId, nowIso),
       sku_snapshot: item.sku,
       description: item.name,
       unit: item.unit ?? "un",
-      quantity: line.quantity,
+      quantity: expandedQuantity,
       unit_price: unitPrice,
       suggested_unit_price: suggestedUnitPrice,
       base_cost_snapshot: priceRow ? Number(priceRow.base_cost) || 0 : null,

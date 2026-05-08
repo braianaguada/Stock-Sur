@@ -25,4 +25,35 @@ describe("buildComboLines", () => {
     expect(lines[0].quantity).toBe(3);
     expect(lines[0].unit_price).toBe(10);
   });
+
+  it("applies the multiplier to every line", () => {
+    const lines = buildComboLines({
+      comboName: "Combo",
+      lines: [{ item_id: "a", quantity: 3, line_order: 1 }],
+      multiplier: 2,
+      availableItems: items,
+      priceByItem: new Map([["a", 10]]),
+      priceListItemByItemId: new Map(),
+      applyRounding: (price) => price,
+      nowIso: "2026-01-01T00:00:00.000Z",
+    });
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0].quantity).toBe(6);
+  });
+
+  it("rejects invalid multipliers", () => {
+    expect(() =>
+      buildComboLines({
+        comboName: "Combo",
+        lines: [{ item_id: "a", quantity: 3, line_order: 1 }],
+        multiplier: 0,
+        availableItems: items,
+        priceByItem: new Map([["a", 10]]),
+        priceListItemByItemId: new Map(),
+        applyRounding: (price) => price,
+        nowIso: "2026-01-01T00:00:00.000Z",
+      }),
+    ).toThrow(/multiplicador/i);
+  });
 });

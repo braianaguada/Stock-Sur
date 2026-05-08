@@ -64,7 +64,7 @@ interface DocumentsEditorDialogProps {
   combos: ComboOption[];
   onPriceListChange: (priceListId: string) => void;
   onAddItem: (itemId: string) => void;
-  onAddCombo: (comboId: string) => void;
+  onAddCombo: (comboId: string, quantity: number) => void;
   removeLine: (idx: number) => void;
   onSubmit: () => void;
   onResetDraftForm: () => void;
@@ -100,6 +100,7 @@ export function DocumentsEditorDialog({
   sourceDocumentLabel,
 }: DocumentsEditorDialogProps) {
   const [itemSearch, setItemSearch] = useState("");
+  const [comboQuantities, setComboQuantities] = useState<Record<string, string>>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
   const deferredItemSearch = useDeferredValue(itemSearch);
   const isReturn = documentForm.doc_type === "REMITO_DEVOLUCION";
@@ -161,6 +162,12 @@ export function DocumentsEditorDialog({
     setItemSearch("");
   };
 
+  const handleAddCombo = (comboId: string) => {
+    const quantity = Number(comboQuantities[comboId] ?? 1);
+    onAddCombo(comboId, quantity);
+    setItemSearch("");
+  };
+
   return (
     <EntityDialog
       open={open}
@@ -168,6 +175,7 @@ export function DocumentsEditorDialog({
         onOpenChange(nextOpen);
         if (!nextOpen) {
           setItemSearch("");
+          setComboQuantities({});
           setDetailsOpen(false);
           onResetDraftForm();
         }
@@ -504,7 +512,20 @@ export function DocumentsEditorDialog({
                       <div className="text-sm font-medium leading-5 break-words">{combo.name}</div>
                       <div className="text-xs text-muted-foreground break-words">{combo.description ?? "Sin descripcion"}</div>
                     </div>
-                    <Button type="button" size="sm" onClick={() => onAddCombo(combo.id)}>Agregar combo</Button>
+                    <div className="flex items-center gap-2">
+                      <div className="w-20">
+                        <Input
+                          type="number"
+                          min={1}
+                          step="any"
+                          value={comboQuantities[combo.id] ?? "1"}
+                          onChange={(event) =>
+                            setComboQuantities((previous) => ({ ...previous, [combo.id]: event.target.value }))
+                          }
+                        />
+                      </div>
+                      <Button type="button" size="sm" onClick={() => handleAddCombo(combo.id)}>Agregar combo</Button>
+                    </div>
                   </div>
                 ))}
               </div>

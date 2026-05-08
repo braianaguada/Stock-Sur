@@ -32,3 +32,10 @@ export interface ProductComboFormState {
   is_active: boolean;
   lines: ProductComboFormLine[];
 }
+
+export const EMPTY_PRODUCT_COMBO_LINE: ProductComboFormLine = {
+  item_id: "",
+  quantity: 1,
+  line_order: 1,
+  notes: "",
+};
