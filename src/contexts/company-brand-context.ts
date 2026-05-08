@@ -26,6 +26,8 @@ export interface CompanySettings {
   allow_issue_remitos_without_stock: boolean;
   auto_close_cash_enabled: boolean;
   auto_close_cash_time: string | null;
+  price_rounding_enabled: boolean;
+  price_rounding_increment: number | null;
 }
 
 export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
@@ -54,6 +56,8 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   allow_issue_remitos_without_stock: false,
   auto_close_cash_enabled: false,
   auto_close_cash_time: null,
+  price_rounding_enabled: false,
+  price_rounding_increment: null,
 };
 
 export interface CompanyBrandContextValue {

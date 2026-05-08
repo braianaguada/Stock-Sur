@@ -20,6 +20,7 @@ export interface LineDraft {
   manual_margin_pct: number | null;
   price_overridden_by: string | null;
   price_overridden_at: string | null;
+  unrounded_suggested_unit_price?: number | null;
 }
 
 export interface DocumentFormState {
