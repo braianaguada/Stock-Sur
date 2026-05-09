@@ -3,6 +3,18 @@ import { describe, expect, it, vi } from "vitest";
 import type { PropsWithChildren } from "react";
 import { useDocumentsMutations } from "./useDocumentsMutations";
 
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    from: () => ({
+      insert: () => ({ select: () => ({ single: async () => ({ data: { id: "doc-1" }, error: null }) }) }),
+      update: () => ({ eq: () => ({ eq: () => ({}) }) }),
+      delete: () => ({ eq: () => ({}) }),
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
+    }),
+    rpc: vi.fn(),
+  },
+}));
+
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({}),
   useMutation: (options: { mutationFn: () => Promise<unknown> }) => ({

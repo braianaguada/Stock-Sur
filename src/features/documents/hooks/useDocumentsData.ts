@@ -15,6 +15,7 @@ import type {
   PriceListRow,
 } from "../types";
 import { formatNumber } from "../utils";
+import type { ProductCombo, ProductComboLine } from "@/features/combos/types";
 
 type UseDocumentsDataParams = {
   search: string;
@@ -103,6 +104,35 @@ export function useDocumentsData({
         .eq("is_active", true);
       if (error) throw error;
       return (data ?? []) as PriceListItemRow[];
+    },
+  });
+
+  const { data: combos = [] } = useQuery({
+    queryKey: queryKeys.combos.list(currentCompanyId),
+    enabled: Boolean(currentCompanyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("product_combos")
+        .select("id, company_id, name, description, is_active, created_at, updated_at, created_by")
+        .eq("company_id", currentCompanyId!)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as ProductCombo[];
+    },
+  });
+
+  const { data: comboLines = [] } = useQuery({
+    queryKey: ["product-combo-lines", currentCompanyId, combos.map((combo) => combo.id).join(",")],
+    enabled: Boolean(currentCompanyId) && combos.length > 0,
+    queryFn: async () => {
+      const comboIds = combos.map((combo) => combo.id);
+      const { data, error } = await supabase
+        .from("product_combo_lines")
+        .select("id, combo_id, item_id, quantity, line_order, notes, created_at")
+        .in("combo_id", comboIds)
+        .order("line_order");
+      if (error) throw error;
+      return (data ?? []) as ProductComboLine[];
     },
   });
 
@@ -309,6 +339,17 @@ export function useDocumentsData({
     [documentsById, selectedDocument?.source_document_id],
   );
 
+  const combosById = useMemo(() => new Map(combos.map((combo) => [combo.id, combo])), [combos]);
+  const comboLinesByComboId = useMemo(() => {
+    const map = new Map<string, ProductComboLine[]>();
+    for (const line of comboLines) {
+      const list = map.get(line.combo_id) ?? [];
+      list.push(line);
+      map.set(line.combo_id, list);
+    }
+    return map;
+  }, [comboLines]);
+
   const sourceDocumentLabel = useMemo(() => {
     if (!selectedDocument?.source_document_id) return null;
     const sourceType = selectedDocument.source_document_type ?? sourceDocument?.doc_type ?? null;
@@ -337,5 +378,8 @@ export function useDocumentsData({
     selectedDocument,
     sourceDocument,
     sourceDocumentLabel,
+    combos,
+    combosById,
+    comboLinesByComboId,
   };
 }

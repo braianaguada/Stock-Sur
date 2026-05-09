@@ -44,6 +44,7 @@ import type {
   PriceListItemRow,
 } from "@/features/documents/types";
 import { calculatePriceFromCostBase, formatNumber } from "@/features/documents/utils";
+import { buildComboLines } from "@/features/combos/lib/buildComboLines";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 
@@ -121,6 +122,8 @@ export default function DocumentsPage() {
     selectedDocumentCashUsage,
     selectedDocument,
     sourceDocumentLabel,
+    combos,
+    comboLinesByComboId,
   } = useDocumentsData({
     search: trimmedSearch,
     typeFilter,
@@ -145,9 +148,22 @@ export default function DocumentsPage() {
     return source ? `${source.doc_type} ${formatNumber(source.document_number, source.point_of_sale)}` : null;
   }, [documentsById, editingDocId]);
   const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
+  const combosById = useMemo(() => new Map(combos.map((combo) => [combo.id, combo])), [combos]);
   const totalDraft = useMemo(
     () => lines.reduce((accumulator, line) => accumulator + line.quantity * line.unit_price, 0),
     [lines],
+  );
+  const applyRounding = useCallback(
+    (price: number) => {
+      const selectedPriceList = priceLists.find((priceList) => priceList.id === draftForm.price_list_id) ?? null;
+      if (!selectedPriceList || selectedPriceList.round_mode === "none") return price;
+      if (selectedPriceList.round_mode === "integer") return Math.round(price);
+      if (selectedPriceList.round_mode === "tens") return Math.round(price / 10) * 10;
+      if (selectedPriceList.round_mode === "hundreds") return Math.round(price / 100) * 100;
+      if (selectedPriceList.round_mode === "x99") return Math.floor(price / 100) * 100 + 99;
+      return price;
+    },
+    [draftForm.price_list_id, priceLists],
   );
   const documentsPagination = usePaginationSlice({
     items: documents,
@@ -381,6 +397,25 @@ export default function DocumentsPage() {
       applyPickItemToLines(next, index, itemId);
       return next;
     });
+  };
+
+  const onAddCombo = (comboId: string, quantity: number) => {
+    const combo = combosById.get(comboId);
+    if (!combo || !combo.is_active || !Number.isFinite(quantity) || quantity <= 0) return;
+    const comboLines = comboLinesByComboId.get(comboId) ?? [];
+    if (comboLines.length === 0) return;
+    const builtLines = buildComboLines({
+      comboName: combo.name,
+      lines: comboLines,
+      multiplier: quantity,
+      availableItems: items,
+      priceByItem,
+      priceListItemByItemId,
+      applyRounding,
+      nowIso: new Date().toISOString(),
+      userId: user?.id,
+    });
+    setLines((previous) => [...previous, ...builtLines]);
   };
 
   const onPriceListChange = (priceListId: string) => {
@@ -627,7 +662,9 @@ export default function DocumentsPage() {
             technicians={technicians}
             priceLists={priceLists}
             availableItems={availableItems}
+            combos={combos}
             onAddItem={onAddItem}
+            onAddCombo={onAddCombo}
             onPriceListChange={onPriceListChange}
             removeLine={removeLine}
             onSubmit={() => upsertDraftMutation.mutate()}

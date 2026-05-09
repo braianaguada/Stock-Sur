@@ -1,0 +1,1 @@
+-- Remote migration placeholder for staging history alignment.

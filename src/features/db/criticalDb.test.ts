@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { Client } from "pg";
 import crypto from "node:crypto";
 
 const DEFAULT_DB_HOST = "db.tihjnbfdjnjobxxecuaz.supabase.co";
@@ -12,19 +11,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
 
 const describeCriticalDb = DB_PASSWORD ? describe : describe.skip;
 
-const client = DATABASE_URL
-  ? new Client({
-      connectionString: DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
-    })
-  : new Client({
-      host: DB_HOST,
-      port: DB_PORT,
-      user: DB_USER,
-      password: DB_PASSWORD,
-      database: DB_NAME,
-      ssl: { rejectUnauthorized: false },
-    });
+let client: import("pg").Client;
 
 async function withRollback<T>(fn: () => Promise<T>): Promise<T> {
   await client.query("begin");
@@ -114,6 +101,20 @@ async function seedItem(companyId: string, userId: string) {
 
 describeCriticalDb("critical database rules", () => {
   beforeAll(async () => {
+    const { Client } = await new Function('return import("pg")')();
+    client = DATABASE_URL
+      ? new Client({
+          connectionString: DATABASE_URL,
+          ssl: { rejectUnauthorized: false },
+        })
+      : new Client({
+          host: DB_HOST,
+          port: DB_PORT,
+          user: DB_USER,
+          password: DB_PASSWORD,
+          database: DB_NAME,
+          ssl: { rejectUnauthorized: false },
+        });
     await client.connect();
   });
 
@@ -379,6 +380,113 @@ describeCriticalDb("critical database rules", () => {
       await expect(client.query(`select * from public.duplicate_document($1)`, [returnId])).rejects.toThrow();
     });
   });
+
+  it("guarda combos de manera atomica con rpc y reemplaza sus lineas al editar", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await setActor(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedPermission(companyUserId, "items.view");
+
+      const item1 = await seedItem(companyId, userId);
+      const item2 = await seedItem(companyId, userId);
+      const item3 = await seedItem(companyId, userId);
+
+      const created = await client.query(
+        `select public.upsert_product_combo_with_lines($1, null, $2, $3, true, $4::jsonb) as id`,
+        [
+          companyId,
+          "Kit AT",
+          "Base",
+          JSON.stringify([
+            { item_id: item1, quantity: 3, line_order: 1, notes: null },
+            { item_id: item2, quantity: 2, line_order: 2, notes: null },
+          ]),
+        ],
+      );
+      const comboId = created.rows[0].id as string;
+      const createdLines = await client.query(
+        `select item_id, quantity, line_order from public.product_combo_lines where combo_id = $1 order by line_order`,
+        [comboId],
+      );
+      expect(createdLines.rowCount).toBe(2);
+      expect(Number(createdLines.rows[0].quantity)).toBe(3);
+      expect(createdLines.rows[0].item_id).toBe(item1);
+
+      await client.query(
+        `select public.upsert_product_combo_with_lines($1, $2, $3, $4, false, $5::jsonb)`,
+        [
+          companyId,
+          comboId,
+          "Kit AT",
+          "Editado",
+          JSON.stringify([
+            { item_id: item2, quantity: 5, line_order: 1, notes: null },
+            { item_id: item3, quantity: 1, line_order: 2, notes: null },
+          ]),
+        ],
+      );
+
+      const updated = await client.query(`select description, is_active from public.product_combos where id = $1`, [comboId]);
+      expect(updated.rows[0].description).toBe("Editado");
+      expect(updated.rows[0].is_active).toBe(false);
+      const updatedLines = await client.query(
+        `select item_id, quantity from public.product_combo_lines where combo_id = $1 order by line_order`,
+        [comboId],
+      );
+      expect(updatedLines.rowCount).toBe(2);
+      expect(updatedLines.rows[0].item_id).toBe(item2);
+      expect(Number(updatedLines.rows[0].quantity)).toBe(5);
+      expect(updatedLines.rows[1].item_id).toBe(item3);
+    });
+  }, 15000);
+
+  it("rechaza combos invalidos sin dejar persistencia parcial", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await setActor(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedPermission(companyUserId, "items.view");
+
+      const item1 = await seedItem(companyId, userId);
+      const otherCompany = crypto.randomUUID();
+      await seedCompany(otherCompany);
+      const otherItem = await seedItem(otherCompany, userId);
+
+      await expect(
+        client.query(
+          `select public.upsert_product_combo_with_lines($1, null, $2, $3, true, $4::jsonb)`,
+          [
+            companyId,
+            "Combo invalido",
+            null,
+            JSON.stringify([{ item_id: item1, quantity: 0, line_order: 1, notes: null }]),
+          ],
+        ),
+      ).rejects.toThrow();
+
+      await expect(
+        client.query(
+          `select public.upsert_product_combo_with_lines($1, null, $2, $3, true, $4::jsonb)`,
+          [
+            companyId,
+            "Combo otro item",
+            null,
+            JSON.stringify([{ item_id: otherItem, quantity: 1, line_order: 1, notes: null }]),
+          ],
+        ),
+      ).rejects.toThrow();
+
+      const combos = await client.query(`select count(*)::int as count from public.product_combos where company_id = $1`, [companyId]);
+      expect(combos.rows[0].count).toBe(0);
+    });
+  }, 15000);
 
   it("cierra caja y calcula el efectivo esperado", async () => {
     await withRollback(async () => {

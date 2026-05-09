@@ -107,12 +107,33 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - no genera stock, caja ni cuenta corriente
   - no esta disponible para `REMITO_DEVOLUCION`
   - agrega trazabilidad con `source_document_id`, `source_document_type`, `source_document_number_snapshot` y evento `DUPLICATED_FROM_DOCUMENT`
+- Combos de productos v1:
+  - nueva ruta `/combos` para crear combos reutilizables por empresa
+  - CRUD mejorado con edicion de cabecera, activacion/desactivacion y editor de lineas
+  - formulario estable: no se pisa al tipear ni al refetch de queries mientras se edita, y al seleccionar un combo existente espera a cargar sus lineas antes de hidratar el formulario
+  - si hay cambios locales sin guardar, cambiar de combo o limpiar pide confirmacion antes de descartar
+  - cada combo agrupa productos reales con cantidades, notas y orden simple
+  - en documentos, el buscador permite agregar combos con multiplicador y se expanden a lineas reales
+  - no existe stock propio ni precio propio del combo en esta fase
+  - la logica de documentos sigue aplicando precios, redondeo y edicion manual por linea
+- Guardado atómico de combos:
+  - `/combos` guarda cabecera + lineas con la RPC `upsert_product_combo_with_lines`
+  - si falla una validacion o una linea, la operacion se revierte completa en Supabase
+  - al editar, se reemplaza el set de lineas dentro de la misma transaccion
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
+  - `supabase/migrations/20260508150000_product_combos.sql`
+  - `supabase/migrations/20260508160000_remote.sql`
+  - `supabase/migrations/20260508170000_product_combos_rpc.sql`
 - Cobertura QA agregada para duplicado:
   - `src/features/documents/lib/duplicate.test.ts` cubre reglas de payload, fecha actual, bloqueo de devoluciones, trazabilidad y copia de lineas/snapshots sin reutilizar ids
   - `src/features/documents/components/DocumentsDataTable.test.tsx` cubre accion visible para `PRESUPUESTO`/`REMITO`, oculta para `REMITO_DEVOLUCION` y deshabilitada sin permiso de creacion
   - `src/features/db/criticalDb.test.ts` incluye casos de RPC real para duplicado de presupuesto/remito y bloqueo de devoluciones cuando se ejecuta con `DATABASE_URL` o variables `PG*` (`PGPASSWORD`, `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE`)
+- Cobertura QA agregada para combos:
+  - `src/features/combos/lib/buildComboLines.test.ts` cubre expansion de combo, multiplicador y validacion de entradas invalidas
+  - `src/features/combos/lib/comboForm.test.ts` cubre la sincronizacion estable del formulario
+  - `src/features/documents/components/DocumentsEditorDialog.test.tsx` cubre el render del editor con la nueva API de combos
+  - `src/features/documents/hooks/useDocumentsMutations.test.tsx` ahora mockea Supabase y valida la mutacion sin depender de env real
 - Validacion manual recomendada en staging:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
   - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
@@ -124,10 +145,24 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
 npm run db:push:staging
 npm run typecheck
 npm run lint
-npm run test -- --run src/features/documents/lib/duplicate.test.ts src/features/documents/components/DocumentsDataTable.test.tsx
 npm run test
 npm run build
 ```
+
+Validaciones de esta iteracion:
+
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test`
+- `npm run build`
+
+Notas:
+
+- `npm run test` deja `src/features/db/criticalDb.test.ts` en `skipped` si no hay `PGPASSWORD` configurado.
+- La migracion de combos ya se aplico en staging con `npm run db:push:staging --include-all` por una diferencia de historial remoto.
+- El guardado de combos ya no persiste parcialidades cabecera/lineas: la escritura pasa por una RPC transaccional en Supabase.
+- Fix de estabilidad validado en preview: seleccionar un combo existente ya no muestra una linea vacia por hidratar antes de recibir `product_combo_lines`.
+- Limitacion restante: la UI sigue siendo simple y no hay borrado fisico, importacion masiva ni combos dentro de combos.
 
 ## How can I deploy this project?
 

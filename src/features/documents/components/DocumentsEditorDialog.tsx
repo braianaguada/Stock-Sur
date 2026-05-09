@@ -41,6 +41,13 @@ type AvailableItemOption = {
   model?: string | null;
 };
 
+type ComboOption = {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+};
+
 interface DocumentsEditorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,8 +61,10 @@ interface DocumentsEditorDialogProps {
   technicians: TechnicianOption[];
   priceLists: PriceListRow[];
   availableItems: AvailableItemOption[];
+  combos: ComboOption[];
   onPriceListChange: (priceListId: string) => void;
   onAddItem: (itemId: string) => void;
+  onAddCombo: (comboId: string, quantity: number) => void;
   removeLine: (idx: number) => void;
   onSubmit: () => void;
   onResetDraftForm: () => void;
@@ -80,8 +89,10 @@ export function DocumentsEditorDialog({
   technicians,
   priceLists,
   availableItems,
+  combos,
   onPriceListChange,
   onAddItem,
+  onAddCombo,
   removeLine,
   onSubmit,
   onResetDraftForm,
@@ -89,6 +100,7 @@ export function DocumentsEditorDialog({
   sourceDocumentLabel,
 }: DocumentsEditorDialogProps) {
   const [itemSearch, setItemSearch] = useState("");
+  const [comboQuantities, setComboQuantities] = useState<Record<string, string>>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
   const deferredItemSearch = useDeferredValue(itemSearch);
   const isReturn = documentForm.doc_type === "REMITO_DEVOLUCION";
@@ -128,6 +140,14 @@ export function DocumentsEditorDialog({
       })
       .slice(0, 8);
   }, [availableItems, documentForm.price_list_id, deferredItemSearch]);
+  const filteredCombos = useMemo(() => {
+    const query = deferredItemSearch.trim().toLowerCase();
+    if (!documentForm.price_list_id || query.length === 0) return [];
+    return combos
+      .filter((combo) => combo.is_active)
+      .filter((combo) => [combo.name, combo.description ?? ""].join(" ").toLowerCase().includes(query))
+      .slice(0, 6);
+  }, [combos, deferredItemSearch, documentForm.price_list_id]);
 
   const updateLine = (index: number, patch: Partial<LineDraft>) => {
     setLines((previousLines) =>
@@ -142,6 +162,12 @@ export function DocumentsEditorDialog({
     setItemSearch("");
   };
 
+  const handleAddCombo = (comboId: string) => {
+    const quantity = Number(comboQuantities[comboId] ?? 1);
+    onAddCombo(comboId, quantity);
+    setItemSearch("");
+  };
+
   return (
     <EntityDialog
       open={open}
@@ -149,6 +175,7 @@ export function DocumentsEditorDialog({
         onOpenChange(nextOpen);
         if (!nextOpen) {
           setItemSearch("");
+          setComboQuantities({});
           setDetailsOpen(false);
           onResetDraftForm();
         }
@@ -476,6 +503,33 @@ export function DocumentsEditorDialog({
                 }}
               />
             </div>
+            {filteredCombos.length > 0 ? (
+              <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-2">
+                <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Combos</p>
+                {filteredCombos.map((combo) => (
+                  <div key={combo.id} className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card px-3 py-3 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium leading-5 break-words">{combo.name}</div>
+                      <div className="text-xs text-muted-foreground break-words">{combo.description ?? "Sin descripcion"}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-20">
+                        <Input
+                          type="number"
+                          min={1}
+                          step="any"
+                          value={comboQuantities[combo.id] ?? "1"}
+                          onChange={(event) =>
+                            setComboQuantities((previous) => ({ ...previous, [combo.id]: event.target.value }))
+                          }
+                        />
+                      </div>
+                      <Button type="button" size="sm" onClick={() => handleAddCombo(combo.id)}>Agregar combo</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
 
             {itemSearch.trim().length > 0 ? (
               filteredItems.length > 0 ? (
