@@ -12,6 +12,7 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 import { supabase } from "@/integrations/supabase/client";
 import { buildDashboardInsights } from "@/features/index/dashboard-insights";
+import { fetchAllPages } from "@/lib/supabase-pagination";
 
 type UseDashboardStatsOptions = {
   companyId: string | null | undefined;
@@ -24,7 +25,7 @@ export function useDashboardStats({ companyId }: UseDashboardStatsOptions) {
     queryFn: async () => {
       const [
         { data: items, error: itemsError },
-        { data: movements, error: movementsError },
+        movements,
         { data: pricingBase, error: pricingError },
         { count: suppliersCount, error: suppliersError },
         { count: quotesCount, error: quotesError },
@@ -35,11 +36,12 @@ export function useDashboardStats({ companyId }: UseDashboardStatsOptions) {
           .eq("company_id", companyId!)
           .eq("is_active", true)
           .limit(5000),
-        supabase
-          .from("stock_movements")
-          .select("item_id, type, quantity, created_at")
-          .eq("company_id", companyId!)
-          .limit(10000),
+        fetchAllPages(() =>
+          supabase
+            .from("stock_movements")
+            .select("item_id, type, quantity, created_at")
+            .eq("company_id", companyId!),
+        ),
         supabase
           .from("item_pricing_base")
           .select("item_id, base_cost")
@@ -55,14 +57,13 @@ export function useDashboardStats({ companyId }: UseDashboardStatsOptions) {
       ]);
 
       if (itemsError) throw itemsError;
-      if (movementsError) throw movementsError;
       if (pricingError) throw pricingError;
       if (suppliersError) throw suppliersError;
       if (quotesError) throw quotesError;
 
       return buildDashboardInsights({
         items: items ?? [],
-        movements: movements ?? [],
+        movements,
         pricingBase: pricingBase ?? [],
         suppliersCount: suppliersCount ?? 0,
         quotesCount: quotesCount ?? 0,
