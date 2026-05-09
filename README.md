@@ -146,7 +146,7 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - ventas anuladas y gastos anulados no suman; gastos efectivo reducen caja fisica y gastos no efectivo solo se informan como egreso
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
-  - `supabase/migrations/20260508160000_company_price_rounding_settings.sql`
+  - `supabase/migrations/20260508200000_company_price_rounding_settings.sql`
   - `supabase/migrations/20260508150000_product_combos.sql`
   - `supabase/migrations/20260508160000_remote.sql`
   - `supabase/migrations/20260508170000_product_combos_rpc.sql`
