@@ -120,11 +120,20 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - `/combos` guarda cabecera + lineas con la RPC `upsert_product_combo_with_lines`
   - si falla una validacion o una linea, la operacion se revierte completa en Supabase
   - al editar, se reemplaza el set de lineas dentro de la misma transaccion
+- Gastos de caja v1:
+  - Caja incorpora una pestania `Gastos` para registrar egresos operativos por fecha de caja
+  - se reutiliza `cash_expenses` vinculada por `company_id + business_date`; no hay `cash_session_id` porque el modelo actual usa `cash_closures`
+  - cada gasto tiene categoria controlada, descripcion, monto, medio (`CAJA` o `CUENTA_CORRIENTE`), comprobante opcional, referencia y notas
+  - no hay borrado fisico: la accion disponible es anular, via RPC `cancel_cash_expense`
+  - los gastos activos de tipo `CAJA` descuentan del efectivo esperado; los no efectivo se muestran como egreso pero no reducen el efectivo fisico
+  - el cierre muestra gastos en efectivo, gastos no efectivo y efectivo neto esperado
+  - no genera stock, documentos, cuenta corriente ni movimientos de inventario
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
   - `supabase/migrations/20260508150000_product_combos.sql`
   - `supabase/migrations/20260508160000_remote.sql`
   - `supabase/migrations/20260508170000_product_combos_rpc.sql`
+  - `supabase/migrations/20260508190000_cash_expenses_ui_support.sql`
 - Cobertura QA agregada para duplicado:
   - `src/features/documents/lib/duplicate.test.ts` cubre reglas de payload, fecha actual, bloqueo de devoluciones, trazabilidad y copia de lineas/snapshots sin reutilizar ids
   - `src/features/documents/components/DocumentsDataTable.test.tsx` cubre accion visible para `PRESUPUESTO`/`REMITO`, oculta para `REMITO_DEVOLUCION` y deshabilitada sin permiso de creacion
@@ -134,6 +143,8 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - `src/features/combos/lib/comboForm.test.ts` cubre la sincronizacion estable del formulario
   - `src/features/documents/components/DocumentsEditorDialog.test.tsx` cubre el render del editor con la nueva API de combos
   - `src/features/documents/hooks/useDocumentsMutations.test.tsx` ahora mockea Supabase y valida la mutacion sin depender de env real
+- Cobertura QA agregada para gastos de caja:
+  - `src/features/cash/utils.test.ts` cubre validacion de monto/categoria/descripcion, suma de gastos activos, exclusion de anulados y efecto de gastos efectivo/no efectivo sobre el efectivo esperado
 - Validacion manual recomendada en staging:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
   - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
@@ -160,9 +171,11 @@ Notas:
 
 - `npm run test` deja `src/features/db/criticalDb.test.ts` en `skipped` si no hay `PGPASSWORD` configurado.
 - La migracion de combos ya se aplico en staging con `npm run db:push:staging --include-all` por una diferencia de historial remoto.
+- La migracion de gastos de caja se aplico en staging con `npm run db:push:staging`.
 - El guardado de combos ya no persiste parcialidades cabecera/lineas: la escritura pasa por una RPC transaccional en Supabase.
 - Fix de estabilidad validado en preview: seleccionar un combo existente ya no muestra una linea vacia por hidratar antes de recibir `product_combo_lines`.
-- Limitacion restante: la UI sigue siendo simple y no hay borrado fisico, importacion masiva ni combos dentro de combos.
+- Limitacion restante de combos: la UI sigue siendo simple y no hay borrado fisico, importacion masiva ni combos dentro de combos.
+- Limitacion restante de gastos: no hay adjuntos reales, OCR, aprobaciones, reportes mensuales ni edicion de gastos cerrados; si un gasto activo se cargo mal, se anula y se registra nuevamente.
 
 ## How can I deploy this project?
 

@@ -13,11 +13,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { getErrorMessage } from "@/lib/errors";
-import { canAttachCashReceipt, canCancelCashSale, canCloseCash, canCreateCashSale } from "@/lib/permissions";
+import { canAttachCashReceipt, canCancelCashExpense, canCancelCashSale, canCloseCash, canCreateCashExpense, canCreateCashSale } from "@/lib/permissions";
 import { openPrintWindow } from "@/lib/print";
 import { currentTimeInBuenosAires } from "@/lib/formatters";
 import { Plus } from "lucide-react";
 import { CashClosureTab } from "@/features/cash/components/CashClosureTab";
+import { CashExpensesTab } from "@/features/cash/components/CashExpensesTab";
 import { CashHistoryTab } from "@/features/cash/components/CashHistoryTab";
 import { CashPendingTab } from "@/features/cash/components/CashPendingTab";
 import { CashSalesTab } from "@/features/cash/components/CashSalesTab";
@@ -25,6 +26,8 @@ import { CashSummaryCards } from "@/features/cash/components/CashSummaryCards";
 import { useCashData } from "@/features/cash/hooks/useCashData";
 import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
 import type {
+  CashExpenseFormState,
+  CashExpenseRow,
   CashPendingReceiptState,
   CashSaleFormState,
   CashSaleRow,
@@ -89,6 +92,16 @@ export default function CashPage() {
   const [closeNotes, setCloseNotes] = useState("");
   const [isCloseNotesDirty, setIsCloseNotesDirty] = useState(false);
   const [situationFilter, setSituationFilter] = useState<SituationFilter>("TODAS");
+  const [expenseForm, setExpenseForm] = useState<CashExpenseFormState>({
+    businessDate,
+    category: "OTROS",
+    description: "",
+    amount: "",
+    expenseKind: "CAJA",
+    hasReceipt: false,
+    receiptReference: "",
+    notes: "",
+  });
   const [tab, setTab] = useState("day");
   const [salesPage, setSalesPage] = useState(1);
   const [salesPageSize, setSalesPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(50);
@@ -104,7 +117,10 @@ export default function CashPage() {
     closureLoading,
     closureError,
     salesLoading,
+    expenses,
+    expensesLoading,
     salesError,
+    expensesError,
     remitosError,
     linkedDocument,
     linkedDocumentLines,
@@ -163,6 +179,10 @@ export default function CashPage() {
   }, [closuresHistory.length, historyPageSize]);
 
   useEffect(() => {
+    setExpenseForm((current) => ({ ...current, businessDate }));
+  }, [businessDate]);
+
+  useEffect(() => {
     setSalesPage(1);
   }, [businessDate, situationFilter, filteredSales.length, salesPageSize]);
 
@@ -175,6 +195,19 @@ export default function CashPage() {
     setNotes("");
   };
 
+  const resetExpenseForm = () => {
+    setExpenseForm({
+      businessDate,
+      category: "OTROS",
+      description: "",
+      amount: "",
+      expenseKind: "CAJA",
+      hasReceipt: false,
+      receiptReference: "",
+      notes: "",
+    });
+  };
+
   const resetPendingReceiptForm = () => {
     setReceiptDialogOpen(false);
     setSelectedSale(null);
@@ -185,8 +218,10 @@ export default function CashPage() {
 
   const {
     createSaleMutation,
+    createExpenseMutation,
     attachReceiptMutation,
     cancelSaleMutation,
+    cancelExpenseMutation,
     closeClosureMutation,
   } = useCashMutations({
     currentCompanyId: currentCompany?.id ?? null,
@@ -200,6 +235,7 @@ export default function CashPage() {
     refreshCash,
     toast,
     onCreateSaleSuccess: resetSaleForm,
+    onCreateExpenseSuccess: resetExpenseForm,
     onAttachReceiptSuccess: resetPendingReceiptForm,
   });
 
@@ -285,8 +321,10 @@ export default function CashPage() {
   });
 
   const canCreateSale = canCreateCashSale(roles);
+  const canCreateExpense = canCreateCashExpense(roles);
   const canCloseCashAction = canCloseCash(roles);
   const canCancelSale = (sale: CashSaleRow) => canCancelCashSale(roles) && !sale.closure_id;
+  const canCancelExpense = (expense: CashExpenseRow) => canCancelCashExpense(roles) && !expense.closure_id;
   const canAttachReceipt = (sale: CashSaleRow) =>
     canAttachCashReceipt(roles) && sale.status === "PENDIENTE_COMPROBANTE";
 
@@ -338,6 +376,7 @@ export default function CashPage() {
           subtitle="Carga rapida, pendientes y cierre diario en una sola vista. La mejora es visual y de jerarquia, sin tocar el flujo."
           tabs={[
             { label: "Hoy", value: "day" },
+            { label: "Gastos", value: "expenses" },
             { label: "Pendientes", value: "pending" },
             { label: "Cierre", value: "closure" },
             { label: "Historial", value: "history" },
@@ -366,10 +405,12 @@ export default function CashPage() {
           )}
         />
 
-        {salesError || remitosError ? (
+        {salesError || expensesError || remitosError ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
             {salesError
               ? getErrorMessage(salesError, "No se pudo cargar Caja.")
+              : expensesError
+                ? getErrorMessage(expensesError, "No se pudo cargar gastos de Caja.")
               : remitosError
                 ? getErrorMessage(remitosError, "No se pudo cargar Caja.")
                 : "No se pudo cargar Caja."}
@@ -580,6 +621,25 @@ export default function CashPage() {
                 pageSize={salesPageSize}
                 pageSizeOptions={PAGE_SIZE_OPTIONS}
                 onPageSizeChange={(value) => setSalesPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
+              />
+            </TabsContent>
+
+            <TabsContent value="expenses">
+              <CashExpensesTab
+                expenses={expenses}
+                expensesLoading={expensesLoading}
+                form={expenseForm}
+                onFormChange={setExpenseForm}
+                onSubmit={() => createExpenseMutation.mutate(expenseForm)}
+                onCancelExpense={(expenseId) => {
+                  if (!canCancelCashExpense(roles)) return;
+                  cancelExpenseMutation.mutate(expenseId);
+                }}
+                canCreateExpense={canCreateExpense}
+                canCancelExpense={canCancelExpense}
+                createPending={createExpenseMutation.isPending}
+                cancelPending={cancelExpenseMutation.isPending}
+                hasClosedClosureForDay={hasClosedClosureForDay}
               />
             </TabsContent>
 

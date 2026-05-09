@@ -87,6 +87,12 @@ export function CashClosurePreviewDialog({
                   {currency.format(Number(selectedClosurePreview.expected_cash_to_render))}
                 </p>
               </div>
+              <div className="min-w-0 overflow-hidden rounded-2xl border border-rose-500/18 bg-rose-500/10 p-4">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Gastos efectivo</p>
+                <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-[1.1rem] font-bold text-rose-600 dark:text-rose-400 [font-variant-numeric:tabular-nums]">
+                  {currency.format(Number(selectedClosurePreview.expected_cash_expenses_total))}
+                </p>
+              </div>
               <div className="min-w-0 overflow-hidden rounded-2xl border border-lime-500/18 bg-lime-500/10 p-4">
                 <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo remito</p>
                 <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-[1.1rem] font-bold text-lime-600 dark:text-lime-400 [font-variant-numeric:tabular-nums]">

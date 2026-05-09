@@ -6,6 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 import type {
   CashClosureHistoryRow,
   CashClosureRow,
+  CashExpenseRow,
   CashSaleRow,
   CustomerOption,
   DocumentEventQuickRow,
@@ -69,6 +70,23 @@ export function useCashData({
 
       if (error) throw error;
       return (data ?? []) as CashSaleRow[];
+    },
+  });
+
+  const expensesQuery = useQuery({
+    queryKey: queryKeys.cash.expenses(currentCompanyId, businessDate),
+    enabled: Boolean(currentCompanyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_expenses")
+        .select("id, company_id, business_date, spent_at, expense_kind, category, amount_total, description, has_receipt, receipt_reference, notes, closure_id, created_by, created_at, updated_at, cancelled_at, cancelled_by")
+        .eq("company_id", currentCompanyId!)
+        .eq("business_date", businessDate)
+        .order("spent_at", { ascending: false })
+        .limit(1000);
+
+      if (error) throw error;
+      return (data ?? []) as CashExpenseRow[];
     },
   });
 
@@ -187,7 +205,7 @@ export function useCashData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cash_closures")
-        .select("id, business_date, status, expected_cash_remito_total, expected_cash_facturable_total, expected_services_remito_total, expected_sales_total, expected_cash_to_render, expected_point_sales_total, expected_transfer_sales_total, expected_account_sales_total, counted_cash_total, counted_point_total, counted_transfer_total, cash_difference, point_difference, transfer_difference, notes, closed_at")
+        .select("id, business_date, status, expected_cash_remito_total, expected_cash_facturable_total, expected_services_remito_total, expected_sales_total, expected_cash_to_render, expected_cash_expenses_total, expected_account_expenses_total, expected_point_sales_total, expected_transfer_sales_total, expected_account_sales_total, counted_cash_total, counted_point_total, counted_transfer_total, cash_difference, point_difference, transfer_difference, notes, closed_at")
         .eq("company_id", currentCompanyId!)
         .order("business_date", { ascending: false })
         .limit(30);
@@ -215,6 +233,7 @@ export function useCashData({
   });
 
   const sales = useMemo(() => salesQuery.data ?? [], [salesQuery.data]);
+  const expenses = useMemo(() => expensesQuery.data ?? [], [expensesQuery.data]);
   const remitos = useMemo(() => remitosQuery.data ?? [], [remitosQuery.data]);
   const closuresHistory = useMemo(() => closuresHistoryQuery.data ?? [], [closuresHistoryQuery.data]);
   const closuresById = useMemo(
@@ -233,9 +252,12 @@ export function useCashData({
   const hasClosedClosureForDay = effectiveClosure?.status === "CERRADO";
   const summary = useMemo(() => {
     if (!effectiveClosure) {
-      return buildCashSummary(sales);
+      return buildCashSummary(sales, expenses);
     }
 
+    const efectivoAntesGastos =
+      Number(effectiveClosure.expected_cash_remito_total ?? 0) +
+      Number(effectiveClosure.expected_cash_facturable_total ?? 0);
     return {
       efectivoRemito: Number(effectiveClosure.expected_cash_remito_total ?? 0),
       efectivoFacturable: Number(effectiveClosure.expected_cash_facturable_total ?? 0),
@@ -245,8 +267,15 @@ export function useCashData({
       cuentaCorriente: Number(effectiveClosure.expected_account_sales_total ?? 0),
       total: Number(effectiveClosure.expected_sales_total ?? 0),
       pendientes: sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE").length,
+      gastosTotal:
+        Number(effectiveClosure.expected_cash_expenses_total ?? 0) +
+        Number(effectiveClosure.expected_account_expenses_total ?? 0),
+      gastosEfectivo: Number(effectiveClosure.expected_cash_expenses_total ?? 0),
+      gastosNoEfectivo: Number(effectiveClosure.expected_account_expenses_total ?? 0),
+      efectivoAntesGastos,
+      efectivoNetoEsperado: Number(effectiveClosure.expected_cash_to_render ?? 0),
     };
-  }, [effectiveClosure, sales]);
+  }, [effectiveClosure, expenses, sales]);
   const pendingSales = useMemo(
     () => sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE"),
     [sales],
@@ -340,6 +369,7 @@ export function useCashData({
 
     await Promise.all([
       qc.refetchQueries({ queryKey: queryKeys.cash.sales(currentCompanyId, businessDate) }),
+      qc.refetchQueries({ queryKey: queryKeys.cash.expenses(currentCompanyId, businessDate) }),
       qc.refetchQueries({ queryKey: queryKeys.cash.sales(currentCompanyId, "all-references") }),
       qc.refetchQueries({ queryKey: queryKeys.cash.closure(currentCompanyId, businessDate) }),
       qc.refetchQueries({ queryKey: queryKeys.cash.remitos(currentCompanyId, businessDate) }),
@@ -350,12 +380,15 @@ export function useCashData({
   return {
     customers: customersQuery.data ?? [],
     sales,
+    expenses,
     remitos,
     closure: closureQuery.data ?? null,
     closureLoading: closureQuery.isLoading,
     closureError: closureQuery.error,
     salesLoading: salesQuery.isLoading,
+    expensesLoading: expensesQuery.isLoading,
     salesError: salesQuery.error ?? allSalesReferencesQuery.error,
+    expensesError: expensesQuery.error,
     remitosError: remitosQuery.error,
     linkedDocument: linkedDocumentQuery.data ?? null,
     linkedDocumentLines: linkedDocumentLinesQuery.data ?? [],

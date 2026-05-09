@@ -3,6 +3,8 @@ import { escapeHtml, escapeHtmlWithLineBreaks } from "@/lib/print";
 import { PAYMENT_LABEL, RECEIPT_LABEL } from "./constants";
 import type {
   CashClosureHistoryRow,
+  CashExpenseFormState,
+  CashExpenseRow,
   CashSaleRow,
   CashSummary,
   DocumentEventQuickRow,
@@ -135,8 +137,44 @@ export function getClosureSituationWithClosure(
   };
 }
 
-export function buildCashSummary(sales: CashSaleRow[]): CashSummary {
-  return sales.reduce(
+export function parseCashExpenseAmount(value: string) {
+  return Number(value.replace(",", "."));
+}
+
+export function validateCashExpenseForm(form: CashExpenseFormState) {
+  const amount = parseCashExpenseAmount(form.amount);
+  if (!form.businessDate) return "La fecha operativa es obligatoria";
+  if (!form.category) return "La categoria es obligatoria";
+  if (!form.description.trim()) return "La descripcion es obligatoria";
+  if (!Number.isFinite(amount) || amount <= 0) return "El monto debe ser mayor a cero";
+  return null;
+}
+
+export function buildCashExpenseSummary(expenses: CashExpenseRow[]) {
+  return expenses.reduce(
+    (acc, expense) => {
+      if (expense.cancelled_at) return acc;
+      const amount = Number(expense.amount_total);
+      acc.total += amount;
+      if (expense.expense_kind === "CAJA") {
+        acc.cash += amount;
+      } else {
+        acc.nonCash += amount;
+      }
+      acc.byCategory[expense.category] = (acc.byCategory[expense.category] ?? 0) + amount;
+      return acc;
+    },
+    {
+      total: 0,
+      cash: 0,
+      nonCash: 0,
+      byCategory: {} as Partial<Record<CashExpenseRow["category"], number>>,
+    },
+  );
+}
+
+export function buildCashSummary(sales: CashSaleRow[], expenses: CashExpenseRow[] = []): CashSummary {
+  const salesSummary = sales.reduce(
     (acc, sale) => {
       if (sale.status !== "ANULADA") {
         acc.total += Number(sale.amount_total);
@@ -161,6 +199,16 @@ export function buildCashSummary(sales: CashSaleRow[]): CashSummary {
       pendientes: 0,
     },
   );
+
+  const expenseSummary = buildCashExpenseSummary(expenses);
+  return {
+    ...salesSummary,
+    gastosTotal: expenseSummary.total,
+    gastosEfectivo: expenseSummary.cash,
+    gastosNoEfectivo: expenseSummary.nonCash,
+    efectivoAntesGastos: salesSummary.efectivoRemito + salesSummary.efectivoFacturable,
+    efectivoNetoEsperado: salesSummary.efectivoRemito + salesSummary.efectivoFacturable - expenseSummary.cash,
+  };
 }
 
 export function buildCashClosurePrintHtml({
@@ -236,6 +284,10 @@ export function buildCashClosurePrintHtml({
               <div class="mini alt-green">
                 <div class="eyebrow">Efectivo a rendir</div>
                 <div class="big">${currency.format(Number(closure.expected_cash_to_render))}</div>
+              </div>
+              <div class="mini">
+                <div class="eyebrow">Gastos efectivo</div>
+                <div class="big">${currency.format(Number(closure.expected_cash_expenses_total))}</div>
               </div>
               <div class="mini">
                 <div class="eyebrow">Total ventas</div>
