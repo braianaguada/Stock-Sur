@@ -43,6 +43,7 @@ export const queryKeys = {
     customers: (companyId: string | null) => ["cash-customers", companyId ?? "no-company"] as const,
     sales: (companyId: string | null, businessDate: string) => ["cash-sales", companyId ?? "no-company", businessDate] as const,
     expenses: (companyId: string | null, businessDate: string) => ["cash-expenses", companyId ?? "no-company", businessDate] as const,
+    totals: (companyId: string | null, from: string, to: string) => ["cash-totals", companyId ?? "no-company", from, to] as const,
     remitos: (companyId: string | null, businessDate: string) => ["cash-remitos", companyId ?? "no-company", businessDate] as const,
     closure: (companyId: string | null, businessDate: string) => ["cash-closure", companyId ?? "no-company", businessDate] as const,
     linkedDocument: (documentId: string | null) => ["cash-linked-document", documentId] as const,

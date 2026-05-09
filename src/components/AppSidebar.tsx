@@ -18,6 +18,7 @@ const navItems = [
   { title: "Precios", url: "/price-lists" },
   { title: "Documentos", url: "/documents" },
   { title: "Servicios", url: "/services/documents" },
+  { title: "Totales", url: "/cash-totals" },
   { title: "Caja", url: "/cash" },
   { title: "Clientes", url: "/customers" },
   { title: "Usuarios", url: "/users", requiresSuperadmin: true },
@@ -160,7 +161,7 @@ export function AppSidebar() {
               {visibleNavItems.map((item) => {
                 const isActive =
                   location.pathname === item.url ||
-                  (item.url !== "/" && location.pathname.startsWith(item.url));
+                  (item.url !== "/" && location.pathname.startsWith(`${item.url}/`));
 
                 return (
                   <Link
