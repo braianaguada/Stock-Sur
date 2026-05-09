@@ -187,12 +187,14 @@ export type Database = {
           business_date: string
           cancelled_at: string | null
           cancelled_by: string | null
+          category: string
           closure_id: string | null
           company_id: string
           created_at: string
           created_by: string
           description: string
           expense_kind: Database["public"]["Enums"]["cash_expense_kind"]
+          has_receipt: boolean
           id: string
           notes: string | null
           receipt_reference: string | null
@@ -204,12 +206,14 @@ export type Database = {
           business_date?: string
           cancelled_at?: string | null
           cancelled_by?: string | null
+          category?: string
           closure_id?: string | null
           company_id: string
           created_at?: string
           created_by?: string
           description: string
           expense_kind?: Database["public"]["Enums"]["cash_expense_kind"]
+          has_receipt?: boolean
           id?: string
           notes?: string | null
           receipt_reference?: string | null
@@ -221,12 +225,14 @@ export type Database = {
           business_date?: string
           cancelled_at?: string | null
           cancelled_by?: string | null
+          category?: string
           closure_id?: string | null
           company_id?: string
           created_at?: string
           created_by?: string
           description?: string
           expense_kind?: Database["public"]["Enums"]["cash_expense_kind"]
+          has_receipt?: boolean
           id?: string
           notes?: string | null
           receipt_reference?: string | null
@@ -2242,6 +2248,34 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "cash_sales"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cancel_cash_expense: {
+        Args: { p_expense_id: string; p_reason?: string }
+        Returns: {
+          amount_total: number
+          business_date: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          category: string
+          closure_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          description: string
+          expense_kind: Database["public"]["Enums"]["cash_expense_kind"]
+          has_receipt: boolean
+          id: string
+          notes: string | null
+          receipt_reference: string | null
+          spent_at: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_expenses"
           isOneToOne: true
           isSetofReturn: false
         }
