@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Search, Plus, Pencil, Power } from "lucide-react";
+import { Loader2, Search, Plus, Power, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryKeys } from "@/lib/query-keys";
 import { getErrorMessage } from "@/lib/errors";
 import type { ProductCombo, ProductComboFormLine, ProductComboLine } from "@/features/combos/types";
-import { EMPTY_PRODUCT_COMBO_LINE } from "@/features/combos/types";
+import { createComboFormLineState, buildComboFormFromData, buildEmptyComboForm, type ComboFormState } from "@/features/combos/lib/comboForm";
 import { buildComboUpsertPayload } from "@/features/combos/lib/buildComboUpsertPayload";
 
 type ItemOption = {
@@ -25,23 +25,15 @@ type ItemOption = {
   is_active: boolean;
 };
 
-function buildEmptyForm() {
-  return {
-    id: null as string | null,
-    name: "",
-    description: "",
-    is_active: true,
-    lines: [{ ...EMPTY_PRODUCT_COMBO_LINE }],
-  };
-}
-
 export default function CombosPage() {
   const { currentCompany } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedComboId, setSelectedComboId] = useState<string | null>(null);
-  const [form, setForm] = useState(buildEmptyForm);
+  const [formMode, setFormMode] = useState<"create" | "edit">("edit");
+  const [formLoadedForComboId, setFormLoadedForComboId] = useState<string | null>(null);
+  const [form, setForm] = useState<ComboFormState>(buildEmptyComboForm);
 
   const { data: combos = [], isLoading: combosLoading } = useQuery({
     queryKey: queryKeys.combos.list(currentCompany?.id ?? null),
@@ -99,37 +91,28 @@ export default function CombosPage() {
   const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
 
   useEffect(() => {
-    if (selectedComboId) return;
-    if (combos.length === 0) return;
+    if (formMode === "create") return;
+    if (selectedComboId || combos.length === 0) return;
     setSelectedComboId(combos[0].id);
-  }, [combos, selectedComboId]);
+  }, [combos, formMode, selectedComboId]);
 
   useEffect(() => {
-    if (!selectedComboId) {
-      setForm(buildEmptyForm());
+    if (formMode === "create") {
       return;
     }
 
+    if (!selectedComboId) {
+      setFormLoadedForComboId(null);
+      return;
+    }
+
+    if (formLoadedForComboId === selectedComboId) return;
+
     const combo = combos.find((entry) => entry.id === selectedComboId);
     if (!combo) return;
-    const comboLines = (linesByComboId.get(selectedComboId) ?? [])
-      .slice()
-      .sort((a, b) => a.line_order - b.line_order)
-      .map((line) => ({
-        item_id: line.item_id,
-        quantity: Number(line.quantity),
-        line_order: line.line_order,
-        notes: line.notes ?? "",
-      }));
-
-    setForm({
-      id: combo.id,
-      name: combo.name,
-      description: combo.description ?? "",
-      is_active: combo.is_active,
-      lines: comboLines.length > 0 ? comboLines : [{ ...EMPTY_PRODUCT_COMBO_LINE }],
-    });
-  }, [combos, linesByComboId, selectedComboId]);
+    setForm(buildComboFormFromData(combo, linesByComboId.get(selectedComboId) ?? []));
+    setFormLoadedForComboId(selectedComboId);
+  }, [combos, formLoadedForComboId, formMode, linesByComboId, selectedComboId]);
 
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -151,7 +134,7 @@ export default function CombosPage() {
         name: form.name,
         description: form.description,
         isActive: form.is_active,
-        lines: form.lines,
+        lines: form.lines.map(({ clientId: _clientId, ...line }) => line),
       });
       const { data, error } = await supabase.rpc("upsert_product_combo_with_lines", payload);
       if (error) throw error;
@@ -160,6 +143,8 @@ export default function CombosPage() {
     onSuccess: async (comboId) => {
       await qc.invalidateQueries({ queryKey: queryKeys.combos.all() });
       setSelectedComboId(comboId);
+      setFormMode("edit");
+      setFormLoadedForComboId(comboId);
       toast({ title: "Combo guardado", description: "Los cambios quedaron registrados." });
     },
     onError: (error) => {
@@ -187,20 +172,22 @@ export default function CombosPage() {
   const addLine = () => {
     setForm((previous) => ({
       ...previous,
-      lines: [...previous.lines, { ...EMPTY_PRODUCT_COMBO_LINE, line_order: previous.lines.length + 1 }],
+      lines: [...previous.lines, createComboFormLineState({ line_order: previous.lines.length + 1 })],
     }));
   };
 
   const removeLine = (index: number) => {
     setForm((previous) => ({
       ...previous,
-      lines: previous.lines.length === 1 ? [{ ...EMPTY_PRODUCT_COMBO_LINE }] : previous.lines.filter((_, lineIndex) => lineIndex !== index),
+      lines: previous.lines.length === 1 ? [createComboFormLineState()] : previous.lines.filter((_, lineIndex) => lineIndex !== index),
     }));
   };
 
   const selectNewCombo = () => {
     setSelectedComboId(null);
-    setForm(buildEmptyForm());
+    setFormMode("create");
+    setFormLoadedForComboId(null);
+    setForm(buildEmptyComboForm());
   };
 
   const comboSummaries = useMemo(
@@ -252,7 +239,10 @@ export default function CombosPage() {
                   <button
                     type="button"
                     key={combo.id}
-                    onClick={() => setSelectedComboId(combo.id)}
+                    onClick={() => {
+                      setFormMode("edit");
+                      setSelectedComboId(combo.id);
+                    }}
                     className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${selectedComboId === combo.id ? "border-primary bg-primary/5" : "border-border/60 bg-background hover:border-border"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -347,7 +337,7 @@ export default function CombosPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="font-medium">Productos del combo</div>
-                <div className="text-sm text-muted-foreground">Selecciona productos activos de la empresa y define cantidades/noteas por línea.</div>
+                <div className="text-sm text-muted-foreground">Selecciona productos activos de la empresa y define cantidades/notas por línea.</div>
               </div>
               <Button type="button" variant="outline" onClick={addLine}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -364,7 +354,7 @@ export default function CombosPage() {
 
             <div className="space-y-3">
               {form.lines.map((line, index) => (
-                <div key={`${line.item_id || "line"}-${index}`} className="grid gap-3 rounded-lg border bg-background p-3 md:grid-cols-[1.7fr_120px_1.2fr_96px]">
+                <div key={line.clientId} className="grid gap-3 rounded-lg border bg-background p-3 md:grid-cols-[1.7fr_120px_1.2fr_96px]">
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Producto</Label>
                     <Select value={line.item_id || "__empty__"} onValueChange={(value) => updateLine(index, { item_id: value === "__empty__" ? "" : value })}>
@@ -390,7 +380,7 @@ export default function CombosPage() {
                   </div>
                   <div className="flex items-end justify-end">
                     <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(index)} title="Eliminar línea">
-                      <Pencil className="h-4 w-4 rotate-45" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

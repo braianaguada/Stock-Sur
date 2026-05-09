@@ -110,6 +110,7 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
 - Combos de productos v1:
   - nueva ruta `/combos` para crear combos reutilizables por empresa
   - CRUD mejorado con edicion de cabecera, activacion/desactivacion y editor de lineas
+  - formulario estable: no se pisa al tipear ni al refetch de queries mientras se edita
   - cada combo agrupa productos reales con cantidades, notas y orden simple
   - en documentos, el buscador permite agregar combos con multiplicador y se expanden a lineas reales
   - no existe stock propio ni precio propio del combo en esta fase
@@ -129,6 +130,7 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - `src/features/db/criticalDb.test.ts` incluye casos de RPC real para duplicado de presupuesto/remito y bloqueo de devoluciones cuando se ejecuta con `DATABASE_URL` o variables `PG*` (`PGPASSWORD`, `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE`)
 - Cobertura QA agregada para combos:
   - `src/features/combos/lib/buildComboLines.test.ts` cubre expansion de combo, multiplicador y validacion de entradas invalidas
+  - `src/features/combos/lib/comboForm.test.ts` cubre la sincronizacion estable del formulario
   - `src/features/documents/components/DocumentsEditorDialog.test.tsx` cubre el render del editor con la nueva API de combos
   - `src/features/documents/hooks/useDocumentsMutations.test.tsx` ahora mockea Supabase y valida la mutacion sin depender de env real
 - Validacion manual recomendada en staging:
