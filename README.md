@@ -63,7 +63,7 @@ This project is built with:
 ## Estado actual de staging
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
-Al 2026-05-08, los cambios principales incorporados en `staging` son:
+Al 2026-05-09, los cambios principales incorporados en `staging` son:
 
 - Redisenio completo de impresion/PDF para documentos comerciales:
   - `PRESUPUESTO`
@@ -144,6 +144,17 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - agrupa por dia con columnas de efectivo, transferencia, Point/MP, cuenta corriente, servicios/otros, gastos efectivo, gastos no efectivo, total ventas y efectivo neto
   - reutiliza `cash_sales` y `cash_expenses` con consultas batch por rango; no se agrego RPC ni migracion en esta fase
   - ventas anuladas y gastos anulados no suman; gastos efectivo reducen caja fisica y gastos no efectivo solo se informan como egreso
+- Estado de cuenta operativo v1:
+  - nueva ruta `/customer-account`, accesible desde la navegacion como `Estado de cuenta`
+  - acceso directo desde la cuenta corriente de cada cliente en `Clientes`
+  - filtros por cliente, rango de fechas, estado y busqueda por factura/remito/referencia
+  - cards superiores para saldo total, deuda vencida, deuda no vencida y pagos del periodo
+  - tabla con fecha, vencimiento estimado, cliente, origen, referencia, descripcion, debito, credito, saldo y estado visual
+  - muestra cobros manuales `CREDIT` como pagos separados sin imputarlos aun a facturas/remitos
+  - usa `document_id`, `cash_sale_id`, metadata y join con `documents` para mostrar remito/factura externa cuando existe
+  - no incluye cliente ocasional ni mezcla empresas: las consultas filtran por `company_id` y clientes no ocasionales
+  - el vencimiento es estimado: `metadata.due_date` si existe; si no, debitos a 30 dias desde fecha de documento/movimiento; creditos quedan sin vencimiento
+  - estado por movimiento es estimado hasta incorporar imputacion formal de pagos por documento
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
   - `supabase/migrations/20260508200000_company_price_rounding_settings.sql`
@@ -151,6 +162,7 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - `supabase/migrations/20260508160000_remote.sql`
   - `supabase/migrations/20260508170000_product_combos_rpc.sql`
   - `supabase/migrations/20260508190000_cash_expenses_ui_support.sql`
+  - sin migracion nueva para estado de cuenta operativo v1
 - Cobertura QA agregada para duplicado:
   - `src/features/documents/lib/duplicate.test.ts` cubre reglas de payload, fecha actual, bloqueo de devoluciones, trazabilidad y copia de lineas/snapshots sin reutilizar ids
   - `src/features/documents/components/DocumentsDataTable.test.tsx` cubre accion visible para `PRESUPUESTO`/`REMITO`, oculta para `REMITO_DEVOLUCION` y deshabilitada sin permiso de creacion
@@ -169,6 +181,8 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - `src/features/cash/utils.test.ts` cubre validacion de monto/categoria/descripcion, suma de gastos activos, exclusion de anulados y efecto de gastos efectivo/no efectivo sobre el efectivo esperado
 - Cobertura QA agregada para totales de caja:
   - `src/features/cash/lib/cashTotals.test.ts` cubre exclusion de ventas/gastos anulados, gasto efectivo contra efectivo neto, gasto no efectivo fuera de caja fisica, cuenta corriente separada, agrupacion por dia, sumatoria del periodo y rangos dia/semana/mes/personalizado
+- Cobertura QA agregada para estado de cuenta:
+  - `src/features/customer-account/lib/accountStatement.test.ts` cubre debito pendiente, debito vencido, credito como pago, saldo, filtro por fechas, exclusion de ocasional, referencia de remito, factura externa y empty state
 - Validacion manual recomendada en staging:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
   - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
@@ -197,6 +211,7 @@ Validaciones de esta iteracion:
 - `npm run test`
 - `npm run build`
 - `npm run test -- src/features/cash/lib/cashTotals.test.ts`
+- `npm run test -- src/features/customer-account/lib/accountStatement.test.ts`
 
 Notas:
 
@@ -208,6 +223,7 @@ Notas:
 - Limitacion restante de combos: la UI sigue siendo simple y no hay borrado fisico, importacion masiva ni combos dentro de combos.
 - Limitacion restante de gastos: no hay adjuntos reales, OCR, aprobaciones, reportes mensuales ni edicion de gastos cerrados; si un gasto activo se cargo mal, se anula y se registra nuevamente.
 - Limitacion restante de totales: no hay exportacion Excel, graficos avanzados ni detalle transaccional expandible por dia; el reporte se calcula en frontend con queries por rango y limite operativo de 5000 ventas/gastos por consulta.
+- Limitacion restante de estado de cuenta: no hay imputacion avanzada de pagos por factura/remito, exportacion Excel, intereses, alertas ni conciliacion bancaria; el estado por debito se calcula como estimacion del saldo del cliente.
 
 ## How can I deploy this project?
 
