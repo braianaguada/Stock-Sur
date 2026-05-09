@@ -161,7 +161,7 @@ Notas:
 - `npm run test` deja `src/features/db/criticalDb.test.ts` en `skipped` si no hay `PGPASSWORD` configurado.
 - La migracion de combos ya se aplico en staging con `npm run db:push:staging --include-all` por una diferencia de historial remoto.
 - El guardado de combos ya no persiste parcialidades cabecera/lineas: la escritura pasa por una RPC transaccional en Supabase.
-- Fix de estabilidad pendiente de QA en preview: seleccionar un combo existente ya no debe mostrar una linea vacia por hidratar antes de recibir `product_combo_lines`.
+- Fix de estabilidad validado en preview: seleccionar un combo existente ya no muestra una linea vacia por hidratar antes de recibir `product_combo_lines`.
 - Limitacion restante: la UI sigue siendo simple y no hay borrado fisico, importacion masiva ni combos dentro de combos.
 
 ## How can I deploy this project?
