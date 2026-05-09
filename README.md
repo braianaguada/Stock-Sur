@@ -128,6 +128,13 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - los gastos activos de tipo `CAJA` descuentan del efectivo esperado; los no efectivo se muestran como egreso pero no reducen el efectivo fisico
   - el cierre muestra gastos en efectivo, gastos no efectivo y efectivo neto esperado
   - no genera stock, documentos, cuenta corriente ni movimientos de inventario
+- Totales de caja por periodo v1:
+  - nueva ruta `/cash-totals`, accesible desde la navegacion como `Totales`
+  - permite consultar por dia, semana, mes o rango personalizado usando fecha operativa
+  - muestra resumen del periodo: total vendido, efectivo bruto, gastos efectivo, efectivo neto, cuenta corriente y gastos totales
+  - agrupa por dia con columnas de efectivo, transferencia, Point/MP, cuenta corriente, servicios/otros, gastos efectivo, gastos no efectivo, total ventas y efectivo neto
+  - reutiliza `cash_sales` y `cash_expenses` con consultas batch por rango; no se agrego RPC ni migracion en esta fase
+  - ventas anuladas y gastos anulados no suman; gastos efectivo reducen caja fisica y gastos no efectivo solo se informan como egreso
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
   - `supabase/migrations/20260508150000_product_combos.sql`
@@ -145,6 +152,8 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
   - `src/features/documents/hooks/useDocumentsMutations.test.tsx` ahora mockea Supabase y valida la mutacion sin depender de env real
 - Cobertura QA agregada para gastos de caja:
   - `src/features/cash/utils.test.ts` cubre validacion de monto/categoria/descripcion, suma de gastos activos, exclusion de anulados y efecto de gastos efectivo/no efectivo sobre el efectivo esperado
+- Cobertura QA agregada para totales de caja:
+  - `src/features/cash/lib/cashTotals.test.ts` cubre exclusion de ventas/gastos anulados, gasto efectivo contra efectivo neto, gasto no efectivo fuera de caja fisica, cuenta corriente separada, agrupacion por dia, sumatoria del periodo y rangos dia/semana/mes/personalizado
 - Validacion manual recomendada en staging:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
   - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
@@ -166,6 +175,7 @@ Validaciones de esta iteracion:
 - `npm run lint`
 - `npm run test`
 - `npm run build`
+- `npm run test -- src/features/cash/lib/cashTotals.test.ts`
 
 Notas:
 
@@ -176,6 +186,7 @@ Notas:
 - Fix de estabilidad validado en preview: seleccionar un combo existente ya no muestra una linea vacia por hidratar antes de recibir `product_combo_lines`.
 - Limitacion restante de combos: la UI sigue siendo simple y no hay borrado fisico, importacion masiva ni combos dentro de combos.
 - Limitacion restante de gastos: no hay adjuntos reales, OCR, aprobaciones, reportes mensuales ni edicion de gastos cerrados; si un gasto activo se cargo mal, se anula y se registra nuevamente.
+- Limitacion restante de totales: no hay exportacion Excel, graficos avanzados ni detalle transaccional expandible por dia; el reporte se calcula en frontend con queries por rango y limite operativo de 5000 ventas/gastos por consulta.
 
 ## How can I deploy this project?
 
