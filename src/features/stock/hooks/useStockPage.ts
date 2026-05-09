@@ -7,6 +7,7 @@ import { clearSessionDraft, useSessionDraft } from "@/hooks/use-session-draft";
 import { invalidateStockQueries } from "@/lib/invalidate";
 import { businessDateFromTimestamp } from "@/lib/formatters";
 import { queryKeys } from "@/lib/query-keys";
+import { fetchAllPages } from "@/lib/supabase-pagination";
 import type {
   DemandProfile,
   Movement,
@@ -232,19 +233,20 @@ export function useStockPage() {
     queryKey: queryKeys.stock.current(currentCompany?.id ?? null, deferredSearch),
     enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const [{ data: items, error: itemsError }, { data: movements, error: movementsError }] = await Promise.all([
+      const [{ data: items, error: itemsError }, movements] = await Promise.all([
         supabase
           .from("items")
           .select("id, name, sku, unit, brand, model, attributes, demand_profile, demand_monthly_estimate")
           .eq("company_id", currentCompany!.id)
           .eq("is_active", true),
-        supabase
-          .from("stock_movements")
-          .select("item_id, type, quantity, created_at, items(name, sku, unit, brand, model, attributes, demand_profile, demand_monthly_estimate)")
-          .eq("company_id", currentCompany!.id),
+        fetchAllPages(() =>
+          supabase
+            .from("stock_movements")
+            .select("item_id, type, quantity, created_at, items(name, sku, unit, brand, model, attributes, demand_profile, demand_monthly_estimate)")
+            .eq("company_id", currentCompany!.id),
+        ),
       ]);
       if (itemsError) throw itemsError;
-      if (movementsError) throw movementsError;
 
       const last30DaysTs = Date.now() - 30 * 24 * 60 * 60 * 1000;
       const last90DaysTs = Date.now() - 90 * 24 * 60 * 60 * 1000;
@@ -296,7 +298,7 @@ export function useStockPage() {
         });
       }
 
-      for (const movement of (movements ?? []) as Array<{
+      for (const movement of movements as Array<{
         item_id: string;
         type: MovementType;
         quantity: number;
