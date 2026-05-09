@@ -110,7 +110,8 @@ Al 2026-05-08, los cambios principales incorporados en `staging` son:
 - Combos de productos v1:
   - nueva ruta `/combos` para crear combos reutilizables por empresa
   - CRUD mejorado con edicion de cabecera, activacion/desactivacion y editor de lineas
-  - formulario estable: no se pisa al tipear ni al refetch de queries mientras se edita
+  - formulario estable: no se pisa al tipear ni al refetch de queries mientras se edita, y al seleccionar un combo existente espera a cargar sus lineas antes de hidratar el formulario
+  - si hay cambios locales sin guardar, cambiar de combo o limpiar pide confirmacion antes de descartar
   - cada combo agrupa productos reales con cantidades, notas y orden simple
   - en documentos, el buscador permite agregar combos con multiplicador y se expanden a lineas reales
   - no existe stock propio ni precio propio del combo en esta fase
@@ -160,6 +161,7 @@ Notas:
 - `npm run test` deja `src/features/db/criticalDb.test.ts` en `skipped` si no hay `PGPASSWORD` configurado.
 - La migracion de combos ya se aplico en staging con `npm run db:push:staging --include-all` por una diferencia de historial remoto.
 - El guardado de combos ya no persiste parcialidades cabecera/lineas: la escritura pasa por una RPC transaccional en Supabase.
+- Fix de estabilidad pendiente de QA en preview: seleccionar un combo existente ya no debe mostrar una linea vacia por hidratar antes de recibir `product_combo_lines`.
 - Limitacion restante: la UI sigue siendo simple y no hay borrado fisico, importacion masiva ni combos dentro de combos.
 
 ## How can I deploy this project?

@@ -33,6 +33,7 @@ export default function CombosPage() {
   const [selectedComboId, setSelectedComboId] = useState<string | null>(null);
   const [formMode, setFormMode] = useState<"create" | "edit">("edit");
   const [formLoadedForComboId, setFormLoadedForComboId] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
   const [form, setForm] = useState<ComboFormState>(buildEmptyComboForm);
 
   const { data: combos = [], isLoading: combosLoading } = useQuery({
@@ -106,13 +107,16 @@ export default function CombosPage() {
       return;
     }
 
+    if (linesLoading) return;
+    if (isDirty && formLoadedForComboId === selectedComboId) return;
     if (formLoadedForComboId === selectedComboId) return;
 
     const combo = combos.find((entry) => entry.id === selectedComboId);
     if (!combo) return;
     setForm(buildComboFormFromData(combo, linesByComboId.get(selectedComboId) ?? []));
     setFormLoadedForComboId(selectedComboId);
-  }, [combos, formLoadedForComboId, formMode, linesByComboId, selectedComboId]);
+    setIsDirty(false);
+  }, [combos, formLoadedForComboId, formMode, isDirty, linesByComboId, linesLoading, selectedComboId]);
 
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -145,6 +149,7 @@ export default function CombosPage() {
       setSelectedComboId(comboId);
       setFormMode("edit");
       setFormLoadedForComboId(comboId);
+      setIsDirty(false);
       toast({ title: "Combo guardado", description: "Los cambios quedaron registrados." });
     },
     onError: (error) => {
@@ -163,6 +168,7 @@ export default function CombosPage() {
   });
 
   const updateLine = (index: number, patch: Partial<ProductComboFormLine>) => {
+    setIsDirty(true);
     setForm((previous) => ({
       ...previous,
       lines: previous.lines.map((line, lineIndex) => (lineIndex === index ? { ...line, ...patch } : line)),
@@ -170,6 +176,7 @@ export default function CombosPage() {
   };
 
   const addLine = () => {
+    setIsDirty(true);
     setForm((previous) => ({
       ...previous,
       lines: [...previous.lines, createComboFormLineState({ line_order: previous.lines.length + 1 })],
@@ -177,6 +184,7 @@ export default function CombosPage() {
   };
 
   const removeLine = (index: number) => {
+    setIsDirty(true);
     setForm((previous) => ({
       ...previous,
       lines: previous.lines.length === 1 ? [createComboFormLineState()] : previous.lines.filter((_, lineIndex) => lineIndex !== index),
@@ -184,10 +192,21 @@ export default function CombosPage() {
   };
 
   const selectNewCombo = () => {
+    if (isDirty && !window.confirm("Hay cambios sin guardar. Si continuas, se van a descartar.")) return;
     setSelectedComboId(null);
     setFormMode("create");
     setFormLoadedForComboId(null);
+    setIsDirty(false);
     setForm(buildEmptyComboForm());
+  };
+
+  const selectExistingCombo = (comboId: string) => {
+    if (selectedComboId === comboId && formMode === "edit") return;
+    if (isDirty && !window.confirm("Hay cambios sin guardar. Si continuas, se van a descartar.")) return;
+    setFormMode("edit");
+    setSelectedComboId(comboId);
+    setFormLoadedForComboId(null);
+    setIsDirty(false);
   };
 
   const comboSummaries = useMemo(
@@ -239,10 +258,7 @@ export default function CombosPage() {
                   <button
                     type="button"
                     key={combo.id}
-                    onClick={() => {
-                      setFormMode("edit");
-                      setSelectedComboId(combo.id);
-                    }}
+                    onClick={() => selectExistingCombo(combo.id)}
                     className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${selectedComboId === combo.id ? "border-primary bg-primary/5" : "border-border/60 bg-background hover:border-border"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -302,7 +318,10 @@ export default function CombosPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setForm((previous) => ({ ...previous, is_active: !previous.is_active }))}
+                  onClick={() => {
+                    setIsDirty(true);
+                    setForm((previous) => ({ ...previous, is_active: !previous.is_active }));
+                  }}
                 >
                   <Power className="mr-2 h-4 w-4" />
                   {form.is_active ? "Desactivar" : "Activar"}
@@ -314,11 +333,17 @@ export default function CombosPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Nombre *</Label>
-              <Input value={form.name} onChange={(event) => setForm((previous) => ({ ...previous, name: event.target.value }))} placeholder="Kit aire acondicionado 1/4 - 1/2" />
+              <Input value={form.name} onChange={(event) => {
+                setIsDirty(true);
+                setForm((previous) => ({ ...previous, name: event.target.value }));
+              }} placeholder="Kit aire acondicionado 1/4 - 1/2" />
             </div>
             <div className="space-y-2">
               <Label>Estado</Label>
-              <Select value={form.is_active ? "active" : "inactive"} onValueChange={(value) => setForm((previous) => ({ ...previous, is_active: value === "active" }))}>
+              <Select value={form.is_active ? "active" : "inactive"} onValueChange={(value) => {
+                setIsDirty(true);
+                setForm((previous) => ({ ...previous, is_active: value === "active" }));
+              }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Activo</SelectItem>
@@ -330,7 +355,10 @@ export default function CombosPage() {
 
           <div className="space-y-2">
             <Label>Descripción</Label>
-            <Textarea value={form.description} onChange={(event) => setForm((previous) => ({ ...previous, description: event.target.value }))} placeholder="Opcional" />
+            <Textarea value={form.description} onChange={(event) => {
+              setIsDirty(true);
+              setForm((previous) => ({ ...previous, description: event.target.value }));
+            }} placeholder="Opcional" />
           </div>
 
           <div className="space-y-3 rounded-xl border bg-muted/10 p-3">
