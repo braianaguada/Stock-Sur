@@ -14,6 +14,7 @@ export const queryKeys = {
       ["customer-account-summary", companyId ?? "no-company", customerId ?? "no-customer"] as const,
     accountEntries: (companyId: string | null, customerId: string | null) =>
       ["customer-account-entries", companyId ?? "no-company", customerId ?? "no-customer"] as const,
+    accountStatement: (companyId: string | null) => ["customer-account-statement", companyId ?? "no-company"] as const,
   },
   items: {
     catalog: (

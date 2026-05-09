@@ -23,6 +23,7 @@ const DocumentsPage = lazy(() => import("./pages/Documents"));
 const ServiceDocumentsPage = lazy(() => import("./pages/ServiceDocuments"));
 const PrintServiceDocumentPage = lazy(() => import("./pages/PrintServiceDocument"));
 const CustomersPage = lazy(() => import("./pages/Customers"));
+const CustomerAccountPage = lazy(() => import("./pages/CustomerAccount"));
 const TechniciansPage = lazy(() => import("./pages/Technicians"));
 const UsersPage = lazy(() => import("./pages/Users"));
 const LegacyCatalogImportPage = lazy(() => import("./pages/LegacyCatalogImport"));
@@ -91,6 +92,7 @@ const App = () => (
                   <Route path="/cash" element={<ProtectedRoute><CashPage /></ProtectedRoute>} />
                   <Route path="/cash-totals" element={<ProtectedRoute><CashTotalsPage /></ProtectedRoute>} />
                   <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
+                  <Route path="/customer-account" element={<ProtectedRoute><CustomerAccountPage /></ProtectedRoute>} />
                   <Route path="/technicians" element={<ProtectedRoute><TechniciansPage /></ProtectedRoute>} />
                   <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />

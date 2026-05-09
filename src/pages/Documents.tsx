@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -90,6 +91,7 @@ function buildEmptyDocumentForm(defaultPointOfSale: number, defaultCustomerId = 
 export default function DocumentsPage() {
   const { user, roles, currentCompany } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const { settings: companySettings } = useCompanyBrand();
   const defaultPointOfSale = companySettings.default_point_of_sale ?? 1;
   const priceRoundingConfig = useMemo(
@@ -184,6 +186,13 @@ export default function DocumentsPage() {
     () => customers.find((customer) => customer.name.trim().toLowerCase() === "cliente ocasional")?.id ?? "",
     [customers],
   );
+  const linkedDocumentId = searchParams.get("document_id");
+
+  useEffect(() => {
+    if (!linkedDocumentId) return;
+    setSelectedDocId(linkedDocumentId);
+    setDetailOpen(true);
+  }, [linkedDocumentId]);
 
   useEffect(() => {
     setDocumentsPage(1);

@@ -21,6 +21,7 @@ const navItems = [
   { title: "Totales", url: "/cash-totals" },
   { title: "Caja", url: "/cash" },
   { title: "Clientes", url: "/customers" },
+  { title: "Estado de cuenta", url: "/customer-account" },
   { title: "Usuarios", url: "/users", requiresSuperadmin: true },
   { title: "Configuración", url: "/settings", requiresAdmin: true },
 ] as const;

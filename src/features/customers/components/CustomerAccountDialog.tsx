@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,9 @@ export function CustomerAccountDialog({ open, companyId, customer, onOpenChange,
           </div>
 
           <div className="flex justify-end gap-2">
+            <Button asChild variant="outline" disabled={!customer || customer.is_occasional}>
+              <Link to={`/customer-account?customer_id=${customer?.id ?? ""}`}>Abrir estado de cuenta</Link>
+            </Button>
             <Button variant="outline" onClick={() => refetch()}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Refrescar
