@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CustomerAccountCreditDialog } from "./CustomerAccountCreditDialog";
 import type { Customer } from "@/features/customers/types";
 import { useCustomerAccountData } from "@/features/customers/hooks/useCustomerAccountData";
+import { customerAccountPath } from "@/features/customer-account/lib/routes";
+import { formatBusinessDate, formatDateTime } from "@/lib/formatters";
 
 type Props = {
   open: boolean;
@@ -51,14 +53,14 @@ export function CustomerAccountDialog({ open, companyId, customer, onOpenChange,
             <div className="rounded-lg border p-4">
               <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Último movimiento</div>
               <div className="mt-2 text-sm font-medium">
-                {summary?.last_movement_at ? new Date(summary.last_movement_at).toLocaleString("es-AR") : "-"}
+                {summary?.last_movement_at ? formatDateTime(summary.last_movement_at) : "-"}
               </div>
             </div>
           </div>
 
           <div className="flex justify-end gap-2">
             <Button asChild variant="outline" disabled={!customer || customer.is_occasional}>
-              <Link to={`/customer-account?customer_id=${customer?.id ?? ""}`}>Abrir estado de cuenta</Link>
+              <Link to={customerAccountPath(customer?.id)}>Abrir estado de cuenta</Link>
             </Button>
             <Button variant="outline" onClick={() => refetch()}>
               <RefreshCw className="mr-2 h-4 w-4" />
@@ -90,7 +92,7 @@ export function CustomerAccountDialog({ open, companyId, customer, onOpenChange,
                 ) : null}
                 {entries.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell>{new Date(entry.business_date).toLocaleDateString("es-AR")}</TableCell>
+                    <TableCell>{formatBusinessDate(entry.business_date)}</TableCell>
                     <TableCell>
                       <Badge variant={entry.entry_type === "DEBIT" ? "destructive" : "outline"}>
                         {entry.entry_type}

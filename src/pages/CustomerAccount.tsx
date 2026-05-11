@@ -11,6 +11,7 @@ import { DataCard, FilterBar, PageHeader, StatCard } from "@/components/ui/page"
 import { useAuth } from "@/contexts/AuthContext";
 import { useCustomerAccountStatement } from "@/features/customer-account/hooks/useCustomerAccountStatement";
 import type { AccountStatementStatus } from "@/features/customer-account/lib/accountStatement";
+import { formatBusinessDate, todayBusinessDateInputValue } from "@/lib/formatters";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
@@ -33,13 +34,13 @@ const statusVariant: Record<AccountStatementStatus, "default" | "secondary" | "d
 };
 
 function todayDate() {
-  return new Date().toISOString().slice(0, 10);
+  return todayBusinessDateInputValue();
 }
 
 export default function CustomerAccountPage() {
   const { currentCompany } = useAuth();
   const [params, setParams] = useSearchParams();
-  const [customerId, setCustomerId] = useState(params.get("customer_id") ?? "all");
+  const [customerId, setCustomerId] = useState(params.get("customerId") ?? params.get("customer_id") ?? "all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState(todayDate());
   const [status, setStatus] = useState<AccountStatementStatus | "all">("all");
@@ -75,8 +76,9 @@ export default function CustomerAccountPage() {
   const handleCustomerChange = (value: string) => {
     setCustomerId(value);
     const next = new URLSearchParams(params);
-    if (value === "all") next.delete("customer_id");
-    else next.set("customer_id", value);
+    next.delete("customer_id");
+    if (value === "all") next.delete("customerId");
+    else next.set("customerId", value);
     setParams(next, { replace: true });
   };
 
@@ -156,8 +158,8 @@ export default function CustomerAccountPage() {
                 ) : null}
                 {rows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell>{new Date(`${row.business_date}T00:00:00`).toLocaleDateString("es-AR")}</TableCell>
-                    <TableCell>{row.due_date ? new Date(`${row.due_date}T00:00:00`).toLocaleDateString("es-AR") : "Sin vencimiento"}</TableCell>
+                    <TableCell>{formatBusinessDate(row.business_date)}</TableCell>
+                    <TableCell>{row.due_date ? formatBusinessDate(row.due_date) : "Sin vencimiento"}</TableCell>
                     <TableCell className="font-medium">{row.customer_name ?? "-"}</TableCell>
                     <TableCell>{row.origin_label}</TableCell>
                     <TableCell>
