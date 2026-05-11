@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/common/TableEmptyState";
 import { cn } from "@/lib/utils";
 
 type DataTableProps<TData> = {
@@ -90,17 +91,9 @@ export function DataTable<TData>({
       </TableHeader>
       <TableBody>
         {isLoading ? (
-          <TableRow>
-            <TableCell colSpan={visibleColumnCount} className="py-6 text-center text-muted-foreground">
-              {loadingMessage}
-            </TableCell>
-          </TableRow>
+          <TableEmptyState colSpan={visibleColumnCount} title={loadingMessage} />
         ) : rows.length === 0 ? (
-          <TableRow>
-            <TableCell colSpan={visibleColumnCount} className="py-6 text-center text-muted-foreground">
-              {emptyMessage}
-            </TableCell>
-          </TableRow>
+          <TableEmptyState colSpan={visibleColumnCount} title={emptyMessage} />
         ) : rows.map((row) => (
           <TableRow key={row.id} className={rowClassName}>
             {row.getVisibleCells().map((cell) => (

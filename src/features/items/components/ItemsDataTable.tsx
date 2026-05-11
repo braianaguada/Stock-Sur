@@ -1,12 +1,11 @@
 import { memo, useMemo } from "react";
-import { Link } from "react-router-dom";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { Boxes, Copy, Package, PackageX, Pencil, RotateCcw, Tags, Trash2 } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
+import { RowActionButton, RowActionLink, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Item, ItemOperationalMeta } from "@/features/items/types";
@@ -434,33 +433,29 @@ function ItemsDataTableComponent({
       id: "actions",
       header: () => "Acciones",
       cell: ({ row }) => (
-        <div className="flex gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onCopySku(row.original)} title="Copiar SKU">
+        <RowActions align="start">
+          <RowActionButton label="Copiar SKU" onClick={() => onCopySku(row.original)}>
             <Copy className="h-3.5 w-3.5" />
-          </Button>
-          <Button asChild variant="ghost" size="icon" className="h-7 w-7" title="Abrir stock">
-            <Link to={`/stock?itemId=${encodeURIComponent(row.original.id)}`}>
-              <Boxes className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="icon" className="h-7 w-7" title="Abrir precios">
-            <Link to={`/price-lists?itemId=${encodeURIComponent(row.original.id)}`}>
-              <Tags className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(row.original)}>
+          </RowActionButton>
+          <RowActionLink label="Abrir stock" to={`/stock?itemId=${encodeURIComponent(row.original.id)}`}>
+            <Boxes className="h-3.5 w-3.5" />
+          </RowActionLink>
+          <RowActionLink label="Abrir precios" to={`/price-lists?itemId=${encodeURIComponent(row.original.id)}`}>
+            <Tags className="h-3.5 w-3.5" />
+          </RowActionLink>
+          <RowActionButton label="Editar" tone="edit" onClick={() => onEdit(row.original)}>
             <Pencil className="h-3.5 w-3.5" />
-          </Button>
+          </RowActionButton>
           {row.original.is_active ? (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(row.original)} title="Desactivar">
-              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-            </Button>
+            <RowActionButton label="Desactivar" tone="danger" onClick={() => onDelete(row.original)}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </RowActionButton>
           ) : (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onRestore(row.original.id)} title="Reactivar">
-              <RotateCcw className="h-3.5 w-3.5 text-emerald-600" />
-            </Button>
+            <RowActionButton label="Reactivar" tone="success" onClick={() => onRestore(row.original.id)}>
+              <RotateCcw className="h-3.5 w-3.5" />
+            </RowActionButton>
           )}
-        </div>
+        </RowActions>
       ),
       meta: {
         className: "w-[180px]",

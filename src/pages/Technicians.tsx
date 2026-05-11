@@ -2,6 +2,7 @@ import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page";
@@ -58,14 +59,14 @@ export default function TechniciansPage() {
               <div className="font-medium">{technician.name}</div>
               <div className="text-sm text-muted-foreground">{technician.phone ?? "Sin telefono"}</div>
             </div>
-            <div className="flex gap-2">
-              <Button variant="ghost" size="icon" onClick={() => openEdit(technician)}>
+            <RowActions>
+              <RowActionButton label="Editar" tone="edit" onClick={() => openEdit(technician)}>
                 <Pencil className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setTechnicianToDelete(technician)}>
+              </RowActionButton>
+              <RowActionButton label="Eliminar" tone="danger" onClick={() => setTechnicianToDelete(technician)}>
                 <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+              </RowActionButton>
+            </RowActions>
           </div>
         ))}
       </div>

@@ -197,6 +197,12 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - los combos vacios quedan cubiertos para confirmar que no generan lineas sinteticas ni stock por si mismos
   - QA manual final detecto y corrigio `/technicians`, que caia en el error boundary por referencias incompletas a `saveMutation`/`deleteMutation`
   - no se agregaron nuevos modulos, reglas de negocio, escrituras automaticas ni cambios grandes de UX
+- QA visual y consistencia de UI:
+  - se revisaron las pantallas principales de operacion: inicio, productos, combos, stock, proveedores, listas de precios, documentos, caja, totales, clientes, cuenta corriente, tecnicos y trabajos/servicios
+  - se compacto el badge base para evitar filas infladas por estados dentro de tablas y mejorar contraste/lectura en modo claro y oscuro
+  - se agregaron helpers compartidos para acciones de fila y estados vacios de tabla, aplicados en productos, clientes, proveedores, tecnicos y trabajos/servicios
+  - las acciones de tabla quedan con tamano, radio, tooltip/aria-label y tonos visuales consistentes para ver, editar, reactivar/desactivar, eliminar y desvincular
+  - no se modificaron reglas de negocio, calculos, stock, documentos, caja, cuenta corriente, trabajos/servicios ni persistencia
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
   - `supabase/migrations/20260508200000_company_price_rounding_settings.sql`
@@ -207,6 +213,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `supabase/migrations/20260511120000_service_jobs_base.sql`
   - `supabase/migrations/20260511160000_service_remito_links.sql`
   - sin migracion nueva para QA integral y hardening operativo
+  - sin migracion nueva para QA visual y consistencia de UI
   - sin migracion nueva para control operativo de trabajos/servicios y limpieza visual de Listas de precios
   - sin migracion nueva para estado de cuenta operativo v1
   - sin migracion nueva para la consistencia de fechas/link de cuenta corriente
@@ -273,6 +280,12 @@ Validaciones de esta iteracion:
 - `npm run test -- --run src/features/service-jobs/lib/serviceRemitos.test.ts`
 - QA funcional contra staging con usuario real: login, carga directa de `/service-jobs`, alta/edicion de trabajo, alta/edicion de servicio, tecnico asignado, bloqueo de tecnico duplicado, filtros por estado/titulo/cliente/tecnico e integridad de tablas criticas
 - QA manual final: rutas principales, hard reload y query params sobre staging actualizado; `/technicians` corregido y revalidado sin error boundary; consultas sin escrituras nuevas en tablas criticas
+- QA visual: revision por codigo de tablas, badges, acciones, filtros, cards y empty states en pantallas principales; correcciones aplicadas sobre componentes compartidos sin cambios funcionales
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test`
+- `npm run build`
+- sin migraciones nuevas; no se ejecuto `npm run db:push:staging` para esta fase visual
 
 Notas:
 
@@ -289,6 +302,7 @@ Notas:
 - Limitacion restante de estado de cuenta: no hay imputacion avanzada de pagos por factura/remito, exportacion Excel, intereses, alertas ni conciliacion bancaria; el estado por debito se calcula como estimacion del saldo del cliente.
 - La migracion `20260511160000_service_remito_links.sql` se debe aplicar en staging con `npm run db:push:staging` antes de probar remitos asociados a servicios.
 - Limitacion restante de trabajos/servicios: hay vinculo operativo con remitos actuales, pero no hay materiales manuales dentro del servicio, facturacion desde trabajo, rentabilidad avanzada, reportes, calendario, adjuntos ni checklist tecnico; el guardado de tecnicos de un servicio reemplaza asignaciones en dos pasos desde la UI.
+- Limitacion restante de QA visual: quedan modales grandes y vistas de impresion para una pasada visual especifica con screenshots comparativos antes de promover a `main`.
 - Recomendacion QA integral: staging puede avanzar a QA manual final sobre datos reales antes de promover a `main`; no se detectaron cambios de esquema pendientes en esta fase.
 
 ## How can I deploy this project?

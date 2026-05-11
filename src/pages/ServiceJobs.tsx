@@ -4,6 +4,7 @@ import { CheckCircle2, ClipboardList, Edit, ExternalLink, Eye, FilePlus2, Link2,
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -329,9 +330,11 @@ export default function ServiceJobsPage() {
                       <TableCell className="max-w-48 truncate">{job.technicianNames.join(", ") || "Sin tecnico"}</TableCell>
                       <TableCell>{formatDateTime(job.lastActivityAt ?? job.updated_at)}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" title="Ver detalle" onClick={(event) => { event.stopPropagation(); setSelectedJobId(job.id); }}><Eye className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" title="Editar" onClick={(event) => { event.stopPropagation(); openEditJob(job); }}><Edit className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" title="Eliminar" className="text-destructive hover:text-destructive" onClick={(event) => { event.stopPropagation(); setJobToDelete(job); }}><Trash2 className="h-4 w-4" /></Button>
+                        <RowActions>
+                          <RowActionButton label="Ver detalle" tone="view" onClick={(event) => { event.stopPropagation(); setSelectedJobId(job.id); }}><Eye className="h-4 w-4" /></RowActionButton>
+                          <RowActionButton label="Editar" tone="edit" onClick={(event) => { event.stopPropagation(); openEditJob(job); }}><Edit className="h-4 w-4" /></RowActionButton>
+                          <RowActionButton label="Eliminar" tone="danger" onClick={(event) => { event.stopPropagation(); setJobToDelete(job); }}><Trash2 className="h-4 w-4" /></RowActionButton>
+                        </RowActions>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -441,20 +444,20 @@ export default function ServiceJobsPage() {
                                     </p>
                                     {warning ? <p className="mt-1 text-xs text-amber-600">{warning}</p> : null}
                                   </div>
-                                  <div className="flex shrink-0 gap-1">
-                                    <Button variant="ghost" size="icon" title="Ver documento" onClick={() => openDocument(remito.id)}><ExternalLink className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" title="Desvincular" onClick={() => unlinkMaterialRemitoMutation.mutate(remito.id)}><Unlink className="h-4 w-4" /></Button>
-                                  </div>
+                                  <RowActions className="shrink-0">
+                                    <RowActionButton label="Ver documento" tone="view" onClick={() => openDocument(remito.id)}><ExternalLink className="h-4 w-4" /></RowActionButton>
+                                    <RowActionButton label="Desvincular" tone="muted" onClick={() => unlinkMaterialRemitoMutation.mutate(remito.id)}><Unlink className="h-4 w-4" /></RowActionButton>
+                                  </RowActions>
                                 </div>
                               </div>
                             );
                           })}
                         </div>
                       </div>
-                      <div className="mt-3 flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEditService(service)}><Edit className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setServiceToDelete(service)}><Trash2 className="h-4 w-4" /></Button>
-                      </div>
+                      <RowActions className="mt-3">
+                        <RowActionButton label="Editar servicio" tone="edit" onClick={() => openEditService(service)}><Edit className="h-4 w-4" /></RowActionButton>
+                        <RowActionButton label="Eliminar servicio" tone="danger" onClick={() => setServiceToDelete(service)}><Trash2 className="h-4 w-4" /></RowActionButton>
+                      </RowActions>
                     </div>
                   ))}
                 </div>
