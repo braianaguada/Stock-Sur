@@ -82,6 +82,13 @@ export type ServiceTechnicianAssignment = {
 export type ServiceJobListItem = ServiceJobRow & {
   serviceCount: number;
   technicianNames: string[];
+  remitoCount: number;
+  materialLineCount: number;
+  materialTotal: number;
+  estimatedMaterialCost: number;
+  doneServiceCount: number;
+  pendingServiceCount: number;
+  lastActivityAt: string | null;
 };
 
 export type ServiceWithTechnicians = ServiceRow & {

@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Edit, ExternalLink, Eye, FilePlus2, Link2, Plus, Search, Trash2, Unlink, Wrench } from "lucide-react";
+import { CheckCircle2, ClipboardList, Edit, ExternalLink, Eye, FilePlus2, Link2, PackageCheck, Plus, Search, Trash2, Unlink, Wrench } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { useServiceJobs } from "@/features/service-jobs/hooks/useServiceJobs";
+import { getServiceJobOperationalStats } from "@/features/service-jobs/lib/operationalSummary";
 import { DEFAULT_JOB_FORM, DEFAULT_SERVICE_FORM } from "@/features/service-jobs/lib/serviceJobForm";
 import { getServiceRemitoTechnicianWarning, summarizeServiceRemitos } from "@/features/service-jobs/lib/serviceRemitos";
 import { SERVICE_JOB_PRIORITIES, SERVICE_JOB_STATUSES, SERVICE_STATUSES } from "@/features/service-jobs/types";
@@ -80,6 +81,7 @@ export default function ServiceJobsPage() {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [status, setStatus] = useState("ALL");
+  const [priority, setPriority] = useState("ALL");
   const [technicianId, setTechnicianId] = useState("ALL");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -114,6 +116,7 @@ export default function ServiceJobsPage() {
     userId: user?.id,
     search: deferredSearch,
     status,
+    priority,
     technicianId,
     from,
     to,
@@ -121,7 +124,15 @@ export default function ServiceJobsPage() {
   });
 
   const selectedJob = useMemo(() => jobs.find((job) => job.id === selectedJobId) ?? jobs[0] ?? null, [jobs, selectedJobId]);
-  const selectedServices = selectedJob ? servicesByJobId.get(selectedJob.id) ?? [] : [];
+  const selectedServices = useMemo(
+    () => (selectedJob ? servicesByJobId.get(selectedJob.id) ?? [] : []),
+    [selectedJob, servicesByJobId],
+  );
+  const operationalStats = useMemo(() => getServiceJobOperationalStats(jobs, servicesByJobId), [jobs, servicesByJobId]);
+  const selectedRemitoSummary = useMemo(
+    () => summarizeServiceRemitos(selectedServices.flatMap((service) => service.materialRemitos)),
+    [selectedServices],
+  );
   const serviceIdParam = searchParams.get("serviceId");
 
   useEffect(() => {
@@ -222,10 +233,13 @@ export default function ServiceJobsPage() {
           actions={<Button onClick={openCreateJob}><Plus className="mr-2 h-4 w-4" /> Nuevo trabajo</Button>}
         />
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <StatCard label="Trabajos visibles" value={jobs.length} icon={<Wrench className="h-5 w-5" />} />
-          <StatCard label="Servicios" value={jobs.reduce((sum, job) => sum + job.serviceCount, 0)} tone="info" />
-          <StatCard label="Tecnicos asociados" value={new Set(jobs.flatMap((job) => job.technicianNames)).size} tone="success" />
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <StatCard label="Abiertos" value={operationalStats.openJobs} icon={<Wrench className="h-5 w-5" />} />
+          <StatCard label="En curso" value={operationalStats.inProgressJobs} tone="warning" icon={<ClipboardList className="h-5 w-5" />} />
+          <StatCard label="Finalizados" value={operationalStats.doneJobs} tone="success" icon={<CheckCircle2 className="h-5 w-5" />} />
+          <StatCard label="Servicios pendientes" value={operationalStats.pendingServices} tone="info" />
+          <StatCard label="Servicios realizados" value={operationalStats.doneServices} tone="success" />
+          <StatCard label="Costo est. materiales" value={formatMoney(operationalStats.estimatedMaterialCost)} tone="info" icon={<PackageCheck className="h-5 w-5" />} />
         </div>
 
         <FilterBar>
@@ -245,6 +259,13 @@ export default function ServiceJobsPage() {
             <SelectContent>
               <SelectItem value="ALL">Todos los tecnicos</SelectItem>
               {technicians.map((technician) => <SelectItem key={technician.id} value={technician.id}>{technician.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={priority} onValueChange={setPriority}>
+            <SelectTrigger className="w-full md:w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas las prioridades</SelectItem>
+              {SERVICE_JOB_PRIORITIES.map((value) => <SelectItem key={value} value={value}>{PRIORITY_LABEL[value]}</SelectItem>)}
             </SelectContent>
           </Select>
           <Input className="w-full md:w-40" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
@@ -270,7 +291,8 @@ export default function ServiceJobsPage() {
                 </CardContent>
               </Card>
             ) : (
-              <Table>
+              <div className="overflow-x-auto">
+              <Table className="min-w-[1120px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Trabajo</TableHead>
@@ -278,8 +300,10 @@ export default function ServiceJobsPage() {
                     <TableHead>Estado</TableHead>
                     <TableHead>Prioridad</TableHead>
                     <TableHead>Servicios</TableHead>
+                    <TableHead>Remitos</TableHead>
+                    <TableHead>Costo est.</TableHead>
                     <TableHead>Tecnicos</TableHead>
-                    <TableHead>Actualizado</TableHead>
+                    <TableHead>Ultima actividad</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -293,9 +317,17 @@ export default function ServiceJobsPage() {
                       <TableCell>{job.customers?.name ?? "Sin cliente"}</TableCell>
                       <TableCell><JobStatusBadge status={job.status} /></TableCell>
                       <TableCell>{PRIORITY_LABEL[job.priority ?? "NORMAL"]}</TableCell>
-                      <TableCell>{job.serviceCount}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{job.serviceCount}</div>
+                        <div className="text-xs text-muted-foreground">{job.doneServiceCount} hechos / {job.pendingServiceCount} pendientes</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{job.remitoCount}</div>
+                        <div className="text-xs text-muted-foreground">{job.materialLineCount} lineas</div>
+                      </TableCell>
+                      <TableCell>{formatMoney(job.estimatedMaterialCost)}</TableCell>
                       <TableCell className="max-w-48 truncate">{job.technicianNames.join(", ") || "Sin tecnico"}</TableCell>
-                      <TableCell>{formatDateTime(job.updated_at)}</TableCell>
+                      <TableCell>{formatDateTime(job.lastActivityAt ?? job.updated_at)}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" title="Ver detalle" onClick={(event) => { event.stopPropagation(); setSelectedJobId(job.id); }}><Eye className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" title="Editar" onClick={(event) => { event.stopPropagation(); openEditJob(job); }}><Edit className="h-4 w-4" /></Button>
@@ -305,6 +337,7 @@ export default function ServiceJobsPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </section>
 
@@ -320,6 +353,24 @@ export default function ServiceJobsPage() {
                   <JobStatusBadge status={selectedJob.status} />
                 </div>
                 <p className="rounded-xl border bg-muted/20 p-3 text-sm text-muted-foreground">{selectedJob.description || "Sin descripcion cargada."}</p>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-xl border bg-muted/15 p-3">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">Servicios</p>
+                    <p className="mt-1 text-xl font-bold">{selectedServices.length}</p>
+                  </div>
+                  <div className="rounded-xl border bg-muted/15 p-3">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">Remitos</p>
+                    <p className="mt-1 text-xl font-bold">{selectedRemitoSummary.documents}</p>
+                  </div>
+                  <div className="rounded-xl border bg-muted/15 p-3">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">Total remitos</p>
+                    <p className="mt-1 text-xl font-bold">{formatMoney(selectedRemitoSummary.total)}</p>
+                  </div>
+                  <div className="rounded-xl border bg-muted/15 p-3">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">Costo estimado</p>
+                    <p className="mt-1 text-xl font-bold">{formatMoney(selectedRemitoSummary.estimatedCost)}</p>
+                  </div>
+                </div>
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">Servicios</h3>
                   <Button size="sm" onClick={openCreateService}><Plus className="mr-2 h-4 w-4" /> Agregar servicio</Button>
@@ -419,7 +470,7 @@ export default function ServiceJobsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingJob ? "Editar trabajo" : "Nuevo trabajo"}</DialogTitle>
-            <DialogDescription>Datos generales del caso. Los materiales se vincularan por remitos en una fase posterior.</DialogDescription>
+            <DialogDescription>Datos generales del caso. Los materiales se controlan desde remitos vinculados a sus servicios.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="space-y-1"><Label>Titulo</Label><Input value={jobForm.title} onChange={(event) => setJobForm((current) => ({ ...current, title: event.target.value }))} /></div>
@@ -450,7 +501,7 @@ export default function ServiceJobsPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingService ? "Editar servicio" : "Agregar servicio"}</DialogTitle>
-            <DialogDescription>Intervencion concreta dentro del trabajo. No incluye productos ni materiales en esta fase.</DialogDescription>
+            <DialogDescription>Intervencion concreta dentro del trabajo, con tecnicos asignados y remitos de materiales asociados.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="space-y-1"><Label>Titulo</Label><Input value={serviceForm.title} onChange={(event) => setServiceForm((current) => ({ ...current, title: event.target.value }))} /></div>

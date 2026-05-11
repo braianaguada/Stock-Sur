@@ -178,6 +178,18 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - el editor de Documentos muestra el campo opcional `Servicio asociado` solo para `REMITO`, filtrado por cliente cuando aplica
   - la vista previa de Documentos muestra el trabajo/servicio asociado y link de vuelta a `/service-jobs?serviceId=<id>`
   - emitir remitos sigue usando el flujo existente de Documentos; crear/vincular/desvincular no emite ni mueve stock
+- Control operativo de trabajos/servicios:
+  - `/service-jobs` suma un resumen superior con trabajos abiertos/en curso/finalizados, servicios pendientes/realizados y costo estimado de materiales del periodo filtrado
+  - la lista operativa muestra cliente, estado, prioridad, cantidad y avance de servicios, tecnicos involucrados, remitos vinculados, lineas, costo estimado y ultima actividad
+  - los filtros mantienen busqueda, estado, tecnico y periodo, y agregan prioridad sin cambiar reglas de negocio
+  - el detalle del trabajo muestra totales de servicios, remitos, total documental y costo estimado antes del desglose por servicio
+  - no agrega facturacion, cuenta corriente, calendario, adjuntos, exportacion ni rentabilidad avanzada
+- Limpieza visual de Listas de precios:
+  - la pestania `Listas` separa `Consulta rapida de precios` de `Listas configuradas`
+  - la consulta rapida mantiene el precio operativo con `OperationalPriceDisplay`, costo base, precio original si hay redondeo, margen aproximado, estado visual y lista/ultima actualizacion
+  - el boton `Volver a productos` solo aparece cuando la pantalla llega con `?itemId=`
+  - las listas configuradas quedan en un bloque propio con busqueda, estado, flete/margen/IVA, cantidad de productos, pendientes, ultimo recalculo y acciones
+  - no modifica formulas de precio, redondeo, importaciones, snapshots, documentos ni stock
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
   - `supabase/migrations/20260508200000_company_price_rounding_settings.sql`
@@ -187,6 +199,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `supabase/migrations/20260508190000_cash_expenses_ui_support.sql`
   - `supabase/migrations/20260511120000_service_jobs_base.sql`
   - `supabase/migrations/20260511160000_service_remito_links.sql`
+  - sin migracion nueva para control operativo de trabajos/servicios y limpieza visual de Listas de precios
   - sin migracion nueva para estado de cuenta operativo v1
   - sin migracion nueva para la consistencia de fechas/link de cuenta corriente
 - Cobertura QA agregada para duplicado:
@@ -214,7 +227,10 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
 - Cobertura QA agregada para trabajos/servicios:
   - `src/features/service-jobs/lib/serviceJobForm.test.ts` cubre payload valido de trabajo, bloqueo de titulo vacio, servicio con tecnicos, deduplicacion de tecnicos, servicio sin materiales valido y normalizacion de estado/prioridad
   - `src/features/service-jobs/lib/serviceRemitos.test.ts` cubre payload de remito BORRADOR desde servicio, bloqueo de tipos no permitidos, bloqueo cross-company, resumen de remitos y advertencias de tecnico
+  - `src/features/service-jobs/lib/operationalSummary.test.ts` cubre conteos por estado, servicios pendientes/realizados y suma de costo estimado desde remitos asociados
   - `src/App.routes.smoke.test.tsx` cubre que `/service-jobs` monte sin romper
+- Cobertura QA agregada para Listas de precios:
+  - `src/features/price-lists/lib/consultation.test.ts` cubre labels visuales de la consulta rapida y margen aproximado sin tocar la logica de precio operativo
 - Validacion manual recomendada en staging:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
   - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
@@ -238,11 +254,11 @@ npm run build
 
 Validaciones de esta iteracion:
 
-- `npm run db:push:staging`
 - `npm run typecheck`
 - `npm run lint`
 - `npm run test`
 - `npm run build`
+- sin migraciones nuevas; no se ejecuto `npm run db:push:staging` para esta fase
 - `npm run test -- --run src/features/service-jobs/lib/serviceJobForm.test.ts src/App.routes.smoke.test.tsx`
 - `npm run test -- --run src/features/service-jobs/lib/serviceRemitos.test.ts`
 - QA funcional contra staging con usuario real: login, carga directa de `/service-jobs`, alta/edicion de trabajo, alta/edicion de servicio, tecnico asignado, bloqueo de tecnico duplicado, filtros por estado/titulo/cliente/tecnico e integridad de tablas criticas
