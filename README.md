@@ -167,6 +167,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - no registra materiales, no vincula remitos, no crea remitos y no genera stock, caja, documentos, facturacion ni cuenta corriente
   - los trabajos bloquean clientes ocasionales en la migracion y la UI solo lista clientes regulares
   - RLS usa permisos existentes `customers.view`, `customers.create` y `customers.edit` por cercania funcional con clientes/tecnicos hasta crear permisos especificos de trabajos
+  - se corrigio la hidratacion de sesion para que una ruta protegida como `/service-jobs` cargue directo por URL sin rebotar al dashboard
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
   - `supabase/migrations/20260508200000_company_price_rounding_settings.sql`
@@ -231,11 +232,13 @@ Validaciones de esta iteracion:
 - `npm run test`
 - `npm run build`
 - `npm run test -- --run src/features/service-jobs/lib/serviceJobForm.test.ts src/App.routes.smoke.test.tsx`
+- QA funcional contra staging con usuario real: login, carga directa de `/service-jobs`, alta/edicion de trabajo, alta/edicion de servicio, tecnico asignado, bloqueo de tecnico duplicado, filtros por estado/titulo/cliente/tecnico e integridad de tablas criticas
 
 Notas:
 
 - `npm run test` deja `src/features/db/criticalDb.test.ts` en `skipped` si no hay `PGPASSWORD` configurado.
 - La migracion de trabajos/servicios se debe aplicar en staging con `npm run db:push:staging` antes de probar `/service-jobs`.
+- En staging no habia tecnicos cargados al iniciar el QA manual; se creo un tecnico QA en la entidad `technicians` existente para validar la asignacion desde trabajos/servicios.
 - La migracion de combos ya se aplico en staging con `npm run db:push:staging --include-all` por una diferencia de historial remoto.
 - La migracion de gastos de caja se aplico en staging con `npm run db:push:staging`.
 - El guardado de combos ya no persiste parcialidades cabecera/lineas: la escritura pasa por una RPC transaccional en Supabase.
