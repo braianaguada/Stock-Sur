@@ -27,6 +27,7 @@ export type ServiceForm = {
 export type ServiceJobCustomer = {
   id: string;
   name: string;
+  cuit?: string | null;
   is_occasional?: boolean | null;
 };
 
@@ -86,4 +87,25 @@ export type ServiceJobListItem = ServiceJobRow & {
 export type ServiceWithTechnicians = ServiceRow & {
   technicianIds: string[];
   technicianNames: string[];
+  materialRemitos: ServiceMaterialRemito[];
+};
+
+export type ServiceMaterialRemito = {
+  id: string;
+  service_id: string | null;
+  status: string;
+  point_of_sale: number;
+  document_number: number | null;
+  issue_date: string;
+  customer_id: string | null;
+  technician_id: string | null;
+  customer_name: string | null;
+  total: number;
+  created_at: string;
+  lineCount: number;
+  estimatedCost: number;
+};
+
+export type LinkableMaterialRemito = ServiceMaterialRemito & {
+  service_id: string | null;
 };

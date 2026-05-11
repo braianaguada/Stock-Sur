@@ -11,6 +11,7 @@ import type {
   DocRow,
   DocStatus,
   DocType,
+  DocumentServiceOption,
   PriceListItemRow,
   PriceListRow,
 } from "../types";
@@ -60,6 +61,33 @@ export function useDocumentsData({
         .order("name");
       if (error) throw error;
       return data ?? [];
+    },
+  });
+
+  const { data: serviceOptions = [] } = useQuery({
+    queryKey: ["documents", "service-options", currentCompanyId],
+    enabled: Boolean(currentCompanyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("service_job_services")
+        .select("id, title, status, job_id, service_jobs(id, title, customer_id, customers(id, name))")
+        .eq("company_id", currentCompanyId!)
+        .order("updated_at", { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      return (data ?? []).map((service) => {
+        const job = Array.isArray(service.service_jobs) ? service.service_jobs[0] : service.service_jobs;
+        const customer = Array.isArray(job?.customers) ? job?.customers[0] : job?.customers;
+        return {
+          id: service.id,
+          title: service.title,
+          status: service.status,
+          job_id: service.job_id,
+          jobTitle: job?.title ?? "Trabajo sin titulo",
+          customerId: job?.customer_id ?? null,
+          customerName: customer?.name ?? null,
+        };
+      }) as DocumentServiceOption[];
     },
   });
 
@@ -193,7 +221,7 @@ export function useDocumentsData({
     queryFn: async () => {
       let q = supabase
         .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, origin_document_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, service_id, origin_document_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
         .eq("company_id", currentCompanyId!)
         .order("created_at", { ascending: false });
       if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
@@ -235,7 +263,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, origin_document_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, service_id, origin_document_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
         .eq("company_id", currentCompanyId!)
         .eq("id", selectedDocId!)
         .maybeSingle();
@@ -362,6 +390,7 @@ export function useDocumentsData({
   return {
     customers,
     technicians,
+    serviceOptions,
     items,
     priceLists,
     priceListItems,
