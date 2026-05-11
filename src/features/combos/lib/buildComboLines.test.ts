@@ -42,6 +42,20 @@ describe("buildComboLines", () => {
     expect(lines[0].quantity).toBe(6);
   });
 
+  it("does not create a synthetic document line for an empty combo", () => {
+    const lines = buildComboLines({
+      comboName: "Combo vacio",
+      lines: [],
+      availableItems: items,
+      priceByItem: new Map(),
+      priceListItemByItemId: new Map(),
+      applyRounding: (price) => price,
+      nowIso: "2026-01-01T00:00:00.000Z",
+    });
+
+    expect(lines).toEqual([]);
+  });
+
   it("rejects invalid multipliers", () => {
     expect(() =>
       buildComboLines({

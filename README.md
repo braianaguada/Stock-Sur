@@ -190,6 +190,12 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - el boton `Volver a productos` solo aparece cuando la pantalla llega con `?itemId=`
   - las listas configuradas quedan en un bloque propio con busqueda, estado, flete/margen/IVA, cantidad de productos, pendientes, ultimo recalculo y acciones
   - no modifica formulas de precio, redondeo, importaciones, snapshots, documentos ni stock
+- QA integral y hardening operativo:
+  - se auditaron por codigo/tests los flujos de productos, precios/redondeo, combos, documentos, devoluciones, caja/gastos/totales, cuenta corriente y trabajos/servicios
+  - `/price-lists?itemId=<id>` ahora prioriza automaticamente la lista que contiene el producto destacado antes de caer en la primera lista disponible
+  - `/customer-account?customerId=<id>` y el alias legado `customer_id` se resincronizan si el query param cambia con la pantalla ya montada
+  - los combos vacios quedan cubiertos para confirmar que no generan lineas sinteticas ni stock por si mismos
+  - no se agregaron nuevos modulos, reglas de negocio, escrituras automaticas ni cambios grandes de UX
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
   - `supabase/migrations/20260508200000_company_price_rounding_settings.sql`
@@ -199,6 +205,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `supabase/migrations/20260508190000_cash_expenses_ui_support.sql`
   - `supabase/migrations/20260511120000_service_jobs_base.sql`
   - `supabase/migrations/20260511160000_service_remito_links.sql`
+  - sin migracion nueva para QA integral y hardening operativo
   - sin migracion nueva para control operativo de trabajos/servicios y limpieza visual de Listas de precios
   - sin migracion nueva para estado de cuenta operativo v1
   - sin migracion nueva para la consistencia de fechas/link de cuenta corriente
@@ -212,7 +219,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `src/features/price-lists/components/PriceListProductsTable.test.tsx` cubre precio operativo redondeado, precio original cuando esta desactivado y no mutacion del valor persistido
   - `src/features/items/components/ItemsDataTable.test.tsx` cubre el mismo criterio visual en productos y no mutacion de metadata operativa
 - Cobertura QA agregada para combos:
-  - `src/features/combos/lib/buildComboLines.test.ts` cubre expansion de combo, multiplicador y validacion de entradas invalidas
+  - `src/features/combos/lib/buildComboLines.test.ts` cubre expansion de combo, multiplicador, combo vacio sin linea ficticia y validacion de entradas invalidas
   - `src/features/combos/lib/comboForm.test.ts` cubre la sincronizacion estable del formulario
   - `src/features/documents/components/DocumentsEditorDialog.test.tsx` cubre el render del editor con la nueva API de combos
   - `src/features/documents/hooks/useDocumentsMutations.test.tsx` ahora mockea Supabase y valida la mutacion sin depender de env real
@@ -223,7 +230,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
 - Cobertura QA agregada para estado de cuenta:
   - `src/features/customer-account/lib/accountStatement.test.ts` cubre debito pendiente, debito vencido, credito como pago, saldo, filtro por fechas, exclusion de ocasional, referencia de remito, factura externa en filas y empty state
   - `src/lib/formatters.test.ts` cubre que `2026-05-09` se muestre como `09/05/2026` sin corrimiento de dia
-  - `src/features/customer-account/lib/routes.test.ts` cubre el link filtrado `/customer-account?customerId=<id>`
+  - `src/features/customer-account/lib/routes.test.ts` cubre el link filtrado `/customer-account?customerId=<id>` y la lectura de `customerId`/`customer_id` desde query params
 - Cobertura QA agregada para trabajos/servicios:
   - `src/features/service-jobs/lib/serviceJobForm.test.ts` cubre payload valido de trabajo, bloqueo de titulo vacio, servicio con tecnicos, deduplicacion de tecnicos, servicio sin materiales valido y normalizacion de estado/prioridad
   - `src/features/service-jobs/lib/serviceRemitos.test.ts` cubre payload de remito BORRADOR desde servicio, bloqueo de tipos no permitidos, bloqueo cross-company, resumen de remitos y advertencias de tecnico
@@ -231,6 +238,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `src/App.routes.smoke.test.tsx` cubre que `/service-jobs` monte sin romper
 - Cobertura QA agregada para Listas de precios:
   - `src/features/price-lists/lib/consultation.test.ts` cubre labels visuales de la consulta rapida y margen aproximado sin tocar la logica de precio operativo
+  - `src/features/price-lists/lib/consultation.test.ts` cubre que `?itemId=` seleccione la lista que contiene el producto destacado antes de mostrar el fallback
 - Validacion manual recomendada en staging:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
   - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
@@ -255,6 +263,7 @@ npm run build
 Validaciones de esta iteracion:
 
 - `npm run typecheck`
+- `npm run test -- --run src/features/price-lists/lib/consultation.test.ts src/features/customer-account/lib/routes.test.ts src/features/combos/lib/buildComboLines.test.ts`
 - `npm run lint`
 - `npm run test`
 - `npm run build`
@@ -278,6 +287,7 @@ Notas:
 - Limitacion restante de estado de cuenta: no hay imputacion avanzada de pagos por factura/remito, exportacion Excel, intereses, alertas ni conciliacion bancaria; el estado por debito se calcula como estimacion del saldo del cliente.
 - La migracion `20260511160000_service_remito_links.sql` se debe aplicar en staging con `npm run db:push:staging` antes de probar remitos asociados a servicios.
 - Limitacion restante de trabajos/servicios: hay vinculo operativo con remitos actuales, pero no hay materiales manuales dentro del servicio, facturacion desde trabajo, rentabilidad avanzada, reportes, calendario, adjuntos ni checklist tecnico; el guardado de tecnicos de un servicio reemplaza asignaciones en dos pasos desde la UI.
+- Recomendacion QA integral: staging puede avanzar a QA manual final sobre datos reales antes de promover a `main`; no se detectaron cambios de esquema pendientes en esta fase.
 
 ## How can I deploy this project?
 

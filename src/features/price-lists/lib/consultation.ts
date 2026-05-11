@@ -39,3 +39,27 @@ export function getApproxMarginPct(baseCost: number | null, operationalPrice: nu
   if (typeof operationalPrice !== "number" || operationalPrice <= 0) return null;
   return ((operationalPrice - (Number(baseCost) || 0)) / operationalPrice) * 100;
 }
+
+export function resolveConsultListIdForQuery({
+  currentListId,
+  itemIdFromQuery,
+  priceLists,
+  snapshotsByListAndItemId,
+}: {
+  currentListId: string | null;
+  itemIdFromQuery: string | null;
+  priceLists: Array<{ id: string }>;
+  snapshotsByListAndItemId: Map<string, Map<string, unknown>>;
+}) {
+  if (priceLists.length === 0) return null;
+
+  if (itemIdFromQuery) {
+    const currentListHasItem = currentListId ? (snapshotsByListAndItemId.get(currentListId)?.has(itemIdFromQuery) ?? false) : false;
+    if (currentListHasItem) return currentListId;
+
+    const matchingList = priceLists.find((list) => snapshotsByListAndItemId.get(list.id)?.has(itemIdFromQuery) ?? false);
+    if (matchingList) return matchingList.id;
+  }
+
+  return currentListId ?? priceLists[0].id;
+}
