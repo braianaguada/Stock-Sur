@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getErrorMessage } from "@/lib/errors";
 import { queryKeys } from "@/lib/query-keys";
 import { serviceDb } from "@/features/services/db";
+import { getServiceJobOperationalFields } from "../lib/operationalSummary";
 import { buildServiceRemitoDraftPayload } from "../lib/serviceRemitos";
 import { buildServiceJobPayload, buildServicePayload, buildTechnicianAssignments } from "../lib/serviceJobForm";
 import type {
@@ -26,12 +27,13 @@ export function useServiceJobs(params: {
   userId: string | null | undefined;
   search: string;
   status: string;
+  priority: string;
   technicianId: string;
   from: string;
   to: string;
   toast: ToastFn;
 }) {
-  const { companyId, userId, search, status, technicianId, from, to, toast } = params;
+  const { companyId, userId, search, status, priority, technicianId, from, to, toast } = params;
   const qc = useQueryClient();
   const trimmedSearch = search.trim();
 
@@ -65,7 +67,7 @@ export function useServiceJobs(params: {
   });
 
   const jobsQuery = useQuery({
-    queryKey: queryKeys.serviceJobs.list(companyId, trimmedSearch, status, technicianId, from, to),
+    queryKey: queryKeys.serviceJobs.list(companyId, trimmedSearch, status, technicianId, from, to, priority),
     enabled: Boolean(companyId),
     queryFn: async () => {
       let query = serviceDb
@@ -75,6 +77,7 @@ export function useServiceJobs(params: {
         .order("updated_at", { ascending: false });
 
       if (status !== "ALL") query = query.eq("status", status);
+      if (priority !== "ALL") query = query.eq("priority", priority);
       if (from) query = query.gte("opened_at", `${from}T00:00:00`);
       if (to) query = query.lte("opened_at", `${to}T23:59:59`);
 
@@ -200,7 +203,12 @@ export function useServiceJobs(params: {
       .map<ServiceJobListItem>((job) => {
         const services = servicesByJobId.get(job.id) ?? [];
         const technicianNames = Array.from(new Set(services.flatMap((service) => service.technicianNames))).sort();
-        return { ...job, serviceCount: services.length, technicianNames };
+        return {
+          ...job,
+          serviceCount: services.length,
+          technicianNames,
+          ...getServiceJobOperationalFields(job, services),
+        };
       })
       .filter((job) => {
         if (technicianId !== "ALL") {

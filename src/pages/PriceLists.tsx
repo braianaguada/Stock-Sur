@@ -29,6 +29,7 @@ import { BasePricesTable } from "@/features/price-lists/components/BasePricesTab
 import { PriceListCreateDialog } from "@/features/price-lists/components/PriceListCreateDialog";
 import { PriceListDetailDialog } from "@/features/price-lists/components/PriceListDetailDialog";
 import { DEFAULT_PRICE_LIST_FORM, PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
+import { getApproxMarginPct, getPriceConsultationState } from "@/features/price-lists/lib/consultation";
 import type { PriceListFormState } from "@/features/price-lists/types";
 import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
 import { formatDateTime } from "@/features/price-lists/utils";
@@ -378,6 +379,7 @@ export default function PriceListsPage() {
   });
 
   const selectedQueryItem = consultationRows.find((row) => row.item_id === itemIdFromQuery) ?? null;
+  const selectedConsultList = priceLists.find((list) => list.id === consultListId) ?? null;
 
   const clearQueryItem = () => {
     const next = new URLSearchParams(searchParams);
@@ -541,28 +543,17 @@ export default function PriceListsPage() {
                 <Button variant="outline" onClick={() => { setConsultSearch(""); setConsultCategory("all"); }}>
                   Limpiar filtros
                 </Button>
-                  <Button asChild variant="ghost">
-                    <Link to="/items"><ArrowLeft className="mr-2 h-4 w-4" /> Volver a productos</Link>
-                  </Button>
               </FilterBar>
               {selectedQueryItem ? (
-                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3 text-sm">
-                  <span className="font-medium">Seleccionado:</span> {selectedQueryItem.sku ?? "Sin SKU"} - {selectedQueryItem.name}
+                <div className="flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <span className="font-medium">Producto destacado:</span> {selectedQueryItem.sku ?? "Sin SKU"} - {selectedQueryItem.name}
+                  </div>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link to="/items"><ArrowLeft className="mr-2 h-4 w-4" /> Volver a productos</Link>
+                  </Button>
                 </div>
               ) : null}
-            </DataCard>
-            <FilterBar>
-              <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar lista..."
-                  className="pl-9"
-                  value={listSearch}
-                  onChange={(event) => setListSearch(event.target.value)}
-                />
-              </div>
-            </FilterBar>
-            <DataCard>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1100px] text-sm">
                   <thead className="border-b text-left text-xs uppercase text-muted-foreground">
@@ -573,7 +564,7 @@ export default function PriceListsPage() {
                       <th className="p-3">Precio operativo</th>
                       <th className="p-3">Margen aprox.</th>
                       <th className="p-3">Estado</th>
-                      <th className="p-3">Lista</th>
+                      <th className="p-3">Lista / actualizacion</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -582,11 +573,8 @@ export default function PriceListsPage() {
                     ) : filteredConsultationRows.map((row) => {
                       const price = row.calculated_price ?? 0;
                       const { operationalPrice } = getOperationalPrice(row.has_price ? price : null, priceRoundingConfig);
-                      const marginPct =
-                        typeof operationalPrice === "number" && operationalPrice > 0
-                          ? ((operationalPrice - row.base_cost) / operationalPrice) * 100
-                          : null;
-                      const state = !row.base_cost ? "Sin costo" : !row.has_price ? "Sin precio" : row.needs_recalculation ? "Precio de lista" : "Precio manual";
+                      const marginPct = getApproxMarginPct(row.base_cost, operationalPrice);
+                      const state = getPriceConsultationState(row);
                       return (
                         <tr key={row.item_id} className={row.item_id === itemIdFromQuery ? "bg-primary/5" : ""}>
                           <td className="p-3 font-mono text-xs">{row.sku ?? "-"}</td>
@@ -606,8 +594,11 @@ export default function PriceListsPage() {
                             ) : "-"}
                           </td>
                           <td className="p-3">{marginPct === null ? "-" : `${marginPct.toFixed(1)}%`}</td>
-                          <td className="p-3"><Badge variant="outline">{state}</Badge></td>
-                          <td className="p-3 text-muted-foreground">{formatDateTime(row.last_calculated_at)}</td>
+                          <td className="p-3"><Badge variant="outline" className={state.className}>{state.label}</Badge></td>
+                          <td className="p-3">
+                            <div className="font-medium">{selectedConsultList?.name ?? "-"}</div>
+                            <div className="text-xs text-muted-foreground">{formatDateTime(row.last_calculated_at)}</div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -615,7 +606,23 @@ export default function PriceListsPage() {
                 </table>
               </div>
             </DataCard>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <DataCard className="space-y-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h3 className="text-base font-semibold">Listas configuradas</h3>
+                  <p className="text-sm text-muted-foreground">Configuracion, pendientes y acciones de cada lista.</p>
+                </div>
+                <div className="relative w-full md:max-w-sm">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar lista..."
+                    className="pl-9"
+                    value={listSearch}
+                    onChange={(event) => setListSearch(event.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {priceLists.length === 0 ? (
                 <Card className="md:col-span-2 xl:col-span-3">
                   <CardContent className="py-10 text-center text-muted-foreground">
@@ -663,7 +670,8 @@ export default function PriceListsPage() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+              </div>
+            </DataCard>
           </TabsContent>
         </Tabs>
       </div>
