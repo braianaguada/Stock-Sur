@@ -195,6 +195,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `/price-lists?itemId=<id>` ahora prioriza automaticamente la lista que contiene el producto destacado antes de caer en la primera lista disponible
   - `/customer-account?customerId=<id>` y el alias legado `customer_id` se resincronizan si el query param cambia con la pantalla ya montada
   - los combos vacios quedan cubiertos para confirmar que no generan lineas sinteticas ni stock por si mismos
+  - QA manual final detecto y corrigio `/technicians`, que caia en el error boundary por referencias incompletas a `saveMutation`/`deleteMutation`
   - no se agregaron nuevos modulos, reglas de negocio, escrituras automaticas ni cambios grandes de UX
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
@@ -271,6 +272,7 @@ Validaciones de esta iteracion:
 - `npm run test -- --run src/features/service-jobs/lib/serviceJobForm.test.ts src/App.routes.smoke.test.tsx`
 - `npm run test -- --run src/features/service-jobs/lib/serviceRemitos.test.ts`
 - QA funcional contra staging con usuario real: login, carga directa de `/service-jobs`, alta/edicion de trabajo, alta/edicion de servicio, tecnico asignado, bloqueo de tecnico duplicado, filtros por estado/titulo/cliente/tecnico e integridad de tablas criticas
+- QA manual final: rutas principales, hard reload y query params sobre staging actualizado; `/technicians` corregido y revalidado sin error boundary; consultas sin escrituras nuevas en tablas criticas
 
 Notas:
 
