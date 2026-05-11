@@ -77,6 +77,13 @@ export const queryKeys = {
     detail: (documentId: string | null) => ["service-document", documentId ?? "no-document"] as const,
     lines: (documentId: string | null) => ["service-document-lines", documentId ?? "no-document"] as const,
   },
+  serviceJobs: {
+    all: () => ["service-jobs"] as const,
+    list: (companyId: string | null, search: string, status: string, technicianId: string, from: string, to: string) =>
+      ["service-jobs", companyId ?? "no-company", search, status, technicianId, from, to] as const,
+    customers: (companyId: string | null) => ["service-jobs-customers", companyId ?? "no-company"] as const,
+    technicians: (companyId: string | null) => ["service-jobs-technicians", companyId ?? "no-company"] as const,
+  },
   stock: {
     recentItems: (companyId: string | null, userId: string | null | undefined) =>
       ["stock-recent-items", companyId ?? "no-company", userId ?? "no-user"] as const,

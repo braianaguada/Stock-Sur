@@ -63,7 +63,7 @@ This project is built with:
 ## Estado actual de staging
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
-Al 2026-05-09, los cambios principales incorporados en `staging` son:
+Al 2026-05-11, los cambios principales incorporados en `staging` son:
 
 - Redisenio completo de impresion/PDF para documentos comerciales:
   - `PRESUPUESTO`
@@ -157,6 +157,16 @@ Al 2026-05-09, los cambios principales incorporados en `staging` son:
   - no incluye cliente ocasional ni mezcla empresas: las consultas filtran por `company_id` y clientes no ocasionales
   - el vencimiento es estimado: `metadata.due_date` si existe; si no, debitos a 30 dias desde fecha de documento/movimiento; creditos quedan sin vencimiento
   - estado por movimiento es estimado hasta incorporar imputacion formal de pagos por documento
+- Trabajos / Servicios base v1:
+  - nueva ruta `/service-jobs`, accesible desde la navegacion como `Trabajos`
+  - modelo base para trabajos generales por empresa y cliente, con estado, prioridad, descripcion, apertura/cierre y auditoria minima
+  - modelo base para servicios dentro de un trabajo, con fecha/hora programada, estado, tareas realizadas, notas y tecnicos asignados
+  - relacion `service_job_service_technicians` para asignar multiples tecnicos a cada servicio sin duplicar el mismo tecnico en el mismo servicio
+  - listado con busqueda por trabajo/cliente, filtro por estado, tecnico y rango de apertura
+  - detalle lateral de trabajo con servicios asociados y CRUD minimo de trabajos/servicios
+  - no registra materiales, no vincula remitos, no crea remitos y no genera stock, caja, documentos, facturacion ni cuenta corriente
+  - los trabajos bloquean clientes ocasionales en la migracion y la UI solo lista clientes regulares
+  - RLS usa permisos existentes `customers.view`, `customers.create` y `customers.edit` por cercania funcional con clientes/tecnicos hasta crear permisos especificos de trabajos
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
   - `supabase/migrations/20260508200000_company_price_rounding_settings.sql`
@@ -164,6 +174,7 @@ Al 2026-05-09, los cambios principales incorporados en `staging` son:
   - `supabase/migrations/20260508160000_remote.sql`
   - `supabase/migrations/20260508170000_product_combos_rpc.sql`
   - `supabase/migrations/20260508190000_cash_expenses_ui_support.sql`
+  - `supabase/migrations/20260511120000_service_jobs_base.sql`
   - sin migracion nueva para estado de cuenta operativo v1
   - sin migracion nueva para la consistencia de fechas/link de cuenta corriente
 - Cobertura QA agregada para duplicado:
@@ -188,6 +199,9 @@ Al 2026-05-09, los cambios principales incorporados en `staging` son:
   - `src/features/customer-account/lib/accountStatement.test.ts` cubre debito pendiente, debito vencido, credito como pago, saldo, filtro por fechas, exclusion de ocasional, referencia de remito, factura externa en filas y empty state
   - `src/lib/formatters.test.ts` cubre que `2026-05-09` se muestre como `09/05/2026` sin corrimiento de dia
   - `src/features/customer-account/lib/routes.test.ts` cubre el link filtrado `/customer-account?customerId=<id>`
+- Cobertura QA agregada para trabajos/servicios:
+  - `src/features/service-jobs/lib/serviceJobForm.test.ts` cubre payload valido de trabajo, bloqueo de titulo vacio, servicio con tecnicos, deduplicacion de tecnicos, servicio sin materiales valido y normalizacion de estado/prioridad
+  - `src/App.routes.smoke.test.tsx` cubre que `/service-jobs` monte sin romper
 - Validacion manual recomendada en staging:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
   - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
@@ -211,18 +225,17 @@ npm run build
 
 Validaciones de esta iteracion:
 
+- `npm run db:push:staging`
 - `npm run typecheck`
 - `npm run lint`
 - `npm run test`
 - `npm run build`
-- `npm run test -- src/features/cash/lib/cashTotals.test.ts`
-- `npm run test -- src/features/customer-account/lib/accountStatement.test.ts`
-- `npm run test -- --run src/lib/formatters.test.ts src/features/customer-account/lib/routes.test.ts src/features/customer-account/lib/accountStatement.test.ts`
-- No hubo migraciones nuevas; no se ejecuto `npm run db:push:staging` en esta iteracion.
+- `npm run test -- --run src/features/service-jobs/lib/serviceJobForm.test.ts src/App.routes.smoke.test.tsx`
 
 Notas:
 
 - `npm run test` deja `src/features/db/criticalDb.test.ts` en `skipped` si no hay `PGPASSWORD` configurado.
+- La migracion de trabajos/servicios se debe aplicar en staging con `npm run db:push:staging` antes de probar `/service-jobs`.
 - La migracion de combos ya se aplico en staging con `npm run db:push:staging --include-all` por una diferencia de historial remoto.
 - La migracion de gastos de caja se aplico en staging con `npm run db:push:staging`.
 - El guardado de combos ya no persiste parcialidades cabecera/lineas: la escritura pasa por una RPC transaccional en Supabase.
@@ -231,6 +244,7 @@ Notas:
 - Limitacion restante de gastos: no hay adjuntos reales, OCR, aprobaciones, reportes mensuales ni edicion de gastos cerrados; si un gasto activo se cargo mal, se anula y se registra nuevamente.
 - Limitacion restante de totales: no hay exportacion Excel, graficos avanzados ni detalle transaccional expandible por dia; el reporte se calcula en frontend con queries por rango y limite operativo de 5000 ventas/gastos por consulta.
 - Limitacion restante de estado de cuenta: no hay imputacion avanzada de pagos por factura/remito, exportacion Excel, intereses, alertas ni conciliacion bancaria; el estado por debito se calcula como estimacion del saldo del cliente.
+- Limitacion restante de trabajos/servicios: no hay vinculo con remitos/documentos, materiales usados, costos, facturacion, reportes, calendario, adjuntos ni checklist tecnico; el guardado de tecnicos de un servicio reemplaza asignaciones en dos pasos desde la UI.
 
 ## How can I deploy this project?
 
