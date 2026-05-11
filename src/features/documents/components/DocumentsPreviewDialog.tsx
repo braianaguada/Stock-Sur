@@ -43,6 +43,8 @@ interface DocumentsPreviewDialogProps {
   onDuplicateDocument: (document: DocRow) => void;
   isDuplicatingDocument: boolean;
   canDuplicateDocument: boolean;
+  serviceLinkLabel?: string | null;
+  onOpenService?: () => void;
 }
 
 const HISTORY_TONE_COLORS: Record<string, { bg: string; border: string; text: string; line: string; icon: LucideIcon }> = {
@@ -132,6 +134,8 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     onDuplicateDocument,
     isDuplicatingDocument,
     canDuplicateDocument,
+    serviceLinkLabel,
+    onOpenService,
   } = props;
 
   const handleSetExternalInvoice = () => {
@@ -389,6 +393,22 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                         <p className="mt-1 truncate text-sm font-black text-slate-950">{sourceDocumentLabel}</p>
                       </div>
                     </div>
+                ) : null}
+                {serviceLinkLabel ? (
+                  <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-emerald-700 shadow-sm">
+                      <Link2 className="h-4 w-4" strokeWidth={2.5} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">Servicio asociado</p>
+                      <p className="mt-1 truncate text-sm font-black text-slate-950">{serviceLinkLabel}</p>
+                      {onOpenService ? (
+                        <Button type="button" size="sm" variant="outline" className="mt-2 h-8 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-100" onClick={onOpenService}>
+                          Abrir trabajo
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
                 ) : null}
                 </div>
 

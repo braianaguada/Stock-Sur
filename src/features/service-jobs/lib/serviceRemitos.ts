@@ -1,0 +1,79 @@
+import type { DocType } from "@/features/documents/types";
+
+export type ServiceRemitoDraftInput = {
+  companyId: string;
+  userId?: string | null;
+  serviceId: string;
+  pointOfSale: number;
+  customerId?: string | null;
+  customerName?: string | null;
+  customerTaxId?: string | null;
+  technicianIds: string[];
+};
+
+export type ServiceRemitoSummarySource = {
+  total: number | string | null;
+  lineCount: number;
+  estimatedCost: number;
+};
+
+export function buildServiceRemitoDraftPayload(input: ServiceRemitoDraftInput) {
+  const uniqueTechnicianIds = Array.from(new Set(input.technicianIds.filter(Boolean)));
+
+  return {
+    company_id: input.companyId,
+    doc_type: "REMITO" as const,
+    status: "BORRADOR" as const,
+    point_of_sale: Math.max(1, Number(input.pointOfSale) || 1),
+    customer_id: input.customerId || null,
+    technician_id: uniqueTechnicianIds.length === 1 ? uniqueTechnicianIds[0] : null,
+    customer_name: input.customerName?.trim() || null,
+    customer_tax_id: input.customerTaxId?.trim() || null,
+    customer_kind: "GENERAL" as const,
+    service_id: input.serviceId,
+    subtotal: 0,
+    tax_total: 0,
+    total: 0,
+    created_by: input.userId ?? null,
+  };
+}
+
+export function validateDocumentServiceLink(input: {
+  docType: DocType;
+  documentCompanyId: string;
+  serviceCompanyId: string;
+}) {
+  if (input.docType !== "REMITO") {
+    throw new Error("Solo los remitos pueden asociarse a servicios");
+  }
+  if (input.documentCompanyId !== input.serviceCompanyId) {
+    throw new Error("El servicio no pertenece a la empresa del documento");
+  }
+  return true;
+}
+
+export function summarizeServiceRemitos(remitos: ServiceRemitoSummarySource[]) {
+  return remitos.reduce(
+    (summary, remito) => ({
+      documents: summary.documents + 1,
+      lineCount: summary.lineCount + remito.lineCount,
+      total: summary.total + (Number(remito.total) || 0),
+      estimatedCost: summary.estimatedCost + (Number(remito.estimatedCost) || 0),
+    }),
+    { documents: 0, lineCount: 0, total: 0, estimatedCost: 0 },
+  );
+}
+
+export function getServiceRemitoTechnicianWarning(input: {
+  serviceTechnicianIds: string[];
+  documentTechnicianId?: string | null;
+}) {
+  const serviceTechnicianIds = new Set(input.serviceTechnicianIds.filter(Boolean));
+  if (input.documentTechnicianId && serviceTechnicianIds.size > 0 && !serviceTechnicianIds.has(input.documentTechnicianId)) {
+    return "El tecnico del remito no esta asignado al servicio.";
+  }
+  if (!input.documentTechnicianId && serviceTechnicianIds.size > 0) {
+    return "El servicio tiene tecnicos asignados y el remito no tiene tecnico.";
+  }
+  return null;
+}

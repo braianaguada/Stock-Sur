@@ -939,6 +939,7 @@ export type Database = {
           point_of_sale: number
           price_list_id: string | null
           salesperson: string | null
+          service_id: string | null
           source_document_id: string | null
           source_document_number_snapshot: string | null
           source_document_type:
@@ -976,6 +977,7 @@ export type Database = {
           point_of_sale?: number
           price_list_id?: string | null
           salesperson?: string | null
+          service_id?: string | null
           source_document_id?: string | null
           source_document_number_snapshot?: string | null
           source_document_type?:
@@ -1013,6 +1015,7 @@ export type Database = {
           point_of_sale?: number
           price_list_id?: string | null
           salesperson?: string | null
+          service_id?: string | null
           source_document_id?: string | null
           source_document_number_snapshot?: string | null
           source_document_type?:
@@ -1046,6 +1049,13 @@ export type Database = {
             columns: ["price_list_id"]
             isOneToOne: false
             referencedRelation: "price_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "service_job_services"
             referencedColumns: ["id"]
           },
           {

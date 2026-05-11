@@ -10,6 +10,7 @@ import type {
   DocRow,
   DocStatus,
   DocumentFormState,
+  DocumentServiceOption,
   LineDraft,
   PriceListItemRow,
 } from "../types";
@@ -24,6 +25,7 @@ type UseDocumentsMutationsParams = {
   documents: DocRow[];
   customers: Array<{ id: string; name: string; cuit: string | null }>;
   technicians: Array<{ id: string; name: string }>;
+  serviceOptions: DocumentServiceOption[];
   lines: LineDraft[];
   draftForm: DocumentFormState;
   totalDraft: number;
@@ -131,6 +133,7 @@ export function useDocumentsMutations({
   documents,
   customers,
   technicians,
+  serviceOptions = [],
   lines,
   draftForm,
   totalDraft,
@@ -156,6 +159,10 @@ export function useDocumentsMutations({
     () => new Map(technicians.map((technician) => [technician.id, technician])),
     [technicians],
   );
+  const serviceOptionsById = useMemo(
+    () => new Map(serviceOptions.map((service) => [service.id, service])),
+    [serviceOptions],
+  );
 
   const upsertDraftMutation = useMutation({
     mutationFn: async () => {
@@ -165,6 +172,12 @@ export function useDocumentsMutations({
       }
       if (draftForm.technician_id && !techniciansById.has(draftForm.technician_id)) {
         throw new Error("El tecnico seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+      if (draftForm.service_id && draftForm.doc_type !== "REMITO") {
+        throw new Error("Solo los remitos pueden asociarse a servicios");
+      }
+      if (draftForm.service_id && !serviceOptionsById.has(draftForm.service_id)) {
+        throw new Error("El servicio seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
       }
       if (editingDocId && !documentsById.has(editingDocId)) {
         throw new Error("El borrador que intentas editar ya no esta disponible. Recarga Documentos e intenta de nuevo");
@@ -215,6 +228,7 @@ export function useDocumentsMutations({
             point_of_sale: draftForm.point_of_sale,
             customer_id: draftForm.customer_id || null,
             technician_id: draftForm.technician_id || null,
+            service_id: draftForm.doc_type === "REMITO" ? draftForm.service_id || null : null,
             customer_name: customerName || null,
             customer_tax_condition: draftForm.customer_tax_condition || null,
             customer_tax_id: customerTaxId,
@@ -243,6 +257,7 @@ export function useDocumentsMutations({
             point_of_sale: draftForm.point_of_sale,
             customer_id: draftForm.customer_id || null,
             technician_id: draftForm.technician_id || null,
+            service_id: draftForm.doc_type === "REMITO" ? draftForm.service_id || null : null,
             customer_name: customerName || null,
             customer_tax_condition: draftForm.customer_tax_condition || null,
             customer_tax_id: customerTaxId,

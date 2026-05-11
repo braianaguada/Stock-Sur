@@ -1,5 +1,6 @@
-import { useDeferredValue, useMemo, useState } from "react";
-import { Edit, Eye, Plus, Search, Trash2, Wrench } from "lucide-react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Edit, ExternalLink, Eye, FilePlus2, Link2, Plus, Search, Trash2, Unlink, Wrench } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -15,13 +16,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { useServiceJobs } from "@/features/service-jobs/hooks/useServiceJobs";
 import { DEFAULT_JOB_FORM, DEFAULT_SERVICE_FORM } from "@/features/service-jobs/lib/serviceJobForm";
+import { getServiceRemitoTechnicianWarning, summarizeServiceRemitos } from "@/features/service-jobs/lib/serviceRemitos";
 import { SERVICE_JOB_PRIORITIES, SERVICE_JOB_STATUSES, SERVICE_STATUSES } from "@/features/service-jobs/types";
-import type { ServiceForm, ServiceJobForm, ServiceJobListItem, ServiceRow, ServiceWithTechnicians } from "@/features/service-jobs/types";
+import type { LinkableMaterialRemito, ServiceForm, ServiceJobForm, ServiceJobListItem, ServiceRow, ServiceWithTechnicians } from "@/features/service-jobs/types";
+import { formatNumber } from "@/features/documents/utils";
 
 const JOB_STATUS_LABEL = {
   OPEN: "Abierto",
@@ -52,6 +56,10 @@ function toDateTimeInput(value: string | null) {
   return date.toISOString().slice(0, 16);
 }
 
+function formatMoney(value: number | string | null | undefined) {
+  return `$${(Number(value) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 function JobStatusBadge({ status }: { status: ServiceJobListItem["status"] }) {
   const className = {
     OPEN: "border-sky-500/30 bg-sky-500/10 text-sky-400",
@@ -66,6 +74,9 @@ function JobStatusBadge({ status }: { status: ServiceJobListItem["status"] }) {
 export default function ServiceJobsPage() {
   const { currentCompany, user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { settings: companySettings } = useCompanyBrand();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [status, setStatus] = useState("ALL");
@@ -79,6 +90,8 @@ export default function ServiceJobsPage() {
   const [editingService, setEditingService] = useState<ServiceWithTechnicians | null>(null);
   const [jobToDelete, setJobToDelete] = useState<ServiceJobListItem | null>(null);
   const [serviceToDelete, setServiceToDelete] = useState<ServiceRow | null>(null);
+  const [linkingService, setLinkingService] = useState<ServiceWithTechnicians | null>(null);
+  const [remitoSearch, setRemitoSearch] = useState("");
   const [jobForm, setJobForm] = useState<ServiceJobForm>(DEFAULT_JOB_FORM);
   const [serviceForm, setServiceForm] = useState<ServiceForm>(DEFAULT_SERVICE_FORM);
 
@@ -87,11 +100,15 @@ export default function ServiceJobsPage() {
     technicians,
     jobs,
     servicesByJobId,
+    linkableRemitos,
     isLoading,
     saveJobMutation,
     deleteJobMutation,
     saveServiceMutation,
     deleteServiceMutation,
+    createMaterialRemitoMutation,
+    linkMaterialRemitoMutation,
+    unlinkMaterialRemitoMutation,
   } = useServiceJobs({
     companyId: currentCompany?.id ?? null,
     userId: user?.id,
@@ -105,6 +122,48 @@ export default function ServiceJobsPage() {
 
   const selectedJob = useMemo(() => jobs.find((job) => job.id === selectedJobId) ?? jobs[0] ?? null, [jobs, selectedJobId]);
   const selectedServices = selectedJob ? servicesByJobId.get(selectedJob.id) ?? [] : [];
+  const serviceIdParam = searchParams.get("serviceId");
+
+  useEffect(() => {
+    if (!serviceIdParam) return;
+    for (const [jobId, services] of servicesByJobId.entries()) {
+      if (services.some((service) => service.id === serviceIdParam)) {
+        setSelectedJobId(jobId);
+        return;
+      }
+    }
+  }, [serviceIdParam, servicesByJobId]);
+
+  const techniciansById = useMemo(
+    () => new Map(technicians.map((technician) => [technician.id, technician])),
+    [technicians],
+  );
+
+  const selectedJobCustomer = selectedJob?.customer_id
+    ? customers.find((customer) => customer.id === selectedJob.customer_id) ?? null
+    : null;
+
+  const filteredLinkableRemitos = useMemo(() => {
+    if (!linkingService || !selectedJob) return [];
+    const query = remitoSearch.trim().toLowerCase();
+    return linkableRemitos
+      .filter((remito) => remito.service_id === null || remito.service_id === linkingService.id)
+      .filter((remito) => !selectedJob.customer_id || !remito.customer_id || remito.customer_id === selectedJob.customer_id)
+      .filter((remito) => {
+        if (!query) return true;
+        return [
+          formatNumber(remito.document_number, remito.point_of_sale),
+          remito.customer_name ?? "",
+          remito.status,
+          techniciansById.get(remito.technician_id ?? "")?.name ?? "",
+        ].join(" ").toLowerCase().includes(query);
+      })
+      .slice(0, 50);
+  }, [linkableRemitos, linkingService, remitoSearch, selectedJob, techniciansById]);
+
+  const openDocument = (documentId: string) => {
+    navigate(`/documents?document_id=${documentId}`);
+  };
 
   const openCreateJob = () => {
     setEditingJob(null);
@@ -159,7 +218,7 @@ export default function ServiceJobsPage() {
         <PageHeader
           eyebrow="Trabajos"
           title="Trabajos y servicios"
-          subtitle="Base operativa para registrar casos de clientes, servicios internos y tecnicos asignados sin tocar materiales ni remitos."
+          subtitle="Base operativa para registrar casos de clientes, servicios internos, tecnicos asignados y remitos de materiales vinculados."
           actions={<Button onClick={openCreateJob}><Plus className="mr-2 h-4 w-4" /> Nuevo trabajo</Button>}
         />
 
@@ -279,6 +338,68 @@ export default function ServiceJobsPage() {
                       </div>
                       <p className="mt-2 text-sm text-muted-foreground">{service.description || "Sin descripcion."}</p>
                       <p className="mt-2 text-xs text-muted-foreground">Tecnicos: {service.technicianNames.join(", ") || "sin asignar"}</p>
+                      <div className="mt-3 rounded-xl border bg-muted/10 p-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold">Remitos de materiales</p>
+                            <p className="text-xs text-muted-foreground">
+                              {(() => {
+                                const summary = summarizeServiceRemitos(service.materialRemitos);
+                                return `${summary.documents} remito(s), ${summary.lineCount} linea(s), total ${formatMoney(summary.total)}, costo est. ${formatMoney(summary.estimatedCost)}`;
+                              })()}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                createMaterialRemitoMutation.mutate(
+                                  {
+                                    service,
+                                    customer: selectedJobCustomer,
+                                    pointOfSale: companySettings.default_point_of_sale ?? 1,
+                                  },
+                                  { onSuccess: openDocument },
+                                )
+                              }
+                              disabled={createMaterialRemitoMutation.isPending}
+                            >
+                              <FilePlus2 className="mr-2 h-4 w-4" /> Crear remito
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => { setLinkingService(service); setRemitoSearch(""); }}>
+                              <Link2 className="mr-2 h-4 w-4" /> Vincular existente
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="mt-3 grid gap-2">
+                          {service.materialRemitos.length === 0 ? (
+                            <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">Sin remitos vinculados.</div>
+                          ) : service.materialRemitos.map((remito) => {
+                            const warning = getServiceRemitoTechnicianWarning({
+                              serviceTechnicianIds: service.technicianIds,
+                              documentTechnicianId: remito.technician_id,
+                            });
+                            return (
+                              <div key={remito.id} className="rounded-lg border bg-card p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="font-mono text-sm font-semibold">{formatNumber(remito.document_number, remito.point_of_sale)}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {remito.status} - {formatDateTime(remito.issue_date)} - {techniciansById.get(remito.technician_id ?? "")?.name ?? "Sin tecnico"} - {remito.lineCount} linea(s) - {formatMoney(remito.total)}
+                                    </p>
+                                    {warning ? <p className="mt-1 text-xs text-amber-600">{warning}</p> : null}
+                                  </div>
+                                  <div className="flex shrink-0 gap-1">
+                                    <Button variant="ghost" size="icon" title="Ver documento" onClick={() => openDocument(remito.id)}><ExternalLink className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" title="Desvincular" onClick={() => unlinkMaterialRemitoMutation.mutate(remito.id)}><Unlink className="h-4 w-4" /></Button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                       <div className="mt-3 flex justify-end gap-1">
                         <Button variant="ghost" size="icon" onClick={() => openEditService(service)}><Edit className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setServiceToDelete(service)}><Trash2 className="h-4 w-4" /></Button>
@@ -383,6 +504,59 @@ export default function ServiceJobsPage() {
         isPending={deleteServiceMutation.isPending}
         onConfirm={() => { if (serviceToDelete) deleteServiceMutation.mutate(serviceToDelete.id); setServiceToDelete(null); }}
       />
+      <Dialog open={Boolean(linkingService)} onOpenChange={(open) => { if (!open) setLinkingService(null); }}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Vincular remito existente</DialogTitle>
+            <DialogDescription>Selecciona un remito actual de Documentos. No se crean movimientos ni se modifica stock.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <Input
+              value={remitoSearch}
+              onChange={(event) => setRemitoSearch(event.target.value)}
+              placeholder="Buscar por numero, cliente, estado o tecnico..."
+            />
+            <div className="max-h-[420px] overflow-y-auto rounded-xl border">
+              {filteredLinkableRemitos.length === 0 ? (
+                <div className="p-4 text-sm text-muted-foreground">No hay remitos compatibles para mostrar.</div>
+              ) : filteredLinkableRemitos.map((remito: LinkableMaterialRemito) => {
+                const warning = linkingService ? getServiceRemitoTechnicianWarning({
+                  serviceTechnicianIds: linkingService.technicianIds,
+                  documentTechnicianId: remito.technician_id,
+                }) : null;
+                return (
+                  <div key={remito.id} className="flex flex-col gap-3 border-b p-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="font-mono text-sm font-semibold">{formatNumber(remito.document_number, remito.point_of_sale)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {remito.status} - {formatDateTime(remito.issue_date)} - {remito.customer_name ?? "Sin cliente"} - {techniciansById.get(remito.technician_id ?? "")?.name ?? "Sin tecnico"} - {formatMoney(remito.total)}
+                      </p>
+                      {warning ? <p className="mt-1 text-xs text-amber-600">{warning}</p> : null}
+                      {remito.service_id === linkingService?.id ? <Badge variant="outline" className="mt-2">Ya vinculado</Badge> : null}
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={!linkingService || remito.service_id === linkingService?.id || linkMaterialRemitoMutation.isPending}
+                      onClick={() => {
+                        if (!linkingService) return;
+                        linkMaterialRemitoMutation.mutate(
+                          { documentId: remito.id, serviceId: linkingService.id },
+                          { onSuccess: () => setLinkingService(null) },
+                        );
+                      }}
+                    >
+                      Vincular
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkingService(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

@@ -14,6 +14,7 @@ import type {
   CustomerKind,
   DocType,
   DocumentFormState,
+  DocumentServiceOption,
   InternalRemitoType,
   LineDraft,
   LinePricingMode,
@@ -59,6 +60,7 @@ interface DocumentsEditorDialogProps {
   totalDraft: number;
   customers: CustomerOption[];
   technicians: TechnicianOption[];
+  serviceOptions: DocumentServiceOption[];
   priceLists: PriceListRow[];
   availableItems: AvailableItemOption[];
   combos: ComboOption[];
@@ -87,6 +89,7 @@ export function DocumentsEditorDialog({
   totalDraft,
   customers,
   technicians,
+  serviceOptions = [],
   priceLists,
   availableItems,
   combos,
@@ -104,6 +107,18 @@ export function DocumentsEditorDialog({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const deferredItemSearch = useDeferredValue(itemSearch);
   const isReturn = documentForm.doc_type === "REMITO_DEVOLUCION";
+  const selectedService = documentForm.service_id
+    ? serviceOptions.find((service) => service.id === documentForm.service_id) ?? null
+    : null;
+  const filteredServiceOptions = useMemo(() => {
+    const selectedCustomerId = documentForm.customer_id || null;
+    return serviceOptions.filter((service) =>
+      service.id === documentForm.service_id
+      || !selectedCustomerId
+      || !service.customerId
+      || service.customerId === selectedCustomerId,
+    );
+  }, [documentForm.customer_id, documentForm.service_id, serviceOptions]);
 
   const selectedPriceList = useMemo(
     () => priceLists.find((priceList) => priceList.id === documentForm.price_list_id) ?? null,
@@ -221,6 +236,7 @@ export function DocumentsEditorDialog({
                           nextDocType === "REMITO" && nextCustomerKind === "INTERNO"
                             ? previousForm.internal_remito_type
                             : "",
+                        service_id: nextDocType === "REMITO" ? previousForm.service_id : "",
                       };
                     })
                   }
@@ -445,6 +461,34 @@ export function DocumentsEditorDialog({
                         setDraftForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
                       }
                     />
+                  </div>
+                ) : null}
+
+                {documentForm.doc_type === "REMITO" && !isReturn ? (
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Servicio asociado</Label>
+                    <Select
+                      value={documentForm.service_id || "__none__"}
+                      onValueChange={(value) =>
+                        setDraftForm((previousForm) => ({
+                          ...previousForm,
+                          service_id: value === "__none__" ? "" : value,
+                        }))
+                      }
+                    >
+                      <SelectTrigger><SelectValue placeholder="Sin servicio" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Sin servicio</SelectItem>
+                        {filteredServiceOptions.map((service) => (
+                          <SelectItem key={service.id} value={service.id}>
+                            {service.jobTitle} / {service.title}{service.customerName ? ` - ${service.customerName}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedService && documentForm.customer_id && selectedService.customerId && selectedService.customerId !== documentForm.customer_id ? (
+                      <p className="text-xs text-amber-600">El servicio pertenece a otro cliente. Se permite guardar, pero revisa la trazabilidad.</p>
+                    ) : null}
                   </div>
                 ) : null}
 

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -74,6 +74,7 @@ function buildEmptyDocumentForm(defaultPointOfSale: number, defaultCustomerId = 
     point_of_sale: defaultPointOfSale,
     customer_id: defaultCustomerId,
     technician_id: "",
+    service_id: "",
     customer_name: "",
     customer_tax_condition: "",
     customer_tax_id: "",
@@ -92,6 +93,7 @@ export default function DocumentsPage() {
   const { user, roles, currentCompany } = useAuth();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { settings: companySettings } = useCompanyBrand();
   const defaultPointOfSale = companySettings.default_point_of_sale ?? 1;
   const priceRoundingConfig = useMemo(
@@ -119,6 +121,7 @@ export default function DocumentsPage() {
   const {
     customers,
     technicians,
+    serviceOptions,
     items,
     priceLists,
     availableItems,
@@ -187,6 +190,13 @@ export default function DocumentsPage() {
     [customers],
   );
   const linkedDocumentId = searchParams.get("document_id");
+  const serviceOptionsById = useMemo(
+    () => new Map(serviceOptions.map((service) => [service.id, service])),
+    [serviceOptions],
+  );
+  const selectedServiceOption = selectedDocument?.service_id
+    ? serviceOptionsById.get(selectedDocument.service_id) ?? null
+    : null;
 
   useEffect(() => {
     if (!linkedDocumentId) return;
@@ -319,6 +329,7 @@ export default function DocumentsPage() {
     documents,
     customers,
     technicians,
+    serviceOptions,
     lines,
     draftForm,
     totalDraft,
@@ -685,6 +696,7 @@ export default function DocumentsPage() {
             totalDraft={totalDraft}
             customers={customers}
             technicians={technicians}
+            serviceOptions={serviceOptions}
             priceLists={priceLists}
             availableItems={availableItems}
             combos={combos}
@@ -715,6 +727,16 @@ export default function DocumentsPage() {
               selectedDocument?.technician_id
                 ? technicians.find((technician) => technician.id === selectedDocument.technician_id)?.name ?? null
                 : null
+            }
+            serviceLinkLabel={
+              selectedServiceOption
+                ? `${selectedServiceOption.jobTitle} / ${selectedServiceOption.title}`
+                : selectedDocument?.service_id ? "Servicio asociado" : null
+            }
+            onOpenService={
+              selectedDocument?.service_id
+                ? () => navigate(`/service-jobs?serviceId=${selectedDocument.service_id}`)
+                : undefined
             }
             companySettings={companySettings}
             onSetExternalInvoice={(documentId, externalInvoiceNumber) => {

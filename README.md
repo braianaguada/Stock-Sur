@@ -168,6 +168,16 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - los trabajos bloquean clientes ocasionales en la migracion y la UI solo lista clientes regulares
   - RLS usa permisos existentes `customers.view`, `customers.create` y `customers.edit` por cercania funcional con clientes/tecnicos hasta crear permisos especificos de trabajos
   - se corrigio la hidratacion de sesion para que una ruta protegida como `/service-jobs` cargue directo por URL sin rebotar al dashboard
+- Vinculacion de remitos de materiales a servicios v1:
+  - `documents.service_id` permite asociar remitos actuales del modulo Documentos con servicios de Trabajos
+  - solo `REMITO` puede guardar `service_id`; `PRESUPUESTO` y `REMITO_DEVOLUCION` quedan bloqueados por validacion de DB/UI
+  - el trigger valida que documento y servicio pertenezcan a la misma empresa
+  - desde el detalle de servicio se puede crear un `REMITO` `BORRADOR` vinculado, con cliente del trabajo y tecnico automatico solo si el servicio tiene un unico tecnico
+  - desde el detalle de servicio se pueden vincular y desvincular remitos existentes sin borrar documentos ni generar movimientos de stock
+  - los servicios muestran remitos asociados con numero, estado, fecha, tecnico, lineas, total y costo estimado por snapshots de lineas
+  - el editor de Documentos muestra el campo opcional `Servicio asociado` solo para `REMITO`, filtrado por cliente cuando aplica
+  - la vista previa de Documentos muestra el trabajo/servicio asociado y link de vuelta a `/service-jobs?serviceId=<id>`
+  - emitir remitos sigue usando el flujo existente de Documentos; crear/vincular/desvincular no emite ni mueve stock
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`
   - `supabase/migrations/20260508200000_company_price_rounding_settings.sql`
@@ -176,6 +186,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `supabase/migrations/20260508170000_product_combos_rpc.sql`
   - `supabase/migrations/20260508190000_cash_expenses_ui_support.sql`
   - `supabase/migrations/20260511120000_service_jobs_base.sql`
+  - `supabase/migrations/20260511160000_service_remito_links.sql`
   - sin migracion nueva para estado de cuenta operativo v1
   - sin migracion nueva para la consistencia de fechas/link de cuenta corriente
 - Cobertura QA agregada para duplicado:
@@ -202,6 +213,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `src/features/customer-account/lib/routes.test.ts` cubre el link filtrado `/customer-account?customerId=<id>`
 - Cobertura QA agregada para trabajos/servicios:
   - `src/features/service-jobs/lib/serviceJobForm.test.ts` cubre payload valido de trabajo, bloqueo de titulo vacio, servicio con tecnicos, deduplicacion de tecnicos, servicio sin materiales valido y normalizacion de estado/prioridad
+  - `src/features/service-jobs/lib/serviceRemitos.test.ts` cubre payload de remito BORRADOR desde servicio, bloqueo de tipos no permitidos, bloqueo cross-company, resumen de remitos y advertencias de tecnico
   - `src/App.routes.smoke.test.tsx` cubre que `/service-jobs` monte sin romper
 - Validacion manual recomendada en staging:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
@@ -232,6 +244,7 @@ Validaciones de esta iteracion:
 - `npm run test`
 - `npm run build`
 - `npm run test -- --run src/features/service-jobs/lib/serviceJobForm.test.ts src/App.routes.smoke.test.tsx`
+- `npm run test -- --run src/features/service-jobs/lib/serviceRemitos.test.ts`
 - QA funcional contra staging con usuario real: login, carga directa de `/service-jobs`, alta/edicion de trabajo, alta/edicion de servicio, tecnico asignado, bloqueo de tecnico duplicado, filtros por estado/titulo/cliente/tecnico e integridad de tablas criticas
 
 Notas:
@@ -247,7 +260,8 @@ Notas:
 - Limitacion restante de gastos: no hay adjuntos reales, OCR, aprobaciones, reportes mensuales ni edicion de gastos cerrados; si un gasto activo se cargo mal, se anula y se registra nuevamente.
 - Limitacion restante de totales: no hay exportacion Excel, graficos avanzados ni detalle transaccional expandible por dia; el reporte se calcula en frontend con queries por rango y limite operativo de 5000 ventas/gastos por consulta.
 - Limitacion restante de estado de cuenta: no hay imputacion avanzada de pagos por factura/remito, exportacion Excel, intereses, alertas ni conciliacion bancaria; el estado por debito se calcula como estimacion del saldo del cliente.
-- Limitacion restante de trabajos/servicios: no hay vinculo con remitos/documentos, materiales usados, costos, facturacion, reportes, calendario, adjuntos ni checklist tecnico; el guardado de tecnicos de un servicio reemplaza asignaciones en dos pasos desde la UI.
+- La migracion `20260511160000_service_remito_links.sql` se debe aplicar en staging con `npm run db:push:staging` antes de probar remitos asociados a servicios.
+- Limitacion restante de trabajos/servicios: hay vinculo operativo con remitos actuales, pero no hay materiales manuales dentro del servicio, facturacion desde trabajo, rentabilidad avanzada, reportes, calendario, adjuntos ni checklist tecnico; el guardado de tecnicos de un servicio reemplaza asignaciones en dos pasos desde la UI.
 
 ## How can I deploy this project?
 
