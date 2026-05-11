@@ -146,9 +146,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!authHydrated) {
+      setLoading(true);
+      return;
+    }
+
     const nextIdentityKey = `${session?.user?.id ?? "anonymous"}:${impersonationMeta?.targetUserId ?? "self"}`;
     const shouldBlockNavigation =
-      !authHydrated ||
       lastIdentityKeyRef.current === null ||
       lastIdentityKeyRef.current !== nextIdentityKey;
 
