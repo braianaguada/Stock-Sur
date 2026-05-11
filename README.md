@@ -146,12 +146,14 @@ Al 2026-05-09, los cambios principales incorporados en `staging` son:
   - ventas anuladas y gastos anulados no suman; gastos efectivo reducen caja fisica y gastos no efectivo solo se informan como egreso
 - Estado de cuenta operativo v1:
   - nueva ruta `/customer-account`, accesible desde la navegacion como `Estado de cuenta`
-  - acceso directo desde la cuenta corriente de cada cliente en `Clientes`
+  - acceso directo desde la cuenta corriente de cada cliente en `Clientes` con filtro `customerId`
   - filtros por cliente, rango de fechas, estado y busqueda por factura/remito/referencia
   - cards superiores para saldo total, deuda vencida, deuda no vencida y pagos del periodo
   - tabla con fecha, vencimiento estimado, cliente, origen, referencia, descripcion, debito, credito, saldo y estado visual
+  - las fechas de negocio `YYYY-MM-DD` se muestran con `formatBusinessDate` para evitar corrimientos por parseo UTC
   - muestra cobros manuales `CREDIT` como pagos separados sin imputarlos aun a facturas/remitos
   - usa `document_id`, `cash_sale_id`, metadata y join con `documents` para mostrar remito/factura externa cuando existe
+  - si un documento no tiene factura externa asociada, mantiene la referencia de remito/documento sin romper la vista
   - no incluye cliente ocasional ni mezcla empresas: las consultas filtran por `company_id` y clientes no ocasionales
   - el vencimiento es estimado: `metadata.due_date` si existe; si no, debitos a 30 dias desde fecha de documento/movimiento; creditos quedan sin vencimiento
   - estado por movimiento es estimado hasta incorporar imputacion formal de pagos por documento
@@ -163,6 +165,7 @@ Al 2026-05-09, los cambios principales incorporados en `staging` son:
   - `supabase/migrations/20260508170000_product_combos_rpc.sql`
   - `supabase/migrations/20260508190000_cash_expenses_ui_support.sql`
   - sin migracion nueva para estado de cuenta operativo v1
+  - sin migracion nueva para la consistencia de fechas/link de cuenta corriente
 - Cobertura QA agregada para duplicado:
   - `src/features/documents/lib/duplicate.test.ts` cubre reglas de payload, fecha actual, bloqueo de devoluciones, trazabilidad y copia de lineas/snapshots sin reutilizar ids
   - `src/features/documents/components/DocumentsDataTable.test.tsx` cubre accion visible para `PRESUPUESTO`/`REMITO`, oculta para `REMITO_DEVOLUCION` y deshabilitada sin permiso de creacion
@@ -182,7 +185,9 @@ Al 2026-05-09, los cambios principales incorporados en `staging` son:
 - Cobertura QA agregada para totales de caja:
   - `src/features/cash/lib/cashTotals.test.ts` cubre exclusion de ventas/gastos anulados, gasto efectivo contra efectivo neto, gasto no efectivo fuera de caja fisica, cuenta corriente separada, agrupacion por dia, sumatoria del periodo y rangos dia/semana/mes/personalizado
 - Cobertura QA agregada para estado de cuenta:
-  - `src/features/customer-account/lib/accountStatement.test.ts` cubre debito pendiente, debito vencido, credito como pago, saldo, filtro por fechas, exclusion de ocasional, referencia de remito, factura externa y empty state
+  - `src/features/customer-account/lib/accountStatement.test.ts` cubre debito pendiente, debito vencido, credito como pago, saldo, filtro por fechas, exclusion de ocasional, referencia de remito, factura externa en filas y empty state
+  - `src/lib/formatters.test.ts` cubre que `2026-05-09` se muestre como `09/05/2026` sin corrimiento de dia
+  - `src/features/customer-account/lib/routes.test.ts` cubre el link filtrado `/customer-account?customerId=<id>`
 - Validacion manual recomendada en staging:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
   - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock
@@ -212,6 +217,8 @@ Validaciones de esta iteracion:
 - `npm run build`
 - `npm run test -- src/features/cash/lib/cashTotals.test.ts`
 - `npm run test -- src/features/customer-account/lib/accountStatement.test.ts`
+- `npm run test -- --run src/lib/formatters.test.ts src/features/customer-account/lib/routes.test.ts src/features/customer-account/lib/accountStatement.test.ts`
+- No hubo migraciones nuevas; no se ejecuto `npm run db:push:staging` en esta iteracion.
 
 Notas:
 

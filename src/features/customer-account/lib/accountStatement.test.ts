@@ -92,6 +92,16 @@ describe("account statement", () => {
     expect(formatDocumentReference({ ...baseEntry.document!, external_invoice_number: "F-0003-42" })).toBe("Factura F-0003-42");
   });
 
+  it("shows external invoice reference on statement rows", () => {
+    const { rows } = buildAccountStatement([
+      entry({
+        document: { ...baseEntry.document!, external_invoice_number: "F-0003-42" },
+      }),
+    ]);
+
+    expect(rows[0].reference).toBe("Factura F-0003-42");
+  });
+
   it("returns empty state data without movements", () => {
     const { rows, summary } = buildAccountStatement([]);
     expect(rows).toEqual([]);
