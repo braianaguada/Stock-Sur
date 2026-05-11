@@ -29,7 +29,7 @@ import { BasePricesTable } from "@/features/price-lists/components/BasePricesTab
 import { PriceListCreateDialog } from "@/features/price-lists/components/PriceListCreateDialog";
 import { PriceListDetailDialog } from "@/features/price-lists/components/PriceListDetailDialog";
 import { DEFAULT_PRICE_LIST_FORM, PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
-import { getApproxMarginPct, getPriceConsultationState } from "@/features/price-lists/lib/consultation";
+import { getApproxMarginPct, getPriceConsultationState, resolveConsultListIdForQuery } from "@/features/price-lists/lib/consultation";
 import type { PriceListFormState } from "@/features/price-lists/types";
 import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
 import { formatDateTime } from "@/features/price-lists/utils";
@@ -176,14 +176,13 @@ export default function PriceListsPage() {
   });
 
   useEffect(() => {
-    if (consultListId || priceLists.length === 0) return;
-    setConsultListId(priceLists[0].id);
-  }, [consultListId, priceLists]);
-
-  useEffect(() => {
-    if (!itemIdFromQuery || priceLists.length === 0 || consultListId) return;
-    const match = priceLists.find((list) => (snapshotsByListAndItemId.get(list.id)?.has(itemIdFromQuery) ?? false));
-    if (match) setConsultListId(match.id);
+    const nextListId = resolveConsultListIdForQuery({
+      currentListId: consultListId,
+      itemIdFromQuery,
+      priceLists,
+      snapshotsByListAndItemId,
+    });
+    if (nextListId !== consultListId) setConsultListId(nextListId);
   }, [consultListId, itemIdFromQuery, priceLists, snapshotsByListAndItemId]);
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CalendarClock, CircleDollarSign, Search, WalletCards } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
@@ -11,6 +11,7 @@ import { DataCard, FilterBar, PageHeader, StatCard } from "@/components/ui/page"
 import { useAuth } from "@/contexts/AuthContext";
 import { useCustomerAccountStatement } from "@/features/customer-account/hooks/useCustomerAccountStatement";
 import type { AccountStatementStatus } from "@/features/customer-account/lib/accountStatement";
+import { customerIdFromAccountParams } from "@/features/customer-account/lib/routes";
 import { formatBusinessDate, todayBusinessDateInputValue } from "@/lib/formatters";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +41,7 @@ function todayDate() {
 export default function CustomerAccountPage() {
   const { currentCompany } = useAuth();
   const [params, setParams] = useSearchParams();
-  const [customerId, setCustomerId] = useState(params.get("customerId") ?? params.get("customer_id") ?? "all");
+  const [customerId, setCustomerId] = useState(() => customerIdFromAccountParams(params));
   const [from, setFrom] = useState("");
   const [to, setTo] = useState(todayDate());
   const [status, setStatus] = useState<AccountStatementStatus | "all">("all");
@@ -72,6 +73,11 @@ export default function CustomerAccountPage() {
   const rows = statementQuery.data?.rows ?? [];
   const summary = statementQuery.data?.summary ?? { balance: 0, overdueDebt: 0, notDueDebt: 0, periodPayments: 0, movementsCount: 0 };
   const customers = customersQuery.data ?? [];
+
+  useEffect(() => {
+    const nextCustomerId = customerIdFromAccountParams(params);
+    setCustomerId((currentCustomerId) => (currentCustomerId === nextCustomerId ? currentCustomerId : nextCustomerId));
+  }, [params]);
 
   const handleCustomerChange = (value: string) => {
     setCustomerId(value);
