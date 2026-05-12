@@ -68,7 +68,8 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
 - Fix critico de cuenta corriente en proceso:
   - se restaura la generacion de `DEBIT` para remitos emitidos y ventas de caja con `CUENTA_CORRIENTE`
   - se agrega idempotencia para evitar duplicados por reintento
-  - migracion aplicada en staging; queda pendiente QA transaccional manual de negocio
+  - se restaura el flujo completo de `issue_document` para no romper stock, devoluciones, numeracion ni eventos al agregar el `DEBIT`
+  - migraciones aplicadas en staging; queda pendiente QA transaccional manual de negocio con credenciales DB/usuario real
 
 - Redisenio completo de impresion/PDF para documentos comerciales:
   - `PRESUPUESTO`
@@ -217,6 +218,8 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `supabase/migrations/20260508190000_cash_expenses_ui_support.sql`
   - `supabase/migrations/20260511120000_service_jobs_base.sql`
   - `supabase/migrations/20260511160000_service_remito_links.sql`
+  - `supabase/migrations/20260511170000_customer_account_debit_generation_fix.sql`
+  - `supabase/migrations/20260511173000_restore_issue_document_with_account_debit.sql`
   - sin migracion nueva para QA integral y hardening operativo
   - sin migracion nueva para QA visual y consistencia de UI
   - sin migracion nueva para control operativo de trabajos/servicios y limpieza visual de Listas de precios
@@ -296,6 +299,8 @@ Validaciones de esta iteracion:
 - `npm run lint`
 - `npm run test`
 - `npm run build`
+- `npm run db:push:staging`
+- QA DB directa de cuenta corriente pendiente: el entorno local no tiene password DB usable; `criticalDb.test.ts` queda preparado y se saltea sin `PGPASSWORD`.
 
 Notas:
 
