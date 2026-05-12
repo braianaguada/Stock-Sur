@@ -69,6 +69,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - se restaura la generacion de `DEBIT` para remitos emitidos y ventas de caja con `CUENTA_CORRIENTE`
   - se agrega idempotencia para evitar duplicados por reintento
   - se restaura el flujo completo de `issue_document` para no romper stock, devoluciones, numeracion ni eventos al agregar el `DEBIT`
+  - se corrige la condicion documental: `DEBIT` solo se genera para `REMITO` con `payment_terms = 'CUENTA_CORRIENTE'`, cliente identificado no ocasional y total positivo
   - migraciones aplicadas en staging; queda pendiente QA transaccional manual de negocio con credenciales DB/usuario real
 
 - Redisenio completo de impresion/PDF para documentos comerciales:
@@ -220,6 +221,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `supabase/migrations/20260511160000_service_remito_links.sql`
   - `supabase/migrations/20260511170000_customer_account_debit_generation_fix.sql`
   - `supabase/migrations/20260511173000_restore_issue_document_with_account_debit.sql`
+  - `supabase/migrations/20260512023000_limit_document_debit_to_account_terms.sql`
   - sin migracion nueva para QA integral y hardening operativo
   - sin migracion nueva para QA visual y consistencia de UI
   - sin migracion nueva para control operativo de trabajos/servicios y limpieza visual de Listas de precios
@@ -301,6 +303,12 @@ Validaciones de esta iteracion:
 - `npm run build`
 - `npm run db:push:staging`
 - QA DB directa de cuenta corriente pendiente: el entorno local no tiene password DB usable; `criticalDb.test.ts` queda preparado y se saltea sin `PGPASSWORD`.
+- `npm run db:push:staging`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test`
+- `npm run build`
+- QA transaccional real posterior requerida para confirmar que remitos identificados no cuenta corriente ya no generan `DEBIT`.
 
 Notas:
 
