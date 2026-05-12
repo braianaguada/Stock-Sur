@@ -65,6 +65,11 @@ This project is built with:
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
 Al 2026-05-11, los cambios principales incorporados en `staging` son:
 
+- Fix critico de cuenta corriente en proceso:
+  - se restaura la generacion de `DEBIT` para remitos emitidos y ventas de caja con `CUENTA_CORRIENTE`
+  - se agrega idempotencia para evitar duplicados por reintento
+  - migracion aplicada en staging; queda pendiente QA transaccional manual de negocio
+
 - Redisenio completo de impresion/PDF para documentos comerciales:
   - `PRESUPUESTO`
   - `REMITO`
@@ -286,6 +291,11 @@ Validaciones de esta iteracion:
 - `npm run test`
 - `npm run build`
 - sin migraciones nuevas; no se ejecuto `npm run db:push:staging` para esta fase visual
+- `npm run db:push:staging`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test`
+- `npm run build`
 
 Notas:
 
