@@ -24,12 +24,13 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, RefreshCcw, Search, X } from "lucide-react";
 import { BasePricesTable } from "@/features/price-lists/components/BasePricesTable";
 import { PriceListCreateDialog } from "@/features/price-lists/components/PriceListCreateDialog";
 import { PriceListDetailDialog } from "@/features/price-lists/components/PriceListDetailDialog";
 import { DEFAULT_PRICE_LIST_FORM, PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
-import { getApproxMarginPct, getPriceConsultationState, resolveConsultListIdForQuery } from "@/features/price-lists/lib/consultation";
+import { getApproxMarginPct, getPriceConsultationState, getQuickPriceListStorageKey, paginateRows, resolveConsultListIdForQuery } from "@/features/price-lists/lib/consultation";
 import type { PriceListFormState } from "@/features/price-lists/types";
 import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
 import { formatDateTime } from "@/features/price-lists/utils";
@@ -87,8 +88,10 @@ const pricingChipClass = {
 export default function PriceListsPage() {
   const { currentCompany, user } = useAuth();
   const { settings: companySettings } = useCompanyBrand();
+  const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const storageKey = currentCompany ? `${PRICE_LISTS_UI_STATE_KEY}:${currentCompany.id}` : null;
+  const quickListStorageKey = getQuickPriceListStorageKey(user?.id, currentCompany?.id);
   const baseColumnsStorageKey = `${PRICE_BASE_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
   const detailColumnsStorageKey = `${PRICE_DETAIL_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
 
@@ -116,8 +119,13 @@ export default function PriceListsPage() {
   const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "no_stock">("all");
   const [consultSearch, setConsultSearch] = useState("");
   const [consultListId, setConsultListId] = useState<string | null>(null);
+  const [quickListId, setQuickListId] = useState<string | null>(null);
+  const [quickListHydrated, setQuickListHydrated] = useState(false);
   const [consultCategory, setConsultCategory] = useState<string>("all");
+  const [consultPage, setConsultPage] = useState(1);
+  const [consultPageSize, setConsultPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const itemIdFromQuery = searchParams.get("itemId");
+  const tabFromQuery = searchParams.get("tab");
   const priceRoundingConfig = useMemo(() => ({
     enabled: companySettings.price_rounding_enabled,
     increment: companySettings.price_rounding_increment,
@@ -176,14 +184,28 @@ export default function PriceListsPage() {
   });
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storedListId = localStorage.getItem(quickListStorageKey);
+    const validStoredListId = storedListId && priceLists.some((list) => list.id === storedListId) ? storedListId : null;
+    setQuickListId(validStoredListId);
+    setQuickListHydrated(true);
+  }, [priceLists, quickListStorageKey]);
+
+  useEffect(() => {
+    if (tabFromQuery === "lists") setModuleTab("lists");
+  }, [tabFromQuery]);
+
+  useEffect(() => {
+    if (!quickListHydrated) return;
     const nextListId = resolveConsultListIdForQuery({
       currentListId: consultListId,
+      quickListId,
       itemIdFromQuery,
       priceLists,
       snapshotsByListAndItemId,
     });
     if (nextListId !== consultListId) setConsultListId(nextListId);
-  }, [consultListId, itemIdFromQuery, priceLists, snapshotsByListAndItemId]);
+  }, [consultListId, itemIdFromQuery, priceLists, quickListHydrated, quickListId, snapshotsByListAndItemId]);
 
   useEffect(() => {
     if (!storageKey || typeof window === "undefined") return;
@@ -200,11 +222,11 @@ export default function PriceListsPage() {
 
       setBaseSearch(persistedState.baseSearch ?? "");
       setListSearch(persistedState.listSearch ?? "");
-      setModuleTab(persistedState.moduleTab === "lists" ? "lists" : "base");
+      setModuleTab(tabFromQuery === "lists" || persistedState.moduleTab === "lists" ? "lists" : "base");
     } catch {
       sessionStorage.removeItem(storageKey);
     }
-  }, [storageKey]);
+  }, [storageKey, tabFromQuery]);
 
   useEffect(() => {
     if (!storageKey || typeof window === "undefined") return;
@@ -281,6 +303,10 @@ export default function PriceListsPage() {
   useEffect(() => {
     setDetailPage(1);
   }, [detailSearch, detailPageSize]);
+
+  useEffect(() => {
+    setConsultPage(1);
+  }, [consultSearch, consultCategory, consultListId, consultPageSize, itemIdFromQuery]);
 
   useEffect(() => {
     if (!selectedList) {
@@ -377,13 +403,24 @@ export default function PriceListsPage() {
       .some((value) => value!.toLowerCase().includes(term));
   });
 
+  const consultationPagination = paginateRows(filteredConsultationRows, consultPage, consultPageSize);
+  const pagedConsultationRows = consultationPagination.rows;
+
   const selectedQueryItem = consultationRows.find((row) => row.item_id === itemIdFromQuery) ?? null;
   const selectedConsultList = priceLists.find((list) => list.id === consultListId) ?? null;
+  const quickList = priceLists.find((list) => list.id === quickListId) ?? null;
 
   const clearQueryItem = () => {
     const next = new URLSearchParams(searchParams);
     next.delete("itemId");
     setSearchParams(next, { replace: true });
+  };
+
+  const saveQuickList = () => {
+    if (!consultListId || typeof window === "undefined") return;
+    localStorage.setItem(quickListStorageKey, consultListId);
+    setQuickListId(consultListId);
+    toast({ title: "Lista rapida actualizada", description: "Se va a preseleccionar en esta empresa." });
   };
 
   return (
@@ -501,12 +538,12 @@ export default function PriceListsPage() {
             />
           </TabsContent>
 
-          <TabsContent value="lists" className="space-y-5 pt-1">
+          <TabsContent value="lists" className="grid gap-5 pt-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
             <DataCard className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-semibold">Consulta rápida</h3>
-                  <p className="text-sm text-muted-foreground">Filtrá por lista, categoría o SKU y destacá un producto desde Productos.</p>
+                  <p className="text-sm text-muted-foreground">Filtra por lista, categoria o SKU. Lista rapida: {quickList?.name ?? "sin definir"}.</p>
                 </div>
                 {itemIdFromQuery ? (
                   <div className="flex items-center gap-2">
@@ -542,6 +579,9 @@ export default function PriceListsPage() {
                 <Button variant="outline" onClick={() => { setConsultSearch(""); setConsultCategory("all"); }}>
                   Limpiar filtros
                 </Button>
+                <Button variant="secondary" onClick={saveQuickList} disabled={!consultListId || consultListId === quickListId}>
+                  Usar como acceso rapido
+                </Button>
               </FilterBar>
               {selectedQueryItem ? (
                 <div className="flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
@@ -569,7 +609,7 @@ export default function PriceListsPage() {
                   <tbody>
                     {filteredConsultationRows.length === 0 ? (
                       <tr><td className="p-6 text-center text-muted-foreground" colSpan={7}>No hay resultados para esta consulta.</td></tr>
-                    ) : filteredConsultationRows.map((row) => {
+                    ) : pagedConsultationRows.map((row) => {
                       const price = row.calculated_price ?? 0;
                       const { operationalPrice } = getOperationalPrice(row.has_price ? price : null, priceRoundingConfig);
                       const marginPct = getApproxMarginPct(row.base_cost, operationalPrice);
@@ -604,6 +644,18 @@ export default function PriceListsPage() {
                   </tbody>
                 </table>
               </div>
+              <DataTablePagination
+                page={consultationPagination.page}
+                totalPages={consultationPagination.totalPages}
+                totalItems={consultationPagination.totalItems}
+                rangeStart={consultationPagination.rangeStart}
+                rangeEnd={consultationPagination.rangeEnd}
+                pageSize={consultPageSize}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                onPageChange={setConsultPage}
+                onPageSizeChange={(value) => setConsultPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
+                itemLabel="precios"
+              />
             </DataCard>
             <DataCard className="space-y-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -621,9 +673,9 @@ export default function PriceListsPage() {
                   />
                 </div>
               </div>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3">
               {priceLists.length === 0 ? (
-                <Card className="md:col-span-2 xl:col-span-3">
+                <Card>
                   <CardContent className="py-10 text-center text-muted-foreground">
                     No hay listas de precios creadas.
                   </CardContent>

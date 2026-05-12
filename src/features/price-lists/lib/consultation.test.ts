@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getApproxMarginPct, getPriceConsultationState, resolveConsultListIdForQuery } from "./consultation";
+import { getApproxMarginPct, getPriceConsultationState, getQuickPriceListStorageKey, paginateRows, resolveConsultListIdForQuery } from "./consultation";
 
 describe("price consultation helpers", () => {
   it("keeps price state labels visual and explicit", () => {
@@ -37,5 +37,27 @@ describe("price consultation helpers", () => {
 
   it("falls back to the first list when there is no queried item match", () => {
     expect(resolveConsultListIdForQuery({ currentListId: null, itemIdFromQuery: "missing", priceLists: [{ id: "list-a" }], snapshotsByListAndItemId: new Map() })).toBe("list-a");
+  });
+
+  it("uses a quick list preference before defaulting to the first list", () => {
+    expect(resolveConsultListIdForQuery({
+      currentListId: null,
+      quickListId: "list-b",
+      itemIdFromQuery: null,
+      priceLists: [{ id: "list-a" }, { id: "list-b" }],
+      snapshotsByListAndItemId: new Map(),
+    })).toBe("list-b");
+  });
+
+  it("paginates consultation rows without rendering the full result set", () => {
+    const page = paginateRows([1, 2, 3, 4, 5], 2, 2);
+    expect(page.rows).toEqual([3, 4]);
+    expect(page.totalPages).toBe(3);
+    expect(page.rangeStart).toBe(3);
+    expect(page.rangeEnd).toBe(4);
+  });
+
+  it("builds a quick list localStorage key scoped by user and company", () => {
+    expect(getQuickPriceListStorageKey("user-1", "company-1")).toBe("price-lists:quick-list:user-1:company-1");
   });
 });

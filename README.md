@@ -196,10 +196,16 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - no agrega facturacion, cuenta corriente, calendario, adjuntos, exportacion ni rentabilidad avanzada
 - Limpieza visual de Listas de precios:
   - la pestania `Listas` separa `Consulta rapida de precios` de `Listas configuradas`
+  - la consulta rapida ahora pagina resultados, evita renderizar una tabla gigante y deja las listas configuradas visibles en el mismo flujo
+  - se puede marcar una lista como acceso rapido por usuario/empresa con `localStorage`, sin migraciones ni cambios de persistencia
   - la consulta rapida mantiene el precio operativo con `OperationalPriceDisplay`, costo base, precio original si hay redondeo, margen aproximado, estado visual y lista/ultima actualizacion
   - el boton `Volver a productos` solo aparece cuando la pantalla llega con `?itemId=`
   - las listas configuradas quedan en un bloque propio con busqueda, estado, flete/margen/IVA, cantidad de productos, pendientes, ultimo recalculo y acciones
   - no modifica formulas de precio, redondeo, importaciones, snapshots, documentos ni stock
+- UX operativa de combos:
+  - `/combos` reemplaza el selector gigante por busqueda de productos activos por SKU, nombre, marca o categoria
+  - agregar productos crea lineas claras con cantidad, unidad, notas y accion de quitar, y bloquea duplicados desde la UI
+  - se mantienen las validaciones de nombre, lineas, cantidad mayor a cero y payload transaccional hacia `upsert_product_combo_with_lines`
 - QA integral y hardening operativo:
   - se auditaron por codigo/tests los flujos de productos, precios/redondeo, combos, documentos, devoluciones, caja/gastos/totales, cuenta corriente y trabajos/servicios
   - `/price-lists?itemId=<id>` ahora prioriza automaticamente la lista que contiene el producto destacado antes de caer en la primera lista disponible
@@ -327,7 +333,8 @@ Notas:
 - La migracion de gastos de caja se aplico en staging con `npm run db:push:staging`.
 - El guardado de combos ya no persiste parcialidades cabecera/lineas: la escritura pasa por una RPC transaccional en Supabase.
 - Fix de estabilidad validado en preview: seleccionar un combo existente ya no muestra una linea vacia por hidratar antes de recibir `product_combo_lines`.
-- Limitacion restante de combos: la UI sigue siendo simple y no hay borrado fisico, importacion masiva ni combos dentro de combos.
+- Limitacion restante de combos: no hay borrado fisico, importacion masiva ni combos dentro de combos.
+- Limitacion restante de listas rapidas: la lista favorita se guarda localmente por navegador/usuario/empresa; no se sincroniza entre dispositivos.
 - Limitacion restante de gastos: no hay adjuntos reales, OCR, aprobaciones, reportes mensuales ni edicion de gastos cerrados; si un gasto activo se cargo mal, se anula y se registra nuevamente.
 - Limitacion restante de totales: no hay exportacion Excel, graficos avanzados ni detalle transaccional expandible por dia; el reporte se calcula en frontend con queries por rango y limite operativo de 5000 ventas/gastos por consulta.
 - Limitacion restante de estado de cuenta: no hay imputacion avanzada de pagos por factura/remito, exportacion Excel, intereses, alertas ni conciliacion bancaria; el estado por debito se calcula como estimacion del saldo del cliente.

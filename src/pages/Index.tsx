@@ -9,6 +9,7 @@ import {
   Package,
   Wallet,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   Bar,
   BarChart,
@@ -24,6 +25,7 @@ import {
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/ui/page";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
@@ -387,6 +389,20 @@ export default function Dashboard() {
                   Lectura honesta para esta etapa
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">No mezcla automaticamente lo facturado afuera con el stock interno cargado aca.</p>
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 md:col-span-2">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <Package className="h-4 w-4 text-info" />
+                      Consultar precios
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">Acceso directo a la consulta rapida de listas de precios.</p>
+                  </div>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/price-lists?tab=lists">Abrir precios</Link>
+                  </Button>
+                </div>
               </div>
             </div>
           </Card>
