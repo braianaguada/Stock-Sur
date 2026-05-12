@@ -19,6 +19,7 @@ const navItems = [
   { title: "Documentos", url: "/documents" },
   { title: "Servicios", url: "/services/documents" },
   { title: "Trabajos", url: "/service-jobs" },
+  { title: "Tecnicos", url: "/technicians" },
   { title: "Totales", url: "/cash-totals" },
   { title: "Caja", url: "/cash" },
   { title: "Clientes", url: "/customers" },
