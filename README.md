@@ -130,12 +130,14 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - si hay cambios locales sin guardar, cambiar de combo o limpiar pide confirmacion antes de descartar
   - cada combo agrupa productos reales con cantidades, notas y orden simple
   - en documentos, el buscador permite agregar combos con multiplicador y se expanden a lineas reales
+  - si el mismo combo se agrega varias veces en un documento, las lineas se consolidan por `item_id` y solo se suma cantidad; no se duplican filas ni se pisa un precio manual existente
   - no existe stock propio ni precio propio del combo en esta fase
   - la logica de documentos sigue aplicando precios, redondeo y edicion manual por linea
 - Guardado atómico de combos:
   - `/combos` guarda cabecera + lineas con la RPC `upsert_product_combo_with_lines`
   - si falla una validacion o una linea, la operacion se revierte completa en Supabase
   - al editar, se reemplaza el set de lineas dentro de la misma transaccion
+  - al guardar se invalidan queries de combos y lineas para refrescar cards, resumenes y badges sin recargar la pagina
 - Gastos de caja v1:
   - Caja incorpora una pestania `Gastos` para registrar egresos operativos por fecha de caja
   - se reutiliza `cash_expenses` vinculada por `company_id + business_date`; no hay `cash_session_id` porque el modelo actual usa `cash_closures`
@@ -195,17 +197,15 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - el detalle del trabajo muestra totales de servicios, remitos, total documental y costo estimado antes del desglose por servicio
   - no agrega facturacion, cuenta corriente, calendario, adjuntos, exportacion ni rentabilidad avanzada
 - Limpieza visual de Listas de precios:
-  - la pestania `Listas` separa `Consulta rapida de precios` de `Listas configuradas`
-  - la consulta rapida ahora pagina resultados, evita renderizar una tabla gigante y deja las listas configuradas visibles en el mismo flujo
-  - se puede marcar una lista como acceso rapido por usuario/empresa con `localStorage`, sin migraciones ni cambios de persistencia
-  - la consulta rapida mantiene el precio operativo con `OperationalPriceDisplay`, costo base, precio original si hay redondeo, margen aproximado, estado visual y lista/ultima actualizacion
-  - el boton `Volver a productos` solo aparece cuando la pantalla llega con `?itemId=`
-  - las listas configuradas quedan en un bloque propio con busqueda, estado, flete/margen/IVA, cantidad de productos, pendientes, ultimo recalculo y acciones
+  - la pestania `Listas` vuelve a priorizar `Listas configuradas` y saca de la UI la tabla grande de consulta rapida
+  - se mantienen busqueda, estado, flete/margen/IVA, cantidad de productos, pendientes, ultimo recalculo y acciones `Ver lista` + `Recalcular`
+  - si la pantalla llega con `?itemId=`, se muestra un aviso simple y una accion para abrir la lista sugerida sin romper la navegacion desde Productos
   - no modifica formulas de precio, redondeo, importaciones, snapshots, documentos ni stock
 - UX operativa de combos:
   - `/combos` reemplaza el selector gigante por busqueda de productos activos por SKU, nombre, marca o categoria
   - agregar productos crea lineas claras con cantidad, unidad, notas y accion de quitar, y bloquea duplicados desde la UI
   - se mantienen las validaciones de nombre, lineas, cantidad mayor a cero y payload transaccional hacia `upsert_product_combo_with_lines`
+  - mientras se edita un combo seleccionado, su card/listado usa el estado local del formulario para reflejar cantidades y notas al instante, sin perder foco ni esperar un refetch
 - QA integral y hardening operativo:
   - se auditaron por codigo/tests los flujos de productos, precios/redondeo, combos, documentos, devoluciones, caja/gastos/totales, cuenta corriente y trabajos/servicios
   - `/price-lists?itemId=<id>` ahora prioriza automaticamente la lista que contiene el producto destacado antes de caer en la primera lista disponible
@@ -250,6 +250,8 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `src/features/combos/lib/comboForm.test.ts` cubre la sincronizacion estable del formulario
   - `src/features/documents/components/DocumentsEditorDialog.test.tsx` cubre el render del editor con la nueva API de combos
   - `src/features/documents/hooks/useDocumentsMutations.test.tsx` ahora mockea Supabase y valida la mutacion sin depender de env real
+  - `src/pages/Combos.test.tsx` cubre refresco visual inmediato del combo seleccionado e invalidacion de queries al guardar
+  - `src/features/documents/lib/mergeComboDocumentLines.test.ts` cubre consolidacion de lineas repetidas por `item_id`, multiplicador efectivo y preservacion de precio manual
 - Cobertura QA agregada para gastos de caja:
   - `src/features/cash/utils.test.ts` cubre validacion de monto/categoria/descripcion, suma de gastos activos, exclusion de anulados y efecto de gastos efectivo/no efectivo sobre el efectivo esperado
 - Cobertura QA agregada para totales de caja:
@@ -266,6 +268,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
 - Cobertura QA agregada para Listas de precios:
   - `src/features/price-lists/lib/consultation.test.ts` cubre labels visuales de la consulta rapida y margen aproximado sin tocar la logica de precio operativo
   - `src/features/price-lists/lib/consultation.test.ts` cubre que `?itemId=` seleccione la lista que contiene el producto destacado antes de mostrar el fallback
+  - `src/pages/PriceLists.test.tsx` cubre que la pestania `Listas` mantenga `Listas configuradas`, quite la tabla gigante y conserve `Ver lista`, `Recalcular` y la navegacion con `?itemId=`
 - Validacion manual recomendada en staging:
   - duplicar un presupuesto con varias lineas y confirmar borrador sin numero, fecha actual, lineas/precios copiados y trazabilidad
   - duplicar un remito emitido con tecnico y confirmar borrador con tecnico/lineas, sin factura externa y sin movimientos de stock

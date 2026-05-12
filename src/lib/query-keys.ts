@@ -67,7 +67,9 @@ export const queryKeys = {
   },
   combos: {
     list: (companyId: string | null) => ["product-combos", companyId ?? "no-company"] as const,
+    lines: (companyId: string | null, comboIdsKey: string) => ["combos", "lines", companyId ?? "no-company", comboIdsKey] as const,
     all: () => ["product-combos"] as const,
+    linesAll: () => ["combos", "lines"] as const,
   },
   serviceDocuments: {
     customers: (companyId: string | null) => ["service-documents-customers", companyId ?? "no-company"] as const,
