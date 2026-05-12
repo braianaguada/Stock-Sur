@@ -166,6 +166,9 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - estado por movimiento es estimado hasta incorporar imputacion formal de pagos por documento
 - Trabajos / Servicios base v1:
   - nueva ruta `/service-jobs`, accesible desde la navegacion como `Trabajos`
+  - el modulo `/technicians` queda accesible desde la navegacion principal como `Tecnicos`, ubicado junto a `Trabajos`
+  - la pantalla de tecnicos permite listar, buscar, crear, editar y eliminar tecnicos usando la tabla `technicians`; Documentos, Trabajos y Servicios consumen la misma entidad
+  - permisos: se mantiene el acceso operativo protegido por sesion/empresa igual que el resto de rutas internas; no se agregan permisos complejos nuevos en esta fase
   - modelo base para trabajos generales por empresa y cliente, con estado, prioridad, descripcion, apertura/cierre y auditoria minima
   - modelo base para servicios dentro de un trabajo, con fecha/hora programada, estado, tareas realizadas, notas y tecnicos asignados
   - relacion `service_job_service_technicians` para asignar multiples tecnicos a cada servicio sin duplicar el mismo tecnico en el mismo servicio
@@ -309,6 +312,11 @@ Validaciones de esta iteracion:
 - `npm run test`
 - `npm run build`
 - QA transaccional real posterior requerida para confirmar que remitos identificados no cuenta corriente ya no generan `DEBIT`.
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test`
+- `npm run build`
+- sin migraciones nuevas para exponer Tecnicos en navegacion
 
 Notas:
 
@@ -325,6 +333,7 @@ Notas:
 - Limitacion restante de estado de cuenta: no hay imputacion avanzada de pagos por factura/remito, exportacion Excel, intereses, alertas ni conciliacion bancaria; el estado por debito se calcula como estimacion del saldo del cliente.
 - La migracion `20260511160000_service_remito_links.sql` se debe aplicar en staging con `npm run db:push:staging` antes de probar remitos asociados a servicios.
 - Limitacion restante de trabajos/servicios: hay vinculo operativo con remitos actuales, pero no hay materiales manuales dentro del servicio, facturacion desde trabajo, rentabilidad avanzada, reportes, calendario, adjuntos ni checklist tecnico; el guardado de tecnicos de un servicio reemplaza asignaciones en dos pasos desde la UI.
+- Limitacion restante de tecnicos: el modulo queda expuesto para gestion operativa basica; no incluye reportes, costos por tecnico, dashboard ni permisos especificos nuevos.
 - Limitacion restante de QA visual: quedan modales grandes y vistas de impresion para una pasada visual especifica con screenshots comparativos antes de promover a `main`.
 - Recomendacion QA integral: staging puede avanzar a QA manual final sobre datos reales antes de promover a `main`; no se detectaron cambios de esquema pendientes en esta fase.
 

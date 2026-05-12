@@ -46,6 +46,7 @@ describe("AppLayout", () => {
     expect(screen.getByText("Empresa Demo")).toBeInTheDocument();
     expect(screen.getByText("Gestión comercial")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Items" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Tecnicos" })).toHaveAttribute("href", "/technicians");
     expect(screen.getByRole("link", { name: "Configuración" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Usuarios" })).not.toBeInTheDocument();
     expect(screen.getByText("admin@stocksur.test")).toBeInTheDocument();
