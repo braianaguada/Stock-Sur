@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
+import { fetchAllPages } from "@/lib/supabase-pagination";
 import type { VisibilityState } from "@tanstack/react-table";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -136,14 +137,15 @@ export default function PriceListsPage() {
     enabled: Boolean(currentCompany),
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stock_movements")
-        .select("item_id, type, quantity")
-        .eq("company_id", currentCompany!.id);
-      if (error) throw error;
+      const data = await fetchAllPages(() =>
+        supabase
+          .from("stock_movements")
+          .select("item_id, type, quantity")
+          .eq("company_id", currentCompany!.id),
+      );
 
       const totals = new Map<string, number>();
-      for (const row of data ?? []) {
+      for (const row of data) {
         const prev = totals.get(row.item_id) ?? 0;
         const qty = Number(row.quantity);
         if (row.type === "IN") totals.set(row.item_id, prev + qty);
