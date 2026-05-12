@@ -1,4 +1,5 @@
-import { Suspense, lazy, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -9,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
+import { useSearch } from "@/hooks/useSearch";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { buildItemDisplayName } from "@/lib/item-display";
 import { getErrorMessage } from "@/lib/errors";
@@ -20,20 +22,16 @@ import {
   canPrintDocument,
   canTransitionDocumentTo,
 } from "@/lib/permissions";
-import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
+import { openPrintWindow } from "@/lib/print";
 import { Plus, Search } from "lucide-react";
 import { FilterBar, PageHeader } from "@/components/ui/page";
-import {
-  CUSTOMER_KIND_LABEL,
-  DOC_LABEL,
-  EMPTY_LINE,
-  INTERNAL_REMITO_LABEL,
-  STATUS_LABEL,
-} from "@/features/documents/constants";
+import { EMPTY_LINE } from "@/features/documents/constants";
 import { DocumentsDataTable } from "@/features/documents/components/DocumentsDataTable";
 import { useDocumentsData } from "@/features/documents/hooks/useDocumentsData";
 import { useDocumentDraftLoader } from "@/features/documents/hooks/useDocumentDraftLoader";
 import { useDocumentsMutations } from "@/features/documents/hooks/useDocumentsMutations";
+import { DUPLICATE_DOCUMENT_CONFIRMATION } from "@/features/documents/lib/duplicate";
+import { buildDocumentPrintHtml } from "@/features/documents/print";
 import type {
   CustomerKind,
   DocLineRow,
@@ -47,7 +45,8 @@ import type {
   PriceListItemRow,
 } from "@/features/documents/types";
 import { calculatePriceFromCostBase, formatNumber } from "@/features/documents/utils";
-import { formatDateTime, formatIsoDate } from "@/lib/formatters";
+import { buildComboLines } from "@/features/combos/lib/buildComboLines";
+import { roundPrice } from "@/features/pricing/rounding";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 
@@ -74,6 +73,8 @@ function buildEmptyDocumentForm(defaultPointOfSale: number, defaultCustomerId = 
     doc_type: "PRESUPUESTO",
     point_of_sale: defaultPointOfSale,
     customer_id: defaultCustomerId,
+    technician_id: "",
+    service_id: "",
     customer_name: "",
     customer_tax_condition: "",
     customer_tax_id: "",
@@ -91,11 +92,19 @@ function buildEmptyDocumentForm(defaultPointOfSale: number, defaultCustomerId = 
 export default function DocumentsPage() {
   const { user, roles, currentCompany } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { settings: companySettings } = useCompanyBrand();
   const defaultPointOfSale = companySettings.default_point_of_sale ?? 1;
+  const priceRoundingConfig = useMemo(
+    () => ({
+      enabled: companySettings.price_rounding_enabled,
+      increment: companySettings.price_rounding_increment,
+    }),
+    [companySettings.price_rounding_enabled, companySettings.price_rounding_increment],
+  );
 
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
+  const { search, deferredSearch, setSearch, trimmedSearch } = useSearch();
   const [typeFilter, setTypeFilter] = useState<DocType | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<DocStatus | "ALL">("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -104,11 +113,15 @@ export default function DocumentsPage() {
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [documentsPage, setDocumentsPage] = useState(1);
   const [documentsPageSize, setDocumentsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
-  const [form, setForm] = useState<DocumentFormState>(() => buildEmptyDocumentForm(defaultPointOfSale));
+  const [draftForm, setDraftForm] = useState<DocumentFormState>(() =>
+    buildEmptyDocumentForm(defaultPointOfSale),
+  );
   const [lines, setLines] = useState<LineDraft[]>([]);
 
   const {
     customers,
+    technicians,
+    serviceOptions,
     items,
     priceLists,
     availableItems,
@@ -118,15 +131,18 @@ export default function DocumentsPage() {
     isLoading,
     selectedLines,
     selectedEvents,
+    eventUserNamesById,
     selectedDocumentCashUsage,
     selectedDocument,
     sourceDocumentLabel,
+    combos,
+    comboLinesByComboId,
   } = useDocumentsData({
-    search: deferredSearch,
+    search: trimmedSearch,
     typeFilter,
     statusFilter,
     selectedDocId,
-    selectedPriceListId: form.price_list_id,
+    selectedPriceListId: draftForm.price_list_id,
     currentCompanyId: currentCompany?.id ?? null,
   });
 
@@ -134,10 +150,35 @@ export default function DocumentsPage() {
     () => new Map(documents.map((document) => [document.id, document])),
     [documents],
   );
+  const editingSourceDocumentLabel = useMemo(() => {
+    if (!editingDocId) return null;
+    const document = documentsById.get(editingDocId);
+    if (!document?.source_document_id) return null;
+    if (document.source_document_number_snapshot && document.source_document_type) {
+      return `${document.source_document_type} ${document.source_document_number_snapshot}`;
+    }
+    const source = documentsById.get(document.source_document_id);
+    return source ? `${source.doc_type} ${formatNumber(source.document_number, source.point_of_sale)}` : null;
+  }, [documentsById, editingDocId]);
   const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
+  const combosById = useMemo(() => new Map(combos.map((combo) => [combo.id, combo])), [combos]);
   const totalDraft = useMemo(
     () => lines.reduce((accumulator, line) => accumulator + line.quantity * line.unit_price, 0),
     [lines],
+  );
+  const applyRounding = useCallback(
+    (price: number) => {
+      const selectedPriceList = priceLists.find((priceList) => priceList.id === draftForm.price_list_id) ?? null;
+      let nextPrice = price;
+      if (selectedPriceList && selectedPriceList.round_mode !== "none") {
+        if (selectedPriceList.round_mode === "integer") nextPrice = Math.round(price);
+        if (selectedPriceList.round_mode === "tens") nextPrice = Math.round(price / 10) * 10;
+        if (selectedPriceList.round_mode === "hundreds") nextPrice = Math.round(price / 100) * 100;
+        if (selectedPriceList.round_mode === "x99") nextPrice = Math.floor(price / 100) * 100 + 99;
+      }
+      return roundPrice(nextPrice, priceRoundingConfig);
+    },
+    [draftForm.price_list_id, priceLists, priceRoundingConfig],
   );
   const documentsPagination = usePaginationSlice({
     items: documents,
@@ -148,20 +189,34 @@ export default function DocumentsPage() {
     () => customers.find((customer) => customer.name.trim().toLowerCase() === "cliente ocasional")?.id ?? "",
     [customers],
   );
+  const linkedDocumentId = searchParams.get("document_id");
+  const serviceOptionsById = useMemo(
+    () => new Map(serviceOptions.map((service) => [service.id, service])),
+    [serviceOptions],
+  );
+  const selectedServiceOption = selectedDocument?.service_id
+    ? serviceOptionsById.get(selectedDocument.service_id) ?? null
+    : null;
+
+  useEffect(() => {
+    if (!linkedDocumentId) return;
+    setSelectedDocId(linkedDocumentId);
+    setDetailOpen(true);
+  }, [linkedDocumentId]);
 
   useEffect(() => {
     setDocumentsPage(1);
-  }, [deferredSearch, typeFilter, statusFilter, documentsPageSize]);
+  }, [trimmedSearch, typeFilter, statusFilter, documentsPageSize]);
 
   useEffect(() => {
-    if (form.price_list_id || priceLists.length === 0) return;
-    setForm((previousForm) => ({ ...previousForm, price_list_id: priceLists[0].id }));
-  }, [form.price_list_id, priceLists]);
+    if (draftForm.price_list_id || priceLists.length === 0) return;
+    setDraftForm((previousForm) => ({ ...previousForm, price_list_id: priceLists[0].id }));
+  }, [draftForm.price_list_id, priceLists]);
 
   useEffect(() => {
-    if (form.customer_id || !defaultCustomerId) return;
-    setForm((previousForm) => ({ ...previousForm, customer_id: defaultCustomerId }));
-  }, [defaultCustomerId, form.customer_id]);
+    if (draftForm.customer_id || !defaultCustomerId) return;
+    setDraftForm((previousForm) => ({ ...previousForm, customer_id: defaultCustomerId }));
+  }, [defaultCustomerId, draftForm.customer_id]);
 
   const syncLineWithPriceList = useCallback(
     (
@@ -171,8 +226,9 @@ export default function DocumentsPage() {
     ): LineDraft => {
       if (!priceListRow) return line;
 
-      const suggestedUnitPrice =
+      const unroundedSuggestedUnitPrice =
         priceByItem.get(priceListRow.item_id) ?? (Number(priceListRow.calculated_price) || 0);
+      const suggestedUnitPrice = roundPrice(unroundedSuggestedUnitPrice, priceRoundingConfig);
       const baseCost = Number(priceListRow.base_cost) || 0;
       const listFlete = priceListRow.flete_pct !== null ? Number(priceListRow.flete_pct) : null;
       const listUtilidad =
@@ -189,6 +245,8 @@ export default function DocumentsPage() {
         ...line,
         pricing_mode: nextMode,
         suggested_unit_price: suggestedUnitPrice,
+        unrounded_suggested_unit_price:
+          suggestedUnitPrice !== unroundedSuggestedUnitPrice ? unroundedSuggestedUnitPrice : null,
         base_cost_snapshot: baseCost,
         list_flete_pct_snapshot: listFlete,
         list_utilidad_pct_snapshot: listUtilidad,
@@ -214,11 +272,11 @@ export default function DocumentsPage() {
 
       return nextLine;
     },
-    [priceByItem],
+    [priceByItem, priceRoundingConfig],
   );
 
   useEffect(() => {
-    if (!form.price_list_id) return;
+    if (!draftForm.price_list_id) return;
 
     setLines((previousLines) =>
       previousLines.map((line) => {
@@ -226,11 +284,11 @@ export default function DocumentsPage() {
         return syncLineWithPriceList(line, priceListItemByItemId.get(line.item_id));
       }),
     );
-  }, [form.price_list_id, priceListItemByItemId, syncLineWithPriceList]);
+  }, [draftForm.price_list_id, priceListItemByItemId, syncLineWithPriceList]);
 
   const resetDraftForm = () => {
     setEditingDocId(null);
-    setForm(buildEmptyDocumentForm(defaultPointOfSale, defaultCustomerId));
+    setDraftForm(buildEmptyDocumentForm(defaultPointOfSale, defaultCustomerId));
     setLines([]);
   };
 
@@ -248,7 +306,7 @@ export default function DocumentsPage() {
     try {
       const draft = await loadDraftForEditing(documentId);
       setEditingDocId(draft.editingDocId);
-      setForm(draft.form);
+      setDraftForm(draft.form);
       setLines(draft.lines);
       setDialogOpen(true);
     } catch (error) {
@@ -261,6 +319,8 @@ export default function DocumentsPage() {
     issueMutation,
     transitionMutation,
     cloneAsRemitoMutation,
+    cloneAsReturnMutation,
+    duplicateDocumentMutation,
     setExternalInvoiceMutation,
     clearExternalInvoiceMutation,
   } = useDocumentsMutations({
@@ -268,12 +328,15 @@ export default function DocumentsPage() {
     userId: user?.id,
     documents,
     customers,
+    technicians,
+    serviceOptions,
     lines,
-    form,
+    draftForm,
     totalDraft,
     editingDocId,
     priceByItem,
     priceListItemByItemId,
+    priceRoundingConfig,
     resetDraftForm,
     setDialogOpen,
     toast,
@@ -322,10 +385,12 @@ export default function DocumentsPage() {
         attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
       }),
       unit: item.unit || "un",
-      unit_price: form.price_list_id ? priceByItem.get(itemId) ?? 0 : draftLines[index].unit_price,
+      unit_price: draftForm.price_list_id
+        ? roundPrice(priceByItem.get(itemId) ?? 0, priceRoundingConfig)
+        : draftLines[index].unit_price,
     };
 
-    draftLines[index] = form.price_list_id
+    draftLines[index] = draftForm.price_list_id
       ? syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true)
       : {
           ...baseLine,
@@ -370,8 +435,27 @@ export default function DocumentsPage() {
     });
   };
 
+  const onAddCombo = (comboId: string, quantity: number) => {
+    const combo = combosById.get(comboId);
+    if (!combo || !combo.is_active || !Number.isFinite(quantity) || quantity <= 0) return;
+    const comboLines = comboLinesByComboId.get(comboId) ?? [];
+    if (comboLines.length === 0) return;
+    const builtLines = buildComboLines({
+      comboName: combo.name,
+      lines: comboLines,
+      multiplier: quantity,
+      availableItems: items,
+      priceByItem,
+      priceListItemByItemId,
+      applyRounding,
+      nowIso: new Date().toISOString(),
+      userId: user?.id,
+    });
+    setLines((previous) => [...previous, ...builtLines]);
+  };
+
   const onPriceListChange = (priceListId: string) => {
-    if (priceListId === form.price_list_id) return;
+    if (priceListId === draftForm.price_list_id) return;
 
     const hasLoadedLines = lines.some(
       (line) =>
@@ -388,7 +472,7 @@ export default function DocumentsPage() {
       if (!confirmed) return;
     }
 
-    setForm((previousForm) => ({ ...previousForm, price_list_id: priceListId }));
+    setDraftForm((previousForm) => ({ ...previousForm, price_list_id: priceListId }));
     setLines([]);
   };
 
@@ -397,144 +481,59 @@ export default function DocumentsPage() {
   };
 
   const printDocument = async (document: DocRow) => {
-    const { data: lineRows } = await supabase
+    const { data: lineRows, error: linesError } = await supabase
       .from("document_lines")
       .select("line_order, sku_snapshot, description, unit, quantity, unit_price, line_total")
       .eq("document_id", document.id)
       .order("line_order");
 
-    const printableLines = (lineRows ?? []) as Array<
-      Pick<
-        DocLineRow,
-        | "line_order"
-        | "sku_snapshot"
-        | "description"
-        | "quantity"
-        | "unit"
-        | "unit_price"
-        | "line_total"
-      >
-    >;
+    if (linesError) {
+      toast({
+        title: "No se pudo preparar la impresion",
+        description: getErrorMessage(linesError),
+        variant: "destructive",
+      });
+      return;
+    }
 
-    const rows = printableLines
-      .map(
-        (line) => `
-      <tr>
-        <td>${line.line_order}</td>
-        <td>${escapeHtml(line.sku_snapshot ?? "-")}</td>
-        <td>${escapeHtml(line.description)}</td>
-        <td style="text-align:right">${Number(line.quantity).toLocaleString("es-AR")}</td>
-        <td>${escapeHtml(line.unit ?? "un")}</td>
-        <td style="text-align:right">$${Number(line.unit_price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
-        <td style="text-align:right">$${Number(line.line_total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td>
-      </tr>
-    `,
-      )
-      .join("");
+    let technicianName: string | null = null;
+    if (document.technician_id) {
+      const { data: technicianData } = await supabase
+        .from("technicians")
+        .select("name")
+        .eq("id", document.technician_id)
+        .maybeSingle();
 
-    const logoBlock = companySettings.logo_url
-      ? `<img src="${escapeHtml(companySettings.logo_url)}" alt="${escapeHtml(companySettings.app_name)}" style="max-height:110px;max-width:320px;object-fit:contain;filter:drop-shadow(0 10px 20px rgba(15,23,42,.10))" />`
-      : `<div style="font-size:30px;font-weight:800;letter-spacing:.05em;color:#0f172a">${escapeHtml(companySettings.app_name.toUpperCase())}</div>`;
+      technicianName = technicianData?.name ?? null;
+    }
 
-    const win = openPrintWindow(`<!doctype html><html><head><title>${escapeHtml(DOC_LABEL[document.doc_type])} ${escapeHtml(formatNumber(document.document_number, document.point_of_sale))}</title>
-      <style>
-      @page{size:A4 portrait;margin:10mm}
-      html,body{margin:0;padding:0}
-      body{font-family:Arial,sans-serif;color:#0f172a;background:#f8fafc}
-      .print-shell{width:190mm;max-width:190mm;margin:0 auto;padding:6mm 0}
-      .sheet{border:1px solid #d6dbe3;border-radius:22px;padding:8mm;background:#fff;box-shadow:0 20px 60px rgba(15,23,42,.08);box-sizing:border-box}
-      .head{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:stretch;margin-bottom:18px}
-      .brand{display:flex;flex-direction:column;justify-content:space-between;min-height:150px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#ffffff 0%,#f5f9ff 60%,#eef4ff 100%);border:1px solid #dbe7f5}
-      .brand-copy{display:flex;flex-direction:column;gap:8px}
-      .eyebrow{display:inline-flex;width:max-content;border:1px solid #dbe3ee;border-radius:999px;background:#ffffff;padding:6px 12px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#475569}
-      .muted{color:#475569;font-size:12px;margin:2px 0}
-      .brand-name{font-size:20px;font-weight:800;color:#0f172a;letter-spacing:.04em}
-      .docbox{padding:18px;border-radius:18px;min-width:290px;background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);color:#f8fafc}
-      .docbox h2{margin:0 0 10px 0;font-size:22px}
-      .docline{font-size:12px;color:#dbeafe;margin:6px 0}
-      .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-      .meta-card{border:1px solid #e2e8f0;border-radius:16px;padding:14px;background:#fff}
-      .meta-title{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#64748b;margin:0 0 10px 0}
-      table{width:100%;border-collapse:separate;border-spacing:0;margin-top:8px;overflow:hidden;border:1px solid #dbe3ee;border-radius:16px}
-      th,td{padding:10px 12px;font-size:12px;border-bottom:1px solid #e8eef5}
-      th{background:#eef4f8;text-align:left;color:#334155}
-      tbody tr:nth-child(even){background:#fbfdff}
-      tbody tr:last-child td{border-bottom:none}
-      .totals{display:flex;justify-content:flex-end;margin-top:16px}
-      .totals-box{min-width:260px;border:1px solid #dbe3ee;background:linear-gradient(180deg,#f8fbff 0%,#eef5ff 100%);border-radius:18px;padding:14px 16px}
-      .totals-label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#64748b}
-      .totals-value{margin-top:6px;font-size:26px;font-weight:800;color:#0f172a}
-      .notes{margin-top:16px;border:1px dashed #cbd5e1;border-radius:18px;padding:14px 16px;font-size:12px;min-height:56px;background:#fcfcfd}
-      .foot{margin-top:22px;font-size:11px;color:#64748b;display:flex;justify-content:space-between;gap:16px}
-      .print-action{display:block;margin:16px auto 0;padding:10px 16px;border:none;border-radius:999px;background:#0f172a;color:#fff;cursor:pointer}
-      @media print{
-        body{background:#fff}
-        .print-shell{width:190mm;max-width:190mm;padding:0}
-        .sheet{border:none;box-shadow:none;border-radius:0;padding:0}
-        .print-action{display:none}
-      }
-      </style></head><body>
-      <div class="print-shell">
-      <div class="sheet">
-      <div class="head">
-        <div class="brand">
-          <div class="brand-copy">
-            <span class="eyebrow">${escapeHtml(DOC_LABEL[document.doc_type])}</span>
-            ${logoBlock}
-          </div>
-          <div>
-            <p class="brand-name">${escapeHtml(companySettings.legal_name ?? companySettings.app_name)}</p>
-            <p class="muted">${escapeHtml(companySettings.document_tagline ?? "Documentacion comercial")}</p>
-          </div>
-        </div>
-        <div class="docbox">
-          <h2>${escapeHtml(DOC_LABEL[document.doc_type])}</h2>
-          <p class="docline"><strong>Nro:</strong> ${escapeHtml(formatNumber(document.document_number, document.point_of_sale))}</p>
-          <p class="docline"><strong>Fecha:</strong> ${formatIsoDate(document.issue_date)}</p>
-          <p class="docline"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[document.status])}</p>
-        </div>
-      </div>
+    const win = openPrintWindow(
+      buildDocumentPrintHtml({
+        document,
+        lines: (lineRows ?? []) as Array<
+          Pick<
+            DocLineRow,
+            | "line_order"
+            | "sku_snapshot"
+            | "description"
+            | "quantity"
+            | "unit"
+            | "unit_price"
+            | "line_total"
+          >
+        >,
+        companySettings,
+        technicianName,
+      }),
+    );
 
-      <div class="meta-grid">
-        <div class="meta-card">
-          <p class="meta-title">Cliente</p>
-          <p class="muted"><strong>Cliente:</strong> ${escapeHtml(document.customer_name ?? "Cliente ocasional")}</p>
-          <p class="muted"><strong>Tipo:</strong> ${escapeHtml(CUSTOMER_KIND_LABEL[document.customer_kind])}</p>
-          <p class="muted"><strong>CUIT:</strong> ${escapeHtml(document.customer_tax_id ?? "-")}</p>
-          <p class="muted"><strong>Condicion fiscal:</strong> ${escapeHtml(document.customer_tax_condition ?? "-")}</p>
-        </div>
-        <div class="meta-card">
-          <p class="meta-title">Operacion</p>
-          <p class="muted"><strong>Punto de venta:</strong> ${String(document.point_of_sale).padStart(4, "0")}</p>
-          <p class="muted"><strong>Tipo:</strong> ${escapeHtml(DOC_LABEL[document.doc_type])}</p>
-          <p class="muted"><strong>Estado:</strong> ${escapeHtml(STATUS_LABEL[document.status])}</p>
-          ${document.payment_terms ? `<p class="muted"><strong>Condicion de venta:</strong> ${escapeHtml(document.payment_terms)}</p>` : ""}
-          ${document.salesperson ? `<p class="muted"><strong>Vendedor:</strong> ${escapeHtml(document.salesperson)}</p>` : ""}
-          ${document.valid_until ? `<p class="muted"><strong>Valido hasta:</strong> ${formatIsoDate(document.valid_until)}</p>` : ""}
-          ${document.delivery_address ? `<p class="muted"><strong>Entrega:</strong> ${escapeHtml(document.delivery_address)}</p>` : ""}
-          ${document.doc_type === "REMITO" && document.external_invoice_number ? `<p class="muted"><strong>Factura externa:</strong> ${escapeHtml(document.external_invoice_number)}</p>` : ""}
-          ${document.source_document_type && document.source_document_number_snapshot ? `<p class="muted"><strong>Origen:</strong> ${escapeHtml(DOC_LABEL[document.source_document_type])} ${escapeHtml(document.source_document_number_snapshot)}</p>` : ""}
-          ${document.internal_remito_type ? `<p class="muted"><strong>Imputacion:</strong> ${escapeHtml(INTERNAL_REMITO_LABEL[document.internal_remito_type])}</p>` : ""}
-          <p class="muted"><strong>Creado:</strong> ${formatDateTime(document.created_at)}</p>
-        </div>
-      </div>
-
-      <table>
-        <thead>
-          <tr><th>#</th><th>SKU</th><th>Descripcion</th><th>Cant.</th><th>Unidad</th><th>P.Unit.</th><th>Importe</th></tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-
-      <div class="totals"><div class="totals-box"><div class="totals-label">Total documento</div><div class="totals-value">$${Number(document.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</div></div></div>
-      <div class="notes"><strong>Notas:</strong> ${escapeHtmlWithLineBreaks(document.notes ?? "-")}</div>
-
-      <div class="foot"><span>Generado por ${escapeHtml(companySettings.app_name)}</span><span>${escapeHtml(companySettings.document_footer ?? "Este documento no reemplaza comprobantes fiscales")}</span></div>
-      </div>
-      </div>
-      <button class="print-action" onclick="window.print()">Imprimir / Guardar PDF</button>
-      </body></html>`);
-    if (!win) return;
+    if (!win) {
+      toast({
+        title: "No se pudo abrir la impresion",
+        description: "El navegador bloqueo la ventana emergente. Habilitala para Stock Sur y reintenta.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -556,10 +555,10 @@ export default function DocumentsPage() {
         />
 
         <FilterBar>
-          <div className="relative w-full md:max-w-sm">
+          <div className="relative max-w-sm flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar cliente o numero..."
+              placeholder="Buscar por cliente, CUIT, número o factura externa..."
               className="pl-9"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -575,6 +574,7 @@ export default function DocumentsPage() {
                 <SelectItem value="ALL">Todos</SelectItem>
                 <SelectItem value="PRESUPUESTO">Presupuestos</SelectItem>
                 <SelectItem value="REMITO">Remitos</SelectItem>
+                <SelectItem value="REMITO_DEVOLUCION">Devoluciones</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -616,20 +616,49 @@ export default function DocumentsPage() {
           onTransition={(documentId, targetStatus) => {
             const status = targetStatus as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO";
             if (!canTransitionDocumentTo(roles, status)) return;
+            if (status === "ANULADO") {
+              const confirmed = window.confirm("Vas a anular este documento. Esta accion no se puede deshacer.");
+              if (!confirmed) return;
+            }
             transitionMutation.mutate({ documentId, targetStatus: status });
           }}
           onIssueRemito={(documentId) => {
             if (!canIssueRemito(roles)) return;
+            const document = documentsById.get(documentId);
+            const confirmed = window.confirm(
+              document?.doc_type === "REMITO_DEVOLUCION"
+                ? "Vas a emitir esta devolucion. Se registrara ingreso de stock por las cantidades cargadas."
+                : "Vas a emitir este remito. Verificá stock, cliente y líneas antes de continuar.",
+            );
+            if (!confirmed) return;
             issueMutation.mutate(documentId);
           }}
           onCloneAsRemito={(documentId) => {
             if (!canCloneBudgetToRemito(roles)) return;
             cloneAsRemitoMutation.mutate(documentId);
           }}
+          onDuplicateDocument={(documentId) => {
+            if (!canCreateDocumentDraft(roles)) return;
+            const confirmed = window.confirm(DUPLICATE_DOCUMENT_CONFIRMATION);
+            if (!confirmed) return;
+            duplicateDocumentMutation.mutate(documentId, {
+              onSuccess: (newDocumentId) => {
+                setSelectedDocId(newDocumentId);
+                setDetailOpen(true);
+              },
+            });
+          }}
+          onGenerateReturn={(documentId) => {
+            const confirmed = window.confirm("Vas a generar una devolucion desde este remito. Confirmá que corresponde.");
+            if (!confirmed) return;
+            cloneAsReturnMutation.mutate(documentId);
+          }}
+          isIssuingDocument={issueMutation.isPending}
           canPrintDocument={canPrintDocument(roles)}
           canEditDocumentDraft={canEditDocumentDraft(roles)}
           canIssueRemito={canIssueRemito(roles)}
           canCloneBudgetToRemito={canCloneBudgetToRemito(roles)}
+          canDuplicateDocument={canCreateDocumentDraft(roles)}
           canTransitionDocumentTo={(status) =>
             status === "EMITIDO"
               ? false
@@ -660,20 +689,25 @@ export default function DocumentsPage() {
             open={dialogOpen}
             onOpenChange={setDialogOpen}
             editingDocId={editingDocId}
-            form={form}
-            setForm={setForm}
+            documentForm={draftForm}
+            setDraftForm={setDraftForm}
             lines={lines}
             setLines={setLines}
             totalDraft={totalDraft}
             customers={customers}
+            technicians={technicians}
+            serviceOptions={serviceOptions}
             priceLists={priceLists}
             availableItems={availableItems}
+            combos={combos}
             onAddItem={onAddItem}
+            onAddCombo={onAddCombo}
             onPriceListChange={onPriceListChange}
             removeLine={removeLine}
             onSubmit={() => upsertDraftMutation.mutate()}
             onResetDraftForm={resetDraftForm}
             isSubmitting={upsertDraftMutation.isPending || !canCreateDocumentDraft(roles)}
+            sourceDocumentLabel={editingSourceDocumentLabel}
           />
         </Suspense>
       ) : null}
@@ -686,8 +720,24 @@ export default function DocumentsPage() {
             selectedDocument={selectedDocument}
             selectedLines={selectedLines}
             selectedEvents={selectedEvents}
+            eventUserNamesById={eventUserNamesById}
             isExternalInvoiceLocked={selectedDocumentCashUsage}
             sourceDocumentLabel={sourceDocumentLabel}
+            technicianName={
+              selectedDocument?.technician_id
+                ? technicians.find((technician) => technician.id === selectedDocument.technician_id)?.name ?? null
+                : null
+            }
+            serviceLinkLabel={
+              selectedServiceOption
+                ? `${selectedServiceOption.jobTitle} / ${selectedServiceOption.title}`
+                : selectedDocument?.service_id ? "Servicio asociado" : null
+            }
+            onOpenService={
+              selectedDocument?.service_id
+                ? () => navigate(`/service-jobs?serviceId=${selectedDocument.service_id}`)
+                : undefined
+            }
             companySettings={companySettings}
             onSetExternalInvoice={(documentId, externalInvoiceNumber) => {
               setExternalInvoiceMutation.mutate({
@@ -702,6 +752,24 @@ export default function DocumentsPage() {
             isUpdatingExternalInvoice={
               setExternalInvoiceMutation.isPending || clearExternalInvoiceMutation.isPending
             }
+            canPrintDocument={canPrintDocument(roles)}
+            onOpenPrint={(document) => {
+              if (!canPrintDocument(roles)) return;
+              void printDocument(document);
+            }}
+          onDuplicateDocument={(document) => {
+              if (!canCreateDocumentDraft(roles)) return;
+              const confirmed = window.confirm(DUPLICATE_DOCUMENT_CONFIRMATION);
+              if (!confirmed) return;
+              duplicateDocumentMutation.mutate(document.id, {
+                onSuccess: (newDocumentId) => {
+                  setSelectedDocId(newDocumentId);
+                  setDetailOpen(true);
+                },
+              });
+            }}
+            isDuplicatingDocument={duplicateDocumentMutation.isPending}
+            canDuplicateDocument={canCreateDocumentDraft(roles)}
           />
         </Suspense>
       ) : null}

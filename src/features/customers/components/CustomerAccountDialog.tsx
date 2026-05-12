@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CustomerAccountCreditDialog } from "./CustomerAccountCreditDialog";
 import type { Customer } from "@/features/customers/types";
 import { useCustomerAccountData } from "@/features/customers/hooks/useCustomerAccountData";
+import { customerAccountPath } from "@/features/customer-account/lib/routes";
+import { formatBusinessDate, formatDateTime } from "@/lib/formatters";
 
 type Props = {
   open: boolean;
@@ -48,14 +51,17 @@ export function CustomerAccountDialog({ open, companyId, customer, onOpenChange,
               <div className="mt-2 text-2xl font-semibold">{summary?.movements_count ?? 0}</div>
             </div>
             <div className="rounded-lg border p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Ultimo movimiento</div>
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Último movimiento</div>
               <div className="mt-2 text-sm font-medium">
-                {summary?.last_movement_at ? new Date(summary.last_movement_at).toLocaleString("es-AR") : "-"}
+                {summary?.last_movement_at ? formatDateTime(summary.last_movement_at) : "-"}
               </div>
             </div>
           </div>
 
           <div className="flex justify-end gap-2">
+            <Button asChild variant="outline" disabled={!customer || customer.is_occasional}>
+              <Link to={customerAccountPath(customer?.id)}>Abrir estado de cuenta</Link>
+            </Button>
             <Button variant="outline" onClick={() => refetch()}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Refrescar
@@ -80,15 +86,15 @@ export function CustomerAccountDialog({ open, companyId, customer, onOpenChange,
                 {!isLoading && entries.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                      Sin movimientos
+                      No hay movimientos para mostrar
                     </TableCell>
                   </TableRow>
                 ) : null}
                 {entries.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell>{new Date(entry.business_date).toLocaleDateString("es-AR")}</TableCell>
+                    <TableCell>{formatBusinessDate(entry.business_date)}</TableCell>
                     <TableCell>
-                      <Badge variant={entry.entry_type === "DEBIT" ? "destructive" : "secondary"}>
+                      <Badge variant={entry.entry_type === "DEBIT" ? "destructive" : "outline"}>
                         {entry.entry_type}
                       </Badge>
                     </TableCell>

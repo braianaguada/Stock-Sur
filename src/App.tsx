@@ -13,6 +13,7 @@ const queryClient = new QueryClient();
 const Index = lazy(() => import("./pages/Index"));
 const AuthPage = lazy(() => import("./pages/Auth"));
 const ItemsPage = lazy(() => import("./pages/Items"));
+const CombosPage = lazy(() => import("./pages/Combos"));
 const StockPage = lazy(() => import("./pages/Stock"));
 const SuppliersPage = lazy(() => import("./pages/Suppliers"));
 const PriceListsPage = lazy(() => import("./pages/PriceLists"));
@@ -20,12 +21,16 @@ const ImportsPage = lazy(() => import("./pages/Imports"));
 const QuotesPage = lazy(() => import("./pages/Quotes"));
 const DocumentsPage = lazy(() => import("./pages/Documents"));
 const ServiceDocumentsPage = lazy(() => import("./pages/ServiceDocuments"));
+const ServiceJobsPage = lazy(() => import("./pages/ServiceJobs"));
 const PrintServiceDocumentPage = lazy(() => import("./pages/PrintServiceDocument"));
 const CustomersPage = lazy(() => import("./pages/Customers"));
+const CustomerAccountPage = lazy(() => import("./pages/CustomerAccount"));
+const TechniciansPage = lazy(() => import("./pages/Technicians"));
 const UsersPage = lazy(() => import("./pages/Users"));
 const LegacyCatalogImportPage = lazy(() => import("./pages/LegacyCatalogImport"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const CashPage = lazy(() => import("./pages/Cash"));
+const CashTotalsPage = lazy(() => import("./pages/CashTotals"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function RouteLoader() {
@@ -76,6 +81,7 @@ const App = () => (
                   <Route path="/auth" element={<AuthRedirect />} />
                   <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                   <Route path="/items" element={<ProtectedRoute><ItemsPage /></ProtectedRoute>} />
+                  <Route path="/combos" element={<ProtectedRoute><CombosPage /></ProtectedRoute>} />
                   <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
                   <Route path="/suppliers" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
                   <Route path="/price-lists" element={<ProtectedRoute><PriceListsPage /></ProtectedRoute>} />
@@ -83,9 +89,13 @@ const App = () => (
                   <Route path="/quotes" element={<ProtectedRoute><QuotesPage /></ProtectedRoute>} />
                   <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
                   <Route path="/services/documents" element={<ProtectedRoute><ServiceDocumentsPage /></ProtectedRoute>} />
+                  <Route path="/service-jobs" element={<ProtectedRoute><ServiceJobsPage /></ProtectedRoute>} />
                   <Route path="/print/service-document/:id" element={<ProtectedRoute><PrintServiceDocumentPage /></ProtectedRoute>} />
                   <Route path="/cash" element={<ProtectedRoute><CashPage /></ProtectedRoute>} />
+                  <Route path="/cash-totals" element={<ProtectedRoute><CashTotalsPage /></ProtectedRoute>} />
                   <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
+                  <Route path="/customer-account" element={<ProtectedRoute><CustomerAccountPage /></ProtectedRoute>} />
+                  <Route path="/technicians" element={<ProtectedRoute><TechniciansPage /></ProtectedRoute>} />
                   <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                   <Route path="/items/catalog/import-legacy" element={<ProtectedRoute><LegacyCatalogImportPage /></ProtectedRoute>} />

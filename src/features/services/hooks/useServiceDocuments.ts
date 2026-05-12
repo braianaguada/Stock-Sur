@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { serviceDb } from "../db";
@@ -93,12 +94,39 @@ export function useServiceDocuments(params: {
     },
   });
 
+  const eventUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const event of eventsQuery.data ?? []) {
+      if (event.created_by) ids.add(event.created_by);
+    }
+    return Array.from(ids).sort();
+  }, [eventsQuery.data]);
+
+  const eventProfilesQuery = useQuery({
+    queryKey: ["service-document-event-profiles", eventUserIds],
+    enabled: eventUserIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await serviceDb
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", eventUserIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const eventUserNamesById = useMemo(
+    () => new Map((eventProfilesQuery.data ?? []).map((profile) => [profile.user_id, profile.full_name?.trim() || "Usuario sin nombre"])),
+    [eventProfilesQuery.data],
+  );
+
   return {
     customers: customersQuery.data ?? [],
     documents: documentsQuery.data ?? [],
     selectedDocument: documentQuery.data ?? null,
     selectedLines: linesQuery.data ?? [],
     selectedEvents: eventsQuery.data ?? [],
+    eventUserNamesById,
     isLoading: documentsQuery.isLoading,
   };
 }

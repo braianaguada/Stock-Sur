@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Copy, Eye, FileDown, Pencil, Send } from "lucide-react";
+import { Ban, Copy, Eye, FileDown, Loader2, Pencil, Send } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DOC_LABEL, DOC_TYPE_CLASS, STATUS_CLASS, STATUS_LABEL, STATUS_VARIANT } from "@/features/documents/constants";
+import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocRow, DocStatus } from "@/features/documents/types";
 import { formatNumber } from "@/features/documents/utils";
 import { formatIsoDate } from "@/lib/formatters";
@@ -19,10 +20,14 @@ interface DocumentsDataTableProps {
   onTransition: (documentId: string, status: DocStatus) => void;
   onIssueRemito: (documentId: string) => void;
   onCloneAsRemito: (documentId: string) => void;
+  onDuplicateDocument: (documentId: string) => void;
+  onGenerateReturn: (documentId: string) => void;
+  isIssuingDocument: boolean;
   canPrintDocument: boolean;
   canEditDocumentDraft: boolean;
   canIssueRemito: boolean;
   canCloneBudgetToRemito: boolean;
+  canDuplicateDocument: boolean;
   canTransitionDocumentTo: (status: DocStatus) => boolean;
 }
 
@@ -36,10 +41,14 @@ export function DocumentsDataTable({
   onTransition,
   onIssueRemito,
   onCloneAsRemito,
+  onDuplicateDocument,
+  onGenerateReturn,
+  isIssuingDocument,
   canPrintDocument,
   canEditDocumentDraft,
   canIssueRemito,
   canCloneBudgetToRemito,
+  canDuplicateDocument,
   canTransitionDocumentTo,
 }: DocumentsDataTableProps) {
   const columns = useMemo<ColumnDef<DocRow, unknown>[]>(() => [
@@ -139,6 +148,11 @@ export function DocumentsDataTable({
                 <Pencil className="h-4 w-4" />
               </Button>
             ) : null}
+            {canDuplicateDocumentType(doc.doc_type) ? (
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-indigo-500 hover:text-indigo-400" onClick={() => onDuplicateDocument(doc.id)} title="Duplicar" disabled={!canDuplicateDocument}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            ) : null}
             {doc.doc_type === "PRESUPUESTO" && doc.status === "BORRADOR" ? (
               <>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onTransition(doc.id, "ENVIADO")} title="Marcar como enviado" disabled={!canTransitionDocumentTo("ENVIADO")}>
@@ -168,10 +182,10 @@ export function DocumentsDataTable({
                 </Button>
               </>
             ) : null}
-            {doc.doc_type === "REMITO" && doc.status === "BORRADOR" ? (
+            {(doc.doc_type === "REMITO" || doc.doc_type === "REMITO_DEVOLUCION") && doc.status === "BORRADOR" ? (
               <>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onIssueRemito(doc.id)} title="Emitir remito" disabled={!canIssueRemito}>
-                  <Send className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onIssueRemito(doc.id)} title={doc.doc_type === "REMITO_DEVOLUCION" ? "Emitir devolucion" : "Emitir remito"} disabled={!canIssueRemito || isIssuingDocument}>
+                  {isIssuingDocument ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular borrador" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" />
@@ -184,7 +198,17 @@ export function DocumentsDataTable({
               </Button>
             ) : null}
             {doc.doc_type === "REMITO" && doc.status === "EMITIDO" ? (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular remito" disabled={!canTransitionDocumentTo("ANULADO")}>
+              <>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onGenerateReturn(doc.id)} title="Generar devolución">
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular remito" disabled={!canTransitionDocumentTo("ANULADO")}>
+                  <Ban className="h-4 w-4" />
+                </Button>
+              </>
+            ) : null}
+            {doc.doc_type === "REMITO_DEVOLUCION" && doc.status === "EMITIDO" ? (
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular devolucion" disabled={!canTransitionDocumentTo("ANULADO")}>
                 <Ban className="h-4 w-4" />
               </Button>
             ) : null}
@@ -200,14 +224,18 @@ export function DocumentsDataTable({
     canCloneBudgetToRemito,
     canEditDocumentDraft,
     canIssueRemito,
+    canDuplicateDocument,
+    isIssuingDocument,
     canPrintDocument,
     canTransitionDocumentTo,
-    onCloneAsRemito,
+    onGenerateReturn,
     onEditDraft,
     onIssueRemito,
     onOpenDetail,
     onPrint,
     onTransition,
+    onCloneAsRemito,
+    onDuplicateDocument,
   ]);
 
   return (
@@ -216,7 +244,7 @@ export function DocumentsDataTable({
         columns={columns}
         data={documents}
         isLoading={isLoading}
-        emptyMessage="Sin documentos"
+        emptyMessage="No hay documentos para mostrar"
         className="table-fixed"
         rowClassName="h-11"
         cellClassName="h-11 py-0"

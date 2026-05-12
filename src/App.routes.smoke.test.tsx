@@ -37,6 +37,12 @@ vi.mock("./pages/Imports", () => ({ default: () => <div>route:imports</div> }));
 vi.mock("./pages/Quotes", () => ({ default: () => <div>route:quotes</div> }));
 vi.mock("./pages/Documents", () => ({ default: () => <div>route:documents</div> }));
 vi.mock("./pages/ServiceDocuments", () => ({ default: () => <div>route:service-documents</div> }));
+vi.mock("./pages/ServiceJobs", () => ({ default: () => <div>route:service-jobs</div> }));
+vi.mock("./pages/Combos", () => ({ default: () => <div>route:combos</div> }));
+vi.mock("./pages/CustomerAccount", () => ({ default: () => <div>route:customer-account</div> }));
+vi.mock("./pages/Technicians", () => ({ default: () => <div>route:technicians</div> }));
+vi.mock("./pages/CashTotals", () => ({ default: () => <div>route:cash-totals</div> }));
+vi.mock("./pages/PrintServiceDocument", () => ({ default: () => <div>route:print-service-document</div> }));
 vi.mock("./pages/Cash", () => ({ default: () => <div>route:cash</div> }));
 vi.mock("./pages/Customers", () => ({ default: () => <div>route:customers</div> }));
 vi.mock("./pages/Users", () => ({ default: () => <div>route:users</div> }));
@@ -58,6 +64,7 @@ describe("App route smoke test", () => {
   it.each([
     ["/", "route:index"],
     ["/items", "route:items"],
+    ["/combos", "route:combos"],
     ["/stock", "route:stock"],
     ["/suppliers", "route:suppliers"],
     ["/price-lists", "route:price-lists"],
@@ -65,8 +72,13 @@ describe("App route smoke test", () => {
     ["/quotes", "route:quotes"],
     ["/documents", "route:documents"],
     ["/services/documents", "route:service-documents"],
+    ["/service-jobs", "route:service-jobs"],
+    ["/print/service-document/document-1", "route:print-service-document"],
     ["/cash", "route:cash"],
+    ["/cash-totals", "route:cash-totals"],
     ["/customers", "route:customers"],
+    ["/customer-account", "route:customer-account"],
+    ["/technicians", "route:technicians"],
     ["/users", "route:users"],
     ["/settings", "route:settings"],
     ["/items/catalog/import-legacy", "route:legacy-import"],

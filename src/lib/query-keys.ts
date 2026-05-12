@@ -14,6 +14,7 @@ export const queryKeys = {
       ["customer-account-summary", companyId ?? "no-company", customerId ?? "no-customer"] as const,
     accountEntries: (companyId: string | null, customerId: string | null) =>
       ["customer-account-entries", companyId ?? "no-company", customerId ?? "no-customer"] as const,
+    accountStatement: (companyId: string | null) => ["customer-account-statement", companyId ?? "no-company"] as const,
   },
   items: {
     catalog: (
@@ -42,6 +43,8 @@ export const queryKeys = {
   cash: {
     customers: (companyId: string | null) => ["cash-customers", companyId ?? "no-company"] as const,
     sales: (companyId: string | null, businessDate: string) => ["cash-sales", companyId ?? "no-company", businessDate] as const,
+    expenses: (companyId: string | null, businessDate: string) => ["cash-expenses", companyId ?? "no-company", businessDate] as const,
+    totals: (companyId: string | null, from: string, to: string) => ["cash-totals", companyId ?? "no-company", from, to] as const,
     remitos: (companyId: string | null, businessDate: string) => ["cash-remitos", companyId ?? "no-company", businessDate] as const,
     closure: (companyId: string | null, businessDate: string) => ["cash-closure", companyId ?? "no-company", businessDate] as const,
     linkedDocument: (documentId: string | null) => ["cash-linked-document", documentId] as const,
@@ -62,6 +65,10 @@ export const queryKeys = {
     lines: (documentId: string | null) => ["document-lines", documentId] as const,
     events: (documentId: string | null) => ["document-events", documentId] as const,
   },
+  combos: {
+    list: (companyId: string | null) => ["product-combos", companyId ?? "no-company"] as const,
+    all: () => ["product-combos"] as const,
+  },
   serviceDocuments: {
     customers: (companyId: string | null) => ["service-documents-customers", companyId ?? "no-company"] as const,
     list: (companyId: string | null, search: string, status: string) =>
@@ -69,6 +76,13 @@ export const queryKeys = {
     all: () => ["service-documents"] as const,
     detail: (documentId: string | null) => ["service-document", documentId ?? "no-document"] as const,
     lines: (documentId: string | null) => ["service-document-lines", documentId ?? "no-document"] as const,
+  },
+  serviceJobs: {
+    all: () => ["service-jobs"] as const,
+    list: (companyId: string | null, search: string, status: string, technicianId: string, from: string, to: string, priority = "ALL") =>
+      ["service-jobs", companyId ?? "no-company", search, status, technicianId, from, to, priority] as const,
+    customers: (companyId: string | null) => ["service-jobs-customers", companyId ?? "no-company"] as const,
+    technicians: (companyId: string | null) => ["service-jobs-technicians", companyId ?? "no-company"] as const,
   },
   stock: {
     recentItems: (companyId: string | null, userId: string | null | undefined) =>

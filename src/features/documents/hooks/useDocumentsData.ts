@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
 import { buildItemDisplayName } from "@/lib/item-display";
+import { searchIncludes } from "@/lib/search";
 import { DOC_LABEL } from "../constants";
 import type {
   DocEventRow,
@@ -10,10 +11,12 @@ import type {
   DocRow,
   DocStatus,
   DocType,
+  DocumentServiceOption,
   PriceListItemRow,
   PriceListRow,
 } from "../types";
 import { formatNumber } from "../utils";
+import type { ProductCombo, ProductComboLine } from "@/features/combos/types";
 
 type UseDocumentsDataParams = {
   search: string;
@@ -44,6 +47,47 @@ export function useDocumentsData({
         .order("name");
       if (error) throw error;
       return data ?? [];
+    },
+  });
+
+  const { data: technicians = [] } = useQuery({
+    queryKey: ["documents", "technicians", currentCompanyId],
+    enabled: Boolean(currentCompanyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("technicians")
+        .select("id, name")
+        .eq("company_id", currentCompanyId!)
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: serviceOptions = [] } = useQuery({
+    queryKey: ["documents", "service-options", currentCompanyId],
+    enabled: Boolean(currentCompanyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("service_job_services")
+        .select("id, title, status, job_id, service_jobs(id, title, customer_id, customers(id, name))")
+        .eq("company_id", currentCompanyId!)
+        .order("updated_at", { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      return (data ?? []).map((service) => {
+        const job = Array.isArray(service.service_jobs) ? service.service_jobs[0] : service.service_jobs;
+        const customer = Array.isArray(job?.customers) ? job?.customers[0] : job?.customers;
+        return {
+          id: service.id,
+          title: service.title,
+          status: service.status,
+          job_id: service.job_id,
+          jobTitle: job?.title ?? "Trabajo sin titulo",
+          customerId: job?.customer_id ?? null,
+          customerName: customer?.name ?? null,
+        };
+      }) as DocumentServiceOption[];
     },
   });
 
@@ -91,6 +135,35 @@ export function useDocumentsData({
     },
   });
 
+  const { data: combos = [] } = useQuery({
+    queryKey: queryKeys.combos.list(currentCompanyId),
+    enabled: Boolean(currentCompanyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("product_combos")
+        .select("id, company_id, name, description, is_active, created_at, updated_at, created_by")
+        .eq("company_id", currentCompanyId!)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as ProductCombo[];
+    },
+  });
+
+  const { data: comboLines = [] } = useQuery({
+    queryKey: ["product-combo-lines", currentCompanyId, combos.map((combo) => combo.id).join(",")],
+    enabled: Boolean(currentCompanyId) && combos.length > 0,
+    queryFn: async () => {
+      const comboIds = combos.map((combo) => combo.id);
+      const { data, error } = await supabase
+        .from("product_combo_lines")
+        .select("id, combo_id, item_id, quantity, line_order, notes, created_at")
+        .in("combo_id", comboIds)
+        .order("line_order");
+      if (error) throw error;
+      return (data ?? []) as ProductComboLine[];
+    },
+  });
+
   const priceListsById = useMemo(
     () => new Map(priceLists.map((priceList) => [priceList.id, priceList])),
     [priceLists],
@@ -113,24 +186,17 @@ export function useDocumentsData({
         }),
       }));
     }
-    return priceListItems
-      .filter((row) => row.items)
-      .map((row) => ({
-        id: row.items!.id,
-        sku: row.items!.sku,
-        name: row.items!.name,
-        display_name: buildItemDisplayName({
-          name: row.items!.name,
-          brand: row.items!.brand ?? null,
-          model: row.items!.model ?? null,
-          attributes: row.items!.attributes ?? null,
-        }),
-        brand: row.items!.brand ?? null,
-        model: row.items!.model ?? null,
-        attributes: row.items!.attributes ?? null,
-        unit: row.items!.unit,
-      }));
-  }, [items, selectedPriceListId, priceListItems]);
+
+    return items.map((item) => ({
+      ...item,
+      display_name: buildItemDisplayName({
+        name: item.name,
+        brand: "brand" in item ? (item.brand as string | null | undefined) : null,
+        model: "model" in item ? (item.model as string | null | undefined) : null,
+        attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
+      }),
+    }));
+  }, [items, selectedPriceListId]);
 
   const priceByItem = useMemo(() => {
     const map = new Map<string, number>();
@@ -155,20 +221,34 @@ export function useDocumentsData({
     queryFn: async () => {
       let q = supabase
         .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, service_id, origin_document_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
         .eq("company_id", currentCompanyId!)
         .order("created_at", { ascending: false });
       if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
       if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
-      if (trimmedSearch) {
-        const n = Number.parseInt(trimmedSearch, 10);
-        const clauses = [`customer_name.ilike.%${trimmedSearch}%`];
-        if (Number.isFinite(n)) clauses.push(`document_number.eq.${n}`);
-        q = q.or(clauses.join(","));
-      }
       const { data, error } = await q.limit(300);
       if (error) throw error;
-      return (data ?? []) as DocRow[];
+      const rows = (data ?? []) as DocRow[];
+      if (!trimmedSearch) return rows;
+      const numberQuery = Number.parseInt(trimmedSearch, 10);
+      return rows.filter((document) =>
+        searchIncludes(
+          [
+            document.customer_name,
+            document.customer_tax_id,
+            document.external_invoice_number,
+            document.salesperson,
+            document.payment_terms,
+            document.delivery_address,
+            document.notes,
+            document.source_document_number_snapshot,
+            document.doc_type,
+            document.status,
+            document.document_number != null ? String(document.document_number) : "",
+          ].filter(Boolean).join(" "),
+          trimmedSearch,
+        ) || (Number.isFinite(numberQuery) && document.document_number === numberQuery),
+      );
     },
   });
 
@@ -176,6 +256,21 @@ export function useDocumentsData({
     () => new Map(documents.map((document) => [document.id, document])),
     [documents],
   );
+
+  const { data: selectedDocument = null } = useQuery({
+    queryKey: ["documents", "detail", selectedDocId],
+    enabled: Boolean(selectedDocId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, service_id, origin_document_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
+        .eq("company_id", currentCompanyId!)
+        .eq("id", selectedDocId!)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as DocRow | null;
+    },
+  });
 
   const { data: selectedLines = [] } = useQuery({
     queryKey: queryKeys.documents.lines(selectedDocId),
@@ -197,7 +292,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("document_events")
-        .select("id, event_type, payload, created_at")
+        .select("id, event_type, payload, created_at, created_by")
         .eq("document_id", selectedDocId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -205,9 +300,30 @@ export function useDocumentsData({
     },
   });
 
-  const selectedDocument = useMemo(
-    () => (selectedDocId ? documentsById.get(selectedDocId) ?? null : null),
-    [documentsById, selectedDocId],
+  const eventUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const event of selectedEvents) {
+      if (event.created_by) ids.add(event.created_by);
+    }
+    return Array.from(ids).sort();
+  }, [selectedEvents]);
+
+  const { data: eventProfiles = [] } = useQuery({
+    queryKey: ["documents", "event-profiles", eventUserIds],
+    enabled: eventUserIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", eventUserIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const eventUserNamesById = useMemo(
+    () => new Map(eventProfiles.map((profile) => [profile.user_id, profile.full_name?.trim() || "Usuario sin nombre"])),
+    [eventProfiles],
   );
 
   const { data: selectedDocumentCashUsage = false } = useQuery({
@@ -251,6 +367,17 @@ export function useDocumentsData({
     [documentsById, selectedDocument?.source_document_id],
   );
 
+  const combosById = useMemo(() => new Map(combos.map((combo) => [combo.id, combo])), [combos]);
+  const comboLinesByComboId = useMemo(() => {
+    const map = new Map<string, ProductComboLine[]>();
+    for (const line of comboLines) {
+      const list = map.get(line.combo_id) ?? [];
+      list.push(line);
+      map.set(line.combo_id, list);
+    }
+    return map;
+  }, [comboLines]);
+
   const sourceDocumentLabel = useMemo(() => {
     if (!selectedDocument?.source_document_id) return null;
     const sourceType = selectedDocument.source_document_type ?? sourceDocument?.doc_type ?? null;
@@ -262,6 +389,8 @@ export function useDocumentsData({
 
   return {
     customers,
+    technicians,
+    serviceOptions,
     items,
     priceLists,
     priceListItems,
@@ -273,9 +402,13 @@ export function useDocumentsData({
     isLoading,
     selectedLines,
     selectedEvents,
+    eventUserNamesById,
     selectedDocumentCashUsage,
     selectedDocument,
     sourceDocument,
     sourceDocumentLabel,
+    combos,
+    combosById,
+    comboLinesByComboId,
   };
 }

@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/ui/page";
 import { THEME_OPTIONS, buildCompanyThemePayload } from "@/lib/companyTheme";
@@ -177,6 +178,52 @@ export default function SettingsPage() {
                       }
                       disabled={!form.auto_close_cash_enabled}
                     />
+                  </div>
+                </div>
+                <div className="space-y-3 rounded-2xl border border-border/60 bg-card/80 p-4 md:col-span-2">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="price_rounding_enabled"
+                      checked={form.price_rounding_enabled}
+                      onCheckedChange={(checked) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          price_rounding_enabled: checked === true,
+                          price_rounding_increment: checked === true ? prev.price_rounding_increment || "500" : "",
+                        }))
+                      }
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="price_rounding_enabled" className="cursor-pointer">
+                        Redondeo de precios
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        El redondeo se aplica al precio sugerido al cargar productos en documentos. No modifica costos ni listas originales.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid gap-2 md:max-w-xs">
+                    <Label>Incremento</Label>
+                    <Select
+                      value={form.price_rounding_enabled ? form.price_rounding_increment || "500" : "none"}
+                      onValueChange={(value) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          price_rounding_enabled: value !== "none",
+                          price_rounding_increment: value === "none" ? "" : value,
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin redondeo</SelectItem>
+                        <SelectItem value="100">Redondear a $100</SelectItem>
+                        <SelectItem value="500">Redondear a $500</SelectItem>
+                        <SelectItem value="1000">Redondear a $1000</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="space-y-2 md:col-span-2">

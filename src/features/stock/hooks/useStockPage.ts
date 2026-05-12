@@ -547,7 +547,10 @@ export function useStockPage() {
     },
     onSuccess: async () => {
       await invalidateStockQueries(queryClient);
-      resetMovementForm();
+      setForm((currentForm) => ({
+        ...DEFAULT_STOCK_MOVEMENT_FORM,
+        item_id: currentForm.item_id,
+      }));
       toast({ title: "Movimiento registrado" });
     },
     onError: (error: unknown) => {
@@ -603,6 +606,14 @@ export function useStockPage() {
     handleFormChange,
     handleItemSearchChange,
     handleSelectedItemChange,
-    submitMovement: () => saveMutation.mutate(),
+    submitMovement: () => {
+      if (form.type === "ADJUSTMENT" && form.adjustment_direction === "REMOVE") {
+        const confirmed = window.confirm(
+          "Vas a registrar un ajuste negativo. Verificá el item y la cantidad antes de continuar.",
+        );
+        if (!confirmed) return;
+      }
+      saveMutation.mutate();
+    },
   };
 }

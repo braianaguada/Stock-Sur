@@ -12,13 +12,18 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { title: "Dashboard", url: "/" },
   { title: "Items", url: "/items" },
+  { title: "Combos", url: "/combos" },
   { title: "Stock", url: "/stock" },
   { title: "Proveedores", url: "/suppliers" },
   { title: "Precios", url: "/price-lists" },
   { title: "Documentos", url: "/documents" },
   { title: "Servicios", url: "/services/documents" },
+  { title: "Trabajos", url: "/service-jobs" },
+  { title: "Tecnicos", url: "/technicians" },
+  { title: "Totales", url: "/cash-totals" },
   { title: "Caja", url: "/cash" },
   { title: "Clientes", url: "/customers" },
+  { title: "Estado de cuenta", url: "/customer-account" },
   { title: "Usuarios", url: "/users", requiresSuperadmin: true },
   { title: "Configuración", url: "/settings", requiresAdmin: true },
 ] as const;
@@ -159,7 +164,7 @@ export function AppSidebar() {
               {visibleNavItems.map((item) => {
                 const isActive =
                   location.pathname === item.url ||
-                  (item.url !== "/" && location.pathname.startsWith(item.url));
+                  (item.url !== "/" && location.pathname.startsWith(`${item.url}/`));
 
                 return (
                   <Link

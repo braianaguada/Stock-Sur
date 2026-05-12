@@ -7,12 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PriceListProductRow } from "@/features/price-lists/types";
 import { formatMoney } from "@/features/price-lists/utils";
+import { OperationalPriceDisplay } from "@/features/pricing/OperationalPriceDisplay";
+import type { PriceRoundingConfig } from "@/features/pricing/rounding";
 
 type PriceListProductsTableProps = {
   rows: PriceListProductRow[];
   columnVisibility: VisibilityState;
   /** Map item_id → total stock qty */
   stockByItemId?: Map<string, number>;
+  priceRoundingConfig?: PriceRoundingConfig | null;
 };
 
 function StockBadge({ total }: { total: number | undefined }) {
@@ -48,7 +51,7 @@ function StockBadge({ total }: { total: number | undefined }) {
   );
 }
 
-export function PriceListProductsTable({ rows, columnVisibility, stockByItemId }: PriceListProductsTableProps) {
+export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, priceRoundingConfig }: PriceListProductsTableProps) {
   const showAttributesInline = columnVisibility.attributes === false;
 
   const columns = useMemo<ColumnDef<PriceListProductRow, unknown>[]>(() => [
@@ -93,10 +96,17 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId }
     },
     {
       accessorKey: "calculated_price",
-      header: () => <div className="text-right">Precio lista</div>,
-      cell: ({ row }) => <div className="text-right font-mono text-sm font-bold text-foreground">${formatMoney(row.original.calculated_price)}</div>,
+      header: () => <div className="text-right">Precio operativo</div>,
+      cell: ({ row }) => (
+        <OperationalPriceDisplay
+          value={row.original.calculated_price}
+          config={priceRoundingConfig}
+          formatValue={(value) => `$${formatMoney(value)}`}
+          valueClassName="font-mono text-sm font-bold text-foreground"
+        />
+      ),
       meta: {
-        className: "w-[120px]",
+        className: "w-[150px]",
       },
     },
     {
@@ -116,7 +126,7 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId }
         className: "w-[110px]",
       },
     },
-  ], [showAttributesInline, stockByItemId]);
+  ], [priceRoundingConfig, showAttributesInline, stockByItemId]);
 
   return (
     <div className="overflow-x-auto">

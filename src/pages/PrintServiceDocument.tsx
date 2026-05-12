@@ -94,8 +94,9 @@ export default function PrintServiceDocumentPage() {
 
         <section className="mt-5 flex justify-end">
           <div className="w-64 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex justify-between text-sm"><span>Subtotal</span><span>{currency.format(Number(selectedDocument.subtotal ?? 0))}</span></div>
-            <div className="mt-2 flex justify-between text-xl font-extrabold"><span>Total</span><span>{currency.format(Number(selectedDocument.total ?? 0))}</span></div>
+            <div className="flex justify-between text-sm"><span>Subtotal sin IVA</span><span>{currency.format(Number(selectedDocument.subtotal ?? 0))}</span></div>
+            <div className="mt-2 flex justify-between text-sm text-slate-500"><span>IVA</span><span>No incluido</span></div>
+            <div className="mt-2 flex justify-between text-xl font-extrabold"><span>Total sin IVA</span><span>{currency.format(Number(selectedDocument.total ?? 0))}</span></div>
           </div>
         </section>
 

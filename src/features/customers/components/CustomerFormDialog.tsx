@@ -88,6 +88,7 @@ export function CustomerFormDialog({
         </label>
         <div className="flex justify-end">
           <Button type="submit" disabled={isSaving}>
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {isSaving ? "Guardando..." : "Guardar"}
           </Button>
         </div>
@@ -95,3 +96,4 @@ export function CustomerFormDialog({
     </EntityDialog>
   );
 }
+import { Loader2 } from "lucide-react";

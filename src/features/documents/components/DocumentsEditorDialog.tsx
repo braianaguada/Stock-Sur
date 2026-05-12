@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -13,6 +14,7 @@ import type {
   CustomerKind,
   DocType,
   DocumentFormState,
+  DocumentServiceOption,
   InternalRemitoType,
   LineDraft,
   LinePricingMode,
@@ -21,6 +23,11 @@ import type {
 import { calculatePriceFromCostBase } from "@/features/documents/utils";
 
 type CustomerOption = {
+  id: string;
+  name: string;
+};
+
+type TechnicianOption = {
   id: string;
   name: string;
 };
@@ -35,24 +42,36 @@ type AvailableItemOption = {
   model?: string | null;
 };
 
+type ComboOption = {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+};
+
 interface DocumentsEditorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingDocId: string | null;
-  form: DocumentFormState;
-  setForm: React.Dispatch<React.SetStateAction<DocumentFormState>>;
+  documentForm: DocumentFormState;
+  setDraftForm: React.Dispatch<React.SetStateAction<DocumentFormState>>;
   lines: LineDraft[];
   setLines: React.Dispatch<React.SetStateAction<LineDraft[]>>;
   totalDraft: number;
   customers: CustomerOption[];
+  technicians: TechnicianOption[];
+  serviceOptions: DocumentServiceOption[];
   priceLists: PriceListRow[];
   availableItems: AvailableItemOption[];
+  combos: ComboOption[];
   onPriceListChange: (priceListId: string) => void;
   onAddItem: (itemId: string) => void;
+  onAddCombo: (comboId: string, quantity: number) => void;
   removeLine: (idx: number) => void;
   onSubmit: () => void;
   onResetDraftForm: () => void;
   isSubmitting: boolean;
+  sourceDocumentLabel?: string | null;
 }
 
 function formatMoney(value: number) {
@@ -63,27 +82,47 @@ export function DocumentsEditorDialog({
   open,
   onOpenChange,
   editingDocId,
-  form,
-  setForm,
+  documentForm,
+  setDraftForm,
   lines,
   setLines,
   totalDraft,
   customers,
+  technicians,
+  serviceOptions = [],
   priceLists,
   availableItems,
+  combos,
   onPriceListChange,
   onAddItem,
+  onAddCombo,
   removeLine,
   onSubmit,
   onResetDraftForm,
   isSubmitting,
+  sourceDocumentLabel,
 }: DocumentsEditorDialogProps) {
   const [itemSearch, setItemSearch] = useState("");
+  const [comboQuantities, setComboQuantities] = useState<Record<string, string>>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const deferredItemSearch = useDeferredValue(itemSearch);
+  const isReturn = documentForm.doc_type === "REMITO_DEVOLUCION";
+  const selectedService = documentForm.service_id
+    ? serviceOptions.find((service) => service.id === documentForm.service_id) ?? null
+    : null;
+  const filteredServiceOptions = useMemo(() => {
+    const selectedCustomerId = documentForm.customer_id || null;
+    return serviceOptions.filter((service) =>
+      service.id === documentForm.service_id
+      || !selectedCustomerId
+      || !service.customerId
+      || service.customerId === selectedCustomerId,
+    );
+  }, [documentForm.customer_id, documentForm.service_id, serviceOptions]);
 
   const selectedPriceList = useMemo(
-    () => priceLists.find((priceList) => priceList.id === form.price_list_id) ?? null,
-    [form.price_list_id, priceLists],
+    () => priceLists.find((priceList) => priceList.id === documentForm.price_list_id) ?? null,
+    [documentForm.price_list_id, priceLists],
   );
 
   const lineCountByItemId = useMemo(() => {
@@ -96,15 +135,34 @@ export function DocumentsEditorDialog({
   }, [lines]);
 
   const filteredItems = useMemo(() => {
-    const query = itemSearch.trim().toLowerCase();
-    if (!form.price_list_id || query.length === 0) return [];
+    const query = deferredItemSearch.trim().toLowerCase();
+    if (!documentForm.price_list_id || query.length === 0) return [];
 
     return availableItems
-      .filter((item) =>
-        [item.sku, item.name, item.unit ?? ""].some((value) => value.toLowerCase().includes(query)),
-      )
+      .filter((item) => {
+        const searchableText = [
+          item.sku,
+          item.name,
+          item.unit ?? "",
+          item.brand ?? "",
+          item.model ?? "",
+          item.attributes ?? "",
+          buildItemDisplayName(item),
+          buildItemDisplayMeta(item),
+        ].join(" ").toLowerCase();
+
+        return searchableText.includes(query);
+      })
       .slice(0, 8);
-  }, [availableItems, form.price_list_id, itemSearch]);
+  }, [availableItems, documentForm.price_list_id, deferredItemSearch]);
+  const filteredCombos = useMemo(() => {
+    const query = deferredItemSearch.trim().toLowerCase();
+    if (!documentForm.price_list_id || query.length === 0) return [];
+    return combos
+      .filter((combo) => combo.is_active)
+      .filter((combo) => [combo.name, combo.description ?? ""].join(" ").toLowerCase().includes(query))
+      .slice(0, 6);
+  }, [combos, deferredItemSearch, documentForm.price_list_id]);
 
   const updateLine = (index: number, patch: Partial<LineDraft>) => {
     setLines((previousLines) =>
@@ -119,6 +177,12 @@ export function DocumentsEditorDialog({
     setItemSearch("");
   };
 
+  const handleAddCombo = (comboId: string) => {
+    const quantity = Number(comboQuantities[comboId] ?? 1);
+    onAddCombo(comboId, quantity);
+    setItemSearch("");
+  };
+
   return (
     <EntityDialog
       open={open}
@@ -126,11 +190,12 @@ export function DocumentsEditorDialog({
         onOpenChange(nextOpen);
         if (!nextOpen) {
           setItemSearch("");
+          setComboQuantities({});
           setDetailsOpen(false);
           onResetDraftForm();
         }
       }}
-      title={editingDocId ? "Editar borrador" : "Nuevo documento"}
+      title={editingDocId ? (isReturn ? "Editar devolucion" : "Editar borrador") : "Nuevo documento"}
       contentClassName="!w-[min(98vw,1680px)] sm:!w-[min(98vw,1680px)] !max-w-[1680px] sm:!max-w-[1680px] max-h-[92vh] overflow-x-hidden overflow-y-auto"
     >
       <form
@@ -140,15 +205,24 @@ export function DocumentsEditorDialog({
         }}
         className="space-y-4"
       >
+        {isReturn ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Devolucion de remito origen: <span className="font-semibold">{sourceDocumentLabel ?? "sin referencia visible"}</span>
+          </div>
+        ) : null}
+
         <div className="rounded-xl border border-border/70 bg-card/60 shadow-sm relative">
           <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
             <div className="p-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 items-start">
               <div className="space-y-2">
                 <Label>Tipo *</Label>
+                {isReturn ? (
+                  <Input value="Devolucion de remito" disabled />
+                ) : (
                 <Select
-                  value={form.doc_type}
+                  value={documentForm.doc_type}
                   onValueChange={(value) =>
-                    setForm((previousForm) => {
+                    setDraftForm((previousForm) => {
                       const nextDocType = value as DocType;
                       const nextCustomerKind =
                         nextDocType === "PRESUPUESTO" && previousForm.customer_kind === "INTERNO"
@@ -162,6 +236,7 @@ export function DocumentsEditorDialog({
                           nextDocType === "REMITO" && nextCustomerKind === "INTERNO"
                             ? previousForm.internal_remito_type
                             : "",
+                        service_id: nextDocType === "REMITO" ? previousForm.service_id : "",
                       };
                     })
                   }
@@ -172,6 +247,7 @@ export function DocumentsEditorDialog({
                     <SelectItem value="REMITO">Remito</SelectItem>
                   </SelectContent>
                 </Select>
+                )}
               </div>
 
               <div className="space-y-2 lg:hidden xl:block">
@@ -179,9 +255,9 @@ export function DocumentsEditorDialog({
                 <Input
                   type="number"
                   min={1}
-                  value={form.point_of_sale}
+                  value={documentForm.point_of_sale}
                   onChange={(event) =>
-                    setForm((previousForm) => ({
+                    setDraftForm((previousForm) => ({
                       ...previousForm,
                       point_of_sale: Math.max(1, Number(event.target.value) || 1),
                     }))
@@ -191,7 +267,7 @@ export function DocumentsEditorDialog({
 
               <div className="space-y-2 md:col-span-2 xl:col-span-1">
                 <Label>Lista de precios *</Label>
-                <Select value={form.price_list_id} onValueChange={onPriceListChange}>
+                <Select value={documentForm.price_list_id} onValueChange={onPriceListChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar lista" />
                   </SelectTrigger>
@@ -222,9 +298,9 @@ export function DocumentsEditorDialog({
                   <Input
                     type="number"
                     min={1}
-                    value={form.point_of_sale}
+                    value={documentForm.point_of_sale}
                     onChange={(event) =>
-                      setForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         point_of_sale: Math.max(1, Number(event.target.value) || 1),
                       }))
@@ -235,9 +311,9 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>Tipo de cliente</Label>
                   <Select
-                    value={form.customer_kind}
+                    value={documentForm.customer_kind}
                     onValueChange={(value) =>
-                      setForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         customer_kind: value as CustomerKind,
                         internal_remito_type:
@@ -250,7 +326,7 @@ export function DocumentsEditorDialog({
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="GENERAL">Cliente general</SelectItem>
-                      {form.doc_type === "REMITO" ? (
+                      {documentForm.doc_type === "REMITO" ? (
                           <SelectItem value="INTERNO">Personal / técnico interno</SelectItem>
                       ) : null}
                       <SelectItem value="EMPRESA">Empresa</SelectItem>
@@ -261,9 +337,9 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>Cliente registrado</Label>
                   <Select
-                    value={form.customer_id || "__none__"}
+                    value={documentForm.customer_id || "__none__"}
                     onValueChange={(value) =>
-                      setForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         customer_id: value === "__none__" ? "" : value,
                       }))
@@ -281,13 +357,36 @@ export function DocumentsEditorDialog({
                   </Select>
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Tecnico</Label>
+                  <Select
+                    value={documentForm.technician_id || "__none__"}
+                    onValueChange={(value) =>
+                      setDraftForm((previousForm) => ({
+                        ...previousForm,
+                        technician_id: value === "__none__" ? "" : value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger><SelectValue placeholder="Sin seleccionar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin seleccionar</SelectItem>
+                      {technicians.map((technician) => (
+                        <SelectItem key={technician.id} value={technician.id}>
+                          {technician.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2 md:col-span-2">
                   <Label>Nombre cliente</Label>
                   <Input
-                    value={form.customer_name}
+                    value={documentForm.customer_name}
                     placeholder="Cliente ocasional"
                     onChange={(event) =>
-                      setForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
+                      setDraftForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
                     }
                   />
                 </div>
@@ -295,10 +394,10 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>CUIT</Label>
                   <Input
-                    value={form.customer_tax_id}
+                    value={documentForm.customer_tax_id}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
+                      setDraftForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
                     }
                   />
                 </div>
@@ -306,10 +405,10 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>Condición fiscal</Label>
                   <Input
-                    value={form.customer_tax_condition}
+                    value={documentForm.customer_tax_condition}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setForm((previousForm) => ({
+                      setDraftForm((previousForm) => ({
                         ...previousForm,
                         customer_tax_condition: event.target.value,
                       }))
@@ -320,10 +419,10 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>Condición de venta</Label>
                   <Input
-                    value={form.payment_terms}
+                    value={documentForm.payment_terms}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
+                      setDraftForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
                     }
                   />
                 </div>
@@ -331,47 +430,75 @@ export function DocumentsEditorDialog({
                 <div className="space-y-2">
                   <Label>Vendedor</Label>
                   <Input
-                    value={form.salesperson}
+                    value={documentForm.salesperson}
                     placeholder="Opcional"
                     onChange={(event) =>
-                      setForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
+                      setDraftForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
                     }
                   />
                 </div>
 
-                {form.doc_type === "PRESUPUESTO" ? (
+                {documentForm.doc_type === "PRESUPUESTO" ? (
                   <div className="space-y-2">
                     <Label>Válido hasta</Label>
                     <Input
                       type="date"
-                      value={form.valid_until}
+                      value={documentForm.valid_until}
                       onChange={(event) =>
-                        setForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
+                        setDraftForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
                       }
                     />
                   </div>
                 ) : null}
 
-                {form.doc_type === "REMITO" ? (
+                {documentForm.doc_type === "REMITO" ? (
                   <div className="space-y-2 md:col-span-2">
                     <Label>Domicilio de entrega</Label>
                     <Input
-                      value={form.delivery_address}
+                      value={documentForm.delivery_address}
                       placeholder="Opcional"
                       onChange={(event) =>
-                        setForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
+                        setDraftForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
                       }
                     />
                   </div>
                 ) : null}
 
-                {form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? (
+                {documentForm.doc_type === "REMITO" && !isReturn ? (
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Servicio asociado</Label>
+                    <Select
+                      value={documentForm.service_id || "__none__"}
+                      onValueChange={(value) =>
+                        setDraftForm((previousForm) => ({
+                          ...previousForm,
+                          service_id: value === "__none__" ? "" : value,
+                        }))
+                      }
+                    >
+                      <SelectTrigger><SelectValue placeholder="Sin servicio" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Sin servicio</SelectItem>
+                        {filteredServiceOptions.map((service) => (
+                          <SelectItem key={service.id} value={service.id}>
+                            {service.jobTitle} / {service.title}{service.customerName ? ` - ${service.customerName}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedService && documentForm.customer_id && selectedService.customerId && selectedService.customerId !== documentForm.customer_id ? (
+                      <p className="text-xs text-amber-600">El servicio pertenece a otro cliente. Se permite guardar, pero revisa la trazabilidad.</p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO" ? (
                   <div className="space-y-2">
                     <Label>Imputación del remito</Label>
                     <Select
-                      value={form.internal_remito_type || "__none__"}
+                      value={documentForm.internal_remito_type || "__none__"}
                       onValueChange={(value) =>
-                        setForm((previousForm) => ({
+                        setDraftForm((previousForm) => ({
                           ...previousForm,
                           internal_remito_type:
                             value === "__none__" ? "" : (value as InternalRemitoType),
@@ -395,32 +522,58 @@ export function DocumentsEditorDialog({
           <div className="flex flex-col gap-1">
             <Label className="text-base">Productos ({lines.length})</Label>
             <p className="text-sm text-muted-foreground mr-[200px]">
-              Busca en la lista activa ({selectedPriceList?.name ?? "Ninguna"}) y agrega productos. 
-              <span className="hidden sm:inline"> Presiona <strong>Enter</strong> para sumar rápidamente el primero.</span>
+              {isReturn
+                ? "Ajusta las cantidades a devolver antes de emitir."
+                : `Busca en la lista activa (${selectedPriceList?.name ?? "Ninguna"}) y agrega productos.`}
+              {!isReturn ? (
+                <span className="hidden sm:inline"> Presiona <strong>Enter</strong> para sumar rápidamente el primero.</span>
+              ) : null}
             </p>
           </div>
 
-          <div className="space-y-3">
-            <div className="relative w-full">
+          <div className={isReturn ? "hidden" : "space-y-3"}>
+            <div className="relative max-w-sm flex-1 min-w-[200px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                  value={itemSearch}
-                  disabled={!form.price_list_id || priceLists.length === 0}
-                  className="pl-10"
-                  placeholder={
-                    form.price_list_id
-                      ? "Buscar producto por SKU, nombre o unidad"
-                      : "Selecciona una lista para habilitar la busqueda"
+                value={itemSearch}
+                className="pl-10"
+                placeholder="Buscar por SKU, nombre, marca, modelo o atributos"
+                onChange={(event) => setItemSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && filteredItems.length > 0) {
+                    event.preventDefault();
+                    handleAddItem(filteredItems[0].id);
                   }
-                  onChange={(event) => setItemSearch(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && filteredItems.length > 0) {
-                      event.preventDefault();
-                      handleAddItem(filteredItems[0].id);
-                    }
-                  }}
-                />
+                }}
+              />
             </div>
+            {filteredCombos.length > 0 ? (
+              <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-2">
+                <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Combos</p>
+                {filteredCombos.map((combo) => (
+                  <div key={combo.id} className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card px-3 py-3 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium leading-5 break-words">{combo.name}</div>
+                      <div className="text-xs text-muted-foreground break-words">{combo.description ?? "Sin descripcion"}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-20">
+                        <Input
+                          type="number"
+                          min={1}
+                          step="any"
+                          value={comboQuantities[combo.id] ?? "1"}
+                          onChange={(event) =>
+                            setComboQuantities((previous) => ({ ...previous, [combo.id]: event.target.value }))
+                          }
+                        />
+                      </div>
+                      <Button type="button" size="sm" onClick={() => handleAddCombo(combo.id)}>Agregar combo</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
 
             {itemSearch.trim().length > 0 ? (
               filteredItems.length > 0 ? (
@@ -453,7 +606,7 @@ export function DocumentsEditorDialog({
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">
-                  No hay coincidencias en la lista seleccionada.
+                  No hay resultados para mostrar.
                 </div>
               )
             ) : null}
@@ -463,19 +616,19 @@ export function DocumentsEditorDialog({
             {lines.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-sm text-muted-foreground bg-muted/10">
                 <Search className="h-8 w-8 mb-3 text-muted-foreground/30" />
-                No tienes ningún producto agregado.
+                Todavia no hay productos agregados.
                 <br />
-                Usa el buscador para añadirlos.
+                Usa el buscador para agregarlos.
               </div>
             ) : (
-              <div className="sticky top-0 z-20 hidden rounded-md border border-border/40 bg-muted/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-md xl:grid xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:gap-3">
+              <div className="sticky top-0 z-20 hidden rounded-md border border-border/40 bg-muted/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-md xl:grid xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_72px] xl:gap-3">
                 <div>Producto</div>
                 <div>Cantidad</div>
                 <div>Modo de precio</div>
                 <div>Margen %</div>
                 <div>Precio unitario</div>
                 <div>Total</div>
-                <div className="text-right">Acs</div>
+                <div className="text-right whitespace-nowrap">Acciones</div>
               </div>
             )}
 
@@ -485,7 +638,7 @@ export function DocumentsEditorDialog({
 
               return (
                 <div key={`${line.item_id ?? "manual"}-${index}`} className="group rounded-lg border border-border/70 bg-background/80 px-3 py-2 hover:border-border transition-colors">
-                  <div className="grid gap-3 xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_42px] xl:items-center">
+                  <div className="grid gap-3 xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_72px] xl:items-center">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-foreground leading-5 break-words">
                         {line.sku_snapshot ? `${line.sku_snapshot} | ` : ""}
@@ -495,6 +648,16 @@ export function DocumentsEditorDialog({
                         <span>{line.unit || "un"}</span>
                         <span className="hidden sm:inline">&bull;</span>
                         <span>Sug: {formatMoney(line.suggested_unit_price)}</span>
+                        {line.unrounded_suggested_unit_price !== null
+                          && line.unrounded_suggested_unit_price !== undefined
+                          && line.unrounded_suggested_unit_price !== line.suggested_unit_price ? (
+                            <span
+                              className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
+                              title={`Original sugerido: ${formatMoney(line.unrounded_suggested_unit_price)}`}
+                            >
+                              Redondeado
+                            </span>
+                          ) : null}
                       </div>
                     </div>
 
@@ -634,21 +797,22 @@ export function DocumentsEditorDialog({
           <Textarea
             className="resize-none min-h-[80px]"
             placeholder="Aclaraciones adicionales del documento..."
-            value={form.notes}
+            value={documentForm.notes}
             onChange={(event) =>
-              setForm((previousForm) => ({ ...previousForm, notes: event.target.value }))
+              setDraftForm((previousForm) => ({ ...previousForm, notes: event.target.value }))
             }
           />
         </div>
 
         <div className="sticky bottom-0 z-30 flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/95 px-5 py-4 shadow-[var(--shadow-md)] backdrop-blur-md">
           <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-0.5">Total Documento</span>
+            <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-0.5">Total del documento</span>
             <span className="text-2xl font-extrabold tracking-tight text-foreground">
               {formatMoney(totalDraft)}
             </span>
           </div>
           <Button type="submit" disabled={isSubmitting || priceLists.length === 0} className="h-11 rounded-full px-8 shadow-sm">
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {isSubmitting ? "Guardando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
           </Button>
         </div>

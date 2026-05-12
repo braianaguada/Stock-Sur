@@ -308,7 +308,7 @@ export default function StockPage() {
                   id="stock-search"
                   name="stock-search"
                   aria-label="Buscar item en stock"
-                  placeholder="Buscar item..."
+                  placeholder="Buscar por nombre, SKU, marca, modelo o atributos..."
                   className="pl-9"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
@@ -369,7 +369,7 @@ export default function StockPage() {
           </TabsContent>
 
           <TabsContent value="movements" className="space-y-5 pt-1">
-            <div className="relative max-w-sm">
+            <div className="relative max-w-sm flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 aria-label="Buscar movimiento"

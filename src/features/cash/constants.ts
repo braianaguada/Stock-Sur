@@ -1,5 +1,7 @@
 import type {
   DocumentQuickRow,
+  CashExpenseCategory,
+  CashExpenseKind,
   PaymentMethod,
   ReceiptKind,
   SaleStatus,
@@ -43,3 +45,26 @@ export const DOC_STATUS_LABEL: Record<DocumentQuickRow["status"], string> = {
   EMITIDO: "Emitido",
   ANULADO: "Anulado",
 };
+
+export const CASH_EXPENSE_CATEGORY_LABEL: Record<CashExpenseCategory, string> = {
+  COMIDA: "Comida",
+  INSUMOS: "Insumos",
+  ENVIO: "Envio",
+  LIMPIEZA: "Limpieza",
+  MOVILIDAD: "Movilidad",
+  OTROS: "Otros",
+};
+
+export const CASH_EXPENSE_KIND_LABEL: Record<CashExpenseKind, string> = {
+  CAJA: "Efectivo / caja",
+  CUENTA_CORRIENTE: "No efectivo",
+};
+
+export const CASH_EXPENSE_CATEGORIES: CashExpenseCategory[] = [
+  "COMIDA",
+  "INSUMOS",
+  "ENVIO",
+  "LIMPIEZA",
+  "MOVILIDAD",
+  "OTROS",
+];

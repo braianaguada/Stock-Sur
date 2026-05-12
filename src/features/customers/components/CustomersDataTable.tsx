@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, Pencil, Trash2 } from "lucide-react";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import type { Customer } from "@/features/customers/types";
 
 type CustomersDataTableProps = {
@@ -55,34 +55,30 @@ export function CustomersDataTable({
       id: "actions",
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
-        <div className="flex justify-end gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-full"
+        <RowActions>
+          <RowActionButton
+            label={row.original.is_occasional ? "El cliente ocasional no tiene cuenta corriente" : "Ver cuenta corriente"}
+            tone="view"
             disabled={row.original.is_occasional}
-            title={row.original.is_occasional ? "El cliente ocasional no tiene cuenta corriente" : "Ver cuenta corriente"}
             onClick={() => onViewAccount(row.original)}
           >
             <Eye className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-full"
+          </RowActionButton>
+          <RowActionButton
+            label="Editar"
+            tone="edit"
             onClick={() => onEdit(row.original)}
           >
             <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-full"
+          </RowActionButton>
+          <RowActionButton
+            label="Eliminar"
+            tone="danger"
             onClick={() => onDelete(row.original)}
           >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        </div>
+            <Trash2 className="h-4 w-4" />
+          </RowActionButton>
+        </RowActions>
       ),
       meta: {
         className: "w-[96px]",
@@ -96,7 +92,7 @@ export function CustomersDataTable({
       columns={columns}
       data={customers}
       isLoading={isLoading}
-      emptyMessage="No se encontraron clientes"
+      emptyMessage="No hay clientes para mostrar"
     />
   );
 }

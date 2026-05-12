@@ -5,6 +5,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { businessDateFromTimestamp, formatDocumentNumber } from "@/lib/formatters";
 import type {
   CashClosureRow,
+  CashExpenseFormState,
   CashPendingReceiptState,
   CashSaleFormState,
   CustomerOption,
@@ -12,6 +13,7 @@ import type {
   ReceiptKind,
   RemitoOption,
 } from "../types";
+import { parseCashExpenseAmount, validateCashExpenseForm } from "../utils";
 
 type MutationDeps = {
   currentCompanyId: string | null;
@@ -25,6 +27,7 @@ type MutationDeps = {
   refreshCash: () => Promise<void>;
   toast: (args: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
   onCreateSaleSuccess: () => void;
+  onCreateExpenseSuccess: () => void;
   onAttachReceiptSuccess: () => void;
 };
 
@@ -40,6 +43,7 @@ export function useCashMutations({
   refreshCash,
   toast,
   onCreateSaleSuccess,
+  onCreateExpenseSuccess,
   onAttachReceiptSuccess,
 }: MutationDeps) {
   const customersById = useMemo(
@@ -193,6 +197,67 @@ export function useCashMutations({
     },
   });
 
+  const createExpenseMutation = useMutation({
+    mutationFn: async (form: CashExpenseFormState) => {
+      if (!currentCompanyId) throw new Error("Selecciona una empresa para registrar el gasto");
+      const validationError = validateCashExpenseForm(form);
+      if (validationError) throw new Error(validationError);
+
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      const userId = userData.user?.id;
+      if (!userId) throw new Error("Debes iniciar sesion para registrar gastos");
+
+      const { error } = await supabase.from("cash_expenses").insert({
+        company_id: currentCompanyId,
+        business_date: form.businessDate,
+        spent_at: new Date().toISOString(),
+        expense_kind: form.expenseKind,
+        category: form.category,
+        amount_total: parseCashExpenseAmount(form.amount),
+        description: form.description.trim(),
+        has_receipt: form.hasReceipt,
+        receipt_reference: form.hasReceipt ? form.receiptReference.trim() || null : null,
+        notes: form.notes.trim() || null,
+        created_by: userId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await refreshCash();
+      onCreateExpenseSuccess();
+      toast({ title: "Gasto registrado" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo registrar el gasto",
+        description: getErrorMessage(error, "Error desconocido"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cancelExpenseMutation = useMutation({
+    mutationFn: async (expenseId: string) => {
+      const { error } = await supabase.rpc("cancel_cash_expense", {
+        p_expense_id: expenseId,
+        p_reason: "Gasto anulado desde Caja",
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await refreshCash();
+      toast({ title: "Gasto anulado" });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo anular el gasto",
+        description: getErrorMessage(error, "Error desconocido"),
+        variant: "destructive",
+      });
+    },
+  });
+
   const closeClosureMutation = useMutation({
     mutationFn: async (payload?: {
       countedCashTotal?: number | null;
@@ -229,8 +294,10 @@ export function useCashMutations({
 
   return {
     createSaleMutation,
+    createExpenseMutation,
     attachReceiptMutation,
     cancelSaleMutation,
+    cancelExpenseMutation,
     closeClosureMutation,
   };
 }

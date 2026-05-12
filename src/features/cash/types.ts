@@ -9,6 +9,8 @@ export type PaymentMethod =
 export type ReceiptKind = "PENDIENTE" | "REMITO" | "FACTURA";
 export type SaleStatus = "REGISTRADA" | "PENDIENTE_COMPROBANTE" | "COMPROBANTADA" | "ANULADA";
 export type ClosureStatus = "ABIERTO" | "CERRADO";
+export type CashExpenseKind = "CAJA" | "CUENTA_CORRIENTE";
+export type CashExpenseCategory = "COMIDA" | "INSUMOS" | "ENVIO" | "LIMPIEZA" | "MOVILIDAD" | "OTROS";
 
 export type CustomerOption = {
   id: string;
@@ -57,8 +59,10 @@ export type CashClosureRow = {
   expected_transfer_sales_total: number;
   expected_account_sales_total: number;
   expected_cash_expenses_total: number;
+  expected_account_expenses_total: number;
   expected_sales_total: number;
   expected_cash_to_render: number;
+  expected_non_cash_total: number;
   counted_cash_total: number | null;
   counted_point_total: number | null;
   counted_transfer_total: number | null;
@@ -67,6 +71,26 @@ export type CashClosureRow = {
   transfer_difference: number | null;
   notes: string | null;
   closed_at: string | null;
+};
+
+export type CashExpenseRow = {
+  id: string;
+  company_id: string;
+  business_date: string;
+  spent_at: string;
+  expense_kind: CashExpenseKind;
+  category: CashExpenseCategory;
+  amount_total: number;
+  description: string;
+  has_receipt: boolean;
+  receipt_reference: string | null;
+  notes: string | null;
+  closure_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
 };
 
 export type DocumentQuickRow = {
@@ -113,6 +137,8 @@ export type CashClosureHistoryRow = Pick<
   | "expected_point_sales_total"
   | "expected_transfer_sales_total"
   | "expected_account_sales_total"
+  | "expected_account_expenses_total"
+  | "expected_cash_expenses_total"
   | "counted_cash_total"
   | "counted_point_total"
   | "counted_transfer_total"
@@ -132,6 +158,11 @@ export type CashSummary = {
   cuentaCorriente: number;
   total: number;
   pendientes: number;
+  gastosTotal: number;
+  gastosEfectivo: number;
+  gastosNoEfectivo: number;
+  efectivoAntesGastos: number;
+  efectivoNetoEsperado: number;
 };
 
 export type SituationFilter = "TODAS" | "PENDIENTE_CIERRE" | "EN_CAJA_CERRADA" | "POST_CIERRE" | "ANULADA";
@@ -142,6 +173,17 @@ export type CashSaleFormState = {
   receiptKind: ReceiptKind;
   customerId: string;
   selectedRemitoId: string;
+  receiptReference: string;
+  notes: string;
+};
+
+export type CashExpenseFormState = {
+  businessDate: string;
+  category: CashExpenseCategory | "";
+  description: string;
+  amount: string;
+  expenseKind: CashExpenseKind;
+  hasReceipt: boolean;
   receiptReference: string;
   notes: string;
 };

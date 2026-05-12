@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchAllPages } from "@/lib/supabase-pagination";
@@ -23,15 +24,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, RefreshCcw, Search } from "lucide-react";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { ArrowLeft, Plus, RefreshCcw, Search, X } from "lucide-react";
 import { BasePricesTable } from "@/features/price-lists/components/BasePricesTable";
 import { PriceListCreateDialog } from "@/features/price-lists/components/PriceListCreateDialog";
 import { PriceListDetailDialog } from "@/features/price-lists/components/PriceListDetailDialog";
 import { DEFAULT_PRICE_LIST_FORM, PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
+import { getApproxMarginPct, getPriceConsultationState, resolveConsultListIdForQuery } from "@/features/price-lists/lib/consultation";
 import type { PriceListFormState } from "@/features/price-lists/types";
 import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
 import { formatDateTime } from "@/features/price-lists/utils";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
+import { formatMoney } from "@/features/price-lists/utils";
+import { OperationalPriceDisplay } from "@/features/pricing/OperationalPriceDisplay";
+import { getOperationalPrice } from "@/features/pricing/operational-price";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const PRICE_LISTS_UI_STATE_KEY = "price-lists:ui-state";
@@ -81,6 +87,8 @@ const pricingChipClass = {
 
 export default function PriceListsPage() {
   const { currentCompany, user } = useAuth();
+  const { settings: companySettings } = useCompanyBrand();
+  const [searchParams, setSearchParams] = useSearchParams();
   const storageKey = currentCompany ? `${PRICE_LISTS_UI_STATE_KEY}:${currentCompany.id}` : null;
   const baseColumnsStorageKey = `${PRICE_BASE_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
   const detailColumnsStorageKey = `${PRICE_DETAIL_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
@@ -107,6 +115,14 @@ export default function PriceListsPage() {
   const [createForm, setCreateForm] = useState<PriceListFormState>(DEFAULT_PRICE_LIST_FORM);
   const [configDraft, setConfigDraft] = useState<PriceListFormState | null>(null);
   const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "no_stock">("all");
+  const [consultSearch, setConsultSearch] = useState("");
+  const [consultListId, setConsultListId] = useState<string | null>(null);
+  const [consultCategory, setConsultCategory] = useState<string>("all");
+  const itemIdFromQuery = searchParams.get("itemId");
+  const priceRoundingConfig = useMemo(() => ({
+    enabled: companySettings.price_rounding_enabled,
+    increment: companySettings.price_rounding_increment,
+  }), [companySettings.price_rounding_enabled, companySettings.price_rounding_increment]);
 
   const stockQuery = useQuery({
     queryKey: ["items-stock-totals", currentCompany?.id ?? null],
@@ -135,12 +151,14 @@ export default function PriceListsPage() {
   const stockByItemId = useMemo(() => stockQuery.data ?? new Map<string, number>(), [stockQuery.data]);
 
   const {
+    baseRows,
     pagedBaseRows,
     priceLists,
     profileNameByUserId,
     selectedList,
     selectedListHistory,
     pagedSelectedListProducts,
+    snapshotsByListAndItemId,
     updateBaseCostMutation,
     createListMutation,
     updateListConfigMutation,
@@ -158,6 +176,16 @@ export default function PriceListsPage() {
     listSearch,
     selectedListId,
   });
+
+  useEffect(() => {
+    const nextListId = resolveConsultListIdForQuery({
+      currentListId: consultListId,
+      itemIdFromQuery,
+      priceLists,
+      snapshotsByListAndItemId,
+    });
+    if (nextListId !== consultListId) setConsultListId(nextListId);
+  }, [consultListId, itemIdFromQuery, priceLists, snapshotsByListAndItemId]);
 
   useEffect(() => {
     if (!storageKey || typeof window === "undefined") return;
@@ -320,6 +348,46 @@ export default function PriceListsPage() {
     </div>
   );
 
+  const consultationRows = consultListId
+    ? (() => {
+      const listSnapshots = snapshotsByListAndItemId.get(consultListId) ?? new Map();
+      return baseRows.map((row) => {
+        const snapshot = listSnapshots.get(row.item_id);
+        return {
+          ...row,
+          price_list_id: consultListId,
+          calculated_price: snapshot?.calculated_price ?? null,
+          needs_recalculation: snapshot?.needs_recalculation ?? false,
+          last_calculated_at: snapshot?.last_calculated_at ?? null,
+          has_price: Boolean(snapshot),
+        };
+      });
+    })()
+    : [];
+
+  const consultationCategories = Array.from(
+    new Set(consultationRows.flatMap((row) => (row.category ? [row.category] : []))),
+  ).sort((a, b) => a.localeCompare(b, "es"));
+
+  const filteredConsultationRows = consultationRows.filter((row) => {
+    if (consultCategory !== "all" && row.category !== consultCategory) return false;
+    if (itemIdFromQuery) return row.item_id === itemIdFromQuery;
+    const term = consultSearch.trim().toLowerCase();
+    if (!term) return true;
+    return [row.sku, row.name, row.attributes, row.brand, row.model, row.category]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(term));
+  });
+
+  const selectedQueryItem = consultationRows.find((row) => row.item_id === itemIdFromQuery) ?? null;
+  const selectedConsultList = priceLists.find((list) => list.id === consultListId) ?? null;
+
+  const clearQueryItem = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("itemId");
+    setSearchParams(next, { replace: true });
+  };
+
   return (
     <AppLayout>
       <div className="page-shell">
@@ -436,18 +504,126 @@ export default function PriceListsPage() {
           </TabsContent>
 
           <TabsContent value="lists" className="space-y-5 pt-1">
-            <FilterBar>
-              <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar lista..."
-                  className="pl-9"
-                  value={listSearch}
-                  onChange={(event) => setListSearch(event.target.value)}
-                />
+            <DataCard className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Consulta rápida</h3>
+                  <p className="text-sm text-muted-foreground">Filtrá por lista, categoría o SKU y destacá un producto desde Productos.</p>
+                </div>
+                {itemIdFromQuery ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">itemId activo</Badge>
+                    <Button variant="ghost" size="sm" onClick={clearQueryItem}>
+                      <X className="mr-2 h-4 w-4" /> Limpiar filtro
+                    </Button>
+                  </div>
+                ) : null}
               </div>
-            </FilterBar>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <FilterBar>
+                <div className="relative min-w-[260px] max-w-sm flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input placeholder="SKU, nombre, alias..." className="pl-9" value={consultSearch} onChange={(e) => setConsultSearch(e.target.value)} />
+                </div>
+                <Select value={consultListId ?? ""} onValueChange={setConsultListId}>
+                  <SelectTrigger className="w-full md:w-56">
+                    <SelectValue placeholder="Lista de precio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priceLists.map((list) => <SelectItem key={list.id} value={list.id}>{list.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={consultCategory} onValueChange={setConsultCategory}>
+                  <SelectTrigger className="w-full md:w-56">
+                    <SelectValue placeholder="Categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las categorías</SelectItem>
+                    {consultationCategories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" onClick={() => { setConsultSearch(""); setConsultCategory("all"); }}>
+                  Limpiar filtros
+                </Button>
+              </FilterBar>
+              {selectedQueryItem ? (
+                <div className="flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <span className="font-medium">Producto destacado:</span> {selectedQueryItem.sku ?? "Sin SKU"} - {selectedQueryItem.name}
+                  </div>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link to="/items"><ArrowLeft className="mr-2 h-4 w-4" /> Volver a productos</Link>
+                  </Button>
+                </div>
+              ) : null}
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1100px] text-sm">
+                  <thead className="border-b text-left text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="p-3">SKU</th>
+                      <th className="p-3">Producto</th>
+                      <th className="p-3">Costo base</th>
+                      <th className="p-3">Precio operativo</th>
+                      <th className="p-3">Margen aprox.</th>
+                      <th className="p-3">Estado</th>
+                      <th className="p-3">Lista / actualizacion</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredConsultationRows.length === 0 ? (
+                      <tr><td className="p-6 text-center text-muted-foreground" colSpan={7}>No hay resultados para esta consulta.</td></tr>
+                    ) : filteredConsultationRows.map((row) => {
+                      const price = row.calculated_price ?? 0;
+                      const { operationalPrice } = getOperationalPrice(row.has_price ? price : null, priceRoundingConfig);
+                      const marginPct = getApproxMarginPct(row.base_cost, operationalPrice);
+                      const state = getPriceConsultationState(row);
+                      return (
+                        <tr key={row.item_id} className={row.item_id === itemIdFromQuery ? "bg-primary/5" : ""}>
+                          <td className="p-3 font-mono text-xs">{row.sku ?? "-"}</td>
+                          <td className="p-3">
+                            <div className="font-medium">{row.name}</div>
+                            <div className="text-xs text-muted-foreground">{row.category ?? "Sin categoría"}</div>
+                          </td>
+                          <td className="p-3">{formatMoney(row.base_cost)}</td>
+                          <td className="p-3">
+                            {row.has_price ? (
+                              <OperationalPriceDisplay
+                                value={price}
+                                config={priceRoundingConfig}
+                                formatValue={formatMoney}
+                                valueClassName="text-sm font-semibold"
+                              />
+                            ) : "-"}
+                          </td>
+                          <td className="p-3">{marginPct === null ? "-" : `${marginPct.toFixed(1)}%`}</td>
+                          <td className="p-3"><Badge variant="outline" className={state.className}>{state.label}</Badge></td>
+                          <td className="p-3">
+                            <div className="font-medium">{selectedConsultList?.name ?? "-"}</div>
+                            <div className="text-xs text-muted-foreground">{formatDateTime(row.last_calculated_at)}</div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </DataCard>
+            <DataCard className="space-y-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h3 className="text-base font-semibold">Listas configuradas</h3>
+                  <p className="text-sm text-muted-foreground">Configuracion, pendientes y acciones de cada lista.</p>
+                </div>
+                <div className="relative w-full md:max-w-sm">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar lista..."
+                    className="pl-9"
+                    value={listSearch}
+                    onChange={(event) => setListSearch(event.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {priceLists.length === 0 ? (
                 <Card className="md:col-span-2 xl:col-span-3">
                   <CardContent className="py-10 text-center text-muted-foreground">
@@ -495,7 +671,8 @@ export default function PriceListsPage() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+              </div>
+            </DataCard>
           </TabsContent>
         </Tabs>
       </div>
@@ -531,6 +708,7 @@ export default function PriceListsPage() {
         isSavingConfig={updateListConfigMutation.isPending}
         isDeleting={deleteListMutation.isPending}
         stockByItemId={stockByItemId}
+        priceRoundingConfig={priceRoundingConfig}
         renderUserName={renderUserName}
         renderPricingSummary={renderPricingSummary}
         onOpenChange={setDetailDialogOpen}

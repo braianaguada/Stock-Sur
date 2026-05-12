@@ -1,4 +1,4 @@
-export type DocType = "PRESUPUESTO" | "REMITO";
+export type DocType = "PRESUPUESTO" | "REMITO" | "REMITO_DEVOLUCION";
 export type DocStatus = "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO";
 export type CustomerKind = "GENERAL" | "INTERNO" | "EMPRESA";
 export type InternalRemitoType = "CUENTA_CORRIENTE" | "DESCUENTO_SUELDO";
@@ -20,12 +20,15 @@ export interface LineDraft {
   manual_margin_pct: number | null;
   price_overridden_by: string | null;
   price_overridden_at: string | null;
+  unrounded_suggested_unit_price?: number | null;
 }
 
 export interface DocumentFormState {
   doc_type: DocType;
   point_of_sale: number;
   customer_id: string;
+  technician_id?: string;
+  service_id?: string;
   customer_name: string;
   customer_tax_condition: string;
   customer_tax_id: string;
@@ -47,6 +50,9 @@ export interface DocRow {
   document_number: number | null;
   issue_date: string;
   customer_id: string | null;
+  technician_id?: string | null;
+  service_id?: string | null;
+  origin_document_id?: string | null;
   customer_name: string | null;
   customer_tax_id: string | null;
   customer_tax_condition: string | null;
@@ -68,6 +74,16 @@ export interface DocRow {
   tax_total: number;
   total: number;
   created_at: string;
+}
+
+export interface DocumentServiceOption {
+  id: string;
+  title: string;
+  status: string;
+  job_id: string;
+  jobTitle: string;
+  customerId: string | null;
+  customerName: string | null;
 }
 
 export interface DocLineRow {
@@ -96,6 +112,7 @@ export interface DocEventRow {
   event_type: string;
   payload: unknown;
   created_at: string;
+  created_by: string | null;
 }
 
 export interface PriceListRow {

@@ -187,12 +187,14 @@ export type Database = {
           business_date: string
           cancelled_at: string | null
           cancelled_by: string | null
+          category: string
           closure_id: string | null
           company_id: string
           created_at: string
           created_by: string
           description: string
           expense_kind: Database["public"]["Enums"]["cash_expense_kind"]
+          has_receipt: boolean
           id: string
           notes: string | null
           receipt_reference: string | null
@@ -204,12 +206,14 @@ export type Database = {
           business_date?: string
           cancelled_at?: string | null
           cancelled_by?: string | null
+          category?: string
           closure_id?: string | null
           company_id: string
           created_at?: string
           created_by?: string
           description: string
           expense_kind?: Database["public"]["Enums"]["cash_expense_kind"]
+          has_receipt?: boolean
           id?: string
           notes?: string | null
           receipt_reference?: string | null
@@ -221,12 +225,14 @@ export type Database = {
           business_date?: string
           cancelled_at?: string | null
           cancelled_by?: string | null
+          category?: string
           closure_id?: string | null
           company_id?: string
           created_at?: string
           created_by?: string
           description?: string
           expense_kind?: Database["public"]["Enums"]["cash_expense_kind"]
+          has_receipt?: boolean
           id?: string
           notes?: string | null
           receipt_reference?: string | null
@@ -345,6 +351,92 @@ export type Database = {
           },
         ]
       }
+      product_combo_lines: {
+        Row: {
+          combo_id: string
+          created_at: string
+          id: string
+          item_id: string
+          line_order: number
+          notes: string | null
+          quantity: number
+        }
+        Insert: {
+          combo_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          line_order?: number
+          notes?: string | null
+          quantity: number
+        }
+        Update: {
+          combo_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          line_order?: number
+          notes?: string | null
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_combo_lines_combo_id_fkey"
+            columns: ["combo_id"]
+            isOneToOne: false
+            referencedRelation: "product_combos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_combo_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_combos: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_combos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string
@@ -393,6 +485,8 @@ export type Database = {
           legal_name: string | null
           logo_url: string | null
           phone: string | null
+          price_rounding_enabled: boolean
+          price_rounding_increment: number | null
           primary_color: string
           secondary_color: string
           tax_id: string | null
@@ -416,6 +510,8 @@ export type Database = {
           legal_name?: string | null
           logo_url?: string | null
           phone?: string | null
+          price_rounding_enabled?: boolean
+          price_rounding_increment?: number | null
           primary_color?: string
           secondary_color?: string
           tax_id?: string | null
@@ -439,6 +535,8 @@ export type Database = {
           legal_name?: string | null
           logo_url?: string | null
           phone?: string | null
+          price_rounding_enabled?: boolean
+          price_rounding_increment?: number | null
           primary_color?: string
           secondary_color?: string
           tax_id?: string | null
@@ -602,6 +700,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      technicians: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technicians_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -795,10 +934,12 @@ export type Database = {
             | null
           issue_date: string
           notes: string | null
+          origin_document_id: string | null
           payment_terms: string | null
           point_of_sale: number
           price_list_id: string | null
           salesperson: string | null
+          service_id: string | null
           source_document_id: string | null
           source_document_number_snapshot: string | null
           source_document_type:
@@ -810,6 +951,7 @@ export type Database = {
           total: number
           updated_at: string
           valid_until: string | null
+          technician_id: string | null
         }
         Insert: {
           company_id: string
@@ -830,10 +972,12 @@ export type Database = {
             | null
           issue_date?: string
           notes?: string | null
+          origin_document_id?: string | null
           payment_terms?: string | null
           point_of_sale?: number
           price_list_id?: string | null
           salesperson?: string | null
+          service_id?: string | null
           source_document_id?: string | null
           source_document_number_snapshot?: string | null
           source_document_type?:
@@ -845,6 +989,7 @@ export type Database = {
           total?: number
           updated_at?: string
           valid_until?: string | null
+          technician_id?: string | null
         }
         Update: {
           company_id?: string
@@ -865,10 +1010,12 @@ export type Database = {
             | null
           issue_date?: string
           notes?: string | null
+          origin_document_id?: string | null
           payment_terms?: string | null
           point_of_sale?: number
           price_list_id?: string | null
           salesperson?: string | null
+          service_id?: string | null
           source_document_id?: string | null
           source_document_number_snapshot?: string | null
           source_document_type?:
@@ -880,6 +1027,7 @@ export type Database = {
           total?: number
           updated_at?: string
           valid_until?: string | null
+          technician_id?: string | null
         }
         Relationships: [
           {
@@ -901,6 +1049,13 @@ export type Database = {
             columns: ["price_list_id"]
             isOneToOne: false
             referencedRelation: "price_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "service_job_services"
             referencedColumns: ["id"]
           },
           {
@@ -2113,6 +2268,34 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cancel_cash_expense: {
+        Args: { p_expense_id: string; p_reason?: string }
+        Returns: {
+          amount_total: number
+          business_date: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          category: string
+          closure_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          description: string
+          expense_kind: Database["public"]["Enums"]["cash_expense_kind"]
+          has_receipt: boolean
+          id: string
+          notes: string | null
+          receipt_reference: string | null
+          spent_at: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_expenses"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cancel_cash_sale: {
         Args: { p_reason?: string; p_sale_id: string }
         Returns: {
@@ -2258,6 +2441,50 @@ export type Database = {
         Returns: boolean
       }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
+      duplicate_document: {
+        Args: { p_document_id: string }
+        Returns: {
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_kind: Database["public"]["Enums"]["document_customer_kind"]
+          customer_name: string | null
+          customer_tax_condition: string | null
+          customer_tax_id: string | null
+          delivery_address: string | null
+          discount_total: number
+          doc_type: Database["public"]["Enums"]["document_type"]
+          document_number: number | null
+          id: string
+          internal_remito_type:
+            | Database["public"]["Enums"]["internal_remito_type"]
+            | null
+          issue_date: string
+          notes: string | null
+          payment_terms: string | null
+          point_of_sale: number
+          price_list_id: string | null
+          salesperson: string | null
+          source_document_id: string | null
+          source_document_number_snapshot: string | null
+          source_document_type:
+            | Database["public"]["Enums"]["document_type"]
+            | null
+          status: Database["public"]["Enums"]["document_status"]
+          subtotal: number
+          tax_total: number
+          total: number
+          updated_at: string
+          valid_until: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "documents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       issue_document: {
         Args: { p_document_id: string }
         Returns: {
@@ -2415,7 +2642,7 @@ export type Database = {
         | "RECHAZADO"
         | "EMITIDO"
         | "ANULADO"
-      document_type: "PRESUPUESTO" | "REMITO"
+      document_type: "PRESUPUESTO" | "REMITO" | "REMITO_DEVOLUCION"
       internal_remito_type: "CUENTA_CORRIENTE" | "DESCUENTO_SUELDO"
       item_demand_profile: "LOW" | "MEDIUM" | "HIGH"
       match_status: "MATCHED" | "PENDING" | "NEW"
@@ -2584,7 +2811,7 @@ export const Constants = {
         "EMITIDO",
         "ANULADO",
       ],
-      document_type: ["PRESUPUESTO", "REMITO"],
+      document_type: ["PRESUPUESTO", "REMITO", "REMITO_DEVOLUCION"],
       internal_remito_type: ["CUENTA_CORRIENTE", "DESCUENTO_SUELDO"],
       item_demand_profile: ["LOW", "MEDIUM", "HIGH"],
       match_status: ["MATCHED", "PENDING", "NEW"],

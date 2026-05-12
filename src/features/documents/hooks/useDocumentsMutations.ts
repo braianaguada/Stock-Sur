@@ -5,14 +5,17 @@ import { getErrorMessage } from "@/lib/errors";
 import { invalidateDocumentQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import { STATUS_LABEL } from "../constants";
+import { buildReturnDraftPayload } from "../lib/returns";
 import type {
   DocRow,
   DocStatus,
   DocumentFormState,
+  DocumentServiceOption,
   LineDraft,
   PriceListItemRow,
 } from "../types";
 import { calculatePriceFromCostBase, formatNumber } from "../utils";
+import { roundPrice, type PriceRoundingConfig } from "@/features/pricing/rounding";
 
 type ToastFn = (args: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
 
@@ -21,33 +24,38 @@ type UseDocumentsMutationsParams = {
   userId: string | undefined;
   documents: DocRow[];
   customers: Array<{ id: string; name: string; cuit: string | null }>;
+  technicians: Array<{ id: string; name: string }>;
+  serviceOptions: DocumentServiceOption[];
   lines: LineDraft[];
-  form: DocumentFormState;
+  draftForm: DocumentFormState;
   totalDraft: number;
   editingDocId: string | null;
   priceByItem: Map<string, number>;
   priceListItemByItemId: Map<string, PriceListItemRow>;
+  priceRoundingConfig?: PriceRoundingConfig;
   resetDraftForm: () => void;
   setDialogOpen: (open: boolean) => void;
   toast: ToastFn;
 };
 
-function normalizeDraftLine({
+export function normalizeDraftLine({
   line,
-  form,
+  draftForm,
   priceByItem,
   priceListItemByItemId,
+  priceRoundingConfig,
   userId,
   nowIso,
 }: {
   line: LineDraft;
-  form: DocumentFormState;
+  draftForm: DocumentFormState;
   priceByItem: Map<string, number>;
   priceListItemByItemId: Map<string, PriceListItemRow>;
+  priceRoundingConfig?: PriceRoundingConfig;
   userId: string | undefined;
   nowIso: string;
 }) {
-  if (!form.price_list_id || !line.item_id) {
+  if (!draftForm.price_list_id || !line.item_id) {
     return {
       ...line,
       pricing_mode: "MANUAL_PRICE" as const,
@@ -67,7 +75,8 @@ function normalizeDraftLine({
     throw new Error("Hay items sin precio en la lista seleccionada");
   }
 
-  const suggestedUnitPrice = priceByItem.get(line.item_id) ?? 0;
+  const unroundedSuggestedUnitPrice = priceByItem.get(line.item_id) ?? 0;
+  const suggestedUnitPrice = roundPrice(unroundedSuggestedUnitPrice, priceRoundingConfig);
   const baseCost = Number(priceRow.base_cost) || 0;
   const listFletePct = priceRow.flete_pct !== null ? Number(priceRow.flete_pct) : null;
   const listUtilidadPct = priceRow.utilidad_pct !== null ? Number(priceRow.utilidad_pct) : null;
@@ -123,12 +132,15 @@ export function useDocumentsMutations({
   userId,
   documents,
   customers,
+  technicians,
+  serviceOptions = [],
   lines,
-  form,
+  draftForm,
   totalDraft,
   editingDocId,
   priceByItem,
   priceListItemByItemId,
+  priceRoundingConfig,
   resetDraftForm,
   setDialogOpen,
   toast,
@@ -143,11 +155,29 @@ export function useDocumentsMutations({
     [documents],
   );
 
+  const techniciansById = useMemo(
+    () => new Map(technicians.map((technician) => [technician.id, technician])),
+    [technicians],
+  );
+  const serviceOptionsById = useMemo(
+    () => new Map(serviceOptions.map((service) => [service.id, service])),
+    [serviceOptions],
+  );
+
   const upsertDraftMutation = useMutation({
     mutationFn: async () => {
       if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
-      if (form.customer_id && !customersById.has(form.customer_id)) {
+      if (draftForm.customer_id && !customersById.has(draftForm.customer_id)) {
         throw new Error("El cliente seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+      if (draftForm.technician_id && !techniciansById.has(draftForm.technician_id)) {
+        throw new Error("El tecnico seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+      if (draftForm.service_id && draftForm.doc_type !== "REMITO") {
+        throw new Error("Solo los remitos pueden asociarse a servicios");
+      }
+      if (draftForm.service_id && !serviceOptionsById.has(draftForm.service_id)) {
+        throw new Error("El servicio seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
       }
       if (editingDocId && !documentsById.has(editingDocId)) {
         throw new Error("El borrador que intentas editar ya no esta disponible. Recarga Documentos e intenta de nuevo");
@@ -156,35 +186,36 @@ export function useDocumentsMutations({
       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
       if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
       if (totalDraft <= 0) throw new Error("El documento no puede guardarse con total cero");
-      if (!form.price_list_id) throw new Error("Selecciona una lista de precios para cargar productos");
-      if (form.doc_type === "PRESUPUESTO" && form.customer_kind === "INTERNO") {
+      if (!draftForm.price_list_id) throw new Error("Selecciona una lista de precios para cargar productos");
+      if (draftForm.doc_type === "PRESUPUESTO" && draftForm.customer_kind === "INTERNO") {
         throw new Error("Los presupuestos no aplican a personal interno");
       }
-      if (form.doc_type === "REMITO" && form.customer_kind === "INTERNO" && !form.internal_remito_type) {
+      if (draftForm.doc_type === "REMITO" && draftForm.customer_kind === "INTERNO" && !draftForm.internal_remito_type) {
         throw new Error("El remito interno requiere definir si va a cuenta corriente o descuento de sueldo");
       }
-      if (form.customer_kind !== "INTERNO" && form.internal_remito_type) {
+      if (draftForm.customer_kind !== "INTERNO" && draftForm.internal_remito_type) {
         throw new Error("El tipo de remito interno solo aplica a remitos del personal interno");
       }
-      if (form.price_list_id && valid.some((line) => !line.item_id)) {
+      if (draftForm.price_list_id && valid.some((line) => !line.item_id)) {
         throw new Error("Con lista de precios activa, todas las lineas deben tener item");
       }
 
       const nowIso = new Date().toISOString();
       const normalizedLines = valid.map((line) =>
-        normalizeDraftLine({
-          line,
-          form,
-          priceByItem,
-          priceListItemByItemId,
-          userId,
-          nowIso,
-        }),
+          normalizeDraftLine({
+            line,
+            draftForm,
+            priceByItem,
+            priceListItemByItemId,
+            priceRoundingConfig,
+            userId,
+            nowIso,
+          }),
       );
 
-      const pickedCustomer = form.customer_id ? customersById.get(form.customer_id) ?? null : null;
-      const customerName = pickedCustomer?.name ?? form.customer_name ?? "Cliente ocasional";
-      const customerTaxId = form.customer_tax_id || pickedCustomer?.cuit || null;
+      const pickedCustomer = draftForm.customer_id ? customersById.get(draftForm.customer_id) ?? null : null;
+      const customerName = pickedCustomer?.name ?? draftForm.customer_name ?? "Cliente ocasional";
+      const customerTaxId = draftForm.customer_tax_id || pickedCustomer?.cuit || null;
 
       let documentId = editingDocId;
       if (!documentId) {
@@ -192,21 +223,23 @@ export function useDocumentsMutations({
           .from("documents")
           .insert({
             company_id: currentCompanyId,
-            doc_type: form.doc_type,
+            doc_type: draftForm.doc_type,
             status: "BORRADOR",
-            point_of_sale: form.point_of_sale,
-            customer_id: form.customer_id || null,
+            point_of_sale: draftForm.point_of_sale,
+            customer_id: draftForm.customer_id || null,
+            technician_id: draftForm.technician_id || null,
+            service_id: draftForm.doc_type === "REMITO" ? draftForm.service_id || null : null,
             customer_name: customerName || null,
-            customer_tax_condition: form.customer_tax_condition || null,
+            customer_tax_condition: draftForm.customer_tax_condition || null,
             customer_tax_id: customerTaxId,
-            customer_kind: form.customer_kind,
-            internal_remito_type: form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? form.internal_remito_type || null : null,
-            payment_terms: form.payment_terms || null,
-            delivery_address: form.delivery_address || null,
-            salesperson: form.salesperson || null,
-            valid_until: form.doc_type === "PRESUPUESTO" ? form.valid_until || null : null,
-            price_list_id: form.price_list_id || null,
-            notes: form.notes || null,
+            customer_kind: draftForm.customer_kind,
+            internal_remito_type: draftForm.doc_type === "REMITO" && draftForm.customer_kind === "INTERNO" ? draftForm.internal_remito_type || null : null,
+            payment_terms: draftForm.payment_terms || null,
+            delivery_address: draftForm.delivery_address || null,
+            salesperson: draftForm.salesperson || null,
+            valid_until: draftForm.doc_type === "PRESUPUESTO" ? draftForm.valid_until || null : null,
+            price_list_id: draftForm.price_list_id || null,
+            notes: draftForm.notes || null,
             subtotal: totalDraft,
             tax_total: 0,
             total: totalDraft,
@@ -220,20 +253,22 @@ export function useDocumentsMutations({
         const { error: updErr } = await supabase
           .from("documents")
           .update({
-            doc_type: form.doc_type,
-            point_of_sale: form.point_of_sale,
-            customer_id: form.customer_id || null,
+            doc_type: draftForm.doc_type,
+            point_of_sale: draftForm.point_of_sale,
+            customer_id: draftForm.customer_id || null,
+            technician_id: draftForm.technician_id || null,
+            service_id: draftForm.doc_type === "REMITO" ? draftForm.service_id || null : null,
             customer_name: customerName || null,
-            customer_tax_condition: form.customer_tax_condition || null,
+            customer_tax_condition: draftForm.customer_tax_condition || null,
             customer_tax_id: customerTaxId,
-            customer_kind: form.customer_kind,
-            internal_remito_type: form.doc_type === "REMITO" && form.customer_kind === "INTERNO" ? form.internal_remito_type || null : null,
-            payment_terms: form.payment_terms || null,
-            delivery_address: form.delivery_address || null,
-            salesperson: form.salesperson || null,
-            valid_until: form.doc_type === "PRESUPUESTO" ? form.valid_until || null : null,
-            price_list_id: form.price_list_id || null,
-            notes: form.notes || null,
+            customer_kind: draftForm.customer_kind,
+            internal_remito_type: draftForm.doc_type === "REMITO" && draftForm.customer_kind === "INTERNO" ? draftForm.internal_remito_type || null : null,
+            payment_terms: draftForm.payment_terms || null,
+            delivery_address: draftForm.delivery_address || null,
+            salesperson: draftForm.salesperson || null,
+            valid_until: draftForm.doc_type === "PRESUPUESTO" ? draftForm.valid_until || null : null,
+            price_list_id: draftForm.price_list_id || null,
+            notes: draftForm.notes || null,
             subtotal: totalDraft,
             tax_total: 0,
             total: totalDraft,
@@ -302,11 +337,17 @@ export function useDocumentsMutations({
       if (!currentDocument) {
         throw new Error("El documento seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
       }
-      if (currentDocument.doc_type !== "REMITO") {
-        throw new Error("Solo los remitos se emiten");
+      if (currentDocument.doc_type !== "REMITO" && currentDocument.doc_type !== "REMITO_DEVOLUCION") {
+        throw new Error("Solo los remitos y sus devoluciones se emiten");
       }
-      if (Number(currentDocument.total) <= 0) {
+      if (currentDocument.doc_type === "REMITO" && Number(currentDocument.total) <= 0) {
         throw new Error("No se puede emitir un remito con total cero");
+      }
+      if (currentDocument.doc_type === "REMITO_DEVOLUCION" && !currentDocument.origin_document_id) {
+        throw new Error("La devolucion debe referenciar un remito original");
+      }
+      if (currentDocument.doc_type === "REMITO_DEVOLUCION" && !currentDocument.technician_id) {
+        throw new Error("La devolucion debe estar asociada a un tecnico");
       }
       const { data: remitoLines, error: linesError } = await supabase
         .from("document_lines")
@@ -314,7 +355,7 @@ export function useDocumentsMutations({
         .eq("document_id", documentId);
       if (linesError) throw linesError;
       if ((remitoLines ?? []).some((line) => !line.item_id)) {
-        throw new Error("El remito tiene lineas sin item asociado y no se puede emitir");
+        throw new Error("El documento tiene lineas sin item asociado y no se puede emitir");
       }
       const { error } = await supabase.rpc("issue_document", { p_document_id: documentId });
       if (error) throw error;
@@ -400,6 +441,7 @@ export function useDocumentsMutations({
           status: "BORRADOR",
           point_of_sale: src.point_of_sale,
           customer_id: src.customer_id,
+          technician_id: src.technician_id,
           customer_name: src.customer_name,
           customer_tax_condition: src.customer_tax_condition,
           customer_tax_id: src.customer_tax_id,
@@ -481,6 +523,125 @@ export function useDocumentsMutations({
     },
   });
 
+  const cloneAsReturnMutation = useMutation({
+    mutationFn: async (sourceId: string) => {
+      if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
+      if (!documentsById.has(sourceId)) {
+        throw new Error("El remito seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+      const { data: src, error: srcErr } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("id", sourceId)
+        .single();
+      if (srcErr) throw srcErr;
+
+      const { data: srcLines, error: lineErr } = await supabase
+        .from("document_lines")
+        .select("*")
+        .eq("document_id", sourceId)
+        .order("line_order");
+      if (lineErr) throw lineErr;
+
+      if (src.doc_type !== "REMITO") {
+        throw new Error("Solo se puede generar devolucion desde un remito");
+      }
+      if (src.status !== "EMITIDO") {
+        throw new Error("Solo se puede devolver un remito emitido");
+      }
+      if (!src.technician_id) {
+        throw new Error("La devolucion debe estar asociada a un tecnico");
+      }
+
+      const returnPayload = buildReturnDraftPayload({
+        originDocument: src,
+        originLines: srcLines ?? [],
+        sourceNumber: formatNumber(src.document_number, src.point_of_sale),
+      });
+
+      const { data: newDoc, error: newDocErr } = await supabase
+        .from("documents")
+        .insert({
+          company_id: currentCompanyId,
+          ...returnPayload.document,
+          created_by: userId,
+        })
+        .select("id")
+        .single();
+      if (newDocErr) throw newDocErr;
+
+      const linesPayload = returnPayload.lines.map((line) => ({
+        document_id: newDoc.id,
+        line_order: line.line_order,
+        item_id: line.item_id,
+        sku_snapshot: line.sku_snapshot,
+        description: line.description,
+        unit: line.unit,
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        pricing_mode: line.pricing_mode,
+        suggested_unit_price: line.suggested_unit_price,
+        base_cost_snapshot: line.base_cost_snapshot,
+        list_flete_pct_snapshot: line.list_flete_pct_snapshot,
+        list_utilidad_pct_snapshot: line.list_utilidad_pct_snapshot,
+        list_impuesto_pct_snapshot: line.list_impuesto_pct_snapshot,
+        manual_margin_pct: line.manual_margin_pct,
+        price_overridden_by: line.price_overridden_by,
+        price_overridden_at: line.price_overridden_at,
+        line_total: line.line_total,
+        created_by: userId,
+      }));
+      const { error: insErr } = await supabase.from("document_lines").insert(linesPayload);
+      if (insErr) throw insErr;
+
+      await supabase.from("document_events").insert({
+        document_id: newDoc.id,
+        event_type: "CREATED",
+        payload: {
+          source: "remito_return",
+          source_document_id: src.id,
+          source_number: formatNumber(src.document_number, src.point_of_sale),
+        },
+        created_by: userId,
+      });
+
+      return newDoc.id as string;
+    },
+    onSuccess: () => {
+      void invalidateDocumentQueries(qc);
+      toast({ title: "Devolucion borrador creada" });
+    },
+    onError: (error: unknown) => {
+      toast({ title: "No se pudo generar la devolucion", description: getErrorMessage(error), variant: "destructive" });
+    },
+  });
+
+  const duplicateDocumentMutation = useMutation({
+    mutationFn: async (sourceId: string) => {
+      if (!documentsById.has(sourceId)) {
+        throw new Error("El documento seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+
+      const { data, error } = await supabase.rpc("duplicate_document", {
+        p_document_id: sourceId,
+      });
+      if (error) throw error;
+
+      return data.id as string;
+    },
+    onSuccess: (newDocumentId) => {
+      void invalidateDocumentQueries(qc);
+      toast({
+        title: "Documento duplicado",
+        description: "Se creo un borrador nuevo con las mismas lineas y datos principales.",
+      });
+      return newDocumentId;
+    },
+    onError: (error: unknown) => {
+      toast({ title: "No se pudo duplicar el documento", description: getErrorMessage(error), variant: "destructive" });
+    },
+  });
+
   const setExternalInvoiceMutation = useMutation({
     mutationFn: async ({
       documentId,
@@ -542,6 +703,8 @@ export function useDocumentsMutations({
     issueMutation,
     transitionMutation,
     cloneAsRemitoMutation,
+    cloneAsReturnMutation,
+    duplicateDocumentMutation,
     setExternalInvoiceMutation,
     clearExternalInvoiceMutation,
   };

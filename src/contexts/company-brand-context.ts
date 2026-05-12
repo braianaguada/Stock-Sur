@@ -26,6 +26,8 @@ export interface CompanySettings {
   allow_issue_remitos_without_stock: boolean;
   auto_close_cash_enabled: boolean;
   auto_close_cash_time: string | null;
+  price_rounding_enabled: boolean;
+  price_rounding_increment: number | null;
 }
 
 export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
@@ -42,7 +44,7 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   primary_color: "#1f4f99",
   secondary_color: "#c62828",
   accent_color: "#eef3fb",
-  document_tagline: "DocumentaciÃ³n comercial",
+  document_tagline: "Documentacion comercial",
   document_footer: "Este documento no reemplaza comprobantes fiscales",
   service_default_intro_text: null,
   service_default_closing_text: null,
@@ -54,6 +56,8 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   allow_issue_remitos_without_stock: false,
   auto_close_cash_enabled: false,
   auto_close_cash_time: null,
+  price_rounding_enabled: false,
+  price_rounding_increment: null,
 };
 
 export interface CompanyBrandContextValue {

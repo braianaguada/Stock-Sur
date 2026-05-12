@@ -48,6 +48,16 @@ export function CashClosureTab({
       tone: "success" as const,
     },
     {
+      label: "Gastos efectivo",
+      value: Number(effectiveClosure?.expected_cash_expenses_total ?? 0),
+      tone: "warning" as const,
+    },
+    {
+      label: "Gastos no efectivo",
+      value: Number(effectiveClosure?.expected_account_expenses_total ?? 0),
+      tone: "slate" as const,
+    },
+    {
       label: "Efectivo remito",
       value: Number(effectiveClosure?.expected_cash_remito_total ?? 0),
       tone: "lime" as const,
@@ -143,6 +153,19 @@ export function CashClosureTab({
           <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/42 p-4">
             <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resumen operativo</h3>
             <div className="mt-4 space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span>Efectivo antes de gastos</span>
+                <span className="font-semibold">
+                  {currency.format(
+                    Number(effectiveClosure?.expected_cash_remito_total ?? 0) +
+                    Number(effectiveClosure?.expected_cash_facturable_total ?? 0),
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Gastos en efectivo</span>
+                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_expenses_total ?? 0))}</span>
+              </div>
               <div className="flex items-center justify-between">
                 <span>Efectivo esperado</span>
                 <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_to_render ?? 0))}</span>

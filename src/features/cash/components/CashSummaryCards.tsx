@@ -1,4 +1,4 @@
-import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone } from "lucide-react";
+import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, TrendingDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { currency } from "@/lib/formatters";
 import type { CashSummary } from "../types";
@@ -13,6 +13,7 @@ const toneClasses = {
   servicios: "from-card via-card to-warning/14 before:bg-warning/80",
   info: "from-card via-card to-info/12 before:bg-info/75",
   account: "from-card via-card to-warning/14 before:bg-warning/80",
+  expense: "from-card via-card to-rose-500/12 before:bg-rose-500/80",
   total: "from-card via-card to-primary/10 before:bg-primary/75",
 } as const;
 
@@ -22,6 +23,7 @@ const iconClasses = {
   servicios: "border-warning/18 bg-warning/12 text-warning",
   info: "border-info/18 bg-info/12 text-info",
   account: "border-warning/18 bg-warning/12 text-warning",
+  expense: "border-rose-500/18 bg-rose-500/10 text-rose-600 dark:text-rose-400",
   total: "border-primary/18 bg-primary/10 text-primary",
 } as const;
 
@@ -64,15 +66,22 @@ export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
       tone: "account" as const,
     },
     {
-      label: "Total del día",
-      value: summary.total,
+      label: "Gastos efectivo",
+      value: summary.gastosEfectivo,
+      icon: <TrendingDown className="h-4 w-4" />,
+      tone: "expense" as const,
+      hint: "Resta al efectivo",
+    },
+    {
+      label: "Efectivo neto",
+      value: summary.efectivoNetoEsperado,
       icon: <CircleDollarSign className="h-4 w-4" />,
       tone: "total" as const,
     },
   ];
 
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
       {cards.map((card) => {
         const formattedValue = currency.format(card.value);
         const valueClassName =
@@ -87,7 +96,7 @@ export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
         return (
           <Card
             key={card.label}
-            className={`relative overflow-hidden bg-gradient-to-br ${toneClasses[card.tone]} before:absolute before:inset-x-5 before:top-0 before:h-px shadow-[var(--shadow-xs)] ${card.label === "Total del día" ? "xl:col-span-2 2xl:col-span-1" : ""}`}
+            className={`relative overflow-hidden bg-gradient-to-br ${toneClasses[card.tone]} before:absolute before:inset-x-5 before:top-0 before:h-px shadow-[var(--shadow-xs)] ${card.label === "Efectivo neto" ? "xl:col-span-2 2xl:col-span-1" : ""}`}
           >
             <CardContent className="px-5 py-7 text-center">
               <div className="grid min-h-[156px] place-items-center">

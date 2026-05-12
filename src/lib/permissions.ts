@@ -57,6 +57,14 @@ export function canCancelCashSale(roles: AppRole[]) {
   return hasAnyRole(roles);
 }
 
+export function canCreateCashExpense(roles: AppRole[]) {
+  return hasAnyRole(roles);
+}
+
+export function canCancelCashExpense(roles: AppRole[]) {
+  return hasAnyRole(roles);
+}
+
 export function canCreateDocumentDraft(roles: AppRole[]) {
   return hasAnyRole(roles);
 }
