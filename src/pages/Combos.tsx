@@ -72,7 +72,7 @@ export default function CombosPage() {
   });
 
   const { data: lines = [], isLoading: linesLoading } = useQuery({
-    queryKey: ["combos", "lines", currentCompany?.id ?? null, combos.map((combo) => combo.id).join(",")],
+    queryKey: queryKeys.combos.lines(currentCompany?.id ?? null, combos.map((combo) => combo.id).join(",")),
     enabled: Boolean(currentCompany?.id) && combos.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -129,6 +129,35 @@ export default function CombosPage() {
     return filterComboProductOptions(items, query);
   }, [items, productSearch]);
 
+  const comboSummaries = useMemo(() => {
+    const summaryById = new Map<string, ProductComboLine[]>();
+    for (const combo of combos) {
+      summaryById.set(combo.id, linesByComboId.get(combo.id) ?? []);
+    }
+
+    if (formMode === "edit" && selectedComboId && form.id === selectedComboId) {
+      summaryById.set(
+        selectedComboId,
+        form.lines
+          .filter((line) => line.item_id)
+          .map((line, index) => ({
+            id: line.clientId,
+            combo_id: selectedComboId,
+            item_id: line.item_id,
+            quantity: Number(line.quantity),
+            line_order: index + 1,
+            notes: line.notes || null,
+            created_at: "",
+          })),
+      );
+    }
+
+    return combos.map((combo) => ({
+      combo,
+      lines: summaryById.get(combo.id) ?? [],
+    }));
+  }, [combos, form.id, form.lines, formMode, linesByComboId, selectedComboId]);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!currentCompany?.id) throw new Error("Sin empresa activa");
@@ -153,9 +182,10 @@ export default function CombosPage() {
     },
     onSuccess: async (comboId) => {
       await qc.invalidateQueries({ queryKey: queryKeys.combos.all() });
+      await qc.invalidateQueries({ queryKey: queryKeys.combos.linesAll() });
       setSelectedComboId(comboId);
       setFormMode("edit");
-      setFormLoadedForComboId(comboId);
+      setFormLoadedForComboId(null);
       setIsDirty(false);
       toast({ title: "Combo guardado", description: "Los cambios quedaron registrados." });
     },
@@ -223,15 +253,6 @@ export default function CombosPage() {
     setFormLoadedForComboId(null);
     setIsDirty(false);
   };
-
-  const comboSummaries = useMemo(
-    () =>
-      combos.map((combo) => ({
-        combo,
-        lines: linesByComboId.get(combo.id) ?? [],
-      })),
-    [combos, linesByComboId],
-  );
 
   return (
     <AppLayout title="Combos" description="Plantillas reutilizables que agrupan productos reales con cantidades configuradas.">
