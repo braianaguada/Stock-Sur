@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getErrorMessage } from "@/lib/errors";
 import { queryKeys } from "@/lib/query-keys";
 import { serviceDb } from "@/features/services/db";
+import { getServiceJobDeleteState } from "../lib/serviceJobLifecycle";
 import { getServiceJobOperationalFields } from "../lib/operationalSummary";
 import { buildServiceRemitoDraftPayload } from "../lib/serviceRemitos";
 import { buildServiceJobPayload, buildServicePayload, buildTechnicianAssignments } from "../lib/serviceJobForm";
@@ -28,12 +29,13 @@ export function useServiceJobs(params: {
   search: string;
   status: string;
   priority: string;
+  archived: "active" | "archived" | "all";
   technicianId: string;
   from: string;
   to: string;
   toast: ToastFn;
 }) {
-  const { companyId, userId, search, status, priority, technicianId, from, to, toast } = params;
+  const { companyId, userId, search, status, priority, archived, technicianId, from, to, toast } = params;
   const qc = useQueryClient();
   const trimmedSearch = search.trim();
 
@@ -67,7 +69,7 @@ export function useServiceJobs(params: {
   });
 
   const jobsQuery = useQuery({
-    queryKey: queryKeys.serviceJobs.list(companyId, trimmedSearch, status, technicianId, from, to, priority),
+    queryKey: queryKeys.serviceJobs.list(companyId, trimmedSearch, status, technicianId, from, to, priority, archived),
     enabled: Boolean(companyId),
     queryFn: async () => {
       let query = serviceDb
@@ -78,6 +80,8 @@ export function useServiceJobs(params: {
 
       if (status !== "ALL") query = query.eq("status", status);
       if (priority !== "ALL") query = query.eq("priority", priority);
+      if (archived === "active") query = query.is("archived_at", null);
+      if (archived === "archived") query = query.not("archived_at", "is", null);
       if (from) query = query.gte("opened_at", `${from}T00:00:00`);
       if (to) query = query.lte("opened_at", `${to}T23:59:59`);
 
@@ -203,10 +207,14 @@ export function useServiceJobs(params: {
       .map<ServiceJobListItem>((job) => {
         const services = servicesByJobId.get(job.id) ?? [];
         const technicianNames = Array.from(new Set(services.flatMap((service) => service.technicianNames))).sort();
+        const deleteState = getServiceJobDeleteState(services);
         return {
           ...job,
           serviceCount: services.length,
           technicianNames,
+          canDelete: deleteState.canDelete,
+          deleteBlockedReason: deleteState.reason,
+          hasLinkedDocuments: deleteState.hasLinkedDocuments,
           ...getServiceJobOperationalFields(job, services),
         };
       })
@@ -251,6 +259,36 @@ export function useServiceJobs(params: {
       toast({ title: "Trabajo eliminado" });
     },
     onError: (error: unknown) => toast({ title: "No se pudo eliminar", description: getErrorMessage(error), variant: "destructive" }),
+  });
+
+  const archiveJobMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      const { error } = await serviceDb
+        .from("service_jobs")
+        .update({ archived_at: new Date().toISOString(), archived_by: userId ?? null })
+        .eq("id", jobId);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await invalidate();
+      toast({ title: "Trabajo archivado" });
+    },
+    onError: (error: unknown) => toast({ title: "No se pudo archivar", description: getErrorMessage(error), variant: "destructive" }),
+  });
+
+  const restoreJobMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      const { error } = await serviceDb
+        .from("service_jobs")
+        .update({ archived_at: null, archived_by: null })
+        .eq("id", jobId);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await invalidate();
+      toast({ title: "Trabajo restaurado" });
+    },
+    onError: (error: unknown) => toast({ title: "No se pudo restaurar", description: getErrorMessage(error), variant: "destructive" }),
   });
 
   const saveServiceMutation = useMutation({
@@ -380,6 +418,8 @@ export function useServiceJobs(params: {
     linkableRemitos: linkableRemitosQuery.data ?? [],
     isLoading: jobsQuery.isLoading,
     saveJobMutation,
+    archiveJobMutation,
+    restoreJobMutation,
     deleteJobMutation,
     saveServiceMutation,
     deleteServiceMutation,
