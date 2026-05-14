@@ -99,6 +99,10 @@ vi.mock("@/components/data-table/DataTablePagination", () => ({
   DataTablePagination: () => <div>Paginacion</div>,
 }));
 
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {},
+}));
+
 vi.mock("@/features/price-lists/components/BasePricesTable", () => ({
   BasePricesTable: () => <div>Base prices table</div>,
 }));
