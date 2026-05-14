@@ -46,6 +46,8 @@ export type ServiceJobRow = {
   priority: ServiceJobPriority | null;
   opened_at: string;
   closed_at: string | null;
+  archived_at: string | null;
+  archived_by: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -89,6 +91,9 @@ export type ServiceJobListItem = ServiceJobRow & {
   doneServiceCount: number;
   pendingServiceCount: number;
   lastActivityAt: string | null;
+  canDelete: boolean;
+  deleteBlockedReason: string | null;
+  hasLinkedDocuments: boolean;
 };
 
 export type ServiceWithTechnicians = ServiceRow & {

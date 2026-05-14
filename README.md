@@ -196,6 +196,13 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - los filtros mantienen busqueda, estado, tecnico y periodo, y agregan prioridad sin cambiar reglas de negocio
   - el detalle del trabajo muestra totales de servicios, remitos, total documental y costo estimado antes del desglose por servicio
   - no agrega facturacion, cuenta corriente, calendario, adjuntos, exportacion ni rentabilidad avanzada
+- Archivo y eliminacion segura de trabajos:
+  - `service_jobs` incorpora `archived_at` y `archived_by` para separar archivo de borrado fisico
+  - `/service-jobs` oculta archivados por defecto y agrega filtro `Activos / Archivados / Todos`
+  - cada trabajo puede archivarse con confirmacion y restaurarse sin tocar servicios, remitos, documentos, stock ni caja
+  - la UI muestra badge `Archivado` y bloquea acciones operativas basicas mientras el trabajo siga archivado
+  - la eliminacion fisica queda reservada a trabajos vacios; si tiene servicios o remitos/documentos vinculados se bloquea con mensaje claro
+  - se agrega la migracion `20260514113000_service_jobs_archive_and_safe_delete.sql`, aplicada en `staging` con `npm run db:push:staging`
 - Limpieza visual de Listas de precios:
   - la pestania `Listas` vuelve a priorizar `Listas configuradas` y saca de la UI la tabla grande de consulta rapida
   - se mantienen busqueda, estado, flete/margen/IVA, cantidad de productos, pendientes, ultimo recalculo y acciones `Ver lista` + `Recalcular`
@@ -218,6 +225,15 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - se compacto el badge base para evitar filas infladas por estados dentro de tablas y mejorar contraste/lectura en modo claro y oscuro
   - se agregaron helpers compartidos para acciones de fila y estados vacios de tabla, aplicados en productos, clientes, proveedores, tecnicos y trabajos/servicios
   - las acciones de tabla quedan con tamano, radio, tooltip/aria-label y tonos visuales consistentes para ver, editar, reactivar/desactivar, eliminar y desvincular
+- Validaciones ejecutadas para archivo de trabajos:
+  - `npm run db:push:staging`
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run test`
+  - `npm run build`
+- Limitaciones pendientes:
+  - el bloqueo fuerte de borrado fisico se apoya en trigger de base; no se agregaron permisos especificos nuevos para `service_jobs`
+  - no se implemento captura de motivo de archivo ni vistas/reportes avanzados de archivados
   - no se modificaron reglas de negocio, calculos, stock, documentos, caja, cuenta corriente, trabajos/servicios ni persistencia
 - Migraciones nuevas:
   - `supabase/migrations/20260508143000_duplicate_documents.sql`

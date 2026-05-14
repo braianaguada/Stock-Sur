@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { CheckCircle2, ClipboardList, Edit, ExternalLink, Eye, FilePlus2, Link2, PackageCheck, Plus, Search, Trash2, Unlink, Wrench } from "lucide-react";
+import { Archive, CheckCircle2, ClipboardList, Edit, ExternalLink, Eye, FilePlus2, Link2, PackageCheck, Plus, RotateCcw, Search, Trash2, Unlink, Wrench } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -16,12 +16,14 @@ import { FilterBar, PageHeader, StatCard } from "@/components/ui/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { useServiceJobs } from "@/features/service-jobs/hooks/useServiceJobs";
+import { isServiceJobArchived } from "@/features/service-jobs/lib/serviceJobLifecycle";
 import { getServiceJobOperationalStats } from "@/features/service-jobs/lib/operationalSummary";
 import { DEFAULT_JOB_FORM, DEFAULT_SERVICE_FORM } from "@/features/service-jobs/lib/serviceJobForm";
 import { getServiceRemitoTechnicianWarning, summarizeServiceRemitos } from "@/features/service-jobs/lib/serviceRemitos";
@@ -83,6 +85,7 @@ export default function ServiceJobsPage() {
   const deferredSearch = useDeferredValue(search);
   const [status, setStatus] = useState("ALL");
   const [priority, setPriority] = useState("ALL");
+  const [archivedFilter, setArchivedFilter] = useState<"active" | "archived" | "all">("active");
   const [technicianId, setTechnicianId] = useState("ALL");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -92,6 +95,8 @@ export default function ServiceJobsPage() {
   const [editingJob, setEditingJob] = useState<ServiceJobListItem | null>(null);
   const [editingService, setEditingService] = useState<ServiceWithTechnicians | null>(null);
   const [jobToDelete, setJobToDelete] = useState<ServiceJobListItem | null>(null);
+  const [jobToArchive, setJobToArchive] = useState<ServiceJobListItem | null>(null);
+  const [jobToRestore, setJobToRestore] = useState<ServiceJobListItem | null>(null);
   const [serviceToDelete, setServiceToDelete] = useState<ServiceRow | null>(null);
   const [linkingService, setLinkingService] = useState<ServiceWithTechnicians | null>(null);
   const [remitoSearch, setRemitoSearch] = useState("");
@@ -106,6 +111,8 @@ export default function ServiceJobsPage() {
     linkableRemitos,
     isLoading,
     saveJobMutation,
+    archiveJobMutation,
+    restoreJobMutation,
     deleteJobMutation,
     saveServiceMutation,
     deleteServiceMutation,
@@ -118,6 +125,7 @@ export default function ServiceJobsPage() {
     search: deferredSearch,
     status,
     priority,
+    archived: archivedFilter,
     technicianId,
     from,
     to,
@@ -154,6 +162,7 @@ export default function ServiceJobsPage() {
   const selectedJobCustomer = selectedJob?.customer_id
     ? customers.find((customer) => customer.id === selectedJob.customer_id) ?? null
     : null;
+  const selectedJobArchived = selectedJob ? isServiceJobArchived(selectedJob) : false;
 
   const filteredLinkableRemitos = useMemo(() => {
     if (!linkingService || !selectedJob) return [];
@@ -248,6 +257,14 @@ export default function ServiceJobsPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Buscar por trabajo o cliente..." className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} />
           </div>
+          <Select value={archivedFilter} onValueChange={(value) => setArchivedFilter(value as "active" | "archived" | "all")}>
+            <SelectTrigger className="w-full md:w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Activos</SelectItem>
+              <SelectItem value="archived">Archivados</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="w-full md:w-48"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -312,7 +329,10 @@ export default function ServiceJobsPage() {
                   {jobs.map((job) => (
                     <TableRow key={job.id} className={cn("cursor-pointer", selectedJob?.id === job.id && "bg-muted/40")} onClick={() => setSelectedJobId(job.id)}>
                       <TableCell>
-                        <div className="font-medium">{job.title}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">{job.title}</div>
+                          {job.archived_at ? <Badge variant="secondary">Archivado</Badge> : null}
+                        </div>
                         <div className="text-xs text-muted-foreground">Abierto {formatDateTime(job.opened_at)}</div>
                       </TableCell>
                       <TableCell>{job.customers?.name ?? "Sin cliente"}</TableCell>
@@ -333,7 +353,25 @@ export default function ServiceJobsPage() {
                         <RowActions>
                           <RowActionButton label="Ver detalle" tone="view" onClick={(event) => { event.stopPropagation(); setSelectedJobId(job.id); }}><Eye className="h-4 w-4" /></RowActionButton>
                           <RowActionButton label="Editar" tone="edit" onClick={(event) => { event.stopPropagation(); openEditJob(job); }}><Edit className="h-4 w-4" /></RowActionButton>
-                          <RowActionButton label="Eliminar" tone="danger" onClick={(event) => { event.stopPropagation(); setJobToDelete(job); }}><Trash2 className="h-4 w-4" /></RowActionButton>
+                          {job.archived_at ? (
+                            <RowActionButton label="Restaurar" tone="success" onClick={(event) => { event.stopPropagation(); setJobToRestore(job); }}><RotateCcw className="h-4 w-4" /></RowActionButton>
+                          ) : (
+                            <RowActionButton label="Archivar" tone="warning" onClick={(event) => { event.stopPropagation(); setJobToArchive(job); }}><Archive className="h-4 w-4" /></RowActionButton>
+                          )}
+                          {job.canDelete ? (
+                            <RowActionButton label="Eliminar" tone="danger" onClick={(event) => { event.stopPropagation(); setJobToDelete(job); }}><Trash2 className="h-4 w-4" /></RowActionButton>
+                          ) : (
+                            <TooltipProvider>
+                              <Tooltip delayDuration={200}>
+                                <TooltipTrigger asChild>
+                                  <span onClick={(event) => event.stopPropagation()}>
+                                    <RowActionButton label={job.deleteBlockedReason ?? "No se puede eliminar"} tone="muted" disabled><Trash2 className="h-4 w-4" /></RowActionButton>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>{job.deleteBlockedReason}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </RowActions>
                       </TableCell>
                     </TableRow>
@@ -350,10 +388,24 @@ export default function ServiceJobsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="page-eyebrow">Detalle</p>
-                    <h2 className="text-2xl font-bold tracking-tight">{selectedJob.title}</h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-2xl font-bold tracking-tight">{selectedJob.title}</h2>
+                      {selectedJobArchived ? <Badge variant="secondary">Archivado</Badge> : null}
+                    </div>
                     <p className="text-sm text-muted-foreground">{selectedJob.customers?.name ?? "Sin cliente asociado"}</p>
                   </div>
-                  <JobStatusBadge status={selectedJob.status} />
+                  <div className="flex items-center gap-2">
+                    <JobStatusBadge status={selectedJob.status} />
+                    {selectedJobArchived ? (
+                      <Button size="sm" variant="outline" onClick={() => setJobToRestore(selectedJob)}>
+                        <RotateCcw className="mr-2 h-4 w-4" /> Restaurar
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => setJobToArchive(selectedJob)}>
+                        <Archive className="mr-2 h-4 w-4" /> Archivar
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <p className="rounded-xl border bg-muted/20 p-3 text-sm text-muted-foreground">{selectedJob.description || "Sin descripcion cargada."}</p>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -376,8 +428,13 @@ export default function ServiceJobsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">Servicios</h3>
-                  <Button size="sm" onClick={openCreateService}><Plus className="mr-2 h-4 w-4" /> Agregar servicio</Button>
+                  <Button size="sm" onClick={openCreateService} disabled={selectedJobArchived}><Plus className="mr-2 h-4 w-4" /> Agregar servicio</Button>
                 </div>
+                {selectedJobArchived ? (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+                    Este trabajo esta archivado. Podes restaurarlo para volver a operar sobre sus servicios.
+                  </div>
+                ) : null}
                 <div className="grid gap-3">
                   {selectedServices.length === 0 ? (
                     <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Este trabajo todavia no tiene servicios.</div>
@@ -417,11 +474,16 @@ export default function ServiceJobsPage() {
                                   { onSuccess: openDocument },
                                 )
                               }
-                              disabled={createMaterialRemitoMutation.isPending}
+                              disabled={createMaterialRemitoMutation.isPending || selectedJobArchived}
                             >
                               <FilePlus2 className="mr-2 h-4 w-4" /> Crear remito
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => { setLinkingService(service); setRemitoSearch(""); }}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => { setLinkingService(service); setRemitoSearch(""); }}
+                              disabled={selectedJobArchived}
+                            >
                               <Link2 className="mr-2 h-4 w-4" /> Vincular existente
                             </Button>
                           </div>
@@ -455,8 +517,8 @@ export default function ServiceJobsPage() {
                         </div>
                       </div>
                       <RowActions className="mt-3">
-                        <RowActionButton label="Editar servicio" tone="edit" onClick={() => openEditService(service)}><Edit className="h-4 w-4" /></RowActionButton>
-                        <RowActionButton label="Eliminar servicio" tone="danger" onClick={() => setServiceToDelete(service)}><Trash2 className="h-4 w-4" /></RowActionButton>
+                        <RowActionButton label="Editar servicio" tone="edit" onClick={() => openEditService(service)} disabled={selectedJobArchived}><Edit className="h-4 w-4" /></RowActionButton>
+                        <RowActionButton label="Eliminar servicio" tone="danger" onClick={() => setServiceToDelete(service)} disabled={selectedJobArchived}><Trash2 className="h-4 w-4" /></RowActionButton>
                       </RowActions>
                     </div>
                   ))}
@@ -531,10 +593,10 @@ export default function ServiceJobsPage() {
             <Button variant="outline" onClick={() => setServiceDialogOpen(false)}>Cancelar</Button>
             <Button
               onClick={() => {
-                if (!selectedJob) return;
+                if (!selectedJob || selectedJobArchived) return;
                 saveServiceMutation.mutate({ form: serviceForm, serviceId: editingService?.id, jobId: selectedJob.id }, { onSuccess: () => setServiceDialogOpen(false) });
               }}
-              disabled={saveServiceMutation.isPending || !selectedJob}
+              disabled={saveServiceMutation.isPending || !selectedJob || selectedJobArchived}
             >
               Guardar
             </Button>
@@ -543,10 +605,28 @@ export default function ServiceJobsPage() {
       </Dialog>
 
       <ConfirmDeleteDialog
+        open={Boolean(jobToArchive)}
+        onOpenChange={(open) => { if (!open) setJobToArchive(null); }}
+        title="Archivar trabajo"
+        description={jobToArchive ? `Este trabajo dejara de aparecer en la vista principal, pero no se borrara su historial.\n\nTrabajo: "${jobToArchive.title}".` : ""}
+        confirmLabel={archiveJobMutation.isPending ? "Archivando..." : "Archivar"}
+        isPending={archiveJobMutation.isPending}
+        onConfirm={() => { if (jobToArchive) archiveJobMutation.mutate(jobToArchive.id); setJobToArchive(null); }}
+      />
+      <ConfirmDeleteDialog
+        open={Boolean(jobToRestore)}
+        onOpenChange={(open) => { if (!open) setJobToRestore(null); }}
+        title="Restaurar trabajo"
+        description={jobToRestore ? `El trabajo "${jobToRestore.title}" volvera a la vista activa y podra operarse normalmente.` : ""}
+        confirmLabel={restoreJobMutation.isPending ? "Restaurando..." : "Restaurar"}
+        isPending={restoreJobMutation.isPending}
+        onConfirm={() => { if (jobToRestore) restoreJobMutation.mutate(jobToRestore.id); setJobToRestore(null); }}
+      />
+      <ConfirmDeleteDialog
         open={Boolean(jobToDelete)}
         onOpenChange={(open) => { if (!open) setJobToDelete(null); }}
         title="Eliminar trabajo"
-        description={jobToDelete ? `Se eliminara "${jobToDelete.title}" con sus servicios asociados.` : ""}
+        description={jobToDelete ? `Se eliminara definitivamente "${jobToDelete.title}". Solo se permite porque no tiene servicios ni historial operativo asociado.` : ""}
         isPending={deleteJobMutation.isPending}
         onConfirm={() => { if (jobToDelete) deleteJobMutation.mutate(jobToDelete.id); setJobToDelete(null); }}
       />
