@@ -30,6 +30,7 @@ import { DocumentsDataTable } from "@/features/documents/components/DocumentsDat
 import { useDocumentsData } from "@/features/documents/hooks/useDocumentsData";
 import { useDocumentDraftLoader } from "@/features/documents/hooks/useDocumentDraftLoader";
 import { useDocumentsMutations } from "@/features/documents/hooks/useDocumentsMutations";
+import { mergeComboDocumentLines } from "@/features/documents/lib/mergeComboDocumentLines";
 import { DUPLICATE_DOCUMENT_CONFIRMATION } from "@/features/documents/lib/duplicate";
 import { buildDocumentPrintHtml } from "@/features/documents/print";
 import type {
@@ -451,7 +452,7 @@ export default function DocumentsPage() {
       nowIso: new Date().toISOString(),
       userId: user?.id,
     });
-    setLines((previous) => [...previous, ...builtLines]);
+    setLines((previous) => mergeComboDocumentLines(previous, builtLines));
   };
 
   const onPriceListChange = (priceListId: string) => {

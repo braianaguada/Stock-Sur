@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -16,12 +17,15 @@ import { getErrorMessage } from "@/lib/errors";
 import type { ProductCombo, ProductComboFormLine, ProductComboLine } from "@/features/combos/types";
 import { createComboFormLineState, buildComboFormFromData, buildEmptyComboForm, type ComboFormState } from "@/features/combos/lib/comboForm";
 import { buildComboUpsertPayload } from "@/features/combos/lib/buildComboUpsertPayload";
+import { filterComboProductOptions, hasComboProductLine } from "@/features/combos/lib/comboProductSearch";
 
 type ItemOption = {
   id: string;
   sku: string;
   name: string;
   unit: string | null;
+  brand: string | null;
+  category: string | null;
   is_active: boolean;
 };
 
@@ -30,6 +34,7 @@ export default function CombosPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [productSearch, setProductSearch] = useState("");
   const [selectedComboId, setSelectedComboId] = useState<string | null>(null);
   const [formMode, setFormMode] = useState<"create" | "edit">("edit");
   const [formLoadedForComboId, setFormLoadedForComboId] = useState<string | null>(null);
@@ -57,8 +62,9 @@ export default function CombosPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("items")
-        .select("id, sku, name, unit, is_active")
+        .select("id, sku, name, unit, brand, category, is_active")
         .eq("company_id", currentCompany!.id)
+        .eq("is_active", true)
         .order("name");
       if (error) throw error;
       return (data ?? []) as ItemOption[];
@@ -66,7 +72,7 @@ export default function CombosPage() {
   });
 
   const { data: lines = [], isLoading: linesLoading } = useQuery({
-    queryKey: ["combos", "lines", currentCompany?.id ?? null, combos.map((combo) => combo.id).join(",")],
+    queryKey: queryKeys.combos.lines(currentCompany?.id ?? null, combos.map((combo) => combo.id).join(",")),
     enabled: Boolean(currentCompany?.id) && combos.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -118,27 +124,57 @@ export default function CombosPage() {
     setIsDirty(false);
   }, [combos, formLoadedForComboId, formMode, isDirty, linesByComboId, linesLoading, selectedComboId]);
 
-  const filteredItems = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return items
-      .filter((item) => item.is_active)
-      .filter((item) => {
-        if (!query) return true;
-        return [item.sku, item.name, item.unit ?? ""].join(" ").toLowerCase().includes(query);
-      })
-      .slice(0, 20);
-  }, [items, search]);
+  const filteredProductResults = useMemo(() => {
+    const query = productSearch.trim().toLowerCase();
+    return filterComboProductOptions(items, query);
+  }, [items, productSearch]);
+
+  const comboSummaries = useMemo(() => {
+    const summaryById = new Map<string, ProductComboLine[]>();
+    for (const combo of combos) {
+      summaryById.set(combo.id, linesByComboId.get(combo.id) ?? []);
+    }
+
+    if (formMode === "edit" && selectedComboId && form.id === selectedComboId) {
+      summaryById.set(
+        selectedComboId,
+        form.lines
+          .filter((line) => line.item_id)
+          .map((line, index) => ({
+            id: line.clientId,
+            combo_id: selectedComboId,
+            item_id: line.item_id,
+            quantity: Number(line.quantity),
+            line_order: index + 1,
+            notes: line.notes || null,
+            created_at: "",
+          })),
+      );
+    }
+
+    return combos.map((combo) => ({
+      combo,
+      lines: summaryById.get(combo.id) ?? [],
+    }));
+  }, [combos, form.id, form.lines, formMode, linesByComboId, selectedComboId]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!currentCompany?.id) throw new Error("Sin empresa activa");
+      const normalizedLines = form.lines
+        .map(({ clientId: _clientId, ...line }, index) => ({ ...line, line_order: index + 1 }))
+        .filter((line) => line.item_id);
+      if (!form.name.trim()) throw new Error("El combo necesita un nombre");
+      if (normalizedLines.length === 0) throw new Error("El combo necesita al menos un producto");
+      if (normalizedLines.some((line) => Number(line.quantity) <= 0)) throw new Error("Las cantidades deben ser mayores a cero");
+      if (new Set(normalizedLines.map((line) => line.item_id)).size !== normalizedLines.length) throw new Error("No se permiten productos duplicados en el combo");
       const payload = buildComboUpsertPayload({
         companyId: currentCompany.id,
         comboId: form.id,
         name: form.name,
         description: form.description,
         isActive: form.is_active,
-        lines: form.lines.map(({ clientId: _clientId, ...line }) => line),
+        lines: normalizedLines,
       });
       const { data, error } = await supabase.rpc("upsert_product_combo_with_lines", payload);
       if (error) throw error;
@@ -146,9 +182,10 @@ export default function CombosPage() {
     },
     onSuccess: async (comboId) => {
       await qc.invalidateQueries({ queryKey: queryKeys.combos.all() });
+      await qc.invalidateQueries({ queryKey: queryKeys.combos.linesAll() });
       setSelectedComboId(comboId);
       setFormMode("edit");
-      setFormLoadedForComboId(comboId);
+      setFormLoadedForComboId(null);
       setIsDirty(false);
       toast({ title: "Combo guardado", description: "Los cambios quedaron registrados." });
     },
@@ -175,19 +212,27 @@ export default function CombosPage() {
     }));
   };
 
-  const addLine = () => {
+  const addProductToCombo = (itemId: string) => {
+    if (hasComboProductLine(form.lines, itemId)) {
+      toast({ title: "El producto ya esta en el combo", description: "Edita la cantidad en la linea existente." });
+      return;
+    }
     setIsDirty(true);
     setForm((previous) => ({
       ...previous,
-      lines: [...previous.lines, createComboFormLineState({ line_order: previous.lines.length + 1 })],
+      lines: [
+        ...previous.lines.filter((line) => line.item_id),
+        createComboFormLineState({ item_id: itemId, quantity: 1, notes: "", line_order: previous.lines.length + 1 }),
+      ],
     }));
+    setProductSearch("");
   };
 
   const removeLine = (index: number) => {
     setIsDirty(true);
     setForm((previous) => ({
       ...previous,
-      lines: previous.lines.length === 1 ? [createComboFormLineState()] : previous.lines.filter((_, lineIndex) => lineIndex !== index),
+      lines: previous.lines.filter((_, lineIndex) => lineIndex !== index),
     }));
   };
 
@@ -208,15 +253,6 @@ export default function CombosPage() {
     setFormLoadedForComboId(null);
     setIsDirty(false);
   };
-
-  const comboSummaries = useMemo(
-    () =>
-      combos.map((combo) => ({
-        combo,
-        lines: linesByComboId.get(combo.id) ?? [],
-      })),
-    [combos, linesByComboId],
-  );
 
   return (
     <AppLayout title="Combos" description="Plantillas reutilizables que agrupan productos reales con cantidades configuradas.">
@@ -365,12 +401,8 @@ export default function CombosPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="font-medium">Productos del combo</div>
-                <div className="text-sm text-muted-foreground">Selecciona productos activos de la empresa y define cantidades/notas por línea.</div>
+                <div className="text-sm text-muted-foreground">Busca productos activos, agregalos una vez y ajusta cantidades/notas por linea.</div>
               </div>
-              <Button type="button" variant="outline" onClick={addLine}>
-                <Plus className="mr-2 h-4 w-4" />
-                Agregar línea
-              </Button>
             </div>
 
             {itemsLoading ? (
@@ -380,47 +412,93 @@ export default function CombosPage() {
               </div>
             ) : null}
 
-            <div className="space-y-3">
-              {form.lines.map((line, index) => (
-                <div key={line.clientId} className="grid gap-3 rounded-lg border bg-background p-3 md:grid-cols-[1.7fr_120px_1.2fr_96px]">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Producto</Label>
-                    <Select value={line.item_id || "__empty__"} onValueChange={(value) => updateLine(index, { item_id: value === "__empty__" ? "" : value })}>
-                      <SelectTrigger><SelectValue placeholder="Seleccionar producto" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__empty__">Sin seleccionar</SelectItem>
-                        {filteredItems.map((item) => (
-                          <SelectItem key={item.id} value={item.id}>
-                            {item.sku ? `${item.sku} | ` : ""}
-                            {item.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Cantidad</Label>
-                    <Input type="number" min={0.001} step="any" value={line.quantity} onChange={(event) => updateLine(index, { quantity: Number(event.target.value) || 0 })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Notas</Label>
-                    <Input value={line.notes} onChange={(event) => updateLine(index, { notes: event.target.value })} placeholder="Opcional" />
-                  </div>
-                  <div className="flex items-end justify-end">
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(index)} title="Eliminar línea">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+            <div className="space-y-3 rounded-lg border bg-background p-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  value={productSearch}
+                  onChange={(event) => setProductSearch(event.target.value)}
+                  placeholder="Buscar producto por SKU, nombre, marca o categoria..."
+                />
+              </div>
+              {productSearch.trim() ? (
+                <div className="space-y-2">
+                  {filteredProductResults.length === 0 ? (
+                    <div className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">No hay productos activos para esa busqueda.</div>
+                  ) : filteredProductResults.map((item) => (
+                    <div key={item.id} className="flex flex-col gap-3 rounded-lg border border-border/60 px-3 py-3 md:flex-row md:items-center md:justify-between">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{item.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.sku || "Sin SKU"} | {item.category || "Sin categoria"}{item.brand ? ` | ${item.brand}` : ""} | {item.unit || "Sin unidad"}
+                        </div>
+                      </div>
+                      <Button type="button" size="sm" onClick={() => addProductToCombo(item.id)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Agregar
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : null}
             </div>
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Producto</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Cantidad</TableHead>
+                  <TableHead>Unidad</TableHead>
+                  <TableHead>Notas</TableHead>
+                  <TableHead className="text-right">Quitar</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {form.lines.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                      Todavia no agregaste productos al combo.
+                    </TableCell>
+                  </TableRow>
+                ) : form.lines.map((line, index) => {
+                  const item = itemsById.get(line.item_id);
+                  return (
+                    <TableRow key={line.clientId}>
+                      <TableCell className="font-medium">{item?.name ?? "Producto no encontrado"}</TableCell>
+                      <TableCell className="font-mono text-xs">{item?.sku || "-"}</TableCell>
+                      <TableCell>
+                        <Input
+                          className="w-28"
+                          type="number"
+                          min={0.001}
+                          step="any"
+                          value={line.quantity}
+                          onChange={(event) => updateLine(index, { quantity: Number(event.target.value) || 0 })}
+                        />
+                      </TableCell>
+                      <TableCell>{item?.unit || "-"}</TableCell>
+                      <TableCell>
+                        <Input value={line.notes} onChange={(event) => updateLine(index, { notes: event.target.value })} placeholder="Opcional" />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(index)} title="Eliminar linea">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
 
           <div className="flex items-center justify-end gap-2">
             <Button type="button" variant="outline" onClick={selectNewCombo}>
               Limpiar
             </Button>
-            <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.name.trim()}>
+            <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.name.trim() || form.lines.length === 0}>
               {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Guardar combo
             </Button>
