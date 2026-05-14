@@ -81,8 +81,16 @@ export const queryKeys = {
   },
   serviceJobs: {
     all: () => ["service-jobs"] as const,
-    list: (companyId: string | null, search: string, status: string, technicianId: string, from: string, to: string, priority = "ALL") =>
-      ["service-jobs", companyId ?? "no-company", search, status, technicianId, from, to, priority] as const,
+    list: (
+      companyId: string | null,
+      search: string,
+      status: string,
+      technicianId: string,
+      from: string,
+      to: string,
+      priority = "ALL",
+      archived = "active",
+    ) => ["service-jobs", companyId ?? "no-company", search, status, technicianId, from, to, priority, archived] as const,
     customers: (companyId: string | null) => ["service-jobs-customers", companyId ?? "no-company"] as const,
     technicians: (companyId: string | null) => ["service-jobs-technicians", companyId ?? "no-company"] as const,
   },
