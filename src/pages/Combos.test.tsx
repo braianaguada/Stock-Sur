@@ -29,6 +29,8 @@ const mockItems = [
     name: "Producto A",
     unit: "un",
     brand: "Marca",
+    model: "Modelo",
+    attributes: "Rojo",
     category: "Categoria",
     is_active: true,
   },

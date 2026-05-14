@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { queryKeys } from "@/lib/query-keys";
 import { getErrorMessage } from "@/lib/errors";
+import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type { ProductCombo, ProductComboFormLine, ProductComboLine } from "@/features/combos/types";
 import { createComboFormLineState, buildComboFormFromData, buildEmptyComboForm, type ComboFormState } from "@/features/combos/lib/comboForm";
 import { buildComboUpsertPayload } from "@/features/combos/lib/buildComboUpsertPayload";
@@ -25,6 +26,8 @@ type ItemOption = {
   name: string;
   unit: string | null;
   brand: string | null;
+  model: string | null;
+  attributes: string | null;
   category: string | null;
   is_active: boolean;
 };
@@ -62,7 +65,7 @@ export default function CombosPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("items")
-        .select("id, sku, name, unit, brand, category, is_active")
+        .select("id, sku, name, unit, brand, model, attributes, category, is_active")
         .eq("company_id", currentCompany!.id)
         .eq("is_active", true)
         .order("name");
@@ -419,7 +422,7 @@ export default function CombosPage() {
                   className="pl-9"
                   value={productSearch}
                   onChange={(event) => setProductSearch(event.target.value)}
-                  placeholder="Buscar producto por SKU, nombre, marca o categoria..."
+                  placeholder="Buscar por SKU, nombre, marca, modelo, atributos o categoria..."
                 />
               </div>
               {productSearch.trim() ? (
@@ -429,9 +432,13 @@ export default function CombosPage() {
                   ) : filteredProductResults.map((item) => (
                     <div key={item.id} className="flex flex-col gap-3 rounded-lg border border-border/60 px-3 py-3 md:flex-row md:items-center md:justify-between">
                       <div className="min-w-0">
-                        <div className="text-sm font-medium">{item.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {item.sku || "Sin SKU"} | {item.category || "Sin categoria"}{item.brand ? ` | ${item.brand}` : ""} | {item.unit || "Sin unidad"}
+                        <div className="text-sm font-medium break-words">{buildItemDisplayName(item)}</div>
+                        <div className="text-xs text-muted-foreground break-words">
+                          {buildItemDisplayMeta(item) || "Sin identificadores"}
+                          {" | "}
+                          {item.category || "Sin categoria"}
+                          {" | Unidad: "}
+                          {item.unit || "Sin unidad"}
                         </div>
                       </div>
                       <Button type="button" size="sm" onClick={() => addProductToCombo(item.id)}>
@@ -448,17 +455,15 @@ export default function CombosPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Producto</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Cantidad</TableHead>
-                  <TableHead>Unidad</TableHead>
-                  <TableHead>Notas</TableHead>
+                  <TableHead className="w-32">Cantidad</TableHead>
+                  <TableHead className="w-20">Unidad</TableHead>
                   <TableHead className="text-right">Quitar</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {form.lines.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
                       Todavia no agregaste productos al combo.
                     </TableCell>
                   </TableRow>
@@ -466,11 +471,23 @@ export default function CombosPage() {
                   const item = itemsById.get(line.item_id);
                   return (
                     <TableRow key={line.clientId}>
-                      <TableCell className="font-medium">{item?.name ?? "Producto no encontrado"}</TableCell>
-                      <TableCell className="font-mono text-xs">{item?.sku || "-"}</TableCell>
-                      <TableCell>
+                      <TableCell className="py-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium leading-5 break-words">
+                            {item ? buildItemDisplayName(item) : "Producto no encontrado"}
+                          </div>
+                          {item ? (
+                            <div className="text-xs text-muted-foreground break-words">
+                              {buildItemDisplayMeta(item) || "Sin identificadores"}
+                              {" | "}
+                              {item.category || "Sin categoria"}
+                            </div>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3 align-middle">
                         <Input
-                          className="w-28"
+                          className="h-9 w-24"
                           type="number"
                           min={0.001}
                           step="any"
@@ -478,11 +495,8 @@ export default function CombosPage() {
                           onChange={(event) => updateLine(index, { quantity: Number(event.target.value) || 0 })}
                         />
                       </TableCell>
-                      <TableCell>{item?.unit || "-"}</TableCell>
-                      <TableCell>
-                        <Input value={line.notes} onChange={(event) => updateLine(index, { notes: event.target.value })} placeholder="Opcional" />
-                      </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="py-3 text-sm align-middle">{item?.unit || "-"}</TableCell>
+                      <TableCell className="py-3 text-right align-middle">
                         <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(index)} title="Eliminar linea">
                           <Trash2 className="h-4 w-4" />
                         </Button>

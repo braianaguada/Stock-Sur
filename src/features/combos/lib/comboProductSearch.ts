@@ -6,6 +6,8 @@ export type ComboProductSearchItem = {
   name: string;
   unit: string | null;
   brand: string | null;
+  model: string | null;
+  attributes: string | null;
   category: string | null;
   is_active: boolean;
 };
@@ -17,7 +19,7 @@ export function filterComboProductOptions(items: ComboProductSearchItem[], query
   return items
     .filter((item) => item.is_active)
     .filter((item) =>
-      [item.sku, item.name, item.brand, item.category, item.unit]
+      [item.sku, item.name, item.brand, item.model, item.attributes, item.category, item.unit]
         .filter(Boolean)
         .some((value) => value!.toLowerCase().includes(term)),
     )
