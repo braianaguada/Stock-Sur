@@ -57,7 +57,7 @@ export const CASH_EXPENSE_CATEGORY_LABEL: Record<CashExpenseCategory, string> = 
 
 export const CASH_EXPENSE_KIND_LABEL: Record<CashExpenseKind, string> = {
   CAJA: "Efectivo / caja",
-  CUENTA_CORRIENTE: "No efectivo",
+  CUENTA_CORRIENTE: "Fuera de caja",
 };
 
 export const CASH_EXPENSE_CATEGORIES: CashExpenseCategory[] = [

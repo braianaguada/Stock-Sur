@@ -3,11 +3,11 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, NotebookText } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
+import { AmountDisplay, CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { currency, formatTime } from "@/lib/formatters";
+import { formatTime } from "@/lib/formatters";
 import { PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LABEL } from "../constants";
 import type { CashSaleRow, SituationFilter } from "../types";
 import { getClosureSituationWithClosure } from "../utils";
@@ -59,8 +59,10 @@ export function CashSalesTab({
     {
       accessorKey: "amount_total",
       header: () => <div className="text-right">Importe</div>,
-      cell: ({ row }) => <div className="text-right font-semibold whitespace-nowrap">{currency.format(Number(row.original.amount_total))}</div>,
-      meta: { className: "w-[110px]", cellClassName: "py-2.5" },
+      cell: ({ row }) => (
+        <AmountDisplay value={Number(row.original.amount_total)} size="sm" className="text-right" />
+      ),
+      meta: { className: "w-[132px]", cellClassName: "py-2.5" },
     },
     {
       accessorKey: "customer_name_snapshot",
@@ -94,7 +96,7 @@ export function CashSalesTab({
     },
     {
       id: "closure_situation",
-      header: () => "Situación",
+      header: () => "Situacion",
       cell: ({ row }) => {
         const closureSituation = getClosureSituationWithClosure(row.original, effectiveClosure);
         return (
@@ -132,14 +134,15 @@ export function CashSalesTab({
   ], [cancelPending, canCancelSale, effectiveClosure, onCancelSale, onOpenDetail]);
 
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <CardTitle>Movimientos del día</CardTitle>
-          <CardDescription>Vista rápida para controlar lo cargado y detectar pendientes antes del cierre.</CardDescription>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="w-fit">{totalItems} registros</Badge>
+    <OperationalTableShell
+      title="Movimientos del dia"
+      description="Control principal de ventas cargadas, medio de pago y situacion de cierre."
+      count={totalItems}
+      actions={(
+        <>
+          <CompactBadge tone={effectiveClosure?.status === "CERRADO" ? "success" : "warning"}>
+            {effectiveClosure?.status === "CERRADO" ? "Caja cerrada" : "Pendiente de cierre"}
+          </CompactBadge>
           <Select value={situationFilter} onValueChange={(value) => onSituationFilterChange(value as SituationFilter)}>
             <SelectTrigger className="w-[190px]">
               <SelectValue />
@@ -152,37 +155,45 @@ export function CashSalesTab({
               <SelectItem value="ANULADA">Anuladas</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="max-h-[560px] overflow-y-auto rounded-lg border">
+        </>
+      )}
+    >
+      {salesLoading || filteredSales.length > 0 ? (
+        <div className="max-h-[560px] overflow-y-auto rounded-xl border">
           <DataTable
             columns={columns}
             data={filteredSales}
             isLoading={salesLoading}
             loadingMessage="Cargando ventas..."
-            emptyMessage="Todavía no hay ventas registradas para esta fecha."
+            emptyMessage="Todavia no hay ventas registradas para esta fecha."
             className="table-fixed"
             rowClassName="h-11"
           />
         </div>
-        {filteredSales.length > 0 ? (
-          <div className="mt-4">
-            <DataTablePagination
-              page={page}
-              totalPages={totalPages}
-              totalItems={totalItems}
-              rangeStart={totalItems === 0 ? 0 : (page - 1) * pageSize + 1}
-              rangeEnd={totalItems === 0 ? 0 : Math.min(page * pageSize, totalItems)}
-              pageSize={pageSize}
-              pageSizeOptions={pageSizeOptions}
-              onPageChange={onPageChange}
-              onPageSizeChange={onPageSizeChange}
-              itemLabel="ventas"
-            />
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-border/70 bg-[hsl(var(--panel))]/32 p-8 text-center">
+          <p className="text-base font-semibold text-foreground">Sin movimientos cargados</p>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+            Cuando registres una venta para esta fecha, va a aparecer aca con su importe, medio de pago y estado de cierre.
+          </p>
+        </div>
+      )}
+      {filteredSales.length > 0 ? (
+        <div className="mt-4">
+          <DataTablePagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            rangeStart={totalItems === 0 ? 0 : (page - 1) * pageSize + 1}
+            rangeEnd={totalItems === 0 ? 0 : Math.min(page * pageSize, totalItems)}
+            pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+            itemLabel="ventas"
+          />
+        </div>
+      ) : null}
+    </OperationalTableShell>
   );
 }

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,15 +16,15 @@ import { getErrorMessage } from "@/lib/errors";
 import { canAttachCashReceipt, canCancelCashExpense, canCancelCashSale, canCloseCash, canCreateCashExpense, canCreateCashSale } from "@/lib/permissions";
 import { openPrintWindow } from "@/lib/print";
 import { currentTimeInBuenosAires } from "@/lib/formatters";
-import { Plus } from "lucide-react";
+import { ArrowLeft, History, Plus } from "lucide-react";
 import { CashClosureTab } from "@/features/cash/components/CashClosureTab";
 import { CashExpensesTab } from "@/features/cash/components/CashExpensesTab";
 import { CashHistoryTab } from "@/features/cash/components/CashHistoryTab";
-import { CashPendingTab } from "@/features/cash/components/CashPendingTab";
 import { CashSalesTab } from "@/features/cash/components/CashSalesTab";
-import { CashSummaryCards } from "@/features/cash/components/CashSummaryCards";
+import { CashOverviewPanel } from "@/features/cash/components/CashSummaryCards";
 import { useCashData } from "@/features/cash/hooks/useCashData";
 import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
+import { AmountDisplay } from "@/components/common/VisualSystem";
 import type {
   CashExpenseFormState,
   CashExpenseRow,
@@ -43,7 +43,6 @@ import {
   shouldAutoCloseCashClosure,
   todayDateInputValue,
 } from "@/features/cash/utils";
-import { PageHeader } from "@/components/ui/page";
 
 const CashReceiptDialog = lazy(async () => {
   const module = await import("@/features/cash/components/CashReceiptDialog");
@@ -103,6 +102,7 @@ export default function CashPage() {
     notes: "",
   });
   const [tab, setTab] = useState("day");
+  const [secondaryView, setSecondaryView] = useState<"history" | null>(null);
   const [salesPage, setSalesPage] = useState(1);
   const [salesPageSize, setSalesPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(50);
   const [historyPage, setHistoryPage] = useState(1);
@@ -370,40 +370,64 @@ export default function CashPage() {
           <CompanyAccessNotice description="Necesitas una empresa activa para registrar ventas, asociar comprobantes y cerrar caja." />
         ) : null}
 
-        <PageHeader
-          eyebrow="Caja y cierre diario"
-          title="Caja"
-          subtitle="Carga rapida, pendientes y cierre diario en una sola vista. La mejora es visual y de jerarquia, sin tocar el flujo."
-          tabs={[
-            { label: "Hoy", value: "day" },
-            { label: "Gastos", value: "expenses" },
-            { label: "Pendientes", value: "pending" },
-            { label: "Cierre", value: "closure" },
-            { label: "Historial", value: "history" },
-          ]}
-          activeTab={tab}
-          onTabChange={setTab}
-          actions={(
-            <div className="flex flex-wrap items-end gap-3">
+        <section className="border-b border-border/70 pb-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="page-title">Caja</h1>
+                <span className="rounded-full border border-border/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                  Caja y cierre diario
+                </span>
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${effectiveClosure?.status === "CERRADO" ? "border-success/20 bg-success/10 text-success" : "border-warning/20 bg-warning/10 text-warning"}`}>
+                  {effectiveClosure?.status === "CERRADO" ? "Cerrada" : "Abierta"}
+                </span>
+              </div>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                Control diario de ventas, gastos y cierre.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
               <Button
-                onClick={() =>
-                  saleFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-                }
+                onClick={() => {
+                  setSecondaryView(null);
+                  setTab("day");
+                  window.requestAnimationFrame(() => {
+                    saleFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  });
+                }}
               >
                 <Plus className="mr-2 h-4 w-4" /> Nueva venta
               </Button>
-              <div className="w-full max-w-[180px]">
-                <Label htmlFor="business-date">Fecha operativa</Label>
+              <Button type="button" variant="outline" onClick={() => setSecondaryView("history")}>
+                <History className="mr-2 h-4 w-4" /> Ver historial
+              </Button>
+              <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-background px-2 py-1">
+                <Label htmlFor="business-date" className="whitespace-nowrap text-xs text-muted-foreground">
+                  Fecha operativa
+                </Label>
                 <Input
                   id="business-date"
                   type="date"
                   value={businessDate}
                   onChange={(event) => setBusinessDate(event.target.value)}
+                  className="h-8 w-[145px] border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
                 />
               </div>
             </div>
-          )}
-        />
+          </div>
+
+          <Tabs value={tab} onValueChange={(value) => {
+            setSecondaryView(null);
+            setTab(value);
+          }} className="mt-4 w-full">
+            <TabsList className="w-auto justify-start">
+              <TabsTrigger value="day">Hoy</TabsTrigger>
+              <TabsTrigger value="expenses">Gastos</TabsTrigger>
+              <TabsTrigger value="closure">Cierre</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </section>
 
         {salesError || expensesError || remitosError ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
@@ -426,202 +450,235 @@ export default function CashPage() {
           </div>
         ) : null}
 
-        <CashSummaryCards summary={summary} />
+        <CashOverviewPanel
+          summary={summary}
+          closureStatus={effectiveClosure?.status}
+          movementCount={filteredSales.length}
+          pendingCount={pendingSales.length}
+        />
 
-        <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <Card
-            ref={saleFormRef}
-            className="border-primary/8 bg-gradient-to-br from-card via-card to-primary/5 shadow-[var(--shadow-xs)]"
+        {secondaryView ? (
+          <section className="space-y-4">
+            <Button type="button" variant="ghost" onClick={() => setSecondaryView(null)} className="w-fit">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Volver a caja del dia
+            </Button>
+            <CashHistoryTab
+              closuresHistory={historyPagination.pagedItems}
+              totalItems={closuresHistory.length}
+              onOpenSummary={openClosurePreview}
+              page={historyPagination.page}
+              totalPages={historyPagination.totalPages}
+              onPageChange={setHistoryPage}
+              pageSize={historyPageSize}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
+              onPageSizeChange={(value) => setHistoryPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
+            />
+          </section>
+        ) : (
+          <Tabs
+            value={tab}
+            onValueChange={(value) => {
+              setSecondaryView(null);
+              setTab(value);
+            }}
+            className="space-y-4"
           >
-            <CardHeader>
-              <CardTitle>Nueva venta</CardTitle>
-              <CardDescription>
-                Captura minima para registrar la operacion sin quedar bloqueado por el comprobante.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form
-                className="space-y-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  if (!canCreateSale) return;
-                  createSaleMutation.mutate({
-                    amount: derivedAmount,
-                    paymentMethod,
-                    receiptKind,
-                    customerId: selectedReceiptRemito?.customer_id ?? "__none__",
-                    selectedRemitoId,
-                    receiptReference,
-                    notes,
-                  } satisfies CashSaleFormState);
-                }}
-              >
-                <div className="space-y-2">
-                  <Label>Comprobante</Label>
-                  <Select
-                    value={receiptKind}
-                    onValueChange={(value) => {
-                      setReceiptKind(value as ReceiptKind);
-                      setReceiptSearch("");
-                      setSelectedRemitoId("__none__");
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="REMITO">Remito</SelectItem>
-                      <SelectItem value="FACTURA">Factura</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <TabsContent value="day">
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+                <CashSalesTab
+                  filteredSales={salesPagination.pagedItems}
+                  salesLoading={salesLoading}
+                  situationFilter={situationFilter}
+                  onSituationFilterChange={setSituationFilter}
+                  effectiveClosure={effectiveClosure}
+                  onOpenDetail={openSaleDetail}
+                  onCancelSale={(saleId) => {
+                    if (!canCancelCashSale(roles)) return;
+                    cancelSaleMutation.mutate(saleId);
+                  }}
+                  canCancelSale={canCancelSale}
+                  cancelPending={cancelSaleMutation.isPending}
+                  page={salesPagination.page}
+                  totalPages={salesPagination.totalPages}
+                  totalItems={filteredSales.length}
+                  onPageChange={setSalesPage}
+                  pageSize={salesPageSize}
+                  pageSizeOptions={PAGE_SIZE_OPTIONS}
+                  onPageSizeChange={(value) => setSalesPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
+                />
 
-                <div className="space-y-2">
-                  <Label>{receiptKind === "REMITO" ? "Remito" : "Factura"}</Label>
-                  <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
-                    <SelectTrigger className="justify-start">
-                      {selectedReceiptOption ? (
-                        <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_76px] items-center gap-2 text-left">
-                          <span className="min-w-0 whitespace-nowrap font-medium text-left tabular-nums">
-                            {selectedReceiptOption.receiptLabel}
-                          </span>
-                          <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
-                            {selectedReceiptOption.customerLabel}
-                          </span>
-                          <span className="min-w-0 truncate text-left text-xs text-muted-foreground tabular-nums">
-                            ${selectedReceiptOption.amount}
-                          </span>
-                        </div>
-                      ) : (
-                        <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"} />
-                      )}
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[22rem] overflow-hidden p-0">
-                      <div className="border-b border-border/60 p-2">
-                        <Input
-                          value={receiptSearch}
-                          onChange={(event) => setReceiptSearch(event.target.value)}
-                          placeholder="Buscar por remito, factura, cliente o monto"
-                          autoComplete="off"
+                <Card
+                  ref={saleFormRef}
+                  className="h-fit border-primary/8 bg-card shadow-[var(--shadow-xs)] xl:sticky xl:top-4"
+                >
+                  <CardHeader>
+                    <CardTitle>Nueva venta</CardTitle>
+                    <CardDescription>
+                      Panel secundario para cargar una operacion sin perder de vista los movimientos del dia.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form
+                      className="space-y-4"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        if (!canCreateSale) return;
+                        createSaleMutation.mutate({
+                          amount: derivedAmount,
+                          paymentMethod,
+                          receiptKind,
+                          customerId: selectedReceiptRemito?.customer_id ?? "__none__",
+                          selectedRemitoId,
+                          receiptReference,
+                          notes,
+                        } satisfies CashSaleFormState);
+                      }}
+                    >
+                      <div className="space-y-2">
+                        <Label>Comprobante</Label>
+                        <Select
+                          value={receiptKind}
+                          onValueChange={(value) => {
+                            setReceiptKind(value as ReceiptKind);
+                            setReceiptSearch("");
+                            setSelectedRemitoId("__none__");
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="REMITO">Remito</SelectItem>
+                            <SelectItem value="FACTURA">Factura</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>{receiptKind === "REMITO" ? "Remito" : "Factura"}</Label>
+                        <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
+                          <SelectTrigger className="justify-start">
+                            {selectedReceiptOption ? (
+                              <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_76px] items-center gap-2 text-left">
+                                <span className="min-w-0 whitespace-nowrap font-medium text-left tabular-nums">
+                                  {selectedReceiptOption.receiptLabel}
+                                </span>
+                                <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
+                                  {selectedReceiptOption.customerLabel}
+                                </span>
+                                <span className="min-w-0 truncate text-left text-xs text-muted-foreground tabular-nums">
+                                  ${selectedReceiptOption.amount}
+                                </span>
+                              </div>
+                            ) : (
+                              <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"} />
+                            )}
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[22rem] overflow-hidden p-0">
+                            <div className="border-b border-border/60 p-2">
+                              <Input
+                                value={receiptSearch}
+                                onChange={(event) => setReceiptSearch(event.target.value)}
+                                placeholder="Buscar por remito, factura, cliente o monto"
+                                autoComplete="off"
+                              />
+                            </div>
+                            <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"}</SelectItem>
+                            {filteredReceiptOptions.map((remito) => {
+                              const remitoNumber = `${String(remito.point_of_sale).padStart(4, "0")}-${String(remito.document_number ?? 0).padStart(8, "0")}`;
+                              const receiptLabel =
+                                receiptKind === "FACTURA" && remito.external_invoice_number
+                                  ? remito.external_invoice_number
+                                  : remitoNumber;
+                              const amount = Number(remito.total).toLocaleString("es-AR", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              });
+                              const customerLabel = formatCashOptionCustomer(remito);
+                              return (
+                                <SelectItem key={remito.id} value={remito.id}>
+                                  <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_76px] items-center gap-2 py-0.5 leading-tight text-left">
+                                    <span className="min-w-0 whitespace-nowrap font-medium text-left tabular-nums">{receiptLabel}</span>
+                                    <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
+                                      {customerLabel}
+                                    </span>
+                                    <span className="min-w-0 truncate text-left text-xs text-muted-foreground tabular-nums">
+                                      ${amount}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Medio de pago</Label>
+                        <Select
+                          value={paymentMethod}
+                          onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="EFECTIVO_REMITO">Efectivo remito</SelectItem>
+                            <SelectItem value="EFECTIVO_FACTURABLE">Efectivo facturable</SelectItem>
+                            <SelectItem value="SERVICIOS_REMITO">Servicios / remito</SelectItem>
+                            <SelectItem value="POINT">Point</SelectItem>
+                            <SelectItem value="TRANSFERENCIA">Transferencia</SelectItem>
+                            <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="notes">Observaciones</Label>
+                        <Textarea
+                          id="notes"
+                          placeholder="Cliente, detalle rapido o algo util para revisar la venta despues"
+                          value={notes}
+                          onChange={(event) => setNotes(event.target.value)}
+                          rows={4}
                         />
                       </div>
-                      <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"}</SelectItem>
-                      {filteredReceiptOptions.map((remito) => {
-                        const remitoNumber = `${String(remito.point_of_sale).padStart(4, "0")}-${String(remito.document_number ?? 0).padStart(8, "0")}`;
-                        const receiptLabel =
-                          receiptKind === "FACTURA" && remito.external_invoice_number
-                            ? remito.external_invoice_number
-                            : remitoNumber;
-                        const amount = Number(remito.total).toLocaleString("es-AR", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        });
-                        const customerLabel = formatCashOptionCustomer(remito);
-                        return (
-                          <SelectItem key={remito.id} value={remito.id}>
-                            <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_76px] items-center gap-2 py-0.5 leading-tight text-left">
-                              <span className="min-w-0 whitespace-nowrap font-medium text-left tabular-nums">{receiptLabel}</span>
-                              <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
-                                {customerLabel}
-                              </span>
-                              <span className="min-w-0 truncate text-left text-xs text-muted-foreground tabular-nums">
-                                ${amount}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
 
-                <div className="space-y-2">
-                  <Label>Medio de pago</Label>
-                  <Select
-                    value={paymentMethod}
-                    onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="EFECTIVO_REMITO">Efectivo remito</SelectItem>
-                      <SelectItem value="EFECTIVO_FACTURABLE">Efectivo facturable</SelectItem>
-                      <SelectItem value="SERVICIOS_REMITO">Servicios / remito</SelectItem>
-                      <SelectItem value="POINT">Point</SelectItem>
-                      <SelectItem value="TRANSFERENCIA">Transferencia</SelectItem>
-                      <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                      <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/44 p-4">
+                        <div className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                          Total a registrar
+                        </div>
+                        <AmountDisplay
+                          value={derivedAmount ? Number(derivedAmount) : 0}
+                          size="lg"
+                          className="mt-1 text-3xl"
+                        />
+                      </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Observaciones</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Cliente, detalle rapido o algo util para revisar la venta despues"
-                    value={notes}
-                    onChange={(event) => setNotes(event.target.value)}
-                    rows={4}
-                  />
-                </div>
+                      {paymentMethod === "SERVICIOS_REMITO" ? (
+                        <p className="rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-sm text-warning">
+                          Este movimiento impacta en el total del dia, pero no entra en el efectivo a rendir
+                          del cierre.
+                        </p>
+                      ) : null}
 
-                <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-primary/5 p-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-                    Total
-                  </div>
-                  <div className="mt-1 text-3xl font-semibold tracking-tight">
-                    ${derivedAmount || "0,00"}
-                  </div>
-                </div>
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={createSaleMutation.isPending || !canCreateSale}
+                      >
+                        {createSaleMutation.isPending ? "Guardando..." : "Registrar venta"}
+                      </Button>
 
-                {paymentMethod === "SERVICIOS_REMITO" ? (
-                  <p className="rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-sm text-warning">
-                    Este movimiento impacta en el total del dia, pero no entra en el efectivo a rendir
-                    del cierre.
-                  </p>
-                ) : null}
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={createSaleMutation.isPending || !canCreateSale}
-                >
-                  {createSaleMutation.isPending ? "Guardando..." : "Registrar venta"}
-                </Button>
-
-                {!canCreateSale ? (
-                  <p className="text-sm text-muted-foreground">
-                    Tu rol no tiene permiso para registrar ventas.
-                  </p>
-                ) : null}
-              </form>
-            </CardContent>
-          </Card>
-
-          <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-            <TabsContent value="day">
-              <CashSalesTab
-                filteredSales={salesPagination.pagedItems}
-                salesLoading={salesLoading}
-                situationFilter={situationFilter}
-                onSituationFilterChange={setSituationFilter}
-                effectiveClosure={effectiveClosure}
-                onOpenDetail={openSaleDetail}
-                onCancelSale={(saleId) => {
-                  if (!canCancelCashSale(roles)) return;
-                  cancelSaleMutation.mutate(saleId);
-                }}
-                canCancelSale={canCancelSale}
-                cancelPending={cancelSaleMutation.isPending}
-                page={salesPagination.page}
-                totalPages={salesPagination.totalPages}
-                totalItems={filteredSales.length}
-                onPageChange={setSalesPage}
-                pageSize={salesPageSize}
-                pageSizeOptions={PAGE_SIZE_OPTIONS}
-                onPageSizeChange={(value) => setSalesPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
-              />
+                      {!canCreateSale ? (
+                        <p className="text-sm text-muted-foreground">
+                          Tu rol no tiene permiso para registrar ventas.
+                        </p>
+                      ) : null}
+                    </form>
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
 
             <TabsContent value="expenses">
@@ -640,21 +697,6 @@ export default function CashPage() {
                 createPending={createExpenseMutation.isPending}
                 cancelPending={cancelExpenseMutation.isPending}
                 hasClosedClosureForDay={hasClosedClosureForDay}
-              />
-            </TabsContent>
-
-            <TabsContent value="pending">
-              <CashPendingTab
-                pendingSales={pendingSales}
-                onAssignReceipt={openReceiptDialog}
-                onCancelSale={(saleId) => {
-                  if (!canCancelCashSale(roles)) return;
-                  cancelSaleMutation.mutate(saleId);
-                }}
-                onOpenDetail={openSaleDetail}
-                canAttachReceipt={canAttachReceipt}
-                canCancelSale={canCancelSale}
-                cancelPending={cancelSaleMutation.isPending}
               />
             </TabsContent>
 
@@ -679,21 +721,8 @@ export default function CashPage() {
               />
             </TabsContent>
 
-            <TabsContent value="history">
-              <CashHistoryTab
-                closuresHistory={historyPagination.pagedItems}
-                totalItems={closuresHistory.length}
-                onOpenSummary={openClosurePreview}
-                page={historyPagination.page}
-                totalPages={historyPagination.totalPages}
-                onPageChange={setHistoryPage}
-                pageSize={historyPageSize}
-                pageSizeOptions={PAGE_SIZE_OPTIONS}
-                onPageSizeChange={(value) => setHistoryPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
-              />
-            </TabsContent>
           </Tabs>
-        </div>
+        )}
       </div>
 
       {receiptDialogOpen ? (
