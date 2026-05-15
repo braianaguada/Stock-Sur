@@ -1,9 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AmountDisplay, MetricCard, MetricGrid } from "@/components/common/VisualSystem";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { currency, formatDateTime } from "@/lib/formatters";
+import { formatDateTime } from "@/lib/formatters";
 import { getErrorMessage } from "@/lib/errors";
 import type { CashClosureRow } from "../types";
 
@@ -19,15 +20,6 @@ type CashClosureTabProps = {
   closePending: boolean;
   canCloseCash: boolean;
 };
-
-const tileToneClasses = {
-  success: "from-card via-card to-success/12 before:bg-success/75",
-  warning: "from-card via-card to-warning/16 before:bg-warning/80",
-  info: "from-card via-card to-info/12 before:bg-info/75",
-  lime: "from-card via-card to-lime-500/12 before:bg-lime-500/80",
-  amber: "from-card via-card to-amber-400/12 before:bg-amber-400/80",
-  slate: "from-card via-card to-slate-500/10 before:bg-slate-500/65",
-} as const;
 
 export function CashClosureTab({
   effectiveClosure,
@@ -60,17 +52,17 @@ export function CashClosureTab({
     {
       label: "Efectivo remito",
       value: Number(effectiveClosure?.expected_cash_remito_total ?? 0),
-      tone: "lime" as const,
+      tone: "success" as const,
     },
     {
       label: "Efectivo facturable",
       value: Number(effectiveClosure?.expected_cash_facturable_total ?? 0),
-      tone: "warning" as const,
+      tone: "success" as const,
     },
     {
       label: "Servicios / remito",
       value: Number(effectiveClosure?.expected_services_remito_total ?? 0),
-      tone: "amber" as const,
+      tone: "warning" as const,
     },
     {
       label: "Point esperado",
@@ -85,12 +77,12 @@ export function CashClosureTab({
     {
       label: "Cuenta corriente",
       value: Number(effectiveClosure?.expected_account_sales_total ?? 0),
-      tone: "slate" as const,
+      tone: "muted" as const,
     },
     {
       label: "Total ventas",
       value: Number(effectiveClosure?.expected_sales_total ?? 0),
-      tone: "warning" as const,
+      tone: "info" as const,
     },
   ];
 
@@ -117,21 +109,16 @@ export function CashClosureTab({
           </div>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricGrid>
           {summaryTiles.map((tile) => (
-            <Card
+            <MetricCard
               key={tile.label}
-              className={`relative overflow-hidden bg-gradient-to-br ${tileToneClasses[tile.tone]} before:absolute before:inset-x-5 before:top-0 before:h-px shadow-[var(--shadow-xs)]`}
-            >
-              <CardHeader className="gap-2 pb-4">
-                <CardDescription>{tile.label}</CardDescription>
-                <CardTitle className="text-2xl font-bold tracking-tight">
-                  {closureLoading ? "..." : currency.format(tile.value)}
-                </CardTitle>
-              </CardHeader>
-            </Card>
+              label={tile.label}
+              value={closureLoading ? "..." : tile.value}
+              tone={tile.tone}
+            />
           ))}
-        </div>
+        </MetricGrid>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-4">
@@ -155,36 +142,38 @@ export function CashClosureTab({
             <div className="mt-4 space-y-3 text-sm">
               <div className="flex items-center justify-between">
                 <span>Efectivo antes de gastos</span>
-                <span className="font-semibold">
-                  {currency.format(
+                <AmountDisplay
+                  size="sm"
+                  value={
                     Number(effectiveClosure?.expected_cash_remito_total ?? 0) +
-                    Number(effectiveClosure?.expected_cash_facturable_total ?? 0),
-                  )}
-                </span>
+                    Number(effectiveClosure?.expected_cash_facturable_total ?? 0)
+                  }
+                  className="text-right"
+                />
               </div>
               <div className="flex items-center justify-between">
                 <span>Gastos en efectivo</span>
-                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_expenses_total ?? 0))}</span>
+                <AmountDisplay size="sm" value={Number(effectiveClosure?.expected_cash_expenses_total ?? 0)} className="text-right" />
               </div>
               <div className="flex items-center justify-between">
                 <span>Efectivo esperado</span>
-                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_to_render ?? 0))}</span>
+                <AmountDisplay size="sm" value={Number(effectiveClosure?.expected_cash_to_render ?? 0)} className="text-right" />
               </div>
               <div className="flex items-center justify-between">
                 <span>Efectivo remito</span>
-                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_remito_total ?? 0))}</span>
+                <AmountDisplay size="sm" value={Number(effectiveClosure?.expected_cash_remito_total ?? 0)} className="text-right" />
               </div>
               <div className="flex items-center justify-between">
                 <span>Efectivo facturable</span>
-                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_cash_facturable_total ?? 0))}</span>
+                <AmountDisplay size="sm" value={Number(effectiveClosure?.expected_cash_facturable_total ?? 0)} className="text-right" />
               </div>
               <div className="flex items-center justify-between">
                 <span>Servicios / remito</span>
-                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_services_remito_total ?? 0))}</span>
+                <AmountDisplay size="sm" value={Number(effectiveClosure?.expected_services_remito_total ?? 0)} className="text-right" />
               </div>
               <div className="flex items-center justify-between">
                 <span>Total ventas</span>
-                <span className="font-semibold">{currency.format(Number(effectiveClosure?.expected_sales_total ?? 0))}</span>
+                <AmountDisplay size="sm" value={Number(effectiveClosure?.expected_sales_total ?? 0)} className="text-right" />
               </div>
               <div className="border-t border-border/50 pt-3">
                 <p className="text-xs text-muted-foreground">

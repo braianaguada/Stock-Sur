@@ -25,6 +25,7 @@ import { CashSalesTab } from "@/features/cash/components/CashSalesTab";
 import { CashSummaryCards } from "@/features/cash/components/CashSummaryCards";
 import { useCashData } from "@/features/cash/hooks/useCashData";
 import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
+import { AmountDisplay } from "@/components/common/VisualSystem";
 import type {
   CashExpenseFormState,
   CashExpenseRow,
@@ -570,9 +571,11 @@ export default function CashPage() {
                   <div className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
                     Total
                   </div>
-                  <div className="mt-1 text-3xl font-semibold tracking-tight">
-                    ${derivedAmount || "0,00"}
-                  </div>
+                  <AmountDisplay
+                    value={derivedAmount ? Number(derivedAmount) : 0}
+                    size="lg"
+                    className="mt-1 text-3xl"
+                  />
                 </div>
 
                 {paymentMethod === "SERVICIOS_REMITO" ? (

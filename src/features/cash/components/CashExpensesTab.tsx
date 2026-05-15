@@ -2,12 +2,13 @@ import { Ban, ReceiptText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AmountDisplay, CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { currency, formatTime } from "@/lib/formatters";
+import { formatTime } from "@/lib/formatters";
 import {
   CASH_EXPENSE_CATEGORIES,
   CASH_EXPENSE_CATEGORY_LABEL,
@@ -182,19 +183,17 @@ export function CashExpensesTab({
         </CardContent>
       </Card>
 
-      <Card className="shadow-sm">
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <CardTitle>Gastos del dia</CardTitle>
-            <CardDescription>Listado operativo del dia. Los gastos anulados quedan visibles pero no suman.</CardDescription>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">Total {currency.format(summary.total)}</Badge>
-            <Badge variant="outline">Efectivo {currency.format(summary.cash)}</Badge>
-            <Badge variant="outline">No efectivo {currency.format(summary.nonCash)}</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
+      <OperationalTableShell
+        title="Gastos del dia"
+        description="Listado operativo del dia. Los gastos anulados quedan visibles pero no suman."
+        actions={(
+          <>
+            <CompactBadge>Total {summary.total.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}</CompactBadge>
+            <CompactBadge tone="danger">Efectivo {summary.cash.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}</CompactBadge>
+            <CompactBadge tone="muted">No efectivo {summary.nonCash.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}</CompactBadge>
+          </>
+        )}
+      >
           {expensesLoading ? (
             <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
               Cargando gastos...
@@ -242,8 +241,12 @@ export function CashExpensesTab({
                             "No"
                           )}
                         </td>
-                        <td className={`px-3 py-3 text-right font-semibold ${cancelled ? "text-muted-foreground line-through" : ""}`}>
-                          {currency.format(Number(expense.amount_total))}
+                        <td className={`px-3 py-3 ${cancelled ? "text-muted-foreground line-through" : ""}`}>
+                          <AmountDisplay
+                            value={Number(expense.amount_total)}
+                            size="sm"
+                            className={cancelled ? "text-right text-muted-foreground line-through" : "text-right"}
+                          />
                         </td>
                         <td className="px-3 py-3 text-right">
                           {!cancelled ? (
@@ -266,8 +269,7 @@ export function CashExpensesTab({
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </OperationalTableShell>
     </div>
   );
 }
