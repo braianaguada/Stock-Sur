@@ -2,6 +2,25 @@
 
 Esta fase toma Caja como modulo piloto. No cambia reglas de negocio, calculos, permisos, rutas ni base de datos.
 
+## Iteracion 2 de Caja
+
+La primera iteracion del PR #225 creo componentes, pero no cambio lo suficiente la arquitectura visual de `/cash`. El resultado seguia siendo header + tabs + muchas cards + formulario fijo + tabla, por lo que Caja no se sentia como un panel operativo diario.
+
+### Inspeccion visual real
+
+- Se levanto la app local con el `.env` existente y se abrio `/cash`; la ruta redirige a `/auth`.
+- El PR tiene preview de Vercel disponible, pero tambien requiere sesion para revisar datos reales.
+- No habia credenciales ni sesion reutilizable en el contexto, por lo que no se crearon datos ni se intento forzar autenticacion.
+- La decision de redisenio se baso en la inspeccion hasta autenticacion, la estructura real del codigo de Caja y el diagnostico visual de las capturas revisadas por producto.
+
+Observaciones aplicadas:
+
+- Lo primero que debia verse era `Total vendido del dia`, no una grilla de metricas similares.
+- `Nueva venta` no debia dominar `Gastos`, `Cierre` ni vistas secundarias.
+- `Pendientes` suele ser una excepcion operativa; no debe ocupar una tab principal si no hay items.
+- `Historial` compite con `Totales`; debe pasar a acceso secundario hasta definir su rol.
+- `Cierre` necesitaba una pantalla de decision centrada en efectivo esperado, estado y acciones.
+
 ## Auditoria visual global
 
 ### Headers
@@ -96,21 +115,27 @@ Archivo: `src/components/common/VisualSystem.tsx`.
 
 ## Caja como piloto
 
-- Header mantiene `PageHeader` con fecha operativa y accion `Nueva venta`.
-- Se agrega `MetricHeroCard` para `Total del dia`.
-- Las metricas secundarias usan `MetricGrid` y `MetricCard`.
-- `Efectivo neto`, `Gastos efectivo` y `Gastos no efectivo` quedan diferenciados visualmente.
+- Header mantiene `PageHeader`, fecha operativa, accion `Nueva venta`, acceso secundario a historial y solo tres tabs principales: `Hoy`, `Gastos`, `Cierre`.
+- El resumen se reemplaza por `CashOverviewPanel`: un bloque unico con `Total vendido del dia`, `Efectivo a rendir`, `Gastos efectivo`, `Otros medios`, `Cuenta corriente` y composicion compacta por medio de pago.
+- Se descarta la grilla plana de 8/9 cards iguales para Caja; el patron nuevo es panel hero + facts operativos + breakdown.
+- `Movimientos del dia` queda como protagonista de `Hoy`; `Nueva venta` pasa a panel secundario dentro de esa vista.
+- `Gastos` ya no comparte pantalla con `Nueva venta`; se centra en registrar gasto, resumen efectivo/no efectivo y listado.
+- `Cierre` se redisenia como pantalla de decision: efectivo esperado en primer plano, estado de cierre, detalle de control, observaciones y acciones.
 - Importes de Caja usan `AmountDisplay` en resumen, venta, movimientos y cierre.
-- `Movimientos del dia` usa `OperationalTableShell`.
-- `Hoy` queda como vista operativa principal: formulario a la izquierda y movimientos a la derecha en desktop, responsive en pantallas chicas.
 
 ## Decision sobre tabs de Caja
 
 - `Hoy`: mantener como vista principal.
 - `Gastos`: mantener; separar gasto efectivo/no efectivo y anulados visibles sin contaminar totales.
-- `Pendientes`: mantener por ahora; aporta seguimiento de comprobantes pendientes.
+- `Pendientes`: deja de ser tab principal. Si hay pendientes, se muestran como estado/accion contextual dentro del resumen y abren una vista secundaria. Si no hay pendientes, no ocupan espacio principal.
 - `Cierre`: mantener; debe ser la vista de control y bloqueo.
-- `Historial`: mantener en esta fase; revisar si duplica `Totales` antes de renombrar o mover.
+- `Historial`: deja de ser tab principal. Queda como acceso secundario `Ver historial` para no competir con `Totales` mientras se define si se fusiona, renombra o mueve en una fase posterior.
+
+## Componentes especificos de Caja
+
+- `CashOverviewPanel`: patron recomendado para modulos financieros con una metrica dominante, facts operativos y breakdown compacto.
+- `CashClosureTab`: usa un layout de decision en vez de una grilla de cards equivalentes.
+- `CashSalesTab`: sigue usando `OperationalTableShell`, pero ahora vive como contenido principal de `Hoy`.
 
 ## Backlog visual sugerido
 

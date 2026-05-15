@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AmountDisplay, MetricCard, MetricGrid } from "@/components/common/VisualSystem";
+import { AmountDisplay, CompactBadge } from "@/components/common/VisualSystem";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/formatters";
@@ -21,6 +21,15 @@ type CashClosureTabProps = {
   canCloseCash: boolean;
 };
 
+function DetailLine({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-muted-foreground">{label}</span>
+      <AmountDisplay size="sm" value={value} className="text-right" />
+    </div>
+  );
+}
+
 export function CashClosureTab({
   effectiveClosure,
   closureLoading,
@@ -33,65 +42,24 @@ export function CashClosureTab({
   closePending,
   canCloseCash,
 }: CashClosureTabProps) {
-  const summaryTiles = [
-    {
-      label: "Efectivo a rendir",
-      value: Number(effectiveClosure?.expected_cash_to_render ?? 0),
-      tone: "success" as const,
-    },
-    {
-      label: "Gastos efectivo",
-      value: Number(effectiveClosure?.expected_cash_expenses_total ?? 0),
-      tone: "warning" as const,
-    },
-    {
-      label: "Gastos no efectivo",
-      value: Number(effectiveClosure?.expected_account_expenses_total ?? 0),
-      tone: "slate" as const,
-    },
-    {
-      label: "Efectivo remito",
-      value: Number(effectiveClosure?.expected_cash_remito_total ?? 0),
-      tone: "success" as const,
-    },
-    {
-      label: "Efectivo facturable",
-      value: Number(effectiveClosure?.expected_cash_facturable_total ?? 0),
-      tone: "success" as const,
-    },
-    {
-      label: "Servicios / remito",
-      value: Number(effectiveClosure?.expected_services_remito_total ?? 0),
-      tone: "warning" as const,
-    },
-    {
-      label: "Point esperado",
-      value: Number(effectiveClosure?.expected_point_sales_total ?? 0),
-      tone: "info" as const,
-    },
-    {
-      label: "Transferencias esperadas",
-      value: Number(effectiveClosure?.expected_transfer_sales_total ?? 0),
-      tone: "info" as const,
-    },
-    {
-      label: "Cuenta corriente",
-      value: Number(effectiveClosure?.expected_account_sales_total ?? 0),
-      tone: "muted" as const,
-    },
-    {
-      label: "Total ventas",
-      value: Number(effectiveClosure?.expected_sales_total ?? 0),
-      tone: "info" as const,
-    },
-  ];
+  const cashBeforeExpenses =
+    Number(effectiveClosure?.expected_cash_remito_total ?? 0) +
+    Number(effectiveClosure?.expected_cash_facturable_total ?? 0);
+  const digitalTotal =
+    Number(effectiveClosure?.expected_point_sales_total ?? 0) +
+    Number(effectiveClosure?.expected_transfer_sales_total ?? 0) +
+    Number(effectiveClosure?.expected_services_remito_total ?? 0);
+  const statusLabel = effectiveClosure?.status === "CERRADO" ? "Cerrado" : "Abierto";
+  const statusDescription = effectiveClosure?.status === "CERRADO"
+    ? `Cerrado el ${formatDateTime(effectiveClosure.closed_at ?? null)}`
+    : "Listo para revisar y cerrar cuando los movimientos esten controlados.";
 
   return (
     <Card className="shadow-[var(--shadow-sm)]">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <CardTitle>Cierre diario</CardTitle>
-          <CardDescription>Cierre operativo del día con los totales esperados y el resumen imprimible para control.</CardDescription>
+          <CardDescription>Pantalla de decision para validar efectivo, otros medios y estado del cierre.</CardDescription>
         </div>
         <Badge
           variant="outline"
@@ -99,7 +67,7 @@ export function CashClosureTab({
             ? "border-success/18 bg-success/10 text-success"
             : "border-warning/18 bg-warning/12 text-warning"}
         >
-          {effectiveClosure?.status === "CERRADO" ? "Cerrado" : "Abierto"}
+          {statusLabel}
         </Badge>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -109,21 +77,49 @@ export function CashClosureTab({
           </div>
         ) : null}
 
-        <MetricGrid>
-          {summaryTiles.map((tile) => (
-            <MetricCard
-              key={tile.label}
-              label={tile.label}
-              value={closureLoading ? "..." : tile.value}
-              tone={tile.tone}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="rounded-2xl border border-success/18 bg-gradient-to-br from-success/10 via-card to-card p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-success">Efectivo esperado</p>
+            <AmountDisplay
+              value={closureLoading ? "..." : Number(effectiveClosure?.expected_cash_to_render ?? 0)}
+              size="hero"
+              className="mt-2 font-black text-success"
             />
-          ))}
-        </MetricGrid>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-border/55 bg-card/72 p-3">
+                <p className="text-xs text-muted-foreground">Efectivo antes de gastos</p>
+                <AmountDisplay value={cashBeforeExpenses} size="sm" className="mt-1" />
+              </div>
+              <div className="rounded-xl border border-border/55 bg-card/72 p-3">
+                <p className="text-xs text-muted-foreground">Gastos efectivo</p>
+                <AmountDisplay value={Number(effectiveClosure?.expected_cash_expenses_total ?? 0)} size="sm" className="mt-1 text-destructive" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/40 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Estado del cierre</p>
+                <p className="mt-1 text-sm text-muted-foreground">{statusDescription}</p>
+              </div>
+              <CompactBadge tone={effectiveClosure?.status === "CERRADO" ? "success" : "warning"}>
+                {statusLabel}
+              </CompactBadge>
+            </div>
+            <div className="mt-5 space-y-3 text-sm">
+              <DetailLine label="Total ventas" value={Number(effectiveClosure?.expected_sales_total ?? 0)} />
+              <DetailLine label="Otros medios" value={digitalTotal} />
+              <DetailLine label="Cuenta corriente" value={Number(effectiveClosure?.expected_account_sales_total ?? 0)} />
+              <DetailLine label="Gastos no efectivo" value={Number(effectiveClosure?.expected_account_expenses_total ?? 0)} />
+            </div>
+          </div>
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-4">
             <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/40 p-4 text-sm leading-7 text-muted-foreground">
-              El conteo físico del efectivo se completa sobre el resumen impreso. Desde esta pantalla solo cerrás la caja del sistema y dejás observaciones.
+              El conteo fisico del efectivo se completa sobre el resumen impreso. Desde esta pantalla cerras la caja del sistema y dejas observaciones.
             </div>
             <div className="space-y-2">
               <Label htmlFor="close-notes">Observaciones del cierre</Label>
@@ -138,48 +134,18 @@ export function CashClosureTab({
           </div>
 
           <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/42 p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resumen operativo</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Detalle de control</h3>
             <div className="mt-4 space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span>Efectivo antes de gastos</span>
-                <AmountDisplay
-                  size="sm"
-                  value={
-                    Number(effectiveClosure?.expected_cash_remito_total ?? 0) +
-                    Number(effectiveClosure?.expected_cash_facturable_total ?? 0)
-                  }
-                  className="text-right"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Gastos en efectivo</span>
-                <AmountDisplay size="sm" value={Number(effectiveClosure?.expected_cash_expenses_total ?? 0)} className="text-right" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Efectivo esperado</span>
-                <AmountDisplay size="sm" value={Number(effectiveClosure?.expected_cash_to_render ?? 0)} className="text-right" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Efectivo remito</span>
-                <AmountDisplay size="sm" value={Number(effectiveClosure?.expected_cash_remito_total ?? 0)} className="text-right" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Efectivo facturable</span>
-                <AmountDisplay size="sm" value={Number(effectiveClosure?.expected_cash_facturable_total ?? 0)} className="text-right" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Servicios / remito</span>
-                <AmountDisplay size="sm" value={Number(effectiveClosure?.expected_services_remito_total ?? 0)} className="text-right" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Total ventas</span>
-                <AmountDisplay size="sm" value={Number(effectiveClosure?.expected_sales_total ?? 0)} className="text-right" />
-              </div>
+              <DetailLine label="Efectivo remito" value={Number(effectiveClosure?.expected_cash_remito_total ?? 0)} />
+              <DetailLine label="Efectivo facturable" value={Number(effectiveClosure?.expected_cash_facturable_total ?? 0)} />
+              <DetailLine label="Servicios / remito" value={Number(effectiveClosure?.expected_services_remito_total ?? 0)} />
+              <DetailLine label="Point esperado" value={Number(effectiveClosure?.expected_point_sales_total ?? 0)} />
+              <DetailLine label="Transferencias esperadas" value={Number(effectiveClosure?.expected_transfer_sales_total ?? 0)} />
               <div className="border-t border-border/50 pt-3">
                 <p className="text-xs text-muted-foreground">
                   Estado del cierre: {effectiveClosure?.status === "CERRADO"
                     ? `cerrado el ${formatDateTime(effectiveClosure.closed_at ?? null)}`
-                    : "todavía abierto"}
+                    : "todavia abierto"}
                 </p>
               </div>
             </div>
@@ -198,8 +164,8 @@ export function CashClosureTab({
               Ver resumen
             </Button>
           ) : null}
-          {effectiveClosure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya está bloqueado. Solo queda disponible para consulta.</p> : null}
-          {!canCloseCash ? <p className="text-sm text-muted-foreground">Solo administración puede cerrar o modificar el cierre diario.</p> : null}
+          {effectiveClosure?.status === "CERRADO" ? <p className="text-sm text-muted-foreground">El cierre ya esta bloqueado. Solo queda disponible para consulta.</p> : null}
+          {!canCloseCash ? <p className="text-sm text-muted-foreground">Solo administracion puede cerrar o modificar el cierre diario.</p> : null}
         </div>
       </CardContent>
     </Card>
