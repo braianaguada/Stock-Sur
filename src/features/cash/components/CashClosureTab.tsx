@@ -59,7 +59,7 @@ export function CashClosureTab({
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <CardTitle>Cierre diario</CardTitle>
-          <CardDescription>Pantalla de decision para validar efectivo, otros medios y estado del cierre.</CardDescription>
+          <CardDescription>Decision final del dia: que efectivo deberia haber, que componentes se controlan y si la caja queda bloqueada.</CardDescription>
         </div>
         <Badge
           variant="outline"
@@ -77,9 +77,10 @@ export function CashClosureTab({
           </div>
         ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="rounded-2xl border border-success/18 bg-gradient-to-br from-success/10 via-card to-card p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-success">Efectivo esperado</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success">Resultado del cierre</p>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">Efectivo esperado</p>
             <AmountDisplay
               value={closureLoading ? "..." : Number(effectiveClosure?.expected_cash_to_render ?? 0)}
               size="hero"
@@ -111,15 +112,15 @@ export function CashClosureTab({
               <DetailLine label="Total ventas" value={Number(effectiveClosure?.expected_sales_total ?? 0)} />
               <DetailLine label="Otros medios" value={digitalTotal} />
               <DetailLine label="Cuenta corriente" value={Number(effectiveClosure?.expected_account_sales_total ?? 0)} />
-              <DetailLine label="Gastos no efectivo" value={Number(effectiveClosure?.expected_account_expenses_total ?? 0)} />
+              <DetailLine label="Gastos fuera de caja" value={Number(effectiveClosure?.expected_account_expenses_total ?? 0)} />
             </div>
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <div className="space-y-4">
             <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/40 p-4 text-sm leading-7 text-muted-foreground">
-              El conteo fisico del efectivo se completa sobre el resumen impreso. Desde esta pantalla cerras la caja del sistema y dejas observaciones.
+              Usa esta vista para confirmar la rendicion. El conteo fisico y cualquier diferencia quedan controlados con el resumen del cierre.
             </div>
             <div className="space-y-2">
               <Label htmlFor="close-notes">Observaciones del cierre</Label>
@@ -134,13 +135,14 @@ export function CashClosureTab({
           </div>
 
           <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/42 p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Detalle de control</h3>
-            <div className="mt-4 space-y-3 text-sm">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground">Componentes del cierre</h3>
+            <div className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
               <DetailLine label="Efectivo remito" value={Number(effectiveClosure?.expected_cash_remito_total ?? 0)} />
               <DetailLine label="Efectivo facturable" value={Number(effectiveClosure?.expected_cash_facturable_total ?? 0)} />
               <DetailLine label="Servicios / remito" value={Number(effectiveClosure?.expected_services_remito_total ?? 0)} />
               <DetailLine label="Point esperado" value={Number(effectiveClosure?.expected_point_sales_total ?? 0)} />
-              <DetailLine label="Transferencias esperadas" value={Number(effectiveClosure?.expected_transfer_sales_total ?? 0)} />
+              <DetailLine label="Transferencias" value={Number(effectiveClosure?.expected_transfer_sales_total ?? 0)} />
+              <DetailLine label="Gastos fuera de caja" value={Number(effectiveClosure?.expected_account_expenses_total ?? 0)} />
               <div className="border-t border-border/50 pt-3">
                 <p className="text-xs text-muted-foreground">
                   Estado del cierre: {effectiveClosure?.status === "CERRADO"

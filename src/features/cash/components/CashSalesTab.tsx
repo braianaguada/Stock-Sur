@@ -136,7 +136,7 @@ export function CashSalesTab({
   return (
     <OperationalTableShell
       title="Movimientos del dia"
-      description="Vista rapida para controlar lo cargado y detectar pendientes antes del cierre."
+      description="Control principal de ventas cargadas, medio de pago y situacion de cierre."
       count={totalItems}
       actions={(
         <>
@@ -158,17 +158,26 @@ export function CashSalesTab({
         </>
       )}
     >
-      <div className="max-h-[560px] overflow-y-auto rounded-xl border">
-        <DataTable
-          columns={columns}
-          data={filteredSales}
-          isLoading={salesLoading}
-          loadingMessage="Cargando ventas..."
-          emptyMessage="Todavia no hay ventas registradas para esta fecha."
-          className="table-fixed"
-          rowClassName="h-11"
-        />
-      </div>
+      {salesLoading || filteredSales.length > 0 ? (
+        <div className="max-h-[560px] overflow-y-auto rounded-xl border">
+          <DataTable
+            columns={columns}
+            data={filteredSales}
+            isLoading={salesLoading}
+            loadingMessage="Cargando ventas..."
+            emptyMessage="Todavia no hay ventas registradas para esta fecha."
+            className="table-fixed"
+            rowClassName="h-11"
+          />
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-border/70 bg-[hsl(var(--panel))]/32 p-8 text-center">
+          <p className="text-base font-semibold text-foreground">Sin movimientos cargados</p>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+            Cuando registres una venta para esta fecha, va a aparecer aca con su importe, medio de pago y estado de cierre.
+          </p>
+        </div>
+      )}
       {filteredSales.length > 0 ? (
         <div className="mt-4">
           <DataTablePagination

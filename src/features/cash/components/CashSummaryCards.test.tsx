@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import { vi } from "vitest";
 import { CashOverviewPanel } from "./CashSummaryCards";
 import type { CashSummary } from "../types";
 
@@ -34,15 +33,14 @@ describe("CashOverviewPanel", () => {
 
     expect(screen.getByText("Gastos efectivo")).toBeInTheDocument();
     expect(screen.getByText("$ 10.000,00")).toBeInTheDocument();
-    expect(screen.getByText("Gastos no efectivo: $ 5.000,00")).toBeInTheDocument();
+    expect(screen.getByText("Gastos fuera de caja: $ 5.000,00")).toBeInTheDocument();
   });
 
-  it("only promotes pending receipts when there are pending items", () => {
-    const onReviewPending = vi.fn();
+  it("does not promote pending receipts as a primary action", () => {
     const pendingSummary = { ...summary, pendientes: 2 };
-    render(<CashOverviewPanel summary={pendingSummary} pendingCount={2} onReviewPending={onReviewPending} />);
+    render(<CashOverviewPanel summary={pendingSummary} pendingCount={2} />);
 
-    expect(screen.getByRole("button", { name: /revisar pendientes/i })).toBeInTheDocument();
-    expect(screen.getByText("2 pendientes")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /revisar pendientes/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/2 movimientos sin comprobante asociado/i)).toBeInTheDocument();
   });
 });

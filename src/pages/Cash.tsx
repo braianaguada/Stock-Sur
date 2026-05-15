@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,7 +20,6 @@ import { ArrowLeft, History, Plus } from "lucide-react";
 import { CashClosureTab } from "@/features/cash/components/CashClosureTab";
 import { CashExpensesTab } from "@/features/cash/components/CashExpensesTab";
 import { CashHistoryTab } from "@/features/cash/components/CashHistoryTab";
-import { CashPendingTab } from "@/features/cash/components/CashPendingTab";
 import { CashSalesTab } from "@/features/cash/components/CashSalesTab";
 import { CashOverviewPanel } from "@/features/cash/components/CashSummaryCards";
 import { useCashData } from "@/features/cash/hooks/useCashData";
@@ -44,7 +43,6 @@ import {
   shouldAutoCloseCashClosure,
   todayDateInputValue,
 } from "@/features/cash/utils";
-import { PageHeader } from "@/components/ui/page";
 
 const CashReceiptDialog = lazy(async () => {
   const module = await import("@/features/cash/components/CashReceiptDialog");
@@ -104,7 +102,7 @@ export default function CashPage() {
     notes: "",
   });
   const [tab, setTab] = useState("day");
-  const [secondaryView, setSecondaryView] = useState<"pending" | "history" | null>(null);
+  const [secondaryView, setSecondaryView] = useState<"history" | null>(null);
   const [salesPage, setSalesPage] = useState(1);
   const [salesPageSize, setSalesPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(50);
   const [historyPage, setHistoryPage] = useState(1);
@@ -372,22 +370,24 @@ export default function CashPage() {
           <CompanyAccessNotice description="Necesitas una empresa activa para registrar ventas, asociar comprobantes y cerrar caja." />
         ) : null}
 
-        <PageHeader
-          eyebrow="Caja y cierre diario"
-          title="Caja"
-          subtitle="Carga rapida, pendientes y cierre diario en una sola vista. La mejora es visual y de jerarquia, sin tocar el flujo."
-          tabs={[
-            { label: "Hoy", value: "day" },
-            { label: "Gastos", value: "expenses" },
-            { label: "Cierre", value: "closure" },
-          ]}
-          activeTab={tab}
-          onTabChange={(value) => {
-            setSecondaryView(null);
-            setTab(value);
-          }}
-          actions={(
-            <div className="flex flex-wrap items-end gap-3">
+        <section className="border-b border-border/70 pb-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="page-title">Caja</h1>
+                <span className="rounded-full border border-border/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                  Caja y cierre diario
+                </span>
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${effectiveClosure?.status === "CERRADO" ? "border-success/20 bg-success/10 text-success" : "border-warning/20 bg-warning/10 text-warning"}`}>
+                  {effectiveClosure?.status === "CERRADO" ? "Cerrada" : "Abierta"}
+                </span>
+              </div>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                Control diario de ventas, gastos y cierre.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
               <Button
                 onClick={() => {
                   setSecondaryView(null);
@@ -402,18 +402,32 @@ export default function CashPage() {
               <Button type="button" variant="outline" onClick={() => setSecondaryView("history")}>
                 <History className="mr-2 h-4 w-4" /> Ver historial
               </Button>
-              <div className="w-full max-w-[180px]">
-                <Label htmlFor="business-date">Fecha operativa</Label>
+              <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-background px-2 py-1">
+                <Label htmlFor="business-date" className="whitespace-nowrap text-xs text-muted-foreground">
+                  Fecha operativa
+                </Label>
                 <Input
                   id="business-date"
                   type="date"
                   value={businessDate}
                   onChange={(event) => setBusinessDate(event.target.value)}
+                  className="h-8 w-[145px] border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
                 />
               </div>
             </div>
-          )}
-        />
+          </div>
+
+          <Tabs value={tab} onValueChange={(value) => {
+            setSecondaryView(null);
+            setTab(value);
+          }} className="mt-4 w-full">
+            <TabsList className="w-auto justify-start">
+              <TabsTrigger value="day">Hoy</TabsTrigger>
+              <TabsTrigger value="expenses">Gastos</TabsTrigger>
+              <TabsTrigger value="closure">Cierre</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </section>
 
         {salesError || expensesError || remitosError ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
@@ -441,7 +455,6 @@ export default function CashPage() {
           closureStatus={effectiveClosure?.status}
           movementCount={filteredSales.length}
           pendingCount={pendingSales.length}
-          onReviewPending={pendingSales.length > 0 ? () => setSecondaryView("pending") : undefined}
         />
 
         {secondaryView ? (
@@ -449,32 +462,17 @@ export default function CashPage() {
             <Button type="button" variant="ghost" onClick={() => setSecondaryView(null)} className="w-fit">
               <ArrowLeft className="mr-2 h-4 w-4" /> Volver a caja del dia
             </Button>
-            {secondaryView === "pending" ? (
-              <CashPendingTab
-                pendingSales={pendingSales}
-                onAssignReceipt={openReceiptDialog}
-                onCancelSale={(saleId) => {
-                  if (!canCancelCashSale(roles)) return;
-                  cancelSaleMutation.mutate(saleId);
-                }}
-                onOpenDetail={openSaleDetail}
-                canAttachReceipt={canAttachReceipt}
-                canCancelSale={canCancelSale}
-                cancelPending={cancelSaleMutation.isPending}
-              />
-            ) : (
-              <CashHistoryTab
-                closuresHistory={historyPagination.pagedItems}
-                totalItems={closuresHistory.length}
-                onOpenSummary={openClosurePreview}
-                page={historyPagination.page}
-                totalPages={historyPagination.totalPages}
-                onPageChange={setHistoryPage}
-                pageSize={historyPageSize}
-                pageSizeOptions={PAGE_SIZE_OPTIONS}
-                onPageSizeChange={(value) => setHistoryPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
-              />
-            )}
+            <CashHistoryTab
+              closuresHistory={historyPagination.pagedItems}
+              totalItems={closuresHistory.length}
+              onOpenSummary={openClosurePreview}
+              page={historyPagination.page}
+              totalPages={historyPagination.totalPages}
+              onPageChange={setHistoryPage}
+              pageSize={historyPageSize}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
+              onPageSizeChange={(value) => setHistoryPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
+            />
           </section>
         ) : (
           <Tabs

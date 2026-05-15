@@ -21,6 +21,29 @@ Observaciones aplicadas:
 - `Historial` compite con `Totales`; debe pasar a acceso secundario hasta definir su rol.
 - `Cierre` necesitaba una pantalla de decision centrada en efectivo esperado, estado y acciones.
 
+## Iteracion 3 de Caja
+
+La segunda iteracion mejoro la jerarquia, pero todavia dejaba signos de wrapper visual: header alto, controles separados, pendientes con CTA propio, resumen con badges redundantes, `Gastos no efectivo` como naming poco operativo e historial visualmente debil.
+
+### QA visual real
+
+- Se volvio a levantar la app local y se intento abrir `/cash`.
+- La ruta redirige a `/auth`; no habia sesion ni credenciales disponibles en el entorno.
+- No se crearon datos, no se forzo autenticacion y no se tocaron variables de produccion.
+- La auditoria de esta iteracion se hizo sobre la implementacion vigente de Caja, los componentes reales y el diagnostico visual aportado por producto.
+
+### Decisiones nuevas
+
+- Header: Caja usa un encabezado compacto propio, con titulo, estado, `Nueva venta`, `Ver historial` y fecha operativa en una misma linea responsive. La descripcion queda corta y secundaria.
+- Pendientes: deja de tener CTA y protagonismo. Si aparece un estado tecnico sin comprobante, se muestra como nota secundaria, no como accion central ni tab.
+- Naming: `Gastos no efectivo` se reemplaza por `Gastos fuera de caja`. Es mas claro para operacion porque describe egresos registrados que no reducen el efectivo fisico a rendir.
+- Resumen: `CashOverviewPanel` queda mas limpio: protagonista unico `Total vendido del dia`, cuatro facts operativos y composicion como lista, no como mini-cards equivalentes.
+- Hoy: movimientos queda como protagonista; el empty state se disena como estado intencional; `Nueva venta` queda como panel lateral secundario.
+- Gastos: se refuerza como subpantalla propia, con resumen de egresos arriba del listado y formulario independiente.
+- Cierre: se organiza como decision final: resultado del cierre, estado, componentes, observaciones y acciones.
+- Historial: queda como vista secundaria, con filas resumidas por cierre: fecha, estado, total ventas, efectivo, gastos, otros medios y accion `Ver resumen`.
+- Modal de resumen: se reduce el ruido de cards, se destaca efectivo a rendir y se agrupan importes secundarios en una grilla de lectura.
+
 ## Auditoria visual global
 
 ### Headers
@@ -115,8 +138,8 @@ Archivo: `src/components/common/VisualSystem.tsx`.
 
 ## Caja como piloto
 
-- Header mantiene `PageHeader`, fecha operativa, accion `Nueva venta`, acceso secundario a historial y solo tres tabs principales: `Hoy`, `Gastos`, `Cierre`.
-- El resumen se reemplaza por `CashOverviewPanel`: un bloque unico con `Total vendido del dia`, `Efectivo a rendir`, `Gastos efectivo`, `Otros medios`, `Cuenta corriente` y composicion compacta por medio de pago.
+- Header usa una variante compacta especifica de Caja: titulo, estado, acciones y fecha operativa quedan alineados en la franja superior; solo tres tabs principales: `Hoy`, `Gastos`, `Cierre`.
+- El resumen usa `CashOverviewPanel`: un bloque unico con `Total vendido del dia`, `Efectivo a rendir`, `Gastos efectivo`, `Otros medios`, `Cuenta corriente` y composicion compacta por medio de pago.
 - Se descarta la grilla plana de 8/9 cards iguales para Caja; el patron nuevo es panel hero + facts operativos + breakdown.
 - `Movimientos del dia` queda como protagonista de `Hoy`; `Nueva venta` pasa a panel secundario dentro de esa vista.
 - `Gastos` ya no comparte pantalla con `Nueva venta`; se centra en registrar gasto, resumen efectivo/no efectivo y listado.
@@ -127,15 +150,16 @@ Archivo: `src/components/common/VisualSystem.tsx`.
 
 - `Hoy`: mantener como vista principal.
 - `Gastos`: mantener; separar gasto efectivo/no efectivo y anulados visibles sin contaminar totales.
-- `Pendientes`: deja de ser tab principal. Si hay pendientes, se muestran como estado/accion contextual dentro del resumen y abren una vista secundaria. Si no hay pendientes, no ocupan espacio principal.
+- `Pendientes`: deja de ser tab principal y deja de tener CTA. Si aparece un caso tecnico sin comprobante, se informa como nota secundaria y no como flujo central de Caja.
 - `Cierre`: mantener; debe ser la vista de control y bloqueo.
 - `Historial`: deja de ser tab principal. Queda como acceso secundario `Ver historial` para no competir con `Totales` mientras se define si se fusiona, renombra o mueve en una fase posterior.
 
 ## Componentes especificos de Caja
 
-- `CashOverviewPanel`: patron recomendado para modulos financieros con una metrica dominante, facts operativos y breakdown compacto.
+- `CashOverviewPanel`: patron recomendado para modulos financieros con una metrica dominante, facts operativos y breakdown compacto en formato lista.
 - `CashClosureTab`: usa un layout de decision en vez de una grilla de cards equivalentes.
 - `CashSalesTab`: sigue usando `OperationalTableShell`, pero ahora vive como contenido principal de `Hoy`.
+- `CashHistoryTab` y `CashClosurePreviewDialog`: historial secundario con filas resumen y modal de lectura financiera, no una grilla pesada de cards.
 
 ## Backlog visual sugerido
 
