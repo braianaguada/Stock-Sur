@@ -63,6 +63,7 @@ This project is built with:
 ## Documentacion de UI
 
 - [Sistema visual inicial](docs/UI_SYSTEM.md): auditoria visual, navegacion, componentes base y piloto de Caja.
+- Fix de documentos: los combos se expanden a productos reales usando el mismo detalle de linea que la carga manual, conservando cantidades acumuladas y precios manuales existentes.
 
 ## Estado actual de staging
 
