@@ -2,12 +2,13 @@ import { Ban, ReceiptText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AmountDisplay, CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { currency, formatTime } from "@/lib/formatters";
+import { formatTime } from "@/lib/formatters";
 import {
   CASH_EXPENSE_CATEGORIES,
   CASH_EXPENSE_CATEGORY_LABEL,
@@ -50,11 +51,11 @@ export function CashExpensesTab({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
+    <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>Registrar gasto</CardTitle>
-          <CardDescription>Egreso operativo asociado a la fecha de caja. Solo los gastos en efectivo reducen el efectivo a rendir.</CardDescription>
+          <CardDescription>Los gastos en caja reducen el efectivo a rendir. Los gastos fuera de caja quedan registrados sin afectar el conteo fisico.</CardDescription>
         </CardHeader>
         <CardContent>
           <form
@@ -120,7 +121,7 @@ export function CashExpensesTab({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Medio</Label>
+                <Label>Impacto</Label>
                 <Select
                   value={form.expenseKind}
                   onValueChange={(value) => setField("expenseKind", value as CashExpenseKind)}
@@ -182,19 +183,30 @@ export function CashExpensesTab({
         </CardContent>
       </Card>
 
-      <Card className="shadow-sm">
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <CardTitle>Gastos del dia</CardTitle>
-            <CardDescription>Listado operativo del dia. Los gastos anulados quedan visibles pero no suman.</CardDescription>
+      <OperationalTableShell
+        title="Gastos del dia"
+        description="Registro operativo de egresos. Los anulados quedan visibles, pero no suman."
+        count={expenses.length}
+        actions={(
+          <CompactBadge tone={hasClosedClosureForDay ? "success" : "warning"}>
+            {hasClosedClosureForDay ? "Caja cerrada" : "Caja abierta"}
+          </CompactBadge>
+        )}
+      >
+          <div className="mb-4 grid gap-3 rounded-2xl border border-border/55 bg-[hsl(var(--panel))]/34 p-4 sm:grid-cols-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Total egresos</p>
+              <AmountDisplay value={summary.total} size="sm" className="mt-1" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Gastos efectivo</p>
+              <AmountDisplay value={summary.cash} size="sm" className="mt-1 text-destructive" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Gastos fuera de caja</p>
+              <AmountDisplay value={summary.nonCash} size="sm" className="mt-1" />
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">Total {currency.format(summary.total)}</Badge>
-            <Badge variant="outline">Efectivo {currency.format(summary.cash)}</Badge>
-            <Badge variant="outline">No efectivo {currency.format(summary.nonCash)}</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
           {expensesLoading ? (
             <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
               Cargando gastos...
@@ -231,7 +243,11 @@ export function CashExpensesTab({
                             {cancelled ? <Badge variant="outline" className="mt-1 border-rose-200 bg-rose-50 text-rose-700">Anulado</Badge> : null}
                           </div>
                         </td>
-                        <td className="px-3 py-3">{CASH_EXPENSE_KIND_LABEL[expense.expense_kind]}</td>
+                        <td className="px-3 py-3">
+                          <CompactBadge tone={expense.expense_kind === "CAJA" ? "danger" : "muted"}>
+                            {CASH_EXPENSE_KIND_LABEL[expense.expense_kind]}
+                          </CompactBadge>
+                        </td>
                         <td className="px-3 py-3">
                           {expense.has_receipt ? (
                             <span className="inline-flex items-center gap-1">
@@ -242,8 +258,12 @@ export function CashExpensesTab({
                             "No"
                           )}
                         </td>
-                        <td className={`px-3 py-3 text-right font-semibold ${cancelled ? "text-muted-foreground line-through" : ""}`}>
-                          {currency.format(Number(expense.amount_total))}
+                        <td className={`px-3 py-3 ${cancelled ? "text-muted-foreground line-through" : ""}`}>
+                          <AmountDisplay
+                            value={Number(expense.amount_total)}
+                            size="sm"
+                            className={cancelled ? "text-right text-muted-foreground line-through" : "text-right"}
+                          />
                         </td>
                         <td className="px-3 py-3 text-right">
                           {!cancelled ? (
@@ -266,8 +286,7 @@ export function CashExpensesTab({
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </OperationalTableShell>
     </div>
   );
 }

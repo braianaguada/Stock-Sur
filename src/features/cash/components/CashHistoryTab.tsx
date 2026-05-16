@@ -1,8 +1,8 @@
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { currency, formatBusinessDate, formatDateTime } from "@/lib/formatters";
+import { formatBusinessDate, formatDateTime } from "@/lib/formatters";
+import { AmountDisplay, CompactBadge } from "@/components/common/VisualSystem";
 import type { CashClosureHistoryRow } from "../types";
 
 type CashHistoryTabProps = {
@@ -30,7 +30,7 @@ export function CashHistoryTab({
 }: CashHistoryTabProps) {
   const fillerItems = Math.max(0, pageSize - closuresHistory.length);
   const historyRowClassName =
-    "min-h-[92px] flex flex-col gap-3 rounded-2xl border border-border/55 bg-background/68 p-4 md:flex-row md:items-center md:justify-between";
+    "min-h-[108px] rounded-2xl border border-border/55 bg-background/72 p-4";
 
   return (
     <Card className="shadow-sm">
@@ -39,9 +39,9 @@ export function CashHistoryTab({
           <CardTitle>Historial de cierres</CardTitle>
           <CardDescription>Resumenes diarios guardados para consulta e impresion.</CardDescription>
         </div>
-        <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
+        <CompactBadge tone="muted">
           {totalItems} registro{totalItems === 1 ? "" : "s"}
-        </Badge>
+        </CompactBadge>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
@@ -55,37 +55,54 @@ export function CashHistoryTab({
                 key={historyItem.id}
                 className={historyRowClassName}
               >
-                <div>
-                  <p className="font-semibold">{formatBusinessDate(historyItem.business_date)}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {historyItem.status === "CERRADO"
-                      ? `Cerrado el ${formatDateTime(historyItem.closed_at)}`
-                      : "Caja abierta"}
-                  </p>
+                <div className="grid gap-4 xl:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.5fr)_auto] xl:items-center">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold">{formatBusinessDate(historyItem.business_date)}</p>
+                      <CompactBadge tone={historyItem.status === "CERRADO" ? "success" : "warning"}>
+                        {historyItem.status === "CERRADO" ? "Cerrado" : "Abierto"}
+                      </CompactBadge>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {historyItem.status === "CERRADO"
+                        ? `Cerrado el ${formatDateTime(historyItem.closed_at)}`
+                        : "Pendiente de cierre"}
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total ventas</p>
+                      <AmountDisplay value={Number(historyItem.expected_sales_total)} size="sm" className="mt-1" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Efectivo</p>
+                      <AmountDisplay value={Number(historyItem.expected_cash_to_render)} size="sm" className="mt-1 text-success" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Gastos</p>
+                      <AmountDisplay value={Number(historyItem.expected_cash_expenses_total)} size="sm" className="mt-1 text-destructive" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Otros medios</p>
+                      <AmountDisplay
+                        value={
+                          Number(historyItem.expected_point_sales_total) +
+                          Number(historyItem.expected_transfer_sales_total) +
+                          Number(historyItem.expected_services_remito_total)
+                        }
+                        size="sm"
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex xl:justify-end">
+                    <Button variant="outline" onClick={() => onOpenSummary(historyItem.id)}>
+                      Ver resumen
+                    </Button>
+                  </div>
                 </div>
-                <div className="grid gap-2 text-sm md:grid-cols-3 md:text-right">
-                  <div>
-                    <p className="text-muted-foreground">Ventas</p>
-                    <p className="font-semibold">
-                      {currency.format(Number(historyItem.expected_sales_total))}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Efectivo</p>
-                    <p className="font-semibold">
-                      {currency.format(Number(historyItem.expected_cash_to_render))}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Estado</p>
-                    <p className="font-semibold">
-                      {historyItem.status === "CERRADO" ? "Cerrado" : "Abierto"}
-                    </p>
-                  </div>
-                </div>
-                <Button variant="outline" onClick={() => onOpenSummary(historyItem.id)}>
-                  Ver resumen
-                </Button>
               </div>
             ))
           )}

@@ -13,6 +13,7 @@ export function PageHeader(props: {
   onTabChange?: (value: string) => void;
   actions?: ReactNode;
   meta?: ReactNode;
+  divider?: boolean;
   className?: string;
 }) {
   const {
@@ -25,12 +26,13 @@ export function PageHeader(props: {
     onTabChange,
     actions,
     meta,
+    divider = true,
     className,
   } = props;
   const resolvedSubtitle = subtitle ?? description;
 
   return (
-    <section className={cn("page-hero border-b border-border/70 bg-transparent px-0 pb-5 pt-0 shadow-none", className)}>
+    <section className={cn("page-hero bg-transparent px-0 pb-5 pt-0 shadow-none", divider && "border-b border-border/70", className)}>
       <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-4">
           {eyebrow ? <div className="page-eyebrow">{eyebrow}</div> : null}

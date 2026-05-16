@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EntityDialog } from "@/components/common/EntityDialog";
-import { currency, formatBusinessDate, formatDateTime } from "@/lib/formatters";
+import { formatBusinessDate, formatDateTime } from "@/lib/formatters";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { CashClosureSalesTable } from "@/features/cash/components/CashClosureSalesTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
+import { AmountDisplay, CompactBadge } from "@/components/common/VisualSystem";
 import type { CashClosureHistoryRow, CashSaleRow } from "@/features/cash/types";
 
 type CashClosurePreviewDialogProps = {
@@ -52,11 +53,11 @@ export function CashClosurePreviewDialog({
     >
       {selectedClosurePreview ? (
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">
-          <div className="rounded-3xl border border-border/60 bg-gradient-to-br from-card via-card to-[hsl(var(--panel))]/36 p-5">
+          <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-[hsl(var(--panel))]/30 p-5">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cierre diario</p>
-                <h3 className="mt-2 text-2xl font-black text-foreground">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Historial de caja</p>
+                <h3 className="mt-1 text-2xl font-black text-foreground">
                   {formatBusinessDate(selectedClosurePreview.business_date)}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -65,69 +66,45 @@ export function CashClosurePreviewDialog({
                     : "Caja abierta"}
                 </p>
               </div>
-              <div className="rounded-2xl border border-border/60 bg-background/82 px-4 py-3 text-right shadow-[var(--shadow-xs)]">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Estado</p>
-                <p className="mt-1 text-lg font-bold text-foreground">
-                  {selectedClosurePreview.status === "CERRADO" ? "Cerrado" : "Abierto"}
-                </p>
-              </div>
+              <CompactBadge tone={selectedClosurePreview.status === "CERRADO" ? "success" : "warning"}>
+                {selectedClosurePreview.status === "CERRADO" ? "Cerrado" : "Abierto"}
+              </CompactBadge>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <div className="min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-background/80 p-4">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Total ventas</p>
-                <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-[1.1rem] font-bold text-foreground [font-variant-numeric:tabular-nums]">
-                  {currency.format(Number(selectedClosurePreview.expected_sales_total))}
-                </p>
-                <p className="text-sm text-muted-foreground">Movimientos: {selectedClosureSales.length}</p>
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <div className="rounded-2xl border border-success/18 bg-success/10 p-4">
+                <p className="text-xs font-medium text-muted-foreground">Efectivo a rendir</p>
+                <AmountDisplay value={Number(selectedClosurePreview.expected_cash_to_render)} size="hero" className="mt-2 text-success" />
+                <p className="mt-2 text-sm text-muted-foreground">Movimientos incluidos: {selectedClosureSales.length}</p>
               </div>
-              <div className="min-w-0 overflow-hidden rounded-2xl border border-success/18 bg-success/10 p-4">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo a rendir</p>
-                <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-[1.1rem] font-bold text-success [font-variant-numeric:tabular-nums]">
-                  {currency.format(Number(selectedClosurePreview.expected_cash_to_render))}
-                </p>
-              </div>
-              <div className="min-w-0 overflow-hidden rounded-2xl border border-rose-500/18 bg-rose-500/10 p-4">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Gastos efectivo</p>
-                <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-[1.1rem] font-bold text-rose-600 dark:text-rose-400 [font-variant-numeric:tabular-nums]">
-                  {currency.format(Number(selectedClosurePreview.expected_cash_expenses_total))}
-                </p>
-              </div>
-              <div className="min-w-0 overflow-hidden rounded-2xl border border-lime-500/18 bg-lime-500/10 p-4">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo remito</p>
-                <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-[1.1rem] font-bold text-lime-600 dark:text-lime-400 [font-variant-numeric:tabular-nums]">
-                  {currency.format(Number(selectedClosurePreview.expected_cash_remito_total))}
-                </p>
-              </div>
-              <div className="min-w-0 overflow-hidden rounded-2xl border border-warning/18 bg-warning/10 p-4">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Efectivo facturable</p>
-                <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-[1.1rem] font-bold text-warning [font-variant-numeric:tabular-nums]">
-                  {currency.format(Number(selectedClosurePreview.expected_cash_facturable_total))}
-                </p>
-              </div>
-              <div className="min-w-0 overflow-hidden rounded-2xl border border-amber-400/18 bg-amber-400/10 p-4">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Servicios / remito</p>
-                <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-[1.1rem] font-bold text-amber-600 dark:text-amber-400 [font-variant-numeric:tabular-nums]">
-                  {currency.format(Number(selectedClosurePreview.expected_services_remito_total))}
-                </p>
-              </div>
-              <div className="min-w-0 overflow-hidden rounded-2xl border border-info/18 bg-info/10 p-4">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Point esperado</p>
-                <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-[1.1rem] font-bold text-info [font-variant-numeric:tabular-nums]">
-                  {currency.format(Number(selectedClosurePreview.expected_point_sales_total))}
-                </p>
-              </div>
-              <div className="min-w-0 overflow-hidden rounded-2xl border border-primary/18 bg-primary/10 p-4">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Transf. esperadas</p>
-                <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-[1.1rem] font-bold text-primary [font-variant-numeric:tabular-nums]">
-                  {currency.format(Number(selectedClosurePreview.expected_transfer_sales_total))}
-                </p>
-              </div>
-              <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-500/18 bg-slate-500/10 p-4">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Cuenta corriente</p>
-                <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-[1.1rem] font-bold text-slate-700 dark:text-slate-300 [font-variant-numeric:tabular-nums]">
-                  {currency.format(Number(selectedClosurePreview.expected_account_sales_total))}
-                </p>
+
+              <div className="rounded-2xl border border-border/60 bg-background/76 p-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total ventas</p>
+                    <AmountDisplay value={Number(selectedClosurePreview.expected_sales_total)} size="sm" className="mt-1" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Gastos efectivo</p>
+                    <AmountDisplay value={Number(selectedClosurePreview.expected_cash_expenses_total)} size="sm" className="mt-1 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Point</p>
+                    <AmountDisplay value={Number(selectedClosurePreview.expected_point_sales_total)} size="sm" className="mt-1" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Transferencias</p>
+                    <AmountDisplay value={Number(selectedClosurePreview.expected_transfer_sales_total)} size="sm" className="mt-1" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Cuenta corriente</p>
+                    <AmountDisplay value={Number(selectedClosurePreview.expected_account_sales_total)} size="sm" className="mt-1" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Gastos fuera de caja</p>
+                    <AmountDisplay value={Number(selectedClosurePreview.expected_account_expenses_total)} size="sm" className="mt-1" />
+                  </div>
+                </div>
               </div>
             </div>
 
