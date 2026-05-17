@@ -117,6 +117,8 @@ const basePriceRow: PriceListItemRow = {
   utilidad_pct: 10,
   impuesto_pct: 21,
   final_price_override: null,
+  manual_price_enabled: false,
+  manual_price_note: null,
   items: null,
 };
 
@@ -151,5 +153,25 @@ describe("normalizeDraftLine", () => {
     expect(line.suggested_unit_price).toBe(1500);
     expect(line.unit_price).toBe(1400);
     expect(line.price_overridden_by).toBe("user-1");
+  });
+
+  it("uses active product override without rounding", () => {
+    const line = normalizeDraftLine({
+      line: baseLine,
+      draftForm: baseDraftForm,
+      priceByItem: new Map([["item-1", 2100]]),
+      priceListItemByItemId: new Map([
+        [
+          "item-1",
+          { ...basePriceRow, calculated_price: 1850, final_price_override: 2100, manual_price_enabled: true },
+        ],
+      ]),
+      priceRoundingConfig: { enabled: true, increment: 500 },
+      userId: "user-1",
+      nowIso: "2026-05-16T00:00:00.000Z",
+    });
+
+    expect(line.suggested_unit_price).toBe(2100);
+    expect(line.unit_price).toBe(2100);
   });
 });

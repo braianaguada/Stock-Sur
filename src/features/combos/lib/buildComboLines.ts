@@ -1,4 +1,5 @@
 import type { LineDraft, PriceListItemRow } from "@/features/documents/types";
+import { getOperationalPrice } from "@/features/pricing/operational-price";
 
 type ComboLineInput = {
   item_id: string;
@@ -46,8 +47,14 @@ export function buildComboLines({ comboName, lines, multiplier = 1, availableIte
     const item = itemsById.get(line.item_id);
     if (!item) throw new Error(`No se encontro el item ${line.item_id} para el combo ${comboName}`);
     const priceRow = priceListItemByItemId.get(item.id);
-    const suggestedUnitPrice = priceByItem.get(item.id) ?? (Number(priceRow?.calculated_price) || 0);
-    const unitPrice = applyRounding(suggestedUnitPrice);
+    const operationalPrice = getOperationalPrice({
+      calculatedPrice: Number(priceRow?.calculated_price) || priceByItem.get(item.id) || 0,
+      manualOverridePrice: priceRow?.final_price_override ?? null,
+      manualPriceEnabled: priceRow?.manual_price_enabled ?? false,
+      roundFormula: applyRounding,
+    });
+    const suggestedUnitPrice = operationalPrice.price;
+    const unitPrice = operationalPrice.price;
     const expandedQuantity = line.quantity * multiplier;
     return {
       ...EMPTY_LINE(item.id, expandedQuantity, userId, nowIso),
@@ -57,6 +64,8 @@ export function buildComboLines({ comboName, lines, multiplier = 1, availableIte
       quantity: expandedQuantity,
       unit_price: unitPrice,
       suggested_unit_price: suggestedUnitPrice,
+      unrounded_suggested_unit_price: operationalPrice.roundedFrom ?? null,
+      is_product_override: operationalPrice.source === "PRODUCT_OVERRIDE",
       base_cost_snapshot: priceRow ? Number(priceRow.base_cost) || 0 : null,
       list_flete_pct_snapshot: priceRow?.flete_pct !== null && priceRow?.flete_pct !== undefined ? Number(priceRow.flete_pct) : null,
       list_utilidad_pct_snapshot: priceRow?.utilidad_pct !== null && priceRow?.utilidad_pct !== undefined ? Number(priceRow.utilidad_pct) : null,

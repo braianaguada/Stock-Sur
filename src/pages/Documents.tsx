@@ -47,6 +47,7 @@ import type {
 } from "@/features/documents/types";
 import { calculatePriceFromCostBase, formatNumber } from "@/features/documents/utils";
 import { buildComboLines } from "@/features/combos/lib/buildComboLines";
+import { getOperationalPrice } from "@/features/pricing/operational-price";
 import { roundPrice } from "@/features/pricing/rounding";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
@@ -227,9 +228,13 @@ export default function DocumentsPage() {
     ): LineDraft => {
       if (!priceListRow) return line;
 
-      const unroundedSuggestedUnitPrice =
-        priceByItem.get(priceListRow.item_id) ?? (Number(priceListRow.calculated_price) || 0);
-      const suggestedUnitPrice = roundPrice(unroundedSuggestedUnitPrice, priceRoundingConfig);
+      const operationalPrice = getOperationalPrice({
+        calculatedPrice: Number(priceListRow.calculated_price) || 0,
+        manualOverridePrice: priceListRow.final_price_override,
+        manualPriceEnabled: priceListRow.manual_price_enabled,
+        config: priceRoundingConfig,
+      });
+      const suggestedUnitPrice = operationalPrice.price;
       const baseCost = Number(priceListRow.base_cost) || 0;
       const listFlete = priceListRow.flete_pct !== null ? Number(priceListRow.flete_pct) : null;
       const listUtilidad =
@@ -247,7 +252,8 @@ export default function DocumentsPage() {
         pricing_mode: nextMode,
         suggested_unit_price: suggestedUnitPrice,
         unrounded_suggested_unit_price:
-          suggestedUnitPrice !== unroundedSuggestedUnitPrice ? unroundedSuggestedUnitPrice : null,
+          operationalPrice.roundedFrom ?? null,
+        is_product_override: operationalPrice.source === "PRODUCT_OVERRIDE",
         base_cost_snapshot: baseCost,
         list_flete_pct_snapshot: listFlete,
         list_utilidad_pct_snapshot: listUtilidad,
@@ -273,7 +279,7 @@ export default function DocumentsPage() {
 
       return nextLine;
     },
-    [priceByItem, priceRoundingConfig],
+    [priceRoundingConfig],
   );
 
   useEffect(() => {
@@ -387,7 +393,12 @@ export default function DocumentsPage() {
       }),
       unit: item.unit || "un",
       unit_price: draftForm.price_list_id
-        ? roundPrice(priceByItem.get(itemId) ?? 0, priceRoundingConfig)
+        ? getOperationalPrice({
+            calculatedPrice: priceListItemByItemId.get(itemId)?.calculated_price ?? priceByItem.get(itemId) ?? 0,
+            manualOverridePrice: priceListItemByItemId.get(itemId)?.final_price_override ?? null,
+            manualPriceEnabled: priceListItemByItemId.get(itemId)?.manual_price_enabled ?? false,
+            config: priceRoundingConfig,
+          }).price
         : draftLines[index].unit_price,
     };
 

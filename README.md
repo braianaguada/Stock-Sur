@@ -123,6 +123,13 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - no modifica costos base, precios importados, `price_list_items`, listas originales ni snapshots de porcentajes
   - el usuario puede seguir cambiando el precio manualmente; ese override se respeta
   - cuando una linea nueva queda redondeada, el editor muestra un badge discreto `Redondeado` con el sugerido original en el tooltip
+- Precios personalizados por producto/lista:
+  - cada fila de `price_list_items` puede activar `manual_price_enabled` y usar `final_price_override` como precio operativo final
+  - prioridad de precios: 1) precio manual editado en el documento, 2) precio personalizado del producto en esa lista, 3) precio calculado por formula, 4) fallback sin precio
+  - el precio personalizado se respeta exacto y no se redondea automaticamente; el redondeo operativo sigue aplicando solo para precios calculados por formula
+  - el precio calculado y el costo base no se borran; quedan como referencia para margen, tooltip y vuelta a formula
+  - recalcular una lista actualiza `calculated_price` pero conserva el override activo, nota y metadata
+  - migracion: `supabase/migrations/20260516120000_price_list_product_overrides.sql`
 - Combos de productos v1:
   - nueva ruta `/combos` para crear combos reutilizables por empresa
   - CRUD mejorado con edicion de cabecera, activacion/desactivacion y editor de lineas

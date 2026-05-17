@@ -126,7 +126,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
-        .select("item_id, is_active, base_cost, calculated_price, flete_pct, utilidad_pct, impuesto_pct, final_price_override, items(id, sku, name, attributes, brand, model, unit)")
+        .select("item_id, is_active, base_cost, calculated_price, flete_pct, utilidad_pct, impuesto_pct, final_price_override, manual_price_enabled, manual_price_note, items(id, sku, name, attributes, brand, model, unit)")
         .eq("company_id", currentCompanyId!)
         .eq("price_list_id", selectedPriceListId)
         .eq("is_active", true);
@@ -201,7 +201,7 @@ export function useDocumentsData({
   const priceByItem = useMemo(() => {
     const map = new Map<string, number>();
     for (const row of priceListItems) {
-      if (row.final_price_override !== null && Number(row.final_price_override) > 0) {
+      if (row.manual_price_enabled && row.final_price_override !== null && Number(row.final_price_override) >= 0) {
         map.set(row.item_id, Number(row.final_price_override));
         continue;
       }

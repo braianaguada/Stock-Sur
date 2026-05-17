@@ -59,7 +59,10 @@ const DEFAULT_DETAIL_COLUMN_VISIBILITY: VisibilityState = {
   name: true,
   attributes: true,
   calculated_price: true,
+  price_source: true,
+  estimated_margin: true,
   needs_recalculation: true,
+  actions: true,
 };
 const BASE_COLUMN_OPTIONS: Array<{ id: keyof typeof DEFAULT_BASE_COLUMN_VISIBILITY; label: string }> = [
   { id: "sku", label: "SKU" },
@@ -161,6 +164,7 @@ export default function PriceListsPage() {
     createListMutation,
     updateListConfigMutation,
     recalculateMutation,
+    updateProductOverrideMutation,
     deleteListMutation,
     basePagination,
     detailPagination,
@@ -664,6 +668,17 @@ export default function PriceListsPage() {
           if (!selectedListId) return;
           recalculateMutation.mutate(selectedListId);
         }}
+        onUpdateProductOverride={(itemId, values) => {
+          if (!selectedListId) return;
+          updateProductOverrideMutation.mutate({
+            itemId,
+            priceListId: selectedListId,
+            enabled: values.enabled,
+            price: values.price,
+            note: values.note,
+          });
+        }}
+        isSavingProductOverride={updateProductOverrideMutation.isPending}
         onDelete={() => setDeleteDialogOpen(true)}
       />
 

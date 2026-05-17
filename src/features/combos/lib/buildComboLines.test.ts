@@ -70,4 +70,36 @@ describe("buildComboLines", () => {
       }),
     ).toThrow(/multiplicador/i);
   });
+
+  it("uses active product override from combo lines without rounding", () => {
+    const lines = buildComboLines({
+      comboName: "Combo",
+      lines: [{ item_id: "a", quantity: 1, line_order: 1 }],
+      availableItems: items,
+      priceByItem: new Map([["a", 2100]]),
+      priceListItemByItemId: new Map([
+        [
+          "a",
+          {
+            item_id: "a",
+            is_active: true,
+            base_cost: 1000,
+            calculated_price: 1850,
+            flete_pct: 5,
+            utilidad_pct: 10,
+            impuesto_pct: 21,
+            final_price_override: 2100,
+            manual_price_enabled: true,
+            manual_price_note: null,
+            items: null,
+          },
+        ],
+      ]),
+      applyRounding: () => 2000,
+      nowIso: "2026-01-01T00:00:00.000Z",
+    });
+
+    expect(lines[0].unit_price).toBe(2100);
+    expect(lines[0].suggested_unit_price).toBe(2100);
+  });
 });
