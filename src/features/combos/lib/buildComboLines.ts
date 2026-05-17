@@ -1,5 +1,5 @@
 import type { LineDraft, PriceListItemRow } from "@/features/documents/types";
-import { getOperationalPrice } from "@/features/pricing/operational-price";
+import { buildDocumentLineFromItem, type DocumentLineItem } from "@/features/documents/lib/buildDocumentLineFromItem";
 
 type ComboLineInput = {
   item_id: string;
@@ -12,7 +12,7 @@ type BuildComboLinesParams = {
   comboName: string;
   lines: ComboLineInput[];
   multiplier?: number;
-  availableItems: Array<{ id: string; sku: string; name: string; unit?: string | null; brand?: string | null; model?: string | null; attributes?: string | null }>;
+  availableItems: DocumentLineItem[];
   priceByItem: Map<string, number>;
   priceListItemByItemId: Map<string, PriceListItemRow>;
   applyRounding: (price: number) => number;
@@ -20,25 +20,7 @@ type BuildComboLinesParams = {
   nowIso: string;
 };
 
-const EMPTY_LINE = (itemId: string, quantity: number, userId?: string, nowIso?: string): LineDraft => ({
-  item_id: itemId,
-  sku_snapshot: "",
-  description: "",
-  unit: "un",
-  quantity,
-  unit_price: 0,
-  pricing_mode: "LIST_PRICE",
-  suggested_unit_price: 0,
-  base_cost_snapshot: null,
-  list_flete_pct_snapshot: null,
-  list_utilidad_pct_snapshot: null,
-  list_impuesto_pct_snapshot: null,
-  manual_margin_pct: null,
-  price_overridden_by: userId ?? null,
-  price_overridden_at: nowIso ?? null,
-});
-
-export function buildComboLines({ comboName, lines, multiplier = 1, availableItems, priceByItem, priceListItemByItemId, applyRounding, userId, nowIso }: BuildComboLinesParams) {
+export function buildComboLines({ comboName, lines, multiplier = 1, availableItems, priceByItem, priceListItemByItemId, applyRounding }: BuildComboLinesParams) {
   if (!Number.isFinite(multiplier) || multiplier <= 0) {
     throw new Error(`El multiplicador del combo ${comboName} debe ser mayor a cero`);
   }
@@ -46,32 +28,14 @@ export function buildComboLines({ comboName, lines, multiplier = 1, availableIte
   return lines.map((line) => {
     const item = itemsById.get(line.item_id);
     if (!item) throw new Error(`No se encontro el item ${line.item_id} para el combo ${comboName}`);
-    const priceRow = priceListItemByItemId.get(item.id);
-    const operationalPrice = getOperationalPrice({
-      calculatedPrice: Number(priceRow?.calculated_price) || priceByItem.get(item.id) || 0,
-      manualOverridePrice: priceRow?.final_price_override ?? null,
-      manualPriceEnabled: priceRow?.manual_price_enabled ?? false,
-      roundFormula: applyRounding,
-    });
-    const suggestedUnitPrice = operationalPrice.price;
-    const unitPrice = operationalPrice.price;
     const expandedQuantity = line.quantity * multiplier;
-    return {
-      ...EMPTY_LINE(item.id, expandedQuantity, userId, nowIso),
-      sku_snapshot: item.sku,
-      description: item.name,
-      unit: item.unit ?? "un",
+    return buildDocumentLineFromItem({
+      item,
       quantity: expandedQuantity,
-      unit_price: unitPrice,
-      suggested_unit_price: suggestedUnitPrice,
-      unrounded_suggested_unit_price: operationalPrice.roundedFrom ?? null,
-      is_product_override: operationalPrice.source === "PRODUCT_OVERRIDE",
-      base_cost_snapshot: priceRow ? Number(priceRow.base_cost) || 0 : null,
-      list_flete_pct_snapshot: priceRow?.flete_pct !== null && priceRow?.flete_pct !== undefined ? Number(priceRow.flete_pct) : null,
-      list_utilidad_pct_snapshot: priceRow?.utilidad_pct !== null && priceRow?.utilidad_pct !== undefined ? Number(priceRow.utilidad_pct) : null,
-      list_impuesto_pct_snapshot: priceRow?.impuesto_pct !== null && priceRow?.impuesto_pct !== undefined ? Number(priceRow.impuesto_pct) : null,
-      price_overridden_by: null,
-      price_overridden_at: null,
-    } satisfies LineDraft;
+      priceListRow: priceListItemByItemId.get(item.id),
+      priceByItem,
+      applyRounding,
+      forceListPrice: true,
+    }) satisfies LineDraft;
   });
 }

@@ -12,7 +12,6 @@ import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
-import { buildItemDisplayName } from "@/lib/item-display";
 import { getErrorMessage } from "@/lib/errors";
 import {
   canCloneBudgetToRemito,
@@ -30,6 +29,7 @@ import { DocumentsDataTable } from "@/features/documents/components/DocumentsDat
 import { useDocumentsData } from "@/features/documents/hooks/useDocumentsData";
 import { useDocumentDraftLoader } from "@/features/documents/hooks/useDocumentDraftLoader";
 import { useDocumentsMutations } from "@/features/documents/hooks/useDocumentsMutations";
+import { buildDocumentLineFromItem } from "@/features/documents/lib/buildDocumentLineFromItem";
 import { mergeComboDocumentLines } from "@/features/documents/lib/mergeComboDocumentLines";
 import { DUPLICATE_DOCUMENT_CONFIRMATION } from "@/features/documents/lib/duplicate";
 import { buildDocumentPrintHtml } from "@/features/documents/print";
@@ -42,12 +42,10 @@ import type {
   DocumentFormState,
   InternalRemitoType,
   LineDraft,
-  LinePricingMode,
   PriceListItemRow,
 } from "@/features/documents/types";
-import { calculatePriceFromCostBase, formatNumber } from "@/features/documents/utils";
+import { formatNumber } from "@/features/documents/utils";
 import { buildComboLines } from "@/features/combos/lib/buildComboLines";
-import { getOperationalPrice } from "@/features/pricing/operational-price";
 import { roundPrice } from "@/features/pricing/rounding";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
@@ -227,59 +225,20 @@ export default function DocumentsPage() {
       forceListPrice = false,
     ): LineDraft => {
       if (!priceListRow) return line;
+      const item = itemsById.get(priceListRow.item_id);
+      if (!item) return line;
 
-      const operationalPrice = getOperationalPrice({
-        calculatedPrice: Number(priceListRow.calculated_price) || 0,
-        manualOverridePrice: priceListRow.final_price_override,
-        manualPriceEnabled: priceListRow.manual_price_enabled,
-        config: priceRoundingConfig,
+      return buildDocumentLineFromItem({
+        item,
+        quantity: line.quantity,
+        currentLine: line,
+        priceListRow,
+        priceByItem,
+        applyRounding: (price) => roundPrice(price, priceRoundingConfig),
+        forceListPrice,
       });
-      const suggestedUnitPrice = operationalPrice.price;
-      const baseCost = Number(priceListRow.base_cost) || 0;
-      const listFlete = priceListRow.flete_pct !== null ? Number(priceListRow.flete_pct) : null;
-      const listUtilidad =
-        priceListRow.utilidad_pct !== null ? Number(priceListRow.utilidad_pct) : null;
-      const listImpuesto =
-        priceListRow.impuesto_pct !== null ? Number(priceListRow.impuesto_pct) : null;
-      const nextMode: LinePricingMode = forceListPrice
-        ? "LIST_PRICE"
-        : line.pricing_mode === "MANUAL_MARGIN" || line.pricing_mode === "MANUAL_PRICE"
-          ? line.pricing_mode
-          : "LIST_PRICE";
-
-      const nextLine: LineDraft = {
-        ...line,
-        pricing_mode: nextMode,
-        suggested_unit_price: suggestedUnitPrice,
-        unrounded_suggested_unit_price:
-          operationalPrice.roundedFrom ?? null,
-        is_product_override: operationalPrice.source === "PRODUCT_OVERRIDE",
-        base_cost_snapshot: baseCost,
-        list_flete_pct_snapshot: listFlete,
-        list_utilidad_pct_snapshot: listUtilidad,
-        list_impuesto_pct_snapshot: listImpuesto,
-      };
-
-      if (nextMode === "LIST_PRICE") {
-        return {
-          ...nextLine,
-          unit_price: suggestedUnitPrice,
-          manual_margin_pct: null,
-        };
-      }
-
-      if (nextMode === "MANUAL_MARGIN") {
-        const marginPct = nextLine.manual_margin_pct ?? listUtilidad ?? 0;
-        return {
-          ...nextLine,
-          manual_margin_pct: marginPct,
-          unit_price: calculatePriceFromCostBase(baseCost, listFlete, marginPct, listImpuesto),
-        };
-      }
-
-      return nextLine;
     },
-    [priceRoundingConfig],
+    [itemsById, priceByItem, priceRoundingConfig],
   );
 
   useEffect(() => {
@@ -381,41 +340,22 @@ export default function DocumentsPage() {
     const item = itemsById.get(itemId);
     if (!item) return;
 
-    const baseLine: LineDraft = {
-      ...draftLines[index],
-      item_id: itemId,
-      sku_snapshot: item.sku,
-      description: buildItemDisplayName({
-        name: item.name,
-        brand: "brand" in item ? (item.brand as string | null | undefined) : null,
-        model: "model" in item ? (item.model as string | null | undefined) : null,
-        attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
-      }),
-      unit: item.unit || "un",
-      unit_price: draftForm.price_list_id
-        ? getOperationalPrice({
-            calculatedPrice: priceListItemByItemId.get(itemId)?.calculated_price ?? priceByItem.get(itemId) ?? 0,
-            manualOverridePrice: priceListItemByItemId.get(itemId)?.final_price_override ?? null,
-            manualPriceEnabled: priceListItemByItemId.get(itemId)?.manual_price_enabled ?? false,
-            config: priceRoundingConfig,
-          }).price
-        : draftLines[index].unit_price,
-    };
-
     draftLines[index] = draftForm.price_list_id
-      ? syncLineWithPriceList(baseLine, priceListItemByItemId.get(itemId), true)
-      : {
-          ...baseLine,
-          pricing_mode: "MANUAL_PRICE",
-          suggested_unit_price: baseLine.unit_price,
-          base_cost_snapshot: null,
-          list_flete_pct_snapshot: null,
-          list_utilidad_pct_snapshot: null,
-          list_impuesto_pct_snapshot: null,
-          manual_margin_pct: null,
-          price_overridden_by: null,
-          price_overridden_at: null,
-        };
+      ? buildDocumentLineFromItem({
+          item,
+          quantity: draftLines[index].quantity,
+          currentLine: draftLines[index],
+          priceListRow: priceListItemByItemId.get(itemId),
+          priceByItem,
+          applyRounding: (price) => roundPrice(price, priceRoundingConfig),
+          forceListPrice: true,
+        })
+      : buildDocumentLineFromItem({
+          item,
+          quantity: draftLines[index].quantity,
+          currentLine: draftLines[index],
+          applyRounding: (price) => roundPrice(price, priceRoundingConfig),
+        });
   };
 
   const onPickItem = (index: number, itemId: string) => {

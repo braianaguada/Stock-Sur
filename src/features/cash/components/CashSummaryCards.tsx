@@ -1,130 +1,158 @@
-import { Banknote, CircleDollarSign, Landmark, Receipt, Smartphone, TrendingDown } from "lucide-react";
+import type { ReactNode } from "react";
+import { Banknote, Landmark, Receipt, Smartphone, TrendingDown } from "lucide-react";
+import { AmountDisplay, CompactBadge } from "@/components/common/VisualSystem";
 import { Card, CardContent } from "@/components/ui/card";
-import { currency } from "@/lib/formatters";
-import type { CashSummary } from "../types";
+import type { CashSummary, ClosureStatus } from "../types";
 
 type CashSummaryCardsProps = {
   summary: CashSummary;
+  closureStatus?: ClosureStatus | null;
+  movementCount?: number;
+  pendingCount?: number;
 };
 
-const toneClasses = {
-  remito: "from-card via-card to-success/12 before:bg-success/75",
-  facturable: "from-card via-card to-lime-500/12 before:bg-lime-500/80",
-  servicios: "from-card via-card to-warning/14 before:bg-warning/80",
-  info: "from-card via-card to-info/12 before:bg-info/75",
-  account: "from-card via-card to-warning/14 before:bg-warning/80",
-  expense: "from-card via-card to-rose-500/12 before:bg-rose-500/80",
-  total: "from-card via-card to-primary/10 before:bg-primary/75",
-} as const;
+function BreakdownRow({ label, value, icon }: { label: string; value: number; icon: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-border/45 py-3 last:border-b-0">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="rounded-md bg-muted/55 p-1.5 text-muted-foreground">
+          {icon}
+        </span>
+        <span className="truncate text-sm font-medium text-muted-foreground">{label}</span>
+      </div>
+      <AmountDisplay value={value} size="sm" className="shrink-0 text-right" />
+    </div>
+  );
+}
 
-const iconClasses = {
-  remito: "border-success/18 bg-success/10 text-success",
-  facturable: "border-lime-500/18 bg-lime-500/10 text-lime-600 dark:text-lime-400",
-  servicios: "border-warning/18 bg-warning/12 text-warning",
-  info: "border-info/18 bg-info/12 text-info",
-  account: "border-warning/18 bg-warning/12 text-warning",
-  expense: "border-rose-500/18 bg-rose-500/10 text-rose-600 dark:text-rose-400",
-  total: "border-primary/18 bg-primary/10 text-primary",
-} as const;
+function SummaryFact({ label, value, tone = "default" }: { label: string; value: number; tone?: "default" | "success" | "warning" | "danger" }) {
+  const toneClassName = {
+    default: "text-foreground",
+    success: "text-success",
+    warning: "text-warning",
+    danger: "text-destructive",
+  }[tone];
 
-export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
-  const cards = [
+  return (
+    <div className="min-w-0 border-l border-border/60 pl-4 first:border-l-0 first:pl-0">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <AmountDisplay value={value} size="lg" className={toneClassName} />
+    </div>
+  );
+}
+
+export function CashOverviewPanel({
+  summary,
+  closureStatus,
+  movementCount = 0,
+  pendingCount = summary.pendientes,
+}: CashSummaryCardsProps) {
+  const digitalTotal = summary.point + summary.transferencia + summary.serviciosRemito;
+  const breakdown = [
     {
       label: "Efectivo remito",
       value: summary.efectivoRemito,
-      icon: <Banknote className="h-4 w-4" />,
-      tone: "remito" as const,
+      icon: <Banknote className="h-3.5 w-3.5" />,
     },
     {
       label: "Efectivo facturable",
       value: summary.efectivoFacturable,
-      icon: <Banknote className="h-4 w-4" />,
-      tone: "facturable" as const,
+      icon: <Banknote className="h-3.5 w-3.5" />,
     },
     {
       label: "Servicios / remito",
       value: summary.serviciosRemito,
-      icon: <Receipt className="h-4 w-4" />,
-      tone: "servicios" as const,
+      icon: <Receipt className="h-3.5 w-3.5" />,
     },
     {
       label: "Point",
       value: summary.point,
-      icon: <Smartphone className="h-4 w-4" />,
-      tone: "info" as const,
+      icon: <Smartphone className="h-3.5 w-3.5" />,
     },
     {
       label: "Transferencias",
       value: summary.transferencia,
-      icon: <Landmark className="h-4 w-4" />,
-      tone: "info" as const,
+      icon: <Landmark className="h-3.5 w-3.5" />,
     },
     {
       label: "Cuenta corriente",
       value: summary.cuentaCorriente,
-      icon: <Receipt className="h-4 w-4" />,
-      tone: "account" as const,
-    },
-    {
-      label: "Gastos efectivo",
-      value: summary.gastosEfectivo,
-      icon: <TrendingDown className="h-4 w-4" />,
-      tone: "expense" as const,
-      hint: "Resta al efectivo",
-    },
-    {
-      label: "Efectivo neto",
-      value: summary.efectivoNetoEsperado,
-      icon: <CircleDollarSign className="h-4 w-4" />,
-      tone: "total" as const,
+      icon: <Receipt className="h-3.5 w-3.5" />,
     },
   ];
 
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
-      {cards.map((card) => {
-        const formattedValue = currency.format(card.value);
-        const valueClassName =
-          formattedValue.length >= 13
-            ? "text-[1.22rem] md:text-[1.35rem] 2xl:text-[1.28rem]"
-            : formattedValue.length >= 11
-              ? "text-[1.4rem] md:text-[1.52rem] 2xl:text-[1.42rem]"
-              : formattedValue.length >= 10
-                ? "text-[1.56rem] md:text-[1.7rem] 2xl:text-[1.58rem]"
-                : "text-[1.85rem]";
-
-        return (
-          <Card
-            key={card.label}
-            className={`relative overflow-hidden bg-gradient-to-br ${toneClasses[card.tone]} before:absolute before:inset-x-5 before:top-0 before:h-px shadow-[var(--shadow-xs)] ${card.label === "Efectivo neto" ? "xl:col-span-2 2xl:col-span-1" : ""}`}
-          >
-            <CardContent className="px-5 py-7 text-center">
-              <div className="grid min-h-[156px] place-items-center">
-                <div className="flex w-full min-w-0 max-w-[16rem] flex-col items-center justify-center gap-3 overflow-hidden">
-                  <div
-                    className={`mx-auto flex h-10 w-10 items-center justify-center rounded-2xl border shadow-[var(--shadow-xs)] ${iconClasses[card.tone]}`}
-                  >
-                    {card.icon}
-                  </div>
-                  <div className="w-full space-y-1.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      {card.label}
-                    </p>
-                    <div
-                      className={`mx-auto max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-bold leading-none tracking-[-0.045em] text-foreground [font-variant-numeric:tabular-nums] ${valueClassName}`}
-                    >
-                      {formattedValue}
-                    </div>
-                  </div>
-                  {card.hint ? (
-                    <p className="max-w-[18ch] text-sm leading-5 text-muted-foreground">{card.hint}</p>
-                  ) : null}
-                </div>
+    <Card className="overflow-hidden border-primary/10 bg-card shadow-[var(--shadow-sm)]">
+      <CardContent className="p-0">
+        <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-5 p-5 lg:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Resumen operativo</p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">Caja del dia</h2>
               </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+              <CompactBadge tone={closureStatus === "CERRADO" ? "success" : "warning"}>
+                {closureStatus === "CERRADO" ? "Caja cerrada" : "Caja abierta"}
+              </CompactBadge>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-end">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Total vendido del dia</p>
+                <AmountDisplay value={summary.total} size="hero" className="max-w-4xl text-5xl font-black text-foreground sm:text-6xl" />
+              </div>
+              <p className="text-sm leading-6 text-muted-foreground lg:text-right">
+                Venta bruta del dia. La rendicion se controla con efectivo a rendir y gastos en caja.
+              </p>
+            </div>
+
+            <div className="grid gap-4 rounded-2xl border border-border/55 bg-[hsl(var(--panel))]/36 p-4 md:grid-cols-2 xl:grid-cols-4">
+              <SummaryFact label="Efectivo a rendir" value={summary.efectivoNetoEsperado} tone="success" />
+              <SummaryFact label="Gastos efectivo" value={summary.gastosEfectivo} tone="danger" />
+              <SummaryFact label="Otros medios" value={digitalTotal} />
+              <SummaryFact label="Cuenta corriente" value={summary.cuentaCorriente} />
+            </div>
+
+            {summary.gastosEfectivo > 0 || summary.gastosNoEfectivo > 0 || pendingCount > 0 ? (
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                {summary.gastosEfectivo > 0 ? (
+                  <CompactBadge tone="danger">
+                    <TrendingDown className="mr-1 h-3 w-3" /> Gastos efectivo registrados
+                  </CompactBadge>
+                ) : null}
+                {summary.gastosNoEfectivo > 0 ? (
+                  <CompactBadge tone="muted">
+                    Gastos fuera de caja: {summary.gastosNoEfectivo.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}
+                  </CompactBadge>
+                ) : null}
+                {pendingCount > 0 ? (
+                  <span className="self-center text-muted-foreground">
+                    Nota tecnica: {pendingCount} movimiento{pendingCount === 1 ? "" : "s"} sin comprobante asociado.
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="border-t border-border/60 bg-[hsl(var(--panel))]/28 p-5 xl:border-l xl:border-t-0">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Composicion</p>
+                <p className="text-xs text-muted-foreground">{movementCount} movimiento{movementCount === 1 ? "" : "s"} del dia</p>
+              </div>
+            </div>
+            <div className="mt-3">
+              {breakdown.map((item) => (
+                <BreakdownRow key={item.label} label={item.label} value={item.value} icon={item.icon} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
+}
+
+export function CashSummaryCards(props: CashSummaryCardsProps) {
+  return <CashOverviewPanel {...props} />;
 }
