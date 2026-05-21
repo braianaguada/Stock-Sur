@@ -63,6 +63,11 @@ type PriceListSnapshotDbRow = {
   item_id: string;
   base_cost: number;
   calculated_price: number;
+  final_price_override: number | null;
+  manual_price_enabled: boolean;
+  manual_price_note: string | null;
+  manual_price_updated_at: string | null;
+  manual_price_updated_by: string | null;
   needs_recalculation: boolean;
   last_calculated_at: string | null;
   last_calculated_by: string | null;
@@ -170,7 +175,7 @@ export function usePriceListsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
-        .select("price_list_id, item_id, base_cost, calculated_price, needs_recalculation, last_calculated_at, last_calculated_by")
+        .select("price_list_id, item_id, base_cost, calculated_price, final_price_override, manual_price_enabled, manual_price_note, manual_price_updated_at, manual_price_updated_by, needs_recalculation, last_calculated_at, last_calculated_by")
         .eq("company_id", currentCompany!.id)
         .eq("price_list_id", selectedListId!)
         .eq("is_active", true);
@@ -186,7 +191,7 @@ export function usePriceListsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
-        .select("price_list_id, item_id, base_cost, calculated_price, needs_recalculation, last_calculated_at, last_calculated_by")
+        .select("price_list_id, item_id, base_cost, calculated_price, final_price_override, manual_price_enabled, manual_price_note, manual_price_updated_at, manual_price_updated_by, needs_recalculation, last_calculated_at, last_calculated_by")
         .eq("company_id", currentCompany!.id)
         .eq("is_active", true);
       if (error) throw error;
@@ -371,6 +376,11 @@ export function usePriceListsData({
         base_cost: row.base_cost,
         cost_variation_pct: row.cost_variation_pct,
         calculated_price: snapshot?.calculated_price ?? 0,
+        final_price_override: snapshot?.final_price_override ?? null,
+        manual_price_enabled: snapshot?.manual_price_enabled ?? false,
+        manual_price_note: snapshot?.manual_price_note ?? null,
+        manual_price_updated_at: snapshot?.manual_price_updated_at ?? null,
+        manual_price_updated_by: snapshot?.manual_price_updated_by ?? null,
         needs_recalculation: snapshot?.needs_recalculation ?? true,
         last_calculated_at: snapshot?.last_calculated_at ?? null,
         last_calculated_by: snapshot?.last_calculated_by ?? null,
@@ -501,6 +511,48 @@ export function usePriceListsData({
       toast({ title: "No se pudo recalcular la lista", description: getErrorMessage(error), variant: "destructive" }),
   });
 
+  const updateProductOverrideMutation = useMutation({
+    mutationFn: async ({
+      itemId,
+      priceListId,
+      enabled,
+      price,
+      note,
+    }: {
+      itemId: string;
+      priceListId: string;
+      enabled: boolean;
+      price: number | null;
+      note: string;
+    }) => {
+      if (!currentCompany) throw new Error("SeleccionÃ¡ una empresa activa");
+      if (enabled && (price === null || !Number.isFinite(price) || price < 0)) {
+        throw new Error("El precio personalizado debe ser mayor o igual a 0");
+      }
+
+      const { error } = await supabase
+        .from("price_list_items")
+        .update({
+          final_price_override: enabled ? price : null,
+          manual_price_enabled: enabled,
+          manual_price_note: note.trim() || null,
+          manual_price_updated_at: new Date().toISOString(),
+          manual_price_updated_by: user?.id ?? null,
+        })
+        .eq("company_id", currentCompany.id)
+        .eq("price_list_id", priceListId)
+        .eq("item_id", itemId);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await invalidatePricingQueries(queryClient);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.documents.priceListItemsAll() });
+      toast({ title: "Precio personalizado guardado" });
+    },
+    onError: (error: unknown) =>
+      toast({ title: "No se pudo guardar el precio personalizado", description: getErrorMessage(error), variant: "destructive" }),
+  });
+
   const deleteListMutation = useMutation({
     mutationFn: async (priceListId: string) => {
       if (!currentCompany) throw new Error("Seleccioná una empresa activa");
@@ -551,6 +603,7 @@ export function usePriceListsData({
     createListMutation,
     updateListConfigMutation,
     recalculateMutation,
+    updateProductOverrideMutation,
     deleteListMutation,
     basePagination: {
       page: basePagination.page,

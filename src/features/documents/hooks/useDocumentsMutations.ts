@@ -15,7 +15,8 @@ import type {
   PriceListItemRow,
 } from "../types";
 import { calculatePriceFromCostBase, formatNumber } from "../utils";
-import { roundPrice, type PriceRoundingConfig } from "@/features/pricing/rounding";
+import { getOperationalPrice } from "@/features/pricing/operational-price";
+import type { PriceRoundingConfig } from "@/features/pricing/rounding";
 
 type ToastFn = (args: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
 
@@ -75,8 +76,13 @@ export function normalizeDraftLine({
     throw new Error("Hay items sin precio en la lista seleccionada");
   }
 
-  const unroundedSuggestedUnitPrice = priceByItem.get(line.item_id) ?? 0;
-  const suggestedUnitPrice = roundPrice(unroundedSuggestedUnitPrice, priceRoundingConfig);
+  const operationalPrice = getOperationalPrice({
+    calculatedPrice: Number(priceRow.calculated_price) || priceByItem.get(line.item_id) || 0,
+    manualOverridePrice: priceRow.final_price_override,
+    manualPriceEnabled: priceRow.manual_price_enabled,
+    config: priceRoundingConfig,
+  });
+  const suggestedUnitPrice = operationalPrice.price;
   const baseCost = Number(priceRow.base_cost) || 0;
   const listFletePct = priceRow.flete_pct !== null ? Number(priceRow.flete_pct) : null;
   const listUtilidadPct = priceRow.utilidad_pct !== null ? Number(priceRow.utilidad_pct) : null;
@@ -87,6 +93,7 @@ export function normalizeDraftLine({
     return {
       ...line,
       suggested_unit_price: suggestedUnitPrice,
+      is_product_override: operationalPrice.source === "PRODUCT_OVERRIDE",
       base_cost_snapshot: baseCost,
       list_flete_pct_snapshot: listFletePct,
       list_utilidad_pct_snapshot: listUtilidadPct,
@@ -102,6 +109,7 @@ export function normalizeDraftLine({
     return {
       ...line,
       suggested_unit_price: suggestedUnitPrice,
+      is_product_override: operationalPrice.source === "PRODUCT_OVERRIDE",
       base_cost_snapshot: baseCost,
       list_flete_pct_snapshot: listFletePct,
       list_utilidad_pct_snapshot: listUtilidadPct,
@@ -116,6 +124,7 @@ export function normalizeDraftLine({
     ...line,
     pricing_mode: "LIST_PRICE" as const,
     suggested_unit_price: suggestedUnitPrice,
+    is_product_override: operationalPrice.source === "PRODUCT_OVERRIDE",
     base_cost_snapshot: baseCost,
     list_flete_pct_snapshot: listFletePct,
     list_utilidad_pct_snapshot: listUtilidadPct,

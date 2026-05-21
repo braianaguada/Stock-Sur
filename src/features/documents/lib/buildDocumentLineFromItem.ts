@@ -1,4 +1,5 @@
 import { buildItemDisplayName } from "@/lib/item-display";
+import { getOperationalPrice } from "@/features/pricing/operational-price";
 import type { LineDraft, LinePricingMode, PriceListItemRow } from "../types";
 import { calculatePriceFromCostBase } from "../utils";
 
@@ -44,6 +45,7 @@ const EMPTY_ITEM_LINE = (item: DocumentLineItem, quantity: number): LineDraft =>
   price_overridden_by: null,
   price_overridden_at: null,
   unrounded_suggested_unit_price: null,
+  is_product_override: false,
 });
 
 export function buildDocumentLineFromItem({
@@ -83,12 +85,18 @@ export function buildDocumentLineFromItem({
       price_overridden_by: null,
       price_overridden_at: null,
       unrounded_suggested_unit_price: null,
+      is_product_override: false,
     };
   }
 
-  const unroundedSuggestedUnitPrice =
-    priceByItem.get(priceListRow.item_id) ?? (Number(priceListRow.calculated_price) || 0);
-  const suggestedUnitPrice = applyRounding(unroundedSuggestedUnitPrice);
+  const calculatedPrice = Number(priceListRow.calculated_price) || priceByItem.get(priceListRow.item_id) || 0;
+  const operationalPrice = getOperationalPrice({
+    calculatedPrice,
+    manualOverridePrice: priceListRow.final_price_override,
+    manualPriceEnabled: priceListRow.manual_price_enabled,
+    roundFormula: applyRounding,
+  });
+  const suggestedUnitPrice = operationalPrice.price;
   const baseCost = Number(priceListRow.base_cost) || 0;
   const listFlete = priceListRow.flete_pct !== null ? Number(priceListRow.flete_pct) : null;
   const listUtilidad = priceListRow.utilidad_pct !== null ? Number(priceListRow.utilidad_pct) : null;
@@ -103,8 +111,8 @@ export function buildDocumentLineFromItem({
     ...baseLine,
     pricing_mode: nextMode,
     suggested_unit_price: suggestedUnitPrice,
-    unrounded_suggested_unit_price:
-      suggestedUnitPrice !== unroundedSuggestedUnitPrice ? unroundedSuggestedUnitPrice : null,
+    unrounded_suggested_unit_price: operationalPrice.roundedFrom ?? null,
+    is_product_override: operationalPrice.source === "PRODUCT_OVERRIDE",
     base_cost_snapshot: baseCost,
     list_flete_pct_snapshot: listFlete,
     list_utilidad_pct_snapshot: listUtilidad,

@@ -159,6 +159,7 @@ vi.mock("@/features/price-lists/use-price-lists-data", () => ({
   usePriceListsData: () => ({
     ...priceListsData,
     recalculateMutation: { isPending: false, mutate: recalculateMutate },
+    updateProductOverrideMutation: { isPending: false, mutate: vi.fn() },
   }),
 }));
 

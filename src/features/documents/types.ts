@@ -21,6 +21,7 @@ export interface LineDraft {
   price_overridden_by: string | null;
   price_overridden_at: string | null;
   unrounded_suggested_unit_price?: number | null;
+  is_product_override?: boolean;
 }
 
 export interface DocumentFormState {
@@ -134,6 +135,8 @@ export interface PriceListItemRow {
   utilidad_pct: number | null;
   impuesto_pct: number | null;
   final_price_override: number | null;
+  manual_price_enabled: boolean;
+  manual_price_note: string | null;
   items: {
     id: string;
     sku: string;
