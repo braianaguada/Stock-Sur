@@ -553,6 +553,12 @@ Step 3 - deploy to production:
 npm run db:push:prod
 ```
 
+Production migration history note:
+
+- On 2026-05-21, remote-only migration version `20260514213000` was marked as `reverted` in production with `npx supabase migration repair --status reverted 20260514213000`.
+- This version did not exist in local migrations or git and only blocked production pushes.
+- Do not recreate `20260514213000` as a new migration; future schema changes should use a new timestamped migration file.
+
 ## Git workflow
 
 This repository uses a simple linear flow to avoid branch drift:
