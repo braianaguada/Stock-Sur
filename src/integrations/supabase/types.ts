@@ -1328,6 +1328,10 @@ export type Database = {
           item_id: string
           last_calculated_at: string | null
           last_calculated_by: string | null
+          manual_price_enabled: boolean
+          manual_price_note: string | null
+          manual_price_updated_at: string | null
+          manual_price_updated_by: string | null
           needs_recalculation: boolean
           price_list_id: string
           price_override: number | null
@@ -1346,6 +1350,10 @@ export type Database = {
           item_id: string
           last_calculated_at?: string | null
           last_calculated_by?: string | null
+          manual_price_enabled?: boolean
+          manual_price_note?: string | null
+          manual_price_updated_at?: string | null
+          manual_price_updated_by?: string | null
           needs_recalculation?: boolean
           price_list_id: string
           price_override?: number | null
@@ -1364,6 +1372,10 @@ export type Database = {
           item_id?: string
           last_calculated_at?: string | null
           last_calculated_by?: string | null
+          manual_price_enabled?: boolean
+          manual_price_note?: string | null
+          manual_price_updated_at?: string | null
+          manual_price_updated_by?: string | null
           needs_recalculation?: boolean
           price_list_id?: string
           price_override?: number | null

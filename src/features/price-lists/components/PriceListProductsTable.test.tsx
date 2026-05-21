@@ -18,6 +18,11 @@ const row: PriceListProductRow = {
   base_cost: 1000,
   cost_variation_pct: null,
   calculated_price: 1256.35,
+  final_price_override: null,
+  manual_price_enabled: false,
+  manual_price_note: null,
+  manual_price_updated_at: null,
+  manual_price_updated_by: null,
   needs_recalculation: false,
   last_calculated_at: null,
   last_calculated_by: null,
@@ -55,5 +60,21 @@ describe("PriceListProductsTable", () => {
     renderTable({ enabled: true, increment: 500 });
 
     expect(row.calculated_price).toBe(1256.35);
+  });
+
+  it("shows product override as the operational price without rounding", () => {
+    render(
+      <TooltipProvider>
+        <PriceListProductsTable
+          rows={[{ ...row, final_price_override: 2100, manual_price_enabled: true }]}
+          columnVisibility={{}}
+          priceRoundingConfig={{ enabled: true, increment: 500 }}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(screen.getByText("$2.100,00")).toBeInTheDocument();
+    expect(screen.getByText("Personalizado")).toBeInTheDocument();
+    expect(screen.getByText("Formula: $1.256,35")).toBeInTheDocument();
   });
 });

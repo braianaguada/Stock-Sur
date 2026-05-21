@@ -47,6 +47,11 @@ export interface PriceListProductRow {
   base_cost: number;
   cost_variation_pct: number | null;
   calculated_price: number;
+  final_price_override: number | null;
+  manual_price_enabled: boolean;
+  manual_price_note: string | null;
+  manual_price_updated_at: string | null;
+  manual_price_updated_by: string | null;
   needs_recalculation: boolean;
   last_calculated_at: string | null;
   last_calculated_by: string | null;

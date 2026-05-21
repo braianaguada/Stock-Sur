@@ -658,6 +658,14 @@ export function DocumentsEditorDialog({
                               Redondeado
                             </span>
                           ) : null}
+                        {line.is_product_override ? (
+                          <span
+                            className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700"
+                            title="Usa precio personalizado para esta lista"
+                          >
+                            Personalizado
+                          </span>
+                        ) : null}
                       </div>
                     </div>
 

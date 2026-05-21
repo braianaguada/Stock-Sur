@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { VisibilityState } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,8 @@ type PriceListDetailDialogProps = {
   onConfigDraftChange: (updater: (prev: PriceListFormState | null) => PriceListFormState | null) => void;
   onSaveConfig: () => void;
   onRecalculate: () => void;
+  onUpdateProductOverride: (itemId: string, values: { enabled: boolean; price: number | null; note: string }) => void;
+  isSavingProductOverride: boolean;
   onDelete: () => void;
 };
 
@@ -56,7 +58,10 @@ const PRODUCT_COLUMN_OPTIONS: Array<{ id: string; label: string }> = [
   { id: "stock", label: "Stock" },
   { id: "attributes", label: "Atributos" },
   { id: "calculated_price", label: "Precio operativo" },
+  { id: "price_source", label: "Tipo de precio" },
+  { id: "estimated_margin", label: "Margen estimado" },
   { id: "needs_recalculation", label: "Estado" },
+  { id: "actions", label: "Acciones" },
 ];
 
 export function PriceListDetailDialog({
@@ -89,10 +94,16 @@ export function PriceListDetailDialog({
   onConfigDraftChange,
   onSaveConfig,
   onRecalculate,
+  onUpdateProductOverride,
+  isSavingProductOverride,
   onDelete,
 }: PriceListDetailDialogProps) {
   const configTabRef = useRef<HTMLDivElement | null>(null);
   const historyTabRef = useRef<HTMLDivElement | null>(null);
+  const [overrideRow, setOverrideRow] = useState<PriceListProductRow | null>(null);
+  const [overrideEnabled, setOverrideEnabled] = useState(false);
+  const [overridePrice, setOverridePrice] = useState("");
+  const [overrideNote, setOverrideNote] = useState("");
 
   const scrollActiveTabToTop = useCallback(() => {
     if (detailTab === "config") {
@@ -113,6 +124,27 @@ export function PriceListDetailDialog({
 
     return () => cancelAnimationFrame(frame);
   }, [open, selectedList?.id, scrollActiveTabToTop]);
+
+  const openOverrideDialog = (row: PriceListProductRow) => {
+    setOverrideRow(row);
+    setOverrideEnabled(row.manual_price_enabled);
+    setOverridePrice(row.final_price_override !== null ? String(row.final_price_override) : "");
+    setOverrideNote(row.manual_price_note ?? "");
+  };
+
+  const saveOverride = () => {
+    if (!overrideRow) return;
+    const parsedPrice = overridePrice.trim() === "" ? null : Number(overridePrice);
+    if (overrideEnabled && (parsedPrice === null || !Number.isFinite(parsedPrice) || parsedPrice < 0)) {
+      return;
+    }
+    onUpdateProductOverride(overrideRow.item_id, {
+      enabled: overrideEnabled,
+      price: overrideEnabled ? parsedPrice : null,
+      note: overrideNote,
+    });
+    setOverrideRow(null);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -198,7 +230,13 @@ export function PriceListDetailDialog({
               </div>
               <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
                 <div className="min-h-0 flex-1 overflow-auto">
-                  <PriceListProductsTable rows={pagedProducts} columnVisibility={productColumnVisibility} stockByItemId={stockByItemId} priceRoundingConfig={priceRoundingConfig} />
+                  <PriceListProductsTable
+                    rows={pagedProducts}
+                    columnVisibility={productColumnVisibility}
+                    stockByItemId={stockByItemId}
+                    priceRoundingConfig={priceRoundingConfig}
+                    onEditProductOverride={openOverrideDialog}
+                  />
                 </div>
                 <div className="shrink-0 border-t bg-background px-4 py-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -317,6 +355,55 @@ export function PriceListDetailDialog({
           </Tabs>
         ) : null}
       </DialogContent>
+      <Dialog open={!!overrideRow} onOpenChange={(nextOpen) => !nextOpen && setOverrideRow(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Precio personalizado</DialogTitle>
+          </DialogHeader>
+          {overrideRow ? (
+            <div className="space-y-4">
+              <div className="text-sm">
+                <p className="font-medium">{overrideRow.name}</p>
+                <p className="text-muted-foreground">Formula: ${overrideRow.calculated_price.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</p>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={overrideEnabled} onCheckedChange={(checked) => setOverrideEnabled(checked === true)} />
+                <span>Usar precio personalizado</span>
+              </label>
+              <div className="space-y-2">
+                <Label>Precio</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={overridePrice}
+                  disabled={!overrideEnabled}
+                  onChange={(event) => setOverridePrice(event.target.value)}
+                />
+                {overrideEnabled && (overridePrice.trim() === "" || Number(overridePrice) < 0) ? (
+                  <p className="text-xs text-destructive">El precio debe ser mayor o igual a 0.</p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <Label>Nota</Label>
+                <Textarea value={overrideNote} onChange={(event) => setOverrideNote(event.target.value)} />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setOverrideRow(null)}>
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isSavingProductOverride || (overrideEnabled && (overridePrice.trim() === "" || Number(overridePrice) < 0))}
+                  onClick={saveOverride}
+                >
+                  Guardar
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
