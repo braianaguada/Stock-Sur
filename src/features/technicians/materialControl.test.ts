@@ -107,6 +107,15 @@ describe("buildMaterialControlReport", () => {
     expect(devolucion?.commercialTotal).toBe(450);
   });
 
+  it("calculates estimated cost from base_cost_snapshot times quantity", () => {
+    const report = buildReport();
+    const remito = report.movements.find((movement) => movement.documentId === "remito-1");
+    const devolucion = report.movements.find((movement) => movement.documentId === "return-1");
+
+    expect(remito?.estimatedCost).toBe(850);
+    expect(devolucion?.estimatedCost).toBe(240);
+  });
+
   it("keeps material and commercial balances separated when document totals differ from lines", () => {
     const report = buildReport();
 
@@ -116,8 +125,23 @@ describe("buildMaterialControlReport", () => {
     expect(report.totals.commercialDeliveredTotal).toBe(1800);
     expect(report.totals.commercialReturnedTotal).toBe(450);
     expect(report.totals.commercialBalance).toBe(1350);
+    expect(report.totals.costDeliveredValue).toBe(850);
+    expect(report.totals.costReturnedValue).toBe(240);
+    expect(report.totals.costNetValue).toBe(610);
+    expect(report.totals.grossMargin).toBe(740);
     expect(report.technicianSummaries[0].materialBalance).toBe(1100);
     expect(report.technicianSummaries[0].commercialBalance).toBe(1350);
+    expect(report.technicianSummaries[0].costNetValue).toBe(610);
+    expect(report.technicianSummaries[0].grossMargin).toBe(740);
+  });
+
+  it("keeps document totals and line values separated when they differ", () => {
+    const report = buildReport();
+    const summary = report.technicianSummaries[0];
+
+    expect(summary.materialBalance).toBe(1100);
+    expect(summary.commercialBalance).toBe(1350);
+    expect(summary.commercialBalance).not.toBe(summary.materialBalance);
   });
 
   it("groups technician summary and material rows", () => {
@@ -139,6 +163,10 @@ describe("buildMaterialControlReport", () => {
       deliveredValue: 1000,
       returnedValue: 400,
       netValue: 600,
+      deliveredCost: 600,
+      returnedCost: 240,
+      netCost: 360,
+      grossMargin: 240,
     });
   });
 

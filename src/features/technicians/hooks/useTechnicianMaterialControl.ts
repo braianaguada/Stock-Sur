@@ -171,7 +171,7 @@ export function useTechnicianMaterialControl({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("technicians")
-        .select("id, name, phone")
+        .select("id, name, phone, is_active")
         .eq("company_id", companyId!)
         .order("name");
       if (error) throw error;
