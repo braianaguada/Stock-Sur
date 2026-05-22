@@ -41,80 +41,80 @@ vi.mock("@/features/technicians/hooks/useTechniciansPage", () => ({
   }),
 }));
 
-vi.mock("@/features/technicians/hooks/useTechnicianMaterialControl", async () => {
-  const actual = await vi.importActual<typeof import("@/features/technicians/hooks/useTechnicianMaterialControl")>("@/features/technicians/hooks/useTechnicianMaterialControl");
-  return {
-    ...actual,
-    getDefaultMaterialControlState: () => ({
-      range: "month",
-      dateFrom: "2026-05-01",
-      dateTo: "2026-05-31",
-      technicianId: "ALL",
-      customerId: "ALL",
-      serviceId: "ALL",
-      type: "ALL",
-      search: "",
-    }),
-    useTechnicianMaterialControl: () => ({
-      technicians: mockTechnicians,
-      customers: [{ id: "customer-1", name: "Cliente Norte" }],
-      services: [{ id: "service-1", title: "Instalacion", job_id: "job-1", jobTitle: "Trabajo Norte", customerName: "Cliente Norte" }],
-      documents: [],
-      isLoading: false,
-      isError: false,
-      report: {
-        movements: [
-          {
-            id: "remito-1",
-            date: "2026-05-10",
-            technicianId: "tech-1",
-            technicianName: "Juan Tecnico",
-            documentId: "remito-1",
-            documentLabel: "0001-00000012",
-            documentType: "REMITO",
-            movementType: "Entrega",
-            customerId: "customer-1",
-            customerName: "Cliente Norte",
-            serviceId: "service-1",
-            serviceLabel: "Instalacion",
-            jobId: "job-1",
-            jobLabel: "Trabajo Norte",
-            items: 2,
-            estimatedValue: 1500,
-            externalInvoiceNumber: "FAC-99",
-            originDocumentId: null,
-            documentUrl: "/documents?document_id=remito-1",
-            serviceUrl: "/service-jobs?serviceId=service-1",
-          },
-        ],
-        technicianSummaries: [
-          {
-            technicianId: "tech-1",
-            technicianName: "Juan Tecnico",
-            remitos: 1,
-            devoluciones: 0,
-            clients: 1,
-            jobs: 1,
-            deliveredValue: 1500,
-            returnedValue: 0,
-            materialBalance: 1500,
-            movements: [],
-          },
-        ],
-        materialRowsByTechnician: new Map(),
-        totals: {
-          deliveredValue: 1500,
-          returnedValue: 0,
-          materialBalance: 1500,
+vi.mock("@/features/technicians/hooks/useTechnicianMaterialControl", () => ({
+  getDefaultMaterialControlState: () => ({
+    range: "month",
+    dateFrom: "2026-05-01",
+    dateTo: "2026-05-31",
+    technicianId: "ALL",
+    customerId: "ALL",
+    serviceId: "ALL",
+    type: "ALL",
+    search: "",
+  }),
+  getRangeDates: () => ({
+    dateFrom: "2026-05-01",
+    dateTo: "2026-05-31",
+  }),
+  useTechnicianMaterialControl: () => ({
+    technicians: mockTechnicians,
+    customers: [{ id: "customer-1", name: "Cliente Norte" }],
+    services: [{ id: "service-1", title: "Instalacion", job_id: "job-1", jobTitle: "Trabajo Norte", customerName: "Cliente Norte" }],
+    documents: [],
+    isLoading: false,
+    isError: false,
+    report: {
+      movements: [
+        {
+          id: "remito-1",
+          date: "2026-05-10",
+          technicianId: "tech-1",
+          technicianName: "Juan Tecnico",
+          documentId: "remito-1",
+          documentLabel: "0001-00000012",
+          documentType: "REMITO",
+          movementType: "Entrega",
+          customerId: "customer-1",
+          customerName: "Cliente Norte",
+          serviceId: "service-1",
+          serviceLabel: "Instalacion",
+          jobId: "job-1",
+          jobLabel: "Trabajo Norte",
+          items: 2,
+          estimatedValue: 1500,
+          externalInvoiceNumber: "FAC-99",
+          originDocumentId: null,
+          documentUrl: "/documents?document_id=remito-1",
+          serviceUrl: "/service-jobs?serviceId=service-1",
+        },
+      ],
+      technicianSummaries: [
+        {
+          technicianId: "tech-1",
+          technicianName: "Juan Tecnico",
           remitos: 1,
           devoluciones: 0,
           clients: 1,
           jobs: 1,
+          deliveredValue: 1500,
+          returnedValue: 0,
+          materialBalance: 1500,
+          movements: [],
         },
+      ],
+      materialRowsByTechnician: new Map(),
+      totals: {
+        deliveredValue: 1500,
+        returnedValue: 0,
+        materialBalance: 1500,
+        remitos: 1,
+        devoluciones: 0,
+        clients: 1,
+        jobs: 1,
       },
-    }),
-  };
-});
+    },
+  }),
+}));
 
 function renderPage() {
   return render(
