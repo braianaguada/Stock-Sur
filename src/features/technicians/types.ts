@@ -3,6 +3,7 @@ export type Technician = {
   name: string;
   phone: string | null;
   notes: string | null;
+  is_active: boolean;
   created_at: string;
 };
 

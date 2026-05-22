@@ -20,7 +20,12 @@ export async function invalidateCustomerQueries(queryClient: QueryClient) {
 }
 
 export async function invalidateTechnicianQueries(queryClient: QueryClient) {
-  await queryClient.invalidateQueries({ queryKey: ["technicians"] });
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["technicians"] }),
+    queryClient.invalidateQueries({ queryKey: ["documents", "technicians"] }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.serviceJobs.all() }),
+    queryClient.invalidateQueries({ queryKey: ["service-jobs-technicians"] }),
+  ]);
 }
 
 export async function invalidateDocumentQueries(queryClient: QueryClient) {
