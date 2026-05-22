@@ -65,6 +65,25 @@ This project is built with:
 - [Sistema visual inicial](docs/UI_SYSTEM.md): auditoria visual, navegacion, componentes base y piloto de Caja.
 - Fix de documentos: los combos se expanden a productos reales usando el mismo detalle de linea que la carga manual, conservando cantidades acumuladas y precios manuales existentes.
 
+## Tecnicos: Control de materiales
+
+La vista `/technicians` incluye la tab **Control de materiales** para cierre operativo de servicios. Es un informe de solo lectura sobre remitos y devoluciones vinculados a tecnicos; no representa deuda, cobranza ni cuenta corriente del tecnico.
+
+- **Valor materiales entregados**: suma de lineas de documentos `REMITO` asociados a tecnicos dentro del periodo filtrado. Usa `document_lines.line_total`; si no existe, usa `quantity * unit_price`; si no hay lineas suficientes, el valor de materiales queda en 0.
+- **Valor materiales devueltos**: suma de lineas de `REMITO_DEVOLUCION` asociados al mismo flujo operativo, con el mismo criterio de lineas.
+- **Balance de materiales**: `Valor materiales entregados - Valor materiales devueltos`.
+- **Total comercial**: toma `documents.total` y se muestra separado del valor de materiales porque puede diferir de la suma de lineas.
+- **Balance comercial**: `Total comercial entregado - Total comercial devuelto`.
+- **Devoluciones vinculadas**: se infieren por `documents.origin_document_id` contra el remito original y por `technician_id`; tambien se muestra `source_document_id` cuando existe como referencia de origen.
+- **Trabajos vinculados**: se leen desde `documents.service_id` hacia `service_job_services` y `service_jobs`.
+- **Materiales agrupados**: se agrupan por `item_id` cuando existe; si no, por SKU y descripcion.
+
+Filtros disponibles: tecnico, rango rapido (hoy, esta semana, este mes, mes anterior o personalizado), fecha desde/hasta, cliente/empresa, trabajo/servicio, tipo de documento y busqueda por numero de remito, factura externa, cliente, tecnico o producto/material.
+
+La tabla principal es **Movimientos por tecnico** y resume remitos, devoluciones, clientes, trabajos, valores de materiales, balance de materiales y balance comercial. El detalle por tecnico muestra documentos con valor de materiales y total comercial, mas materiales agrupados por producto/SKU con cantidades y valores entregados, devueltos y netos.
+
+No se crean movimientos de stock, documentos, ventas de caja, gastos, entradas de cuenta corriente, trabajos ni servicios al navegar o filtrar esta vista.
+
 ## Estado actual de staging
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
