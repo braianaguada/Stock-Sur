@@ -58,6 +58,7 @@ export function useDocumentsData({
         .from("technicians")
         .select("id, name")
         .eq("company_id", currentCompanyId!)
+        .eq("is_active", true)
         .order("name");
       if (error) throw error;
       return data ?? [];

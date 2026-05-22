@@ -235,3 +235,125 @@
     opacity: 0.2;
   }
 }
+
+.technician-material-print {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  .technician-material-print-mode > :not(.technician-material-print) {
+    visibility: hidden !important;
+  }
+
+  .technician-material-print-mode .technician-material-print {
+    display: block !important;
+    visibility: visible !important;
+    position: absolute;
+    inset: 0;
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .print-report-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    border-bottom: 1px solid #111827;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+  }
+
+  .print-report-header h1 {
+    font-size: 20px;
+    margin: 2px 0 4px;
+    letter-spacing: 0;
+  }
+
+  .print-eyebrow {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .print-meta {
+    min-width: 210px;
+    text-align: right;
+  }
+
+  .print-meta p,
+  .print-report-header p {
+    margin: 0;
+  }
+
+  .print-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .print-summary-grid div {
+    border: 1px solid #d1d5db;
+    padding: 6px;
+    break-inside: avoid;
+  }
+
+  .print-summary-grid span {
+    display: block;
+    color: #4b5563;
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .print-summary-grid strong {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8px;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #d1d5db;
+    padding: 4px;
+    vertical-align: top;
+  }
+
+  .print-table th {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    text-align: left;
+    font-weight: 700;
+  }
+
+  .print-table tr {
+    break-inside: avoid;
+  }
+
+  .print-footer {
+    border-top: 1px solid #d1d5db;
+    color: #4b5563;
+    margin-top: 12px;
+    padding-top: 6px;
+    text-align: right;
+  }
+}

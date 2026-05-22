@@ -1,5 +1,5 @@
-import { ExternalLink, Eye, PackageCheck, Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ExternalLink, Eye, PackageCheck, Pencil, Plus, Power, Printer, Search, Trash2, UserRound } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -52,7 +52,7 @@ function EmptyTableRow({ colSpan, children }: { colSpan: number; children: strin
 function MaterialRowsTable({ rows }: { rows: MaterialSummaryRow[] }) {
   return (
     <div className="overflow-x-auto">
-      <Table className="min-w-[920px]">
+      <Table className="min-w-[1180px]">
         <TableHeader>
           <TableRow>
             <TableHead>Producto</TableHead>
@@ -63,11 +63,13 @@ function MaterialRowsTable({ rows }: { rows: MaterialSummaryRow[] }) {
             <TableHead className="text-right">Valor entregado</TableHead>
             <TableHead className="text-right">Valor devuelto</TableHead>
             <TableHead className="text-right">Valor neto</TableHead>
+            <TableHead className="text-right">Costo neto</TableHead>
+            <TableHead className="text-right">Margen estimado</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.length === 0 ? (
-            <EmptyTableRow colSpan={8}>No hay materiales para el periodo filtrado.</EmptyTableRow>
+            <EmptyTableRow colSpan={10}>No hay materiales para el periodo filtrado.</EmptyTableRow>
           ) : rows.map((row) => (
             <TableRow key={row.key}>
               <TableCell className="font-medium">{row.product}</TableCell>
@@ -78,6 +80,8 @@ function MaterialRowsTable({ rows }: { rows: MaterialSummaryRow[] }) {
               <TableCell className="text-right"><AmountDisplay value={row.deliveredValue} size="sm" /></TableCell>
               <TableCell className="text-right"><AmountDisplay value={row.returnedValue} size="sm" /></TableCell>
               <TableCell className="text-right"><AmountDisplay value={row.netValue} size="sm" /></TableCell>
+              <TableCell className="text-right"><AmountDisplay value={row.netCost} size="sm" /></TableCell>
+              <TableCell className="text-right"><AmountDisplay value={row.grossMargin} size="sm" /></TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -94,6 +98,7 @@ export default function TechniciansPage() {
   const [technicianToDelete, setTechnicianToDelete] = useState<Technician | null>(null);
   const [selectedSummary, setSelectedSummary] = useState<TechnicianMaterialSummary | null>(null);
   const [detailTab, setDetailTab] = useState("documents");
+  const [printMode, setPrintMode] = useState(false);
   const [controlState, setControlState] = useState<TechnicianMaterialControlState>(() => getDefaultMaterialControlState());
   const {
     technicians,
@@ -107,6 +112,7 @@ export default function TechniciansPage() {
     setForm,
     saveMutation,
     deleteMutation,
+    toggleActiveMutation,
     openCreate,
     openEdit,
   } = useTechniciansPage({ companyId: currentCompany?.id, userId: user?.id, toast });
@@ -120,6 +126,22 @@ export default function TechniciansPage() {
     () => (selectedSummary ? materialControl.report.materialRowsByTechnician.get(selectedSummary.technicianId) ?? [] : []),
     [materialControl.report.materialRowsByTechnician, selectedSummary],
   );
+  const selectedTechnicianName = controlState.technicianId === "ALL"
+    ? "Todos los tecnicos"
+    : materialControl.technicians.find((technician) => technician.id === controlState.technicianId)?.name ?? "Tecnico seleccionado";
+  const selectedCustomerName = controlState.customerId === "ALL"
+    ? "Todos los clientes"
+    : materialControl.customers.find((customer) => customer.id === controlState.customerId)?.name ?? "Cliente seleccionado";
+  const selectedServiceName = controlState.serviceId === "ALL"
+    ? "Todos los trabajos"
+    : materialControl.services.find((service) => service.id === controlState.serviceId)?.title ?? "Trabajo seleccionado";
+  const generatedAt = useMemo(() => new Date().toLocaleString("es-AR"), []);
+
+  useEffect(() => {
+    const handleAfterPrint = () => setPrintMode(false);
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
+  }, []);
 
   const openControlForTechnician = (technician: Technician) => {
     setControlState((current) => ({ ...current, technicianId: technician.id }));
@@ -130,10 +152,23 @@ export default function TechniciansPage() {
   const openService = (serviceId: string | null) => {
     if (serviceId) navigate(`/service-jobs?serviceId=${serviceId}`);
   };
+  const printMovements = () => {
+    setPrintMode(true);
+    window.setTimeout(() => window.print(), 0);
+  };
+  const handleRangeChange = (range: TechnicianMaterialControlState["range"]) => {
+    setControlState((current) => (range === "custom" ? { ...current, range } : updateRange(current, range)));
+  };
+  const handleDateFromChange = (dateFrom: string) => {
+    setControlState((current) => ({ ...current, dateFrom, dateTo: current.dateTo && dateFrom > current.dateTo ? dateFrom : current.dateTo }));
+  };
+  const handleDateToChange = (dateTo: string) => {
+    setControlState((current) => ({ ...current, dateFrom: current.dateFrom && dateTo < current.dateFrom ? dateTo : current.dateFrom, dateTo }));
+  };
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <div className={`page-shell ${printMode ? "technician-material-print-mode" : ""}`}>
         <PageHeader
           eyebrow="Servicios"
           title="Tecnicos"
@@ -147,7 +182,12 @@ export default function TechniciansPage() {
                 <Plus className="mr-2 h-4 w-4" /> Nuevo tecnico
               </Button>
             ) : (
-              <CompactBadge tone="info">{RANGE_LABELS[controlState.range]}</CompactBadge>
+              <div className="flex flex-wrap items-center gap-2">
+                <CompactBadge tone="info">{RANGE_LABELS[controlState.range]}</CompactBadge>
+                <Button variant="outline" onClick={printMovements}>
+                  <Printer className="mr-2 h-4 w-4" /> Imprimir movimientos
+                </Button>
+              </div>
             )
           }
         />
@@ -167,18 +207,19 @@ export default function TechniciansPage() {
               count={technicians.length}
             >
               <div className="overflow-x-auto">
-                <Table className="min-w-[760px]">
+                <Table className="min-w-[880px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Tecnico</TableHead>
+                      <TableHead>Estado</TableHead>
                       <TableHead>Telefono</TableHead>
                       <TableHead>Notas</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isLoading ? <EmptyTableRow colSpan={4}>Cargando tecnicos...</EmptyTableRow> : null}
-                    {!isLoading && technicians.length === 0 ? <EmptyTableRow colSpan={4}>No hay tecnicos cargados.</EmptyTableRow> : null}
+                    {isLoading ? <EmptyTableRow colSpan={5}>Cargando tecnicos...</EmptyTableRow> : null}
+                    {!isLoading && technicians.length === 0 ? <EmptyTableRow colSpan={5}>No hay tecnicos cargados.</EmptyTableRow> : null}
                     {technicians.map((technician) => (
                       <TableRow key={technician.id}>
                         <TableCell>
@@ -192,6 +233,11 @@ export default function TechniciansPage() {
                             </div>
                           </div>
                         </TableCell>
+                        <TableCell>
+                          <CompactBadge tone={technician.is_active === false ? "muted" : "success"}>
+                            {technician.is_active === false ? "Inactivo" : "Activo"}
+                          </CompactBadge>
+                        </TableCell>
                         <TableCell>{technician.phone ?? "Sin telefono"}</TableCell>
                         <TableCell className="max-w-md truncate text-muted-foreground">{technician.notes ?? "-"}</TableCell>
                         <TableCell className="text-right">
@@ -201,6 +247,13 @@ export default function TechniciansPage() {
                             </RowActionButton>
                             <RowActionButton label="Editar" tone="edit" onClick={() => openEdit(technician)}>
                               <Pencil className="h-4 w-4" />
+                            </RowActionButton>
+                            <RowActionButton
+                              label={technician.is_active === false ? "Activar" : "Marcar inactivo"}
+                              tone="muted"
+                              onClick={() => toggleActiveMutation.mutate({ id: technician.id, isActive: technician.is_active === false })}
+                            >
+                              <Power className="h-4 w-4" />
                             </RowActionButton>
                             <RowActionButton label="Eliminar" tone="danger" onClick={() => setTechnicianToDelete(technician)}>
                               <Trash2 className="h-4 w-4" />
@@ -218,14 +271,14 @@ export default function TechniciansPage() {
           <div className="grid gap-4">
             <FilterBar>
               <Select value={controlState.technicianId} onValueChange={(technicianId) => setControlState((current) => ({ ...current, technicianId }))}>
-                <SelectTrigger className="w-full md:w-56"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Tecnico" className="w-full md:w-56"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">Todos los tecnicos</SelectItem>
                   {materialControl.technicians.map((technician) => <SelectItem key={technician.id} value={technician.id}>{technician.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={controlState.range} onValueChange={(range) => setControlState((current) => updateRange(current, range as TechnicianMaterialControlState["range"]))}>
-                <SelectTrigger className="w-full md:w-44"><SelectValue /></SelectTrigger>
+              <Select value={controlState.range} onValueChange={(range) => handleRangeChange(range as TechnicianMaterialControlState["range"])}>
+                <SelectTrigger aria-label="Rango" className="w-full md:w-44"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="today">Hoy</SelectItem>
                   <SelectItem value="week">Esta semana</SelectItem>
@@ -237,33 +290,35 @@ export default function TechniciansPage() {
               <Input
                 className="w-full md:w-40"
                 type="date"
+                aria-label="Fecha desde"
                 value={controlState.dateFrom}
                 disabled={controlState.range !== "custom"}
-                onChange={(event) => setControlState((current) => ({ ...current, dateFrom: event.target.value }))}
+                onChange={(event) => handleDateFromChange(event.target.value)}
               />
               <Input
                 className="w-full md:w-40"
                 type="date"
+                aria-label="Fecha hasta"
                 value={controlState.dateTo}
                 disabled={controlState.range !== "custom"}
-                onChange={(event) => setControlState((current) => ({ ...current, dateTo: event.target.value }))}
+                onChange={(event) => handleDateToChange(event.target.value)}
               />
               <Select value={controlState.customerId} onValueChange={(customerId) => setControlState((current) => ({ ...current, customerId }))}>
-                <SelectTrigger className="w-full md:w-56"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Cliente" className="w-full md:w-56"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">Todos los clientes</SelectItem>
                   {materialControl.customers.map((customer) => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={controlState.serviceId} onValueChange={(serviceId) => setControlState((current) => ({ ...current, serviceId }))}>
-                <SelectTrigger className="w-full md:w-56"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Trabajo" className="w-full md:w-56"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">Todos los trabajos</SelectItem>
                   {materialControl.services.map((service) => <SelectItem key={service.id} value={service.id}>{service.jobTitle} / {service.title}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={controlState.type} onValueChange={(type) => setControlState((current) => ({ ...current, type: type as TechnicianMaterialControlState["type"] }))}>
-                <SelectTrigger className="w-full md:w-44"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Tipo" className="w-full md:w-44"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">Todos</SelectItem>
                   <SelectItem value="REMITO">Remitos</SelectItem>
@@ -282,18 +337,20 @@ export default function TechniciansPage() {
             </FilterBar>
 
             <MetricHeroCard
-              label="Balance de materiales"
-              value={materialControl.report.totals.materialBalance}
-              helper={`Valor de materiales entregados menos materiales devueltos entre ${formatBusinessDate(controlState.dateFrom)} y ${formatBusinessDate(controlState.dateTo)}.`}
+              label="Margen bruto estimado"
+              value={materialControl.report.totals.grossMargin}
+              helper={`Valor comercial menos costo estimado entre ${formatBusinessDate(controlState.dateFrom)} y ${formatBusinessDate(controlState.dateTo)}.`}
               icon={<PackageCheck className="h-6 w-6" />}
             />
             <MetricGrid>
-              <MetricCard label="Valor materiales entregados" value={materialControl.report.totals.materialDeliveredValue} tone="info" />
-              <MetricCard label="Valor materiales devueltos" value={materialControl.report.totals.materialReturnedValue} tone="success" />
-              <MetricCard label="Total comercial del periodo" value={materialControl.report.totals.commercialPeriodTotal} />
+              <MetricCard label="Valor comercial" value={materialControl.report.totals.commercialBalance} tone="info" />
+              <MetricCard label="Costo estimado" value={materialControl.report.totals.costNetValue} tone="warning" />
+              <MetricCard label="Balance de materiales" value={materialControl.report.totals.materialBalance} />
               <MetricCard label="Remitos" value={materialControl.report.totals.remitos} format="plain" />
             </MetricGrid>
             <MetricGrid className="xl:grid-cols-3">
+              <MetricCard label="Valor materiales entregados" value={materialControl.report.totals.materialDeliveredValue} tone="info" />
+              <MetricCard label="Valor materiales devueltos" value={materialControl.report.totals.materialReturnedValue} tone="success" />
               <MetricCard label="Devoluciones" value={materialControl.report.totals.devoluciones} format="plain" />
               <MetricCard label="Clientes atendidos" value={materialControl.report.totals.clients} format="plain" />
               <MetricCard label="Trabajos vinculados" value={materialControl.report.totals.jobs} format="plain" />
@@ -306,39 +363,35 @@ export default function TechniciansPage() {
               count={materialControl.report.technicianSummaries.length}
             >
               <div className="overflow-x-auto">
-                <Table className="min-w-[1280px]">
+                <Table className="min-w-[1260px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Tecnico</TableHead>
                       <TableHead className="text-right">Remitos</TableHead>
                       <TableHead className="text-right">Devoluciones</TableHead>
+                      <TableHead className="text-right">Valor comercial</TableHead>
+                      <TableHead className="text-right">Costo estimado</TableHead>
+                      <TableHead className="text-right">Margen bruto estimado</TableHead>
+                      <TableHead className="text-right">Balance de materiales</TableHead>
                       <TableHead className="text-right">Clientes</TableHead>
                       <TableHead className="text-right">Trabajos</TableHead>
-                      <TableHead className="text-right">Materiales entregados</TableHead>
-                      <TableHead className="text-right">Materiales devueltos</TableHead>
-                      <TableHead className="text-right">Balance de materiales</TableHead>
-                      <TableHead className="text-right">Comercial entregado</TableHead>
-                      <TableHead className="text-right">Comercial devuelto</TableHead>
-                      <TableHead className="text-right">Balance comercial</TableHead>
                       <TableHead className="text-right">Accion</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {materialControl.isLoading ? <EmptyTableRow colSpan={12}>Cargando control de materiales...</EmptyTableRow> : null}
-                    {!materialControl.isLoading && materialControl.report.technicianSummaries.length === 0 ? <EmptyTableRow colSpan={12}>No hay movimientos para el periodo filtrado.</EmptyTableRow> : null}
+                    {materialControl.isLoading ? <EmptyTableRow colSpan={10}>Cargando control de materiales...</EmptyTableRow> : null}
+                    {!materialControl.isLoading && materialControl.report.technicianSummaries.length === 0 ? <EmptyTableRow colSpan={10}>No hay movimientos para el periodo filtrado.</EmptyTableRow> : null}
                     {materialControl.report.technicianSummaries.map((summary) => (
                       <TableRow key={summary.technicianId}>
                         <TableCell className="font-medium">{summary.technicianName}</TableCell>
                         <TableCell className="text-right tabular-nums">{summary.remitos}</TableCell>
                         <TableCell className="text-right tabular-nums">{summary.devoluciones}</TableCell>
+                        <TableCell className="text-right"><AmountDisplay value={summary.commercialBalance} size="sm" /></TableCell>
+                        <TableCell className="text-right"><AmountDisplay value={summary.costNetValue} size="sm" /></TableCell>
+                        <TableCell className="text-right"><AmountDisplay value={summary.grossMargin} size="sm" className="font-bold" /></TableCell>
+                        <TableCell className="text-right"><AmountDisplay value={summary.materialBalance} size="sm" className="font-bold" /></TableCell>
                         <TableCell className="text-right tabular-nums">{summary.clients}</TableCell>
                         <TableCell className="text-right tabular-nums">{summary.jobs}</TableCell>
-                        <TableCell className="text-right"><AmountDisplay value={summary.materialDeliveredValue} size="sm" /></TableCell>
-                        <TableCell className="text-right"><AmountDisplay value={summary.materialReturnedValue} size="sm" /></TableCell>
-                        <TableCell className="text-right"><AmountDisplay value={summary.materialBalance} size="sm" className="font-bold" /></TableCell>
-                        <TableCell className="text-right"><AmountDisplay value={summary.commercialDeliveredTotal} size="sm" /></TableCell>
-                        <TableCell className="text-right"><AmountDisplay value={summary.commercialReturnedTotal} size="sm" /></TableCell>
-                        <TableCell className="text-right"><AmountDisplay value={summary.commercialBalance} size="sm" /></TableCell>
                         <TableCell className="text-right">
                           <Button size="sm" variant="outline" onClick={() => { setSelectedSummary(summary); setDetailTab("documents"); }}>
                             Ver detalle
@@ -357,7 +410,7 @@ export default function TechniciansPage() {
               count={materialControl.report.movements.length}
             >
               <div className="overflow-x-auto">
-                <Table className="min-w-[1120px]">
+                <Table className="min-w-[1280px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Fecha</TableHead>
@@ -367,12 +420,14 @@ export default function TechniciansPage() {
                       <TableHead>Cliente / empresa</TableHead>
                       <TableHead>Trabajo / servicio</TableHead>
                       <TableHead className="text-right">Items</TableHead>
-                      <TableHead className="text-right">Valores</TableHead>
+                      <TableHead className="text-right">Valor comercial</TableHead>
+                      <TableHead className="text-right">Costo estimado</TableHead>
+                      <TableHead className="text-right">Margen bruto estimado</TableHead>
                       <TableHead className="text-right">Accion</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {materialControl.report.movements.length === 0 ? <EmptyTableRow colSpan={9}>No hay movimientos detallados para mostrar.</EmptyTableRow> : null}
+                    {materialControl.report.movements.length === 0 ? <EmptyTableRow colSpan={11}>No hay movimientos detallados para mostrar.</EmptyTableRow> : null}
                     {materialControl.report.movements.map((movement) => (
                       <TableRow key={movement.id}>
                         <TableCell>{formatBusinessDate(movement.date)}</TableCell>
@@ -395,9 +450,11 @@ export default function TechniciansPage() {
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{movement.items}</TableCell>
                         <TableCell className="text-right">
-                          <AmountDisplay value={movement.materialValue} size="sm" />
-                          <div className="text-xs text-muted-foreground">Comercial: <AmountDisplay value={movement.commercialTotal} size="sm" className="inline" /></div>
+                          <AmountDisplay value={movement.commercialTotal} size="sm" />
+                          <div className="text-xs text-muted-foreground">Materiales: <AmountDisplay value={movement.materialValue} size="sm" className="inline" /></div>
                         </TableCell>
+                        <TableCell className="text-right"><AmountDisplay value={movement.estimatedCost} size="sm" /></TableCell>
+                        <TableCell className="text-right"><AmountDisplay value={movement.grossMargin} size="sm" /></TableCell>
                         <TableCell className="text-right">
                           <RowActions>
                             <RowActionButton label="Ver documento" tone="view" onClick={() => openDocument(movement.documentId)}>
@@ -416,6 +473,70 @@ export default function TechniciansPage() {
                 </Table>
               </div>
             </OperationalTableShell>
+
+            <section className="technician-material-print" aria-label="Vista imprimible de movimientos">
+              <header className="print-report-header">
+                <div>
+                  <p className="print-eyebrow">Stock Sur</p>
+                  <h1>Control de materiales por tecnico</h1>
+                  <p>Documento interno de control. No reemplaza comprobantes fiscales.</p>
+                </div>
+                <div className="print-meta">
+                  <p><strong>Periodo:</strong> {formatBusinessDate(controlState.dateFrom)} a {formatBusinessDate(controlState.dateTo)}</p>
+                  <p><strong>Tecnico:</strong> {selectedTechnicianName}</p>
+                  <p><strong>Cliente / empresa:</strong> {selectedCustomerName}</p>
+                  <p><strong>Trabajo / servicio:</strong> {selectedServiceName}</p>
+                  <p><strong>Generado:</strong> {generatedAt}</p>
+                </div>
+              </header>
+              <div className="print-summary-grid">
+                <div><span>Valor comercial</span><strong><AmountDisplay value={materialControl.report.totals.commercialBalance} size="sm" /></strong></div>
+                <div><span>Costo estimado</span><strong><AmountDisplay value={materialControl.report.totals.costNetValue} size="sm" /></strong></div>
+                <div><span>Margen bruto estimado</span><strong><AmountDisplay value={materialControl.report.totals.grossMargin} size="sm" /></strong></div>
+                <div><span>Balance de materiales</span><strong><AmountDisplay value={materialControl.report.totals.materialBalance} size="sm" /></strong></div>
+                <div><span>Remitos</span><strong>{materialControl.report.totals.remitos}</strong></div>
+                <div><span>Devoluciones</span><strong>{materialControl.report.totals.devoluciones}</strong></div>
+                <div><span>Clientes</span><strong>{materialControl.report.totals.clients}</strong></div>
+                <div><span>Trabajos</span><strong>{materialControl.report.totals.jobs}</strong></div>
+              </div>
+              <table className="print-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tecnico</th>
+                    <th>Documento</th>
+                    <th>Tipo</th>
+                    <th>Cliente / empresa</th>
+                    <th>Trabajo / servicio</th>
+                    <th>Items</th>
+                    <th>Valor comercial</th>
+                    <th>Costo estimado</th>
+                    <th>Margen bruto estimado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {materialControl.report.movements.length === 0 ? (
+                    <tr><td colSpan={10}>No hay movimientos detallados para el periodo filtrado.</td></tr>
+                  ) : materialControl.report.movements.map((movement) => (
+                    <tr key={`print-${movement.id}`}>
+                      <td>{formatBusinessDate(movement.date)}</td>
+                      <td>{movement.technicianName}</td>
+                      <td>{movement.documentLabel}{movement.externalInvoiceNumber ? ` / Factura externa ${movement.externalInvoiceNumber}` : ""}</td>
+                      <td>{movement.movementType === "Entrega" ? "Entrega" : "Devolucion"}</td>
+                      <td>{movement.customerName}</td>
+                      <td>{movement.serviceLabel ? `${movement.jobLabel} / ${movement.serviceLabel}` : "Sin trabajo vinculado"}</td>
+                      <td>{movement.items}</td>
+                      <td><AmountDisplay value={movement.commercialTotal} size="sm" /></td>
+                      <td><AmountDisplay value={movement.estimatedCost} size="sm" /></td>
+                      <td><AmountDisplay value={movement.grossMargin} size="sm" /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <footer className="print-footer">
+                Documento interno de control. Generado el {generatedAt}.
+              </footer>
+            </section>
           </div>
         )}
       </div>
@@ -435,7 +556,7 @@ export default function TechniciansPage() {
           if (!open) setTechnicianToDelete(null);
         }}
         title="Eliminar tecnico"
-        description={technicianToDelete ? `Esta accion eliminara a "${technicianToDelete.name}" de forma permanente.` : ""}
+        description={technicianToDelete ? `Esta accion eliminara a "${technicianToDelete.name}" solo si no tiene historial operativo. Si tiene remitos, servicios o trabajos vinculados, marcalo como Inactivo para conservar la trazabilidad.` : ""}
         isPending={deleteMutation.isPending}
         onConfirm={() => {
           if (!technicianToDelete) return;
@@ -453,16 +574,21 @@ export default function TechniciansPage() {
           </DialogHeader>
           {selectedSummary ? (
             <div className="grid gap-4">
+              <MetricGrid className="xl:grid-cols-3">
+                <MetricCard label="Valor comercial entregado" value={selectedSummary.commercialDeliveredTotal} tone="info" />
+                <MetricCard label="Valor comercial devuelto" value={selectedSummary.commercialReturnedTotal} tone="success" />
+                <MetricCard label="Balance comercial" value={selectedSummary.commercialBalance} />
+              </MetricGrid>
+              <MetricGrid className="xl:grid-cols-3">
+                <MetricCard label="Costo estimado entregado" value={selectedSummary.costDeliveredValue} tone="info" />
+                <MetricCard label="Costo estimado devuelto" value={selectedSummary.costReturnedValue} tone="success" />
+                <MetricCard label="Costo neto estimado" value={selectedSummary.costNetValue} />
+              </MetricGrid>
               <MetricGrid className="xl:grid-cols-4">
+                <MetricCard label="Margen bruto estimado" value={selectedSummary.grossMargin} />
                 <MetricCard label="Materiales entregados" value={selectedSummary.materialDeliveredValue} tone="info" />
                 <MetricCard label="Materiales devueltos" value={selectedSummary.materialReturnedValue} tone="success" />
                 <MetricCard label="Balance de materiales" value={selectedSummary.materialBalance} />
-                <MetricCard label="Remitos / devoluciones" value={`${selectedSummary.remitos} / ${selectedSummary.devoluciones}`} />
-              </MetricGrid>
-              <MetricGrid className="xl:grid-cols-3">
-                <MetricCard label="Comercial entregado" value={selectedSummary.commercialDeliveredTotal} tone="info" />
-                <MetricCard label="Comercial devuelto" value={selectedSummary.commercialReturnedTotal} tone="success" />
-                <MetricCard label="Balance comercial" value={selectedSummary.commercialBalance} />
               </MetricGrid>
               <div className="grid gap-3 md:grid-cols-3">
                 <SectionCard className="p-4"><p className="text-xs font-semibold uppercase text-muted-foreground">Clientes atendidos</p><p className="mt-1 text-2xl font-bold">{selectedSummary.clients}</p></SectionCard>
@@ -476,7 +602,7 @@ export default function TechniciansPage() {
                 </TabsList>
                 <TabsContent value="documents">
                   <div className="overflow-x-auto rounded-lg border">
-                    <Table className="min-w-[980px]">
+                    <Table className="min-w-[1180px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead>Fecha</TableHead>
@@ -485,7 +611,9 @@ export default function TechniciansPage() {
                           <TableHead>Cliente</TableHead>
                           <TableHead>Trabajo / servicio</TableHead>
                           <TableHead className="text-right">Items</TableHead>
-                          <TableHead className="text-right">Valores</TableHead>
+                          <TableHead className="text-right">Valor comercial</TableHead>
+                          <TableHead className="text-right">Costo estimado</TableHead>
+                          <TableHead className="text-right">Margen bruto estimado</TableHead>
                           <TableHead className="text-right">Accion</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -502,9 +630,11 @@ export default function TechniciansPage() {
                             <TableCell>{movement.serviceLabel ? `${movement.jobLabel} / ${movement.serviceLabel}` : "Sin trabajo vinculado"}</TableCell>
                             <TableCell className="text-right">{movement.items}</TableCell>
                             <TableCell className="text-right">
-                              <AmountDisplay value={movement.materialValue} size="sm" />
-                              <div className="text-xs text-muted-foreground">Comercial: <AmountDisplay value={movement.commercialTotal} size="sm" className="inline" /></div>
+                              <AmountDisplay value={movement.commercialTotal} size="sm" />
+                              <div className="text-xs text-muted-foreground">Materiales: <AmountDisplay value={movement.materialValue} size="sm" className="inline" /></div>
                             </TableCell>
+                            <TableCell className="text-right"><AmountDisplay value={movement.estimatedCost} size="sm" /></TableCell>
+                            <TableCell className="text-right"><AmountDisplay value={movement.grossMargin} size="sm" /></TableCell>
                             <TableCell className="text-right">
                               <Button size="sm" variant="outline" onClick={() => openDocument(movement.documentId)}>Ver documento</Button>
                             </TableCell>

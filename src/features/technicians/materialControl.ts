@@ -37,6 +37,7 @@ export type MaterialControlTechnician = {
   id: string;
   name: string;
   phone?: string | null;
+  is_active?: boolean;
 };
 
 export type MaterialControlService = {
@@ -65,6 +66,8 @@ export type MaterialControlMovement = {
   items: number;
   materialValue: number;
   commercialTotal: number;
+  estimatedCost: number;
+  grossMargin: number;
   externalInvoiceNumber: string | null;
   originDocumentId: string | null;
   documentUrl: string;
@@ -84,6 +87,10 @@ export type TechnicianMaterialSummary = {
   commercialDeliveredTotal: number;
   commercialReturnedTotal: number;
   commercialBalance: number;
+  costDeliveredValue: number;
+  costReturnedValue: number;
+  costNetValue: number;
+  grossMargin: number;
   movements: MaterialControlMovement[];
 };
 
@@ -97,6 +104,10 @@ export type MaterialSummaryRow = {
   deliveredValue: number;
   returnedValue: number;
   netValue: number;
+  deliveredCost: number;
+  returnedCost: number;
+  netCost: number;
+  grossMargin: number;
 };
 
 export type MaterialControlReport = {
@@ -111,6 +122,10 @@ export type MaterialControlReport = {
     commercialReturnedTotal: number;
     commercialBalance: number;
     commercialPeriodTotal: number;
+    costDeliveredValue: number;
+    costReturnedValue: number;
+    costNetValue: number;
+    grossMargin: number;
     remitos: number;
     devoluciones: number;
     clients: number;
@@ -134,6 +149,11 @@ function estimateLineValue(line: MaterialControlLine) {
   const lineTotal = Number(line.line_total) || 0;
   if (lineTotal > 0) return lineTotal;
   return (Number(line.quantity) || 0) * (Number(line.unit_price) || 0);
+}
+
+function estimateLineCost(line: MaterialControlLine) {
+  const baseCost = Number(line.base_cost_snapshot) || 0;
+  return (Number(line.quantity) || 0) * baseCost;
 }
 
 export function getDocumentControlUrl(documentId: string) {
@@ -172,6 +192,7 @@ export function buildMaterialControlReport(params: {
       const documentLines = linesByDocument.get(document.id) ?? [];
       const materialValue = documentLines.reduce((sum, line) => sum + estimateLineValue(line), 0);
       const commercialTotal = Number(document.total) || 0;
+      const estimatedCost = documentLines.reduce((sum, line) => sum + estimateLineCost(line), 0);
       const documentLabel = formatDocumentNumber(document.point_of_sale, document.document_number);
 
       return {
@@ -192,6 +213,8 @@ export function buildMaterialControlReport(params: {
         items: documentLines.length,
         materialValue,
         commercialTotal,
+        estimatedCost,
+        grossMargin: commercialTotal - estimatedCost,
         externalInvoiceNumber: document.external_invoice_number,
         originDocumentId: document.origin_document_id ?? document.source_document_id,
         documentUrl: getDocumentControlUrl(document.id),
@@ -233,6 +256,10 @@ export function buildMaterialControlReport(params: {
       commercialDeliveredTotal: 0,
       commercialReturnedTotal: 0,
       commercialBalance: 0,
+      costDeliveredValue: 0,
+      costReturnedValue: 0,
+      costNetValue: 0,
+      grossMargin: 0,
       movements: [],
     };
 
@@ -241,13 +268,17 @@ export function buildMaterialControlReport(params: {
       summary.remitos += 1;
       summary.materialDeliveredValue += movement.materialValue;
       summary.commercialDeliveredTotal += movement.commercialTotal;
+      summary.costDeliveredValue += movement.estimatedCost;
     } else {
       summary.devoluciones += 1;
       summary.materialReturnedValue += movement.materialValue;
       summary.commercialReturnedTotal += movement.commercialTotal;
+      summary.costReturnedValue += movement.estimatedCost;
     }
     summary.materialBalance = summary.materialDeliveredValue - summary.materialReturnedValue;
     summary.commercialBalance = summary.commercialDeliveredTotal - summary.commercialReturnedTotal;
+    summary.costNetValue = summary.costDeliveredValue - summary.costReturnedValue;
+    summary.grossMargin = summary.commercialBalance - summary.costNetValue;
     summaryMap.set(movement.technicianId, summary);
 
     const currentMaterialMap = materialMapByTechnician.get(movement.technicianId) ?? new Map<string, MaterialSummaryRow>();
@@ -263,18 +294,27 @@ export function buildMaterialControlReport(params: {
         deliveredValue: 0,
         returnedValue: 0,
         netValue: 0,
+        deliveredCost: 0,
+        returnedCost: 0,
+        netCost: 0,
+        grossMargin: 0,
       };
       const quantity = Number(line.quantity) || 0;
       const value = estimateLineValue(line);
+      const cost = estimateLineCost(line);
       if (movement.documentType === "REMITO") {
         row.deliveredQuantity += quantity;
         row.deliveredValue += value;
+        row.deliveredCost += cost;
       } else {
         row.returnedQuantity += quantity;
         row.returnedValue += value;
+        row.returnedCost += cost;
       }
       row.netQuantity = row.deliveredQuantity - row.returnedQuantity;
       row.netValue = row.deliveredValue - row.returnedValue;
+      row.netCost = row.deliveredCost - row.returnedCost;
+      row.grossMargin = row.netValue - row.netCost;
       currentMaterialMap.set(key, row);
     }
     materialMapByTechnician.set(movement.technicianId, currentMaterialMap);
@@ -307,6 +347,14 @@ export function buildMaterialControlReport(params: {
   const commercialReturnedTotal = activeMovements
     .filter((movement) => movement.documentType === "REMITO_DEVOLUCION")
     .reduce((sum, movement) => sum + movement.commercialTotal, 0);
+  const costDeliveredValue = activeMovements
+    .filter((movement) => movement.documentType === "REMITO")
+    .reduce((sum, movement) => sum + movement.estimatedCost, 0);
+  const costReturnedValue = activeMovements
+    .filter((movement) => movement.documentType === "REMITO_DEVOLUCION")
+    .reduce((sum, movement) => sum + movement.estimatedCost, 0);
+  const commercialBalance = commercialDeliveredTotal - commercialReturnedTotal;
+  const costNetValue = costDeliveredValue - costReturnedValue;
 
   return {
     movements,
@@ -318,8 +366,12 @@ export function buildMaterialControlReport(params: {
       materialBalance: materialDeliveredValue - materialReturnedValue,
       commercialDeliveredTotal,
       commercialReturnedTotal,
-      commercialBalance: commercialDeliveredTotal - commercialReturnedTotal,
+      commercialBalance,
       commercialPeriodTotal: commercialDeliveredTotal + commercialReturnedTotal,
+      costDeliveredValue,
+      costReturnedValue,
+      costNetValue,
+      grossMargin: commercialBalance - costNetValue,
       remitos: activeMovements.filter((movement) => movement.documentType === "REMITO").length,
       devoluciones: activeMovements.filter((movement) => movement.documentType === "REMITO_DEVOLUCION").length,
       clients: new Set(activeMovements.map((movement) => movement.customerId ?? movement.customerName).filter(Boolean)).size,

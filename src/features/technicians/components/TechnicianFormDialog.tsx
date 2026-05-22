@@ -2,6 +2,7 @@ import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import type { Technician } from "../types";
 
@@ -9,6 +10,7 @@ export type TechnicianFormState = {
   name: string;
   phone: string;
   notes: string;
+  is_active: boolean;
 };
 
 type Props = {
@@ -36,6 +38,18 @@ export function TechnicianFormDialog({ open, editingTechnician, form, isSaving, 
         <div className="space-y-2">
           <Label>Notas</Label>
           <Input value={form.notes} onChange={(e) => onFormChange({ ...form, notes: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+          <Label>Estado</Label>
+          <Select value={form.is_active ? "active" : "inactive"} onValueChange={(value) => onFormChange({ ...form, is_active: value === "active" })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Activo</SelectItem>
+              <SelectItem value="inactive">Inactivo</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex justify-end">
           <Button type="submit" disabled={isSaving}>

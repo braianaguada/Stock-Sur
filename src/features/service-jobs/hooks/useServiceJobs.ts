@@ -62,6 +62,7 @@ export function useServiceJobs(params: {
         .from("technicians")
         .select("id, name")
         .eq("company_id", companyId)
+        .eq("is_active", true)
         .order("name");
       if (error) throw error;
       return (data ?? []) as ServiceJobTechnician[];
