@@ -69,18 +69,22 @@ This project is built with:
 
 La vista `/technicians` incluye la tab **Control de materiales** para cierre operativo de servicios. Es un informe de solo lectura sobre remitos y devoluciones vinculados a tecnicos; no representa deuda, cobranza ni cuenta corriente del tecnico.
 
+- Los tecnicos tienen estado **Activo/Inactivo**. Los inactivos se mantienen visibles en reportes historicos, pero no aparecen como opcion principal para nuevos remitos o servicios.
+- La eliminacion fisica solo se permite cuando el tecnico no tiene historial. Si existen documentos (`documents.technician_id`) o asignaciones de servicios (`service_job_service_technicians.technician_id`), la base bloquea el borrado y la UI permite marcarlo como Inactivo.
 - **Valor materiales entregados**: suma de lineas de documentos `REMITO` asociados a tecnicos dentro del periodo filtrado. Usa `document_lines.line_total`; si no existe, usa `quantity * unit_price`; si no hay lineas suficientes, el valor de materiales queda en 0.
 - **Valor materiales devueltos**: suma de lineas de `REMITO_DEVOLUCION` asociados al mismo flujo operativo, con el mismo criterio de lineas.
 - **Balance de materiales**: `Valor materiales entregados - Valor materiales devueltos`.
-- **Total comercial**: toma `documents.total` y se muestra separado del valor de materiales porque puede diferir de la suma de lineas.
+- **Valor comercial**: toma `documents.total` y se muestra separado del valor de materiales porque puede diferir de la suma de lineas.
 - **Balance comercial**: `Total comercial entregado - Total comercial devuelto`.
+- **Costo estimado**: usa `document_lines.base_cost_snapshot * quantity`; si no hay costo historico confiable, queda en 0.
+- **Margen bruto estimado**: `Valor comercial neto - Costo estimado neto`. No se presenta como ganancia porque no descuenta mano de obra, viaticos, gastos, impuestos ni otros costos.
 - **Devoluciones vinculadas**: se infieren por `documents.origin_document_id` contra el remito original y por `technician_id`; tambien se muestra `source_document_id` cuando existe como referencia de origen.
 - **Trabajos vinculados**: se leen desde `documents.service_id` hacia `service_job_services` y `service_jobs`.
-- **Materiales agrupados**: se agrupan por `item_id` cuando existe; si no, por SKU y descripcion.
+- **Materiales agrupados**: se agrupan por `item_id` cuando existe; si no, por SKU y descripcion. Muestran cantidades, valores de materiales, costo neto y margen estimado por material.
 
 Filtros disponibles: tecnico, rango rapido (hoy, esta semana, este mes, mes anterior o personalizado), fecha desde/hasta, cliente/empresa, trabajo/servicio, tipo de documento y busqueda por numero de remito, factura externa, cliente, tecnico o producto/material.
 
-La tabla principal es **Movimientos por tecnico** y resume remitos, devoluciones, clientes, trabajos, valores de materiales, balance de materiales y balance comercial. El detalle por tecnico muestra documentos con valor de materiales y total comercial, mas materiales agrupados por producto/SKU con cantidades y valores entregados, devueltos y netos.
+La tabla principal es **Movimientos por tecnico** y resume remitos, devoluciones, valor comercial, costo estimado, margen bruto estimado, balance de materiales, clientes y trabajos. El detalle por tecnico separa Comercial, Costos, Resultado y Materiales. La accion **Imprimir movimientos** genera una vista A4 del periodo filtrado con resumen y movimientos detallados, ocultando acciones operativas.
 
 No se crean movimientos de stock, documentos, ventas de caja, gastos, entradas de cuenta corriente, trabajos ni servicios al navegar o filtrar esta vista.
 
