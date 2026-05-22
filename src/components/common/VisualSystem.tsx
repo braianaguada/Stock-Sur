@@ -66,6 +66,7 @@ export function AmountDisplay({
 type MetricCardProps = {
   label: string;
   value: number | string;
+  format?: AmountDisplayProps["format"];
   helper?: ReactNode;
   icon?: ReactNode;
   tone?: Tone;
@@ -75,6 +76,7 @@ type MetricCardProps = {
 export function MetricCard({
   label,
   value,
+  format,
   helper,
   icon,
   tone = "default",
@@ -94,7 +96,7 @@ export function MetricCard({
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               {label}
             </p>
-            <AmountDisplay value={value} size="lg" />
+            <AmountDisplay value={value} size="lg" format={format} />
             {helper ? <p className="text-sm leading-5 text-muted-foreground">{helper}</p> : null}
           </div>
           {icon ? (
