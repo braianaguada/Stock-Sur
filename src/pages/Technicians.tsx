@@ -284,17 +284,18 @@ export default function TechniciansPage() {
             <MetricHeroCard
               label="Balance de materiales"
               value={materialControl.report.totals.materialBalance}
-              helper={`Valor entregado menos valor devuelto entre ${formatBusinessDate(controlState.dateFrom)} y ${formatBusinessDate(controlState.dateTo)}.`}
+              helper={`Valor de materiales entregados menos materiales devueltos entre ${formatBusinessDate(controlState.dateFrom)} y ${formatBusinessDate(controlState.dateTo)}.`}
               icon={<PackageCheck className="h-6 w-6" />}
             />
             <MetricGrid>
-              <MetricCard label="Valor entregado" value={materialControl.report.totals.deliveredValue} tone="info" />
-              <MetricCard label="Valor devuelto" value={materialControl.report.totals.returnedValue} tone="success" />
+              <MetricCard label="Valor materiales entregados" value={materialControl.report.totals.materialDeliveredValue} tone="info" />
+              <MetricCard label="Valor materiales devueltos" value={materialControl.report.totals.materialReturnedValue} tone="success" />
+              <MetricCard label="Total comercial del periodo" value={materialControl.report.totals.commercialPeriodTotal} />
               <MetricCard label="Remitos" value={materialControl.report.totals.remitos} format="plain" />
-              <MetricCard label="Clientes atendidos" value={materialControl.report.totals.clients} format="plain" />
             </MetricGrid>
             <MetricGrid className="xl:grid-cols-3">
               <MetricCard label="Devoluciones" value={materialControl.report.totals.devoluciones} format="plain" />
+              <MetricCard label="Clientes atendidos" value={materialControl.report.totals.clients} format="plain" />
               <MetricCard label="Trabajos vinculados" value={materialControl.report.totals.jobs} format="plain" />
               <MetricCard label="Movimientos por tecnico" value={materialControl.report.movements.length} format="plain" />
             </MetricGrid>
@@ -305,7 +306,7 @@ export default function TechniciansPage() {
               count={materialControl.report.technicianSummaries.length}
             >
               <div className="overflow-x-auto">
-                <Table className="min-w-[1040px]">
+                <Table className="min-w-[1280px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Tecnico</TableHead>
@@ -313,15 +314,18 @@ export default function TechniciansPage() {
                       <TableHead className="text-right">Devoluciones</TableHead>
                       <TableHead className="text-right">Clientes</TableHead>
                       <TableHead className="text-right">Trabajos</TableHead>
-                      <TableHead className="text-right">Valor entregado</TableHead>
-                      <TableHead className="text-right">Valor devuelto</TableHead>
+                      <TableHead className="text-right">Materiales entregados</TableHead>
+                      <TableHead className="text-right">Materiales devueltos</TableHead>
                       <TableHead className="text-right">Balance de materiales</TableHead>
+                      <TableHead className="text-right">Comercial entregado</TableHead>
+                      <TableHead className="text-right">Comercial devuelto</TableHead>
+                      <TableHead className="text-right">Balance comercial</TableHead>
                       <TableHead className="text-right">Accion</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {materialControl.isLoading ? <EmptyTableRow colSpan={9}>Cargando control de materiales...</EmptyTableRow> : null}
-                    {!materialControl.isLoading && materialControl.report.technicianSummaries.length === 0 ? <EmptyTableRow colSpan={9}>No hay movimientos para el periodo filtrado.</EmptyTableRow> : null}
+                    {materialControl.isLoading ? <EmptyTableRow colSpan={12}>Cargando control de materiales...</EmptyTableRow> : null}
+                    {!materialControl.isLoading && materialControl.report.technicianSummaries.length === 0 ? <EmptyTableRow colSpan={12}>No hay movimientos para el periodo filtrado.</EmptyTableRow> : null}
                     {materialControl.report.technicianSummaries.map((summary) => (
                       <TableRow key={summary.technicianId}>
                         <TableCell className="font-medium">{summary.technicianName}</TableCell>
@@ -329,9 +333,12 @@ export default function TechniciansPage() {
                         <TableCell className="text-right tabular-nums">{summary.devoluciones}</TableCell>
                         <TableCell className="text-right tabular-nums">{summary.clients}</TableCell>
                         <TableCell className="text-right tabular-nums">{summary.jobs}</TableCell>
-                        <TableCell className="text-right"><AmountDisplay value={summary.deliveredValue} size="sm" /></TableCell>
-                        <TableCell className="text-right"><AmountDisplay value={summary.returnedValue} size="sm" /></TableCell>
+                        <TableCell className="text-right"><AmountDisplay value={summary.materialDeliveredValue} size="sm" /></TableCell>
+                        <TableCell className="text-right"><AmountDisplay value={summary.materialReturnedValue} size="sm" /></TableCell>
                         <TableCell className="text-right"><AmountDisplay value={summary.materialBalance} size="sm" className="font-bold" /></TableCell>
+                        <TableCell className="text-right"><AmountDisplay value={summary.commercialDeliveredTotal} size="sm" /></TableCell>
+                        <TableCell className="text-right"><AmountDisplay value={summary.commercialReturnedTotal} size="sm" /></TableCell>
+                        <TableCell className="text-right"><AmountDisplay value={summary.commercialBalance} size="sm" /></TableCell>
                         <TableCell className="text-right">
                           <Button size="sm" variant="outline" onClick={() => { setSelectedSummary(summary); setDetailTab("documents"); }}>
                             Ver detalle
@@ -360,7 +367,7 @@ export default function TechniciansPage() {
                       <TableHead>Cliente / empresa</TableHead>
                       <TableHead>Trabajo / servicio</TableHead>
                       <TableHead className="text-right">Items</TableHead>
-                      <TableHead className="text-right">Valor estimado</TableHead>
+                      <TableHead className="text-right">Valores</TableHead>
                       <TableHead className="text-right">Accion</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -387,7 +394,10 @@ export default function TechniciansPage() {
                           ) : "Sin trabajo vinculado"}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{movement.items}</TableCell>
-                        <TableCell className="text-right"><AmountDisplay value={movement.estimatedValue} size="sm" /></TableCell>
+                        <TableCell className="text-right">
+                          <AmountDisplay value={movement.materialValue} size="sm" />
+                          <div className="text-xs text-muted-foreground">Comercial: <AmountDisplay value={movement.commercialTotal} size="sm" className="inline" /></div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <RowActions>
                             <RowActionButton label="Ver documento" tone="view" onClick={() => openDocument(movement.documentId)}>
@@ -444,10 +454,15 @@ export default function TechniciansPage() {
           {selectedSummary ? (
             <div className="grid gap-4">
               <MetricGrid className="xl:grid-cols-4">
-                <MetricCard label="Valor entregado" value={selectedSummary.deliveredValue} tone="info" />
-                <MetricCard label="Valor devuelto" value={selectedSummary.returnedValue} tone="success" />
+                <MetricCard label="Materiales entregados" value={selectedSummary.materialDeliveredValue} tone="info" />
+                <MetricCard label="Materiales devueltos" value={selectedSummary.materialReturnedValue} tone="success" />
                 <MetricCard label="Balance de materiales" value={selectedSummary.materialBalance} />
                 <MetricCard label="Remitos / devoluciones" value={`${selectedSummary.remitos} / ${selectedSummary.devoluciones}`} />
+              </MetricGrid>
+              <MetricGrid className="xl:grid-cols-3">
+                <MetricCard label="Comercial entregado" value={selectedSummary.commercialDeliveredTotal} tone="info" />
+                <MetricCard label="Comercial devuelto" value={selectedSummary.commercialReturnedTotal} tone="success" />
+                <MetricCard label="Balance comercial" value={selectedSummary.commercialBalance} />
               </MetricGrid>
               <div className="grid gap-3 md:grid-cols-3">
                 <SectionCard className="p-4"><p className="text-xs font-semibold uppercase text-muted-foreground">Clientes atendidos</p><p className="mt-1 text-2xl font-bold">{selectedSummary.clients}</p></SectionCard>
@@ -470,7 +485,7 @@ export default function TechniciansPage() {
                           <TableHead>Cliente</TableHead>
                           <TableHead>Trabajo / servicio</TableHead>
                           <TableHead className="text-right">Items</TableHead>
-                          <TableHead className="text-right">Valor</TableHead>
+                          <TableHead className="text-right">Valores</TableHead>
                           <TableHead className="text-right">Accion</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -486,7 +501,10 @@ export default function TechniciansPage() {
                             <TableCell>{movement.customerName}</TableCell>
                             <TableCell>{movement.serviceLabel ? `${movement.jobLabel} / ${movement.serviceLabel}` : "Sin trabajo vinculado"}</TableCell>
                             <TableCell className="text-right">{movement.items}</TableCell>
-                            <TableCell className="text-right"><AmountDisplay value={movement.estimatedValue} size="sm" /></TableCell>
+                            <TableCell className="text-right">
+                              <AmountDisplay value={movement.materialValue} size="sm" />
+                              <div className="text-xs text-muted-foreground">Comercial: <AmountDisplay value={movement.commercialTotal} size="sm" className="inline" /></div>
+                            </TableCell>
                             <TableCell className="text-right">
                               <Button size="sm" variant="outline" onClick={() => openDocument(movement.documentId)}>Ver documento</Button>
                             </TableCell>

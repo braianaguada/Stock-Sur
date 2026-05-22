@@ -63,7 +63,8 @@ export type MaterialControlMovement = {
   jobId: string | null;
   jobLabel: string | null;
   items: number;
-  estimatedValue: number;
+  materialValue: number;
+  commercialTotal: number;
   externalInvoiceNumber: string | null;
   originDocumentId: string | null;
   documentUrl: string;
@@ -77,9 +78,12 @@ export type TechnicianMaterialSummary = {
   devoluciones: number;
   clients: number;
   jobs: number;
-  deliveredValue: number;
-  returnedValue: number;
+  materialDeliveredValue: number;
+  materialReturnedValue: number;
   materialBalance: number;
+  commercialDeliveredTotal: number;
+  commercialReturnedTotal: number;
+  commercialBalance: number;
   movements: MaterialControlMovement[];
 };
 
@@ -100,9 +104,13 @@ export type MaterialControlReport = {
   technicianSummaries: TechnicianMaterialSummary[];
   materialRowsByTechnician: Map<string, MaterialSummaryRow[]>;
   totals: {
-    deliveredValue: number;
-    returnedValue: number;
+    materialDeliveredValue: number;
+    materialReturnedValue: number;
     materialBalance: number;
+    commercialDeliveredTotal: number;
+    commercialReturnedTotal: number;
+    commercialBalance: number;
+    commercialPeriodTotal: number;
     remitos: number;
     devoluciones: number;
     clients: number;
@@ -162,8 +170,8 @@ export function buildMaterialControlReport(params: {
       const technician = techniciansById.get(document.technician_id ?? "");
       const service = document.service_id ? servicesById.get(document.service_id) ?? null : null;
       const documentLines = linesByDocument.get(document.id) ?? [];
-      const lineTotal = documentLines.reduce((sum, line) => sum + estimateLineValue(line), 0);
-      const estimatedValue = Number(document.total) || lineTotal;
+      const materialValue = documentLines.reduce((sum, line) => sum + estimateLineValue(line), 0);
+      const commercialTotal = Number(document.total) || 0;
       const documentLabel = formatDocumentNumber(document.point_of_sale, document.document_number);
 
       return {
@@ -182,7 +190,8 @@ export function buildMaterialControlReport(params: {
         jobId: service?.job_id ?? null,
         jobLabel: service?.jobTitle ?? null,
         items: documentLines.length,
-        estimatedValue,
+        materialValue,
+        commercialTotal,
         externalInvoiceNumber: document.external_invoice_number,
         originDocumentId: document.origin_document_id ?? document.source_document_id,
         documentUrl: getDocumentControlUrl(document.id),
@@ -218,21 +227,27 @@ export function buildMaterialControlReport(params: {
       devoluciones: 0,
       clients: 0,
       jobs: 0,
-      deliveredValue: 0,
-      returnedValue: 0,
+      materialDeliveredValue: 0,
+      materialReturnedValue: 0,
       materialBalance: 0,
+      commercialDeliveredTotal: 0,
+      commercialReturnedTotal: 0,
+      commercialBalance: 0,
       movements: [],
     };
 
     summary.movements.push(movement);
     if (movement.documentType === "REMITO") {
       summary.remitos += 1;
-      summary.deliveredValue += movement.estimatedValue;
+      summary.materialDeliveredValue += movement.materialValue;
+      summary.commercialDeliveredTotal += movement.commercialTotal;
     } else {
       summary.devoluciones += 1;
-      summary.returnedValue += movement.estimatedValue;
+      summary.materialReturnedValue += movement.materialValue;
+      summary.commercialReturnedTotal += movement.commercialTotal;
     }
-    summary.materialBalance = summary.deliveredValue - summary.returnedValue;
+    summary.materialBalance = summary.materialDeliveredValue - summary.materialReturnedValue;
+    summary.commercialBalance = summary.commercialDeliveredTotal - summary.commercialReturnedTotal;
     summaryMap.set(movement.technicianId, summary);
 
     const currentMaterialMap = materialMapByTechnician.get(movement.technicianId) ?? new Map<string, MaterialSummaryRow>();
@@ -280,21 +295,31 @@ export function buildMaterialControlReport(params: {
   }
 
   const activeMovements = movements.filter((movement) => movementIds.has(movement.id));
-  const deliveredValue = activeMovements
+  const materialDeliveredValue = activeMovements
     .filter((movement) => movement.documentType === "REMITO")
-    .reduce((sum, movement) => sum + movement.estimatedValue, 0);
-  const returnedValue = activeMovements
+    .reduce((sum, movement) => sum + movement.materialValue, 0);
+  const materialReturnedValue = activeMovements
     .filter((movement) => movement.documentType === "REMITO_DEVOLUCION")
-    .reduce((sum, movement) => sum + movement.estimatedValue, 0);
+    .reduce((sum, movement) => sum + movement.materialValue, 0);
+  const commercialDeliveredTotal = activeMovements
+    .filter((movement) => movement.documentType === "REMITO")
+    .reduce((sum, movement) => sum + movement.commercialTotal, 0);
+  const commercialReturnedTotal = activeMovements
+    .filter((movement) => movement.documentType === "REMITO_DEVOLUCION")
+    .reduce((sum, movement) => sum + movement.commercialTotal, 0);
 
   return {
     movements,
     technicianSummaries,
     materialRowsByTechnician,
     totals: {
-      deliveredValue,
-      returnedValue,
-      materialBalance: deliveredValue - returnedValue,
+      materialDeliveredValue,
+      materialReturnedValue,
+      materialBalance: materialDeliveredValue - materialReturnedValue,
+      commercialDeliveredTotal,
+      commercialReturnedTotal,
+      commercialBalance: commercialDeliveredTotal - commercialReturnedTotal,
+      commercialPeriodTotal: commercialDeliveredTotal + commercialReturnedTotal,
       remitos: activeMovements.filter((movement) => movement.documentType === "REMITO").length,
       devoluciones: activeMovements.filter((movement) => movement.documentType === "REMITO_DEVOLUCION").length,
       clients: new Set(activeMovements.map((movement) => movement.customerId ?? movement.customerName).filter(Boolean)).size,

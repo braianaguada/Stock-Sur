@@ -17,7 +17,7 @@ const documents: MaterialControlDocument[] = [
     source_document_id: null,
     source_document_number_snapshot: null,
     external_invoice_number: "FAC-99",
-    total: 1500,
+    total: 1800,
     created_at: "2026-05-10T12:00:00Z",
   },
   {
@@ -35,7 +35,7 @@ const documents: MaterialControlDocument[] = [
     source_document_id: null,
     source_document_number_snapshot: null,
     external_invoice_number: null,
-    total: 400,
+    total: 450,
     created_at: "2026-05-12T12:00:00Z",
   },
 ];
@@ -60,7 +60,7 @@ const lines: MaterialControlLine[] = [
     sku_snapshot: "RJ45",
     quantity: 5,
     unit_price: 100,
-    line_total: 500,
+    line_total: 0,
     base_cost_snapshot: 50,
   },
   {
@@ -96,13 +96,28 @@ describe("buildMaterialControlReport", () => {
     expect(report.totals.devoluciones).toBe(1);
   });
 
-  it("calculates material balance as delivered value minus returned value", () => {
+  it("calculates material value from lines and commercial total from documents.total", () => {
+    const report = buildReport();
+    const remito = report.movements.find((movement) => movement.documentId === "remito-1");
+    const devolucion = report.movements.find((movement) => movement.documentId === "return-1");
+
+    expect(remito?.materialValue).toBe(1500);
+    expect(remito?.commercialTotal).toBe(1800);
+    expect(devolucion?.materialValue).toBe(400);
+    expect(devolucion?.commercialTotal).toBe(450);
+  });
+
+  it("keeps material and commercial balances separated when document totals differ from lines", () => {
     const report = buildReport();
 
-    expect(report.totals.deliveredValue).toBe(1500);
-    expect(report.totals.returnedValue).toBe(400);
+    expect(report.totals.materialDeliveredValue).toBe(1500);
+    expect(report.totals.materialReturnedValue).toBe(400);
     expect(report.totals.materialBalance).toBe(1100);
+    expect(report.totals.commercialDeliveredTotal).toBe(1800);
+    expect(report.totals.commercialReturnedTotal).toBe(450);
+    expect(report.totals.commercialBalance).toBe(1350);
     expect(report.technicianSummaries[0].materialBalance).toBe(1100);
+    expect(report.technicianSummaries[0].commercialBalance).toBe(1350);
   });
 
   it("groups technician summary and material rows", () => {
