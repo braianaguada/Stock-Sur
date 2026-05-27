@@ -170,6 +170,32 @@ describe("buildMaterialControlReport", () => {
     });
   });
 
+  it("shows inactive technicians by name and marks them as inactive", () => {
+    const report = buildReport({
+      technicians: [{ id: "tech-1", name: "Juan Tecnico", is_active: false }],
+    });
+
+    expect(report.movements[0]).toMatchObject({
+      technicianName: "Juan Tecnico",
+      technicianIsActive: false,
+      technicianMissing: false,
+    });
+    expect(report.technicianSummaries[0]).toMatchObject({
+      technicianName: "Juan Tecnico",
+      technicianIsActive: false,
+      technicianMissing: false,
+    });
+  });
+
+  it("shows orphan technician references as deleted technicians", () => {
+    const report = buildReport({ technicians: [] });
+
+    expect(report.movements[0].technicianName).toBe("Tecnico eliminado (tech-1)");
+    expect(report.movements[0].technicianMissing).toBe(true);
+    expect(report.movements[0].technicianName).not.toBe("Tecnico sin nombre");
+    expect(report.technicianSummaries[0].technicianName).toBe("Tecnico eliminado (tech-1)");
+  });
+
   it("filters by technician, customer, type and material search", () => {
     expect(buildReport({ filters: { technicianId: "missing", customerId: "ALL", serviceId: "ALL", type: "ALL", search: "" } }).movements).toHaveLength(0);
     expect(buildReport({ filters: { technicianId: "ALL", customerId: "customer-1", serviceId: "ALL", type: "REMITO", search: "cable" } }).movements).toHaveLength(1);

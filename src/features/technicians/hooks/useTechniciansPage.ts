@@ -8,6 +8,7 @@ import type { TechnicianFormState } from "../components/TechnicianFormDialog";
 import { hasTechnicianHistory, TECHNICIAN_DELETE_BLOCKED_MESSAGE, type TechnicianHistoryCounts } from "../technicianLifecycle";
 
 type ToastFn = (options: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
+export type TechnicianStatusFilter = "active" | "inactive" | "all";
 
 const EMPTY_FORM: TechnicianFormState = { name: "", phone: "", notes: "", is_active: true };
 
@@ -38,16 +39,23 @@ export function useTechniciansPage({ companyId, userId, toast }: UseTechniciansP
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Technician | null>(null);
   const [form, setForm] = useState<TechnicianFormState>(EMPTY_FORM);
+  const [statusFilter, setStatusFilter] = useState<TechnicianStatusFilter>("active");
   const qc = useQueryClient();
   const techniciansQuery = useQuery({
-    queryKey: ["technicians", companyId, deferredSearch],
+    queryKey: ["technicians", companyId, deferredSearch, statusFilter],
     enabled: Boolean(companyId),
     queryFn: async () => {
-      let q = supabase.from("technicians").select("*").eq("company_id", companyId!).order("is_active", { ascending: false }).order("name");
+      let q = supabase.from("technicians").select("*").eq("company_id", companyId!).order("name");
       if (deferredSearch) q = q.or(`name.ilike.%${deferredSearch}%,phone.ilike.%${deferredSearch}%,notes.ilike.%${deferredSearch}%`);
       const { data, error } = await q.limit(200);
       if (error) throw error;
-      return (data ?? []) as Technician[];
+      return ((data ?? []) as Technician[])
+        .map((technician) => ({ ...technician, is_active: technician.is_active ?? true }))
+        .filter((technician) => {
+          if (statusFilter === "all") return true;
+          return statusFilter === "active" ? technician.is_active !== false : technician.is_active === false;
+        })
+        .sort((a, b) => Number(b.is_active !== false) - Number(a.is_active !== false) || a.name.localeCompare(b.name));
     },
   });
   const saveMutation = useMutation({
@@ -86,5 +94,5 @@ export function useTechniciansPage({ companyId, userId, toast }: UseTechniciansP
     },
     onError: (error) => toast({ title: "No se pudo cambiar el estado", description: getErrorMessage(error), variant: "destructive" }),
   });
-  return { technicians: techniciansQuery.data ?? [], isLoading: techniciansQuery.isLoading, search, setSearch, dialogOpen, setDialogOpen, editing, setEditing, form, setForm, saveMutation, deleteMutation, toggleActiveMutation, openCreate: () => { setEditing(null); setForm(EMPTY_FORM); setDialogOpen(true); }, openEdit: (t: Technician) => { setEditing(t); setForm({ name: t.name, phone: t.phone ?? "", notes: t.notes ?? "", is_active: t.is_active ?? true }); setDialogOpen(true); } };
+  return { technicians: techniciansQuery.data ?? [], isLoading: techniciansQuery.isLoading, search, setSearch, statusFilter, setStatusFilter, dialogOpen, setDialogOpen, editing, setEditing, form, setForm, saveMutation, deleteMutation, toggleActiveMutation, openCreate: () => { setEditing(null); setForm(EMPTY_FORM); setDialogOpen(true); }, openEdit: (t: Technician) => { setEditing(t); setForm({ name: t.name, phone: t.phone ?? "", notes: t.notes ?? "", is_active: t.is_active ?? true }); setDialogOpen(true); } };
 }

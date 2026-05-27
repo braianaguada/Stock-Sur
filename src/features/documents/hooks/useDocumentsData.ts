@@ -50,20 +50,23 @@ export function useDocumentsData({
     },
   });
 
-  const { data: technicians = [] } = useQuery({
+  const { data: allTechnicians = [] } = useQuery({
     queryKey: ["documents", "technicians", currentCompanyId],
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("technicians")
-        .select("id, name")
+        .select("*")
         .eq("company_id", currentCompanyId!)
-        .eq("is_active", true)
         .order("name");
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map((technician) => ({ ...technician, is_active: technician.is_active ?? true }));
     },
   });
+  const technicians = useMemo(
+    () => allTechnicians.filter((technician) => technician.is_active !== false),
+    [allTechnicians],
+  );
 
   const { data: serviceOptions = [] } = useQuery({
     queryKey: ["documents", "service-options", currentCompanyId],
@@ -391,6 +394,7 @@ export function useDocumentsData({
   return {
     customers,
     technicians,
+    allTechnicians,
     serviceOptions,
     items,
     priceLists,
