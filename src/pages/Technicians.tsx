@@ -105,6 +105,8 @@ export default function TechniciansPage() {
     isLoading,
     search,
     setSearch,
+    statusFilter,
+    setStatusFilter,
     dialogOpen,
     setDialogOpen,
     editing,
@@ -199,6 +201,14 @@ export default function TechniciansPage() {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Buscar por nombre, telefono o nota..." />
               </div>
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+                <SelectTrigger aria-label="Estado" className="w-full md:w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Activos</SelectItem>
+                  <SelectItem value="inactive">Inactivos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
+                </SelectContent>
+              </Select>
             </FilterBar>
 
             <OperationalTableShell
@@ -274,7 +284,11 @@ export default function TechniciansPage() {
                 <SelectTrigger aria-label="Tecnico" className="w-full md:w-56"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">Todos los tecnicos</SelectItem>
-                  {materialControl.technicians.map((technician) => <SelectItem key={technician.id} value={technician.id}>{technician.name}</SelectItem>)}
+                  {materialControl.technicians.map((technician) => (
+                    <SelectItem key={technician.id} value={technician.id}>
+                      {technician.name}{technician.is_active === false ? " (Inactivo)" : ""}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={controlState.range} onValueChange={(range) => handleRangeChange(range as TechnicianMaterialControlState["range"])}>
@@ -383,7 +397,13 @@ export default function TechniciansPage() {
                     {!materialControl.isLoading && materialControl.report.technicianSummaries.length === 0 ? <EmptyTableRow colSpan={10}>No hay movimientos para el periodo filtrado.</EmptyTableRow> : null}
                     {materialControl.report.technicianSummaries.map((summary) => (
                       <TableRow key={summary.technicianId}>
-                        <TableCell className="font-medium">{summary.technicianName}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <span>{summary.technicianName}</span>
+                            {summary.technicianIsActive === false ? <CompactBadge tone="muted">Inactivo</CompactBadge> : null}
+                            {summary.technicianMissing ? <CompactBadge tone="warning">Referencia huerfana</CompactBadge> : null}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right tabular-nums">{summary.remitos}</TableCell>
                         <TableCell className="text-right tabular-nums">{summary.devoluciones}</TableCell>
                         <TableCell className="text-right"><AmountDisplay value={summary.commercialBalance} size="sm" /></TableCell>
@@ -431,7 +451,13 @@ export default function TechniciansPage() {
                     {materialControl.report.movements.map((movement) => (
                       <TableRow key={movement.id}>
                         <TableCell>{formatBusinessDate(movement.date)}</TableCell>
-                        <TableCell>{movement.technicianName}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span>{movement.technicianName}</span>
+                            {movement.technicianIsActive === false ? <CompactBadge tone="muted">Inactivo</CompactBadge> : null}
+                            {movement.technicianMissing ? <CompactBadge tone="warning">Referencia huerfana</CompactBadge> : null}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="font-mono text-sm font-medium">{movement.documentLabel}</div>
                           {movement.externalInvoiceNumber ? <div className="text-xs text-muted-foreground">Factura externa {movement.externalInvoiceNumber}</div> : null}

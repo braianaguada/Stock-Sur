@@ -60,12 +60,13 @@ export function useServiceJobs(params: {
     queryFn: async () => {
       const { data, error } = await serviceDb
         .from("technicians")
-        .select("id, name")
+        .select("*")
         .eq("company_id", companyId)
-        .eq("is_active", true)
         .order("name");
       if (error) throw error;
-      return (data ?? []) as ServiceJobTechnician[];
+      return ((data ?? []) as Array<ServiceJobTechnician & { is_active?: boolean }>)
+        .filter((technician) => technician.is_active !== false)
+        .map((technician) => ({ id: technician.id, name: technician.name }));
     },
   });
 
@@ -194,7 +195,7 @@ export function useServiceJobs(params: {
       const enriched: ServiceWithTechnicians = {
         ...service,
         technicianIds: assignments.map((assignment) => assignment.technician_id),
-        technicianNames: assignments.map((assignment) => assignment.technicians?.name ?? "Tecnico").sort(),
+        technicianNames: assignments.map((assignment) => assignment.technicians?.name ?? "Tecnico eliminado").sort(),
         materialRemitos: remitosByService.get(service.id) ?? [],
       };
       map.set(service.job_id, [...(map.get(service.job_id) ?? []), enriched]);

@@ -171,11 +171,12 @@ export function useTechnicianMaterialControl({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("technicians")
-        .select("id, name, phone, is_active")
+        .select("*")
         .eq("company_id", companyId!)
         .order("name");
       if (error) throw error;
-      return (data ?? []) as MaterialControlTechnician[];
+      return ((data ?? []) as MaterialControlTechnician[])
+        .map((technician) => ({ ...technician, is_active: technician.is_active ?? true }));
     },
   });
 

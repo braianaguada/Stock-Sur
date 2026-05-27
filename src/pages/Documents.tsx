@@ -121,6 +121,7 @@ export default function DocumentsPage() {
   const {
     customers,
     technicians,
+    allTechnicians,
     serviceOptions,
     items,
     priceLists,
@@ -677,7 +678,7 @@ export default function DocumentsPage() {
             sourceDocumentLabel={sourceDocumentLabel}
             technicianName={
               selectedDocument?.technician_id
-                ? technicians.find((technician) => technician.id === selectedDocument.technician_id)?.name ?? null
+                ? allTechnicians.find((technician) => technician.id === selectedDocument.technician_id)?.name ?? "Tecnico eliminado"
                 : null
             }
             serviceLinkLabel={
