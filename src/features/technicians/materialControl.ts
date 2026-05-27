@@ -53,6 +53,8 @@ export type MaterialControlMovement = {
   date: string;
   technicianId: string;
   technicianName: string;
+  technicianIsActive: boolean | null;
+  technicianMissing: boolean;
   documentId: string;
   documentLabel: string;
   documentType: MaterialControlDocType;
@@ -77,6 +79,8 @@ export type MaterialControlMovement = {
 export type TechnicianMaterialSummary = {
   technicianId: string;
   technicianName: string;
+  technicianIsActive: boolean | null;
+  technicianMissing: boolean;
   remitos: number;
   devoluciones: number;
   clients: number;
@@ -164,6 +168,10 @@ export function getServiceControlUrl(serviceId: string | null) {
   return serviceId ? `/service-jobs?serviceId=${serviceId}` : null;
 }
 
+export function getDeletedTechnicianLabel(technicianId: string) {
+  return technicianId ? `Tecnico eliminado (${technicianId.slice(0, 8)})` : "Tecnico eliminado";
+}
+
 export function buildMaterialControlReport(params: {
   documents: MaterialControlDocument[];
   lines: MaterialControlLine[];
@@ -199,7 +207,9 @@ export function buildMaterialControlReport(params: {
         id: document.id,
         date: document.issue_date,
         technicianId: document.technician_id ?? "",
-        technicianName: technician?.name ?? "Tecnico sin nombre",
+        technicianName: technician?.name?.trim() || getDeletedTechnicianLabel(document.technician_id ?? ""),
+        technicianIsActive: technician ? technician.is_active ?? true : null,
+        technicianMissing: !technician,
         documentId: document.id,
         documentLabel,
         documentType: document.doc_type,
@@ -246,6 +256,8 @@ export function buildMaterialControlReport(params: {
     const summary = summaryMap.get(movement.technicianId) ?? {
       technicianId: movement.technicianId,
       technicianName: movement.technicianName,
+      technicianIsActive: movement.technicianIsActive,
+      technicianMissing: movement.technicianMissing,
       remitos: 0,
       devoluciones: 0,
       clients: 0,
