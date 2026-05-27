@@ -149,6 +149,25 @@ describe("remito return logic", () => {
     });
   });
 
+  it("keeps the internal remito type when creating a return from an internal remito", () => {
+    const payload = buildReturnDraftPayload({
+      originDocument: {
+        ...originDocument,
+        customer_kind: "INTERNO",
+        internal_remito_type: "CUENTA_CORRIENTE",
+      },
+      originLines: [originLine],
+      sourceNumber: "0007-00000107",
+    });
+
+    expect(payload.document).toMatchObject({
+      doc_type: "REMITO_DEVOLUCION",
+      customer_kind: "INTERNO",
+      internal_remito_type: "CUENTA_CORRIENTE",
+      technician_id: "tech-1",
+    });
+  });
+
   it("calculates availability per item from original and previous return lines", () => {
     const availability = calculateReturnAvailability({
       originLines: [originLine],
