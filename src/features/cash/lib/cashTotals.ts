@@ -1,4 +1,4 @@
-import type { CashExpenseRow, CashSaleRow, PaymentMethod } from "../types";
+import type { CashAdjustmentRow, CashExpenseRow, CashSaleRow, PaymentMethod } from "../types";
 
 export type CashTotalsPeriod = "day" | "week" | "month" | "range";
 
@@ -24,6 +24,8 @@ export type CashDailyTotal = {
   expensesCashTotal: number;
   expensesNonCashTotal: number;
   expensesTotal: number;
+  adjustmentsTotal: number;
+  returnsTotal: number;
   netCashTotal: number;
   netTotal: number;
 };
@@ -50,6 +52,8 @@ const emptyDailyTotal = (businessDate: string): CashDailyTotal => ({
   expensesCashTotal: 0,
   expensesNonCashTotal: 0,
   expensesTotal: 0,
+  adjustmentsTotal: 0,
+  returnsTotal: 0,
   netCashTotal: 0,
   netTotal: 0,
 });
@@ -116,11 +120,17 @@ function addDayIntoSummary(summary: CashDailyTotal, day: CashDailyTotal) {
   summary.expensesCashTotal += day.expensesCashTotal;
   summary.expensesNonCashTotal += day.expensesNonCashTotal;
   summary.expensesTotal += day.expensesTotal;
+  summary.adjustmentsTotal += day.adjustmentsTotal;
+  summary.returnsTotal += day.returnsTotal;
   summary.netCashTotal += day.netCashTotal;
   summary.netTotal += day.netTotal;
 }
 
-export function buildCashTotalsReport(sales: CashSaleRow[], expenses: CashExpenseRow[]): CashTotalsReport {
+export function buildCashTotalsReport(
+  sales: CashSaleRow[],
+  expenses: CashExpenseRow[],
+  adjustments: CashAdjustmentRow[] = [],
+): CashTotalsReport {
   const daysByDate = new Map<string, CashDailyTotal>();
   const getDay = (businessDate: string) => {
     const existing = daysByDate.get(businessDate);
@@ -155,6 +165,19 @@ export function buildCashTotalsReport(sales: CashSaleRow[], expenses: CashExpens
     } else {
       day.expensesNonCashTotal += amount;
     }
+  }
+
+  for (const adjustment of adjustments) {
+    const day = getDay(adjustment.business_date);
+    if (adjustment.cancelled_at) continue;
+
+    const signedAmount = Number(adjustment.signed_amount);
+    const amount = Number(adjustment.amount_total);
+    if (!Number.isFinite(signedAmount) || !Number.isFinite(amount)) continue;
+    day.adjustmentsTotal += signedAmount;
+    day.returnsTotal += amount;
+    day.grossSalesTotal += signedAmount;
+    addAmountForPaymentMethod(day, adjustment.payment_method, signedAmount);
   }
 
   const days = Array.from(daysByDate.values())

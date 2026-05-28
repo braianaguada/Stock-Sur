@@ -9,18 +9,18 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatTime } from "@/lib/formatters";
 import { PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LABEL } from "../constants";
-import type { CashSaleRow, SituationFilter } from "../types";
+import type { CashMovementRow, SituationFilter } from "../types";
 import { getClosureSituationWithClosure } from "../utils";
 
 type CashSalesTabProps = {
-  filteredSales: CashSaleRow[];
+  filteredSales: CashMovementRow[];
   salesLoading: boolean;
   situationFilter: SituationFilter;
   onSituationFilterChange: (value: SituationFilter) => void;
   effectiveClosure: { status: string; closed_at: string | null } | null;
-  onOpenDetail: (sale: CashSaleRow) => void;
+  onOpenDetail: (sale: CashMovementRow) => void;
   onCancelSale: (saleId: string) => void;
-  canCancelSale: (sale: CashSaleRow) => boolean;
+  canCancelSale: (sale: CashMovementRow) => boolean;
   cancelPending: boolean;
   page: number;
   totalPages: number;
@@ -49,7 +49,7 @@ export function CashSalesTab({
   pageSizeOptions,
   onPageSizeChange,
 }: CashSalesTabProps) {
-  const columns = useMemo<ColumnDef<CashSaleRow, unknown>[]>(() => [
+  const columns = useMemo<ColumnDef<CashMovementRow, unknown>[]>(() => [
     {
       accessorKey: "sold_at",
       header: () => "Hora",
@@ -57,10 +57,14 @@ export function CashSalesTab({
       meta: { className: "w-[78px]", cellClassName: "py-2.5" },
     },
     {
-      accessorKey: "amount_total",
+      accessorKey: "display_amount",
       header: () => <div className="text-right">Importe</div>,
       cell: ({ row }) => (
-        <AmountDisplay value={Number(row.original.amount_total)} size="sm" className="text-right" />
+        <AmountDisplay
+          value={Number(row.original.display_amount)}
+          size="sm"
+          className={row.original.display_amount < 0 ? "text-right text-destructive" : "text-right"}
+        />
       ),
       meta: { className: "w-[132px]", cellClassName: "py-2.5" },
     },
@@ -115,7 +119,7 @@ export function CashSalesTab({
           <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => onOpenDetail(row.original)}>
             <NotebookText className="h-4 w-4" />
           </Button>
-          {row.original.status !== "ANULADA" ? (
+          {row.original.movement_kind === "SALE" && row.original.status !== "ANULADA" ? (
             <Button
               type="button"
               size="icon"
@@ -190,7 +194,7 @@ export function CashSalesTab({
             pageSizeOptions={pageSizeOptions}
             onPageChange={onPageChange}
             onPageSizeChange={onPageSizeChange}
-            itemLabel="ventas"
+            itemLabel="movimientos"
           />
         </div>
       ) : null}

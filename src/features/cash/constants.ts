@@ -21,6 +21,7 @@ export const RECEIPT_LABEL: Record<ReceiptKind, string> = {
   PENDIENTE: "Definir despues",
   REMITO: "Remito",
   FACTURA: "Factura",
+  REMITO_DEVOLUCION: "Devolucion / Remito devolucion",
 };
 
 export const STATUS_LABEL: Record<SaleStatus, string> = {

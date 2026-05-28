@@ -106,6 +106,7 @@ vi.mock("@/features/cash/hooks/useCashData", () => ({
     ],
     selectedClosureSales: [],
     selectedClosureSalesForPreview: [],
+    selectedClosureMovementsForPreview: [],
     summary,
     pendingSales: [],
     effectiveClosure: {
@@ -136,6 +137,7 @@ vi.mock("@/features/cash/hooks/useCashData", () => ({
     hasClosedClosureForDay: false,
     availableRemitos: [],
     availableFacturableRemitos: [],
+    availableReturnRemitos: [],
     unclosedSalesAfterClosure: [],
     filteredSales: [],
     selectedClosurePreview: null,

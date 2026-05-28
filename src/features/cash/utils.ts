@@ -2,9 +2,11 @@
 import { escapeHtml, escapeHtmlWithLineBreaks } from "@/lib/print";
 import { PAYMENT_LABEL, RECEIPT_LABEL } from "./constants";
 import type {
+  CashAdjustmentRow,
   CashClosureHistoryRow,
   CashExpenseFormState,
   CashExpenseRow,
+  CashMovementRow,
   CashSaleRow,
   CashSummary,
   DocumentEventQuickRow,
@@ -95,7 +97,7 @@ export function describeDocumentEvent(event: DocumentEventQuickRow) {
 }
 
 export function getClosureSituationWithClosure(
-  sale: CashSaleRow,
+  sale: CashMovementRow,
   closure: { status: string; closed_at: string | null } | null,
 ) {
   if (sale.status === "ANULADA") {
@@ -173,7 +175,11 @@ export function buildCashExpenseSummary(expenses: CashExpenseRow[]) {
   );
 }
 
-export function buildCashSummary(sales: CashSaleRow[], expenses: CashExpenseRow[] = []): CashSummary {
+export function buildCashSummary(
+  sales: CashSaleRow[],
+  expenses: CashExpenseRow[] = [],
+  adjustments: CashAdjustmentRow[] = [],
+): CashSummary {
   const salesSummary = sales.reduce(
     (acc, sale) => {
       if (sale.status !== "ANULADA") {
@@ -201,8 +207,14 @@ export function buildCashSummary(sales: CashSaleRow[], expenses: CashExpenseRow[
   );
 
   const expenseSummary = buildCashExpenseSummary(expenses);
+  const adjustmentsTotal = adjustments.reduce((acc, adjustment) => {
+    if (adjustment.cancelled_at) return acc;
+    return acc + Number(adjustment.signed_amount);
+  }, 0);
   return {
     ...salesSummary,
+    serviciosRemito: salesSummary.serviciosRemito + adjustmentsTotal,
+    total: salesSummary.total + adjustmentsTotal,
     gastosTotal: expenseSummary.total,
     gastosEfectivo: expenseSummary.cash,
     gastosNoEfectivo: expenseSummary.nonCash,
@@ -213,22 +225,22 @@ export function buildCashSummary(sales: CashSaleRow[], expenses: CashExpenseRow[
 
 export function buildCashClosurePrintHtml({
   closure,
-  sales,
+  movements,
   appName,
   documentFooter,
 }: {
   closure: CashClosureHistoryRow;
-  sales: CashSaleRow[];
+  movements: CashMovementRow[];
   appName: string;
   documentFooter: string | null;
 }) {
-  const rows = sales.map((sale) => `
+  const rows = movements.map((movement) => `
       <tr>
-        <td>${formatTime(sale.sold_at)}</td>
-        <td>${escapeHtml(sale.customer_name_snapshot ?? "Consumidor final")}</td>
-        <td>${escapeHtml(PAYMENT_LABEL[sale.payment_method])}</td>
-        <td>${escapeHtml(sale.receipt_reference ?? RECEIPT_LABEL[sale.receipt_kind])}</td>
-        <td style="text-align:right">${currency.format(Number(sale.amount_total))}</td>
+        <td>${formatTime(movement.sold_at)}</td>
+        <td>${escapeHtml(movement.customer_name_snapshot ?? "Consumidor final")}</td>
+        <td>${escapeHtml(PAYMENT_LABEL[movement.payment_method])}</td>
+        <td>${escapeHtml(movement.receipt_reference ?? RECEIPT_LABEL[movement.receipt_kind])}</td>
+        <td style="text-align:right">${currency.format(Number(movement.display_amount))}</td>
       </tr>
     `).join("");
 
@@ -292,7 +304,7 @@ export function buildCashClosurePrintHtml({
               <div class="mini">
                 <div class="eyebrow">Total ventas</div>
                 <div class="big">${currency.format(Number(closure.expected_sales_total))}</div>
-                <div class="sub">Movimientos: ${sales.length}</div>
+                <div class="sub">Movimientos: ${movements.length}</div>
               </div>
               <div class="mini">
                 <div class="eyebrow">Efectivo remito</div>
