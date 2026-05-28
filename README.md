@@ -100,6 +100,20 @@ No se crean movimientos de stock, documentos, ventas de caja, gastos, entradas d
 
 Validaciones ejecutadas para esta integracion: `npm run db:push:staging`, `npx tsc --noEmit`, `npm run lint`, `npm run test` y `npm run build`.
 
+## Presupuestos de servicio profesionales
+
+Los presupuestos de servicio soportan adjuntos, moneda y links publicos sin mezclar este flujo con stock, caja, cuenta corriente ni tecnicos.
+
+- **Imagenes / referencias**: se guardan en Storage en el bucket privado `service-document-attachments`, nunca en base64. Cada imagen puede tener titulo, descripcion, orden y marca `Mostrar en impresion`. Solo las marcadas aparecen en impresion y vista publica.
+- **Moneda ARS/USD**: ARS mantiene el comportamiento historico. USD guarda cotizacion, fecha, fuente y etiqueta como snapshot del documento para que presupuestos historicos no cambien por cotizaciones futuras.
+- **Cotizacion BNA**: la UI intenta obtener cotizacion de Banco Nacion desde una capa aislada. Si falla, permite cargar cotizacion manual y guarda `source = MANUAL`.
+- **Modo de precio**: `DETAILED` mantiene precios por linea. `GLOBAL_TOTAL` permite lineas descriptivas sin precio unitario y muestra solo el precio final global en UI comercial, impresion y vista publica.
+- **Links publicos**: se generan tokens largos no predecibles en `service_document_share_links`. El link no expone ids internos, es revocable y puede expirar. La vista publica es de solo lectura y no requiere login.
+- **PDF**: el link publico incluye boton **Descargar PDF**, implementado como imprimir/guardar PDF con `window.print`; PDF real generado automaticamente queda para fase futura.
+- **WhatsApp/email**: fase 1 comparte el link publico por `wa.me` o `mailto`. No adjunta PDF automaticamente, no usa proveedor de email y no usa WhatsApp Business API.
+
+Limitaciones actuales: el cliente descarga o guarda el PDF desde la vista publica; el envio real de email con adjunto, historial de envios y WhatsApp Business API quedan fuera de esta fase.
+
 ## Estado actual de staging
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.

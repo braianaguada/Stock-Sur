@@ -30,6 +30,9 @@ describe("service document logic", () => {
     expect(form.payment_terms).toBe("Contado");
     expect(form.delivery_location).toBe("Sucursal central");
     expect(form.currency).toBe("ARS");
+    expect(form.pricing_mode).toBe("DETAILED");
+    expect(form.global_total).toBe("");
+    expect(form.hide_line_prices).toBe(false);
     expect(form.status).toBe("DRAFT");
   });
 

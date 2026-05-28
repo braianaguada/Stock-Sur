@@ -4,6 +4,18 @@ export const currency = new Intl.NumberFormat("es-AR", {
   minimumFractionDigits: 2,
 });
 
+export const usdCurrency = new Intl.NumberFormat("es-AR", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+});
+
+export function formatMoney(value: number | string | null | undefined, currencyCode = "ARS") {
+  const amount = Number(value ?? 0);
+  if (currencyCode === "USD") return usdCurrency.format(amount).replace("US$", "USD");
+  return currency.format(amount);
+}
+
 const AR_TIME_ZONE = "America/Argentina/Buenos_Aires";
 
 function parseValidDate(value: string) {

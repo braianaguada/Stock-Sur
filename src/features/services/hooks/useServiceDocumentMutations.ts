@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
 import { queryKeys } from "@/lib/query-keys";
 import { serviceDb } from "../db";
-import type { ServiceDocumentForm, ServiceDocumentLine } from "../types";
+import type { ServiceDocument, ServiceDocumentAttachmentDraft, ServiceDocumentForm, ServiceDocumentLine } from "../types";
 
 type ToastFn = (args: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
 
@@ -12,15 +13,22 @@ export function calculateServiceLineTotal(line: ServiceDocumentLine) {
   return quantity > 0 && unitPrice > 0 ? quantity * unitPrice : Number(line.line_total ?? 0);
 }
 
+function parseOptionalNumber(value: string | undefined) {
+  if (!value?.trim()) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function useServiceDocumentMutations(params: {
   companyId: string | null;
   editingDocumentId: string | null;
   form: ServiceDocumentForm;
   lines: ServiceDocumentLine[];
+  attachments?: ServiceDocumentAttachmentDraft[];
   toast: ToastFn;
   onDone: () => void;
 }) {
-  const { companyId, editingDocumentId, form, lines, toast, onDone } = params;
+  const { companyId, editingDocumentId, form, lines, attachments = [], toast, onDone } = params;
   const qc = useQueryClient();
 
   const upsertMutation = useMutation({
@@ -28,18 +36,24 @@ export function useServiceDocumentMutations(params: {
       if (!companyId) throw new Error("Selecciona una empresa antes de crear presupuestos de servicio");
       if (!form.customer_id) throw new Error("Selecciona un cliente");
 
+      const isGlobalTotal = form.pricing_mode === "GLOBAL_TOTAL";
+      const globalTotal = parseOptionalNumber(form.global_total);
+      if (isGlobalTotal && (globalTotal == null || globalTotal < 0)) throw new Error("Carga un precio final global valido");
+      if (form.currency === "USD" && !parseOptionalNumber(form.exchange_rate)) throw new Error("Carga la cotizacion USD antes de guardar");
+
       const validLines = lines
         .map((line, index) => ({
           ...line,
           description: line.description.trim(),
-          line_total: calculateServiceLineTotal(line),
+          unit_price: isGlobalTotal ? null : line.unit_price,
+          line_total: isGlobalTotal ? 0 : calculateServiceLineTotal(line),
           sort_order: index + 1,
         }))
         .filter((line) => line.description);
 
       if (validLines.length === 0) throw new Error("Agrega al menos una linea de servicio");
 
-      const { error } = await serviceDb.rpc("save_service_document", {
+      const { data, error } = await serviceDb.rpc("save_service_document", {
         p_document_id: editingDocumentId,
         p_company_id: companyId,
         p_customer_id: form.customer_id,
@@ -60,8 +74,68 @@ export function useServiceDocumentMutations(params: {
           unit_price: line.unit_price,
           line_total: line.line_total,
         })),
+        p_exchange_rate_source: form.currency === "USD" ? form.exchange_rate_source : null,
+        p_exchange_rate: form.currency === "USD" ? parseOptionalNumber(form.exchange_rate) : null,
+        p_exchange_rate_date: form.currency === "USD" ? form.exchange_rate_date || null : null,
+        p_exchange_rate_fetched_at: form.currency === "USD" ? form.exchange_rate_fetched_at || null : null,
+        p_exchange_rate_snapshot_label: form.currency === "USD" ? form.exchange_rate_snapshot_label.trim() || null : null,
+        p_show_exchange_rate_note: form.show_exchange_rate_note,
+        p_pricing_mode: form.pricing_mode,
+        p_global_total: isGlobalTotal ? globalTotal : null,
+        p_hide_line_prices: form.hide_line_prices || isGlobalTotal,
       });
       if (error) throw error;
+      const savedDocument = data as ServiceDocument | null;
+      if (!savedDocument) return;
+
+      for (const attachment of attachments.filter((item) => item.remove && item.storage_path)) {
+        await supabase.storage.from("service-document-attachments").remove([attachment.storage_path!]);
+        await serviceDb.from("service_document_attachments").delete().eq("id", attachment.id);
+      }
+
+      const activeAttachments = attachments.filter((item) => !item.remove);
+      for (const attachment of activeAttachments) {
+        let storagePath = attachment.storage_path;
+        if (attachment.file) {
+          const extension = attachment.file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+          storagePath = `${companyId}/${savedDocument.id}/${crypto.randomUUID()}.${extension}`;
+          const { error: uploadError } = await supabase.storage
+            .from("service-document-attachments")
+            .upload(storagePath, attachment.file, { contentType: attachment.file.type, upsert: false });
+          if (uploadError) throw uploadError;
+        }
+        if (!storagePath) continue;
+
+        const payload = {
+          company_id: companyId,
+          service_document_id: savedDocument.id,
+          storage_bucket: "service-document-attachments",
+          storage_path: storagePath,
+          file_name: attachment.file_name,
+          mime_type: attachment.mime_type,
+          size_bytes: attachment.size_bytes,
+          title: attachment.title.trim() || null,
+          description: attachment.description.trim() || null,
+          sort_order: attachment.sort_order,
+          include_in_print: attachment.include_in_print,
+          created_by: savedDocument.created_by,
+        };
+
+        const { error: attachmentError } = attachment.file
+          ? await serviceDb.from("service_document_attachments").insert(payload).select().single()
+          : await serviceDb
+            .from("service_document_attachments")
+            .update({
+              title: payload.title,
+              description: payload.description,
+              sort_order: payload.sort_order,
+              include_in_print: payload.include_in_print,
+            })
+            .eq("id", attachment.id)
+            .select()
+            .single();
+        if (attachmentError) throw attachmentError;
+      }
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
