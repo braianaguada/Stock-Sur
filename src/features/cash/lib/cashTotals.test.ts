@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CashExpenseRow, CashSaleRow } from "../types";
+import type { CashAdjustmentRow, CashExpenseRow, CashSaleRow } from "../types";
 import { buildCashTotalsReport, getCashTotalsRange } from "./cashTotals";
 
 const baseSale = (overrides: Partial<CashSaleRow> = {}): CashSaleRow => ({
@@ -36,6 +36,28 @@ const baseExpense = (overrides: Partial<CashExpenseRow> = {}): CashExpenseRow =>
   updated_at: "2026-05-09T16:00:00.000Z",
   cancelled_at: null,
   cancelled_by: null,
+  ...overrides,
+});
+
+const baseAdjustment = (overrides: Partial<CashAdjustmentRow> = {}): CashAdjustmentRow => ({
+  id: "adjustment-1",
+  company_id: "company-1",
+  business_date: "2026-05-09",
+  occurred_at: "2026-05-09T17:00:00.000Z",
+  document_id: "return-doc-1",
+  adjustment_kind: "REMITO_DEVOLUCION",
+  payment_method: "SERVICIOS_REMITO",
+  amount_total: 250,
+  signed_amount: -250,
+  customer_id: null,
+  customer_name_snapshot: "Cliente",
+  closure_id: null,
+  notes: null,
+  cancelled_at: null,
+  cancelled_by: null,
+  created_by: "user-1",
+  created_at: "2026-05-09T17:00:00.000Z",
+  updated_at: "2026-05-09T17:00:00.000Z",
   ...overrides,
 });
 
@@ -89,6 +111,26 @@ describe("cash totals report", () => {
     expect(report.summary.accountCurrentTotal).toBe(1000);
     expect(report.summary.mercadoPagoTotal).toBe(300);
     expect(report.summary.grossSalesTotal).toBe(1300);
+  });
+
+  it("applies remito returns as negative services/remito without cash, expense or sale count impact", () => {
+    const report = buildCashTotalsReport(
+      [
+        baseSale({ amount_total: 1000, payment_method: "SERVICIOS_REMITO" }),
+        baseSale({ id: "sale-2", amount_total: 400, payment_method: "EFECTIVO_REMITO" }),
+      ],
+      [baseExpense({ amount_total: 50, expense_kind: "CAJA" })],
+      [baseAdjustment({ amount_total: 250, signed_amount: -250 })],
+    );
+
+    expect(report.summary.servicesRemitoTotal).toBe(750);
+    expect(report.summary.adjustmentsTotal).toBe(-250);
+    expect(report.summary.returnsTotal).toBe(250);
+    expect(report.summary.grossSalesTotal).toBe(1150);
+    expect(report.summary.cashTotal).toBe(400);
+    expect(report.summary.netCashTotal).toBe(350);
+    expect(report.summary.expensesTotal).toBe(50);
+    expect(report.summary.salesCount).toBe(2);
   });
 
   it("returns empty days and zero summary when there is no data", () => {

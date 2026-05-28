@@ -30,6 +30,7 @@ import type {
   CashExpenseRow,
   CashPendingReceiptState,
   CashSaleFormState,
+  CashMovementRow,
   CashSaleRow,
   PaymentMethod,
   ReceiptKind,
@@ -81,11 +82,11 @@ export default function CashPage() {
   const [notes, setNotes] = useState("");
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<CashSaleRow | null>(null);
-  const [pendingReceiptKind, setPendingReceiptKind] = useState<ReceiptKind>("REMITO");
+  const [pendingReceiptKind, setPendingReceiptKind] = useState<"REMITO" | "FACTURA">("REMITO");
   const [pendingRemitoId, setPendingRemitoId] = useState<string>("__none__");
   const [pendingReceiptReference, setPendingReceiptReference] = useState("");
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [detailSale, setDetailSale] = useState<CashSaleRow | null>(null);
+  const [detailSale, setDetailSale] = useState<CashMovementRow | null>(null);
   const [closurePreviewOpen, setClosurePreviewOpen] = useState(false);
   const [selectedClosureId, setSelectedClosureId] = useState<string | null>(null);
   const [closeNotes, setCloseNotes] = useState("");
@@ -126,14 +127,14 @@ export default function CashPage() {
     linkedDocumentLines,
     linkedDocumentEvents,
     closuresHistory,
-    selectedClosureSales,
-    selectedClosureSalesForPreview,
+    selectedClosureMovementsForPreview,
     summary,
     pendingSales,
     effectiveClosure,
     hasClosedClosureForDay,
     availableRemitos,
     availableFacturableRemitos,
+    availableReturnRemitos,
     unclosedSalesAfterClosure,
     filteredSales,
     selectedClosurePreview,
@@ -153,6 +154,8 @@ export default function CashPage() {
     [remitosById, selectedRemitoId],
   );
   const derivedAmount = selectedReceiptRemito ? Number(selectedReceiptRemito.total).toFixed(2) : "";
+  const derivedDisplayAmount =
+    receiptKind === "REMITO_DEVOLUCION" && derivedAmount ? -Number(derivedAmount) : Number(derivedAmount || 0);
 
   useEffect(() => {
     if (!closure || isCloseNotesDirty) return;
@@ -166,6 +169,12 @@ export default function CashPage() {
   useEffect(() => {
     setSelectedRemitoId("__none__");
     setReceiptReference("");
+  }, [receiptKind]);
+
+  useEffect(() => {
+    if (receiptKind === "REMITO_DEVOLUCION") {
+      setPaymentMethod("SERVICIOS_REMITO");
+    }
   }, [receiptKind]);
 
   useEffect(() => {
@@ -277,14 +286,22 @@ export default function CashPage() {
   const formatCashOptionCustomer = (remito: (typeof availableRemitos)[number]) =>
     remito.customer_name?.trim() ? remito.customer_name.trim() : "Cliente ocasional";
   const remitoOptionLabels = useMemo(
-    () => new Map(availableRemitos.map((remito) => [remito.id, formatRemitoOptionLabel(remito)])),
-    [availableRemitos],
+    () =>
+      new Map(
+        [...availableRemitos, ...availableFacturableRemitos, ...availableReturnRemitos].map((remito) => [
+          remito.id,
+          formatRemitoOptionLabel(remito),
+        ]),
+      ),
+    [availableFacturableRemitos, availableRemitos, availableReturnRemitos],
   );
   const selectedReceiptOption = selectedReceiptRemito
     ? {
         receiptLabel:
           receiptKind === "FACTURA" && selectedReceiptRemito.external_invoice_number
             ? selectedReceiptRemito.external_invoice_number
+            : receiptKind === "REMITO_DEVOLUCION"
+              ? `DEV ${String(selectedReceiptRemito.point_of_sale).padStart(4, "0")}-${String(selectedReceiptRemito.document_number ?? 0).padStart(8, "0")}`
             : `${String(selectedReceiptRemito.point_of_sale).padStart(4, "0")}-${String(selectedReceiptRemito.document_number ?? 0).padStart(8, "0")}`,
         customerLabel: formatCashOptionCustomer(selectedReceiptRemito),
         amount: Number(selectedReceiptRemito.total).toLocaleString("es-AR", {
@@ -293,7 +310,12 @@ export default function CashPage() {
         }),
       }
     : null;
-  const receiptOptions = receiptKind === "REMITO" ? availableRemitos : availableFacturableRemitos;
+  const receiptOptions =
+    receiptKind === "REMITO"
+      ? availableRemitos
+      : receiptKind === "REMITO_DEVOLUCION"
+        ? availableReturnRemitos
+        : availableFacturableRemitos;
   const filteredReceiptOptions = useMemo(() => {
     const query = normalizeReceiptSearch(receiptSearch);
     if (!query) return receiptOptions;
@@ -323,13 +345,15 @@ export default function CashPage() {
   const canCreateSale = canCreateCashSale(roles);
   const canCreateExpense = canCreateCashExpense(roles);
   const canCloseCashAction = canCloseCash(roles);
-  const canCancelSale = (sale: CashSaleRow) => canCancelCashSale(roles) && !sale.closure_id;
+  const canCancelSale = (sale: CashMovementRow) =>
+    sale.movement_kind === "SALE" && canCancelCashSale(roles) && !sale.closure_id;
   const canCancelExpense = (expense: CashExpenseRow) => canCancelCashExpense(roles) && !expense.closure_id;
-  const canAttachReceipt = (sale: CashSaleRow) =>
-    canAttachCashReceipt(roles) && sale.status === "PENDIENTE_COMPROBANTE";
+  const canAttachReceipt = (sale: CashMovementRow) =>
+    sale.movement_kind === "SALE" && canAttachCashReceipt(roles) && sale.status === "PENDIENTE_COMPROBANTE";
 
-  const openReceiptDialog = (sale: CashSaleRow) => {
+  const openReceiptDialog = (sale: CashMovementRow) => {
     if (!canAttachCashReceipt(roles)) return;
+    if (sale.movement_kind !== "SALE") return;
     setSelectedSale(sale);
     setPendingReceiptKind("REMITO");
     setPendingRemitoId("__none__");
@@ -342,7 +366,7 @@ export default function CashPage() {
     setClosurePreviewOpen(true);
   };
 
-  const openSaleDetail = (sale: CashSaleRow) => {
+  const openSaleDetail = (sale: CashMovementRow) => {
     setDetailSale(sale);
     setDetailDialogOpen(true);
   };
@@ -353,7 +377,7 @@ export default function CashPage() {
     const win = openPrintWindow(
         buildCashClosurePrintHtml({
           closure: selectedClosurePreview,
-          sales: selectedClosureSalesForPreview,
+          movements: selectedClosureMovementsForPreview,
           appName: companySettings.app_name,
           documentFooter: companySettings.document_footer,
         }),
@@ -512,7 +536,7 @@ export default function CashPage() {
                   className="h-fit border-primary/8 bg-card shadow-[var(--shadow-xs)] xl:sticky xl:top-4"
                 >
                   <CardHeader>
-                    <CardTitle>Nueva venta</CardTitle>
+                    <CardTitle>{receiptKind === "REMITO_DEVOLUCION" ? "Nueva devolucion" : "Nueva venta"}</CardTitle>
                     <CardDescription>
                       Panel secundario para cargar una operacion sin perder de vista los movimientos del dia.
                     </CardDescription>
@@ -550,12 +574,19 @@ export default function CashPage() {
                           <SelectContent>
                             <SelectItem value="REMITO">Remito</SelectItem>
                             <SelectItem value="FACTURA">Factura</SelectItem>
+                            <SelectItem value="REMITO_DEVOLUCION">Devolucion / Remito devolucion</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div className="space-y-2">
-                        <Label>{receiptKind === "REMITO" ? "Remito" : "Factura"}</Label>
+                        <Label>
+                          {receiptKind === "REMITO"
+                            ? "Remito"
+                            : receiptKind === "REMITO_DEVOLUCION"
+                              ? "Devolucion"
+                              : "Factura"}
+                        </Label>
                         <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
                           <SelectTrigger className="justify-start">
                             {selectedReceiptOption ? (
@@ -571,7 +602,15 @@ export default function CashPage() {
                                 </span>
                               </div>
                             ) : (
-                              <SelectValue placeholder={receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"} />
+                              <SelectValue
+                                placeholder={
+                                  receiptKind === "REMITO"
+                                    ? "Seleccionar remito"
+                                    : receiptKind === "REMITO_DEVOLUCION"
+                                      ? "Seleccionar devolucion"
+                                      : "Seleccionar factura"
+                                }
+                              />
                             )}
                           </SelectTrigger>
                           <SelectContent className="max-h-[22rem] overflow-hidden p-0">
@@ -583,12 +622,20 @@ export default function CashPage() {
                                 autoComplete="off"
                               />
                             </div>
-                            <SelectItem value="__none__">{receiptKind === "REMITO" ? "Seleccionar remito" : "Seleccionar factura"}</SelectItem>
+                            <SelectItem value="__none__">
+                              {receiptKind === "REMITO"
+                                ? "Seleccionar remito"
+                                : receiptKind === "REMITO_DEVOLUCION"
+                                  ? "Seleccionar devolucion"
+                                  : "Seleccionar factura"}
+                            </SelectItem>
                             {filteredReceiptOptions.map((remito) => {
                               const remitoNumber = `${String(remito.point_of_sale).padStart(4, "0")}-${String(remito.document_number ?? 0).padStart(8, "0")}`;
                               const receiptLabel =
                                 receiptKind === "FACTURA" && remito.external_invoice_number
                                   ? remito.external_invoice_number
+                                  : receiptKind === "REMITO_DEVOLUCION"
+                                    ? `DEV ${remitoNumber}`
                                   : remitoNumber;
                               const amount = Number(remito.total).toLocaleString("es-AR", {
                                 minimumFractionDigits: 2,
@@ -600,7 +647,9 @@ export default function CashPage() {
                                   <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_76px] items-center gap-2 py-0.5 leading-tight text-left">
                                     <span className="min-w-0 whitespace-nowrap font-medium text-left tabular-nums">{receiptLabel}</span>
                                     <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
-                                      {customerLabel}
+                                      {receiptKind === "REMITO_DEVOLUCION" && remito.source_document_number_snapshot
+                                        ? `${customerLabel} · Origen ${remito.source_document_number_snapshot}`
+                                        : customerLabel}
                                     </span>
                                     <span className="min-w-0 truncate text-left text-xs text-muted-foreground tabular-nums">
                                       ${amount}
@@ -618,6 +667,7 @@ export default function CashPage() {
                         <Select
                           value={paymentMethod}
                           onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+                          disabled={receiptKind === "REMITO_DEVOLUCION"}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -649,16 +699,17 @@ export default function CashPage() {
                           Total a registrar
                         </div>
                         <AmountDisplay
-                          value={derivedAmount ? Number(derivedAmount) : 0}
+                          value={derivedDisplayAmount}
                           size="lg"
-                          className="mt-1 text-3xl"
+                          className={`mt-1 text-3xl ${derivedDisplayAmount < 0 ? "text-destructive" : ""}`}
                         />
                       </div>
 
                       {paymentMethod === "SERVICIOS_REMITO" ? (
                         <p className="rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-sm text-warning">
-                          Este movimiento impacta en el total del dia, pero no entra en el efectivo a rendir
-                          del cierre.
+                          {receiptKind === "REMITO_DEVOLUCION"
+                            ? "La devolucion se registra como ajuste negativo de Servicios / remito y no toca la caja original."
+                            : "Este movimiento impacta en el total del dia, pero no entra en el efectivo a rendir del cierre."}
                         </p>
                       ) : null}
 
@@ -667,7 +718,11 @@ export default function CashPage() {
                         className="w-full"
                         disabled={createSaleMutation.isPending || !canCreateSale}
                       >
-                        {createSaleMutation.isPending ? "Guardando..." : "Registrar venta"}
+                        {createSaleMutation.isPending
+                          ? "Guardando..."
+                          : receiptKind === "REMITO_DEVOLUCION"
+                            ? "Registrar devolucion"
+                            : "Registrar venta"}
                       </Button>
 
                       {!canCreateSale ? (
@@ -777,7 +832,7 @@ export default function CashPage() {
             open={closurePreviewOpen}
             onOpenChange={setClosurePreviewOpen}
             selectedClosurePreview={selectedClosurePreview}
-            selectedClosureSales={selectedClosureSalesForPreview}
+            selectedClosureMovements={selectedClosureMovementsForPreview}
             onPrint={printClosurePreview}
           />
         </Suspense>

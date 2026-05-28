@@ -3,14 +3,14 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
 import { currency, formatTime } from "@/lib/formatters";
 import { PAYMENT_LABEL, RECEIPT_LABEL } from "@/features/cash/constants";
-import type { CashSaleRow } from "@/features/cash/types";
+import type { CashMovementRow } from "@/features/cash/types";
 
 type CashClosureSalesTableProps = {
-  sales: CashSaleRow[];
+  movements: CashMovementRow[];
 };
 
-export function CashClosureSalesTable({ sales }: CashClosureSalesTableProps) {
-  const columns = useMemo<ColumnDef<CashSaleRow, unknown>[]>(() => [
+export function CashClosureSalesTable({ movements }: CashClosureSalesTableProps) {
+  const columns = useMemo<ColumnDef<CashMovementRow, unknown>[]>(() => [
     {
       accessorKey: "sold_at",
       header: () => "Hora",
@@ -41,11 +41,11 @@ export function CashClosureSalesTable({ sales }: CashClosureSalesTableProps) {
       },
     },
     {
-      accessorKey: "amount_total",
+      accessorKey: "display_amount",
       header: () => <div className="text-right">Importe</div>,
       cell: ({ row }) => (
-        <div className="text-right font-semibold">
-          {currency.format(Number(row.original.amount_total))}
+        <div className={`text-right font-semibold ${row.original.display_amount < 0 ? "text-rose-700" : ""}`}>
+          {currency.format(Number(row.original.display_amount))}
         </div>
       ),
       meta: {
@@ -58,8 +58,8 @@ export function CashClosureSalesTable({ sales }: CashClosureSalesTableProps) {
   return (
     <DataTable
       columns={columns}
-      data={sales}
-      emptyMessage="Sin ventas registradas en este cierre"
+      data={movements}
+      emptyMessage="Sin movimientos registrados en este cierre"
     />
   );
 }

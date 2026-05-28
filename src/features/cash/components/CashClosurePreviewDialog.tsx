@@ -6,13 +6,13 @@ import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { CashClosureSalesTable } from "@/features/cash/components/CashClosureSalesTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { AmountDisplay, CompactBadge } from "@/components/common/VisualSystem";
-import type { CashClosureHistoryRow, CashSaleRow } from "@/features/cash/types";
+import type { CashClosureHistoryRow, CashMovementRow } from "@/features/cash/types";
 
 type CashClosurePreviewDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedClosurePreview: CashClosureHistoryRow | null;
-  selectedClosureSales: CashSaleRow[];
+  selectedClosureMovements: CashMovementRow[];
   onPrint: () => void;
 };
 
@@ -20,7 +20,7 @@ export function CashClosurePreviewDialog({
   open,
   onOpenChange,
   selectedClosurePreview,
-  selectedClosureSales,
+  selectedClosureMovements,
   onPrint,
 }: CashClosurePreviewDialogProps) {
   const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
@@ -32,7 +32,7 @@ export function CashClosurePreviewDialog({
   }, [selectedClosurePreview?.id, pageSize]);
 
   const salesPagination = usePaginationSlice({
-    items: selectedClosureSales,
+    items: selectedClosureMovements,
     page,
     pageSize,
   });
@@ -75,7 +75,7 @@ export function CashClosurePreviewDialog({
               <div className="rounded-2xl border border-success/18 bg-success/10 p-4">
                 <p className="text-xs font-medium text-muted-foreground">Efectivo a rendir</p>
                 <AmountDisplay value={Number(selectedClosurePreview.expected_cash_to_render)} size="hero" className="mt-2 text-success" />
-                <p className="mt-2 text-sm text-muted-foreground">Movimientos incluidos: {selectedClosureSales.length}</p>
+                <p className="mt-2 text-sm text-muted-foreground">Movimientos incluidos: {selectedClosureMovements.length}</p>
               </div>
 
               <div className="rounded-2xl border border-border/60 bg-background/76 p-4">
@@ -130,20 +130,20 @@ export function CashClosurePreviewDialog({
           </div>
 
             <div className="rounded-2xl border border-border/60 bg-card/72 overflow-auto">
-            <CashClosureSalesTable sales={salesPagination.pagedItems} />
-            {selectedClosureSales.length > 0 ? (
+            <CashClosureSalesTable movements={salesPagination.pagedItems} />
+            {selectedClosureMovements.length > 0 ? (
               <div className="border-t border-border/60 px-4 py-3">
                 <DataTablePagination
                   page={salesPagination.page}
                   totalPages={salesPagination.totalPages}
-                  totalItems={selectedClosureSales.length}
+                  totalItems={selectedClosureMovements.length}
                   rangeStart={salesPagination.rangeStart}
                   rangeEnd={salesPagination.rangeEnd}
                   pageSize={pageSize}
                   pageSizeOptions={PAGE_SIZE_OPTIONS}
                   onPageChange={setPage}
                   onPageSizeChange={setPageSize}
-                  itemLabel="ventas"
+                  itemLabel="movimientos"
                 />
               </div>
             ) : null}

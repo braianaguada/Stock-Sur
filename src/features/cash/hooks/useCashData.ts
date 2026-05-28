@@ -7,6 +7,8 @@ import type {
   CashClosureHistoryRow,
   CashClosureRow,
   CashExpenseRow,
+  CashAdjustmentRow,
+  CashMovementRow,
   CashSaleRow,
   CustomerOption,
   DocumentEventQuickRow,
@@ -90,6 +92,23 @@ export function useCashData({
     },
   });
 
+  const adjustmentsQuery = useQuery({
+    queryKey: queryKeys.cash.adjustments(currentCompanyId, businessDate),
+    enabled: Boolean(currentCompanyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_adjustments")
+        .select("id, company_id, business_date, occurred_at, document_id, adjustment_kind, payment_method, amount_total, signed_amount, customer_id, customer_name_snapshot, closure_id, notes, cancelled_at, cancelled_by, created_by, created_at, updated_at")
+        .eq("company_id", currentCompanyId!)
+        .eq("business_date", businessDate)
+        .order("occurred_at", { ascending: false })
+        .limit(1000);
+
+      if (error) throw error;
+      return (data ?? []) as CashAdjustmentRow[];
+    },
+  });
+
   const allSalesReferencesQuery = useQuery({
     queryKey: queryKeys.cash.sales(currentCompanyId, "all-references"),
     enabled: Boolean(currentCompanyId),
@@ -106,15 +125,53 @@ export function useCashData({
     },
   });
 
+  const allAdjustmentReferencesQuery = useQuery({
+    queryKey: queryKeys.cash.adjustments(currentCompanyId, "all-references"),
+    enabled: Boolean(currentCompanyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_adjustments")
+        .select("id, document_id, cancelled_at")
+        .eq("company_id", currentCompanyId!)
+        .order("occurred_at", { ascending: false })
+        .limit(5000);
+
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const remitosQuery = useQuery({
     queryKey: queryKeys.cash.remitos(currentCompanyId, businessDate),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("documents")
-        .select("id, customer_id, customer_name, point_of_sale, document_number, issue_date, created_at, status, total, external_invoice_number, external_invoice_status")
+        .select("id, doc_type, customer_id, customer_name, point_of_sale, document_number, issue_date, created_at, status, total, origin_document_id, source_document_number_snapshot, technician_id, external_invoice_number, external_invoice_status")
         .eq("company_id", currentCompanyId!)
         .eq("doc_type", "REMITO")
+        .eq("status", "EMITIDO")
+        .order("document_number", { ascending: false })
+        .limit(500);
+
+      if (error) throw error;
+      return ((data ?? []) as RemitoOption[]).filter((remito) => {
+        const issueDateMatches = remito.issue_date === businessDate;
+        const createdDateMatches = businessDateFromTimestamp(remito.created_at) === businessDate;
+        return issueDateMatches || createdDateMatches;
+      });
+    },
+  });
+
+  const returnsQuery = useQuery({
+    queryKey: queryKeys.cash.remitos(currentCompanyId, `${businessDate}:returns`),
+    enabled: Boolean(currentCompanyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("id, doc_type, customer_id, customer_name, point_of_sale, document_number, issue_date, created_at, status, total, origin_document_id, source_document_number_snapshot, technician_id, external_invoice_number, external_invoice_status, technicians(name)")
+        .eq("company_id", currentCompanyId!)
+        .eq("doc_type", "REMITO_DEVOLUCION")
         .eq("status", "EMITIDO")
         .order("document_number", { ascending: false })
         .limit(500);
@@ -232,9 +289,28 @@ export function useCashData({
     },
   });
 
+  const selectedClosureAdjustmentsQuery = useQuery({
+    queryKey: queryKeys.cash.adjustments(currentCompanyId, selectedClosureId ? `closure:${selectedClosureId}` : "no-closure"),
+    enabled: Boolean(selectedClosureId && currentCompanyId),
+    queryFn: async () => {
+      if (!selectedClosureId) return [];
+      const { data, error } = await supabase
+        .from("cash_adjustments")
+        .select("id, company_id, business_date, occurred_at, document_id, adjustment_kind, payment_method, amount_total, signed_amount, customer_id, customer_name_snapshot, closure_id, notes, cancelled_at, cancelled_by, created_by, created_at, updated_at")
+        .eq("company_id", currentCompanyId!)
+        .eq("closure_id", selectedClosureId)
+        .order("occurred_at", { ascending: true });
+
+      if (error) throw error;
+      return (data ?? []) as CashAdjustmentRow[];
+    },
+  });
+
   const sales = useMemo(() => salesQuery.data ?? [], [salesQuery.data]);
+  const adjustments = useMemo(() => adjustmentsQuery.data ?? [], [adjustmentsQuery.data]);
   const expenses = useMemo(() => expensesQuery.data ?? [], [expensesQuery.data]);
   const remitos = useMemo(() => remitosQuery.data ?? [], [remitosQuery.data]);
+  const returnRemitos = useMemo(() => returnsQuery.data ?? [], [returnsQuery.data]);
   const closuresHistory = useMemo(() => closuresHistoryQuery.data ?? [], [closuresHistoryQuery.data]);
   const closuresById = useMemo(
     () => new Map(closuresHistory.map((closure) => [closure.id, closure])),
@@ -252,7 +328,7 @@ export function useCashData({
   const hasClosedClosureForDay = effectiveClosure?.status === "CERRADO";
   const summary = useMemo(() => {
     if (!effectiveClosure) {
-      return buildCashSummary(sales, expenses);
+      return buildCashSummary(sales, expenses, adjustments);
     }
 
     const efectivoAntesGastos =
@@ -275,12 +351,16 @@ export function useCashData({
       efectivoAntesGastos,
       efectivoNetoEsperado: Number(effectiveClosure.expected_cash_to_render ?? 0),
     };
-  }, [effectiveClosure, expenses, sales]);
+  }, [adjustments, effectiveClosure, expenses, sales]);
   const pendingSales = useMemo(
     () => sales.filter((sale) => sale.status === "PENDIENTE_COMPROBANTE"),
     [sales],
   );
   const salesReferenceRows = useMemo(() => allSalesReferencesQuery.data ?? [], [allSalesReferencesQuery.data]);
+  const adjustmentReferenceRows = useMemo(
+    () => allAdjustmentReferencesQuery.data ?? [],
+    [allAdjustmentReferencesQuery.data],
+  );
   const assignedRemitoIds = useMemo(
     () => new Set(
       salesReferenceRows
@@ -288,6 +368,14 @@ export function useCashData({
         .map((sale) => sale.document_id as string),
     ),
     [salesReferenceRows],
+  );
+  const assignedReturnIds = useMemo(
+    () => new Set(
+      adjustmentReferenceRows
+        .filter((adjustment) => !adjustment.cancelled_at && adjustment.document_id)
+        .map((adjustment) => adjustment.document_id as string),
+    ),
+    [adjustmentReferenceRows],
   );
   const remitoReferenceById = useMemo(
     () =>
@@ -330,12 +418,39 @@ export function useCashData({
       ),
     [remitos, assignedRemitoIds, usedReceiptReferences],
   );
+  const availableReturnRemitos = useMemo(
+    () => returnRemitos.filter((remito) => !assignedReturnIds.has(remito.id)),
+    [assignedReturnIds, returnRemitos],
+  );
   const unclosedSalesAfterClosure = useMemo(
-    () => sales.filter((sale) => sale.status !== "ANULADA" && !sale.closure_id),
-    [sales],
+    () => [
+      ...sales.filter((sale) => sale.status !== "ANULADA" && !sale.closure_id),
+      ...adjustments.filter((adjustment) => !adjustment.cancelled_at && !adjustment.closure_id),
+    ],
+    [adjustments, sales],
+  );
+  const cashMovements = useMemo<CashMovementRow[]>(
+    () => [
+      ...sales.map((sale) => ({
+        ...sale,
+        movement_kind: "SALE" as const,
+        display_amount: Number(sale.amount_total),
+      })),
+      ...adjustments.map((adjustment) => ({
+        ...adjustment,
+        movement_kind: "ADJUSTMENT" as const,
+        sold_at: adjustment.occurred_at,
+        amount_total: Number(adjustment.amount_total),
+        status: adjustment.cancelled_at ? "ANULADA" as const : "REGISTRADA" as const,
+        receipt_kind: "REMITO_DEVOLUCION" as const,
+        receipt_reference: "Devolucion / Remito devolucion",
+        display_amount: Number(adjustment.signed_amount),
+      })),
+    ].sort((a, b) => b.sold_at.localeCompare(a.sold_at)),
+    [adjustments, sales],
   );
   const filteredSales = useMemo(
-    () => sales.filter((sale) => {
+    () => cashMovements.filter((sale) => {
       if (situationFilter === "TODAS") return true;
       if (situationFilter === "ANULADA") return sale.status === "ANULADA";
       const situation = getClosureSituationWithClosure(sale, effectiveClosure).label;
@@ -344,7 +459,7 @@ export function useCashData({
       if (situationFilter === "POST_CIERRE") return situation === "Venta post cierre";
       return true;
     }),
-    [sales, situationFilter, effectiveClosure],
+    [cashMovements, situationFilter, effectiveClosure],
   );
   const selectedClosurePreview = useMemo(
     () => (selectedClosureId ? closuresById.get(selectedClosureId) ?? null : null),
@@ -359,6 +474,30 @@ export function useCashData({
     },
     [selectedClosurePreview, selectedClosureSalesQuery.data],
   );
+  const selectedClosureMovementsForPreview = useMemo<CashMovementRow[]>(
+    () => {
+      const closureSales = selectedClosureSalesForPreview.map((sale) => ({
+        ...sale,
+        movement_kind: "SALE" as const,
+        display_amount: Number(sale.amount_total),
+      }));
+      const closureAdjustments = (selectedClosureAdjustmentsQuery.data ?? [])
+        .filter((adjustment) => !selectedClosurePreview || adjustment.business_date === selectedClosurePreview.business_date)
+        .map((adjustment) => ({
+          ...adjustment,
+          movement_kind: "ADJUSTMENT" as const,
+          sold_at: adjustment.occurred_at,
+          amount_total: Number(adjustment.amount_total),
+          status: adjustment.cancelled_at ? "ANULADA" as const : "REGISTRADA" as const,
+          receipt_kind: "REMITO_DEVOLUCION" as const,
+          receipt_reference: "Devolucion / Remito devolucion",
+          display_amount: Number(adjustment.signed_amount),
+        }));
+
+      return [...closureSales, ...closureAdjustments].sort((a, b) => a.sold_at.localeCompare(b.sold_at));
+    },
+    [selectedClosureAdjustmentsQuery.data, selectedClosurePreview, selectedClosureSalesForPreview],
+  );
 
   const refreshCash = async () => {
     if (effectiveClosure?.status === "ABIERTO") {
@@ -369,10 +508,13 @@ export function useCashData({
 
     await Promise.all([
       qc.refetchQueries({ queryKey: queryKeys.cash.sales(currentCompanyId, businessDate) }),
+      qc.refetchQueries({ queryKey: queryKeys.cash.adjustments(currentCompanyId, businessDate) }),
       qc.refetchQueries({ queryKey: queryKeys.cash.expenses(currentCompanyId, businessDate) }),
       qc.refetchQueries({ queryKey: queryKeys.cash.sales(currentCompanyId, "all-references") }),
+      qc.refetchQueries({ queryKey: queryKeys.cash.adjustments(currentCompanyId, "all-references") }),
       qc.refetchQueries({ queryKey: queryKeys.cash.closure(currentCompanyId, businessDate) }),
       qc.refetchQueries({ queryKey: queryKeys.cash.remitos(currentCompanyId, businessDate) }),
+      qc.refetchQueries({ queryKey: queryKeys.cash.remitos(currentCompanyId, `${businessDate}:returns`) }),
       qc.refetchQueries({ queryKey: queryKeys.cash.closuresHistory(currentCompanyId) }),
     ]);
   };
@@ -380,27 +522,30 @@ export function useCashData({
   return {
     customers: customersQuery.data ?? [],
     sales,
+    adjustments,
     expenses,
-    remitos,
+    remitos: [...remitos, ...returnRemitos],
     closure: closureQuery.data ?? null,
     closureLoading: closureQuery.isLoading,
     closureError: closureQuery.error,
-    salesLoading: salesQuery.isLoading,
+    salesLoading: salesQuery.isLoading || adjustmentsQuery.isLoading,
     expensesLoading: expensesQuery.isLoading,
-    salesError: salesQuery.error ?? allSalesReferencesQuery.error,
+    salesError: salesQuery.error ?? adjustmentsQuery.error ?? allSalesReferencesQuery.error ?? allAdjustmentReferencesQuery.error,
     expensesError: expensesQuery.error,
-    remitosError: remitosQuery.error,
+    remitosError: remitosQuery.error ?? returnsQuery.error,
     linkedDocument: linkedDocumentQuery.data ?? null,
     linkedDocumentLines: linkedDocumentLinesQuery.data ?? [],
     linkedDocumentEvents: linkedDocumentEventsQuery.data ?? [],
     closuresHistory,
     selectedClosureSales: selectedClosureSalesQuery.data ?? [],
     selectedClosureSalesForPreview,
+    selectedClosureMovementsForPreview,
     summary,
     pendingSales,
     effectiveClosure,
     hasClosedClosureForDay,
     availableRemitos,
+    availableReturnRemitos,
     unclosedSalesAfterClosure,
     filteredSales,
     selectedClosurePreview,

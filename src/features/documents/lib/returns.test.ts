@@ -135,6 +135,7 @@ describe("remito return logic", () => {
       status: "BORRADOR",
       customer_id: "customer-1",
       technician_id: "tech-1",
+      internal_remito_type: null,
       origin_document_id: "remito-1",
       source_document_id: "remito-1",
       source_document_type: "REMITO",

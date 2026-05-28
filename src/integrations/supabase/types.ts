@@ -39,6 +39,98 @@ export type Database = {
   }
   public: {
     Tables: {
+      cash_adjustments: {
+        Row: {
+          adjustment_kind: string
+          amount_total: number
+          business_date: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          closure_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name_snapshot: string | null
+          document_id: string
+          id: string
+          notes: string | null
+          occurred_at: string
+          payment_method: Database["public"]["Enums"]["cash_payment_method"]
+          signed_amount: number
+          updated_at: string
+        }
+        Insert: {
+          adjustment_kind?: string
+          amount_total: number
+          business_date: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closure_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          customer_name_snapshot?: string | null
+          document_id: string
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          payment_method?: Database["public"]["Enums"]["cash_payment_method"]
+          signed_amount: number
+          updated_at?: string
+        }
+        Update: {
+          adjustment_kind?: string
+          amount_total?: number
+          business_date?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closure_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          customer_name_snapshot?: string | null
+          document_id?: string
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          payment_method?: Database["public"]["Enums"]["cash_payment_method"]
+          signed_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_adjustments_closure_id_fkey"
+            columns: ["closure_id"]
+            isOneToOne: false
+            referencedRelation: "cash_closures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_adjustments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_adjustments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_adjustments_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_closures: {
         Row: {
           business_date: string
@@ -2311,6 +2403,35 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cancel_cash_adjustment: {
+        Args: { p_adjustment_id: string; p_reason?: string }
+        Returns: {
+          adjustment_kind: string
+          amount_total: number
+          business_date: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          closure_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name_snapshot: string | null
+          document_id: string
+          id: string
+          notes: string | null
+          occurred_at: string
+          payment_method: Database["public"]["Enums"]["cash_payment_method"]
+          signed_amount: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_adjustments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cancel_cash_sale: {
         Args: { p_reason?: string; p_sale_id: string }
         Returns: {
@@ -2578,6 +2699,79 @@ export type Database = {
           to: "cash_closures"
           isOneToOne: true
           isSetofReturn: false
+        }
+      }
+      register_cash_adjustment_from_return: {
+        Args: {
+          p_business_date?: string
+          p_document_id: string
+          p_notes?: string
+        }
+        Returns: {
+          adjustment_kind: string
+          amount_total: number
+          business_date: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          closure_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name_snapshot: string | null
+          document_id: string
+          id: string
+          notes: string | null
+          occurred_at: string
+          payment_method: Database["public"]["Enums"]["cash_payment_method"]
+          signed_amount: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_adjustments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      register_customer_account_credit_from_document: {
+        Args: { p_document_id: string }
+        Returns: {
+          amount: number
+          business_date: string
+          cash_sale_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string
+          description: string
+          document_id: string | null
+          entry_type: Database["public"]["Enums"]["customer_account_entry_type"]
+          id: string
+          metadata: Json
+          notes: string | null
+          origin_id: string
+          origin_type: Database["public"]["Enums"]["customer_account_origin_type"]
+        }
+      }
+      register_customer_account_debit_reversal_from_return_cancel: {
+        Args: { p_document_id: string }
+        Returns: {
+          amount: number
+          business_date: string
+          cash_sale_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string
+          description: string
+          document_id: string | null
+          entry_type: Database["public"]["Enums"]["customer_account_entry_type"]
+          id: string
+          metadata: Json
+          notes: string | null
+          origin_id: string
+          origin_type: Database["public"]["Enums"]["customer_account_origin_type"]
         }
       }
       transition_document_status: {

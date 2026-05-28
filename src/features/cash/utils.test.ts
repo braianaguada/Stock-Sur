@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CashExpenseRow, CashSaleRow } from "./types";
+import type { CashAdjustmentRow, CashExpenseRow, CashSaleRow } from "./types";
 import {
   buildCashExpenseSummary,
   buildCashSummary,
@@ -91,6 +91,28 @@ const baseSale = (overrides: Partial<CashSaleRow>): CashSaleRow => ({
   ...overrides,
 });
 
+const baseAdjustment = (overrides: Partial<CashAdjustmentRow>): CashAdjustmentRow => ({
+  id: "adjustment-1",
+  company_id: "company-1",
+  business_date: "2026-05-08",
+  occurred_at: "2026-05-08T13:00:00.000Z",
+  document_id: "return-doc-1",
+  adjustment_kind: "REMITO_DEVOLUCION",
+  payment_method: "SERVICIOS_REMITO",
+  amount_total: 300,
+  signed_amount: -300,
+  customer_id: null,
+  customer_name_snapshot: "Cliente",
+  closure_id: null,
+  notes: null,
+  cancelled_at: null,
+  cancelled_by: null,
+  created_by: "user-1",
+  created_at: "2026-05-08T13:00:00.000Z",
+  updated_at: "2026-05-08T13:00:00.000Z",
+  ...overrides,
+});
+
 describe("cash expenses", () => {
   it("validates positive amount, category and description", () => {
     expect(validateCashExpenseForm({
@@ -156,5 +178,22 @@ describe("cash expenses", () => {
     expect(summary.gastosEfectivo).toBe(200);
     expect(summary.gastosNoEfectivo).toBe(90);
     expect(summary.efectivoNetoEsperado).toBe(800);
+  });
+
+  it("subtracts remito returns from services/remito without changing physical cash", () => {
+    const summary = buildCashSummary(
+      [
+        baseSale({ amount_total: 1000, payment_method: "SERVICIOS_REMITO" }),
+        baseSale({ id: "sale-2", amount_total: 500, payment_method: "EFECTIVO_REMITO" }),
+      ],
+      [baseExpense({ amount_total: 100, expense_kind: "CAJA" })],
+      [baseAdjustment({ amount_total: 300, signed_amount: -300 })],
+    );
+
+    expect(summary.serviciosRemito).toBe(700);
+    expect(summary.total).toBe(1200);
+    expect(summary.gastosTotal).toBe(100);
+    expect(summary.efectivoAntesGastos).toBe(500);
+    expect(summary.efectivoNetoEsperado).toBe(400);
   });
 });

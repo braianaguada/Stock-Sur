@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/ui/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildCashTotalsReport, getCashTotalsRange, type CashDailyTotal, type CashTotalsPeriod } from "@/features/cash/lib/cashTotals";
-import type { CashExpenseRow, CashSaleRow } from "@/features/cash/types";
+import type { CashAdjustmentRow, CashExpenseRow, CashSaleRow } from "@/features/cash/types";
 import { todayDateInputValue } from "@/features/cash/utils";
 import { getErrorMessage } from "@/lib/errors";
 import { currency, formatBusinessDate } from "@/lib/formatters";
@@ -59,7 +59,7 @@ export default function CashTotalsPage() {
     queryKey: queryKeys.cash.totals(currentCompany?.id ?? null, range.from, range.to),
     enabled: Boolean(currentCompany?.id),
     queryFn: async () => {
-      const [salesResult, expensesResult] = await Promise.all([
+      const [salesResult, expensesResult, adjustmentsResult] = await Promise.all([
         supabase
           .from("cash_sales")
           .select("id, business_date, sold_at, amount_total, payment_method, receipt_kind, status, document_id, closure_id, receipt_reference, customer_name_snapshot, notes")
@@ -76,19 +76,29 @@ export default function CashTotalsPage() {
           .lte("business_date", range.to)
           .order("business_date", { ascending: false })
           .limit(5000),
+        supabase
+          .from("cash_adjustments")
+          .select("id, company_id, business_date, occurred_at, document_id, adjustment_kind, payment_method, amount_total, signed_amount, customer_id, customer_name_snapshot, closure_id, notes, cancelled_at, cancelled_by, created_by, created_at, updated_at")
+          .eq("company_id", currentCompany!.id)
+          .gte("business_date", range.from)
+          .lte("business_date", range.to)
+          .order("business_date", { ascending: false })
+          .limit(5000),
       ]);
 
       if (salesResult.error) throw salesResult.error;
       if (expensesResult.error) throw expensesResult.error;
+      if (adjustmentsResult.error) throw adjustmentsResult.error;
 
       return buildCashTotalsReport(
         (salesResult.data ?? []) as CashSaleRow[],
         (expensesResult.data ?? []) as CashExpenseRow[],
+        (adjustmentsResult.data ?? []) as CashAdjustmentRow[],
       );
     },
   });
 
-  const report = reportQuery.data ?? buildCashTotalsReport([], []);
+  const report = reportQuery.data ?? buildCashTotalsReport([], [], []);
   const selectedDay = report.days[0] ?? null;
 
   const resetFilters = () => {
@@ -178,9 +188,10 @@ export default function CashTotalsPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
           <SummaryCard label="Total vendido" value={report.summary.grossSalesTotal} hint={`${report.summary.salesCount} movimientos`} />
           <SummaryCard label="Efectivo bruto" value={report.summary.cashTotal} hint="Remito + facturable" />
+          <SummaryCard label="Devoluciones" value={-report.summary.returnsTotal} hint="Servicios / remito" />
           <SummaryCard label="Gastos efectivo" value={report.summary.expensesCashTotal} hint="Resta caja física" />
           <SummaryCard label="Efectivo neto" value={report.summary.netCashTotal} hint="Efectivo menos gastos" />
           <SummaryCard label="Cuenta corriente" value={report.summary.accountCurrentTotal} hint="Separado del efectivo" />
@@ -220,6 +231,7 @@ export default function CashTotalsPage() {
                       <th className="px-3 py-3 text-right">Point / MP</th>
                       <th className="px-3 py-3 text-right">Cuenta corriente</th>
                       <th className="px-3 py-3 text-right">Servicios / otros</th>
+                      <th className="px-3 py-3 text-right">Devoluciones</th>
                       <th className="px-3 py-3 text-right">Gastos efectivo</th>
                       <th className="px-3 py-3 text-right">Gastos no efectivo</th>
                       <th className="px-3 py-3 text-right">Total ventas</th>
@@ -241,6 +253,7 @@ export default function CashTotalsPage() {
                         <td className="px-3 py-3 text-right">{renderAmount(day.mercadoPagoTotal)}</td>
                         <td className="px-3 py-3 text-right">{renderAmount(day.accountCurrentTotal)}</td>
                         <td className="px-3 py-3 text-right">{renderAmount(day.servicesRemitoTotal + day.otherPaymentTotal)}</td>
+                        <td className="px-3 py-3 text-right">{renderAmount(day.adjustmentsTotal, "text-rose-700")}</td>
                         <td className="px-3 py-3 text-right">{renderAmount(day.expensesCashTotal, "text-rose-700")}</td>
                         <td className="px-3 py-3 text-right">{renderAmount(day.expensesNonCashTotal, "text-rose-700")}</td>
                         <td className="px-3 py-3 text-right">{renderAmount(day.grossSalesTotal)}</td>
