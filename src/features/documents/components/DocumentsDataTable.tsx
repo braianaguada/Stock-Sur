@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Copy, Eye, FileDown, Loader2, Pencil, Send } from "lucide-react";
+import { Ban, Check, Copy, Eye, FileText, Loader2, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,7 @@ export function DocumentsDataTable({
       header: () => "Tipo",
       cell: ({ row }) => (
         <Badge variant="outline" className={DOC_TYPE_CLASS[row.original.doc_type]}>
-          {DOC_LABEL[row.original.doc_type]}
+          {row.original.doc_type === "REMITO_DEVOLUCION" ? "Devolucion" : DOC_LABEL[row.original.doc_type]}
         </Badge>
       ),
       meta: {
@@ -136,12 +136,12 @@ export function DocumentsDataTable({
       cell: ({ row }) => {
         const doc = row.original;
         return (
-          <div className="flex flex-wrap items-center justify-start gap-1.5">
+          <div className="flex flex-nowrap items-center justify-end gap-1">
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-sky-500 hover:text-sky-400" onClick={() => onOpenDetail(doc.id)} title="Ver">
               <Eye className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-violet-500 hover:text-violet-400" onClick={() => onPrint(doc)} title="Imprimir / PDF" disabled={!canPrintDocument}>
-              <FileDown className="h-4 w-4" />
+              <Printer className="h-4 w-4" />
             </Button>
             {doc.status === "BORRADOR" && canEditDocumentDraft ? (
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-amber-500 hover:text-amber-400" onClick={() => onEditDraft(doc.id)} title="Editar borrador">
@@ -159,10 +159,10 @@ export function DocumentsDataTable({
                   <Send className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-500 hover:text-emerald-400" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
-                  <Send className="h-4 w-4" />
+                  <Check className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-400" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
-                  <Ban className="h-4 w-4" />
+                  <X className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" />
@@ -172,10 +172,10 @@ export function DocumentsDataTable({
             {doc.doc_type === "PRESUPUESTO" && doc.status === "ENVIADO" ? (
               <>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-500 hover:text-emerald-400" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
-                  <Send className="h-4 w-4" />
+                  <Check className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-400" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
-                  <Ban className="h-4 w-4" />
+                  <X className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" />
@@ -194,13 +194,13 @@ export function DocumentsDataTable({
             ) : null}
             {doc.doc_type === "PRESUPUESTO" && doc.status === "APROBADO" ? (
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-violet-500 hover:text-violet-400" onClick={() => onCloneAsRemito(doc.id)} title="Convertir a remito" disabled={!canCloneBudgetToRemito}>
-                <Copy className="h-4 w-4" />
+                <FileText className="h-4 w-4" />
               </Button>
             ) : null}
             {doc.doc_type === "REMITO" && doc.status === "EMITIDO" ? (
               <>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onGenerateReturn(doc.id)} title="Generar devolución">
-                  <Copy className="h-4 w-4" />
+                  <RotateCcw className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular remito" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" />
@@ -216,8 +216,8 @@ export function DocumentsDataTable({
         );
       },
       meta: {
-        className: "w-[320px]",
-        cellClassName: "py-2.5",
+        className: "w-[360px] min-w-[360px] text-right",
+        cellClassName: "py-2.5 whitespace-nowrap",
       },
     },
   ], [
@@ -239,7 +239,7 @@ export function DocumentsDataTable({
   ]);
 
   return (
-    <div className="data-panel">
+    <div className="data-panel overflow-x-auto">
       <DataTable
         columns={columns}
         data={documents}

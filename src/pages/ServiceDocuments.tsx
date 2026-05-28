@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Ban, Check, Copy, Edit, Eye, Plus, Printer, Search, Send, Trash2, X } from "lucide-react";
+import { Ban, Check, Copy, Eye, Pencil, Plus, Printer, Search, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { FilterBar, PageHeader } from "@/components/ui/page";
@@ -43,6 +43,7 @@ export default function ServiceDocumentsPage() {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [status, setStatus] = useState<ServiceDocumentStatus | "ALL">("ALL");
+  const [customerFilter, setCustomerFilter] = useState("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(null);
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
@@ -53,6 +54,7 @@ export default function ServiceDocumentsPage() {
     companyId: currentCompany?.id ?? null,
     search: deferredSearch,
     status,
+    customerId: customerFilter,
     documentId: editingDocumentId ?? previewDocumentId,
   });
 
@@ -223,9 +225,22 @@ export default function ServiceDocumentsPage() {
               </SelectContent>
             </Select>
           </div>
+          <div className="w-full md:w-56">
+            <Select value={customerFilter} onValueChange={setCustomerFilter}>
+              <SelectTrigger><SelectValue placeholder="Cliente" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos los clientes</SelectItem>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </FilterBar>
 
-        <section className="data-panel overflow-hidden">
+        <section className="data-panel overflow-x-auto">
           {isLoading ? (
             <div className="grid gap-3 p-6">
               <div className="h-4 w-40 animate-pulse rounded bg-muted" />
@@ -256,7 +271,7 @@ export default function ServiceDocumentsPage() {
                   <TableHead>Fecha</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="w-[320px] min-w-[320px] text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -269,8 +284,8 @@ export default function ServiceDocumentsPage() {
                       <Badge variant="outline" className={SERVICE_STATUS_BADGE_CLASS[document.status]}>{SERVICE_STATUS_LABEL[document.status]}</Badge>
                     </TableCell>
                     <TableCell className="text-right">{currency.format(Number(document.total ?? 0))}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex flex-wrap justify-end gap-1.5">
+                    <TableCell className="w-[320px] min-w-[320px] whitespace-nowrap text-right">
+                      <div className="flex flex-nowrap justify-end gap-1">
                         {canManageServiceDocuments && canTransitionServiceDocument(document, "SENT") ? (
                           <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" title="Enviar" onClick={() => triggerTransition(document, "SENT")} disabled={transitionMutation.isPending}>
                             <Send className="h-4 w-4" />
@@ -306,7 +321,7 @@ export default function ServiceDocumentsPage() {
                         ) : null}
                         {canEditServiceDocuments && document.status === "DRAFT" ? (
                           <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-amber-500 hover:text-amber-400" title="Editar" onClick={() => openEdit(document)}>
-                            <Edit className="h-4 w-4" />
+                            <Pencil className="h-4 w-4" />
                           </Button>
                         ) : null}
                       </div>

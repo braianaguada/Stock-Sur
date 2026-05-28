@@ -107,6 +107,8 @@ export default function DocumentsPage() {
   const { search, deferredSearch, setSearch, trimmedSearch } = useSearch();
   const [typeFilter, setTypeFilter] = useState<DocType | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<DocStatus | "ALL">("ALL");
+  const [customerFilter, setCustomerFilter] = useState("ALL");
+  const [technicianFilter, setTechnicianFilter] = useState("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -141,6 +143,8 @@ export default function DocumentsPage() {
     search: trimmedSearch,
     typeFilter,
     statusFilter,
+    customerFilter,
+    technicianFilter,
     selectedDocId,
     selectedPriceListId: draftForm.price_list_id,
     currentCompanyId: currentCompany?.id ?? null,
@@ -206,7 +210,7 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     setDocumentsPage(1);
-  }, [trimmedSearch, typeFilter, statusFilter, documentsPageSize]);
+  }, [trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter, documentsPageSize]);
 
   useEffect(() => {
     if (draftForm.price_list_id || priceLists.length === 0) return;
@@ -547,6 +551,38 @@ export default function DocumentsPage() {
                 <SelectItem value="RECHAZADO">Rechazado</SelectItem>
                 <SelectItem value="EMITIDO">Emitido</SelectItem>
                 <SelectItem value="ANULADO">Anulado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="w-full md:w-56">
+            <Select value={customerFilter} onValueChange={setCustomerFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos los clientes</SelectItem>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="w-full md:w-56">
+            <Select value={technicianFilter} onValueChange={setTechnicianFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tecnico" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos los tecnicos</SelectItem>
+                {technicians.map((technician) => (
+                  <SelectItem key={technician.id} value={technician.id}>
+                    {technician.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
