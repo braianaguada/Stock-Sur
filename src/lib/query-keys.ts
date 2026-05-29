@@ -79,6 +79,9 @@ export const queryKeys = {
     all: () => ["service-documents"] as const,
     detail: (documentId: string | null) => ["service-document", documentId ?? "no-document"] as const,
     lines: (documentId: string | null) => ["service-document-lines", documentId ?? "no-document"] as const,
+    attachments: (documentId: string | null) => ["service-document-attachments", documentId ?? "no-document"] as const,
+    shareLinks: (documentId: string | null) => ["service-document-share-links", documentId ?? "no-document"] as const,
+    public: (token: string | null) => ["public-service-document", token ?? "no-token"] as const,
   },
   serviceJobs: {
     all: () => ["service-jobs"] as const,

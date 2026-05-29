@@ -18,13 +18,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
 import type { ServiceDocument, ServiceDocumentEvent, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
-import { currency, formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
+import { formatIsoDate, formatMoney, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 
 type ServiceDocumentPreviewDialogProps = {
   open: boolean;
   onClose: () => void;
   previewDocument: ServiceDocument | null;
   previewLines: ServiceDocumentLine[];
+  previewAttachments?: import("@/features/services/types").ServiceDocumentAttachment[];
   selectedEvents: ServiceDocumentEvent[];
   eventUserNamesById: Map<string, string>;
   settings: CompanySettings;
@@ -114,6 +115,7 @@ export function ServiceDocumentPreviewDialog({
   onClose,
   previewDocument,
   previewLines,
+  previewAttachments = [],
   selectedEvents,
   eventUserNamesById,
   settings,
@@ -125,6 +127,7 @@ export function ServiceDocumentPreviewDialog({
     : "Vista previa del presupuesto de servicio";
   const brandName = settings.app_name || settings.legal_name || "Stock Sur";
   const legalName = settings.legal_name || brandName;
+  const showLinePrices = previewDocument ? previewDocument.pricing_mode !== "GLOBAL_TOTAL" && !previewDocument.hide_line_prices : true;
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
@@ -224,8 +227,8 @@ export function ServiceDocumentPreviewDialog({
                             <TableHead className="h-9 text-xs font-black uppercase tracking-[0.18em] text-slate-300">Descripcion</TableHead>
                             <TableHead className="h-9 w-20 text-right text-xs font-black uppercase tracking-[0.18em] text-slate-300">Cant.</TableHead>
                             <TableHead className="h-9 w-20 text-xs font-black uppercase tracking-[0.18em] text-slate-300">Unidad</TableHead>
-                            <TableHead className="h-9 w-28 text-right text-xs font-black uppercase tracking-[0.18em] text-slate-300">P. unit.</TableHead>
-                            <TableHead className="h-9 w-28 text-right text-xs font-black uppercase tracking-[0.18em] text-slate-300">Total</TableHead>
+                            {showLinePrices ? <TableHead className="h-9 w-28 text-right text-xs font-black uppercase tracking-[0.18em] text-slate-300">P. unit.</TableHead> : null}
+                            {showLinePrices ? <TableHead className="h-9 w-28 text-right text-xs font-black uppercase tracking-[0.18em] text-slate-300">Total</TableHead> : null}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -236,13 +239,13 @@ export function ServiceDocumentPreviewDialog({
                                 <TableCell className="py-2 text-sm font-semibold leading-5 text-slate-950">{line.description || "-"}</TableCell>
                                 <TableCell className="py-2 text-right text-sm text-slate-700">{line.quantity ?? "-"}</TableCell>
                                 <TableCell className="py-2 text-sm text-slate-700">{line.unit || "-"}</TableCell>
-                                <TableCell className="py-2 text-right text-sm text-slate-700">{currency.format(Number(line.unit_price ?? 0))}</TableCell>
-                                <TableCell className="py-2 text-right text-sm font-black text-slate-950">{currency.format(Number(line.line_total ?? 0))}</TableCell>
+                                {showLinePrices ? <TableCell className="py-2 text-right text-sm text-slate-700">{formatMoney(line.unit_price ?? 0, previewDocument.currency)}</TableCell> : null}
+                                {showLinePrices ? <TableCell className="py-2 text-right text-sm font-black text-slate-950">{formatMoney(line.line_total ?? 0, previewDocument.currency)}</TableCell> : null}
                               </TableRow>
                             ))
                           ) : (
                             <TableRow>
-                              <TableCell colSpan={6} className="py-6 text-center text-sm text-slate-500">Sin trabajos cargados</TableCell>
+                              <TableCell colSpan={showLinePrices ? 6 : 4} className="py-6 text-center text-sm text-slate-500">Sin trabajos cargados</TableCell>
                             </TableRow>
                           )}
                         </TableBody>
@@ -251,11 +254,27 @@ export function ServiceDocumentPreviewDialog({
                   </section>
 
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-                    <PreviewTextSection title="Cierre" value={previewDocument.closing_text} />
+                    <div className="space-y-4">
+                      <PreviewTextSection title="Cierre" value={previewDocument.closing_text} />
+                      {previewAttachments.filter((attachment) => attachment.include_in_print).length > 0 ? (
+                        <section className="rounded-xl border border-slate-200 bg-white p-4">
+                          <p className="text-[10px] font-black uppercase tracking-[0.26em] text-slate-400">Imagenes / referencias</p>
+                          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                            {previewAttachments.filter((attachment) => attachment.include_in_print).map((attachment) => (
+                              <figure key={attachment.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                                {attachment.signed_url ? <img src={attachment.signed_url} alt={attachment.title || attachment.file_name} className="h-36 w-full rounded-md object-contain" /> : null}
+                                {attachment.title ? <figcaption className="mt-2 text-xs font-bold text-slate-900">{attachment.title}</figcaption> : null}
+                                {attachment.description ? <p className="mt-1 text-xs text-slate-500">{attachment.description}</p> : null}
+                              </figure>
+                            ))}
+                          </div>
+                        </section>
+                      ) : null}
+                    </div>
                     <div className={`self-start rounded-2xl border border-slate-200 border-t-4 bg-slate-50 p-4 ${SERVICE_PREVIEW_TOTAL_ACCENT_CLASS[previewDocument.type]}`}>
                       <div className="flex items-center justify-between border-b border-slate-200 pb-2 text-sm text-slate-600">
                         <span>Subtotal sin IVA</span>
-                        <span className="font-semibold text-slate-950">{currency.format(Number(previewDocument.subtotal ?? previewDocument.total ?? 0))}</span>
+                        <span className="font-semibold text-slate-950">{formatMoney(previewDocument.subtotal ?? previewDocument.total ?? 0, previewDocument.currency)}</span>
                       </div>
                       <div className="flex items-center justify-between border-b border-slate-200 py-2 text-sm text-slate-600">
                         <span>IVA</span>
@@ -263,7 +282,12 @@ export function ServiceDocumentPreviewDialog({
                       </div>
                       <div className="pt-3">
                         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Total sin IVA</p>
-                        <p className="mt-1 text-3xl font-black tracking-tight text-slate-950">{currency.format(Number(previewDocument.total ?? 0))}</p>
+                        <p className="mt-1 text-3xl font-black tracking-tight text-slate-950">{formatMoney(previewDocument.total ?? 0, previewDocument.currency)}</p>
+                        {previewDocument.currency === "USD" && previewDocument.exchange_rate ? (
+                          <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">
+                            BNA: 1 USD = {formatMoney(previewDocument.exchange_rate, "ARS")} · Estimado {formatMoney(Number(previewDocument.total ?? 0) * Number(previewDocument.exchange_rate), "ARS")}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                   </div>

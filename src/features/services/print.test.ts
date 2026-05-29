@@ -28,6 +28,15 @@ const document: ServiceDocument = {
   subtotal: 100,
   total: 100,
   currency: "ARS",
+  exchange_rate_source: null,
+  exchange_rate: null,
+  exchange_rate_date: null,
+  exchange_rate_fetched_at: null,
+  exchange_rate_snapshot_label: null,
+  show_exchange_rate_note: true,
+  pricing_mode: "DETAILED",
+  global_total: null,
+  hide_line_prices: false,
   created_at: "2026-05-06T12:00:00.000Z",
   created_by: "user-1",
 };
@@ -90,5 +99,60 @@ describe("buildServiceDocumentPrintHtml", () => {
     expect(html).toContain("Total presupuesto sin IVA");
     expect(html).toContain(".is-service-quote .summary-row{grid-template-columns:66mm;justify-content:end}");
     expect(html).toContain(".is-service-quote .signature-row{display:none}");
+  });
+
+  it("hides line prices and keeps the global total in global mode", () => {
+    const html = buildServiceDocumentPrintHtml({
+      document: {
+        ...document,
+        type: "QUOTE",
+        pricing_mode: "GLOBAL_TOTAL",
+        hide_line_prices: true,
+        global_total: 850,
+        subtotal: 850,
+        total: 850,
+      },
+      lines: [{ ...line, unit_price: null, line_total: 0 }],
+      companySettings: DEFAULT_COMPANY_SETTINGS,
+    });
+
+    expect(html).not.toContain("Importe</th>");
+    expect(html).not.toContain("P. unit");
+    expect(html).toContain("850,00");
+  });
+
+  it("prints USD exchange snapshot and visible attachments", () => {
+    const html = buildServiceDocumentPrintHtml({
+      document: {
+        ...document,
+        type: "QUOTE",
+        currency: "USD",
+        exchange_rate_source: "BNA",
+        exchange_rate: 1250,
+        exchange_rate_date: "2026-05-28",
+        exchange_rate_fetched_at: "2026-05-28T12:00:00.000Z",
+        exchange_rate_snapshot_label: "Banco Nacion oficial vendedor - 2026-05-28",
+      },
+      lines: [line],
+      attachments: [{
+        id: "att-1",
+        storage_bucket: "service-document-attachments",
+        storage_path: "company/doc/file.webp",
+        file_name: "referencia.webp",
+        mime_type: "image/webp",
+        title: "Referencia",
+        description: "Frente del equipo",
+        sort_order: 1,
+        include_in_print: true,
+        signed_url: "https://example.com/referencia.webp",
+      }],
+      companySettings: DEFAULT_COMPANY_SETTINGS,
+    });
+
+    expect(html).toContain("USD");
+    expect(html).toContain("Cotizacion de referencia Banco Nacion");
+    expect(html).toContain("Equivalente estimado");
+    expect(html).toContain("Imagenes / referencias");
+    expect(html).toContain("referencia.webp");
   });
 });

@@ -1,12 +1,13 @@
 import type { CompanySettings } from "@/contexts/company-brand-context";
-import { currency, formatIsoDate } from "@/lib/formatters";
+import { formatIsoDate, formatMoney } from "@/lib/formatters";
 import { escapeHtml, escapeHtmlWithLineBreaks } from "@/lib/print";
 import { SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "./constants";
-import type { ServiceDocument, ServiceDocumentLine } from "./types";
+import type { ServiceDocument, ServiceDocumentAttachment, ServiceDocumentLine } from "./types";
 
 type BuildServiceDocumentPrintHtmlParams = {
   document: ServiceDocument;
   lines: ServiceDocumentLine[];
+  attachments?: ServiceDocumentAttachment[];
   companySettings: CompanySettings;
 };
 
@@ -15,9 +16,9 @@ function optionalMeta(label: string, value: unknown) {
   return `<div class="meta-line"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
 }
 
-function buildServiceRows(lines: ServiceDocumentLine[]) {
+function buildServiceRows(lines: ServiceDocumentLine[], showLinePrices: boolean, currencyCode: string) {
   if (lines.length === 0) {
-    return `<tr><td colspan="5" class="empty-row">Sin trabajos cargados</td></tr>`;
+    return `<tr><td colspan="${showLinePrices ? 5 : 4}" class="empty-row">Sin trabajos cargados</td></tr>`;
   }
 
   return lines
@@ -28,11 +29,46 @@ function buildServiceRows(lines: ServiceDocumentLine[]) {
           <td class="c-desc">${escapeHtml(line.description)}</td>
           <td class="c-qty">${Number(line.quantity ?? 0).toLocaleString("es-AR", { maximumFractionDigits: 2 })}</td>
           <td class="c-unit">${escapeHtml(line.unit ?? "-")}</td>
-          <td class="c-money">${currency.format(Number(line.line_total ?? 0))}</td>
+          ${showLinePrices ? `<td class="c-money">${formatMoney(line.line_total ?? 0, currencyCode)}</td>` : ""}
         </tr>
       `,
     )
     .join("");
+}
+
+function buildExchangeRateNote(document: ServiceDocument) {
+  if (document.currency !== "USD" || !document.show_exchange_rate_note || !document.exchange_rate) return "";
+  const rate = Number(document.exchange_rate);
+  if (!Number.isFinite(rate) || rate <= 0) return "";
+  const arsTotal = Number(document.total ?? 0) * rate;
+  const source = document.exchange_rate_source === "MANUAL" ? "Cotizacion manual" : "Cotizacion de referencia Banco Nacion";
+  const date = document.exchange_rate_date ? formatIsoDate(document.exchange_rate_date) : "";
+  return `
+    <section class="exchange-note avoid-break">
+      <strong>${escapeHtml(source)}</strong>
+      <span>1 USD = ${formatMoney(rate, "ARS")}${date ? ` - tomada el ${escapeHtml(date)}` : ""}</span>
+      <span>Equivalente estimado: ${formatMoney(arsTotal, "ARS")}</span>
+    </section>
+  `;
+}
+
+function buildAttachments(attachments: ServiceDocumentAttachment[]) {
+  const visible = attachments.filter((attachment) => attachment.include_in_print && attachment.signed_url);
+  if (visible.length === 0) return "";
+  return `
+    <section class="attachments-section">
+      <p class="section-title">Imagenes / referencias</p>
+      <div class="attachments-grid">
+        ${visible.map((attachment) => `
+          <figure class="attachment-card avoid-break">
+            <img src="${escapeHtml(attachment.signed_url ?? "")}" alt="${escapeHtml(attachment.title || attachment.file_name)}" />
+            ${attachment.title ? `<figcaption><strong>${escapeHtml(attachment.title)}</strong></figcaption>` : ""}
+            ${attachment.description ? `<p>${escapeHtml(attachment.description)}</p>` : ""}
+          </figure>
+        `).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function getDensityClass(lineCount: number) {
@@ -44,6 +80,7 @@ function getDensityClass(lineCount: number) {
 export function buildServiceDocumentPrintHtml({
   document,
   lines,
+  attachments = [],
   companySettings,
 }: BuildServiceDocumentPrintHtmlParams) {
   const isRemito = document.type === "REMITO";
@@ -53,6 +90,8 @@ export function buildServiceDocumentPrintHtml({
   const appName = companySettings.app_name ?? legalName;
   const densityClass = getDensityClass(lines.length);
   const totalLabel = isRemito ? "Total servicio sin IVA" : "Total presupuesto sin IVA";
+  const showLinePrices = document.pricing_mode !== "GLOBAL_TOTAL" && !document.hide_line_prices;
+  const currencyCode = document.currency ?? "ARS";
   const logoMarkup = companySettings.logo_url
     ? `<img class="brand-logo" src="${escapeHtml(companySettings.logo_url)}" alt="${escapeHtml(appName)}" />`
     : `<div class="brand-fallback">${escapeHtml(legalName.slice(0, 2).toUpperCase())}</div>`;
@@ -122,6 +161,7 @@ export function buildServiceDocumentPrintHtml({
     .c-qty{width:14mm;text-align:right}
     .c-unit{width:10mm;text-transform:lowercase}
     .c-money{width:28mm;text-align:right;white-space:nowrap;font-weight:800}
+    .lines-global-total .c-desc{width:auto}
     .empty-row{text-align:center;color:#64748b;padding:8mm}
     .summary-row{margin-top:auto;display:grid;grid-template-columns:minmax(0,1fr) 54mm;gap:6mm;align-items:start;padding-top:4mm}
     .totals{border-top:1.5px solid #cfd8e5;background:#fff}
@@ -130,6 +170,14 @@ export function buildServiceDocumentPrintHtml({
     .grand-total{padding:2.6mm 0 0;border-top:2px solid var(--accent);color:#0f172a}
     .grand-total span{display:block;color:var(--accent-ink);font-size:7px;font-weight:850;letter-spacing:.18em;text-transform:uppercase}
     .grand-total strong{display:block;margin-top:.8mm;font-size:18px;line-height:1;font-weight:950}
+    .exchange-note{display:grid;gap:1mm;margin-top:3mm;border:1px solid #bfdbfe;border-radius:6px;background:#eff6ff;padding:2.3mm 3mm;color:#1e3a8a;font-size:8px}
+    .exchange-note strong{font-size:7px;letter-spacing:.14em;text-transform:uppercase}
+    .attachments-section{margin-top:5mm}
+    .attachments-grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-top:2mm}
+    .attachment-card{margin:0;border:1px solid #d8e0ea;border-radius:7px;background:#fff;padding:2mm}
+    .attachment-card img{display:block;width:100%;max-height:82mm;object-fit:contain;border-radius:5px;background:#f8fafc}
+    .attachment-card figcaption{margin-top:1.6mm;color:#0f172a;font-size:8px}
+    .attachment-card p{margin:1mm 0 0;color:#64748b;font-size:7.6px;line-height:1.25}
     .signature-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8mm;margin-top:12mm;color:#475569;font-size:7.6px}
     .is-service-quote .summary-row{grid-template-columns:66mm;justify-content:end}
     .is-service-quote .signature-row{display:none}
@@ -208,21 +256,22 @@ export function buildServiceDocumentPrintHtml({
             <p class="section-title">Trabajos</p>
             <span class="line-count">${lines.length} item${lines.length === 1 ? "" : "s"}</span>
           </div>
-          <table>
+          <table class="${showLinePrices ? "" : "lines-global-total"}">
             <thead>
               <tr>
                 <th class="c-index">#</th>
                 <th class="c-desc">Descripcion</th>
                 <th class="c-qty">Cant.</th>
                 <th class="c-unit">Un.</th>
-                <th class="c-money">Importe</th>
+                ${showLinePrices ? `<th class="c-money">Importe</th>` : ""}
               </tr>
             </thead>
-            <tbody>${buildServiceRows(lines)}</tbody>
+            <tbody>${buildServiceRows(lines, showLinePrices, currencyCode)}</tbody>
           </table>
         </section>
 
         ${document.closing_text ? `<section class="text-block avoid-break"><strong>Cierre</strong><div>${escapeHtmlWithLineBreaks(document.closing_text)}</div></section>` : ""}
+        ${buildAttachments(attachments)}
 
         <section class="summary-row avoid-break">
           <div class="signature-row">
@@ -231,9 +280,10 @@ export function buildServiceDocumentPrintHtml({
             <div class="signature-line">Documento</div>
           </div>
           <div class="totals">
-            <div class="totals-line"><span>Subtotal sin IVA</span><strong>${currency.format(Number(document.subtotal ?? 0))}</strong></div>
+            <div class="totals-line"><span>Subtotal sin IVA</span><strong>${formatMoney(document.subtotal ?? 0, currencyCode)}</strong></div>
             <div class="totals-line"><span>IVA</span><strong>No incluido</strong></div>
-            <div class="grand-total"><span>${escapeHtml(totalLabel)}</span><strong>${currency.format(Number(document.total ?? 0))}</strong></div>
+            <div class="grand-total"><span>${escapeHtml(totalLabel)}</span><strong>${formatMoney(document.total ?? 0, currencyCode)}</strong></div>
+            ${buildExchangeRateNote(document)}
           </div>
         </section>
 

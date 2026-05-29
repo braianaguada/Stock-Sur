@@ -34,6 +34,15 @@ export function buildInitialServiceDocumentForm(settings: {
     delivery_location: settings.service_default_delivery_location || settings.address || DEFAULT_SERVICE_TEXTS.delivery_location,
     closing_text: settings.service_default_closing_text || settings.document_footer || DEFAULT_SERVICE_TEXTS.closing_text,
     currency: "ARS",
+    exchange_rate_source: "BNA",
+    exchange_rate: "",
+    exchange_rate_date: "",
+    exchange_rate_fetched_at: "",
+    exchange_rate_snapshot_label: "",
+    show_exchange_rate_note: true,
+    pricing_mode: "DETAILED",
+    global_total: "",
+    hide_line_prices: false,
   };
 }
 
