@@ -127,4 +127,23 @@ describe("buildDocumentPrintHtml", () => {
     expect(html).toContain("Total presupuesto");
     expect(html).not.toContain("Total documento");
   });
+
+  it("shows origin and hides salary discount metadata on return remitos", () => {
+    const html = buildDocumentPrintHtml({
+      document: {
+        ...document,
+        doc_type: "REMITO_DEVOLUCION",
+        internal_remito_type: "DESCUENTO_SUELDO",
+        source_document_type: "REMITO",
+        source_document_number_snapshot: "0009-00000032",
+      },
+      lines: [line],
+      companySettings: DEFAULT_COMPANY_SETTINGS,
+    });
+
+    expect(html).toContain("Devolucion de remito");
+    expect(html).toContain("Origen");
+    expect(html).toContain("0009-00000032");
+    expect(html).not.toContain("Descuento de sueldo");
+  });
 });

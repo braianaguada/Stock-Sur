@@ -4,20 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { currency, formatTime } from "@/lib/formatters";
-import type { CashPendingReceiptState, CashSaleRow, ReceiptKind, RemitoOption } from "../types";
+import type { CashPendingReceiptState, CashSaleRow, RemitoOption } from "../types";
 import { formatRemitoOptionLabel } from "../utils";
 
 type CashReceiptDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedSale: CashSaleRow | null;
-  pendingReceiptKind: ReceiptKind;
+  pendingReceiptKind: "REMITO" | "FACTURA";
   pendingRemitoId: string;
   pendingReceiptReference: string;
   availableRemitos: RemitoOption[];
   saving: boolean;
   canSave: boolean;
-  onPendingReceiptKindChange: (value: ReceiptKind) => void;
+  onPendingReceiptKindChange: (value: "REMITO" | "FACTURA") => void;
   onPendingRemitoIdChange: (value: string) => void;
   onPendingReceiptReferenceChange: (value: string) => void;
   onSave: (state: CashPendingReceiptState) => void;
@@ -77,7 +77,7 @@ export function CashReceiptDialog({
         </div>
         <div className="space-y-2">
           <Label>Tipo de comprobante</Label>
-          <Select value={pendingReceiptKind} onValueChange={(value) => onPendingReceiptKindChange(value as ReceiptKind)}>
+          <Select value={pendingReceiptKind} onValueChange={(value) => onPendingReceiptKindChange(value as "REMITO" | "FACTURA")}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="REMITO">Remito</SelectItem>

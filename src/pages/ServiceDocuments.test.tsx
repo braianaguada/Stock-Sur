@@ -58,15 +58,17 @@ vi.mock("@/features/services/hooks/useServiceDocumentMutations", () => ({
 }));
 vi.mock("@/features/services/db", () => ({
   serviceDb: {
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          order: async () => ({
-            data: [{ id: "line-1", description: "Trabajo", quantity: 1, unit: "u", unit_price: 1500, line_total: 1500, sort_order: 1 }],
-            error: null,
-          }),
-        }),
-      }),
+    from: (table: string) => ({
+      select: () => {
+        const rows = table === "service_document_lines"
+          ? [{ id: "line-1", description: "Trabajo", quantity: 1, unit: "u", unit_price: 1500, line_total: 1500, sort_order: 1 }]
+          : [];
+        const chain = {
+          eq: () => chain,
+          order: async () => ({ data: rows, error: null }),
+        };
+        return chain;
+      },
     }),
   },
 }));

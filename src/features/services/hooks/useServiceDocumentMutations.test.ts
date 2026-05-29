@@ -48,6 +48,15 @@ describe("useServiceDocumentMutations", () => {
         delivery_location: " neuquen ",
         closing_text: " cierre ",
         currency: "ARS",
+        exchange_rate_source: "BNA",
+        exchange_rate: "",
+        exchange_rate_date: "",
+        exchange_rate_fetched_at: "",
+        exchange_rate_snapshot_label: "",
+        show_exchange_rate_note: true,
+        pricing_mode: "DETAILED",
+        global_total: "",
+        hide_line_prices: false,
       },
       lines: [
         { description: " Trabajo ", quantity: 2, unit: " u ", unit_price: 10, line_total: 0 },
@@ -70,7 +79,53 @@ describe("useServiceDocumentMutations", () => {
         p_delivery_location: "neuquen",
         p_intro_text: "intro",
         p_closing_text: "cierre",
+        p_pricing_mode: "DETAILED",
         p_lines: [{ description: "Trabajo", quantity: 2, unit: "u", unit_price: 10, line_total: 20 }],
+      }),
+    );
+  });
+
+  it("allows global total service documents without line prices", async () => {
+    rpc.mockResolvedValueOnce({ data: { id: "doc-1", created_by: "user-1" }, error: null });
+    const mutations = useServiceDocumentMutations({
+      companyId: "company-1",
+      editingDocumentId: null,
+      form: {
+        customer_id: "cust-1",
+        status: "DRAFT",
+        reference: "",
+        issue_date: "2026-04-29",
+        valid_until: "",
+        intro_text: "",
+        delivery_time: "",
+        payment_terms: "",
+        delivery_location: "",
+        closing_text: "",
+        currency: "ARS",
+        exchange_rate_source: "BNA",
+        exchange_rate: "",
+        exchange_rate_date: "",
+        exchange_rate_fetched_at: "",
+        exchange_rate_snapshot_label: "",
+        show_exchange_rate_note: true,
+        pricing_mode: "GLOBAL_TOTAL",
+        global_total: "1500",
+        hide_line_prices: true,
+      },
+      lines: [{ description: "Trabajo descriptivo", quantity: 1, unit: "u", unit_price: null, line_total: 0 }] as never,
+      toast,
+      onDone: vi.fn(),
+    });
+
+    await mutations.upsertMutation.mutationFn();
+
+    expect(rpc).toHaveBeenCalledWith(
+      "save_service_document",
+      expect.objectContaining({
+        p_pricing_mode: "GLOBAL_TOTAL",
+        p_global_total: 1500,
+        p_hide_line_prices: true,
+        p_lines: [{ description: "Trabajo descriptivo", quantity: 1, unit: "u", unit_price: null, line_total: 0 }],
       }),
     );
   });
@@ -92,6 +147,15 @@ describe("useServiceDocumentMutations", () => {
         delivery_location: "",
         closing_text: "",
         currency: "ARS",
+        exchange_rate_source: "BNA",
+        exchange_rate: "",
+        exchange_rate_date: "",
+        exchange_rate_fetched_at: "",
+        exchange_rate_snapshot_label: "",
+        show_exchange_rate_note: true,
+        pricing_mode: "DETAILED",
+        global_total: "",
+        hide_line_prices: false,
       },
       lines: [{ description: "Trabajo", quantity: 1, unit: "u", unit_price: 10, line_total: 10 }] as never,
       toast,

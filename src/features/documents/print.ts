@@ -239,7 +239,7 @@ export function buildDocumentPrintHtml({
             <p class="box-title">Operacion</p>
             ${optionalMeta("Tipo", documentTypeLabel)}
             ${technicianName ? optionalMeta("Tecnico", technicianName) : ""}
-            ${document.internal_remito_type ? optionalMeta("Imputacion", INTERNAL_REMITO_LABEL[document.internal_remito_type]) : ""}
+            ${document.doc_type !== "REMITO_DEVOLUCION" && document.internal_remito_type ? optionalMeta("Imputacion", INTERNAL_REMITO_LABEL[document.internal_remito_type]) : ""}
             ${sourceLabel ? optionalMeta("Origen", sourceLabel) : ""}
             ${externalInvoice ? optionalMeta("Factura ext.", externalInvoice) : ""}
             ${document.payment_terms ? optionalMeta("Cond. venta", document.payment_terms) : ""}

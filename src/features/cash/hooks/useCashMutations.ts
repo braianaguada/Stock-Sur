@@ -73,17 +73,19 @@ export function useCashMutations({
       const selectedCustomer = customersById.get(form.customerId);
       const selectedRemito = remitosById.get(form.selectedRemitoId);
       const selectedReference =
-        form.receiptKind === "REMITO"
-          ? formatDocumentNumber(selectedRemito?.point_of_sale ?? 0, selectedRemito?.document_number ?? null)
-          : selectedRemito?.external_invoice_number ?? form.receiptReference.trim();
+        form.receiptKind === "FACTURA"
+          ? selectedRemito?.external_invoice_number ?? form.receiptReference.trim()
+          : formatDocumentNumber(selectedRemito?.point_of_sale ?? 0, selectedRemito?.document_number ?? null);
+      const usesDocumentSelection =
+        form.receiptKind === "REMITO" || form.receiptKind === "FACTURA" || form.receiptKind === "REMITO_DEVOLUCION";
 
-      if ((form.receiptKind === "REMITO" || form.receiptKind === "FACTURA") && !selectedRemito) {
+      if (usesDocumentSelection && !selectedRemito) {
         throw new Error("El remito seleccionado ya no esta disponible. Recarga la caja e intenta de nuevo");
       }
       if (form.paymentMethod === "CUENTA_CORRIENTE" && form.customerId !== "__none__" && !selectedCustomer) {
         throw new Error("El cliente seleccionado ya no esta disponible. Recarga la caja e intenta de nuevo");
       }
-      if ((form.receiptKind === "REMITO" || form.receiptKind === "FACTURA") && !selectedReference) {
+      if (usesDocumentSelection && !selectedReference) {
         throw new Error("El comprobante seleccionado no tiene referencia valida");
       }
 
@@ -91,12 +93,25 @@ export function useCashMutations({
         throw new Error("Ese comprobante ya fue registrado en caja");
       }
 
-      const derivedAmount =
-        form.receiptKind === "REMITO" || form.receiptKind === "FACTURA"
-          ? Number(selectedRemito?.total ?? 0)
-          : Number(form.amount.replace(",", "."));
+      const derivedAmount = usesDocumentSelection
+        ? Number(selectedRemito?.total ?? 0)
+        : Number(form.amount.replace(",", "."));
       if (!Number.isFinite(derivedAmount) || derivedAmount <= 0) {
         throw new Error("No se pudo determinar un importe valido");
+      }
+
+      if (form.receiptKind === "REMITO_DEVOLUCION") {
+        if (form.paymentMethod !== "SERVICIOS_REMITO") {
+          throw new Error("La devolucion de remito debe registrarse como Servicios / remito");
+        }
+
+        const { error } = await supabase.rpc("register_cash_adjustment_from_return", {
+          p_document_id: selectedRemito!.id,
+          p_business_date: getDocumentBusinessDate(selectedRemito),
+          p_notes: form.notes.trim() || null,
+        });
+        if (error) throw error;
+        return "REMITO_DEVOLUCION" as const;
       }
 
       const payload = {
@@ -117,11 +132,12 @@ export function useCashMutations({
 
       const { error } = await supabase.from("cash_sales").insert(payload);
       if (error) throw error;
+      return form.receiptKind;
     },
-    onSuccess: async () => {
+    onSuccess: async (receiptKind) => {
       await refreshCash();
       onCreateSaleSuccess();
-      toast({ title: "Venta registrada" });
+      toast({ title: receiptKind === "REMITO_DEVOLUCION" ? "Devolucion registrada" : "Venta registrada" });
     },
     onError: (error: unknown) => {
       toast({
@@ -135,7 +151,6 @@ export function useCashMutations({
   const attachReceiptMutation = useMutation({
     mutationFn: async (pendingState: CashPendingReceiptState) => {
       if (!pendingState.selectedSale) throw new Error("Selecciona una venta pendiente");
-      if (pendingState.pendingReceiptKind === "PENDIENTE") throw new Error("Debes elegir remito o factura");
       if (pendingState.pendingReceiptKind === "REMITO" && pendingState.pendingRemitoId === "__none__") {
         throw new Error("Selecciona un remito emitido");
       }

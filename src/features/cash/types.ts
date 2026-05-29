@@ -6,7 +6,7 @@ export type PaymentMethod =
   | "POINT"
   | "TRANSFERENCIA"
   | "CUENTA_CORRIENTE";
-export type ReceiptKind = "PENDIENTE" | "REMITO" | "FACTURA";
+export type ReceiptKind = "PENDIENTE" | "REMITO" | "FACTURA" | "REMITO_DEVOLUCION";
 export type SaleStatus = "REGISTRADA" | "PENDIENTE_COMPROBANTE" | "COMPROBANTADA" | "ANULADA";
 export type ClosureStatus = "ABIERTO" | "CERRADO";
 export type CashExpenseKind = "CAJA" | "CUENTA_CORRIENTE";
@@ -20,6 +20,7 @@ export type CustomerOption = {
 
 export type RemitoOption = {
   id: string;
+  doc_type: "REMITO" | "REMITO_DEVOLUCION";
   customer_id: string | null;
   customer_name: string;
   point_of_sale: number;
@@ -28,8 +29,12 @@ export type RemitoOption = {
   created_at: string;
   status: string;
   total: number;
+  origin_document_id: string | null;
+  source_document_number_snapshot: string | null;
+  technician_id: string | null;
   external_invoice_number: string | null;
   external_invoice_status: "ACTIVE" | "VOIDED" | null;
+  technicians?: { name: string | null } | null;
 };
 
 export type CashSaleRow = {
@@ -46,6 +51,39 @@ export type CashSaleRow = {
   customer_name_snapshot: string | null;
   notes: string | null;
 };
+
+export type CashAdjustmentRow = {
+  id: string;
+  company_id: string;
+  business_date: string;
+  occurred_at: string;
+  document_id: string;
+  adjustment_kind: "REMITO_DEVOLUCION";
+  payment_method: "SERVICIOS_REMITO";
+  amount_total: number;
+  signed_amount: number;
+  customer_id: string | null;
+  customer_name_snapshot: string | null;
+  closure_id: string | null;
+  notes: string | null;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CashMovementRow =
+  | (CashSaleRow & { movement_kind: "SALE"; display_amount: number })
+  | (CashAdjustmentRow & {
+      movement_kind: "ADJUSTMENT";
+      sold_at: string;
+      amount_total: number;
+      status: SaleStatus;
+      receipt_kind: "REMITO_DEVOLUCION";
+      receipt_reference: string | null;
+      display_amount: number;
+    });
 
 export type CashClosureRow = {
   id: string;
@@ -95,7 +133,7 @@ export type CashExpenseRow = {
 
 export type DocumentQuickRow = {
   id: string;
-  doc_type: "PRESUPUESTO" | "REMITO";
+  doc_type: "PRESUPUESTO" | "REMITO" | "REMITO_DEVOLUCION";
   status: "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO" | "EMITIDO" | "ANULADO";
   point_of_sale: number;
   document_number: number | null;
@@ -103,6 +141,7 @@ export type DocumentQuickRow = {
   customer_name: string;
   total: number;
   notes: string | null;
+  origin_document_id?: string | null;
   external_invoice_number: string | null;
   external_invoice_status: "ACTIVE" | "VOIDED" | null;
 };
@@ -190,7 +229,7 @@ export type CashExpenseFormState = {
 
 export type CashPendingReceiptState = {
   selectedSale: CashSaleRow | null;
-  pendingReceiptKind: ReceiptKind;
+  pendingReceiptKind: "REMITO" | "FACTURA";
   pendingRemitoId: string;
   pendingReceiptReference: string;
 };

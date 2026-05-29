@@ -23,6 +23,7 @@ const DocumentsPage = lazy(() => import("./pages/Documents"));
 const ServiceDocumentsPage = lazy(() => import("./pages/ServiceDocuments"));
 const ServiceJobsPage = lazy(() => import("./pages/ServiceJobs"));
 const PrintServiceDocumentPage = lazy(() => import("./pages/PrintServiceDocument"));
+const PublicServiceDocumentPage = lazy(() => import("./pages/PublicServiceDocument"));
 const CustomersPage = lazy(() => import("./pages/Customers"));
 const CustomerAccountPage = lazy(() => import("./pages/CustomerAccount"));
 const TechniciansPage = lazy(() => import("./pages/Technicians"));
@@ -79,6 +80,7 @@ const App = () => (
               <Suspense fallback={<DelayedRouteLoader />}>
                 <Routes>
                   <Route path="/auth" element={<AuthRedirect />} />
+                  <Route path="/public/service-document/:token" element={<PublicServiceDocumentPage />} />
                   <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                   <Route path="/items" element={<ProtectedRoute><ItemsPage /></ProtectedRoute>} />
                   <Route path="/combos" element={<ProtectedRoute><CombosPage /></ProtectedRoute>} />

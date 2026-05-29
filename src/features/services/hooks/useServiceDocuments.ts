@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
+import { supabase } from "@/integrations/supabase/client";
 import { serviceDb } from "../db";
-import type { ServiceDocument, ServiceDocumentEvent, ServiceDocumentStatus } from "../types";
+import type { ServiceDocument, ServiceDocumentAttachment, ServiceDocumentEvent, ServiceDocumentShareLink, ServiceDocumentStatus } from "../types";
 
 export function useServiceDocuments(params: {
   companyId: string | null;
@@ -80,6 +81,42 @@ export function useServiceDocuments(params: {
     },
   });
 
+  const attachmentsQuery = useQuery({
+    queryKey: queryKeys.serviceDocuments.attachments(documentId),
+    enabled: Boolean(documentId),
+    queryFn: async () => {
+      const { data, error } = await serviceDb
+        .from("service_document_attachments")
+        .select("*")
+        .eq("service_document_id", documentId)
+        .order("sort_order");
+      if (error) throw error;
+      const attachments = (data ?? []) as ServiceDocumentAttachment[];
+      return Promise.all(
+        attachments.map(async (attachment) => {
+          const { data: signedData } = await supabase.storage
+            .from(attachment.storage_bucket)
+            .createSignedUrl(attachment.storage_path, 60 * 30);
+          return { ...attachment, signed_url: signedData?.signedUrl ?? null };
+        }),
+      );
+    },
+  });
+
+  const shareLinksQuery = useQuery({
+    queryKey: queryKeys.serviceDocuments.shareLinks(documentId),
+    enabled: Boolean(documentId),
+    queryFn: async () => {
+      const { data, error } = await serviceDb
+        .from("service_document_share_links")
+        .select("*")
+        .eq("service_document_id", documentId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as ServiceDocumentShareLink[];
+    },
+  });
+
   const eventsQuery = useQuery({
     queryKey: ["service-document-events", documentId ?? "no-document"],
     enabled: Boolean(documentId),
@@ -125,6 +162,8 @@ export function useServiceDocuments(params: {
     documents: documentsQuery.data ?? [],
     selectedDocument: documentQuery.data ?? null,
     selectedLines: linesQuery.data ?? [],
+    selectedAttachments: attachmentsQuery.data ?? [],
+    selectedShareLinks: shareLinksQuery.data ?? [],
     selectedEvents: eventsQuery.data ?? [],
     eventUserNamesById,
     isLoading: documentsQuery.isLoading,
