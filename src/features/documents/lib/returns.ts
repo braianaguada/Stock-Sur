@@ -180,7 +180,7 @@ export function buildReturnDraftPayload({
       customer_tax_condition: originDocument.customer_tax_condition,
       customer_tax_id: originDocument.customer_tax_id,
       customer_kind: originDocument.customer_kind,
-      internal_remito_type: null,
+      internal_remito_type: originDocument.internal_remito_type,
       payment_terms: originDocument.payment_terms,
       delivery_address: originDocument.delivery_address,
       salesperson: originDocument.salesperson,

@@ -135,7 +135,6 @@ describe("remito return logic", () => {
       status: "BORRADOR",
       customer_id: "customer-1",
       technician_id: "tech-1",
-      internal_remito_type: null,
       origin_document_id: "remito-1",
       source_document_id: "remito-1",
       source_document_type: "REMITO",
@@ -147,6 +146,25 @@ describe("remito return logic", () => {
       item_id: "item-1",
       quantity: 10,
       line_total: 0,
+    });
+  });
+
+  it("keeps the internal remito type when creating a return from an internal remito", () => {
+    const payload = buildReturnDraftPayload({
+      originDocument: {
+        ...originDocument,
+        customer_kind: "INTERNO",
+        internal_remito_type: "CUENTA_CORRIENTE",
+      },
+      originLines: [originLine],
+      sourceNumber: "0007-00000107",
+    });
+
+    expect(payload.document).toMatchObject({
+      doc_type: "REMITO_DEVOLUCION",
+      customer_kind: "INTERNO",
+      internal_remito_type: "CUENTA_CORRIENTE",
+      technician_id: "tech-1",
     });
   });
 
