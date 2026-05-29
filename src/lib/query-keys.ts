@@ -60,8 +60,14 @@ export const queryKeys = {
     priceLists: (companyId: string | null) => ["documents-price-lists", companyId ?? "no-company"] as const,
     priceListItems: (companyId: string | null, priceListId: string) => ["documents-price-list-items", companyId ?? "no-company", priceListId] as const,
     priceListItemsAll: () => ["documents-price-list-items"] as const,
-    list: (companyId: string | null, search: string, typeFilter: DocType | "ALL", statusFilter: DocStatus | "ALL") =>
-      ["documents", companyId ?? "no-company", search, typeFilter, statusFilter] as const,
+    list: (
+      companyId: string | null,
+      search: string,
+      typeFilter: DocType | "ALL",
+      statusFilter: DocStatus | "ALL",
+      customerFilter = "ALL",
+      technicianFilter = "ALL",
+    ) => ["documents", companyId ?? "no-company", search, typeFilter, statusFilter, customerFilter, technicianFilter] as const,
     all: () => ["documents"] as const,
     lines: (documentId: string | null) => ["document-lines", documentId] as const,
     events: (documentId: string | null) => ["document-events", documentId] as const,
@@ -74,8 +80,8 @@ export const queryKeys = {
   },
   serviceDocuments: {
     customers: (companyId: string | null) => ["service-documents-customers", companyId ?? "no-company"] as const,
-    list: (companyId: string | null, search: string, status: string) =>
-      ["service-documents", companyId ?? "no-company", search, status] as const,
+    list: (companyId: string | null, search: string, status: string, customerFilter = "ALL") =>
+      ["service-documents", companyId ?? "no-company", search, status, customerFilter] as const,
     all: () => ["service-documents"] as const,
     detail: (documentId: string | null) => ["service-document", documentId ?? "no-document"] as const,
     lines: (documentId: string | null) => ["service-document-lines", documentId ?? "no-document"] as const,
