@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { buildMailtoUrl, buildServiceDocumentShareMessage, buildWhatsAppUrl, normalizeWhatsAppNumber, sanitizePdfFileName } from "./share";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  buildMailtoUrl,
+  buildPublicServiceDocumentUrl,
+  buildServiceDocumentShareMessage,
+  buildWhatsAppUrl,
+  normalizeWhatsAppNumber,
+  sanitizePdfFileName,
+} from "./share";
 import type { ServiceDocument } from "./types";
 
 const document = {
@@ -11,10 +18,22 @@ const document = {
 } as ServiceDocument;
 
 describe("service document sharing", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("normalizes basic Argentina WhatsApp numbers", () => {
     expect(normalizeWhatsAppNumber("+54 9 299 123-4567")).toBe("5492991234567");
     expect(normalizeWhatsAppNumber("0299 1234567")).toBe("542991234567");
     expect(normalizeWhatsAppNumber("")).toBe("");
+  });
+
+  it("builds public service document links from the configured public app URL", () => {
+    vi.stubEnv("VITE_PUBLIC_APP_URL", "https://stock-sur.test/");
+
+    expect(buildPublicServiceDocumentUrl("token con espacios")).toBe(
+      "https://stock-sur.test/public/service-document/token%20con%20espacios",
+    );
   });
 
   it("builds WhatsApp and email URLs with encoded link messages", () => {
@@ -25,7 +44,11 @@ describe("service document sharing", () => {
     expect(message).toContain("https://stock-sur.test/public/service-document/token");
 
     expect(buildWhatsAppUrl({ phone: "", message })).toContain("https://wa.me/?text=");
-    expect(buildMailtoUrl({ email: "qa@example.com", subject: "Presupuesto", body: message })).toContain("mailto:qa%40example.com?");
+    const mailto = buildMailtoUrl({ email: "qa@example.com", subject: "Presupuesto de servicio", body: message });
+    expect(mailto).toContain("mailto:qa%40example.com?");
+    expect(mailto).toContain("subject=Presupuesto%20de%20servicio");
+    expect(mailto).toContain("body=Hola%2C%20te%20compartimos");
+    expect(mailto).not.toContain("+");
   });
 
   it("sanitizes PDF file names", () => {

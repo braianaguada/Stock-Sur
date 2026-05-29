@@ -1,8 +1,14 @@
 import { formatMoney } from "@/lib/formatters";
 import type { ServiceDocument } from "./types";
 
+function getPublicAppOrigin() {
+  const configuredOrigin = import.meta.env.VITE_PUBLIC_APP_URL?.trim();
+  if (configuredOrigin) return configuredOrigin.replace(/\/+$/, "");
+  return window.location.origin;
+}
+
 export function buildPublicServiceDocumentUrl(token: string) {
-  return `${window.location.origin}/public/service-document/${encodeURIComponent(token)}`;
+  return `${getPublicAppOrigin()}/public/service-document/${encodeURIComponent(token)}`;
 }
 
 export function normalizeWhatsAppNumber(input: string) {
@@ -50,8 +56,9 @@ export function buildWhatsAppUrl(params: { phone: string; message: string }) {
 
 export function buildMailtoUrl(params: { email: string; subject: string; body: string }) {
   const recipient = params.email.trim();
-  const query = new URLSearchParams({ subject: params.subject, body: params.body });
-  return `mailto:${encodeURIComponent(recipient)}?${query.toString()}`;
+  const subject = encodeURIComponent(params.subject);
+  const body = encodeURIComponent(params.body);
+  return `mailto:${encodeURIComponent(recipient)}?subject=${subject}&body=${body}`;
 }
 
 export function sanitizePdfFileName(value: string) {
