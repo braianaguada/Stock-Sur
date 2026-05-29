@@ -2,6 +2,9 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
+const publicAppUrl = process.env.VITE_PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || "";
+const normalizedPublicAppUrl = publicAppUrl ? `https://${publicAppUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "")}` : "";
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
@@ -16,6 +19,9 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  define: {
+    __PUBLIC_APP_URL__: JSON.stringify(normalizedPublicAppUrl),
   },
   build: {
     rollupOptions: {
