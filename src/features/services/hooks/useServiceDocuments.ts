@@ -9,9 +9,10 @@ export function useServiceDocuments(params: {
   companyId: string | null;
   search: string;
   status: ServiceDocumentStatus | "ALL";
+  customerId?: string;
   documentId?: string | null;
 }) {
-  const { companyId, search, status, documentId = null } = params;
+  const { companyId, search, status, customerId = "ALL", documentId = null } = params;
   const trimmedSearch = search.trim();
 
   const customersQuery = useQuery({
@@ -29,7 +30,7 @@ export function useServiceDocuments(params: {
   });
 
   const documentsQuery = useQuery({
-    queryKey: queryKeys.serviceDocuments.list(companyId, trimmedSearch, status),
+    queryKey: queryKeys.serviceDocuments.list(companyId, trimmedSearch, status, customerId),
     enabled: Boolean(companyId),
     queryFn: async () => {
       let query = serviceDb
@@ -39,6 +40,7 @@ export function useServiceDocuments(params: {
         .order("created_at", { ascending: false });
 
       if (status !== "ALL") query = query.eq("status", status);
+      if (customerId !== "ALL") query = query.eq("customer_id", customerId);
       const { data, error } = await query.limit(300);
       if (error) throw error;
       const rows = (data ?? []) as ServiceDocument[];

@@ -22,6 +22,8 @@ type UseDocumentsDataParams = {
   search: string;
   typeFilter: DocType | "ALL";
   statusFilter: DocStatus | "ALL";
+  customerFilter: string;
+  technicianFilter: string;
   selectedDocId: string | null;
   selectedPriceListId: string;
   currentCompanyId: string | null;
@@ -31,6 +33,8 @@ export function useDocumentsData({
   search,
   typeFilter,
   statusFilter,
+  customerFilter,
+  technicianFilter,
   selectedDocId,
   selectedPriceListId,
   currentCompanyId,
@@ -220,7 +224,7 @@ export function useDocumentsData({
   );
 
   const { data: documents = [], isLoading } = useQuery({
-    queryKey: queryKeys.documents.list(currentCompanyId, trimmedSearch, typeFilter, statusFilter),
+    queryKey: queryKeys.documents.list(currentCompanyId, trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       let q = supabase
@@ -230,6 +234,8 @@ export function useDocumentsData({
         .order("created_at", { ascending: false });
       if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
       if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
+      if (customerFilter !== "ALL") q = q.eq("customer_id", customerFilter);
+      if (technicianFilter !== "ALL") q = q.eq("technician_id", technicianFilter);
       const { data, error } = await q.limit(300);
       if (error) throw error;
       const rows = (data ?? []) as DocRow[];
