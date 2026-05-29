@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.impersonation-stop]
 verify_jwt = false
+
+[functions.bna-exchange-rate]
+verify_jwt = false

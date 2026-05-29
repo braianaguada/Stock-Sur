@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/errors";
 import { formatIsoDate, formatMoney } from "@/lib/formatters";
 import { openPrintWindow } from "@/lib/print";
 import { serviceDb } from "@/features/services/db";
@@ -60,8 +61,9 @@ export default function ServiceDocumentsPage() {
   const [shareMessage, setShareMessage] = useState("");
   const [shareSubject, setShareSubject] = useState("");
   const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
+  const [shareLinkLoading, setShareLinkLoading] = useState(false);
 
-  const { customers, documents, selectedDocument, selectedLines, selectedAttachments, selectedShareLinks, selectedEvents, eventUserNamesById, isLoading } = useServiceDocuments({
+  const { customers, documents, selectedDocument, selectedLines, selectedAttachments, selectedEvents, eventUserNamesById, isLoading } = useServiceDocuments({
     companyId: currentCompany?.id ?? null,
     search: deferredSearch,
     status,
@@ -254,10 +256,10 @@ export default function ServiceDocumentsPage() {
         exchange_rate_snapshot_label: snapshot.label,
       }));
       toast({ title: "Cotizacion actualizada", description: "Se guardara como snapshot del presupuesto." });
-    } catch {
+    } catch (error) {
       toast({
-        title: "No se pudo obtener la cotizacion automaticamente",
-        description: "Podes cargarla manualmente.",
+        title: "No se pudo obtener la cotización automáticamente. Cargala manualmente.",
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -329,34 +331,74 @@ export default function ServiceDocumentsPage() {
     setAttachments((current) => current.map((attachment) => attachment.id === id ? { ...attachment, remove: true } : attachment));
   };
 
-  const openShare = (document: ServiceDocument) => {
-    const activeLink = selectedShareLinks.find((link) => link.service_document_id === document.id && link.enabled) ?? null;
-    const publicLink = activeLink ? buildPublicServiceDocumentUrl(activeLink.token) : "";
-    const message = activeLink ? buildServiceDocumentShareMessage(document, publicLink) : "";
+  const openShare = async (document: ServiceDocument) => {
     setShareDocument(document);
-    setShareLink(activeLink);
+    setShareLink(null);
     setShareSubject(`Presupuesto de servicio N° SERV-${String(document.number).padStart(6, "0")}`);
-    setShareMessage(message);
+    setShareMessage("");
     setShareEmail(document.customers?.email ?? "");
     setWhatsAppPhone(document.customers?.phone ?? "");
+    setShareLinkLoading(true);
+    try {
+      const { data, error } = await serviceDb
+        .from("service_document_share_links")
+        .select("*")
+        .eq("service_document_id", document.id)
+        .eq("enabled", true)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      const activeLink = ((data ?? []) as ServiceDocumentShareLink[])[0] ?? null;
+      const publicLink = activeLink ? buildPublicServiceDocumentUrl(activeLink.token) : "";
+      setShareLink(activeLink);
+      setShareMessage(activeLink ? buildServiceDocumentShareMessage(document, publicLink) : "");
+    } catch (error) {
+      toast({
+        title: "No se pudo consultar el link",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setShareLinkLoading(false);
+    }
   };
 
   const ensureShareLink = async () => {
     if (!shareDocument) return null;
     if (shareLink?.enabled) return shareLink;
-    const { data, error } = await serviceDb.rpc("create_service_document_share_link", {
-      p_service_document_id: shareDocument.id,
-      p_expires_at: null,
-    });
-    if (error) {
-      toast({ title: "No se pudo generar el link", description: error.message, variant: "destructive" });
+    setShareLinkLoading(true);
+    try {
+      const { data, error } = await serviceDb.rpc("create_service_document_share_link", {
+        p_service_document_id: shareDocument.id,
+        p_expires_at: null,
+      });
+      if (error) throw error;
+      const link = data as ServiceDocumentShareLink;
+      const publicLink = buildPublicServiceDocumentUrl(link.token);
+      const message = buildServiceDocumentShareMessage(shareDocument, publicLink);
+      setShareLink(link);
+      setShareMessage(message);
+      return link;
+    } catch (error) {
+      toast({
+        title: "No se pudo generar el link",
+        description: "No se pudo crear el link público. Probá de nuevo antes de compartir el presupuesto.",
+        variant: "destructive",
+      });
+      console.error("Failed to create service document share link", error);
       return null;
+    } finally {
+      setShareLinkLoading(false);
     }
-    const link = data as ServiceDocumentShareLink;
-    const publicLink = buildPublicServiceDocumentUrl(link.token);
-    setShareLink(link);
-    setShareMessage(buildServiceDocumentShareMessage(shareDocument, publicLink));
-    return link;
+  };
+
+  const getShareMessageWithLink = async () => {
+    if (!shareDocument) return null;
+    const link = await ensureShareLink();
+    if (!link?.enabled) return null;
+    const message = buildServiceDocumentShareMessage(shareDocument, buildPublicServiceDocumentUrl(link.token));
+    setShareMessage(message);
+    return message;
   };
 
   const copyText = async (text: string, title: string) => {
@@ -372,6 +414,7 @@ export default function ServiceDocumentsPage() {
       return;
     }
     setShareLink({ ...shareLink, enabled: false });
+    setShareMessage("");
     toast({ title: "Link revocado" });
   };
 
@@ -487,7 +530,7 @@ export default function ServiceDocumentsPage() {
                         <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-sky-500 hover:text-sky-400" title="Vista previa" onClick={() => openPreview(document)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-500 hover:text-emerald-400" title="Compartir" onClick={() => openShare(document)}>
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-500 hover:text-emerald-400" title="Compartir" onClick={() => void openShare(document)}>
                           <Link2 className="h-4 w-4" />
                         </Button>
                         {canPrintServiceDocuments ? (
@@ -704,13 +747,13 @@ export default function ServiceDocumentsPage() {
                     <p className="text-sm text-muted-foreground">{shareLink?.enabled ? "Activo" : shareLink ? "Revocado" : "No generado"}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" onClick={() => void ensureShareLink()}>
-                      <Link2 className="mr-2 h-4 w-4" /> Generar link
+                    <Button type="button" variant="outline" onClick={() => void ensureShareLink()} disabled={shareLinkLoading}>
+                      <Link2 className="mr-2 h-4 w-4" /> {shareLinkLoading ? "Generando..." : "Generar link"}
                     </Button>
-                    <Button type="button" variant="outline" disabled={!shareLink?.enabled} onClick={() => shareLink && void copyText(buildPublicServiceDocumentUrl(shareLink.token), "Link copiado")}>
+                    <Button type="button" variant="outline" disabled={!shareLink?.enabled || shareLinkLoading} onClick={() => shareLink && void copyText(buildPublicServiceDocumentUrl(shareLink.token), "Link copiado")}>
                       Copiar link
                     </Button>
-                    <Button type="button" variant="outline" disabled={!shareLink?.enabled} onClick={() => void revokeShareLink()}>
+                    <Button type="button" variant="outline" disabled={!shareLink?.enabled || shareLinkLoading} onClick={() => void revokeShareLink()}>
                       Revocar link
                     </Button>
                   </div>
@@ -723,10 +766,10 @@ export default function ServiceDocumentsPage() {
                 <Input placeholder="Número opcional" value={whatsAppPhone} onChange={(event) => setWhatsAppPhone(event.target.value)} />
                 <Textarea rows={5} value={shareMessage} onChange={(event) => setShareMessage(event.target.value)} />
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" onClick={async () => { const link = await ensureShareLink(); if (link) { const message = buildServiceDocumentShareMessage(shareDocument, buildPublicServiceDocumentUrl(link.token)); window.open(buildWhatsAppUrl({ phone: whatsAppPhone, message }), "_blank", "noopener,noreferrer"); } }}>
+                  <Button type="button" disabled={shareLinkLoading} onClick={async () => { const message = await getShareMessageWithLink(); if (message) window.open(buildWhatsAppUrl({ phone: whatsAppPhone, message }), "_blank", "noopener,noreferrer"); }}>
                     Abrir WhatsApp
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => void copyText(shareMessage, "Mensaje copiado")}>Copiar mensaje</Button>
+                  <Button type="button" variant="outline" disabled={shareLinkLoading} onClick={async () => { const message = await getShareMessageWithLink(); if (message) void copyText(message, "Mensaje copiado"); }}>Copiar mensaje</Button>
                 </div>
               </section>
 
@@ -736,10 +779,10 @@ export default function ServiceDocumentsPage() {
                 <Input placeholder="Asunto" value={shareSubject} onChange={(event) => setShareSubject(event.target.value)} />
                 <Textarea rows={5} value={shareMessage} onChange={(event) => setShareMessage(event.target.value)} />
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" onClick={async () => { const link = await ensureShareLink(); if (link) { const message = buildServiceDocumentShareMessage(shareDocument, buildPublicServiceDocumentUrl(link.token)); window.location.href = buildMailtoUrl({ email: shareEmail, subject: shareSubject, body: message }); } }}>
+                  <Button type="button" disabled={shareLinkLoading} onClick={async () => { const message = await getShareMessageWithLink(); if (message) window.location.href = buildMailtoUrl({ email: shareEmail, subject: shareSubject, body: message }); }}>
                     Abrir cliente de correo
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => void copyText(shareMessage, "Mensaje copiado")}>Copiar mensaje</Button>
+                  <Button type="button" variant="outline" disabled={shareLinkLoading} onClick={async () => { const message = await getShareMessageWithLink(); if (message) void copyText(message, "Mensaje copiado"); }}>Copiar mensaje</Button>
                 </div>
               </section>
             </div>
