@@ -26,7 +26,7 @@ export function useServiceDocumentMutations(params: {
   lines: ServiceDocumentLine[];
   attachments?: ServiceDocumentAttachmentDraft[];
   toast: ToastFn;
-  onDone: () => void;
+  onDone: (document?: ServiceDocument | null) => void | Promise<void>;
 }) {
   const { companyId, editingDocumentId, form, lines, attachments = [], toast, onDone } = params;
   const qc = useQueryClient();
@@ -86,7 +86,7 @@ export function useServiceDocumentMutations(params: {
       });
       if (error) throw error;
       const savedDocument = data as ServiceDocument | null;
-      if (!savedDocument) return;
+      if (!savedDocument) return null;
 
       for (const attachment of attachments.filter((item) => item.remove && item.storage_path)) {
         await supabase.storage.from("service-document-attachments").remove([attachment.storage_path!]);
@@ -136,10 +136,12 @@ export function useServiceDocumentMutations(params: {
             .single();
         if (attachmentError) throw attachmentError;
       }
+
+      return savedDocument;
     },
-    onSuccess: async () => {
+    onSuccess: async (savedDocument) => {
       await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
-      onDone();
+      await onDone(savedDocument);
       toast({ title: editingDocumentId ? "Presupuesto actualizado" : "Presupuesto creado" });
     },
     onError: (error: unknown) => {
