@@ -1,4 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  buildExternalReferenceContextFromGeminiPayload,
+  buildGroundedReferencePrompt,
+  buildStructuredPromptWithExternalContext,
+  type ExternalReferenceContext,
+  type JsonRecord,
+} from "./grounding.ts";
 
 const AI_SERVICE_QUOTE_MODEL = "gemini-2.5-flash-lite";
 const REQUEST_TIMEOUT_MS = 18_000;
@@ -12,8 +19,6 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-type JsonRecord = Record<string, unknown>;
 
 type AiProviderResult = {
   output: ServiceQuoteAiSuggestion;
@@ -67,23 +72,6 @@ type PricingSources = {
   externalReferencesUsed: boolean;
   externalReferenceSummary: string;
   limitations: string[];
-};
-
-type ExternalReferenceSource = {
-  title: string;
-  uri: string;
-};
-
-type ExternalReferenceContext = {
-  attempted: boolean;
-  used: boolean;
-  failed: boolean;
-  summary: string;
-  limitations: string[];
-  webSearchQueries: string[];
-  sources: ExternalReferenceSource[];
-  provider: "gemini_google_search";
-  fetchedAt: string;
 };
 
 type BnaRateSnapshot = {
@@ -182,11 +170,13 @@ function normalizePricingSources(value: unknown, context: {
   similarDocuments: unknown[];
   settings: JsonRecord | null;
   externalReferenceContext: ExternalReferenceContext;
+  extraLimitations?: string[];
 }): PricingSources {
   const record = (value ?? {}) as JsonRecord;
   const limitations = [
     ...stringArray(record.limitations),
     ...context.externalReferenceContext.limitations,
+    ...(context.extraLimitations ?? []),
   ].filter((item, index, array) => array.indexOf(item) === index).slice(0, 12);
 
   return {
@@ -208,6 +198,8 @@ function validateSuggestion(payload: JsonRecord, context: {
   similarDocuments: unknown[];
   settings: JsonRecord | null;
   externalReferenceContext: ExternalReferenceContext;
+  preferredCurrency: unknown;
+  bnaRate: BnaRateSnapshot | null;
 }): ServiceQuoteAiSuggestion {
   const suggestedLines = Array.isArray(payload.suggestedLines)
     ? payload.suggestedLines.map((line) => {
@@ -239,11 +231,21 @@ function validateSuggestion(payload: JsonRecord, context: {
   const hoursMin = Math.max(0, asNumber(labor.hoursMin, 0));
   const hoursRecommended = Math.max(hoursMin, asNumber(labor.hoursRecommended, hoursMin));
   const hoursMax = Math.max(hoursRecommended, asNumber(labor.hoursMax, hoursRecommended));
-  const min = clampMoney(price.min);
-  const recommended = clampMoney(price.recommended);
-  const max = clampMoney(price.max);
-  const recommendedCurrency = normalizeCurrency(payload.recommendedCurrency);
-  const priceCurrency = normalizeCurrency(price.currency ?? recommendedCurrency);
+  const recommendedCurrency = normalizeCurrency(context.preferredCurrency);
+  const modelRecommendedCurrency = normalizeCurrency(payload.recommendedCurrency);
+  const modelPriceCurrency = normalizeCurrency(price.currency ?? modelRecommendedCurrency);
+  const conversionRate = context.bnaRate?.rate && context.bnaRate.rate > 0 ? context.bnaRate.rate : null;
+  const conversionFactor = modelPriceCurrency === recommendedCurrency
+    ? 1
+    : conversionRate
+      ? recommendedCurrency === "USD" ? 1 / conversionRate : conversionRate
+      : 1;
+  const currencyLimitations = modelPriceCurrency !== recommendedCurrency && !conversionRate
+    ? ["La IA devolvio otra moneda y se forzo la moneda seleccionada sin cotizacion de conversion disponible."]
+    : [];
+  const min = clampMoney(clampMoney(price.min) * conversionFactor);
+  const recommended = clampMoney(clampMoney(price.recommended) * conversionFactor);
+  const max = clampMoney(clampMoney(price.max) * conversionFactor);
 
   if (!asString(payload.summary)) throw new Error("La propuesta IA no incluye resumen.");
   if (suggestedLines.length === 0) throw new Error("La propuesta IA no incluye lineas validas.");
@@ -254,7 +256,7 @@ function validateSuggestion(payload: JsonRecord, context: {
   return {
     summary: asString(payload.summary),
     recommendedPricingMode: normalizePricingMode(payload.recommendedPricingMode),
-    recommendedCurrency: priceCurrency,
+    recommendedCurrency,
     suggestedLines,
     possibleMaterials,
     laborEstimate: {
@@ -264,7 +266,7 @@ function validateSuggestion(payload: JsonRecord, context: {
       notes: asString(labor.notes),
     },
     priceSuggestion: {
-      currency: priceCurrency,
+      currency: recommendedCurrency,
       min,
       recommended,
       max,
@@ -275,8 +277,13 @@ function validateSuggestion(payload: JsonRecord, context: {
     internalNotes: asString(payload.internalNotes),
     warnings: stringArray(payload.warnings),
     missingInfoQuestions: stringArray(payload.missingInfoQuestions),
-    pricingSources: normalizePricingSources(payload.pricingSources, context),
-    confidenceReasons: stringArray(payload.confidenceReasons),
+    pricingSources: normalizePricingSources(payload.pricingSources, { ...context, extraLimitations: currencyLimitations }),
+    confidenceReasons: [
+      ...stringArray(payload.confidenceReasons),
+      ...(modelPriceCurrency !== recommendedCurrency && conversionRate
+        ? [`La IA devolvio ${modelPriceCurrency}; se convirtio a ${recommendedCurrency} usando BNA como referencia.`]
+        : currencyLimitations),
+    ].filter((item, index, array) => array.indexOf(item) === index).slice(0, 12),
   };
 }
 
@@ -385,6 +392,7 @@ function buildPrompt(params: {
   similarDocuments: unknown[];
   bnaRate: BnaRateSnapshot | null;
 }) {
+  const preferredCurrency = normalizeCurrency(params.input.preferredCurrency);
   return [
     "Sos un asistente para presupuestar servicios tecnicos y comerciales en Stock Sur.",
     "Devolve solo JSON valido segun el schema solicitado.",
@@ -400,6 +408,10 @@ function buildPrompt(params: {
     "Usa lenguaje prudente: referencias orientativas, estimacion, rango sugerido y requiere validacion humana.",
     "Si hay cotizacion BNA disponible, usala solo como referencia de conversion ARS/USD y no inventes otra cotizacion.",
     "Usa ARS o USD solamente. No inventes cotizacion USD.",
+    `La moneda elegida por el usuario es ${preferredCurrency}. Es obligatoria para recommendedCurrency y priceSuggestion.currency.`,
+    preferredCurrency === "USD"
+      ? "Si hay cotizacion BNA, usala solo como referencia o equivalencia. No cambies la salida final a ARS."
+      : "No cambies la salida final a USD salvo que la moneda elegida por el usuario sea USD.",
     "",
     "Contexto del pedido:",
     JSON.stringify(params.input),
@@ -453,8 +465,10 @@ async function callGeminiProvider(params: {
   settings: JsonRecord | null;
   similarDocuments: unknown[];
   useGrounding: boolean;
+  preferredCurrency: unknown;
+  bnaRate: BnaRateSnapshot | null;
 }): Promise<AiProviderResult> {
-  const call = async (useGrounding: boolean) => {
+  const call = async (request: { useGrounding: boolean; prompt: string; structuredOutput: boolean }) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     let response: Response;
@@ -466,13 +480,15 @@ async function callGeminiProvider(params: {
           signal: controller.signal,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: params.prompt }] }],
-            tools: useGrounding ? [{ google_search: {} }] : undefined,
-            generationConfig: {
-              temperature: 0.25,
-              responseMimeType: "application/json",
-              responseSchema: responseSchema(),
-            },
+            contents: [{ role: "user", parts: [{ text: request.prompt }] }],
+            tools: request.useGrounding ? [{ google_search: {} }] : undefined,
+            generationConfig: request.structuredOutput
+              ? {
+                temperature: 0.25,
+                responseMimeType: "application/json",
+                responseSchema: responseSchema(),
+              }
+              : { temperature: 0.2 },
           }),
         },
       );
@@ -494,55 +510,55 @@ async function callGeminiProvider(params: {
     return { rawText, geminiPayload: geminiPayload as JsonRecord };
   };
 
-  const buildExternalContext = (geminiPayload: JsonRecord, attempted: boolean, failed: boolean): ExternalReferenceContext => {
-    const candidates = Array.isArray(geminiPayload.candidates) ? geminiPayload.candidates : [];
-    const firstCandidate = (candidates[0] ?? {}) as JsonRecord;
-    const metadata = (firstCandidate.groundingMetadata ?? {}) as JsonRecord;
-    const queries = stringArray(metadata.webSearchQueries).slice(0, 5);
-    const chunks = Array.isArray(metadata.groundingChunks) ? metadata.groundingChunks : [];
-    const sources = chunks.map((chunk) => {
-      const web = (((chunk as JsonRecord).web ?? {}) as JsonRecord);
-      return { title: asString(web.title), uri: asString(web.uri) };
-    }).filter((source) => source.title || source.uri).slice(0, 5);
-    const used = attempted && !failed && (queries.length > 0 || sources.length > 0);
-
-    return {
-      attempted,
-      used,
-      failed,
-      summary: used
-        ? "Se usaron referencias externas orientativas para validar insumos, complejidad y rango de precio."
-        : "",
-      limitations: failed ? ["No se pudieron usar referencias externas en esta propuesta."] : [],
-      webSearchQueries: queries,
-      sources,
-      provider: "gemini_google_search",
-      fetchedAt: new Date().toISOString(),
-    };
-  };
-
   const buildResult = (rawText: string, externalReferenceContext: ExternalReferenceContext) => ({
     output: validateSuggestion(extractJsonPayload(rawText), {
       similarDocuments: params.similarDocuments,
       settings: params.settings,
       externalReferenceContext,
+      preferredCurrency: params.preferredCurrency,
+      bnaRate: params.bnaRate,
     }),
     model: params.model,
     externalReferenceContext,
   });
 
   if (!params.useGrounding) {
-    const { rawText } = await call(false);
-    return buildResult(rawText, buildExternalContext({}, false, false));
+    const { rawText } = await call({ useGrounding: false, prompt: params.prompt, structuredOutput: true });
+    return buildResult(rawText, buildExternalReferenceContextFromGeminiPayload({
+      geminiPayload: {},
+      attempted: false,
+      failed: false,
+    }));
   }
 
+  let externalReferenceContext: ExternalReferenceContext;
   try {
-    const { rawText, geminiPayload } = await call(true);
-    return buildResult(rawText, buildExternalContext(geminiPayload, true, false));
-  } catch {
-    const { rawText } = await call(false);
-    return buildResult(rawText, buildExternalContext({}, true, true));
+    const { rawText, geminiPayload } = await call({
+      useGrounding: true,
+      prompt: buildGroundedReferencePrompt(params.prompt),
+      structuredOutput: false,
+    });
+    externalReferenceContext = buildExternalReferenceContextFromGeminiPayload({
+      geminiPayload,
+      attempted: true,
+      failed: false,
+      rawText,
+    });
+  } catch (error) {
+    externalReferenceContext = buildExternalReferenceContextFromGeminiPayload({
+      geminiPayload: {},
+      attempted: true,
+      failed: true,
+      failureReason: error instanceof Error ? error.message : "Fallo la consulta externa.",
+    });
   }
+
+  const { rawText } = await call({
+    useGrounding: false,
+    prompt: buildStructuredPromptWithExternalContext(params.prompt, externalReferenceContext),
+    structuredOutput: true,
+  });
+  return buildResult(rawText, externalReferenceContext);
 }
 
 async function getSimilarDocuments(actorClient: ReturnType<typeof createClient>, companyId: string, description: string) {
@@ -640,7 +656,7 @@ Deno.serve(async (req) => {
       location: body.location ?? null,
       urgency: body.urgency ?? "NORMAL",
       complexity: body.complexity ?? "MEDIUM",
-      preferredCurrency: body.preferredCurrency ?? settings?.default_currency ?? "ARS",
+      preferredCurrency: normalizeCurrency(body.preferredCurrency ?? settings?.default_currency ?? "ARS"),
       knownMaterials: body.knownMaterials ?? null,
       includesLabor: body.includesLabor ?? true,
       includesTravel: body.includesTravel ?? false,
@@ -658,6 +674,8 @@ Deno.serve(async (req) => {
       settings: settings as JsonRecord | null,
       similarDocuments,
       useGrounding,
+      preferredCurrency: inputSnapshot.preferredCurrency,
+      bnaRate,
     });
 
     const { data: suggestionRow, error: insertError } = await actorClient
@@ -673,6 +691,13 @@ Deno.serve(async (req) => {
             confidenceReasons: result.output.confidenceReasons,
             externalReferencesUsed: result.externalReferenceContext.used,
             externalReferenceSummary: result.output.pricingSources.externalReferenceSummary,
+            externalReferences: {
+              provider: result.externalReferenceContext.provider,
+              webSearchQueries: result.externalReferenceContext.webSearchQueries,
+              sources: result.externalReferenceContext.sources,
+              summary: result.externalReferenceContext.summary,
+              fetchedAt: result.externalReferenceContext.fetchedAt,
+            },
             limitations: result.output.pricingSources.limitations,
             bnaRateUsed: Boolean(bnaRate),
             bnaRate,
