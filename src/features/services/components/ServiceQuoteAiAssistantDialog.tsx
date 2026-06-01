@@ -59,7 +59,26 @@ function errorDescription(error: unknown) {
   if (message.includes("configurado") || message.includes("GEMINI_API_KEY")) {
     return "El asistente IA no esta configurado todavia.";
   }
+  if (message.includes("proveedor IA") || message.includes("cuota") || message.includes("temporalmente limitado")) {
+    return message;
+  }
+  if (message.includes("no devolvio una propuesta valida") || message.includes("descripcion mas concreta")) {
+    return message;
+  }
   return "No se pudo generar la propuesta IA. Podes seguir armando el presupuesto manualmente.";
+}
+
+async function readFunctionError(error: unknown) {
+  const context = typeof error === "object" && error !== null && "context" in error
+    ? (error as { context?: unknown }).context
+    : null;
+  if (context instanceof Response) {
+    const payload = await context.clone().json().catch(() => null) as { error?: unknown } | null;
+    if (typeof payload?.error === "string" && payload.error.trim()) {
+      return new Error(payload.error);
+    }
+  }
+  return error;
 }
 
 export function ServiceQuoteAiAssistantDialog(props: {
@@ -130,7 +149,7 @@ export function ServiceQuoteAiAssistantDialog(props: {
           currentNotes: props.currentNotes || null,
         },
       });
-      if (error) throw error;
+      if (error) throw await readFunctionError(error);
       const payload = data as ServiceQuoteAiResponse;
       const suggestion = serviceQuoteAiSchema.parse(payload.suggestion);
       setResponse({ ...payload, suggestion });

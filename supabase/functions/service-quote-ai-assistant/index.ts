@@ -6,6 +6,7 @@ import {
   type ExternalReferenceContext,
   type JsonRecord,
 } from "./grounding.ts";
+import { classifyAiFailure, shouldTryStructuredFallback } from "./providerErrors.ts";
 
 const AI_SERVICE_QUOTE_MODEL = "gemini-2.5-flash-lite";
 const REQUEST_TIMEOUT_MS = 18_000;
@@ -522,6 +523,13 @@ async function callGeminiProvider(params: {
     externalReferenceContext,
   });
 
+  const buildFallbackContext = (error: unknown) => buildExternalReferenceContextFromGeminiPayload({
+    geminiPayload: {},
+    attempted: true,
+    failed: true,
+    failureReason: error instanceof Error ? error.message : "Fallo la consulta externa.",
+  });
+
   if (!params.useGrounding) {
     const { rawText } = await call({ useGrounding: false, prompt: params.prompt, structuredOutput: true });
     return buildResult(rawText, buildExternalReferenceContextFromGeminiPayload({
@@ -545,20 +553,27 @@ async function callGeminiProvider(params: {
       rawText,
     });
   } catch (error) {
-    externalReferenceContext = buildExternalReferenceContextFromGeminiPayload({
-      geminiPayload: {},
-      attempted: true,
-      failed: true,
-      failureReason: error instanceof Error ? error.message : "Fallo la consulta externa.",
-    });
+    if (!shouldTryStructuredFallback(error)) throw error;
+    externalReferenceContext = buildFallbackContext(error);
   }
 
-  const { rawText } = await call({
-    useGrounding: false,
-    prompt: buildStructuredPromptWithExternalContext(params.prompt, externalReferenceContext),
-    structuredOutput: true,
-  });
-  return buildResult(rawText, externalReferenceContext);
+  try {
+    const { rawText } = await call({
+      useGrounding: false,
+      prompt: buildStructuredPromptWithExternalContext(params.prompt, externalReferenceContext),
+      structuredOutput: true,
+    });
+    return buildResult(rawText, externalReferenceContext);
+  } catch (error) {
+    if (!shouldTryStructuredFallback(error)) throw error;
+    const fallbackContext = buildFallbackContext(error);
+    const { rawText } = await call({
+      useGrounding: false,
+      prompt: buildStructuredPromptWithExternalContext(params.prompt, fallbackContext),
+      structuredOutput: true,
+    });
+    return buildResult(rawText, fallbackContext);
+  }
 }
 
 async function getSimilarDocuments(actorClient: ReturnType<typeof createClient>, companyId: string, description: string) {
@@ -722,7 +737,16 @@ Deno.serve(async (req) => {
       suggestion: result.output,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "No se pudo generar la propuesta IA.";
-    return json({ error: message }, 500);
+    const failure = classifyAiFailure(error);
+    console.error("service_quote_ai_assistant_failed", {
+      code: failure.code,
+      status: failure.status,
+      message: failure.logMessage,
+    });
+    return json({
+      error: failure.publicMessage,
+      code: failure.code,
+      retryAfterSeconds: failure.retryAfterSeconds ?? null,
+    }, failure.status);
   }
 });
