@@ -25,6 +25,18 @@ const validSuggestion = {
   internalNotes: "Confirmar modelo.",
   warnings: ["Confirmar fuga."],
   missingInfoQuestions: ["Cual es el modelo?"],
+  pricingSources: {
+    internalHistoryUsed: true,
+    internalHistoryCount: 2,
+    companySettingsUsed: false,
+    externalReferencesUsed: true,
+    externalReferenceSummary: "Se usaron referencias externas orientativas para validar insumos y complejidad.",
+    limitations: ["No se confirmo modelo exacto."],
+  },
+  confidenceReasons: [
+    "Hay pocos presupuestos internos similares.",
+    "La estimacion requiere validacion humana.",
+  ],
 } as const;
 
 const baseForm: ServiceDocumentForm = {
@@ -69,6 +81,13 @@ describe("serviceQuoteAiSchema", () => {
 
   it("rejects empty quote lines", () => {
     expect(() => serviceQuoteAiSchema.parse({ ...validSuggestion, suggestedLines: [] })).toThrow();
+  });
+
+  it("validates pricing sources and confidence reasons", () => {
+    const parsed = serviceQuoteAiSchema.parse(validSuggestion);
+
+    expect(parsed.pricingSources.externalReferencesUsed).toBe(true);
+    expect(parsed.confidenceReasons).toContain("Hay pocos presupuestos internos similares.");
   });
 });
 

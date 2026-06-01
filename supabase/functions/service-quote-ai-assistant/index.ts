@@ -2,6 +2,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const AI_SERVICE_QUOTE_MODEL = "gemini-2.5-flash-lite";
 const REQUEST_TIMEOUT_MS = 18_000;
+const BNA_RATE_TIMEOUT_MS = 5_000;
+const BNA_RATE_ENDPOINTS = [
+  "https://www.bna.com.ar/Personas",
+  "https://www.bna.com.ar/Cotizador/MonedasHistorico",
+];
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +18,7 @@ type JsonRecord = Record<string, unknown>;
 type AiProviderResult = {
   output: ServiceQuoteAiSuggestion;
   model: string;
+  externalReferenceContext: ExternalReferenceContext;
 };
 
 type ServiceQuoteAiSuggestion = {
@@ -50,6 +56,41 @@ type ServiceQuoteAiSuggestion = {
   internalNotes: string;
   warnings: string[];
   missingInfoQuestions: string[];
+  pricingSources: PricingSources;
+  confidenceReasons: string[];
+};
+
+type PricingSources = {
+  internalHistoryUsed: boolean;
+  internalHistoryCount: number;
+  companySettingsUsed: boolean;
+  externalReferencesUsed: boolean;
+  externalReferenceSummary: string;
+  limitations: string[];
+};
+
+type ExternalReferenceSource = {
+  title: string;
+  uri: string;
+};
+
+type ExternalReferenceContext = {
+  attempted: boolean;
+  used: boolean;
+  failed: boolean;
+  summary: string;
+  limitations: string[];
+  webSearchQueries: string[];
+  sources: ExternalReferenceSource[];
+  provider: "gemini_google_search";
+  fetchedAt: string;
+};
+
+type BnaRateSnapshot = {
+  source: "BNA";
+  rate: number;
+  rateDate: string | null;
+  fetchedAt: string;
 };
 
 function json(body: unknown, status = 200) {
@@ -114,7 +155,60 @@ function clampMoney(value: unknown) {
   return Math.min(Math.round(parsed * 100) / 100, 999_999_999);
 }
 
-function validateSuggestion(payload: JsonRecord): ServiceQuoteAiSuggestion {
+function normalizeRate(value: string) {
+  const digits = value.replace(/[^\d.,]/g, "");
+  const normalized = digits.includes(",")
+    ? digits.replace(/\./g, "").replace(",", ".")
+    : digits.replace(/\.(?=\d{3}(?:\.|$))/g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseBnaHtmlUsdSellRate(html: string) {
+  const dateMatch = html.match(/(?:Fecha:|fechaCot[^>]*>)\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
+  const rateDate = dateMatch
+    ? `${dateMatch[3]}-${dateMatch[2].padStart(2, "0")}-${dateMatch[1].padStart(2, "0")}`
+    : null;
+  const rowMatch = html.match(/<tr[^>]*>(?:(?!<\/tr>)[\s\S])*?D(?:o|\u00f3|&oacute;)lar\s+U\.?S\.?A(?:(?!<\/tr>)[\s\S])*?<\/tr>/i);
+  if (!rowMatch) return null;
+
+  const cells = Array.from(rowMatch[0].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi))
+    .map((match) => match[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+  const rate = normalizeRate(cells[2] ?? "");
+  return rate ? { rate, rateDate } : null;
+}
+
+function normalizePricingSources(value: unknown, context: {
+  similarDocuments: unknown[];
+  settings: JsonRecord | null;
+  externalReferenceContext: ExternalReferenceContext;
+}): PricingSources {
+  const record = (value ?? {}) as JsonRecord;
+  const limitations = [
+    ...stringArray(record.limitations),
+    ...context.externalReferenceContext.limitations,
+  ].filter((item, index, array) => array.indexOf(item) === index).slice(0, 12);
+
+  return {
+    internalHistoryUsed: asBoolean(record.internalHistoryUsed, context.similarDocuments.length > 0),
+    internalHistoryCount: Math.max(0, Math.round(asNumber(record.internalHistoryCount, context.similarDocuments.length))),
+    companySettingsUsed: asBoolean(record.companySettingsUsed, Boolean(context.settings)),
+    externalReferencesUsed: context.externalReferenceContext.used,
+    externalReferenceSummary: context.externalReferenceContext.used
+      ? asString(
+        record.externalReferenceSummary,
+        context.externalReferenceContext.summary || "Se usaron referencias externas orientativas para validar insumos, complejidad y rango de precio.",
+      )
+      : "No se pudieron usar referencias externas en esta propuesta.",
+    limitations,
+  };
+}
+
+function validateSuggestion(payload: JsonRecord, context: {
+  similarDocuments: unknown[];
+  settings: JsonRecord | null;
+  externalReferenceContext: ExternalReferenceContext;
+}): ServiceQuoteAiSuggestion {
   const suggestedLines = Array.isArray(payload.suggestedLines)
     ? payload.suggestedLines.map((line) => {
       const record = (line ?? {}) as JsonRecord;
@@ -181,6 +275,8 @@ function validateSuggestion(payload: JsonRecord): ServiceQuoteAiSuggestion {
     internalNotes: asString(payload.internalNotes),
     warnings: stringArray(payload.warnings),
     missingInfoQuestions: stringArray(payload.missingInfoQuestions),
+    pricingSources: normalizePricingSources(payload.pricingSources, context),
+    confidenceReasons: stringArray(payload.confidenceReasons),
   };
 }
 
@@ -244,6 +340,26 @@ function responseSchema() {
       internalNotes: { type: "STRING" },
       warnings: { type: "ARRAY", items: { type: "STRING" } },
       missingInfoQuestions: { type: "ARRAY", items: { type: "STRING" } },
+      pricingSources: {
+        type: "OBJECT",
+        properties: {
+          internalHistoryUsed: { type: "BOOLEAN" },
+          internalHistoryCount: { type: "NUMBER" },
+          companySettingsUsed: { type: "BOOLEAN" },
+          externalReferencesUsed: { type: "BOOLEAN" },
+          externalReferenceSummary: { type: "STRING" },
+          limitations: { type: "ARRAY", items: { type: "STRING" } },
+        },
+        required: [
+          "internalHistoryUsed",
+          "internalHistoryCount",
+          "companySettingsUsed",
+          "externalReferencesUsed",
+          "externalReferenceSummary",
+          "limitations",
+        ],
+      },
+      confidenceReasons: { type: "ARRAY", items: { type: "STRING" } },
     },
     required: [
       "summary",
@@ -257,6 +373,8 @@ function responseSchema() {
       "internalNotes",
       "warnings",
       "missingInfoQuestions",
+      "pricingSources",
+      "confidenceReasons",
     ],
   };
 }
@@ -265,6 +383,7 @@ function buildPrompt(params: {
   input: JsonRecord;
   settings: JsonRecord | null;
   similarDocuments: unknown[];
+  bnaRate: BnaRateSnapshot | null;
 }) {
   return [
     "Sos un asistente para presupuestar servicios tecnicos y comerciales en Stock Sur.",
@@ -275,6 +394,11 @@ function buildPrompt(params: {
     "Sugerí rango de precio minimo, recomendado y alto; nunca un precio unico.",
     "Si no hay desglose confiable por item, preferi recommendedPricingMode GLOBAL_TOTAL.",
     "Si faltan datos que cambian el precio, incluilos en missingInfoQuestions y baja la confianza.",
+    "Si el provider aporta referencias externas, usalas solo como orientacion para validar insumos, complejidad y rango sugerido.",
+    "No copies precios externos como verdad absoluta y no reemplaces el historico interno ni la validacion humana.",
+    "Explica en pricingSources y confidenceReasons cuanto pesa el historico interno, si hay pocos datos, si se usaron referencias externas, que falta confirmar y que variables pueden cambiar el precio.",
+    "Usa lenguaje prudente: referencias orientativas, estimacion, rango sugerido y requiere validacion humana.",
+    "Si hay cotizacion BNA disponible, usala solo como referencia de conversion ARS/USD y no inventes otra cotizacion.",
     "Usa ARS o USD solamente. No inventes cotizacion USD.",
     "",
     "Contexto del pedido:",
@@ -285,34 +409,76 @@ function buildPrompt(params: {
     "",
     "Presupuestos historicos similares de la misma empresa:",
     JSON.stringify(params.similarDocuments),
+    "",
+    "Cotizacion BNA disponible si corresponde:",
+    JSON.stringify(params.bnaRate ?? {}),
   ].join("\n");
+}
+
+async function getBnaUsdRateIfNeeded(preferredCurrency: unknown): Promise<BnaRateSnapshot | null> {
+  if (normalizeCurrency(preferredCurrency) !== "USD") return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), BNA_RATE_TIMEOUT_MS);
+  try {
+    for (const endpoint of BNA_RATE_ENDPOINTS) {
+      const response = await fetch(endpoint, {
+        signal: controller.signal,
+        headers: { Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" },
+      });
+      if (!response.ok) continue;
+
+      const parsed = parseBnaHtmlUsdSellRate(await response.text());
+      if (parsed) {
+        return {
+          source: "BNA",
+          rate: parsed.rate,
+          rateDate: parsed.rateDate,
+          fetchedAt: new Date().toISOString(),
+        };
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function callGeminiProvider(params: {
   apiKey: string;
   model: string;
   prompt: string;
+  settings: JsonRecord | null;
+  similarDocuments: unknown[];
+  useGrounding: boolean;
 }): Promise<AiProviderResult> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${params.apiKey}`,
-      {
-        method: "POST",
-        signal: controller.signal,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: params.prompt }] }],
-          generationConfig: {
-            temperature: 0.25,
-            responseMimeType: "application/json",
-            responseSchema: responseSchema(),
-          },
-        }),
-      },
-    );
+  const call = async (useGrounding: boolean) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${params.apiKey}`,
+        {
+          method: "POST",
+          signal: controller.signal,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: params.prompt }] }],
+            tools: useGrounding ? [{ google_search: {} }] : undefined,
+            generationConfig: {
+              temperature: 0.25,
+              responseMimeType: "application/json",
+              responseSchema: responseSchema(),
+            },
+          }),
+        },
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const geminiPayload = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -325,9 +491,57 @@ async function callGeminiProvider(params: {
     const rawText =
       geminiPayload?.candidates?.[0]?.content?.parts?.find((part: { text?: string }) => typeof part.text === "string")
         ?.text ?? "";
-    return { output: validateSuggestion(extractJsonPayload(rawText)), model: params.model };
-  } finally {
-    clearTimeout(timeout);
+    return { rawText, geminiPayload: geminiPayload as JsonRecord };
+  };
+
+  const buildExternalContext = (geminiPayload: JsonRecord, attempted: boolean, failed: boolean): ExternalReferenceContext => {
+    const candidates = Array.isArray(geminiPayload.candidates) ? geminiPayload.candidates : [];
+    const firstCandidate = (candidates[0] ?? {}) as JsonRecord;
+    const metadata = (firstCandidate.groundingMetadata ?? {}) as JsonRecord;
+    const queries = stringArray(metadata.webSearchQueries).slice(0, 5);
+    const chunks = Array.isArray(metadata.groundingChunks) ? metadata.groundingChunks : [];
+    const sources = chunks.map((chunk) => {
+      const web = (((chunk as JsonRecord).web ?? {}) as JsonRecord);
+      return { title: asString(web.title), uri: asString(web.uri) };
+    }).filter((source) => source.title || source.uri).slice(0, 5);
+    const used = attempted && !failed && (queries.length > 0 || sources.length > 0);
+
+    return {
+      attempted,
+      used,
+      failed,
+      summary: used
+        ? "Se usaron referencias externas orientativas para validar insumos, complejidad y rango de precio."
+        : "",
+      limitations: failed ? ["No se pudieron usar referencias externas en esta propuesta."] : [],
+      webSearchQueries: queries,
+      sources,
+      provider: "gemini_google_search",
+      fetchedAt: new Date().toISOString(),
+    };
+  };
+
+  const buildResult = (rawText: string, externalReferenceContext: ExternalReferenceContext) => ({
+    output: validateSuggestion(extractJsonPayload(rawText), {
+      similarDocuments: params.similarDocuments,
+      settings: params.settings,
+      externalReferenceContext,
+    }),
+    model: params.model,
+    externalReferenceContext,
+  });
+
+  if (!params.useGrounding) {
+    const { rawText } = await call(false);
+    return buildResult(rawText, buildExternalContext({}, false, false));
+  }
+
+  try {
+    const { rawText, geminiPayload } = await call(true);
+    return buildResult(rawText, buildExternalContext(geminiPayload, true, false));
+  } catch {
+    const { rawText } = await call(false);
+    return buildResult(rawText, buildExternalContext({}, true, true));
   }
 }
 
@@ -384,6 +598,7 @@ Deno.serve(async (req) => {
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
     const model = Deno.env.get("AI_SERVICE_QUOTE_MODEL") ?? Deno.env.get("GEMINI_MODEL") ?? AI_SERVICE_QUOTE_MODEL;
     const provider = Deno.env.get("AI_PROVIDER") ?? "gemini";
+    const useGrounding = Deno.env.get("AI_SERVICE_QUOTE_USE_GROUNDING") !== "false";
 
     if (!supabaseUrl || !supabaseAnonKey) return json({ error: "Faltan secretos base de Supabase." }, 500);
     if (provider !== "gemini") return json({ error: "Proveedor IA no soportado para presupuestos de servicio." }, 500);
@@ -433,16 +648,37 @@ Deno.serve(async (req) => {
       currentLines: Array.isArray(body.currentLines) ? body.currentLines.slice(0, 12) : [],
       currentNotes: body.currentNotes ?? null,
     };
+    const bnaRate = await getBnaUsdRateIfNeeded(inputSnapshot.preferredCurrency);
 
-    const prompt = buildPrompt({ input: inputSnapshot, settings: settings as JsonRecord | null, similarDocuments });
-    const result = await callGeminiProvider({ apiKey: geminiApiKey, model, prompt });
+    const prompt = buildPrompt({ input: inputSnapshot, settings: settings as JsonRecord | null, similarDocuments, bnaRate });
+    const result = await callGeminiProvider({
+      apiKey: geminiApiKey,
+      model,
+      prompt,
+      settings: settings as JsonRecord | null,
+      similarDocuments,
+      useGrounding,
+    });
 
     const { data: suggestionRow, error: insertError } = await actorClient
       .from("service_document_ai_suggestions")
       .insert({
         company_id: companyId,
-        input_snapshot: { ...inputSnapshot, similarDocuments },
-        output_snapshot: result.output,
+        input_snapshot: { ...inputSnapshot, similarDocuments, bnaRate },
+        output_snapshot: {
+          ...result.output,
+          externalReferenceContext: result.externalReferenceContext,
+          traceability: {
+            pricingSources: result.output.pricingSources,
+            confidenceReasons: result.output.confidenceReasons,
+            externalReferencesUsed: result.externalReferenceContext.used,
+            externalReferenceSummary: result.output.pricingSources.externalReferenceSummary,
+            limitations: result.output.pricingSources.limitations,
+            bnaRateUsed: Boolean(bnaRate),
+            bnaRate,
+            timestamp: result.externalReferenceContext.fetchedAt,
+          },
+        },
         suggested_min_total: result.output.priceSuggestion.min,
         suggested_recommended_total: result.output.priceSuggestion.recommended,
         suggested_max_total: result.output.priceSuggestion.max,

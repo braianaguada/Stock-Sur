@@ -300,6 +300,26 @@ export function ServiceQuoteAiAssistantDialog(props: {
                   <p className="text-sm text-muted-foreground">{suggestion.priceSuggestion.explanation}</p>
                 </div>
 
+                <div className="rounded-md border p-3 text-sm">
+                  <p className="font-semibold">Base de estimacion</p>
+                  <div className="mt-2 grid gap-1 text-muted-foreground">
+                    <p>Historico interno: {suggestion.pricingSources.internalHistoryUsed ? `usado (${suggestion.pricingSources.internalHistoryCount})` : "no usado"}</p>
+                    <p>Referencias externas: {suggestion.pricingSources.externalReferencesUsed ? "usadas como orientacion" : "no disponibles"}</p>
+                    <p>Confianza: {confidenceLabel(suggestion.priceSuggestion.confidence)}</p>
+                    {suggestion.pricingSources.externalReferenceSummary ? <p>{suggestion.pricingSources.externalReferenceSummary}</p> : null}
+                  </div>
+                  {suggestion.pricingSources.limitations.length > 0 ? (
+                    <ul className="mt-2 grid gap-1 text-muted-foreground">
+                      {suggestion.pricingSources.limitations.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
+                    </ul>
+                  ) : null}
+                  {suggestion.confidenceReasons.length > 0 ? (
+                    <ul className="mt-2 grid gap-1 text-muted-foreground">
+                      {suggestion.confidenceReasons.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
+                    </ul>
+                  ) : null}
+                </div>
+
                 <PreviewList title="Lineas sugeridas" items={suggestion.suggestedLines.map((line) => `${line.description} (${line.quantity} ${line.unit})`)} />
                 <PreviewList title="Materiales posibles" items={suggestion.possibleMaterials.map((material) => `${material.name}${material.needsConfirmation ? " - confirmar" : ""}`)} empty="Sin materiales sugeridos." />
                 <div className="rounded-md border p-3 text-sm">
