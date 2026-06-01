@@ -59,7 +59,32 @@ function errorDescription(error: unknown) {
   if (message.includes("configurado") || message.includes("GEMINI_API_KEY")) {
     return "El asistente IA no esta configurado todavia.";
   }
+  if (
+    message.includes("proveedor IA") ||
+    message.includes("cuota") ||
+    message.includes("temporalmente limitado") ||
+    message.includes("limite gratuito") ||
+    message.includes("límite gratuito")
+  ) {
+    return message;
+  }
+  if (message.includes("no devolvio una propuesta valida") || message.includes("descripcion mas concreta")) {
+    return message;
+  }
   return "No se pudo generar la propuesta IA. Podes seguir armando el presupuesto manualmente.";
+}
+
+async function readFunctionError(error: unknown) {
+  const context = typeof error === "object" && error !== null && "context" in error
+    ? (error as { context?: unknown }).context
+    : null;
+  if (context instanceof Response) {
+    const payload = await context.clone().json().catch(() => null) as { error?: unknown } | null;
+    if (typeof payload?.error === "string" && payload.error.trim()) {
+      return new Error(payload.error);
+    }
+  }
+  return error;
 }
 
 export function ServiceQuoteAiAssistantDialog(props: {
@@ -130,7 +155,7 @@ export function ServiceQuoteAiAssistantDialog(props: {
           currentNotes: props.currentNotes || null,
         },
       });
-      if (error) throw error;
+      if (error) throw await readFunctionError(error);
       const payload = data as ServiceQuoteAiResponse;
       const suggestion = serviceQuoteAiSchema.parse(payload.suggestion);
       setResponse({ ...payload, suggestion });
@@ -298,6 +323,26 @@ export function ServiceQuoteAiAssistantDialog(props: {
                   </div>
                   <p className="text-xs text-muted-foreground">Confianza: {confidenceLabel(suggestion.priceSuggestion.confidence)}</p>
                   <p className="text-sm text-muted-foreground">{suggestion.priceSuggestion.explanation}</p>
+                </div>
+
+                <div className="rounded-md border p-3 text-sm">
+                  <p className="font-semibold">Base de estimacion</p>
+                  <div className="mt-2 grid gap-1 text-muted-foreground">
+                    <p>Historico interno: {suggestion.pricingSources.internalHistoryUsed ? `usado (${suggestion.pricingSources.internalHistoryCount})` : "no usado"}</p>
+                    <p>Referencias externas: {suggestion.pricingSources.externalReferencesUsed ? "usadas como orientacion" : "no disponibles"}</p>
+                    <p>Confianza: {confidenceLabel(suggestion.priceSuggestion.confidence)}</p>
+                    {suggestion.pricingSources.externalReferenceSummary ? <p>{suggestion.pricingSources.externalReferenceSummary}</p> : null}
+                  </div>
+                  {suggestion.pricingSources.limitations.length > 0 ? (
+                    <ul className="mt-2 grid gap-1 text-muted-foreground">
+                      {suggestion.pricingSources.limitations.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
+                    </ul>
+                  ) : null}
+                  {suggestion.confidenceReasons.length > 0 ? (
+                    <ul className="mt-2 grid gap-1 text-muted-foreground">
+                      {suggestion.confidenceReasons.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
+                    </ul>
+                  ) : null}
                 </div>
 
                 <PreviewList title="Lineas sugeridas" items={suggestion.suggestedLines.map((line) => `${line.description} (${line.quantity} ${line.unit})`)} />

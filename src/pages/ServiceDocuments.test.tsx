@@ -153,6 +153,15 @@ describe("ServiceDocumentsPage", () => {
           internalNotes: "",
           warnings: ["Confirmar accesibilidad."],
           missingInfoQuestions: ["Cual es la altura de instalacion?"],
+          pricingSources: {
+            internalHistoryUsed: true,
+            internalHistoryCount: 1,
+            companySettingsUsed: false,
+            externalReferencesUsed: false,
+            externalReferenceSummary: "No se pudieron usar referencias externas en esta propuesta.",
+            limitations: ["No se pudieron usar referencias externas en esta propuesta."],
+          },
+          confidenceReasons: ["Hay pocos presupuestos internos similares."],
         },
       },
       error: null,
@@ -178,6 +187,8 @@ describe("ServiceDocumentsPage", () => {
       }),
     ));
     expect(await screen.findByText("Rango sugerido")).toBeInTheDocument();
+    expect(screen.getByText("Base de estimacion")).toBeInTheDocument();
+    expect(screen.getByText("Referencias externas: no disponibles")).toBeInTheDocument();
     expect(screen.getByText("Recomendado")).toBeInTheDocument();
     expect(screen.getByText("Limpieza y prueba del equipo (1 servicio)")).toBeInTheDocument();
   });

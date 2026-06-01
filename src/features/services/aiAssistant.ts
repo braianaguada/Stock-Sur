@@ -42,6 +42,15 @@ export const serviceQuoteAiSchema = z.object({
   internalNotes: z.string().trim().optional().default(""),
   warnings: z.array(z.string().trim().min(1)).default([]),
   missingInfoQuestions: z.array(z.string().trim().min(1)).default([]),
+  pricingSources: z.object({
+    internalHistoryUsed: z.boolean(),
+    internalHistoryCount: z.number().int().nonnegative(),
+    companySettingsUsed: z.boolean(),
+    externalReferencesUsed: z.boolean(),
+    externalReferenceSummary: z.string().trim().default(""),
+    limitations: z.array(z.string().trim().min(1)).default([]),
+  }),
+  confidenceReasons: z.array(z.string().trim().min(1)).default([]),
 }).refine((value) => value.recommendedCurrency === value.priceSuggestion.currency, {
   message: "La moneda recomendada debe coincidir con la moneda del precio sugerido",
 });

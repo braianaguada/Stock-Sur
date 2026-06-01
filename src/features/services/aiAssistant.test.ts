@@ -25,6 +25,18 @@ const validSuggestion = {
   internalNotes: "Confirmar modelo.",
   warnings: ["Confirmar fuga."],
   missingInfoQuestions: ["Cual es el modelo?"],
+  pricingSources: {
+    internalHistoryUsed: true,
+    internalHistoryCount: 2,
+    companySettingsUsed: false,
+    externalReferencesUsed: true,
+    externalReferenceSummary: "Se usaron referencias externas orientativas para validar insumos y complejidad.",
+    limitations: ["No se confirmo modelo exacto."],
+  },
+  confidenceReasons: [
+    "Hay pocos presupuestos internos similares.",
+    "La estimacion requiere validacion humana.",
+  ],
 } as const;
 
 const baseForm: ServiceDocumentForm = {
@@ -67,8 +79,23 @@ describe("serviceQuoteAiSchema", () => {
     expect(() => serviceQuoteAiSchema.parse({ ...validSuggestion, recommendedPricingMode: "FREE_TEXT" })).toThrow();
   });
 
+  it("rejects AI suggestions where price currency differs from the recommended currency", () => {
+    expect(() => serviceQuoteAiSchema.parse({
+      ...validSuggestion,
+      recommendedCurrency: "USD",
+      priceSuggestion: { ...validSuggestion.priceSuggestion, currency: "ARS" },
+    })).toThrow();
+  });
+
   it("rejects empty quote lines", () => {
     expect(() => serviceQuoteAiSchema.parse({ ...validSuggestion, suggestedLines: [] })).toThrow();
+  });
+
+  it("validates pricing sources and confidence reasons", () => {
+    const parsed = serviceQuoteAiSchema.parse(validSuggestion);
+
+    expect(parsed.pricingSources.externalReferencesUsed).toBe(true);
+    expect(parsed.confidenceReasons).toContain("Hay pocos presupuestos internos similares.");
   });
 });
 
@@ -98,6 +125,32 @@ describe("AI suggestion application", () => {
     expect(result.form.global_total).toBe("850000");
     expect(result.form.hide_line_prices).toBe(true);
     expect(result.lines[0].unit_price).toBeNull();
+  });
+
+  it("preserves USD as the final document currency when applying AI prices", () => {
+    const usdSuggestion = serviceQuoteAiSchema.parse({
+      ...validSuggestion,
+      recommendedCurrency: "USD",
+      priceSuggestion: {
+        ...validSuggestion.priceSuggestion,
+        currency: "USD",
+        min: 120,
+        recommended: 150,
+        max: 190,
+      },
+    });
+
+    const result = applyAiSuggestionToServiceDraft({
+      form: { ...baseForm, currency: "ARS", global_total: "" },
+      lines: [],
+      suggestion: usdSuggestion,
+      mode: "all",
+    });
+
+    expect(result.form.status).toBe("DRAFT");
+    expect(result.form.currency).toBe("USD");
+    expect(result.form.pricing_mode).toBe("GLOBAL_TOTAL");
+    expect(result.form.global_total).toBe("150");
   });
 
   it("can apply only lines without touching the current price", () => {
