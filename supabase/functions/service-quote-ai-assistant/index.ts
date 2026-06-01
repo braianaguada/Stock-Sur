@@ -6,6 +6,12 @@ import {
   type ExternalReferenceContext,
   type JsonRecord,
 } from "./grounding.ts";
+import {
+  decideGrounding,
+  groundingSnapshotFields,
+  normalizeGroundingMode,
+  type GroundingDecision,
+} from "./groundingDecision.ts";
 import { classifyAiFailure, shouldTryStructuredFallback } from "./providerErrors.ts";
 
 const AI_SERVICE_QUOTE_MODEL = "gemini-2.5-flash-lite";
@@ -25,6 +31,8 @@ type AiProviderResult = {
   output: ServiceQuoteAiSuggestion;
   model: string;
   externalReferenceContext: ExternalReferenceContext;
+  grounding: GroundingDecision;
+  aiCallCount: number;
 };
 
 type ServiceQuoteAiSuggestion = {
@@ -465,11 +473,13 @@ async function callGeminiProvider(params: {
   prompt: string;
   settings: JsonRecord | null;
   similarDocuments: unknown[];
-  useGrounding: boolean;
+  grounding: GroundingDecision;
   preferredCurrency: unknown;
   bnaRate: BnaRateSnapshot | null;
 }): Promise<AiProviderResult> {
+  let aiCallCount = 0;
   const call = async (request: { useGrounding: boolean; prompt: string; structuredOutput: boolean }) => {
+    aiCallCount += 1;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     let response: Response;
@@ -521,6 +531,8 @@ async function callGeminiProvider(params: {
     }),
     model: params.model,
     externalReferenceContext,
+    grounding: params.grounding,
+    aiCallCount,
   });
 
   const buildFallbackContext = (error: unknown) => buildExternalReferenceContextFromGeminiPayload({
@@ -530,7 +542,7 @@ async function callGeminiProvider(params: {
     failureReason: error instanceof Error ? error.message : "Fallo la consulta externa.",
   });
 
-  if (!params.useGrounding) {
+  if (params.grounding.decision !== "used") {
     const { rawText } = await call({ useGrounding: false, prompt: params.prompt, structuredOutput: true });
     return buildResult(rawText, buildExternalReferenceContextFromGeminiPayload({
       geminiPayload: {},
@@ -629,7 +641,10 @@ Deno.serve(async (req) => {
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
     const model = Deno.env.get("AI_SERVICE_QUOTE_MODEL") ?? Deno.env.get("GEMINI_MODEL") ?? AI_SERVICE_QUOTE_MODEL;
     const provider = Deno.env.get("AI_PROVIDER") ?? "gemini";
-    const useGrounding = Deno.env.get("AI_SERVICE_QUOTE_USE_GROUNDING") !== "false";
+    const legacyGroundingDisabled = Deno.env.get("AI_SERVICE_QUOTE_USE_GROUNDING") === "false";
+    const groundingMode = legacyGroundingDisabled
+      ? "never"
+      : normalizeGroundingMode(Deno.env.get("AI_SERVICE_QUOTE_GROUNDING_MODE"));
 
     if (!supabaseUrl || !supabaseAnonKey) return json({ error: "Faltan secretos base de Supabase." }, 500);
     if (provider !== "gemini") return json({ error: "Proveedor IA no soportado para presupuestos de servicio." }, 500);
@@ -680,6 +695,13 @@ Deno.serve(async (req) => {
       currentNotes: body.currentNotes ?? null,
     };
     const bnaRate = await getBnaUsdRateIfNeeded(inputSnapshot.preferredCurrency);
+    const grounding = decideGrounding({
+      mode: groundingMode,
+      description,
+      similarDocumentsCount: similarDocuments.length,
+      complexity: inputSnapshot.complexity,
+      knownMaterials: inputSnapshot.knownMaterials,
+    });
 
     const prompt = buildPrompt({ input: inputSnapshot, settings: settings as JsonRecord | null, similarDocuments, bnaRate });
     const result = await callGeminiProvider({
@@ -688,10 +710,11 @@ Deno.serve(async (req) => {
       prompt,
       settings: settings as JsonRecord | null,
       similarDocuments,
-      useGrounding,
+      grounding,
       preferredCurrency: inputSnapshot.preferredCurrency,
       bnaRate,
     });
+    const groundingTrace = groundingSnapshotFields(result.grounding, result.aiCallCount);
 
     const { data: suggestionRow, error: insertError } = await actorClient
       .from("service_document_ai_suggestions")
@@ -700,8 +723,10 @@ Deno.serve(async (req) => {
         input_snapshot: { ...inputSnapshot, similarDocuments, bnaRate },
         output_snapshot: {
           ...result.output,
+          ...groundingTrace,
           externalReferenceContext: result.externalReferenceContext,
           traceability: {
+            ...groundingTrace,
             pricingSources: result.output.pricingSources,
             confidenceReasons: result.output.confidenceReasons,
             externalReferencesUsed: result.externalReferenceContext.used,

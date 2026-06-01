@@ -38,7 +38,7 @@ export function classifyAiFailure(error: unknown): ControlledAiFailure {
     return {
       code: "AI_RATE_LIMITED",
       status: 429,
-      publicMessage: "El proveedor IA esta temporalmente limitado por cuota. Proba nuevamente en unos segundos o continua el presupuesto manualmente.",
+      publicMessage: "Se alcanzó el límite gratuito del asistente IA. Probá más tarde o armá el presupuesto manualmente.",
       logMessage: message || "AI provider rate limited.",
       ...(retryAfterSeconds ? { retryAfterSeconds } : {}),
     };

@@ -8,6 +8,12 @@ import {
   classifyAiFailure,
   shouldTryStructuredFallback,
 } from "../../../supabase/functions/service-quote-ai-assistant/providerErrors";
+import {
+  decideGrounding,
+  groundingSnapshotFields,
+  normalizeGroundingMode,
+  plannedAiCallCount,
+} from "../../../supabase/functions/service-quote-ai-assistant/groundingDecision";
 
 describe("service quote AI grounding traceability", () => {
   it("marks external references as used when Gemini returns search metadata", () => {
@@ -137,6 +143,7 @@ describe("service quote AI grounding traceability", () => {
 
     expect(quota.status).toBe(429);
     expect(quota.code).toBe("AI_RATE_LIMITED");
+    expect(quota.publicMessage).toBe("Se alcanzó el límite gratuito del asistente IA. Probá más tarde o armá el presupuesto manualmente.");
     expect(quota.retryAfterSeconds).toBe(18);
     expect(shouldTryStructuredFallback(new Error("Quota exceeded"))).toBe(false);
     expect(timeout.status).toBe(504);
@@ -150,5 +157,68 @@ describe("service quote AI grounding traceability", () => {
     expect(empty.code).toBe("AI_INVALID_RESPONSE");
     expect(schema.status).toBe(422);
     expect(shouldTryStructuredFallback(schema.logMessage)).toBe(true);
+  });
+
+  it("uses one planned AI call when grounding mode is never", () => {
+    const decision = decideGrounding({
+      mode: normalizeGroundingMode("never"),
+      description: "Cambio de motocompresor de heladera comercial",
+      similarDocumentsCount: 0,
+    });
+
+    expect(decision.decision).toBe("skipped");
+    expect(plannedAiCallCount(decision)).toBe(1);
+  });
+
+  it("plans grounding when mode is always", () => {
+    const decision = decideGrounding({
+      mode: normalizeGroundingMode("always"),
+      description: "Limpieza de split",
+      similarDocumentsCount: 5,
+    });
+
+    expect(decision.decision).toBe("used");
+    expect(plannedAiCallCount(decision)).toBe(2);
+  });
+
+  it("skips grounding in auto mode for a simple service", () => {
+    const decision = decideGrounding({
+      mode: normalizeGroundingMode("auto"),
+      description: "Limpieza de aire acondicionado split, revision basica y prueba de funcionamiento.",
+      similarDocumentsCount: 0,
+      complexity: "LOW",
+    });
+
+    expect(decision.decision).toBe("skipped");
+    expect(decision.reason).toBe("Servicio simple con bajo requerimiento de referencias externas");
+    expect(plannedAiCallCount(decision)).toBe(1);
+  });
+
+  it("uses grounding in auto mode for motocompresor and repuestos", () => {
+    const decision = decideGrounding({
+      mode: normalizeGroundingMode("auto"),
+      description: "Cambio de motocompresor de heladera comercial con repuesto y carga de gas refrigerante.",
+      similarDocumentsCount: 1,
+      complexity: "HIGH",
+    });
+
+    expect(decision.decision).toBe("used");
+    expect(decision.reason).toContain("Servicio complejo");
+    expect(plannedAiCallCount(decision)).toBe(2);
+  });
+
+  it("builds output snapshot grounding metadata", () => {
+    const decision = decideGrounding({
+      mode: normalizeGroundingMode("auto"),
+      description: "Mantenimiento simple y prueba de funcionamiento.",
+      similarDocumentsCount: 0,
+    });
+
+    expect(groundingSnapshotFields(decision, 1)).toEqual({
+      groundingMode: "auto",
+      groundingDecision: "skipped",
+      groundingReason: "Servicio simple con bajo requerimiento de referencias externas",
+      aiCallCount: 1,
+    });
   });
 });

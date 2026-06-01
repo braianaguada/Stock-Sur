@@ -59,7 +59,13 @@ function errorDescription(error: unknown) {
   if (message.includes("configurado") || message.includes("GEMINI_API_KEY")) {
     return "El asistente IA no esta configurado todavia.";
   }
-  if (message.includes("proveedor IA") || message.includes("cuota") || message.includes("temporalmente limitado")) {
+  if (
+    message.includes("proveedor IA") ||
+    message.includes("cuota") ||
+    message.includes("temporalmente limitado") ||
+    message.includes("limite gratuito") ||
+    message.includes("límite gratuito")
+  ) {
     return message;
   }
   if (message.includes("no devolvio una propuesta valida") || message.includes("descripcion mas concreta")) {
