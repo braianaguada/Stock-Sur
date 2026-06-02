@@ -6,9 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/errors";
 import { formatDateTime, formatDocumentNumber } from "@/lib/formatters";
 import { canViewBilling } from "@/lib/permissions";
+import { useBillingActions } from "@/features/billing/hooks/useBillingActions";
 import { useBillingDocumentLines, useBillingDocuments, useBillingRemitoReferences, useBillingSettings } from "@/features/billing/hooks/useBillingData";
+import { canShowBillingSettingsToggle } from "@/features/billing/lib/settings";
 import type { BillingDocumentRow } from "@/features/billing/types";
 
 const STATUS_LABEL: Record<BillingDocumentRow["fiscal_status"], string> = {
@@ -26,11 +30,14 @@ function formatRemitoReference(remito?: { point_of_sale: number; document_number
 
 export default function BillingPage() {
   const { roles, currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
+  const { toast } = useToast();
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const billingAccessContext = { companyRoleCodes, companyPermissionCodes };
   const hasBillingAccess = canViewBilling(roles, billingAccessContext);
+  const canManageSettings = canShowBillingSettingsToggle(roles, billingAccessContext);
 
   const settingsQuery = useBillingSettings(currentCompany?.id ?? null);
+  const { enableBillingMutation, disableBillingMutation } = useBillingActions({ companyId: currentCompany?.id ?? null });
   const documentsQuery = useBillingDocuments(currentCompany?.id ?? null);
   const documents = useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
   const selectedDocument = useMemo(
@@ -43,6 +50,43 @@ export default function BillingPage() {
   );
   const remitosQuery = useBillingRemitoReferences(currentCompany?.id ?? null, remitoIds);
   const linesQuery = useBillingDocumentLines(selectedDocument?.id ?? null);
+  const billingTogglePending = enableBillingMutation.isPending || disableBillingMutation.isPending;
+
+  const enableBilling = () => {
+    enableBillingMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast({
+          title: "Facturacion interna activada",
+          description: "Esta fase no emite CAE ni llama a Afip SDK.",
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "No se pudo activar facturacion interna",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      },
+    });
+  };
+
+  const disableBilling = () => {
+    disableBillingMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast({
+          title: "Facturacion interna desactivada",
+          description: "Los borradores existentes se conservan y siguen visibles con permiso de lectura.",
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "No se pudo desactivar facturacion interna",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      },
+    });
+  };
 
   return (
     <AppLayout>
@@ -63,7 +107,7 @@ export default function BillingPage() {
                   <div className="flex flex-wrap items-center gap-3">
                     <h1 className="page-title">Facturacion</h1>
                     <Badge variant="outline">Base interna</Badge>
-                    <Badge variant="outline">{settingsQuery.billingEnabled ? "Habilitada" : "Feature apagada"}</Badge>
+                    <Badge variant="outline">{settingsQuery.billingEnabled ? "Feature activa" : "Feature apagada"}</Badge>
                   </div>
                   <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
                     Borradores fiscales Factura B Consumidor Final creados desde ventas de Caja con REMITO EMITIDO.
@@ -73,9 +117,35 @@ export default function BillingPage() {
             </section>
 
             {!settingsQuery.billingEnabled ? (
-              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-                Facturacion interna esta deshabilitada para esta empresa. Activar `billing_settings.is_enabled`
-                permite crear borradores, pero esta fase no autoriza CAE ni llama a Afip SDK.
+              <div className="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="font-semibold">Facturacion interna esta deshabilitada para esta empresa.</p>
+                  <p className="mt-1">
+                    Activar `billing_settings.is_enabled` permite crear borradores, pero esta fase no autoriza CAE ni llama a Afip SDK.
+                  </p>
+                  {!canManageSettings ? (
+                    <p className="mt-2 text-xs">Necesitas permiso billing.settings o rol admin para activarla.</p>
+                  ) : null}
+                </div>
+                {canManageSettings ? (
+                  <Button type="button" onClick={enableBilling} disabled={billingTogglePending}>
+                    Activar facturacion interna
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+
+            {settingsQuery.billingEnabled && canManageSettings ? (
+              <div className="flex flex-col gap-3 rounded-xl border border-success/25 bg-success/8 p-4 text-sm md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="font-semibold text-foreground">Facturacion interna activa.</p>
+                  <p className="mt-1 text-muted-foreground">
+                    La creacion de borradores desde Caja esta habilitada. No se emite CAE ni se llama a Afip SDK.
+                  </p>
+                </div>
+                <Button type="button" variant="outline" onClick={disableBilling} disabled={billingTogglePending}>
+                  Desactivar facturacion interna
+                </Button>
               </div>
             ) : null}
 

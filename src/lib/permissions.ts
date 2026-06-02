@@ -42,7 +42,7 @@ function hasCompanyPermission(
   context: CompanyAccessContext | undefined,
   permissionCode: string,
 ) {
-  if (isSuperAdmin(roles)) return true;
+  if (isSuperAdmin(roles) || hasRole(roles, "admin")) return true;
 
   const companyRoleCodes = context?.companyRoleCodes ?? [];
   const companyPermissionCodes = context?.companyPermissionCodes ?? [];

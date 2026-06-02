@@ -29,6 +29,21 @@ describe("billing draft action rules", () => {
     })).toBe(true);
   });
 
+  it("hides the action when billing is disabled or the user cannot create billing drafts", () => {
+    expect(canShowCreateBillingDraftAction({
+      billingEnabled: false,
+      canCreate: true,
+      sale: baseSale,
+      billedSourceIds: new Set(),
+    })).toBe(false);
+    expect(canShowCreateBillingDraftAction({
+      billingEnabled: true,
+      canCreate: false,
+      sale: baseSale,
+      billedSourceIds: new Set(),
+    })).toBe(false);
+  });
+
   it("hides the action when the sale already has an active billing document", () => {
     expect(canShowCreateBillingDraftAction({
       billingEnabled: true,
