@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { AmountDisplay } from "@/components/common/VisualSystem";
@@ -20,8 +20,9 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { formatDateTime, formatDocumentNumber } from "@/lib/formatters";
 import { canViewBilling } from "@/lib/permissions";
+import { BillingFiscalSettingsSection } from "@/features/billing/components/BillingFiscalSettingsSection";
 import { useBillingActions } from "@/features/billing/hooks/useBillingActions";
-import { useBillingDocumentLines, useBillingDocuments, useBillingRemitoReferences, useBillingSettings } from "@/features/billing/hooks/useBillingData";
+import { useBillingDocumentLines, useBillingDocuments, useBillingPointsOfSale, useBillingRemitoReferences, useBillingSettings } from "@/features/billing/hooks/useBillingData";
 import { canShowAuthorizeBillingDocumentAction, canShowPrintBillingDocumentAction } from "@/features/billing/lib/authorization";
 import { canShowBillingSettingsToggle } from "@/features/billing/lib/settings";
 import type { BillingDocumentRow } from "@/features/billing/types";
@@ -50,8 +51,17 @@ export default function BillingPage() {
   const canManageSettings = canShowBillingSettingsToggle(roles, billingAccessContext);
 
   const settingsQuery = useBillingSettings(currentCompany?.id ?? null);
-  const { enableBillingMutation, disableBillingMutation, authorizeBillingDocumentMutation } = useBillingActions({ companyId: currentCompany?.id ?? null });
+  const {
+    enableBillingMutation,
+    disableBillingMutation,
+    saveBillingSettingsMutation,
+    createBillingPointOfSaleMutation,
+    updateBillingPointOfSaleMutation,
+    assignBillingDocumentPointOfSaleMutation,
+    authorizeBillingDocumentMutation,
+  } = useBillingActions({ companyId: currentCompany?.id ?? null });
   const documentsQuery = useBillingDocuments(currentCompany?.id ?? null);
+  const pointsOfSaleQuery = useBillingPointsOfSale(currentCompany?.id ?? null);
   const documents = useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
   const selectedDocument = useMemo(
     () => documents.find((document) => document.id === selectedDocumentId) ?? documents[0] ?? null,
@@ -65,6 +75,15 @@ export default function BillingPage() {
   const linesQuery = useBillingDocumentLines(selectedDocument?.id ?? null);
   const billingTogglePending = enableBillingMutation.isPending || disableBillingMutation.isPending;
   const authorizationPending = authorizeBillingDocumentMutation.isPending;
+  const [selectedPointOfSale, setSelectedPointOfSale] = useState("");
+  const enabledPointsOfSale = useMemo(
+    () => (pointsOfSaleQuery.data ?? []).filter((point) => point.is_enabled),
+    [pointsOfSaleQuery.data],
+  );
+
+  useEffect(() => {
+    setSelectedPointOfSale(selectedDocument?.point_of_sale ? String(selectedDocument.point_of_sale) : "");
+  }, [selectedDocument?.id, selectedDocument?.point_of_sale]);
 
   const enableBilling = () => {
     enableBillingMutation.mutate(undefined, {
@@ -126,6 +145,31 @@ export default function BillingPage() {
     window.open(`/print/billing/${document.id}`, "_blank", "noopener,noreferrer");
   };
 
+  const scrollToFiscalSettings = () => {
+    document.getElementById("billing-fiscal-settings")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const assignPointOfSale = (document: BillingDocumentRow) => {
+    assignBillingDocumentPointOfSaleMutation.mutate({
+      billingDocumentId: document.id,
+      pointOfSale: Number(selectedPointOfSale),
+    }, {
+      onSuccess: () => {
+        toast({
+          title: "Punto de venta asignado",
+          description: "El borrador fiscal quedo listo para usar ese punto al autorizar.",
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "No se pudo asignar el punto de venta",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      },
+    });
+  };
+
   return (
     <AppLayout>
       <div className="page-shell">
@@ -185,6 +229,21 @@ export default function BillingPage() {
                   Desactivar facturacion interna
                 </Button>
               </div>
+            ) : null}
+
+            {canManageSettings ? (
+              <BillingFiscalSettingsSection
+                settings={settingsQuery.settings}
+                pointsOfSale={pointsOfSaleQuery.data ?? []}
+                isLoading={settingsQuery.isLoading || pointsOfSaleQuery.isLoading}
+                onSaveSettings={(input, callbacks) => saveBillingSettingsMutation.mutate(input, callbacks)}
+                onCreatePointOfSale={(input, callbacks) => createBillingPointOfSaleMutation.mutate(input, callbacks)}
+                onUpdatePointOfSale={(input, callbacks) => updateBillingPointOfSaleMutation.mutate(input, callbacks)}
+                savingSettings={saveBillingSettingsMutation.isPending}
+                creatingPointOfSale={createBillingPointOfSaleMutation.isPending}
+                updatingPointOfSale={updateBillingPointOfSaleMutation.isPending}
+                toast={toast}
+              />
             ) : null}
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -316,9 +375,46 @@ export default function BillingPage() {
                             <span className="font-mono text-xs">{selectedDocument.voucher_full_number}</span>
                           </div>
                         ) : null}
+                        {canManageSettings && ["DRAFT", "READY_TO_AUTHORIZE", "REJECTED"].includes(selectedDocument.fiscal_status) ? (
+                          <div className="rounded-lg border bg-muted/25 p-3">
+                            <label className="text-xs font-medium text-muted-foreground" htmlFor="billing-document-pos">
+                              Punto de venta fiscal
+                            </label>
+                            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                              <select
+                                id="billing-document-pos"
+                                className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                value={selectedPointOfSale}
+                                onChange={(event) => setSelectedPointOfSale(event.target.value)}
+                              >
+                                <option value="">Usar unico habilitado</option>
+                                {enabledPointsOfSale.map((point) => (
+                                  <option key={point.id} value={point.point_of_sale}>
+                                    {point.point_of_sale} {point.description ? `- ${point.description}` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => assignPointOfSale(selectedDocument)}
+                                disabled={!selectedPointOfSale || assignBillingDocumentPointOfSaleMutation.isPending}
+                              >
+                                Guardar POS
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
                         {selectedDocument.error_message ? (
                           <div className="rounded-lg border border-destructive/30 bg-destructive/8 p-3 text-sm text-destructive">
                             {selectedDocument.error_message}
+                            {canManageSettings && selectedDocument.error_message.includes("punto de venta fiscal configurado") ? (
+                              <div className="mt-3">
+                                <Button type="button" variant="outline" size="sm" onClick={scrollToFiscalSettings}>
+                                  Configurar punto de venta
+                                </Button>
+                              </div>
+                            ) : null}
                           </div>
                         ) : null}
                         <div className="flex flex-wrap justify-end gap-2 border-t pt-3">

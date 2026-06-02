@@ -8,6 +8,7 @@ import {
   buildAfipSdkLastVoucherPayload,
   parseAfipSdkAuthorizationResponse,
   parseLastVoucherNumber,
+  resolveAuthorizationPointOfSale,
   sanitizeProviderPayload,
 } from "../../../../supabase/functions/billing-authorize-document/logic";
 
@@ -97,6 +98,30 @@ describe("Afip SDK authorization logic", () => {
         },
       },
     });
+  });
+
+  it("uses the single enabled point of sale when the document has none", () => {
+    expect(resolveAuthorizationPointOfSale({
+      document: { point_of_sale: null },
+      pointsOfSale: [{ point_of_sale: 3, is_enabled: true }],
+    })).toBe(3);
+  });
+
+  it("keeps blocking authorization when no enabled point of sale exists", () => {
+    expect(() => resolveAuthorizationPointOfSale({
+      document: { point_of_sale: null },
+      pointsOfSale: [],
+    })).toThrow("El comprobante no tiene punto de venta fiscal configurado.");
+  });
+
+  it("blocks authorization when multiple enabled points of sale exist without selection", () => {
+    expect(() => resolveAuthorizationPointOfSale({
+      document: { point_of_sale: null },
+      pointsOfSale: [
+        { point_of_sale: 1, is_enabled: true },
+        { point_of_sale: 2, is_enabled: true },
+      ],
+    })).toThrow("Hay más de un punto de venta habilitado. Seleccioná uno antes de autorizar.");
   });
 
   it("builds last voucher request and parses next source number", () => {
