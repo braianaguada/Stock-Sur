@@ -26,6 +26,29 @@ type UseBillingActionsParams = {
   businessDate?: string;
 };
 
+async function resolveFunctionError(error: Error) {
+  const context = "context" in error ? error.context : null;
+  const response = context instanceof Response ? context : null;
+
+  if (response) {
+    try {
+      const payload = await response.clone().json();
+      const message =
+        payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+          ? payload.error
+          : payload && typeof payload === "object" && "message" in payload && typeof payload.message === "string"
+            ? payload.message
+            : "";
+
+      if (message.trim()) return new Error(message);
+    } catch {
+      // Fall back to the generic Supabase error message below.
+    }
+  }
+
+  return error;
+}
+
 export function useBillingActions({ companyId, businessDate }: UseBillingActionsParams) {
   const queryClient = useQueryClient();
 
@@ -106,5 +129,20 @@ export function useBillingActions({ companyId, businessDate }: UseBillingActions
     },
   });
 
-  return { createBillingDraftMutation, enableBillingMutation, disableBillingMutation };
+  const authorizeBillingDocumentMutation = useMutation({
+    mutationFn: async ({ billingDocumentId }: { billingDocumentId: string }) => {
+      const { data, error } = await supabase.functions.invoke("billing-authorize-document", {
+        body: { billingDocumentId },
+      });
+
+      if (error) throw await resolveFunctionError(error);
+      return data as { document: BillingDocumentRow };
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.billing.documents(companyId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.billing.settings(companyId) });
+    },
+  });
+
+  return { createBillingDraftMutation, enableBillingMutation, disableBillingMutation, authorizeBillingDocumentMutation };
 }
