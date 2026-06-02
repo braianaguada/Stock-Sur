@@ -16,6 +16,17 @@ export type BillingSettingsRow = {
   notes: string | null;
 };
 
+export type BillingPointOfSaleRow = {
+  id: string;
+  company_id: string;
+  billing_settings_id: string;
+  point_of_sale: number;
+  description: string | null;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type BillingDocumentRow = {
   id: string;
   company_id: string;

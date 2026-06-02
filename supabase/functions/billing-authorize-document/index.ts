@@ -8,6 +8,7 @@ import {
   normalizeAfipSdkBaseUrl,
   parseAfipSdkAuthorizationResponse,
   parseLastVoucherNumber,
+  resolveAuthorizationPointOfSale,
   sanitizeProviderPayload,
   assertAuthorizationPreconditions,
 } from "./logic.ts";
@@ -149,6 +150,33 @@ Deno.serve(async (req) => {
     issuer_tax_id: document.issuer_tax_id ?? settings.issuer_tax_id,
   };
 
+  const { data: pointsOfSale, error: pointsOfSaleError } = await serviceClient
+    .from("billing_points_of_sale")
+    .select("point_of_sale, is_enabled")
+    .eq("company_id", document.company_id)
+    .eq("billing_settings_id", settings.id)
+    .eq("is_enabled", true)
+    .order("point_of_sale", { ascending: true });
+
+  if (pointsOfSaleError) {
+    return json({ error: "No se pudieron leer los puntos de venta fiscales." }, 500);
+  }
+
+  let resolvedPointOfSale = 0;
+  try {
+    resolvedPointOfSale = resolveAuthorizationPointOfSale({
+      document,
+      pointsOfSale: pointsOfSale ?? [],
+    });
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : "El comprobante no tiene punto de venta fiscal configurado." }, 400);
+  }
+
+  const effectiveDocument = {
+    ...document,
+    point_of_sale: resolvedPointOfSale,
+  };
+
   const { data: lines, error: linesError } = await serviceClient
     .from("billing_document_lines")
     .select("*")
@@ -160,7 +188,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    assertAuthorizationPreconditions({ document, settings: effectiveSettings, lines: lines ?? [] });
+    assertAuthorizationPreconditions({ document: effectiveDocument, settings: effectiveSettings, lines: lines ?? [] });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "El comprobante no es autorizable." }, 400);
   }
@@ -181,6 +209,7 @@ Deno.serve(async (req) => {
       error_message: null,
       provider_errors: [],
       provider_observations: [],
+      point_of_sale: resolvedPointOfSale,
       updated_by: user.id,
     })
     .eq("id", document.id)

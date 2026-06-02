@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
-import type { BillingDocumentLineRow, BillingDocumentRow, BillingRemitoReference, BillingSettingsRow } from "../types";
+import type { BillingDocumentLineRow, BillingDocumentRow, BillingPointOfSaleRow, BillingRemitoReference, BillingSettingsRow } from "../types";
 
 type SupabaseQueryResult = { data: unknown; error: Error | null };
 type SupabaseQueryBuilder = PromiseLike<SupabaseQueryResult> & {
@@ -40,6 +40,23 @@ export function useBillingSettings(companyId: string | null) {
   );
 
   return { ...query, settings: query.data ?? [], billingEnabled };
+}
+
+export function useBillingPointsOfSale(companyId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.billing.pointsOfSale(companyId),
+    enabled: Boolean(companyId),
+    queryFn: async () => {
+      const { data, error } = await billingDb
+        .from("billing_points_of_sale")
+        .select("id, company_id, billing_settings_id, point_of_sale, description, is_enabled, created_at, updated_at")
+        .eq("company_id", companyId!)
+        .order("point_of_sale", { ascending: true });
+
+      if (error) throw error;
+      return ((data as BillingPointOfSaleRow[] | null) ?? []);
+    },
+  });
 }
 
 export function useBillingDocuments(companyId: string | null) {

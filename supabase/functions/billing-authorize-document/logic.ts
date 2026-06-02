@@ -34,6 +34,11 @@ type BillingSettingsLike = {
   issuer_tax_id: string | null;
 };
 
+type BillingPointOfSaleLike = {
+  point_of_sale: number | string;
+  is_enabled: boolean | null;
+};
+
 type BillingLineLike = {
   vat_rate: number | string;
   net_amount: number | string;
@@ -113,6 +118,31 @@ export function assertAuthorizationPreconditions(params: {
   if (lines.length === 0) {
     throw new Error("El comprobante no tiene lineas para autorizar.");
   }
+}
+
+export function resolveAuthorizationPointOfSale(params: {
+  document: Pick<BillingDocumentLike, "point_of_sale"> | null;
+  pointsOfSale: BillingPointOfSaleLike[];
+}) {
+  const documentPointOfSale = Number(params.document?.point_of_sale ?? 0);
+  const enabledPoints = params.pointsOfSale
+    .filter((point) => point.is_enabled !== false)
+    .map((point) => Number(point.point_of_sale))
+    .filter((point) => Number.isInteger(point) && point > 0);
+
+  if (documentPointOfSale > 0) {
+    if (enabledPoints.length > 0 && !enabledPoints.includes(documentPointOfSale)) {
+      throw new Error("El punto de venta fiscal seleccionado no esta habilitado.");
+    }
+    return documentPointOfSale;
+  }
+
+  if (enabledPoints.length === 1) return enabledPoints[0];
+  if (enabledPoints.length > 1) {
+    throw new Error("Hay más de un punto de venta habilitado. Seleccioná uno antes de autorizar.");
+  }
+
+  throw new Error("El comprobante no tiene punto de venta fiscal configurado.");
 }
 
 export function buildAfipSdkAuthPayload(settings: BillingSettingsLike) {
