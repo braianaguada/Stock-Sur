@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getErrorMessage } from "@/lib/errors";
+import { isValidCuitFormat, normalizeCuit } from "../lib/cuit";
 import type { BillingPointOfSaleRow, BillingSettingsRow } from "../types";
 
 type ToastFn = (toast: {
@@ -39,6 +40,7 @@ type BillingFiscalSettingsSectionProps = {
   creatingPointOfSale: boolean;
   updatingPointOfSale: boolean;
   toast: ToastFn;
+  canEdit: boolean;
 };
 
 type PointForm = Record<string, { description: string; isEnabled: boolean }>;
@@ -60,6 +62,7 @@ export function BillingFiscalSettingsSection({
   creatingPointOfSale,
   updatingPointOfSale,
   toast,
+  canEdit,
 }: BillingFiscalSettingsSectionProps) {
   const devSettings = useMemo(
     () => settings.find((setting) => setting.provider === "AFIPSDK" && setting.environment === "dev") ?? null,
@@ -74,6 +77,7 @@ export function BillingFiscalSettingsSection({
   });
   const [newPoint, setNewPoint] = useState({ pointOfSale: "", description: "", isEnabled: true });
   const [pointForms, setPointForms] = useState<PointForm>({});
+  const [issuerTaxIdError, setIssuerTaxIdError] = useState("");
 
   useEffect(() => {
     setSettingsForm({
@@ -99,7 +103,14 @@ export function BillingFiscalSettingsSection({
   }, [pointsOfSale]);
 
   const saveSettings = () => {
-    onSaveSettings(settingsForm, {
+    const normalizedIssuerTaxId = normalizeCuit(settingsForm.issuerTaxId);
+    if (!isValidCuitFormat(settingsForm.issuerTaxId)) {
+      setIssuerTaxIdError("El CUIT emisor debe tener 11 dígitos.");
+      return;
+    }
+
+    setIssuerTaxIdError("");
+    onSaveSettings({ ...settingsForm, issuerTaxId: normalizedIssuerTaxId }, {
       onSuccess: () => {
         toast({
           title: "Configuracion fiscal guardada",
@@ -191,7 +202,7 @@ export function BillingFiscalSettingsSection({
           <div className="rounded-lg border bg-muted/25 p-3">
             <p className="text-xs text-muted-foreground">Secretos</p>
             <p className="mt-1 font-medium">No visibles</p>
-            <p className="mt-1 text-xs text-muted-foreground">AFIPSDK_ACCESS_TOKEN y certificados no se almacenan aca.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Los tokens y certificados no se almacenan aca.</p>
           </div>
           <div className="rounded-lg border bg-muted/25 p-3">
             <p className="text-xs text-muted-foreground">Alcance</p>
@@ -206,9 +217,14 @@ export function BillingFiscalSettingsSection({
             <Input
               id="billing-issuer-tax-id"
               value={settingsForm.issuerTaxId}
-              onChange={(event) => setSettingsForm((current) => ({ ...current, issuerTaxId: event.target.value }))}
-              placeholder="Opcional en configuracion"
+              onChange={(event) => {
+                setIssuerTaxIdError("");
+                setSettingsForm((current) => ({ ...current, issuerTaxId: event.target.value }));
+              }}
+              placeholder="Ingrese CUIT emisor"
+              disabled={!canEdit}
             />
+            {issuerTaxIdError ? <p className="text-xs text-destructive">{issuerTaxIdError}</p> : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="billing-issuer-name">Razon social</Label>
@@ -217,6 +233,7 @@ export function BillingFiscalSettingsSection({
               value={settingsForm.issuerName}
               onChange={(event) => setSettingsForm((current) => ({ ...current, issuerName: event.target.value }))}
               placeholder="Opcional"
+              disabled={!canEdit}
             />
           </div>
           <div className="space-y-2">
@@ -226,6 +243,7 @@ export function BillingFiscalSettingsSection({
               value={settingsForm.issuerTaxCondition}
               onChange={(event) => setSettingsForm((current) => ({ ...current, issuerTaxCondition: event.target.value }))}
               placeholder="Opcional"
+              disabled={!canEdit}
             />
           </div>
           <div className="space-y-2">
@@ -235,6 +253,7 @@ export function BillingFiscalSettingsSection({
               value={settingsForm.notes}
               onChange={(event) => setSettingsForm((current) => ({ ...current, notes: event.target.value }))}
               placeholder="Sin secretos"
+              disabled={!canEdit}
             />
           </div>
         </div>
@@ -244,15 +263,18 @@ export function BillingFiscalSettingsSection({
             <Checkbox
               checked={settingsForm.isEnabled}
               onCheckedChange={(checked) => setSettingsForm((current) => ({ ...current, isEnabled: checked === true }))}
+              disabled={!canEdit}
             />
             Facturacion interna habilitada
           </label>
-          <Button type="button" onClick={saveSettings} disabled={savingSettings || isLoading}>
-            {savingSettings ? "Guardando..." : "Guardar configuracion"}
-          </Button>
+          {canEdit ? (
+            <Button type="button" onClick={saveSettings} disabled={savingSettings || isLoading}>
+              {savingSettings ? "Guardando..." : "Guardar configuracion"}
+            </Button>
+          ) : null}
         </div>
 
-        <div className="space-y-3 border-t pt-5">
+        {canEdit ? <div className="space-y-3 border-t pt-5">
           <div>
             <h3 className="font-semibold">Puntos de venta</h3>
             <p className="text-sm text-muted-foreground">Cada punto se usa con ambiente dev y afip_ws wsfe.</p>
@@ -355,7 +377,7 @@ export function BillingFiscalSettingsSection({
               </table>
             </div>
           )}
-        </div>
+        </div> : null}
       </CardContent>
     </Card>
   );

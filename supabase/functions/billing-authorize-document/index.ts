@@ -199,7 +199,7 @@ Deno.serve(async (req) => {
       .update({ credentials_status: "NOT_CONFIGURED" })
       .eq("id", settings.id);
 
-    return json({ error: "Falta configurar AFIPSDK_ACCESS_TOKEN en la Edge Function de staging." }, 500);
+    return json({ error: "Falta configurar las credenciales de Afip SDK en Supabase Secrets." }, 500);
   }
 
   const { data: lockedDocument, error: lockError } = await serviceClient

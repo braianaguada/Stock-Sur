@@ -651,6 +651,18 @@ La primera fase de Facturacion agrega una base fiscal interna, sin autorizacion 
 - UI: `/billing` lista borradores internos y muestra detalle con origen, receptor, lineas, totales y aviso de que el comprobante no tiene CAE.
 - Caja muestra `Crear borrador fiscal` solo si Facturacion esta habilitada, el usuario tiene `billing.create`, la venta tiene remito y no existe borrador activo previo.
 
+## Facturacion AFIPSDK dev - CUIT emisor
+
+La autorizacion fiscal de Factura B en homologacion AFIPSDK usa datos no secretos configurados por empresa:
+
+- El CUIT emisor se carga desde **Facturacion > Configuracion fiscal** y se guarda normalizado, solo numeros, en `billing_settings.issuer_tax_id`.
+- El CUIT puede ingresarse con o sin guiones; la UI valida que queden 11 digitos antes de guardar.
+- El ambiente disponible en esta fase es `dev`/homologacion. No se habilita `prod` desde la UI.
+- Los puntos de venta fiscales se gestionan en la misma seccion usando `billing_points_of_sale`.
+- Los tokens, certificados y credenciales de Afip SDK siguen configurandose como Supabase Secrets. No se guardan en la base ni se exponen al frontend.
+- No hay CUIT hardcodeado en la aplicacion: el usuario debe cargarlo manualmente.
+- La autorizacion implementada sigue limitada a Factura B Consumidor Final en ambiente dev. No incluye Factura A, Notas de Credito ni PDF de Afip SDK.
+
 ## Database migrations
 
 Migrations are stored in:

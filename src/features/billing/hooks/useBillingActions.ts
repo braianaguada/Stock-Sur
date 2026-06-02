@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
+import { isValidCuitFormat, normalizeCuit } from "../lib/cuit";
 import { buildDisableBillingSettingsPayload, buildEnableBillingSettingsPayload } from "../lib/settings";
 import type { BillingDocumentRow, BillingInvoiceType, BillingSettingsRow } from "../types";
 
@@ -192,13 +193,16 @@ export function useBillingActions({ companyId, businessDate }: UseBillingActions
   const saveBillingSettingsMutation = useMutation({
     mutationFn: async (input: BillingSettingsFormInput) => {
       if (!companyId) throw new Error("No hay empresa activa para guardar configuracion fiscal.");
+      if (!isValidCuitFormat(input.issuerTaxId)) {
+        throw new Error("El CUIT emisor debe tener 11 dígitos.");
+      }
 
       const settingsId = await ensureDevBillingSettings(input.isEnabled);
       const { data, error } = await billingRpc
         .from("billing_settings")
         .update({
           is_enabled: input.isEnabled,
-          issuer_tax_id: nullableText(input.issuerTaxId),
+          issuer_tax_id: normalizeCuit(input.issuerTaxId),
           issuer_name: nullableText(input.issuerName),
           issuer_tax_condition: nullableText(input.issuerTaxCondition),
           notes: nullableText(input.notes),

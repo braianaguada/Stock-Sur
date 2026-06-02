@@ -231,20 +231,19 @@ export default function BillingPage() {
               </div>
             ) : null}
 
-            {canManageSettings ? (
-              <BillingFiscalSettingsSection
-                settings={settingsQuery.settings}
-                pointsOfSale={pointsOfSaleQuery.data ?? []}
-                isLoading={settingsQuery.isLoading || pointsOfSaleQuery.isLoading}
-                onSaveSettings={(input, callbacks) => saveBillingSettingsMutation.mutate(input, callbacks)}
-                onCreatePointOfSale={(input, callbacks) => createBillingPointOfSaleMutation.mutate(input, callbacks)}
-                onUpdatePointOfSale={(input, callbacks) => updateBillingPointOfSaleMutation.mutate(input, callbacks)}
-                savingSettings={saveBillingSettingsMutation.isPending}
-                creatingPointOfSale={createBillingPointOfSaleMutation.isPending}
-                updatingPointOfSale={updateBillingPointOfSaleMutation.isPending}
-                toast={toast}
-              />
-            ) : null}
+            <BillingFiscalSettingsSection
+              settings={settingsQuery.settings}
+              pointsOfSale={pointsOfSaleQuery.data ?? []}
+              isLoading={settingsQuery.isLoading || pointsOfSaleQuery.isLoading}
+              onSaveSettings={(input, callbacks) => saveBillingSettingsMutation.mutate(input, callbacks)}
+              onCreatePointOfSale={(input, callbacks) => createBillingPointOfSaleMutation.mutate(input, callbacks)}
+              onUpdatePointOfSale={(input, callbacks) => updateBillingPointOfSaleMutation.mutate(input, callbacks)}
+              savingSettings={saveBillingSettingsMutation.isPending}
+              creatingPointOfSale={createBillingPointOfSaleMutation.isPending}
+              updatingPointOfSale={updateBillingPointOfSaleMutation.isPending}
+              toast={toast}
+              canEdit={canManageSettings}
+            />
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
               <Card className="border-primary/8 shadow-[var(--shadow-xs)]">
@@ -412,6 +411,13 @@ export default function BillingPage() {
                               <div className="mt-3">
                                 <Button type="button" variant="outline" size="sm" onClick={scrollToFiscalSettings}>
                                   Configurar punto de venta
+                                </Button>
+                              </div>
+                            ) : null}
+                            {canManageSettings && selectedDocument.error_message.includes("CUIT emisor") ? (
+                              <div className="mt-3">
+                                <Button type="button" variant="outline" size="sm" onClick={scrollToFiscalSettings}>
+                                  Configurar CUIT emisor
                                 </Button>
                               </div>
                             ) : null}
