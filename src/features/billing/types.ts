@@ -1,5 +1,5 @@
 export type BillingInvoiceType = "FACTURA_B";
-export type BillingFiscalStatus = "DRAFT" | "READY_TO_AUTHORIZE" | "AUTHORIZED" | "REJECTED" | "CANCELLED_INTERNAL";
+export type BillingFiscalStatus = "DRAFT" | "READY_TO_AUTHORIZE" | "AUTHORIZING" | "AUTHORIZED" | "REJECTED" | "CANCELLED_INTERNAL";
 
 export type BillingSettingsRow = {
   id: string;
@@ -9,7 +9,7 @@ export type BillingSettingsRow = {
   is_enabled: boolean;
   default_currency: "ARS";
   default_concept: "PRODUCTS";
-  credentials_status: "NOT_CONFIGURED" | "CONFIGURED";
+  credentials_status: "NOT_CONFIGURED" | "CONFIGURED" | "ERROR";
   issuer_tax_id: string | null;
   issuer_name: string | null;
   issuer_tax_condition: string | null;
@@ -27,10 +27,15 @@ export type BillingDocumentRow = {
   fiscal_status: BillingFiscalStatus;
   provider: "AFIPSDK";
   environment: "dev" | "prod";
+  issuer_tax_id: string | null;
+  issuer_name: string | null;
+  issuer_tax_condition: string | null;
   receiver_name: string;
   receiver_doc_type: string;
   receiver_doc_number: string | null;
   receiver_tax_condition: string;
+  currency: "ARS";
+  currency_rate: number;
   subtotal: number;
   discount_total: number;
   tax_total: number;
@@ -38,9 +43,13 @@ export type BillingDocumentRow = {
   point_of_sale: number | null;
   voucher_number: number | null;
   voucher_full_number: string | null;
+  voucher_date: string | null;
   cae: string | null;
   cae_expires_at: string | null;
   authorized_at: string | null;
+  authorized_by: string | null;
+  provider_errors: unknown[] | null;
+  provider_observations: unknown[] | null;
   error_message: string | null;
   created_at: string;
   updated_at: string;

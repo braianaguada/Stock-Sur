@@ -106,5 +106,20 @@ export function useBillingActions({ companyId, businessDate }: UseBillingActions
     },
   });
 
-  return { createBillingDraftMutation, enableBillingMutation, disableBillingMutation };
+  const authorizeBillingDocumentMutation = useMutation({
+    mutationFn: async ({ billingDocumentId }: { billingDocumentId: string }) => {
+      const { data, error } = await supabase.functions.invoke("billing-authorize-document", {
+        body: { billingDocumentId },
+      });
+
+      if (error) throw error;
+      return data as { document: BillingDocumentRow };
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.billing.documents(companyId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.billing.settings(companyId) });
+    },
+  });
+
+  return { createBillingDraftMutation, enableBillingMutation, disableBillingMutation, authorizeBillingDocumentMutation };
 }

@@ -5,6 +5,16 @@ import { AmountDisplay } from "@/components/common/VisualSystem";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
@@ -12,12 +22,14 @@ import { formatDateTime, formatDocumentNumber } from "@/lib/formatters";
 import { canViewBilling } from "@/lib/permissions";
 import { useBillingActions } from "@/features/billing/hooks/useBillingActions";
 import { useBillingDocumentLines, useBillingDocuments, useBillingRemitoReferences, useBillingSettings } from "@/features/billing/hooks/useBillingData";
+import { canShowAuthorizeBillingDocumentAction, canShowPrintBillingDocumentAction } from "@/features/billing/lib/authorization";
 import { canShowBillingSettingsToggle } from "@/features/billing/lib/settings";
 import type { BillingDocumentRow } from "@/features/billing/types";
 
 const STATUS_LABEL: Record<BillingDocumentRow["fiscal_status"], string> = {
   DRAFT: "Borrador",
   READY_TO_AUTHORIZE: "Listo para autorizar",
+  AUTHORIZING: "Autorizando",
   AUTHORIZED: "Autorizado",
   REJECTED: "Rechazado",
   CANCELLED_INTERNAL: "Cancelado interno",
@@ -32,12 +44,13 @@ export default function BillingPage() {
   const { roles, currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
   const { toast } = useToast();
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [authorizeDialogDocument, setAuthorizeDialogDocument] = useState<BillingDocumentRow | null>(null);
   const billingAccessContext = { companyRoleCodes, companyPermissionCodes };
   const hasBillingAccess = canViewBilling(roles, billingAccessContext);
   const canManageSettings = canShowBillingSettingsToggle(roles, billingAccessContext);
 
   const settingsQuery = useBillingSettings(currentCompany?.id ?? null);
-  const { enableBillingMutation, disableBillingMutation } = useBillingActions({ companyId: currentCompany?.id ?? null });
+  const { enableBillingMutation, disableBillingMutation, authorizeBillingDocumentMutation } = useBillingActions({ companyId: currentCompany?.id ?? null });
   const documentsQuery = useBillingDocuments(currentCompany?.id ?? null);
   const documents = useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
   const selectedDocument = useMemo(
@@ -51,6 +64,7 @@ export default function BillingPage() {
   const remitosQuery = useBillingRemitoReferences(currentCompany?.id ?? null, remitoIds);
   const linesQuery = useBillingDocumentLines(selectedDocument?.id ?? null);
   const billingTogglePending = enableBillingMutation.isPending || disableBillingMutation.isPending;
+  const authorizationPending = authorizeBillingDocumentMutation.isPending;
 
   const enableBilling = () => {
     enableBillingMutation.mutate(undefined, {
@@ -88,6 +102,30 @@ export default function BillingPage() {
     });
   };
 
+  const authorizeDocument = (document: BillingDocumentRow) => {
+    authorizeBillingDocumentMutation.mutate({ billingDocumentId: document.id }, {
+      onSuccess: ({ document: authorizedDocument }) => {
+        setAuthorizeDialogDocument(null);
+        setSelectedDocumentId(authorizedDocument.id);
+        toast({
+          title: "Factura B autorizada en homologacion",
+          description: `CAE ${authorizedDocument.cae ?? ""} - ${authorizedDocument.voucher_full_number ?? ""}`,
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "No se pudo autorizar la factura",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      },
+    });
+  };
+
+  const openPrint = (document: BillingDocumentRow) => {
+    window.open(`/print/billing/${document.id}`, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <AppLayout>
       <div className="page-shell">
@@ -106,11 +144,11 @@ export default function BillingPage() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-3">
                     <h1 className="page-title">Facturacion</h1>
-                    <Badge variant="outline">Base interna</Badge>
+                    <Badge variant="outline">Homologacion AFIPSDK</Badge>
                     <Badge variant="outline">{settingsQuery.billingEnabled ? "Feature activa" : "Feature apagada"}</Badge>
                   </div>
                   <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                    Borradores fiscales Factura B Consumidor Final creados desde ventas de Caja con REMITO EMITIDO.
+                    Factura B Consumidor Final desde ventas de Caja con REMITO EMITIDO. Solo ambiente dev/homologacion.
                   </p>
                 </div>
               </div>
@@ -121,7 +159,7 @@ export default function BillingPage() {
                 <div>
                   <p className="font-semibold">Facturacion interna esta deshabilitada para esta empresa.</p>
                   <p className="mt-1">
-                    Activar `billing_settings.is_enabled` permite crear borradores, pero esta fase no autoriza CAE ni llama a Afip SDK.
+                    Activar `billing_settings.is_enabled` permite crear y autorizar comprobantes solo en homologacion AFIPSDK dev.
                   </p>
                   {!canManageSettings ? (
                     <p className="mt-2 text-xs">Necesitas permiso billing.settings o rol admin para activarla.</p>
@@ -140,7 +178,7 @@ export default function BillingPage() {
                 <div>
                   <p className="font-semibold text-foreground">Facturacion interna activa.</p>
                   <p className="mt-1 text-muted-foreground">
-                    La creacion de borradores desde Caja esta habilitada. No se emite CAE ni se llama a Afip SDK.
+                    La creacion de borradores desde Caja esta habilitada. La autorizacion fiscal llama a Afip SDK solo en ambiente dev.
                   </p>
                 </div>
                 <Button type="button" variant="outline" onClick={disableBilling} disabled={billingTogglePending}>
@@ -153,7 +191,7 @@ export default function BillingPage() {
               <Card className="border-primary/8 shadow-[var(--shadow-xs)]">
                 <CardHeader>
                   <CardTitle>Comprobantes internos</CardTitle>
-                  <CardDescription>CAE y numero fiscal quedan vacios hasta una fase de autorizacion.</CardDescription>
+                  <CardDescription>CAE y numero fiscal se completan al autorizar contra Afip SDK dev.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {documentsQuery.isLoading ? (
@@ -195,15 +233,33 @@ export default function BillingPage() {
                                 <td className="px-3 py-2">{document.receiver_name}</td>
                                 <td className="px-3 py-2 text-right"><AmountDisplay value={Number(document.total)} size="sm" /></td>
                                 <td className="px-3 py-2 text-muted-foreground">{document.cae ?? "-"}</td>
-                                <td className="px-3 py-2 text-right">
-                                  <Button
-                                    type="button"
-                                    variant={selected ? "secondary" : "ghost"}
-                                    size="sm"
-                                    onClick={() => setSelectedDocumentId(document.id)}
-                                  >
-                                    Ver detalle
-                                  </Button>
+                                <td className="px-3 py-2">
+                                  <div className="flex justify-end gap-2">
+                                    {canShowAuthorizeBillingDocumentAction(document, roles, billingAccessContext) ? (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setAuthorizeDialogDocument(document)}
+                                        disabled={authorizationPending}
+                                      >
+                                        Autorizar
+                                      </Button>
+                                    ) : null}
+                                    {canShowPrintBillingDocumentAction(document, roles, billingAccessContext) ? (
+                                      <Button type="button" variant="outline" size="sm" onClick={() => openPrint(document)}>
+                                        Imprimir
+                                      </Button>
+                                    ) : null}
+                                    <Button
+                                      type="button"
+                                      variant={selected ? "secondary" : "ghost"}
+                                      size="sm"
+                                      onClick={() => setSelectedDocumentId(document.id)}
+                                    >
+                                      Ver detalle
+                                    </Button>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -219,7 +275,9 @@ export default function BillingPage() {
                 <CardHeader>
                   <CardTitle>Detalle</CardTitle>
                   <CardDescription>
-                    Este comprobante todavia no fue autorizado fiscalmente. No tiene CAE.
+                    {selectedDocument?.fiscal_status === "AUTHORIZED"
+                      ? "Comprobante autorizado fiscalmente en homologacion."
+                      : "Este comprobante todavia no fue autorizado fiscalmente."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -248,7 +306,36 @@ export default function BillingPage() {
                         </div>
                         <div className="flex justify-between gap-4">
                           <span className="text-muted-foreground">CAE</span>
-                          <span className="text-muted-foreground">Sin CAE</span>
+                          <span className={selectedDocument.cae ? "font-mono text-xs" : "text-muted-foreground"}>
+                            {selectedDocument.cae ?? "Sin CAE"}
+                          </span>
+                        </div>
+                        {selectedDocument.voucher_full_number ? (
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">Numero fiscal</span>
+                            <span className="font-mono text-xs">{selectedDocument.voucher_full_number}</span>
+                          </div>
+                        ) : null}
+                        {selectedDocument.error_message ? (
+                          <div className="rounded-lg border border-destructive/30 bg-destructive/8 p-3 text-sm text-destructive">
+                            {selectedDocument.error_message}
+                          </div>
+                        ) : null}
+                        <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
+                          {canShowAuthorizeBillingDocumentAction(selectedDocument, roles, billingAccessContext) ? (
+                            <Button
+                              type="button"
+                              onClick={() => setAuthorizeDialogDocument(selectedDocument)}
+                              disabled={authorizationPending}
+                            >
+                              Autorizar en homologacion
+                            </Button>
+                          ) : null}
+                          {canShowPrintBillingDocumentAction(selectedDocument, roles, billingAccessContext) ? (
+                            <Button type="button" variant="outline" onClick={() => openPrint(selectedDocument)}>
+                              Imprimir / Guardar PDF
+                            </Button>
+                          ) : null}
                         </div>
                       </div>
 
@@ -296,6 +383,47 @@ export default function BillingPage() {
             </div>
           </>
         ) : null}
+
+        <AlertDialog
+          open={Boolean(authorizeDialogDocument)}
+          onOpenChange={(open) => {
+            if (!open && !authorizationPending) setAuthorizeDialogDocument(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Autorizar Factura B en homologacion</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se enviara este comprobante a Afip SDK usando ambiente dev para solicitar CAE. No se modifican stock,
+                caja ni cuentas corrientes, y no se usa el generador de PDF de Afip SDK.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {authorizeDialogDocument ? (
+              <div className="rounded-lg border bg-muted/35 p-3 text-sm">
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Receptor</span>
+                  <span>{authorizeDialogDocument.receiver_name}</span>
+                </div>
+                <div className="mt-2 flex justify-between gap-4">
+                  <span className="text-muted-foreground">Total</span>
+                  <AmountDisplay value={Number(authorizeDialogDocument.total)} size="sm" />
+                </div>
+              </div>
+            ) : null}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={authorizationPending}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={!authorizeDialogDocument || authorizationPending}
+                onClick={(event) => {
+                  event.preventDefault();
+                  if (authorizeDialogDocument) authorizeDocument(authorizeDialogDocument);
+                }}
+              >
+                {authorizationPending ? "Autorizando..." : "Autorizar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
   );
