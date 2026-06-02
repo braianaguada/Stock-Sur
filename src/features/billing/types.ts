@@ -7,6 +7,9 @@ export type BillingSettingsRow = {
   provider: "AFIPSDK";
   environment: "dev" | "prod";
   is_enabled: boolean;
+  default_currency: "ARS";
+  default_concept: "PRODUCTS";
+  credentials_status: "NOT_CONFIGURED" | "CONFIGURED";
   issuer_tax_id: string | null;
   issuer_name: string | null;
   issuer_tax_condition: string | null;

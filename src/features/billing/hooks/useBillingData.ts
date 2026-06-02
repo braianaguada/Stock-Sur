@@ -24,7 +24,7 @@ export function useBillingSettings(companyId: string | null) {
     queryFn: async () => {
       const { data, error } = await billingDb
         .from("billing_settings")
-        .select("id, company_id, provider, environment, is_enabled, issuer_tax_id, issuer_name, issuer_tax_condition, notes")
+        .select("id, company_id, provider, environment, is_enabled, default_currency, default_concept, credentials_status, issuer_tax_id, issuer_name, issuer_tax_condition, notes")
         .eq("company_id", companyId!)
         .eq("provider", "AFIPSDK")
         .order("environment", { ascending: true });

@@ -8,14 +8,16 @@ type SupabaseRpcResult = { data: unknown; error: Error | null };
 type SupabaseWriteResult = { data: unknown; error: Error | null };
 type SupabaseWriteBuilder = PromiseLike<SupabaseWriteResult> & {
   eq: (column: string, value: unknown) => SupabaseWriteBuilder;
+  limit: (count: number) => SupabaseWriteBuilder;
   select: (columns: string) => SupabaseWriteBuilder;
   single: () => Promise<SupabaseWriteResult>;
 };
 const billingRpc = supabase as unknown as {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<SupabaseRpcResult>;
   from: (table: string) => {
+    insert: (values: Record<string, unknown>) => SupabaseWriteBuilder;
     update: (values: Record<string, unknown>) => SupabaseWriteBuilder;
-    upsert: (values: Record<string, unknown>, options?: { onConflict?: string }) => SupabaseWriteBuilder;
+    select: (columns: string) => SupabaseWriteBuilder;
   };
 };
 
@@ -50,12 +52,27 @@ export function useBillingActions({ companyId, businessDate }: UseBillingActions
     mutationFn: async () => {
       if (!companyId) throw new Error("No hay empresa activa para activar facturacion interna.");
 
-      const { data, error } = await billingRpc
+      const existingSettings = await billingRpc
         .from("billing_settings")
-        .upsert(
-          buildEnableBillingSettingsPayload(companyId),
-          { onConflict: "company_id,provider,environment" },
-        )
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("provider", "AFIPSDK")
+        .eq("environment", "dev")
+        .limit(1);
+
+      if (existingSettings.error) throw existingSettings.error;
+
+      const existingId = ((existingSettings.data as Array<{ id: string }> | null) ?? [])[0]?.id;
+      const write = existingId
+        ? billingRpc
+          .from("billing_settings")
+          .update(buildEnableBillingSettingsPayload(companyId))
+          .eq("id", existingId)
+        : billingRpc
+          .from("billing_settings")
+          .insert(buildEnableBillingSettingsPayload(companyId));
+
+      const { data, error } = await write
         .select("id")
         .single();
 
