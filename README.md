@@ -536,6 +536,56 @@ La función intenta devolver una estructura limpia con:
 
 Luego el frontend reutiliza el mismo modal de mapeo PDF y el pipeline de importación, ahora con una revisión final antes de confirmar el alta del listado.
 
+## Asistente IA para Presupuestos de Servicios
+
+El modulo de Presupuestos de Servicios tiene un asistente opcional para armar propuestas iniciales desde una descripcion libre del trabajo. La IA solo sugiere: lineas, materiales posibles, mano de obra estimada, rango de precio, notas, advertencias y datos faltantes. El resultado final siempre se revisa y se guarda como un Presupuesto de Servicio normal en estado `DRAFT`.
+
+La implementacion inicial usa Gemini desde una Edge Function de Supabase (`service-quote-ai-assistant`). El frontend no llama al proveedor directamente ni recibe credenciales.
+
+El provider intenta enriquecer la propuesta con Google Search grounding de Gemini de forma automatica e interna. Cuando la moneda preferida es USD, tambien intenta incorporar una cotizacion BNA minima como referencia de conversion. No agrega botones, checkboxes ni decisiones de fuente en la UI. Si grounding o BNA fallan, la funcion conserva el flujo normal con historico interno, configuracion de empresa y criterio IA.
+
+### Configuracion
+
+1. Configurar secrets en Supabase staging:
+
+```sh
+supabase secrets set GEMINI_API_KEY=tu_api_key
+supabase secrets set AI_SERVICE_QUOTE_MODEL=gemini-2.5-flash-lite
+supabase secrets set AI_PROVIDER=gemini
+```
+
+`AI_SERVICE_QUOTE_MODEL` y `AI_PROVIDER` son opcionales. Si no se configuran, la funcion usa el modelo economico definido por defecto y el provider `gemini`. `AI_SERVICE_QUOTE_USE_GROUNDING=false` permite desactivar el intento automatico de referencias externas ante limites operativos, sin cambiar la UX.
+
+2. Desplegar la funcion:
+
+```sh
+supabase functions deploy service-quote-ai-assistant
+```
+
+3. Aplicar migraciones en staging:
+
+```sh
+npm run db:push:staging
+```
+
+### Seguridad y trazabilidad
+
+- `GEMINI_API_KEY` se lee solo desde secrets/env de Supabase.
+- Si falta la key, la UI muestra: `El asistente IA no esta configurado todavia.`
+- Si Gemini falla o devuelve JSON invalido, el formulario manual sigue funcionando.
+- Las sugerencias validadas se guardan en `service_document_ai_suggestions` sin secrets.
+- `output_snapshot` guarda `pricingSources`, `confidenceReasons`, resumen/limitaciones de referencias externas, metadata minima de grounding cuando existe y snapshot BNA minimo si fue usado; no guarda HTML ni paginas completas.
+- Cuando el usuario guarda el presupuesto armado con IA, la sugerencia queda marcada como aceptada y asociada al `service_document_id`.
+- La tabla `service_quote_ai_settings` deja preparado un modelo de configuracion por empresa para tarifas, margenes y terminos comerciales.
+
+### Limites
+
+- Las sugerencias son orientativas y deben revisarse antes de enviar.
+- La IA no crea remitos, no emite documentos, no toca caja, no toca stock y no toca cuenta corriente.
+- La IA no comparte ni envia presupuestos automaticamente.
+- El flujo manual de presupuestos sigue siendo el camino principal y no depende de la disponibilidad de Gemini.
+- Google documenta soporte de Search grounding y structured outputs para `gemini-2.5-flash-lite`. El free tier de grounding puede tener limites diarios compartidos y el paid tier puede facturar solicitudes grounded; por eso la funcion mantiene fallback automatico.
+
 ## Migración definitiva (Supabase CLI, sin dashboard)
 
 Se agregó la migración:

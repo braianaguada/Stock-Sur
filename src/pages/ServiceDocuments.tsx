@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Ban, Check, Copy, Eye, ImagePlus, Link2, Mail, MessageCircle, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Eye, ImagePlus, Link2, Mail, MessageCircle, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { FilterBar, PageHeader } from "@/components/ui/page";
@@ -19,14 +19,17 @@ import { getErrorMessage } from "@/lib/errors";
 import { formatIsoDate, formatMoney } from "@/lib/formatters";
 import { openPrintWindow } from "@/lib/print";
 import { serviceDb } from "@/features/services/db";
+import { ServiceQuoteAiAssistantDialog } from "@/features/services/components/ServiceQuoteAiAssistantDialog";
 import { ServiceDocumentPreviewDialog } from "@/features/services/components/ServiceDocumentPreviewDialog";
 import { EMPTY_SERVICE_LINE, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
+import { applyAiSuggestionToServiceDraft } from "@/features/services/aiAssistant";
 import { buildInitialServiceDocumentForm, canTransitionServiceDocument } from "@/features/services/logic";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
 import { useServiceDocuments } from "@/features/services/hooks/useServiceDocuments";
 import { buildServiceDocumentPrintHtml } from "@/features/services/print";
 import { fetchBnaOfficialUsdRate, getManualExchangeRateSnapshot } from "@/features/services/exchangeRateProvider";
 import { buildMailtoUrl, buildPublicServiceDocumentUrl, buildServiceDocumentShareMessage, buildWhatsAppUrl } from "@/features/services/share";
+import type { ServiceQuoteAiApplyMode, ServiceQuoteAiSuggestion } from "@/features/services/aiAssistant";
 import type { ServiceDocument, ServiceDocumentAttachment, ServiceDocumentAttachmentDraft, ServiceDocumentEvent, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentShareLink, ServiceDocumentStatus } from "@/features/services/types";
 
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
@@ -63,6 +66,8 @@ export default function ServiceDocumentsPage() {
   const [shareSubject, setShareSubject] = useState("");
   const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
   const [shareLinkLoading, setShareLinkLoading] = useState(false);
+  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
+  const [pendingAiSuggestionId, setPendingAiSuggestionId] = useState<string | null>(null);
 
   const { customers, documents, selectedDocument, selectedLines, selectedAttachments, selectedEvents, eventUserNamesById, isLoading } = useServiceDocuments({
     companyId: currentCompany?.id ?? null,
@@ -125,6 +130,7 @@ export default function ServiceDocumentsPage() {
     setForm(buildInitialServiceDocumentForm(settings));
     setLines([{ ...EMPTY_SERVICE_LINE }]);
     setAttachments([]);
+    setPendingAiSuggestionId(null);
   };
 
   const { upsertMutation, duplicateMutation, transitionMutation } = useServiceDocumentMutations({
@@ -134,7 +140,19 @@ export default function ServiceDocumentsPage() {
     lines,
     attachments,
     toast,
-    onDone: () => {
+    onDone: async (savedDocument) => {
+      if (pendingAiSuggestionId && savedDocument?.id) {
+        const { error } = await serviceDb
+          .from("service_document_ai_suggestions")
+          .update({
+            accepted: true,
+            accepted_at: new Date().toISOString(),
+            service_document_id: savedDocument.id,
+          })
+          .eq("id", pendingAiSuggestionId);
+        if (error) throw error;
+        setPendingAiSuggestionId(null);
+      }
       setDialogOpen(false);
       resetForm();
     },
@@ -143,6 +161,11 @@ export default function ServiceDocumentsPage() {
   const openCreate = () => {
     resetForm();
     setDialogOpen(true);
+  };
+
+  const openAiAssistantForNewDocument = () => {
+    resetForm();
+    setAiAssistantOpen(true);
   };
 
   const openPreview = (document: ServiceDocument) => {
@@ -242,6 +265,33 @@ export default function ServiceDocumentsPage() {
 
   const removeLine = (index: number) => {
     setLines((previous) => previous.filter((_, lineIndex) => lineIndex !== index));
+  };
+
+  const applyAiSuggestion = (params: {
+    suggestion: ServiceQuoteAiSuggestion;
+    suggestionId: string | null;
+    mode: ServiceQuoteAiApplyMode;
+    customerId: string;
+  }) => {
+    const hasExistingLines = lines.some((line) => line.description.trim());
+    const shouldAppend = editingDocumentId && hasExistingLines && params.mode !== "price"
+      ? confirmAction("Este presupuesto ya tiene lineas. Queres agregar las lineas sugeridas sin reemplazar las existentes?")
+      : true;
+    const result = applyAiSuggestionToServiceDraft({
+      form: { ...form, customer_id: params.customerId || form.customer_id },
+      lines,
+      suggestion: params.suggestion,
+      mode: params.mode,
+      appendLines: shouldAppend,
+    });
+    setForm(result.form);
+    setLines(result.lines);
+    setPendingAiSuggestionId(params.suggestionId);
+    setDialogOpen(true);
+    toast({
+      title: "Propuesta IA aplicada",
+      description: "Revisala y guardala como presupuesto de servicio en borrador.",
+    });
   };
 
   const fetchExchangeRate = async () => {
@@ -433,9 +483,14 @@ export default function ServiceDocumentsPage() {
           title="Documentos"
           subtitle="Presupuestos de servicio manuales, separados de stock, caja e items."
           actions={
-            <Button onClick={openCreate} disabled={!canManageServiceDocuments}>
-              <Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={openAiAssistantForNewDocument} disabled={!canManageServiceDocuments}>
+                <Bot className="mr-2 h-4 w-4" /> Crear con IA
+              </Button>
+              <Button onClick={openCreate} disabled={!canManageServiceDocuments}>
+                <Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto
+              </Button>
+            </div>
           }
         />
 
@@ -488,9 +543,14 @@ export default function ServiceDocumentsPage() {
                     Creá el primero para empezar a registrar trabajos manuales sin tocar stock, caja ni cuenta corriente.
                   </p>
                 </div>
-                <Button onClick={openCreate} disabled={!canManageServiceDocuments}>
-                  <Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={openAiAssistantForNewDocument} disabled={!canManageServiceDocuments}>
+                    <Bot className="mr-2 h-4 w-4" /> Crear con IA
+                  </Button>
+                  <Button onClick={openCreate} disabled={!canManageServiceDocuments}>
+                    <Plus className="mr-2 h-4 w-4" /> Nuevo presupuesto
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ) : (
@@ -571,9 +631,14 @@ export default function ServiceDocumentsPage() {
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
         <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto p-0">
           <DialogHeader>
-            <div className="px-5 pt-5">
-              <DialogTitle>{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle>
-              <DialogDescription>Formulario de presupuesto de servicio manual.</DialogDescription>
+            <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5">
+              <div>
+                <DialogTitle>{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle>
+                <DialogDescription>Formulario de presupuesto de servicio manual.</DialogDescription>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => setAiAssistantOpen(true)} disabled={!canManageServiceDocuments}>
+                <Bot className="mr-2 h-4 w-4" /> Asistente IA
+              </Button>
             </div>
           </DialogHeader>
           <div className="grid gap-3 px-5 pb-4">
@@ -814,6 +879,16 @@ export default function ServiceDocumentsPage() {
         eventUserNamesById={eventUserNamesById}
         settings={settings}
         onOpenPrint={(document) => void openServicePrint(document)}
+      />
+      <ServiceQuoteAiAssistantDialog
+        open={aiAssistantOpen}
+        onOpenChange={setAiAssistantOpen}
+        companyId={currentCompany?.id ?? null}
+        customers={customers}
+        currentLines={lines}
+        currentNotes={[form.intro_text, form.closing_text].filter(Boolean).join("\n")}
+        selectedCustomerId={form.customer_id}
+        onApply={applyAiSuggestion}
       />
     </AppLayout>
   );
