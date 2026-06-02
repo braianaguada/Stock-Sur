@@ -6,6 +6,8 @@ Base auditada: `origin/staging`
 
 Alcance: diagnostico y diseno inicial del modulo Facturacion con Afip SDK. No se implementa logica, no se crean migraciones, no se toca produccion, no se guardan secretos y no se hardcodean CUIT, tokens, certificados ni credenciales.
 
+Nota fase 1 interna: la rama `feat/billing-base-model` implementa solo el modelo interno, permisos, feature flag por `billing_settings.is_enabled`, RPC de borrador `FACTURA_B` desde `cash_sales + REMITO EMITIDO` y UI basica. No autoriza CAE, no llama a Afip SDK y no emite comprobantes fiscales reales.
+
 Fuentes externas consultadas:
 
 - ARCA publica los Web Services SOAP de factura electronica y lista `wsfev1` para comprobantes A, B, C y M sin detalle de item, y `wsmtxca` para A/B con detalle de items: https://www.afip.gob.ar/ws/documentacion/ws-factura-electronica.asp

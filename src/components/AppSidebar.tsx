@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
-import { canManageUsers, canViewSettings } from "@/lib/permissions";
+import { canManageUsers, canViewBilling, canViewSettings } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -22,6 +22,7 @@ const navItems = [
   { title: "Tecnicos", url: "/technicians" },
   { title: "Totales", url: "/cash-totals" },
   { title: "Caja", url: "/cash" },
+  { title: "Facturacion", url: "/billing", requiresBilling: true },
   { title: "Clientes", url: "/customers" },
   { title: "Estado de cuenta", url: "/customer-account" },
   { title: "Usuarios", url: "/users", requiresSuperadmin: true },
@@ -66,6 +67,9 @@ export function AppSidebar() {
   const visibleNavItems = navItems.filter((item) => {
     if (item.requiresSuperadmin) return canManageUsers(roles);
     if (item.requiresAdmin) return canViewSettings(roles, { companyRoleCodes, companyPermissionCodes });
+    if (item.requiresBilling) {
+      return canViewBilling(roles, { companyRoleCodes, companyPermissionCodes });
+    }
     return true;
   });
 

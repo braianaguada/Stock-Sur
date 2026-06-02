@@ -146,6 +146,15 @@ vi.mock("@/features/cash/hooks/useCashData", () => ({
   }),
 }));
 
+vi.mock("@/features/billing/hooks/useBillingData", () => ({
+  useActiveBillingSourceIds: () => ({ billedSourceIds: new Set<string>() }),
+  useBillingSettings: () => ({ billingEnabled: false, settings: null, isLoading: false }),
+}));
+
+vi.mock("@/features/billing/hooks/useBillingActions", () => ({
+  useBillingActions: () => ({ createBillingDraftMutation: mutation }),
+}));
+
 describe("CashPage visual architecture", () => {
   it("renders a compact header with actions and operative date together", () => {
     render(<CashPage />);

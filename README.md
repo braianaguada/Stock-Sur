@@ -632,6 +632,25 @@ where table_schema = 'public'
   and column_name = 'supplier_id';
 ```
 
+## Facturacion - base interna
+
+La primera fase de Facturacion agrega una base fiscal interna, sin autorizacion fiscal real:
+
+- Migracion: `supabase/migrations/20260602120000_billing_base_model.sql`.
+- Tablas nuevas: `billing_settings`, `billing_points_of_sale`, `billing_documents`, `billing_document_lines` y `billing_events`.
+- Permisos nuevos: `billing.view`, `billing.create`, `billing.authorize`, `billing.credit_note`, `billing.print` y `billing.settings`.
+- Roles: `admin` recibe todos los permisos `billing.*`; `operador` recibe `billing.view`, `billing.create` y `billing.print`; `consulta` recibe solo `billing.view`.
+- RLS sigue el patron multitenant por `company_id` con `is_company_member` y `has_company_permission`.
+- Feature flag: la UI y la RPC usan `billing_settings.is_enabled`; no existe un sistema general de feature flags en esta base.
+- Flujo implementado: desde una venta de Caja (`cash_sales`) asociada a un `REMITO EMITIDO`, se crea un `billing_documents` en `DRAFT` para `FACTURA_B` a `Consumidor Final`.
+- La RPC `create_billing_draft_from_cash_sale(cashSaleId, invoiceType)` valida empresa, permiso, venta no anulada, `receipt_kind = REMITO`, remito emitido, misma empresa, lineas existentes y ausencia de documento fiscal activo previo.
+- Las lineas se copian desde `document_lines` a `billing_document_lines`; los totales se congelan desde el remito comercial.
+- Fallback fiscal: en esta fase no se calcula ni distribuye IVA fiscal autoritativo; se preservan `tax_total`/`tax_pct` comerciales cuando existen, sin convertirlos en autorizacion fiscal.
+- La creacion del borrador no llama a Afip SDK, no solicita CAE, no asigna punto de venta fiscal, no asigna numero fiscal y no guarda request/response de proveedor.
+- La creacion del borrador no modifica stock, caja, cierre de caja ni cuenta corriente.
+- UI: `/billing` lista borradores internos y muestra detalle con origen, receptor, lineas, totales y aviso de que el comprobante no tiene CAE.
+- Caja muestra `Crear borrador fiscal` solo si Facturacion esta habilitada, el usuario tiene `billing.create`, la venta tiene remito y no existe borrador activo previo.
+
 ## Database migrations
 
 Migrations are stored in:

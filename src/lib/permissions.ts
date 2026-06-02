@@ -37,6 +37,19 @@ export function canViewSettings(roles: AppRole[], context?: CompanyAccessContext
   return companyPermissionCodes.includes("settings.view");
 }
 
+function hasCompanyPermission(
+  roles: AppRole[],
+  context: CompanyAccessContext | undefined,
+  permissionCode: string,
+) {
+  if (isSuperAdmin(roles)) return true;
+
+  const companyRoleCodes = context?.companyRoleCodes ?? [];
+  const companyPermissionCodes = context?.companyPermissionCodes ?? [];
+
+  return companyRoleCodes.includes("admin") || companyPermissionCodes.includes(permissionCode);
+}
+
 export function canManageUsers(roles: AppRole[]) {
   return isSuperAdmin(roles);
 }
@@ -89,4 +102,24 @@ export function canTransitionDocumentTo(roles: AppRole[], status: "ENVIADO" | "A
   if (isSuperAdmin(roles) || hasRole(roles, "admin")) return true;
   if (!hasAnyRole(roles)) return false;
   return ["ENVIADO", "APROBADO", "RECHAZADO", "ANULADO"].includes(status);
+}
+
+export function canViewBilling(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "billing.view");
+}
+
+export function canCreateBilling(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "billing.create");
+}
+
+export function canAuthorizeBilling(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "billing.authorize");
+}
+
+export function canPrintBilling(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "billing.print");
+}
+
+export function canManageBillingSettings(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "billing.settings");
 }
