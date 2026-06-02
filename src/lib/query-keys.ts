@@ -54,6 +54,13 @@ export const queryKeys = {
     closuresHistory: (companyId: string | null) => ["cash-closures-history", companyId ?? "no-company"] as const,
     closureSales: (companyId: string | null, closureId: string | null) => ["cash-closure-sales", companyId ?? "no-company", closureId] as const,
   },
+  billing: {
+    settings: (companyId: string | null) => ["billing-settings", companyId ?? "no-company"] as const,
+    documents: (companyId: string | null) => ["billing-documents", companyId ?? "no-company"] as const,
+    lines: (documentId: string | null) => ["billing-document-lines", documentId ?? "no-document"] as const,
+    remitos: (companyId: string | null, idsKey: string) => ["billing-remitos", companyId ?? "no-company", idsKey] as const,
+    activeSourceIds: (companyId: string | null) => ["billing-active-source-ids", companyId ?? "no-company"] as const,
+  },
   documents: {
     customers: (companyId: string | null) => ["documents-customers", companyId ?? "no-company"] as const,
     items: (companyId: string | null) => ["documents-items", companyId ?? "no-company"] as const,
