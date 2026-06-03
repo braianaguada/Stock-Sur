@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
-import type { BillingDocumentLineRow, BillingDocumentRow, BillingPointOfSaleRow, BillingRemitoReference, BillingSettingsRow } from "../types";
+import type { BillingDiagnosticsResult, BillingDocumentLineRow, BillingDocumentRow, BillingPointOfSaleRow, BillingRemitoReference, BillingSettingsRow } from "../types";
 
 type SupabaseQueryResult = { data: unknown; error: Error | null };
 type SupabaseQueryBuilder = PromiseLike<SupabaseQueryResult> & {
@@ -42,6 +42,22 @@ export function useBillingSettings(companyId: string | null) {
   return { ...query, settings: query.data ?? [], billingEnabled };
 }
 
+export function useBillingDiagnostics(companyId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.billing.diagnostics(companyId),
+    enabled: Boolean(companyId),
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("billing-diagnostics", {
+        body: { companyId },
+      });
+
+      if (error) throw error;
+      return data as BillingDiagnosticsResult;
+    },
+    staleTime: 30_000,
+  });
+}
+
 export function useBillingPointsOfSale(companyId: string | null) {
   return useQuery({
     queryKey: queryKeys.billing.pointsOfSale(companyId),
@@ -66,7 +82,7 @@ export function useBillingDocuments(companyId: string | null) {
     queryFn: async () => {
       const { data, error } = await billingDb
         .from("billing_documents")
-        .select("id, company_id, source_type, source_id, source_remito_id, document_kind, invoice_type, fiscal_status, provider, environment, issuer_tax_id, issuer_name, issuer_tax_condition, receiver_name, receiver_doc_type, receiver_doc_number, receiver_tax_condition, currency, currency_rate, subtotal, discount_total, tax_total, total, point_of_sale, voucher_number, voucher_full_number, voucher_date, cae, cae_expires_at, authorized_at, authorized_by, provider_errors, provider_observations, error_message, created_at, updated_at")
+        .select("id, company_id, source_type, source_id, source_remito_id, related_billing_document_id, document_kind, invoice_type, fiscal_status, provider, environment, issuer_tax_id, issuer_name, issuer_tax_condition, receiver_name, receiver_doc_type, receiver_doc_number, receiver_tax_condition, currency, currency_rate, subtotal, discount_total, tax_total, total, point_of_sale, voucher_number, voucher_full_number, voucher_date, cae, cae_expires_at, authorized_at, authorized_by, provider_errors, provider_observations, error_message, created_at, updated_at")
         .eq("company_id", companyId!)
         .order("created_at", { ascending: false })
         .limit(500);

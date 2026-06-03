@@ -2,6 +2,7 @@ export const AFIPSDK_WSFE = "wsfe";
 export const AFIPSDK_ENVIRONMENT = "dev";
 export const AFIPSDK_BASE_URL = "https://app.afipsdk.com/api/";
 export const AFIPSDK_INVOICE_B_TYPE = 6;
+export const AFIPSDK_CREDIT_NOTE_B_TYPE = 8;
 export const AFIPSDK_CONSUMIDOR_FINAL_DOC_TYPE = 99;
 export const AFIPSDK_CONSUMIDOR_FINAL_DOC_NUMBER = 0;
 export const AFIPSDK_PRODUCTS_CONCEPT = 1;
@@ -9,6 +10,7 @@ export const AFIPSDK_ARS_CURRENCY = "PES";
 export const AFIPSDK_IVA_0_ID = 3;
 export const AFIPSDK_IVA_21_ID = 5;
 export const AFIPSDK_CONDICION_IVA_RECEPTOR_CONSUMIDOR_FINAL = 5;
+export const STALE_AUTHORIZING_MINUTES = 10;
 
 type BillingDocumentLike = {
   id: string;
@@ -25,6 +27,22 @@ type BillingDocumentLike = {
   tax_total: number | string;
   total: number | string;
   point_of_sale: number | null;
+  related_billing_document_id?: string | null;
+  voucher_number?: number | string | null;
+  voucher_date?: string | null;
+  cae?: string | null;
+};
+
+type RelatedInvoiceLike = {
+  id: string;
+  company_id: string;
+  document_kind: string;
+  invoice_type: string;
+  fiscal_status: string;
+  point_of_sale: number | string | null;
+  voucher_number: number | string | null;
+  voucher_date: string | null;
+  cae: string | null;
 };
 
 type LockFailureDocumentLike = {
@@ -108,9 +126,9 @@ export function getAuthorizationLockFailureMessage(params: {
     const updatedAt = document.updated_at ? new Date(document.updated_at) : null;
     const ageMs = updatedAt && Number.isFinite(updatedAt.getTime()) ? now.getTime() - updatedAt.getTime() : null;
     if (ageMs !== null && ageMs > 10 * 60 * 1000) {
-      return "El comprobante quedo en AUTHORIZING y requiere revision antes de reintentar.";
+      return "La autorizacion quedo trabada. Liberala desde Facturacion antes de reintentar.";
     }
-    return "El comprobante ya se esta autorizando. Estado actual: AUTHORIZING.";
+    return "La autorizacion esta en proceso. Espera unos minutos.";
   }
 
   if (!isAuthorizableFiscalStatus(status)) {
@@ -182,10 +200,15 @@ export function assertAuthorizationPreconditions(params: {
     throw new Error("Solo se permite homologacion AFIPSDK dev.");
   }
   if (document.document_kind !== "INVOICE") {
-    throw new Error("Solo se admite autorizacion de facturas en esta etapa.");
+    if (document.document_kind !== "CREDIT_NOTE") {
+      throw new Error("Solo se admite autorizacion de Factura B o Nota de Credito B.");
+    }
   }
-  if (document.invoice_type !== "FACTURA_B") {
+  if (document.document_kind === "INVOICE" && document.invoice_type !== "FACTURA_B") {
     throw new Error("Solo se admite Factura B en esta etapa.");
+  }
+  if (document.document_kind === "CREDIT_NOTE" && document.invoice_type !== "NOTA_CREDITO_B") {
+    throw new Error("Solo se admite Nota de Credito B en esta etapa.");
   }
   if (!isAuthorizableFiscalStatus(document.fiscal_status)) {
     throw new Error("El comprobante no esta en un estado autorizable.");
@@ -199,13 +222,43 @@ export function assertAuthorizationPreconditions(params: {
 
   const issuerTaxId = onlyDigits(document.issuer_tax_id ?? settings.issuer_tax_id);
   if (!issuerTaxId) {
-    throw new Error("Configurá el CUIT emisor en Facturación > Configuración fiscal.");
+    throw new Error("Configura el CUIT emisor en Configuracion > Facturacion fiscal.");
   }
   if (issuerTaxId.length !== 11) {
     throw new Error("El CUIT emisor debe tener 11 dígitos.");
   }
   if (lines.length === 0) {
     throw new Error("El comprobante no tiene lineas para autorizar.");
+  }
+}
+
+export function assertCreditNoteRelatedInvoicePreconditions(params: {
+  document: BillingDocumentLike;
+  relatedInvoice: RelatedInvoiceLike | null;
+}) {
+  const { document, relatedInvoice } = params;
+  if (document.document_kind !== "CREDIT_NOTE") return;
+
+  if (!document.related_billing_document_id) {
+    throw new Error("La Nota de Credito B debe estar vinculada a una Factura B autorizada.");
+  }
+  if (!relatedInvoice) {
+    throw new Error("Factura B asociada no encontrada.");
+  }
+  if (relatedInvoice.company_id !== document.company_id) {
+    throw new Error("La Nota de Credito B y la factura asociada deben pertenecer a la misma empresa.");
+  }
+  if (relatedInvoice.document_kind !== "INVOICE" || relatedInvoice.invoice_type !== "FACTURA_B") {
+    throw new Error("La Nota de Credito B debe referenciar una Factura B.");
+  }
+  if (
+    relatedInvoice.fiscal_status !== "AUTHORIZED" ||
+    !relatedInvoice.cae ||
+    !relatedInvoice.voucher_number ||
+    !relatedInvoice.point_of_sale ||
+    !relatedInvoice.voucher_date
+  ) {
+    throw new Error("La Factura B asociada debe estar autorizada y tener numero fiscal, fecha y CAE.");
   }
 }
 
@@ -236,7 +289,7 @@ export function resolveAuthorizationPointOfSale(params: {
 
 export function buildAfipSdkAuthPayload(settings: BillingSettingsLike) {
   const taxId = onlyDigits(settings.issuer_tax_id);
-  if (!taxId) throw new Error("Configurá el CUIT emisor en Facturación > Configuración fiscal.");
+  if (!taxId) throw new Error("Configura el CUIT emisor en Configuracion > Facturacion fiscal.");
   if (taxId.length !== 11) throw new Error("El CUIT emisor debe tener 11 dígitos.");
 
   return {
@@ -253,14 +306,19 @@ export function buildAfipSdkInvoicePayload(params: {
   tokenAuthorization: TokenAuthorization;
   voucherNumber: number;
   voucherDate?: Date;
+  relatedInvoice?: RelatedInvoiceLike | null;
 }) {
-  const { document, settings, lines, tokenAuthorization, voucherNumber, voucherDate } = params;
+  const { document, settings, lines, tokenAuthorization, voucherNumber, voucherDate, relatedInvoice } = params;
   const issuerTaxId = onlyDigits(document.issuer_tax_id ?? settings.issuer_tax_id);
   const pointOfSale = Number(document.point_of_sale);
   const subtotal = roundMoney(Number(document.subtotal));
   const taxTotal = roundMoney(Number(document.tax_total));
   const total = roundMoney(Number(document.total));
   const vatItems = buildAfipSdkVatItems(lines);
+  const isCreditNoteB = document.document_kind === "CREDIT_NOTE" && document.invoice_type === "NOTA_CREDITO_B";
+  if (isCreditNoteB) {
+    assertCreditNoteRelatedInvoicePreconditions({ document, relatedInvoice: relatedInvoice ?? null });
+  }
 
   return {
     environment: AFIPSDK_ENVIRONMENT,
@@ -276,7 +334,7 @@ export function buildAfipSdkInvoicePayload(params: {
         FeCabReq: {
           CantReg: 1,
           PtoVta: pointOfSale,
-          CbteTipo: AFIPSDK_INVOICE_B_TYPE,
+          CbteTipo: isCreditNoteB ? AFIPSDK_CREDIT_NOTE_B_TYPE : AFIPSDK_INVOICE_B_TYPE,
         },
         FeDetReq: {
           FECAEDetRequest: {
@@ -295,6 +353,16 @@ export function buildAfipSdkInvoicePayload(params: {
             MonId: AFIPSDK_ARS_CURRENCY,
             MonCotiz: 1,
             CondicionIVAReceptorId: AFIPSDK_CONDICION_IVA_RECEPTOR_CONSUMIDOR_FINAL,
+            ...(isCreditNoteB && relatedInvoice ? {
+              CbtesAsoc: {
+                CbteAsoc: [{
+                  Tipo: AFIPSDK_INVOICE_B_TYPE,
+                  PtoVta: Number(relatedInvoice.point_of_sale),
+                  Nro: Number(relatedInvoice.voucher_number),
+                  CbteFch: Number(String(relatedInvoice.voucher_date).replace(/\D/g, "").slice(0, 8)),
+                }],
+              },
+            } : {}),
             Iva: {
               AlicIva: vatItems,
             },
@@ -309,6 +377,7 @@ export function buildAfipSdkLastVoucherPayload(params: {
   settings: BillingSettingsLike;
   tokenAuthorization: TokenAuthorization;
   pointOfSale: number;
+  invoiceType?: string;
 }) {
   const issuerTaxId = onlyDigits(params.settings.issuer_tax_id);
   return {
@@ -322,7 +391,7 @@ export function buildAfipSdkLastVoucherPayload(params: {
         Cuit: issuerTaxId,
       },
       PtoVta: params.pointOfSale,
-      CbteTipo: AFIPSDK_INVOICE_B_TYPE,
+      CbteTipo: params.invoiceType === "NOTA_CREDITO_B" ? AFIPSDK_CREDIT_NOTE_B_TYPE : AFIPSDK_INVOICE_B_TYPE,
     },
   };
 }
@@ -391,15 +460,43 @@ export function parseAfipSdkAuthorizationResponse(params: {
 
 export function sanitizeProviderPayload(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sanitizeProviderPayload);
+  if (typeof value === "string") {
+    if (/bearer\s+[a-z0-9._~+/=-]+/i.test(value)) return "[REDACTED]";
+    if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/i.test(value)) return "[REDACTED]";
+    if (/-----BEGIN CERTIFICATE-----/i.test(value)) return "[REDACTED]";
+    if (value.length > 4000) return `${value.slice(0, 4000)}...[TRUNCATED]`;
+    return value;
+  }
   if (!value || typeof value !== "object") return value;
 
   const sanitized: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-    if (/token|sign|access|authorization|bearer|cert|key|password|secret/i.test(key)) {
+    if (/token|sign|access|authorization|bearer|cert|certificate|private|key|password|secret|cookie/i.test(key)) {
       sanitized[key] = "[REDACTED]";
     } else {
       sanitized[key] = sanitizeProviderPayload(child);
     }
   }
   return sanitized;
+}
+
+export function normalizeBillingError(error: unknown) {
+  const errorWithStatus = error as Error & { status?: number | null; providerResponse?: unknown };
+  const rawMessage = error instanceof Error ? error.message : String(error ?? "");
+  const message = rawMessage.trim();
+
+  if (/rate limit|too many requests|429/i.test(message) || errorWithStatus.status === 429) {
+    return "Afip SDK recibio demasiadas solicitudes. Espera y reintenta.";
+  }
+  if (/timeout|timed out|network|fetch failed/i.test(message)) {
+    return "Afip SDK no respondio a tiempo. Reintenta luego.";
+  }
+  if (/invalid token|unauthorized|forbidden|401|403/i.test(message) || [401, 403].includes(Number(errorWithStatus.status))) {
+    return "Las credenciales de Afip SDK no son validas o no tienen permisos.";
+  }
+  if (/bearer|authorization|private key|certificate|secret|token/i.test(message)) {
+    return "Error de credenciales fiscales. Revisar Supabase Secrets.";
+  }
+
+  return message || "Error inesperado al autorizar con Afip SDK.";
 }

@@ -10,7 +10,9 @@ import {
   parseLastVoucherNumber,
   resolveAuthorizationPointOfSale,
   sanitizeProviderPayload,
+  normalizeBillingError,
   assertAuthorizationPreconditions,
+  assertCreditNoteRelatedInvoicePreconditions,
   getAuthorizationLockFailureMessage,
 } from "./logic.ts";
 
@@ -123,13 +125,19 @@ Deno.serve(async (req) => {
     return json({ error: "Comprobante fiscal no encontrado." }, 404);
   }
 
-  const { data: hasPermission, error: permissionError } = await serviceClient.rpc("has_company_permission", {
+  const { data: hasAuthorizePermission, error: permissionError } = await serviceClient.rpc("has_company_permission", {
     _user_id: user.id,
     _company_id: document.company_id,
     _permission_code: "billing.authorize",
   });
 
-  if (permissionError || !hasPermission) {
+  const { data: hasCreditNotePermission, error: creditNotePermissionError } = await serviceClient.rpc("has_company_permission", {
+    _user_id: user.id,
+    _company_id: document.company_id,
+    _permission_code: "billing.credit_note",
+  });
+
+  if (permissionError || creditNotePermissionError || (!hasAuthorizePermission && !hasCreditNotePermission)) {
     return json({ error: "No tienes permisos para autorizar comprobantes fiscales." }, 403);
   }
 
@@ -188,8 +196,47 @@ Deno.serve(async (req) => {
     return json({ error: "No se pudieron leer las lineas del comprobante." }, 500);
   }
 
+  let relatedInvoice: Record<string, unknown> | null = null;
+  if (effectiveDocument.document_kind === "CREDIT_NOTE") {
+    const relatedId = typeof effectiveDocument.related_billing_document_id === "string"
+      ? effectiveDocument.related_billing_document_id
+      : "";
+    if (!relatedId) {
+      return json({ error: "La Nota de Credito B debe estar vinculada a una Factura B autorizada." }, 400);
+    }
+
+    const { data: relatedDocument, error: relatedError } = await serviceClient
+      .from("billing_documents")
+      .select("id, company_id, document_kind, invoice_type, fiscal_status, point_of_sale, voucher_number, voucher_date, cae")
+      .eq("id", relatedId)
+      .maybeSingle();
+
+    if (relatedError) {
+      return json({ error: "No se pudo leer la Factura B asociada." }, 500);
+    }
+    relatedInvoice = relatedDocument ?? null;
+
+    const { count: existingCreditNotes, error: duplicateError } = await serviceClient
+      .from("billing_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", effectiveDocument.company_id)
+      .eq("related_billing_document_id", relatedId)
+      .eq("document_kind", "CREDIT_NOTE")
+      .eq("invoice_type", "NOTA_CREDITO_B")
+      .neq("fiscal_status", "CANCELLED_INTERNAL")
+      .neq("id", effectiveDocument.id);
+
+    if (duplicateError) {
+      return json({ error: "No se pudo validar si ya existe una Nota de Credito B para esta factura." }, 500);
+    }
+    if ((existingCreditNotes ?? 0) > 0) {
+      return json({ error: "Ya existe una Nota de Credito B activa para esta factura." }, 409);
+    }
+  }
+
   try {
     assertAuthorizationPreconditions({ document: effectiveDocument, settings: effectiveSettings, lines: lines ?? [] });
+    assertCreditNoteRelatedInvoicePreconditions({ document: effectiveDocument, relatedInvoice: relatedInvoice as never });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "El comprobante no es autorizable." }, 400);
   }
@@ -270,6 +317,7 @@ Deno.serve(async (req) => {
         sign: tokenAuthorization.sign,
       },
       pointOfSale: Number(lockedDocument.point_of_sale),
+      invoiceType: lockedDocument.invoice_type,
     });
     const lastVoucherResponse = await postAfipSdk(afipSdkBaseUrl, "v1/afip/requests", afipSdkAccessToken, lastVoucherPayload);
     const nextVoucherNumber = parseLastVoucherNumber(lastVoucherResponse) + 1;
@@ -283,6 +331,7 @@ Deno.serve(async (req) => {
         sign: tokenAuthorization.sign,
       },
       voucherNumber: nextVoucherNumber,
+      relatedInvoice: relatedInvoice as never,
     });
 
     providerResponse = await postAfipSdk(afipSdkBaseUrl, "v1/afip/requests", afipSdkAccessToken, requestPayload);
@@ -351,7 +400,7 @@ Deno.serve(async (req) => {
 
     return json({ document: authorizedDocument });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado al autorizar con Afip SDK.";
+    const message = normalizeBillingError(error);
     const errorWithProvider = error as Error & { providerResponse?: unknown };
     const sanitizedResponse = sanitizeProviderPayload(errorWithProvider.providerResponse ?? providerResponse ?? null);
 

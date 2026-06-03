@@ -661,7 +661,33 @@ La autorizacion fiscal de Factura B en homologacion AFIPSDK usa datos no secreto
 - Los puntos de venta fiscales se gestionan en la misma seccion usando `billing_points_of_sale`.
 - Los tokens, certificados y credenciales de Afip SDK siguen configurandose como Supabase Secrets. No se guardan en la base ni se exponen al frontend.
 - No hay CUIT hardcodeado en la aplicacion: el usuario debe cargarlo manualmente.
-- La autorizacion implementada sigue limitada a Factura B Consumidor Final en ambiente dev. No incluye Factura A, Notas de Credito ni PDF de Afip SDK.
+- La autorizacion de Factura B Consumidor Final sigue limitada a ambiente dev. No incluye Factura A, Nota de Credito A, Nota de Debito ni PDF de Afip SDK.
+
+## Facturacion AFIPSDK dev - Nota de Credito B
+
+La Nota de Credito B de homologacion permite anular fiscalmente una Factura B autorizada sin mezclarla con devoluciones fisicas:
+
+- Migracion: `supabase/migrations/20260603170000_billing_credit_note_b_dev.sql`.
+- Nace solo desde una `FACTURA_B` con `document_kind = INVOICE`, `fiscal_status = AUTHORIZED`, numero fiscal y CAE.
+- La RPC `create_billing_credit_note_b_from_invoice(billingDocumentId)` crea un `billing_documents` en `DRAFT` con `document_kind = CREDIT_NOTE`, `invoice_type = NOTA_CREDITO_B`, `source_type = CREDIT_NOTE_FROM_INVOICE` y `related_billing_document_id` apuntando a la factura original.
+- El MVP es total: copia receptor, lineas, remito interno de referencia y totales completos desde la factura original. No implementa notas parciales.
+- La base bloquea mas de una Nota de Credito B activa/autorizada para la misma factura mediante indice unico parcial.
+- La autorizacion reutiliza `billing-authorize-document` en ambiente `dev`, usa Afip SDK/WSFE con tipo de comprobante Nota de Credito B y envia `CbtesAsoc` con tipo, punto de venta, numero y fecha de la Factura B asociada.
+- La creacion y autorizacion no modifican stock, caja, remito original, lineas del remito ni cuenta corriente.
+- La Nota de Credito B fiscal no dispara `REMITO_DEVOLUCION`; una devolucion fisica sigue siendo otro flujo.
+- La impresion usa la vista HTML interna y `window.print()`, muestra la factura asociada, CAE, vencimiento y QR fiscal. No usa el endpoint PDF de Afip SDK.
+- Pendiente: notas parciales, Nota de Credito A, Factura A, Nota de Debito y produccion.
+
+## Facturacion - hardening preproduccion
+
+La pantalla operativa `/billing` queda separada de la configuracion fiscal:
+
+- `/billing` muestra solo comprobantes, filtros, estados, acciones de autorizacion, impresion y Nota de Credito B total.
+- La configuracion de CUIT, provider, ambiente, puntos de venta y diagnostico vive en `Configuracion > Facturacion fiscal`.
+- El diagnostico fiscal expone solo estados booleanos/presencia de secrets. No devuelve tokens, certificados ni valores sensibles.
+- Los comprobantes `AUTHORIZING` recientes quedan bloqueados para evitar doble emision; los trabados por mas de 10 minutos pueden liberarse con una RPC controlada si no tienen CAE ni numero fiscal.
+- Los errores de Afip SDK se normalizan para mostrar mensajes accionables sin Bearer, tokens, certificados, private keys ni payloads largos.
+- El ambiente habilitado sigue siendo `dev`/homologacion. Produccion, Factura A, Nota de Credito A, Nota de Debito y notas parciales quedan fuera de esta fase.
 
 ## Database migrations
 

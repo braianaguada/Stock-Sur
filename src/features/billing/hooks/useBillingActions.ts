@@ -132,6 +132,20 @@ export function useBillingActions({ companyId, businessDate }: UseBillingActions
     },
   });
 
+  const createBillingCreditNoteMutation = useMutation({
+    mutationFn: async ({ billingDocumentId }: { billingDocumentId: string }) => {
+      const { data, error } = await billingRpc.rpc("create_billing_credit_note_b_from_invoice", {
+        p_billing_document_id: billingDocumentId,
+      });
+
+      if (error) throw error;
+      return data as BillingDocumentRow;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.billing.documents(companyId) });
+    },
+  });
+
   const enableBillingMutation = useMutation({
     mutationFn: async () => {
       if (!companyId) throw new Error("No hay empresa activa para activar facturacion interna.");
@@ -305,8 +319,23 @@ export function useBillingActions({ companyId, businessDate }: UseBillingActions
     },
   });
 
+  const resetStaleAuthorizationMutation = useMutation({
+    mutationFn: async ({ billingDocumentId }: { billingDocumentId: string }) => {
+      const { data, error } = await billingRpc.rpc("reset_stale_billing_authorization", {
+        p_billing_document_id: billingDocumentId,
+      });
+
+      if (error) throw error;
+      return data as BillingDocumentRow;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.billing.documents(companyId) });
+    },
+  });
+
   return {
     createBillingDraftMutation,
+    createBillingCreditNoteMutation,
     enableBillingMutation,
     disableBillingMutation,
     saveBillingSettingsMutation,
@@ -314,5 +343,6 @@ export function useBillingActions({ companyId, businessDate }: UseBillingActions
     updateBillingPointOfSaleMutation,
     assignBillingDocumentPointOfSaleMutation,
     authorizeBillingDocumentMutation,
+    resetStaleAuthorizationMutation,
   };
 }

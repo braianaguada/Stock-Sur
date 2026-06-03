@@ -56,6 +56,7 @@ export const queryKeys = {
   },
   billing: {
     settings: (companyId: string | null) => ["billing-settings", companyId ?? "no-company"] as const,
+    diagnostics: (companyId: string | null) => ["billing-diagnostics", companyId ?? "no-company"] as const,
     pointsOfSale: (companyId: string | null) => ["billing-points-of-sale", companyId ?? "no-company"] as const,
     documents: (companyId: string | null) => ["billing-documents", companyId ?? "no-company"] as const,
     lines: (documentId: string | null) => ["billing-document-lines", documentId ?? "no-document"] as const,
