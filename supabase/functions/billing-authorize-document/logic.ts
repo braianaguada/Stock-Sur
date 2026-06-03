@@ -2,6 +2,7 @@ export const AFIPSDK_WSFE = "wsfe";
 export const AFIPSDK_ENVIRONMENT = "dev";
 export const AFIPSDK_BASE_URL = "https://app.afipsdk.com/api/";
 export const AFIPSDK_INVOICE_B_TYPE = 6;
+export const AFIPSDK_CREDIT_NOTE_B_TYPE = 8;
 export const AFIPSDK_CONSUMIDOR_FINAL_DOC_TYPE = 99;
 export const AFIPSDK_CONSUMIDOR_FINAL_DOC_NUMBER = 0;
 export const AFIPSDK_PRODUCTS_CONCEPT = 1;
@@ -25,6 +26,22 @@ type BillingDocumentLike = {
   tax_total: number | string;
   total: number | string;
   point_of_sale: number | null;
+  related_billing_document_id?: string | null;
+  voucher_number?: number | string | null;
+  voucher_date?: string | null;
+  cae?: string | null;
+};
+
+type RelatedInvoiceLike = {
+  id: string;
+  company_id: string;
+  document_kind: string;
+  invoice_type: string;
+  fiscal_status: string;
+  point_of_sale: number | string | null;
+  voucher_number: number | string | null;
+  voucher_date: string | null;
+  cae: string | null;
 };
 
 type LockFailureDocumentLike = {
@@ -182,10 +199,15 @@ export function assertAuthorizationPreconditions(params: {
     throw new Error("Solo se permite homologacion AFIPSDK dev.");
   }
   if (document.document_kind !== "INVOICE") {
-    throw new Error("Solo se admite autorizacion de facturas en esta etapa.");
+    if (document.document_kind !== "CREDIT_NOTE") {
+      throw new Error("Solo se admite autorizacion de Factura B o Nota de Credito B.");
+    }
   }
-  if (document.invoice_type !== "FACTURA_B") {
+  if (document.document_kind === "INVOICE" && document.invoice_type !== "FACTURA_B") {
     throw new Error("Solo se admite Factura B en esta etapa.");
+  }
+  if (document.document_kind === "CREDIT_NOTE" && document.invoice_type !== "NOTA_CREDITO_B") {
+    throw new Error("Solo se admite Nota de Credito B en esta etapa.");
   }
   if (!isAuthorizableFiscalStatus(document.fiscal_status)) {
     throw new Error("El comprobante no esta en un estado autorizable.");
@@ -206,6 +228,36 @@ export function assertAuthorizationPreconditions(params: {
   }
   if (lines.length === 0) {
     throw new Error("El comprobante no tiene lineas para autorizar.");
+  }
+}
+
+export function assertCreditNoteRelatedInvoicePreconditions(params: {
+  document: BillingDocumentLike;
+  relatedInvoice: RelatedInvoiceLike | null;
+}) {
+  const { document, relatedInvoice } = params;
+  if (document.document_kind !== "CREDIT_NOTE") return;
+
+  if (!document.related_billing_document_id) {
+    throw new Error("La Nota de Credito B debe estar vinculada a una Factura B autorizada.");
+  }
+  if (!relatedInvoice) {
+    throw new Error("Factura B asociada no encontrada.");
+  }
+  if (relatedInvoice.company_id !== document.company_id) {
+    throw new Error("La Nota de Credito B y la factura asociada deben pertenecer a la misma empresa.");
+  }
+  if (relatedInvoice.document_kind !== "INVOICE" || relatedInvoice.invoice_type !== "FACTURA_B") {
+    throw new Error("La Nota de Credito B debe referenciar una Factura B.");
+  }
+  if (
+    relatedInvoice.fiscal_status !== "AUTHORIZED" ||
+    !relatedInvoice.cae ||
+    !relatedInvoice.voucher_number ||
+    !relatedInvoice.point_of_sale ||
+    !relatedInvoice.voucher_date
+  ) {
+    throw new Error("La Factura B asociada debe estar autorizada y tener numero fiscal, fecha y CAE.");
   }
 }
 
@@ -253,14 +305,19 @@ export function buildAfipSdkInvoicePayload(params: {
   tokenAuthorization: TokenAuthorization;
   voucherNumber: number;
   voucherDate?: Date;
+  relatedInvoice?: RelatedInvoiceLike | null;
 }) {
-  const { document, settings, lines, tokenAuthorization, voucherNumber, voucherDate } = params;
+  const { document, settings, lines, tokenAuthorization, voucherNumber, voucherDate, relatedInvoice } = params;
   const issuerTaxId = onlyDigits(document.issuer_tax_id ?? settings.issuer_tax_id);
   const pointOfSale = Number(document.point_of_sale);
   const subtotal = roundMoney(Number(document.subtotal));
   const taxTotal = roundMoney(Number(document.tax_total));
   const total = roundMoney(Number(document.total));
   const vatItems = buildAfipSdkVatItems(lines);
+  const isCreditNoteB = document.document_kind === "CREDIT_NOTE" && document.invoice_type === "NOTA_CREDITO_B";
+  if (isCreditNoteB) {
+    assertCreditNoteRelatedInvoicePreconditions({ document, relatedInvoice: relatedInvoice ?? null });
+  }
 
   return {
     environment: AFIPSDK_ENVIRONMENT,
@@ -276,7 +333,7 @@ export function buildAfipSdkInvoicePayload(params: {
         FeCabReq: {
           CantReg: 1,
           PtoVta: pointOfSale,
-          CbteTipo: AFIPSDK_INVOICE_B_TYPE,
+          CbteTipo: isCreditNoteB ? AFIPSDK_CREDIT_NOTE_B_TYPE : AFIPSDK_INVOICE_B_TYPE,
         },
         FeDetReq: {
           FECAEDetRequest: {
@@ -295,6 +352,16 @@ export function buildAfipSdkInvoicePayload(params: {
             MonId: AFIPSDK_ARS_CURRENCY,
             MonCotiz: 1,
             CondicionIVAReceptorId: AFIPSDK_CONDICION_IVA_RECEPTOR_CONSUMIDOR_FINAL,
+            ...(isCreditNoteB && relatedInvoice ? {
+              CbtesAsoc: {
+                CbteAsoc: [{
+                  Tipo: AFIPSDK_INVOICE_B_TYPE,
+                  PtoVta: Number(relatedInvoice.point_of_sale),
+                  Nro: Number(relatedInvoice.voucher_number),
+                  CbteFch: Number(String(relatedInvoice.voucher_date).replace(/\D/g, "").slice(0, 8)),
+                }],
+              },
+            } : {}),
             Iva: {
               AlicIva: vatItems,
             },
@@ -309,6 +376,7 @@ export function buildAfipSdkLastVoucherPayload(params: {
   settings: BillingSettingsLike;
   tokenAuthorization: TokenAuthorization;
   pointOfSale: number;
+  invoiceType?: string;
 }) {
   const issuerTaxId = onlyDigits(params.settings.issuer_tax_id);
   return {
@@ -322,7 +390,7 @@ export function buildAfipSdkLastVoucherPayload(params: {
         Cuit: issuerTaxId,
       },
       PtoVta: params.pointOfSale,
-      CbteTipo: AFIPSDK_INVOICE_B_TYPE,
+      CbteTipo: params.invoiceType === "NOTA_CREDITO_B" ? AFIPSDK_CREDIT_NOTE_B_TYPE : AFIPSDK_INVOICE_B_TYPE,
     },
   };
 }

@@ -1,11 +1,12 @@
 import { escapeHtml } from "@/lib/print";
 import type { BillingDocumentLineRow, BillingDocumentRow, BillingRemitoReference } from "./types";
-import { buildFiscalQrUrl } from "./lib/authorization";
+import { getBillingDocumentTypeLabel } from "./lib/authorization";
 
 type BuildBillingPrintHtmlParams = {
   document: BillingDocumentRow;
   lines: BillingDocumentLineRow[];
   remito?: BillingRemitoReference | null;
+  relatedDocument?: BillingDocumentRow | null;
   qrDataUrl?: string | null;
 };
 
@@ -39,15 +40,17 @@ function buildRows(lines: BillingDocumentLineRow[]) {
   `).join("");
 }
 
-export function buildBillingPrintHtml({ document, lines, remito, qrDataUrl }: BuildBillingPrintHtmlParams) {
-  const fiscalQrUrl = buildFiscalQrUrl(document);
+export function buildBillingPrintHtml({ document, lines, remito, relatedDocument, qrDataUrl }: BuildBillingPrintHtmlParams) {
+  const documentTypeLabel = getBillingDocumentTypeLabel(document);
+  const isCreditNote = document.document_kind === "CREDIT_NOTE";
+  const originalVoucher = relatedDocument?.voucher_full_number ?? formatDocumentNumber(relatedDocument?.point_of_sale, relatedDocument?.voucher_number);
 
   return `<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Factura B ${escapeHtml(document.voucher_full_number ?? document.id)}</title>
+  <title>${escapeHtml(documentTypeLabel)} ${escapeHtml(document.voucher_full_number ?? document.id)}</title>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; background: #f4f5f7; color: #111827; font-family: Arial, Helvetica, sans-serif; }
@@ -96,7 +99,8 @@ export function buildBillingPrintHtml({ document, lines, remito, qrDataUrl }: Bu
       </div>
       <div class="letter">B</div>
       <div class="right">
-        <h1>Factura B</h1>
+        <h1>${escapeHtml(documentTypeLabel)}</h1>
+        <p><strong>HOMOLOGACION / DEV</strong></p>
         <p>Comprobante: ${escapeHtml(document.voucher_full_number ?? formatDocumentNumber(document.point_of_sale, document.voucher_number))}</p>
         <p>Fecha: ${formatDate(document.voucher_date ?? document.created_at)}</p>
         <p>CAE: ${escapeHtml(document.cae ?? "-")}</p>
@@ -113,11 +117,25 @@ export function buildBillingPrintHtml({ document, lines, remito, qrDataUrl }: Bu
       </div>
       <div>
         <h2>Origen interno</h2>
-        <p>Venta de caja / remito</p>
+        <p>${isCreditNote ? "Nota fiscal desde factura autorizada" : "Venta de caja / remito"}</p>
+        ${isCreditNote ? `
+          <p>Factura asociada: ${escapeHtml(originalVoucher)}</p>
+          <p>Fecha factura: ${formatDate(relatedDocument?.voucher_date)}</p>
+        ` : ""}
         <p>Remito: ${escapeHtml(formatDocumentNumber(remito?.point_of_sale, remito?.document_number))}</p>
         <p class="muted">Este PDF se genera internamente desde Stock Sur.</p>
       </div>
     </section>
+
+    ${isCreditNote ? `
+      <section class="section">
+        <h2>Comprobante asociado</h2>
+        <p>Tipo: Factura B</p>
+        <p>Punto de venta y numero: ${escapeHtml(originalVoucher)}</p>
+        <p>Fecha: ${formatDate(relatedDocument?.voucher_date)}</p>
+        <p class="muted">Esta nota de credito fiscal no devuelve stock ni modifica caja/cuenta corriente.</p>
+      </section>
+    ` : ""}
 
     <table>
       <thead>
@@ -137,7 +155,7 @@ export function buildBillingPrintHtml({ document, lines, remito, qrDataUrl }: Bu
         ${qrDataUrl ? `<img class="qr" src="${escapeHtml(qrDataUrl)}" alt="QR fiscal ARCA" />` : `<div class="qr"></div>`}
         <div>
           <p class="muted">QR fiscal ARCA generado internamente.</p>
-          <p class="muted">${escapeHtml(fiscalQrUrl)}</p>
+          <p class="muted">No se usa el PDF de Afip SDK.</p>
         </div>
       </div>
       <div class="totals-box">

@@ -3,8 +3,10 @@ import {
   buildFiscalQrPayload,
   buildFiscalQrUrl,
   canShowAuthorizeBillingDocumentAction,
+  canShowCreateCreditNoteBAction,
   canShowPrintBillingDocumentAction,
   FISCAL_QR_BASE_URL,
+  NOTA_CREDITO_B_CBTE_TIPO,
 } from "./authorization";
 import type { BillingDocumentRow } from "../types";
 
@@ -17,6 +19,7 @@ function buildDocument(overrides: Partial<BillingDocumentRow> = {}): BillingDocu
     source_type: "CASH_SALE_FROM_REMITO",
     source_id: "cash-sale-1",
     source_remito_id: "remito-1",
+    related_billing_document_id: null,
     document_kind: "INVOICE",
     invoice_type: "FACTURA_B",
     fiscal_status: "DRAFT",
@@ -62,11 +65,42 @@ describe("billing authorization UI helpers", () => {
     expect(canShowAuthorizeBillingDocumentAction(buildDocument(), ["user"], { companyPermissionCodes: [] })).toBe(false);
   });
 
+  it("shows create credit note only for authorized Factura B without active total credit note", () => {
+    const context = { companyPermissionCodes: ["billing.credit_note"] };
+    const invoice = buildDocument({
+      fiscal_status: "AUTHORIZED",
+      voucher_number: 42,
+      voucher_full_number: "00001-00000042",
+      cae: "70400000000001",
+    });
+    const creditNote = buildDocument({
+      id: "credit-note-1",
+      source_type: "CREDIT_NOTE_FROM_INVOICE",
+      source_id: invoice.id,
+      related_billing_document_id: invoice.id,
+      document_kind: "CREDIT_NOTE",
+      invoice_type: "NOTA_CREDITO_B",
+      fiscal_status: "DRAFT",
+    });
+
+    expect(canShowCreateCreditNoteBAction(invoice, [invoice], ["user"], context)).toBe(true);
+    expect(canShowCreateCreditNoteBAction(invoice, [invoice, creditNote], ["user"], context)).toBe(false);
+    expect(canShowCreateCreditNoteBAction(buildDocument(), [], ["user"], context)).toBe(false);
+    expect(canShowCreateCreditNoteBAction(creditNote, [creditNote], ["user"], context)).toBe(false);
+    expect(canShowCreateCreditNoteBAction(invoice, [invoice], ["user"], { companyPermissionCodes: [] })).toBe(false);
+  });
+
   it("shows print only for authorized Factura B with CAE and print permission", () => {
     const context = { companyPermissionCodes: ["billing.print"] };
     const authorized = buildDocument({ fiscal_status: "AUTHORIZED", cae: "70400000000001" });
 
     expect(canShowPrintBillingDocumentAction(authorized, ["user"], context)).toBe(true);
+    expect(canShowPrintBillingDocumentAction(buildDocument({
+      document_kind: "CREDIT_NOTE",
+      invoice_type: "NOTA_CREDITO_B",
+      fiscal_status: "AUTHORIZED",
+      cae: "70400000000002",
+    }), ["user"], context)).toBe(true);
     expect(canShowPrintBillingDocumentAction(buildDocument(), ["user"], context)).toBe(false);
     expect(canShowPrintBillingDocumentAction(authorized, ["user"], { companyPermissionCodes: [] })).toBe(false);
   });
@@ -95,5 +129,22 @@ describe("billing authorization UI helpers", () => {
     });
     expect(buildFiscalQrUrl(document)).toContain(FISCAL_QR_BASE_URL);
     expect(buildFiscalQrUrl(document)).toContain("p=");
+  });
+
+  it("builds ARCA fiscal QR payload with Nota de Credito B voucher type", () => {
+    const document = buildDocument({
+      document_kind: "CREDIT_NOTE",
+      invoice_type: "NOTA_CREDITO_B",
+      fiscal_status: "AUTHORIZED",
+      voucher_date: "2026-06-03",
+      voucher_number: 3,
+      cae: "70400000000002",
+    });
+
+    expect(buildFiscalQrPayload(document)).toMatchObject({
+      tipoCmp: NOTA_CREDITO_B_CBTE_TIPO,
+      nroCmp: 3,
+      codAut: 70400000000002,
+    });
   });
 });

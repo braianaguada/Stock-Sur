@@ -66,7 +66,7 @@ export function useBillingDocuments(companyId: string | null) {
     queryFn: async () => {
       const { data, error } = await billingDb
         .from("billing_documents")
-        .select("id, company_id, source_type, source_id, source_remito_id, document_kind, invoice_type, fiscal_status, provider, environment, issuer_tax_id, issuer_name, issuer_tax_condition, receiver_name, receiver_doc_type, receiver_doc_number, receiver_tax_condition, currency, currency_rate, subtotal, discount_total, tax_total, total, point_of_sale, voucher_number, voucher_full_number, voucher_date, cae, cae_expires_at, authorized_at, authorized_by, provider_errors, provider_observations, error_message, created_at, updated_at")
+        .select("id, company_id, source_type, source_id, source_remito_id, related_billing_document_id, document_kind, invoice_type, fiscal_status, provider, environment, issuer_tax_id, issuer_name, issuer_tax_condition, receiver_name, receiver_doc_type, receiver_doc_number, receiver_tax_condition, currency, currency_rate, subtotal, discount_total, tax_total, total, point_of_sale, voucher_number, voucher_full_number, voucher_date, cae, cae_expires_at, authorized_at, authorized_by, provider_errors, provider_observations, error_message, created_at, updated_at")
         .eq("company_id", companyId!)
         .order("created_at", { ascending: false })
         .limit(500);

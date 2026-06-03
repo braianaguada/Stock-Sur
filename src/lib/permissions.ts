@@ -116,6 +116,10 @@ export function canAuthorizeBilling(roles: AppRole[], context?: CompanyAccessCon
   return hasCompanyPermission(roles, context, "billing.authorize");
 }
 
+export function canCreateBillingCreditNote(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "billing.credit_note");
+}
+
 export function canPrintBilling(roles: AppRole[], context?: CompanyAccessContext) {
   return hasCompanyPermission(roles, context, "billing.print");
 }

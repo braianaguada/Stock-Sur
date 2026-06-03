@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   AFIPSDK_CONSUMIDOR_FINAL_DOC_NUMBER,
   AFIPSDK_CONSUMIDOR_FINAL_DOC_TYPE,
+  AFIPSDK_CREDIT_NOTE_B_TYPE,
   AFIPSDK_IVA_0_ID,
   AFIPSDK_INVOICE_B_TYPE,
+  assertCreditNoteRelatedInvoicePreconditions,
   assertAuthorizationPreconditions,
   buildAfipSdkInvoicePayload,
   buildAfipSdkLastVoucherPayload,
@@ -42,6 +44,22 @@ const document = {
   tax_total: 21,
   total: 121,
   point_of_sale: 1,
+  related_billing_document_id: null,
+  voucher_number: null,
+  voucher_date: null,
+  cae: null,
+};
+
+const relatedInvoice = {
+  id: "invoice-1",
+  company_id: "company-1",
+  document_kind: "INVOICE",
+  invoice_type: "FACTURA_B",
+  fiscal_status: "AUTHORIZED",
+  point_of_sale: 1,
+  voucher_number: 26444,
+  voucher_date: "2026-06-03",
+  cae: "86220216018909",
 };
 
 const lines = [{
@@ -98,6 +116,16 @@ describe("Afip SDK authorization logic", () => {
   it("validates only Factura B AFIPSDK dev documents", () => {
     expect(() => assertAuthorizationPreconditions({ document, settings, lines })).not.toThrow();
     expect(() => assertAuthorizationPreconditions({
+      document: {
+        ...document,
+        document_kind: "CREDIT_NOTE",
+        invoice_type: "NOTA_CREDITO_B",
+        related_billing_document_id: relatedInvoice.id,
+      },
+      settings,
+      lines,
+    })).not.toThrow();
+    expect(() => assertAuthorizationPreconditions({
       document: { ...document, invoice_type: "FACTURA_A" },
       settings,
       lines,
@@ -112,6 +140,29 @@ describe("Afip SDK authorization logic", () => {
       settings,
       lines,
     })).toThrow("estado autorizable");
+  });
+
+  it("validates Nota de Credito B related Factura B preconditions", () => {
+    const creditNote = {
+      ...document,
+      document_kind: "CREDIT_NOTE",
+      invoice_type: "NOTA_CREDITO_B",
+      related_billing_document_id: relatedInvoice.id,
+    };
+
+    expect(() => assertCreditNoteRelatedInvoicePreconditions({ document: creditNote, relatedInvoice })).not.toThrow();
+    expect(() => assertCreditNoteRelatedInvoicePreconditions({
+      document: creditNote,
+      relatedInvoice: { ...relatedInvoice, fiscal_status: "DRAFT", cae: null },
+    })).toThrow("debe estar autorizada");
+    expect(() => assertCreditNoteRelatedInvoicePreconditions({
+      document: { ...creditNote, related_billing_document_id: null },
+      relatedInvoice,
+    })).toThrow("debe estar vinculada");
+    expect(() => assertCreditNoteRelatedInvoicePreconditions({
+      document: creditNote,
+      relatedInvoice: { ...relatedInvoice, document_kind: "CREDIT_NOTE" },
+    })).toThrow("debe referenciar una Factura B");
   });
 
   it("rejects missing or invalid issuer CUIT with fiscal settings messages", () => {
@@ -194,6 +245,43 @@ describe("Afip SDK authorization logic", () => {
     });
   });
 
+  it("builds FECAESolicitar payload for Nota de Credito B with associated Factura B", () => {
+    const payload = buildAfipSdkInvoicePayload({
+      document: {
+        ...document,
+        document_kind: "CREDIT_NOTE",
+        invoice_type: "NOTA_CREDITO_B",
+        related_billing_document_id: relatedInvoice.id,
+      },
+      settings,
+      lines,
+      tokenAuthorization: { token: "token", sign: "sign" },
+      voucherNumber: 3,
+      voucherDate: new Date("2026-06-03T12:00:00Z"),
+      relatedInvoice,
+    });
+
+    expect(payload.params.FeCAEReq.FeCabReq).toMatchObject({
+      CantReg: 1,
+      PtoVta: 1,
+      CbteTipo: AFIPSDK_CREDIT_NOTE_B_TYPE,
+    });
+    expect(payload.params.FeCAEReq.FeDetReq.FECAEDetRequest).toMatchObject({
+      CbteDesde: 3,
+      CbteHasta: 3,
+      CbteFch: 20260603,
+      ImpTotal: 121,
+      CbtesAsoc: {
+        CbteAsoc: [{
+          Tipo: AFIPSDK_INVOICE_B_TYPE,
+          PtoVta: 1,
+          Nro: 26444,
+          CbteFch: 20260603,
+        }],
+      },
+    });
+  });
+
   it("uses configured issuer CUIT for Afip SDK auth payload", () => {
     expect(buildAfipSdkAuthPayload({ ...settings, issuer_tax_id: "20-40937847-2" })).toEqual({
       environment: "dev",
@@ -238,6 +326,20 @@ describe("Afip SDK authorization logic", () => {
       params: { PtoVta: 1, CbteTipo: 6 },
     });
     expect(parseLastVoucherNumber({ FECompUltimoAutorizadoResult: { CbteNro: 41 } })).toBe(41);
+  });
+
+  it("builds last voucher request for Nota de Credito B type", () => {
+    const payload = buildAfipSdkLastVoucherPayload({
+      settings,
+      tokenAuthorization: { token: "token", sign: "sign" },
+      pointOfSale: 1,
+      invoiceType: "NOTA_CREDITO_B",
+    });
+
+    expect(payload).toMatchObject({
+      method: "FECompUltimoAutorizado",
+      params: { PtoVta: 1, CbteTipo: AFIPSDK_CREDIT_NOTE_B_TYPE },
+    });
   });
 
   it("parses CAE response and formats voucher number", () => {

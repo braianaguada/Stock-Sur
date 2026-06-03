@@ -23,7 +23,14 @@ import { canViewBilling } from "@/lib/permissions";
 import { BillingFiscalSettingsSection } from "@/features/billing/components/BillingFiscalSettingsSection";
 import { useBillingActions } from "@/features/billing/hooks/useBillingActions";
 import { useBillingDocumentLines, useBillingDocuments, useBillingPointsOfSale, useBillingRemitoReferences, useBillingSettings } from "@/features/billing/hooks/useBillingData";
-import { canShowAuthorizeBillingDocumentAction, canShowPrintBillingDocumentAction } from "@/features/billing/lib/authorization";
+import {
+  canShowAuthorizeBillingDocumentAction,
+  canShowCreateCreditNoteBAction,
+  canShowPrintBillingDocumentAction,
+  getBillingDocumentOriginLabel,
+  getBillingDocumentTypeLabel,
+  hasActiveTotalCreditNoteForInvoice,
+} from "@/features/billing/lib/authorization";
 import { canShowBillingSettingsToggle } from "@/features/billing/lib/settings";
 import type { BillingDocumentRow } from "@/features/billing/types";
 
@@ -46,6 +53,7 @@ export default function BillingPage() {
   const { toast } = useToast();
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [authorizeDialogDocument, setAuthorizeDialogDocument] = useState<BillingDocumentRow | null>(null);
+  const [creditNoteDialogDocument, setCreditNoteDialogDocument] = useState<BillingDocumentRow | null>(null);
   const billingAccessContext = { companyRoleCodes, companyPermissionCodes };
   const hasBillingAccess = canViewBilling(roles, billingAccessContext);
   const canManageSettings = canShowBillingSettingsToggle(roles, billingAccessContext);
@@ -56,6 +64,7 @@ export default function BillingPage() {
     disableBillingMutation,
     saveBillingSettingsMutation,
     createBillingPointOfSaleMutation,
+    createBillingCreditNoteMutation,
     updateBillingPointOfSaleMutation,
     assignBillingDocumentPointOfSaleMutation,
     authorizeBillingDocumentMutation,
@@ -63,6 +72,10 @@ export default function BillingPage() {
   const documentsQuery = useBillingDocuments(currentCompany?.id ?? null);
   const pointsOfSaleQuery = useBillingPointsOfSale(currentCompany?.id ?? null);
   const documents = useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
+  const documentsById = useMemo(
+    () => new Map(documents.map((document) => [document.id, document])),
+    [documents],
+  );
   const selectedDocument = useMemo(
     () => documents.find((document) => document.id === selectedDocumentId) ?? documents[0] ?? null,
     [documents, selectedDocumentId],
@@ -75,6 +88,7 @@ export default function BillingPage() {
   const linesQuery = useBillingDocumentLines(selectedDocument?.id ?? null);
   const billingTogglePending = enableBillingMutation.isPending || disableBillingMutation.isPending;
   const authorizationPending = authorizeBillingDocumentMutation.isPending;
+  const creditNotePending = createBillingCreditNoteMutation.isPending;
   const [authorizationPreparing, setAuthorizationPreparing] = useState(false);
   const authorizationBusy = authorizationPending || authorizationPreparing;
   const [selectedPointOfSale, setSelectedPointOfSale] = useState("");
@@ -141,13 +155,13 @@ export default function BillingPage() {
             setAuthorizeDialogDocument(null);
             setSelectedDocumentId(authorizedDocument.id);
             toast({
-              title: "Factura B autorizada en homologacion",
+              title: `${getBillingDocumentTypeLabel(authorizedDocument)} autorizada en homologacion`,
               description: `CAE ${authorizedDocument.cae ?? ""} - ${authorizedDocument.voucher_full_number ?? ""}`,
             });
           },
           onError: (error) => {
             toast({
-              title: "No se pudo autorizar la factura",
+              title: "No se pudo autorizar el comprobante",
               description: getErrorMessage(error),
               variant: "destructive",
             });
@@ -155,7 +169,7 @@ export default function BillingPage() {
         });
       } catch (error) {
         toast({
-          title: "No se pudo autorizar la factura",
+          title: "No se pudo autorizar el comprobante",
           description: getErrorMessage(error),
           variant: "destructive",
         });
@@ -163,6 +177,26 @@ export default function BillingPage() {
         setAuthorizationPreparing(false);
       }
     })();
+  };
+
+  const createCreditNote = (document: BillingDocumentRow) => {
+    createBillingCreditNoteMutation.mutate({ billingDocumentId: document.id }, {
+      onSuccess: (creditNote) => {
+        setCreditNoteDialogDocument(null);
+        setSelectedDocumentId(creditNote.id);
+        toast({
+          title: "Nota de Credito B creada",
+          description: "Se creo un borrador total vinculado a la Factura B autorizada.",
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "No se pudo crear la Nota de Credito B",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   const openPrint = (document: BillingDocumentRow) => {
@@ -216,7 +250,7 @@ export default function BillingPage() {
                     <Badge variant="outline">{settingsQuery.billingEnabled ? "Feature activa" : "Feature apagada"}</Badge>
                   </div>
                   <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                    Factura B Consumidor Final desde ventas de Caja con REMITO EMITIDO. Solo ambiente dev/homologacion.
+                    Factura B Consumidor Final y Nota de Credito B total desde factura autorizada. Solo ambiente dev/homologacion.
                   </p>
                 </div>
               </div>
@@ -308,9 +342,9 @@ export default function BillingPage() {
                             return (
                               <tr key={document.id} className="border-b last:border-b-0">
                                 <td className="px-3 py-2">{formatDateTime(document.created_at)}</td>
-                                <td className="px-3 py-2">Factura B</td>
+                                <td className="px-3 py-2">{getBillingDocumentTypeLabel(document)}</td>
                                 <td className="px-3 py-2"><Badge variant="outline">{STATUS_LABEL[document.fiscal_status]}</Badge></td>
-                                <td className="px-3 py-2">Caja / Remito</td>
+                                <td className="px-3 py-2">{getBillingDocumentOriginLabel(document)}</td>
                                 <td className="px-3 py-2 font-mono text-xs">{formatRemitoReference(remito)}</td>
                                 <td className="px-3 py-2">{document.receiver_name}</td>
                                 <td className="px-3 py-2 text-right"><AmountDisplay value={Number(document.total)} size="sm" /></td>
@@ -331,6 +365,17 @@ export default function BillingPage() {
                                     {canShowPrintBillingDocumentAction(document, roles, billingAccessContext) ? (
                                       <Button type="button" variant="outline" size="sm" onClick={() => openPrint(document)}>
                                         Imprimir
+                                      </Button>
+                                    ) : null}
+                                    {canShowCreateCreditNoteBAction(document, documents, roles, billingAccessContext) ? (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCreditNoteDialogDocument(document)}
+                                        disabled={creditNotePending}
+                                      >
+                                        Crear NC B
                                       </Button>
                                     ) : null}
                                     <Button
@@ -374,8 +419,16 @@ export default function BillingPage() {
                         </div>
                         <div className="flex justify-between gap-4">
                           <span className="text-muted-foreground">Origen</span>
-                          <span>Caja / Remito</span>
+                          <span>{getBillingDocumentOriginLabel(selectedDocument)}</span>
                         </div>
+                        {selectedDocument.related_billing_document_id ? (
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">Factura asociada</span>
+                            <span className="font-mono text-xs">
+                              {documentsById.get(selectedDocument.related_billing_document_id)?.voucher_full_number ?? selectedDocument.related_billing_document_id}
+                            </span>
+                          </div>
+                        ) : null}
                         <div className="flex justify-between gap-4">
                           <span className="text-muted-foreground">Remito</span>
                           <span className="font-mono text-xs">
@@ -447,6 +500,11 @@ export default function BillingPage() {
                             ) : null}
                           </div>
                         ) : null}
+                        {selectedDocument.document_kind === "CREDIT_NOTE" ? (
+                          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                            Esta nota de credito es fiscal. No devuelve stock ni modifica caja/cuenta corriente.
+                          </div>
+                        ) : null}
                         <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
                           {canShowAuthorizeBillingDocumentAction(selectedDocument, roles, billingAccessContext) ? (
                             <Button
@@ -462,12 +520,22 @@ export default function BillingPage() {
                               Imprimir / Guardar PDF
                             </Button>
                           ) : null}
+                          {canShowCreateCreditNoteBAction(selectedDocument, documents, roles, billingAccessContext) ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setCreditNoteDialogDocument(selectedDocument)}
+                              disabled={creditNotePending}
+                            >
+                              Crear Nota de Credito B
+                            </Button>
+                          ) : null}
                         </div>
                       </div>
 
                       <div className="rounded-xl border">
                         <div className="border-b bg-muted/45 px-3 py-2 text-xs font-medium text-muted-foreground">
-                          Lineas copiadas del remito
+                          {selectedDocument.document_kind === "CREDIT_NOTE" ? "Lineas copiadas de la factura original" : "Lineas copiadas del remito"}
                         </div>
                         {linesQuery.isLoading ? (
                           <p className="p-4 text-sm text-muted-foreground">Cargando lineas...</p>
@@ -518,7 +586,7 @@ export default function BillingPage() {
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Autorizar Factura B en homologacion</AlertDialogTitle>
+              <AlertDialogTitle>Autorizar {getBillingDocumentTypeLabel(authorizeDialogDocument)} en homologacion</AlertDialogTitle>
               <AlertDialogDescription>
                 Se enviara este comprobante a Afip SDK usando ambiente dev para solicitar CAE. No se modifican stock,
                 caja ni cuentas corrientes, y no se usa el generador de PDF de Afip SDK.
@@ -545,7 +613,51 @@ export default function BillingPage() {
                   if (authorizeDialogDocument) authorizeDocument(authorizeDialogDocument);
                 }}
               >
-                {authorizationBusy ? "Autorizando..." : "Autorizar"}
+                {authorizationBusy ? "Autorizando..." : authorizeDialogDocument?.document_kind === "CREDIT_NOTE" ? "Autorizar Nota de Credito B" : "Autorizar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog
+          open={Boolean(creditNoteDialogDocument)}
+          onOpenChange={(open) => {
+            if (!open && !creditNotePending) setCreditNoteDialogDocument(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Crear Nota de Credito B</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se creara una Nota de Credito B total vinculada a esta Factura B. Esta accion no devuelve stock, no
+                modifica caja y no modifica cuenta corriente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {creditNoteDialogDocument ? (
+              <div className="rounded-lg border bg-muted/35 p-3 text-sm">
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Factura</span>
+                  <span className="font-mono text-xs">{creditNoteDialogDocument.voucher_full_number}</span>
+                </div>
+                <div className="mt-2 flex justify-between gap-4">
+                  <span className="text-muted-foreground">Total</span>
+                  <AmountDisplay value={Number(creditNoteDialogDocument.total)} size="sm" />
+                </div>
+                {hasActiveTotalCreditNoteForInvoice(creditNoteDialogDocument, documents) ? (
+                  <p className="mt-3 text-xs text-destructive">Ya existe una Nota de Credito B activa para esta factura.</p>
+                ) : null}
+              </div>
+            ) : null}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={creditNotePending}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={!creditNoteDialogDocument || creditNotePending || (creditNoteDialogDocument ? hasActiveTotalCreditNoteForInvoice(creditNoteDialogDocument, documents) : true)}
+                onClick={(event) => {
+                  event.preventDefault();
+                  if (creditNoteDialogDocument) createCreditNote(creditNoteDialogDocument);
+                }}
+              >
+                {creditNotePending ? "Creando..." : "Crear borrador"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

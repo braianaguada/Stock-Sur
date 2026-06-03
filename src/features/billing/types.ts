@@ -1,4 +1,4 @@
-export type BillingInvoiceType = "FACTURA_B";
+export type BillingInvoiceType = "FACTURA_B" | "NOTA_CREDITO_B";
 export type BillingFiscalStatus = "DRAFT" | "READY_TO_AUTHORIZE" | "AUTHORIZING" | "AUTHORIZED" | "REJECTED" | "CANCELLED_INTERNAL";
 
 export type BillingSettingsRow = {
@@ -30,9 +30,10 @@ export type BillingPointOfSaleRow = {
 export type BillingDocumentRow = {
   id: string;
   company_id: string;
-  source_type: "CASH_SALE_FROM_REMITO";
+  source_type: "CASH_SALE_FROM_REMITO" | "CREDIT_NOTE_FROM_INVOICE";
   source_id: string;
   source_remito_id: string | null;
+  related_billing_document_id: string | null;
   document_kind: "INVOICE" | "CREDIT_NOTE";
   invoice_type: BillingInvoiceType;
   fiscal_status: BillingFiscalStatus;
