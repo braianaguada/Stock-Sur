@@ -75,6 +75,8 @@ export default function BillingPage() {
   const linesQuery = useBillingDocumentLines(selectedDocument?.id ?? null);
   const billingTogglePending = enableBillingMutation.isPending || disableBillingMutation.isPending;
   const authorizationPending = authorizeBillingDocumentMutation.isPending;
+  const [authorizationPreparing, setAuthorizationPreparing] = useState(false);
+  const authorizationBusy = authorizationPending || authorizationPreparing;
   const [selectedPointOfSale, setSelectedPointOfSale] = useState("");
   const enabledPointsOfSale = useMemo(
     () => (pointsOfSaleQuery.data ?? []).filter((point) => point.is_enabled),
@@ -122,23 +124,45 @@ export default function BillingPage() {
   };
 
   const authorizeDocument = (document: BillingDocumentRow) => {
-    authorizeBillingDocumentMutation.mutate({ billingDocumentId: document.id }, {
-      onSuccess: ({ document: authorizedDocument }) => {
-        setAuthorizeDialogDocument(null);
-        setSelectedDocumentId(authorizedDocument.id);
-        toast({
-          title: "Factura B autorizada en homologacion",
-          description: `CAE ${authorizedDocument.cae ?? ""} - ${authorizedDocument.voucher_full_number ?? ""}`,
+    void (async () => {
+      setAuthorizationPreparing(true);
+      try {
+        const latestDocuments = await documentsQuery.refetch();
+        const latestDocument = latestDocuments.data?.find((candidate) => candidate.id === document.id);
+        if (!latestDocument) {
+          throw new Error("El comprobante fiscal ya no esta disponible.");
+        }
+        if (!canShowAuthorizeBillingDocumentAction(latestDocument, roles, billingAccessContext)) {
+          throw new Error(`El comprobante no esta en un estado autorizable. Estado actual: ${STATUS_LABEL[latestDocument.fiscal_status]}.`);
+        }
+        setAuthorizeDialogDocument(latestDocument);
+        authorizeBillingDocumentMutation.mutate({ billingDocumentId: latestDocument.id }, {
+          onSuccess: ({ document: authorizedDocument }) => {
+            setAuthorizeDialogDocument(null);
+            setSelectedDocumentId(authorizedDocument.id);
+            toast({
+              title: "Factura B autorizada en homologacion",
+              description: `CAE ${authorizedDocument.cae ?? ""} - ${authorizedDocument.voucher_full_number ?? ""}`,
+            });
+          },
+          onError: (error) => {
+            toast({
+              title: "No se pudo autorizar la factura",
+              description: getErrorMessage(error),
+              variant: "destructive",
+            });
+          },
         });
-      },
-      onError: (error) => {
+      } catch (error) {
         toast({
           title: "No se pudo autorizar la factura",
           description: getErrorMessage(error),
           variant: "destructive",
         });
-      },
-    });
+      } finally {
+        setAuthorizationPreparing(false);
+      }
+    })();
   };
 
   const openPrint = (document: BillingDocumentRow) => {
@@ -299,7 +323,7 @@ export default function BillingPage() {
                                         variant="outline"
                                         size="sm"
                                         onClick={() => setAuthorizeDialogDocument(document)}
-                                        disabled={authorizationPending}
+                                        disabled={authorizationBusy}
                                       >
                                         Autorizar
                                       </Button>
@@ -428,7 +452,7 @@ export default function BillingPage() {
                             <Button
                               type="button"
                               onClick={() => setAuthorizeDialogDocument(selectedDocument)}
-                              disabled={authorizationPending}
+                              disabled={authorizationBusy}
                             >
                               Autorizar en homologacion
                             </Button>
@@ -489,7 +513,7 @@ export default function BillingPage() {
         <AlertDialog
           open={Boolean(authorizeDialogDocument)}
           onOpenChange={(open) => {
-            if (!open && !authorizationPending) setAuthorizeDialogDocument(null);
+            if (!open && !authorizationBusy) setAuthorizeDialogDocument(null);
           }}
         >
           <AlertDialogContent>
@@ -513,15 +537,15 @@ export default function BillingPage() {
               </div>
             ) : null}
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={authorizationPending}>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel disabled={authorizationBusy}>Cancelar</AlertDialogCancel>
               <AlertDialogAction
-                disabled={!authorizeDialogDocument || authorizationPending}
+                disabled={!authorizeDialogDocument || authorizationBusy}
                 onClick={(event) => {
                   event.preventDefault();
                   if (authorizeDialogDocument) authorizeDocument(authorizeDialogDocument);
                 }}
               >
-                {authorizationPending ? "Autorizando..." : "Autorizar"}
+                {authorizationBusy ? "Autorizando..." : "Autorizar"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

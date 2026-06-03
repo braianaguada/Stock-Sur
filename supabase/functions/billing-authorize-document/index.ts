@@ -11,6 +11,7 @@ import {
   resolveAuthorizationPointOfSale,
   sanitizeProviderPayload,
   assertAuthorizationPreconditions,
+  getAuthorizationLockFailureMessage,
 } from "./logic.ts";
 
 const corsHeaders = {
@@ -210,7 +211,6 @@ Deno.serve(async (req) => {
       provider_errors: [],
       provider_observations: [],
       point_of_sale: resolvedPointOfSale,
-      updated_by: user.id,
     })
     .eq("id", document.id)
     .in("fiscal_status", ["DRAFT", "READY_TO_AUTHORIZE", "REJECTED"])
@@ -218,7 +218,35 @@ Deno.serve(async (req) => {
     .single();
 
   if (lockError || !lockedDocument) {
-    return json({ error: "El comprobante ya no esta disponible para autorizar." }, 409);
+    const { data: currentDocument } = await serviceClient
+      .from("billing_documents")
+      .select("id, fiscal_status, cae, voucher_number, updated_at")
+      .eq("id", document.id)
+      .maybeSingle();
+    const message = getAuthorizationLockFailureMessage({
+      document: currentDocument,
+      lockError: lockError
+        ? { code: (lockError as { code?: string }).code, message: lockError.message }
+        : null,
+    });
+
+    console.error("billing_authorize_lock_failed", JSON.stringify({
+      billingDocumentId: document.id,
+      fiscalStatusRead: document.fiscal_status,
+      currentFiscalStatus: currentDocument?.fiscal_status ?? null,
+      invoiceType: document.invoice_type,
+      documentKind: document.document_kind,
+      cae: Boolean(document.cae ?? currentDocument?.cae),
+      voucherNumber: document.voucher_number ?? currentDocument?.voucher_number ?? null,
+      sourceType: document.source_type,
+      sourceId: document.source_id,
+      sourceRemitoId: document.source_remito_id,
+      attemptedStatus: "AUTHORIZING",
+      lockErrorCode: lockError ? (lockError as { code?: string }).code ?? null : null,
+      lockErrorMessage: lockError?.message ?? null,
+    }));
+
+    return json({ error: message }, lockError ? 500 : 409);
   }
 
   const authPayload = buildAfipSdkAuthPayload(effectiveSettings);
@@ -284,7 +312,6 @@ Deno.serve(async (req) => {
         provider_errors: authorization.errors,
         provider_observations: authorization.observations,
         error_message: null,
-        updated_by: user.id,
       })
       .eq("id", lockedDocument.id)
       .select("*")
@@ -294,13 +321,13 @@ Deno.serve(async (req) => {
       throw new Error("Afip SDK autorizo el comprobante, pero no se pudo guardar el CAE.");
     }
 
-    await serviceClient.from("billing_events").insert({
+    const { error: authorizedEventError } = await serviceClient.from("billing_events").insert({
       company_id: lockedDocument.company_id,
       billing_document_id: lockedDocument.id,
       event_type: "AUTHORIZED",
-      from_status: lockedDocument.fiscal_status,
-      to_status: "AUTHORIZED",
       payload: {
+        from_status: lockedDocument.fiscal_status,
+        to_status: "AUTHORIZED",
         voucher_number: authorization.voucherNumber,
         voucher_full_number: authorization.voucherFullNumber,
         cae: authorization.cae,
@@ -309,6 +336,13 @@ Deno.serve(async (req) => {
       },
       created_by: user.id,
     });
+    if (authorizedEventError) {
+      console.error("billing_authorized_event_insert_failed", JSON.stringify({
+        billingDocumentId: lockedDocument.id,
+        errorCode: authorizedEventError.code,
+        errorMessage: authorizedEventError.message,
+      }));
+    }
 
     await serviceClient
       .from("billing_settings")
@@ -329,22 +363,28 @@ Deno.serve(async (req) => {
         provider_response: sanitizedResponse,
         provider_errors: [{ message }],
         error_message: message,
-        updated_by: user.id,
       })
       .eq("id", lockedDocument.id);
 
-    await serviceClient.from("billing_events").insert({
+    const { error: rejectedEventError } = await serviceClient.from("billing_events").insert({
       company_id: lockedDocument.company_id,
       billing_document_id: lockedDocument.id,
       event_type: "REJECTED",
-      from_status: lockedDocument.fiscal_status,
-      to_status: "REJECTED",
       payload: {
+        from_status: lockedDocument.fiscal_status,
+        to_status: "REJECTED",
         error_message: message,
         provider_response: sanitizedResponse,
       },
       created_by: user.id,
     });
+    if (rejectedEventError) {
+      console.error("billing_rejected_event_insert_failed", JSON.stringify({
+        billingDocumentId: lockedDocument.id,
+        errorCode: rejectedEventError.code,
+        errorMessage: rejectedEventError.message,
+      }));
+    }
 
     await serviceClient
       .from("billing_settings")
