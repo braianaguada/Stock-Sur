@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   AFIPSDK_CONSUMIDOR_FINAL_DOC_NUMBER,
   AFIPSDK_CONSUMIDOR_FINAL_DOC_TYPE,
+  AFIPSDK_IVA_0_ID,
   AFIPSDK_INVOICE_B_TYPE,
   assertAuthorizationPreconditions,
   buildAfipSdkInvoicePayload,
   buildAfipSdkLastVoucherPayload,
   buildAfipSdkAuthPayload,
+  buildAfipSdkVatItems,
+  getAuthorizationLockFailureMessage,
+  isAuthorizableFiscalStatus,
   isValidCuitFormat,
   normalizeCuit,
   parseAfipSdkAuthorizationResponse,
@@ -47,6 +51,41 @@ const lines = [{
 }];
 
 describe("Afip SDK authorization logic", () => {
+  it("allows DRAFT, READY_TO_AUTHORIZE and REJECTED to be locked for authorization", () => {
+    expect(isAuthorizableFiscalStatus("DRAFT")).toBe(true);
+    expect(isAuthorizableFiscalStatus("READY_TO_AUTHORIZE")).toBe(true);
+    expect(isAuthorizableFiscalStatus("REJECTED")).toBe(true);
+    expect(isAuthorizableFiscalStatus("AUTHORIZING")).toBe(false);
+    expect(isAuthorizableFiscalStatus("AUTHORIZED")).toBe(false);
+  });
+
+  it("returns specific lock failure messages by current fiscal status", () => {
+    expect(getAuthorizationLockFailureMessage({
+      document: { fiscal_status: "AUTHORIZING", updated_at: "2026-06-02T12:00:00Z" },
+      now: new Date("2026-06-02T12:02:00Z"),
+    })).toBe("El comprobante ya se esta autorizando. Estado actual: AUTHORIZING.");
+
+    expect(getAuthorizationLockFailureMessage({
+      document: { fiscal_status: "AUTHORIZING", updated_at: "2026-06-02T12:00:00Z" },
+      now: new Date("2026-06-02T12:20:00Z"),
+    })).toBe("El comprobante quedo en AUTHORIZING y requiere revision antes de reintentar.");
+
+    expect(getAuthorizationLockFailureMessage({
+      document: { fiscal_status: "AUTHORIZED", cae: "70400000000001", voucher_number: 42 },
+    })).toBe("El comprobante ya fue autorizado.");
+
+    expect(getAuthorizationLockFailureMessage({
+      document: { fiscal_status: "CANCELLED_INTERNAL" },
+    })).toBe("El comprobante no esta en un estado autorizable. Estado actual: CANCELLED_INTERNAL.");
+  });
+
+  it("returns useful diagnostics when a lock update fails for an otherwise authorizable document", () => {
+    expect(getAuthorizationLockFailureMessage({
+      document: { fiscal_status: "DRAFT" },
+      lockError: { code: "23514", message: "new row violates check constraint" },
+    })).toBe("No se pudo bloquear el comprobante para autorizar. Estado actual: DRAFT. Error DB (23514): new row violates check constraint");
+  });
+
   it("normalizes and validates issuer CUIT format", () => {
     expect(normalizeCuit("20-40937847-2")).toBe("20409378472");
     expect(isValidCuitFormat("20409378472")).toBe(true);
@@ -123,6 +162,34 @@ describe("Afip SDK authorization logic", () => {
             },
           },
         },
+      },
+    });
+  });
+
+  it("builds IVA 0 AlicIva item for zero tax Factura B lines", () => {
+    expect(buildAfipSdkVatItems([
+      { vat_rate: 0, net_amount: 288, vat_amount: 0 },
+      { vat_rate: 0, net_amount: 0, vat_amount: 0 },
+    ])).toEqual([{ Id: AFIPSDK_IVA_0_ID, BaseImp: 288, Importe: 0 }]);
+
+    const payload = buildAfipSdkInvoicePayload({
+      document: { ...document, subtotal: 288, tax_total: 0, total: 288 },
+      settings,
+      lines: [
+        { vat_rate: 0, net_amount: 288, vat_amount: 0 },
+        { vat_rate: 0, net_amount: 0, vat_amount: 0 },
+      ],
+      tokenAuthorization: { token: "token", sign: "sign" },
+      voucherNumber: 26436,
+      voucherDate: new Date("2026-06-03T12:00:00Z"),
+    });
+
+    expect(payload.params.FeCAEReq.FeDetReq.FECAEDetRequest).toMatchObject({
+      ImpTotal: 288,
+      ImpNeto: 288,
+      ImpIVA: 0,
+      Iva: {
+        AlicIva: [{ Id: AFIPSDK_IVA_0_ID, BaseImp: 288, Importe: 0 }],
       },
     });
   });

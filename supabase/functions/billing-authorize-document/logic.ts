@@ -6,6 +6,7 @@ export const AFIPSDK_CONSUMIDOR_FINAL_DOC_TYPE = 99;
 export const AFIPSDK_CONSUMIDOR_FINAL_DOC_NUMBER = 0;
 export const AFIPSDK_PRODUCTS_CONCEPT = 1;
 export const AFIPSDK_ARS_CURRENCY = "PES";
+export const AFIPSDK_IVA_0_ID = 3;
 export const AFIPSDK_IVA_21_ID = 5;
 export const AFIPSDK_CONDICION_IVA_RECEPTOR_CONSUMIDOR_FINAL = 5;
 
@@ -24,6 +25,18 @@ type BillingDocumentLike = {
   tax_total: number | string;
   total: number | string;
   point_of_sale: number | null;
+};
+
+type LockFailureDocumentLike = {
+  fiscal_status: string;
+  cae?: string | null;
+  voucher_number?: number | string | null;
+  updated_at?: string | null;
+};
+
+type LockFailureErrorLike = {
+  code?: string | null;
+  message?: string | null;
 };
 
 type BillingSettingsLike = {
@@ -73,6 +86,45 @@ export function isValidCuitFormat(value: string) {
   return normalizeCuit(value).length === 11;
 }
 
+export function isAuthorizableFiscalStatus(status: string) {
+  return ["DRAFT", "READY_TO_AUTHORIZE", "REJECTED"].includes(status);
+}
+
+export function getAuthorizationLockFailureMessage(params: {
+  document: LockFailureDocumentLike | null;
+  lockError?: LockFailureErrorLike | null;
+  now?: Date;
+}) {
+  const { document, lockError } = params;
+  if (!document) return "Comprobante fiscal no encontrado.";
+
+  const status = document.fiscal_status;
+  if (status === "AUTHORIZED" || document.cae || document.voucher_number) {
+    return "El comprobante ya fue autorizado.";
+  }
+
+  if (status === "AUTHORIZING") {
+    const now = params.now ?? new Date();
+    const updatedAt = document.updated_at ? new Date(document.updated_at) : null;
+    const ageMs = updatedAt && Number.isFinite(updatedAt.getTime()) ? now.getTime() - updatedAt.getTime() : null;
+    if (ageMs !== null && ageMs > 10 * 60 * 1000) {
+      return "El comprobante quedo en AUTHORIZING y requiere revision antes de reintentar.";
+    }
+    return "El comprobante ya se esta autorizando. Estado actual: AUTHORIZING.";
+  }
+
+  if (!isAuthorizableFiscalStatus(status)) {
+    return `El comprobante no esta en un estado autorizable. Estado actual: ${status}.`;
+  }
+
+  if (lockError?.message) {
+    const code = lockError.code ? ` (${lockError.code})` : "";
+    return `No se pudo bloquear el comprobante para autorizar. Estado actual: ${status}. Error DB${code}: ${lockError.message}`;
+  }
+
+  return `No se pudo bloquear el comprobante para autorizar. Estado actual: ${status}.`;
+}
+
 export function onlyDigits(value: string | null | undefined) {
   return (value ?? "").replace(/\D/g, "");
 }
@@ -92,6 +144,32 @@ export function formatVoucherFullNumber(pointOfSale: number, voucherNumber: numb
   return `${String(pointOfSale).padStart(5, "0")}-${String(voucherNumber).padStart(8, "0")}`;
 }
 
+function resolveAfipVatId(vatRate: number) {
+  if (vatRate === 0) return AFIPSDK_IVA_0_ID;
+  if (vatRate === 21) return AFIPSDK_IVA_21_ID;
+  throw new Error(`Alicuota IVA no soportada para Afip SDK dev: ${vatRate}.`);
+}
+
+export function buildAfipSdkVatItems(lines: BillingLineLike[]) {
+  const grouped = new Map<number, { base: number; amount: number }>();
+  for (const line of lines) {
+    const vatRate = Number(line.vat_rate);
+    const afipVatId = resolveAfipVatId(vatRate);
+    const current = grouped.get(afipVatId) ?? { base: 0, amount: 0 };
+    current.base += Number(line.net_amount);
+    current.amount += Number(line.vat_amount);
+    grouped.set(afipVatId, current);
+  }
+
+  return [...grouped.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([id, values]) => ({
+      Id: id,
+      BaseImp: roundMoney(values.base),
+      Importe: roundMoney(values.amount),
+    }));
+}
+
 export function assertAuthorizationPreconditions(params: {
   document: BillingDocumentLike | null;
   settings: BillingSettingsLike | null;
@@ -109,7 +187,7 @@ export function assertAuthorizationPreconditions(params: {
   if (document.invoice_type !== "FACTURA_B") {
     throw new Error("Solo se admite Factura B en esta etapa.");
   }
-  if (!["DRAFT", "READY_TO_AUTHORIZE", "REJECTED"].includes(document.fiscal_status)) {
+  if (!isAuthorizableFiscalStatus(document.fiscal_status)) {
     throw new Error("El comprobante no esta en un estado autorizable.");
   }
   if (!document.point_of_sale || document.point_of_sale <= 0) {
@@ -182,8 +260,7 @@ export function buildAfipSdkInvoicePayload(params: {
   const subtotal = roundMoney(Number(document.subtotal));
   const taxTotal = roundMoney(Number(document.tax_total));
   const total = roundMoney(Number(document.total));
-  const ivaBase = roundMoney(lines.reduce((sum, line) => sum + Number(line.net_amount), 0));
-  const ivaAmount = roundMoney(lines.reduce((sum, line) => sum + Number(line.vat_amount), 0));
+  const vatItems = buildAfipSdkVatItems(lines);
 
   return {
     environment: AFIPSDK_ENVIRONMENT,
@@ -219,11 +296,7 @@ export function buildAfipSdkInvoicePayload(params: {
             MonCotiz: 1,
             CondicionIVAReceptorId: AFIPSDK_CONDICION_IVA_RECEPTOR_CONSUMIDOR_FINAL,
             Iva: {
-              AlicIva: [{
-                Id: AFIPSDK_IVA_21_ID,
-                BaseImp: ivaBase,
-                Importe: ivaAmount,
-              }],
+              AlicIva: vatItems,
             },
           },
         },
