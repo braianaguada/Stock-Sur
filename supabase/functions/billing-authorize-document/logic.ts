@@ -65,6 +65,14 @@ export function normalizeAfipSdkBaseUrl(value: string | undefined | null) {
   return baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
 }
 
+export function normalizeCuit(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+export function isValidCuitFormat(value: string) {
+  return normalizeCuit(value).length === 11;
+}
+
 export function onlyDigits(value: string | null | undefined) {
   return (value ?? "").replace(/\D/g, "");
 }
@@ -112,8 +120,11 @@ export function assertAuthorizationPreconditions(params: {
   }
 
   const issuerTaxId = onlyDigits(document.issuer_tax_id ?? settings.issuer_tax_id);
+  if (!issuerTaxId) {
+    throw new Error("Configurá el CUIT emisor en Facturación > Configuración fiscal.");
+  }
   if (issuerTaxId.length !== 11) {
-    throw new Error("Falta CUIT emisor valido en la configuracion de facturacion.");
+    throw new Error("El CUIT emisor debe tener 11 dígitos.");
   }
   if (lines.length === 0) {
     throw new Error("El comprobante no tiene lineas para autorizar.");
@@ -147,7 +158,8 @@ export function resolveAuthorizationPointOfSale(params: {
 
 export function buildAfipSdkAuthPayload(settings: BillingSettingsLike) {
   const taxId = onlyDigits(settings.issuer_tax_id);
-  if (taxId.length !== 11) throw new Error("Falta CUIT emisor valido para obtener TA de Afip SDK.");
+  if (!taxId) throw new Error("Configurá el CUIT emisor en Facturación > Configuración fiscal.");
+  if (taxId.length !== 11) throw new Error("El CUIT emisor debe tener 11 dígitos.");
 
   return {
     environment: AFIPSDK_ENVIRONMENT,

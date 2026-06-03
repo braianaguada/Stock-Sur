@@ -6,6 +6,9 @@ import {
   assertAuthorizationPreconditions,
   buildAfipSdkInvoicePayload,
   buildAfipSdkLastVoucherPayload,
+  buildAfipSdkAuthPayload,
+  isValidCuitFormat,
+  normalizeCuit,
   parseAfipSdkAuthorizationResponse,
   parseLastVoucherNumber,
   resolveAuthorizationPointOfSale,
@@ -44,6 +47,15 @@ const lines = [{
 }];
 
 describe("Afip SDK authorization logic", () => {
+  it("normalizes and validates issuer CUIT format", () => {
+    expect(normalizeCuit("20-40937847-2")).toBe("20409378472");
+    expect(isValidCuitFormat("20409378472")).toBe(true);
+    expect(isValidCuitFormat("")).toBe(false);
+    expect(isValidCuitFormat("2040937847")).toBe(false);
+    expect(isValidCuitFormat("letras")).toBe(false);
+    expect(isValidCuitFormat("12345678901")).toBe(true);
+  });
+
   it("validates only Factura B AFIPSDK dev documents", () => {
     expect(() => assertAuthorizationPreconditions({ document, settings, lines })).not.toThrow();
     expect(() => assertAuthorizationPreconditions({
@@ -63,6 +75,20 @@ describe("Afip SDK authorization logic", () => {
     })).toThrow("estado autorizable");
   });
 
+  it("rejects missing or invalid issuer CUIT with fiscal settings messages", () => {
+    expect(() => assertAuthorizationPreconditions({
+      document: { ...document, issuer_tax_id: null },
+      settings: { ...settings, issuer_tax_id: null },
+      lines,
+    })).toThrow("Configurá el CUIT emisor en Facturación > Configuración fiscal.");
+
+    expect(() => assertAuthorizationPreconditions({
+      document: { ...document, issuer_tax_id: null },
+      settings: { ...settings, issuer_tax_id: "20-123" },
+      lines,
+    })).toThrow("El CUIT emisor debe tener 11 dígitos.");
+  });
+
   it("builds FECAESolicitar payload for Factura B consumidor final", () => {
     const payload = buildAfipSdkInvoicePayload({
       document,
@@ -78,6 +104,7 @@ describe("Afip SDK authorization logic", () => {
       method: "FECAESolicitar",
       wsid: "wsfe",
       params: {
+        Auth: { Cuit: "20123456789" },
         FeCAEReq: {
           FeCabReq: { CantReg: 1, PtoVta: 1, CbteTipo: AFIPSDK_INVOICE_B_TYPE },
           FeDetReq: {
@@ -97,6 +124,14 @@ describe("Afip SDK authorization logic", () => {
           },
         },
       },
+    });
+  });
+
+  it("uses configured issuer CUIT for Afip SDK auth payload", () => {
+    expect(buildAfipSdkAuthPayload({ ...settings, issuer_tax_id: "20-40937847-2" })).toEqual({
+      environment: "dev",
+      tax_id: "20409378472",
+      wsid: "wsfe",
     });
   });
 
