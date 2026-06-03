@@ -5,7 +5,9 @@ import {
   canShowAuthorizeBillingDocumentAction,
   canShowCreateCreditNoteBAction,
   canShowPrintBillingDocumentAction,
+  canShowResetStaleAuthorizationAction,
   FISCAL_QR_BASE_URL,
+  isRecentAuthorizingDocument,
   NOTA_CREDITO_B_CBTE_TIPO,
 } from "./authorization";
 import type { BillingDocumentRow } from "../types";
@@ -103,6 +105,26 @@ describe("billing authorization UI helpers", () => {
     }), ["user"], context)).toBe(true);
     expect(canShowPrintBillingDocumentAction(buildDocument(), ["user"], context)).toBe(false);
     expect(canShowPrintBillingDocumentAction(authorized, ["user"], { companyPermissionCodes: [] })).toBe(false);
+  });
+
+  it("blocks recent AUTHORIZING documents and allows stale recovery without CAE/voucher", () => {
+    const context = { companyPermissionCodes: ["billing.authorize"] };
+    const now = new Date("2026-06-02T12:20:00Z");
+    const recent = buildDocument({ fiscal_status: "AUTHORIZING", updated_at: "2026-06-02T12:15:00Z" });
+    const stale = buildDocument({ fiscal_status: "AUTHORIZING", updated_at: "2026-06-02T12:00:00Z" });
+    const authorized = buildDocument({
+      fiscal_status: "AUTHORIZED",
+      updated_at: "2026-06-02T12:00:00Z",
+      cae: "70400000000001",
+      voucher_number: 42,
+    });
+
+    expect(isRecentAuthorizingDocument(recent, now)).toBe(true);
+    expect(isRecentAuthorizingDocument(stale, now)).toBe(false);
+    expect(canShowResetStaleAuthorizationAction(recent, ["user"], context, now)).toBe(false);
+    expect(canShowResetStaleAuthorizationAction(stale, ["user"], context, now)).toBe(true);
+    expect(canShowResetStaleAuthorizationAction(stale, ["user"], { companyPermissionCodes: [] }, now)).toBe(false);
+    expect(canShowResetStaleAuthorizationAction(authorized, ["user"], context, now)).toBe(false);
   });
 
   it("builds ARCA fiscal QR URL with base64 JSON payload", () => {

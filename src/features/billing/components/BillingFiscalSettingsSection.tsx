@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getErrorMessage } from "@/lib/errors";
 import { isValidCuitFormat, normalizeCuit } from "../lib/cuit";
-import type { BillingPointOfSaleRow, BillingSettingsRow } from "../types";
+import type { BillingDiagnosticsResult, BillingPointOfSaleRow, BillingSettingsRow } from "../types";
 
 type ToastFn = (toast: {
   title: string;
@@ -41,6 +41,8 @@ type BillingFiscalSettingsSectionProps = {
   updatingPointOfSale: boolean;
   toast: ToastFn;
   canEdit: boolean;
+  diagnostics?: BillingDiagnosticsResult | null;
+  diagnosticsLoading?: boolean;
 };
 
 type PointForm = Record<string, { description: string; isEnabled: boolean }>;
@@ -63,6 +65,8 @@ export function BillingFiscalSettingsSection({
   updatingPointOfSale,
   toast,
   canEdit,
+  diagnostics,
+  diagnosticsLoading = false,
 }: BillingFiscalSettingsSectionProps) {
   const devSettings = useMemo(
     () => settings.find((setting) => setting.provider === "AFIPSDK" && setting.environment === "dev") ?? null,
@@ -209,6 +213,41 @@ export function BillingFiscalSettingsSection({
             <p className="mt-1 font-medium">Factura B dev</p>
             <p className="mt-1 text-xs text-muted-foreground">No se habilita produccion desde esta pantalla.</p>
           </div>
+        </div>
+
+        <div className="rounded-lg border bg-muted/20 p-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="font-semibold">Estado de configuracion</h3>
+              <p className="text-sm text-muted-foreground">
+                Diagnostico seguro: muestra presencia/estado, nunca valores de secretos.
+              </p>
+            </div>
+            <Badge variant="outline">{diagnosticsLoading ? "Verificando" : diagnostics?.edgeFunctionAvailable ? "Edge OK" : "Sin diagnostico"}</Badge>
+          </div>
+          <div className="mt-4 grid gap-2 text-sm md:grid-cols-2 xl:grid-cols-4">
+            {[
+              ["Facturacion interna", diagnostics?.billingEnabled ?? settingsForm.isEnabled],
+              ["Provider AFIPSDK", (diagnostics?.provider ?? "AFIPSDK") === "AFIPSDK"],
+              ["Environment dev", (diagnostics?.environment ?? "dev") === "dev"],
+              ["CUIT emisor valido", diagnostics?.issuerTaxIdValid ?? isValidCuitFormat(settingsForm.issuerTaxId)],
+              ["POS dev habilitado", diagnostics?.posConfigured ?? pointsOfSale.some((point) => point.is_enabled)],
+              ["Secret AFIPSDK token", diagnostics?.afipSdkAccessTokenConfigured ?? false],
+              ["Secret base URL", diagnostics?.afipSdkBaseUrlConfigured ?? false],
+              ["Secret environment dev", diagnostics?.afipSdkEnvironmentConfigured ?? false],
+            ].map(([label, ok]) => (
+              <div key={String(label)} className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2">
+                <span>{label}</span>
+                <Badge variant={ok ? "default" : "outline"}>{ok ? "OK" : "Pendiente"}</Badge>
+              </div>
+            ))}
+          </div>
+          {diagnostics?.lastAuthorizedAt || diagnostics?.lastErrorAt ? (
+            <div className="mt-3 grid gap-2 text-xs text-muted-foreground md:grid-cols-2">
+              <p>Ultima autorizacion dev: {diagnostics.lastAuthorizedAt ?? "Sin autorizaciones"}</p>
+              <p>Ultimo error dev: {diagnostics.lastErrorAt ? `${diagnostics.lastErrorAt} - ${diagnostics.lastErrorMessage ?? "sin detalle"}` : "Sin errores"}</p>
+            </div>
+          ) : null}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

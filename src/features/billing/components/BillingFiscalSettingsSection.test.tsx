@@ -43,6 +43,21 @@ function renderSection(options?: { canEdit?: boolean; onSaveSettings?: ReturnTyp
       updatingPointOfSale={false}
       toast={vi.fn()}
       canEdit={options?.canEdit ?? true}
+      diagnostics={{
+        billingEnabled: true,
+        provider: "AFIPSDK",
+        environment: "dev",
+        issuerTaxIdConfigured: true,
+        issuerTaxIdValid: true,
+        posConfigured: true,
+        afipSdkAccessTokenConfigured: true,
+        afipSdkBaseUrlConfigured: true,
+        afipSdkEnvironmentConfigured: true,
+        edgeFunctionAvailable: true,
+        lastAuthorizedAt: null,
+        lastErrorAt: null,
+        lastErrorMessage: null,
+      }}
     />,
   );
 }
@@ -78,5 +93,15 @@ describe("BillingFiscalSettingsSection", () => {
     expect(screen.getByText("Estado credenciales")).toBeInTheDocument();
     expect(screen.getByLabelText("CUIT emisor")).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Guardar configuracion" })).not.toBeInTheDocument();
+  });
+
+  it("shows diagnostics checks without secret values", () => {
+    renderSection();
+
+    expect(screen.getByText("Estado de configuracion")).toBeInTheDocument();
+    expect(screen.getByText("Secret AFIPSDK token")).toBeInTheDocument();
+    expect(screen.getByText("Secret base URL")).toBeInTheDocument();
+    expect(screen.queryByText(/Bearer/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/access_token/i)).not.toBeInTheDocument();
   });
 });

@@ -319,6 +319,20 @@ export function useBillingActions({ companyId, businessDate }: UseBillingActions
     },
   });
 
+  const resetStaleAuthorizationMutation = useMutation({
+    mutationFn: async ({ billingDocumentId }: { billingDocumentId: string }) => {
+      const { data, error } = await billingRpc.rpc("reset_stale_billing_authorization", {
+        p_billing_document_id: billingDocumentId,
+      });
+
+      if (error) throw error;
+      return data as BillingDocumentRow;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.billing.documents(companyId) });
+    },
+  });
+
   return {
     createBillingDraftMutation,
     createBillingCreditNoteMutation,
@@ -329,5 +343,6 @@ export function useBillingActions({ companyId, businessDate }: UseBillingActions
     updateBillingPointOfSaleMutation,
     assignBillingDocumentPointOfSaleMutation,
     authorizeBillingDocumentMutation,
+    resetStaleAuthorizationMutation,
   };
 }

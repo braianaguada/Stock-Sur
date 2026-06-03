@@ -12,6 +12,7 @@ export const FACTURA_B_CBTE_TIPO = 6;
 export const NOTA_CREDITO_B_CBTE_TIPO = 8;
 export const CONSUMIDOR_FINAL_DOC_TIPO = 99;
 export const CONSUMIDOR_FINAL_DOC_NRO = 0;
+export const STALE_AUTHORIZING_MINUTES = 10;
 
 export function getBillingDocumentTypeLabel(document: Pick<BillingDocumentRow, "document_kind" | "invoice_type"> | null) {
   if (!document) return "Comprobante fiscal";
@@ -71,6 +72,25 @@ export function canShowAuthorizeBillingDocumentAction(
       ["DRAFT", "READY_TO_AUTHORIZE", "REJECTED"].includes(document.fiscal_status) &&
       !document.cae,
   );
+}
+
+export function isRecentAuthorizingDocument(document: BillingDocumentRow | null, now = new Date()) {
+  if (!document || document.fiscal_status !== "AUTHORIZING") return false;
+  const updatedAt = new Date(document.updated_at);
+  if (!Number.isFinite(updatedAt.getTime())) return true;
+  return now.getTime() - updatedAt.getTime() <= STALE_AUTHORIZING_MINUTES * 60 * 1000;
+}
+
+export function canShowResetStaleAuthorizationAction(
+  document: BillingDocumentRow | null,
+  roles: AppRole[],
+  context?: BillingAccessContext,
+  now = new Date(),
+) {
+  if (!document || !canAuthorizeBilling(roles, context)) return false;
+  if (document.fiscal_status !== "AUTHORIZING") return false;
+  if (document.cae || document.voucher_number) return false;
+  return !isRecentAuthorizingDocument(document, now);
 }
 
 export function canShowPrintBillingDocumentAction(

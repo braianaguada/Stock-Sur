@@ -678,6 +678,17 @@ La Nota de Credito B de homologacion permite anular fiscalmente una Factura B au
 - La impresion usa la vista HTML interna y `window.print()`, muestra la factura asociada, CAE, vencimiento y QR fiscal. No usa el endpoint PDF de Afip SDK.
 - Pendiente: notas parciales, Nota de Credito A, Factura A, Nota de Debito y produccion.
 
+## Facturacion - hardening preproduccion
+
+La pantalla operativa `/billing` queda separada de la configuracion fiscal:
+
+- `/billing` muestra solo comprobantes, filtros, estados, acciones de autorizacion, impresion y Nota de Credito B total.
+- La configuracion de CUIT, provider, ambiente, puntos de venta y diagnostico vive en `Configuracion > Facturacion fiscal`.
+- El diagnostico fiscal expone solo estados booleanos/presencia de secrets. No devuelve tokens, certificados ni valores sensibles.
+- Los comprobantes `AUTHORIZING` recientes quedan bloqueados para evitar doble emision; los trabados por mas de 10 minutos pueden liberarse con una RPC controlada si no tienen CAE ni numero fiscal.
+- Los errores de Afip SDK se normalizan para mostrar mensajes accionables sin Bearer, tokens, certificados, private keys ni payloads largos.
+- El ambiente habilitado sigue siendo `dev`/homologacion. Produccion, Factura A, Nota de Credito A, Nota de Debito y notas parciales quedan fuera de esta fase.
+
 ## Database migrations
 
 Migrations are stored in:

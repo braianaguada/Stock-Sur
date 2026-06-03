@@ -14,6 +14,7 @@ import {
   getAuthorizationLockFailureMessage,
   isAuthorizableFiscalStatus,
   isValidCuitFormat,
+  normalizeBillingError,
   normalizeCuit,
   parseAfipSdkAuthorizationResponse,
   parseLastVoucherNumber,
@@ -81,12 +82,12 @@ describe("Afip SDK authorization logic", () => {
     expect(getAuthorizationLockFailureMessage({
       document: { fiscal_status: "AUTHORIZING", updated_at: "2026-06-02T12:00:00Z" },
       now: new Date("2026-06-02T12:02:00Z"),
-    })).toBe("El comprobante ya se esta autorizando. Estado actual: AUTHORIZING.");
+    })).toBe("La autorizacion esta en proceso. Espera unos minutos.");
 
     expect(getAuthorizationLockFailureMessage({
       document: { fiscal_status: "AUTHORIZING", updated_at: "2026-06-02T12:00:00Z" },
       now: new Date("2026-06-02T12:20:00Z"),
-    })).toBe("El comprobante quedo en AUTHORIZING y requiere revision antes de reintentar.");
+    })).toBe("La autorizacion quedo trabada. Liberala desde Facturacion antes de reintentar.");
 
     expect(getAuthorizationLockFailureMessage({
       document: { fiscal_status: "AUTHORIZED", cae: "70400000000001", voucher_number: 42 },
@@ -170,7 +171,7 @@ describe("Afip SDK authorization logic", () => {
       document: { ...document, issuer_tax_id: null },
       settings: { ...settings, issuer_tax_id: null },
       lines,
-    })).toThrow("Configurá el CUIT emisor en Facturación > Configuración fiscal.");
+    })).toThrow("Configura el CUIT emisor en Configuracion > Facturacion fiscal.");
 
     expect(() => assertAuthorizationPreconditions({
       document: { ...document, issuer_tax_id: null },
@@ -373,17 +374,30 @@ describe("Afip SDK authorization logic", () => {
 
   it("redacts token, sign, access tokens, certs and keys from provider payloads", () => {
     expect(sanitizeProviderPayload({
-      Authorization: "[REDACTED]",
+      Authorization: "Bearer abc123",
       Auth: { Token: "token", Sign: "sign", Cuit: "20123456789" },
       access_token: "secret",
       cert: "cert",
       key: "key",
+      message: "Authorization Bearer abc123",
+      cae: "70400000000001",
     })).toEqual({
       Authorization: "[REDACTED]",
       Auth: { Token: "[REDACTED]", Sign: "[REDACTED]", Cuit: "20123456789" },
       access_token: "[REDACTED]",
       cert: "[REDACTED]",
       key: "[REDACTED]",
+      message: "[REDACTED]",
+      cae: "70400000000001",
     });
+  });
+
+  it("normalizes controlled billing error messages without leaking secrets", () => {
+    expect(normalizeBillingError(Object.assign(new Error("HTTP 429 rate limit"), { status: 429 })))
+      .toBe("Afip SDK recibio demasiadas solicitudes. Espera y reintenta.");
+    expect(normalizeBillingError(new Error("Authorization Bearer abc123 invalid token")))
+      .toBe("Las credenciales de Afip SDK no son validas o no tienen permisos.");
+    expect(normalizeBillingError(new Error("fetch failed timeout")))
+      .toBe("Afip SDK no respondio a tiempo. Reintenta luego.");
   });
 });

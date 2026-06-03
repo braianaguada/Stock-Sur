@@ -10,6 +10,7 @@ import {
   parseLastVoucherNumber,
   resolveAuthorizationPointOfSale,
   sanitizeProviderPayload,
+  normalizeBillingError,
   assertAuthorizationPreconditions,
   assertCreditNoteRelatedInvoicePreconditions,
   getAuthorizationLockFailureMessage,
@@ -399,7 +400,7 @@ Deno.serve(async (req) => {
 
     return json({ document: authorizedDocument });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado al autorizar con Afip SDK.";
+    const message = normalizeBillingError(error);
     const errorWithProvider = error as Error & { providerResponse?: unknown };
     const sanitizedResponse = sanitizeProviderPayload(errorWithProvider.providerResponse ?? providerResponse ?? null);
 

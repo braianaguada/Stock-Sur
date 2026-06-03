@@ -67,6 +67,22 @@ export type BillingDocumentRow = {
   updated_at: string;
 };
 
+export type BillingDiagnosticsResult = {
+  billingEnabled: boolean;
+  provider: "AFIPSDK" | string;
+  environment: "dev" | string;
+  issuerTaxIdConfigured: boolean;
+  issuerTaxIdValid: boolean;
+  posConfigured: boolean;
+  afipSdkAccessTokenConfigured: boolean;
+  afipSdkBaseUrlConfigured: boolean;
+  afipSdkEnvironmentConfigured: boolean;
+  edgeFunctionAvailable: boolean;
+  lastAuthorizedAt: string | null;
+  lastErrorAt: string | null;
+  lastErrorMessage: string | null;
+};
+
 export type BillingDocumentLineRow = {
   id: string;
   billing_document_id: string;
