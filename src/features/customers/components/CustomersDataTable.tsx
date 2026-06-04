@@ -48,7 +48,7 @@ export function CustomersDataTable({
       header: () => "Tipo",
       cell: ({ row }) => (
         <Badge variant={row.original.is_occasional ? "secondary" : "default"}>
-          {row.original.is_occasional ? "Ocasional" : "Regular"}
+          {row.original.is_occasional ? "Sistema legacy" : "Registrado"}
         </Badge>
       ),
     },
@@ -78,8 +78,9 @@ export function CustomersDataTable({
             <Eye className="h-4 w-4" />
           </RowActionButton>
           <RowActionButton
-            label="Editar"
+            label={row.original.is_occasional ? "Cliente ocasional no se edita desde Clientes" : "Editar"}
             tone="edit"
+            disabled={row.original.is_occasional}
             onClick={() => onEdit(row.original)}
           >
             <Pencil className="h-4 w-4" />

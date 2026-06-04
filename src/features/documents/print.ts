@@ -3,7 +3,7 @@ import { escapeHtml } from "@/lib/print";
 import { formatDateTime, formatIsoDate } from "@/lib/formatters";
 import { CUSTOMER_KIND_LABEL, DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "./constants";
 import type { DocLineRow, DocRow } from "./types";
-import { formatNumber } from "./utils";
+import { formatNumber, getCustomerDisplayName } from "./utils";
 
 type PrintableLine = Pick<
   DocLineRow,
@@ -230,7 +230,7 @@ export function buildDocumentPrintHtml({
         <section class="meta-grid avoid-break">
           <div class="box">
             <p class="box-title">Cliente</p>
-            ${optionalMeta("Nombre", document.customer_name ?? "Cliente ocasional")}
+            ${optionalMeta("Nombre", getCustomerDisplayName(document))}
             ${optionalMeta("Tipo", CUSTOMER_KIND_LABEL[document.customer_kind])}
             ${optionalMeta("CUIT", document.customer_tax_id ?? "-")}
             ${optionalMeta("Fiscal", document.customer_tax_condition ?? "-")}

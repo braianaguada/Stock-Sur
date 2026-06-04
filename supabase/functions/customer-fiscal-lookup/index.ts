@@ -72,7 +72,9 @@ Deno.serve(async (req) => {
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const afipSdkAccessToken = Deno.env.get("AFIPSDK_ACCESS_TOKEN");
   const afipSdkBaseUrl = normalizeAfipSdkBaseUrl(Deno.env.get("AFIPSDK_BASE_URL") ?? AFIPSDK_BASE_URL);
-  const afipSdkEnvironment = normalizeAfipSdkEnvironment(Deno.env.get("AFIPSDK_ENVIRONMENT"));
+  const afipSdkEnvironment = normalizeAfipSdkEnvironment(
+    Deno.env.get("CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT") ?? Deno.env.get("AFIPSDK_ENVIRONMENT"),
+  );
 
   if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
     return json({ error: "Faltan secretos requeridos de Supabase." }, 500);
@@ -142,10 +144,13 @@ Deno.serve(async (req) => {
         customer_id: customer.id,
         tax_id: taxId,
         legal_name: existingProfile?.legal_name || customer.name,
-        tax_condition: existingProfile?.tax_condition ?? null,
+        tax_condition: existingProfile?.tax_condition ?? "UNKNOWN",
         fiscal_address: existingProfile?.fiscal_address ?? null,
+        taxpayer_status: null,
         validation_status: "ERROR",
         validation_source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION",
+        tax_condition_source: "UNKNOWN",
+        legal_name_source: existingProfile?.legal_name ? "OFFICIAL" : "UNKNOWN",
         validation_error: message,
         validation_snapshot: null,
         validated_at: null,
@@ -188,8 +193,11 @@ Deno.serve(async (req) => {
         legal_name: fiscalData.legalName || existingProfile?.legal_name || customer.name,
         tax_condition: fiscalData.taxCondition,
         fiscal_address: fiscalData.fiscalAddress,
+        taxpayer_status: fiscalData.taxpayerStatus,
         validation_status: fiscalData.status,
         validation_source: fiscalData.source,
+        tax_condition_source: fiscalData.taxConditionSource,
+        legal_name_source: fiscalData.legalNameSource,
         validation_error: null,
         validation_snapshot: fiscalData.snapshot,
         validated_at: new Date().toISOString(),
@@ -212,10 +220,13 @@ Deno.serve(async (req) => {
         customer_id: customer.id,
         tax_id: taxId,
         legal_name: existingProfile?.legal_name || customer.name,
-        tax_condition: existingProfile?.tax_condition ?? null,
+        tax_condition: existingProfile?.tax_condition ?? "UNKNOWN",
         fiscal_address: existingProfile?.fiscal_address ?? null,
+        taxpayer_status: null,
         validation_status: "ERROR",
         validation_source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION",
+        tax_condition_source: "UNKNOWN",
+        legal_name_source: existingProfile?.legal_name ? "OFFICIAL" : "UNKNOWN",
         validation_error: message,
         validation_snapshot: snapshot,
         validated_at: null,

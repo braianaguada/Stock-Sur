@@ -7,8 +7,13 @@ export type FiscalLookupData = {
   legalName: string | null;
   taxCondition: string;
   fiscalAddress: string | null;
-  status: "VALIDATED";
+  taxpayerStatus: string | null;
+  status: "VALIDATED_AUTO";
   source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION";
+  taxConditionSource: "OFFICIAL_DERIVED" | "UNKNOWN";
+  legalNameSource: "OFFICIAL" | "UNKNOWN";
+  eligibleForInvoiceA: boolean;
+  reason: string | null;
   snapshot: unknown;
 };
 
@@ -159,19 +164,75 @@ function collectNestedArrays(root: unknown, keyPattern: RegExp): unknown[] {
   return result;
 }
 
-export function inferTaxCondition(response: unknown) {
+function isActiveStatus(value: unknown) {
+  const text = firstText(value).toUpperCase();
+  return !text || text === "ACTIVO" || text === "A";
+}
+
+function getTaxpayerStatus(response: unknown) {
+  return firstText(findFirstNestedText(response, /^estadoClave$/i)) || null;
+}
+
+export function normalizeTaxConditionFromConstancia(response: unknown) {
+  const taxpayerStatus = getTaxpayerStatus(response);
+  if (taxpayerStatus && taxpayerStatus.toUpperCase() !== "ACTIVO") {
+    return {
+      taxCondition: "UNKNOWN",
+      taxConditionSource: "UNKNOWN" as const,
+      eligibleForInvoiceA: false,
+      reason: "CUIT no activo",
+      taxpayerStatus,
+    };
+  }
+
   const monotributo = findNestedObject(response, "datosMonotributo");
-  if (Object.keys(monotributo).length > 0) return "MONOTRIBUTO";
+  if (Object.keys(monotributo).length > 0) {
+    return {
+      taxCondition: "MONOTRIBUTO",
+      taxConditionSource: "OFFICIAL_DERIVED" as const,
+      eligibleForInvoiceA: false,
+      reason: "Monotributo no habilita Factura A en esta fase",
+      taxpayerStatus,
+    };
+  }
 
   const impuestos = collectNestedArrays(response, /impuesto/i);
-  const labels = impuestos.map((item) => {
+  const activeImpuestos = impuestos.filter((item) => isActiveStatus(asObject(item).estadoImpuesto));
+  const labels = activeImpuestos.map((item) => {
     const object = asObject(item);
     return firstText(object.descripcionImpuesto, object.descImpuesto, object.descripcion, object.nombre, object.idImpuesto);
   }).join(" ").toUpperCase();
 
-  if (/IVA/.test(labels) && /EXENTO/.test(labels)) return "IVA_EXENTO";
-  if (/IVA/.test(labels) || /\b30\b/.test(labels)) return "RESPONSABLE_INSCRIPTO";
-  return null;
+  if (/IVA/.test(labels) && /EXENTO/.test(labels)) {
+    return {
+      taxCondition: "IVA_EXENTO",
+      taxConditionSource: "OFFICIAL_DERIVED" as const,
+      eligibleForInvoiceA: false,
+      reason: "IVA exento no habilita Factura A en esta fase",
+      taxpayerStatus,
+    };
+  }
+  if (/IVA/.test(labels) || /\b30\b/.test(labels)) {
+    return {
+      taxCondition: "RESPONSABLE_INSCRIPTO",
+      taxConditionSource: "OFFICIAL_DERIVED" as const,
+      eligibleForInvoiceA: true,
+      reason: null,
+      taxpayerStatus,
+    };
+  }
+  return {
+    taxCondition: "UNKNOWN",
+    taxConditionSource: "UNKNOWN" as const,
+    eligibleForInvoiceA: false,
+    reason: "No se pudo determinar automaticamente la condicion IVA",
+    taxpayerStatus,
+  };
+}
+
+export function inferTaxCondition(response: unknown) {
+  const normalized = normalizeTaxConditionFromConstancia(response);
+  return normalized.taxCondition === "UNKNOWN" ? null : normalized.taxCondition;
 }
 
 function inferLegalName(response: unknown) {
@@ -199,23 +260,28 @@ function inferLegalName(response: unknown) {
 export function extractFiscalLookupData(taxId: string, response: unknown): FiscalLookupData {
   const domicilio = findNestedObject(response, "domicilioFiscal");
   const legalName = inferLegalName(response);
-  const taxCondition = inferTaxCondition(response);
+  const normalizedCondition = normalizeTaxConditionFromConstancia(response);
   const fiscalAddress = firstText(
     domicilio.direccion,
     joinText(domicilio.calle, domicilio.numero, domicilio.localidad, domicilio.descripcionProvincia),
   ) || null;
 
-  if (!taxCondition) {
-    throw new Error("Afip SDK no devolvio impuestos o regimenes suficientes para inferir la condicion IVA del CUIT.");
+  if (normalizedCondition.taxCondition === "UNKNOWN") {
+    throw new Error(normalizedCondition.reason ?? "No se pudo determinar automaticamente la condicion IVA.");
   }
 
   return {
     taxId,
     legalName: legalName || null,
-    taxCondition,
+    taxCondition: normalizedCondition.taxCondition,
     fiscalAddress,
-    status: "VALIDATED",
+    taxpayerStatus: normalizedCondition.taxpayerStatus,
+    status: "VALIDATED_AUTO",
     source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION",
+    taxConditionSource: normalizedCondition.taxConditionSource,
+    legalNameSource: legalName ? "OFFICIAL" : "UNKNOWN",
+    eligibleForInvoiceA: normalizedCondition.eligibleForInvoiceA,
+    reason: normalizedCondition.reason,
     snapshot: sanitizeProviderPayload(response),
   };
 }

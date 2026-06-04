@@ -69,12 +69,13 @@ This project is built with:
 
 Clientes soporta un perfil fiscal separado en `customer_fiscal_profiles` para preparar una futura Factura A sin emitirla todavia. Factura B y Nota de Credito B siguen en homologacion/dev como Consumidor Final automatico.
 
-- El perfil fiscal guarda CUIT normalizado, razon social, condicion IVA, domicilio fiscal, estado de validacion, metadata sanitizada y fecha de validacion.
+- El perfil fiscal guarda CUIT normalizado, razon social, condicion IVA, domicilio fiscal, estado de clave, fuentes de datos, metadata sanitizada y fecha de validacion.
 - El CUIT se valida por formato de 11 digitos y digito verificador; la UI permite guiones o espacios, pero persiste solo digitos.
 - La validacion automatica usa la Edge Function `customer-fiscal-lookup` con AFIPSDK `dev` y el web service de padron `ws_sr_constancia_inscripcion/getPersona_v2` cuando hay secrets disponibles.
-- Si AFIPSDK no devuelve datos inferibles o falla, el perfil queda en `ERROR` o `MANUAL_REVIEW`; no se marca como validado.
+- Si AFIPSDK no devuelve datos inferibles o falla, el perfil queda en `ERROR`; no se marca como validado y no hay habilitacion manual.
+- Factura A futura solo queda apta para cliente registrado, CUIT valido, razon social oficial, condicion IVA `RESPONSABLE_INSCRIPTO` derivada oficialmente y perfil `VALIDATED_AUTO`.
 - No se guardan tokens, Authorization, certificados, private keys ni secrets en DB; las respuestas del proveedor se sanitizan antes de persistirse.
-- Cliente ocasional no queda listo para Factura A y la UI lo informa, sin bloquear la edicion general del cliente.
+- Cliente ocasional / Consumidor Final se representa por `customer_id = null`: no se crea ni edita desde Clientes, no tiene perfil fiscal, CUIT, Factura A ni cuenta corriente editable.
 - Esta fase no toca produccion, caja, stock, cuenta corriente ni autorizacion fiscal de Factura A.
 
 ## Tecnicos: Control de materiales

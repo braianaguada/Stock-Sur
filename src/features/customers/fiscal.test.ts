@@ -26,8 +26,11 @@ const profile: CustomerFiscalProfile = {
   legal_name: "Cliente SA",
   tax_condition: "RESPONSABLE_INSCRIPTO",
   fiscal_address: "Calle 123",
-  validation_status: "VALIDATED",
+  taxpayer_status: "ACTIVO",
+  validation_status: "VALIDATED_AUTO",
   validation_source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION",
+  tax_condition_source: "OFFICIAL_DERIVED",
+  legal_name_source: "OFFICIAL",
   validation_error: null,
   validation_snapshot: { ok: true },
   validated_at: "2026-06-04T12:00:00Z",
@@ -52,6 +55,9 @@ describe("customer fiscal profile helpers", () => {
     expect(canUseCustomerForInvoiceA(customer, null)).toMatchObject({ allowed: false });
     expect(canUseCustomerForInvoiceA(customer, { ...profile, tax_condition: null })).toMatchObject({ allowed: false });
     expect(canUseCustomerForInvoiceA(customer, { ...profile, validation_status: "ERROR" })).toMatchObject({ allowed: false });
+    expect(canUseCustomerForInvoiceA(customer, { ...profile, tax_condition: "MONOTRIBUTO" })).toMatchObject({ allowed: false });
+    expect(canUseCustomerForInvoiceA(customer, { ...profile, tax_condition_source: "UNKNOWN" })).toMatchObject({ allowed: false });
+    expect(canUseCustomerForInvoiceA(customer, { ...profile, legal_name_source: "UNKNOWN" })).toMatchObject({ allowed: false });
   });
 
   it("allows a non occasional customer with a validated complete fiscal profile", () => {
@@ -66,7 +72,10 @@ describe("customer fiscal profile helpers", () => {
       tax_id: "20409378472",
       tax_condition: "RESPONSABLE_INSCRIPTO",
       fiscal_address: "Calle 123",
-      validation_status: "VALIDATED",
+      validation_status: "VALIDATED_AUTO",
+      validation_source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION",
+      tax_condition_source: "OFFICIAL_DERIVED",
+      legal_name_source: "OFFICIAL",
       validated_at: "2026-06-04T12:00:00Z",
       snapshot_created_at: "2026-06-04T13:00:00.000Z",
     });

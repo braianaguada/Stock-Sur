@@ -13,7 +13,7 @@ const baseForm: CustomerFormState = {
   fiscal_legal_name: "Cliente SA",
   fiscal_tax_condition: "RESPONSABLE_INSCRIPTO",
   fiscal_address: "Calle 123",
-  fiscal_validation_status: "VALIDATED",
+  fiscal_validation_status: "VALIDATED_AUTO",
 };
 
 const customer: Customer = {
@@ -32,8 +32,11 @@ const customer: Customer = {
     legal_name: "Cliente SA",
     tax_condition: "RESPONSABLE_INSCRIPTO",
     fiscal_address: "Calle 123",
-    validation_status: "VALIDATED",
+    taxpayer_status: "ACTIVO",
+    validation_status: "VALIDATED_AUTO",
     validation_source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION",
+    tax_condition_source: "OFFICIAL_DERIVED",
+    legal_name_source: "OFFICIAL",
     validation_error: null,
     validation_snapshot: {},
     validated_at: "2026-06-04T12:00:00Z",
@@ -63,13 +66,13 @@ function renderDialog(form: CustomerFormState, editingCustomer: Customer | null 
 describe("customer fiscal UI", () => {
   it("shows fiscal data section and ready state only for complete validated profile", () => {
     renderDialog(baseForm);
-    expect(screen.getByText("Datos fiscales")).toBeInTheDocument();
+    expect(screen.getByText("Datos fiscales para Factura A futura")).toBeInTheDocument();
     expect(screen.getByText("Listo para Factura A")).toBeInTheDocument();
   });
 
-  it("shows occasional customer warning", () => {
+  it("does not expose occasional customer editing as a customer form option", () => {
     renderDialog({ ...baseForm, is_occasional: true }, { ...customer, is_occasional: true });
-    expect(screen.getByText("Cliente ocasional no es valido para Factura A.")).toBeInTheDocument();
-    expect(screen.getByText("No listo para Factura A")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /cliente ocasional/i })).not.toBeInTheDocument();
+    expect(screen.getByText("Cliente ocasional no aplica: los clientes creados aqui son registrados.")).toBeInTheDocument();
   });
 });

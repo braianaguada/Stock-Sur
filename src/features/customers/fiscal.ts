@@ -1,6 +1,6 @@
 import type { Customer, CustomerFiscalProfile } from "./types";
 
-export const CUSTOMER_FISCAL_VALIDATION_STATUSES = ["PENDING", "VALIDATED", "ERROR", "MANUAL_REVIEW"] as const;
+export const CUSTOMER_FISCAL_VALIDATION_STATUSES = ["PENDING", "VALIDATED_AUTO", "ERROR"] as const;
 
 export type CustomerFiscalValidationStatus = typeof CUSTOMER_FISCAL_VALIDATION_STATUSES[number];
 
@@ -34,7 +34,7 @@ export function getCuitValidationMessage(value: string | null | undefined) {
 }
 
 export function isValidatedFiscalProfile(profile: CustomerFiscalProfile | null | undefined) {
-  return profile?.validation_status === "VALIDATED";
+  return profile?.validation_status === "VALIDATED_AUTO";
 }
 
 export function canUseCustomerForInvoiceA(customer: Customer | null | undefined, fiscalProfile: CustomerFiscalProfile | null | undefined) {
@@ -45,7 +45,15 @@ export function canUseCustomerForInvoiceA(customer: Customer | null | undefined,
   if (!fiscalProfile) reasons.push("El cliente no tiene perfil fiscal.");
   if (fiscalProfile && !isValidCuitChecksum(fiscalProfile.tax_id)) reasons.push("El perfil fiscal no tiene CUIT valido.");
   if (fiscalProfile && !fiscalProfile.legal_name?.trim()) reasons.push("El perfil fiscal no tiene razon social.");
-  if (fiscalProfile && !fiscalProfile.tax_condition?.trim()) reasons.push("El perfil fiscal no tiene condicion IVA.");
+  if (fiscalProfile && fiscalProfile.tax_condition !== "RESPONSABLE_INSCRIPTO") {
+    reasons.push("Factura A solo se habilita para Responsable Inscripto en esta fase.");
+  }
+  if (fiscalProfile && fiscalProfile.legal_name_source !== "OFFICIAL") {
+    reasons.push("La razon social debe venir de la constancia oficial.");
+  }
+  if (fiscalProfile && fiscalProfile.tax_condition_source !== "OFFICIAL_DERIVED") {
+    reasons.push("La condicion IVA debe derivarse automaticamente de datos oficiales.");
+  }
   if (fiscalProfile && !isValidatedFiscalProfile(fiscalProfile)) {
     reasons.push("El perfil fiscal todavia no esta validado automaticamente.");
   }
@@ -64,6 +72,9 @@ export function buildCustomerFiscalSnapshot(customer: Customer, fiscalProfile: C
     tax_condition: fiscalProfile.tax_condition,
     fiscal_address: fiscalProfile.fiscal_address,
     validation_status: fiscalProfile.validation_status,
+    validation_source: fiscalProfile.validation_source,
+    tax_condition_source: fiscalProfile.tax_condition_source,
+    legal_name_source: fiscalProfile.legal_name_source,
     validated_at: fiscalProfile.validated_at,
     snapshot_created_at: new Date().toISOString(),
   };

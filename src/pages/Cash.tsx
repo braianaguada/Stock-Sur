@@ -26,6 +26,7 @@ import { useCashData } from "@/features/cash/hooks/useCashData";
 import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
 import { useBillingActions } from "@/features/billing/hooks/useBillingActions";
 import { useActiveBillingSourceIds, useBillingSettings } from "@/features/billing/hooks/useBillingData";
+import { OCCASIONAL_CUSTOMER_DISPLAY_NAME } from "@/features/documents/utils";
 import { AmountDisplay } from "@/components/common/VisualSystem";
 import type {
   CashExpenseFormState,
@@ -292,7 +293,7 @@ export default function CashPage() {
     [customers],
   );
   const formatCashOptionCustomer = (remito: (typeof availableRemitos)[number]) =>
-    remito.customer_name?.trim() ? remito.customer_name.trim() : "Cliente ocasional";
+    remito.customer_name?.trim() ? remito.customer_name.trim() : OCCASIONAL_CUSTOMER_DISPLAY_NAME;
   const remitoOptionLabels = useMemo(
     () =>
       new Map(

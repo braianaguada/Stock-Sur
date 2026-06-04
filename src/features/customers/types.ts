@@ -17,8 +17,11 @@ export interface CustomerFiscalProfile {
   legal_name: string;
   tax_condition: string | null;
   fiscal_address: string | null;
-  validation_status: "PENDING" | "VALIDATED" | "ERROR" | "MANUAL_REVIEW";
+  taxpayer_status: string | null;
+  validation_status: "PENDING" | "VALIDATED_AUTO" | "ERROR";
   validation_source: string | null;
+  tax_condition_source: "OFFICIAL_DERIVED" | "UNKNOWN" | null;
+  legal_name_source: "OFFICIAL" | "UNKNOWN" | null;
   validation_error: string | null;
   validation_snapshot: unknown | null;
   validated_at: string | null;

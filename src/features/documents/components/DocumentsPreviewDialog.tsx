@@ -21,7 +21,7 @@ import type { CompanySettings } from "@/contexts/company-brand-context";
 import { CUSTOMER_KIND_LABEL, DOC_LABEL, DOC_TYPE_CLASS, STATUS_LABEL } from "@/features/documents/constants";
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
-import { describeDocumentHistoryEvent, formatNumber } from "@/features/documents/utils";
+import { describeDocumentHistoryEvent, formatNumber, getCustomerDisplayName } from "@/features/documents/utils";
 import { formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 
 interface DocumentsPreviewDialogProps {
@@ -215,7 +215,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
 
                   <section className="grid border-b border-slate-200 lg:grid-cols-[minmax(0,1fr)_320px]">
                     <div className="grid gap-x-5 gap-y-4 border-b border-slate-200 p-5 sm:grid-cols-2 xl:grid-cols-4 lg:border-b-0 lg:border-r">
-                      <PreviewField label="Cliente" value={selectedDocument.customer_name ?? "Cliente ocasional"} />
+                      <PreviewField label="Cliente" value={getCustomerDisplayName(selectedDocument)} />
                       <PreviewField label="Tipo" value={CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]} />
                       <PreviewField label="CUIT" value={<span className="font-mono">{selectedDocument.customer_tax_id ?? "-"}</span>} />
                       <PreviewField label="Cond. fiscal" value={selectedDocument.customer_tax_condition ?? "-"} />

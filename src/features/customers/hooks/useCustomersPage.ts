@@ -24,6 +24,16 @@ const EMPTY_FORM: CustomerFormState = {
   fiscal_validation_status: "PENDING",
 };
 
+function isValidOptionalEmail(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+}
+
+function looksLikeEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 type CustomerFiscalLookupResult = {
   ok?: boolean;
   error?: string;
@@ -92,6 +102,9 @@ export function useCustomersPage({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!form.name.trim()) throw new Error("El nombre comercial / contacto es obligatorio.");
+      if (!isValidOptionalEmail(form.email)) throw new Error("El email no tiene un formato valido.");
+      if (form.phone.trim() && looksLikeEmail(form.phone)) throw new Error("El telefono no puede ser un email.");
       const normalizedFiscalTaxId = normalizeCuit(form.fiscal_tax_id);
       if (normalizedFiscalTaxId) {
         const taxIdError = getCuitValidationMessage(normalizedFiscalTaxId);
@@ -100,11 +113,11 @@ export function useCustomersPage({
 
       const payload = {
         company_id: companyId!,
-        name: form.name,
-        cuit: form.cuit || null,
-        email: form.email || null,
-        phone: form.phone || null,
-        is_occasional: form.is_occasional,
+        name: form.name.trim(),
+        cuit: normalizedFiscalTaxId || null,
+        email: form.email.trim() || null,
+        phone: form.phone.trim() || null,
+        is_occasional: false,
         created_by: userId ?? null,
       };
 
@@ -118,27 +131,7 @@ export function useCustomersPage({
         customerId = data.id;
       }
 
-      if (!normalizedFiscalTaxId && !form.fiscal_legal_name && !form.fiscal_tax_condition && !form.fiscal_address) return;
-
-      const profilePayload = {
-        company_id: companyId!,
-        customer_id: customerId,
-        tax_id: normalizedFiscalTaxId,
-        legal_name: form.fiscal_legal_name.trim() || form.name.trim(),
-        tax_condition: form.fiscal_tax_condition.trim() || null,
-        fiscal_address: form.fiscal_address.trim() || null,
-        validation_status: form.fiscal_validation_status === "VALIDATED" ? "VALIDATED" : "MANUAL_REVIEW",
-        validation_source: form.fiscal_validation_status === "VALIDATED" ? "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION" : "MANUAL",
-        validation_error: form.fiscal_validation_status === "VALIDATED" ? null : "Perfil fiscal cargado manualmente; requiere revision antes de Factura A.",
-        validated_at: form.fiscal_validation_status === "VALIDATED" ? editing?.fiscal_profile?.validated_at ?? new Date().toISOString() : null,
-        created_by: userId ?? null,
-        updated_by: userId ?? null,
-      };
-
-      const { error: profileError } = await supabase
-        .from("customer_fiscal_profiles")
-        .upsert(profilePayload, { onConflict: "company_id,customer_id" });
-      if (profileError) throw profileError;
+      return customerId;
     },
     onSuccess: async () => {
       await invalidateCustomerQueries(qc);

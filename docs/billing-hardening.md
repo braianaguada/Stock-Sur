@@ -2,7 +2,9 @@
 
 Alcance actual: Factura B Consumidor Final y Nota de Credito B total en AFIPSDK dev/homologacion. No incluye produccion, Factura A, Nota de Credito A, Nota de Debito, facturacion parcial, PDF de Afip SDK ni libro IVA.
 
-Preparacion Factura A futura: clientes pueden tener perfil fiscal separado en `customer_fiscal_profiles`. La validacion automatica intenta consultar AFIPSDK dev con `ws_sr_constancia_inscripcion/getPersona_v2`; si no hay token, CUIT emisor dev o condicion IVA inferible, el perfil queda no validado (`ERROR`/`MANUAL_REVIEW`). Este flujo no autoriza Factura A ni modifica caja, stock o cuenta corriente.
+Preparacion Factura A futura: clientes registrados pueden tener perfil fiscal separado en `customer_fiscal_profiles`. La validacion automatica consulta AFIPSDK dev con `ws_sr_constancia_inscripcion/getPersona_v2`; si no hay token, CUIT emisor dev o condicion IVA inferible, el perfil queda no validado (`ERROR`). No hay carga manual habilitante. Este flujo no autoriza Factura A ni modifica caja, stock o cuenta corriente.
+
+La aptitud futura para Factura A exige cliente registrado, CUIT valido, razon social con fuente oficial, condicion IVA `RESPONSABLE_INSCRIPTO` derivada oficialmente y estado `VALIDATED_AUTO`. Cliente ocasional / Consumidor Final se representa con `customer_id = null` y no tiene perfil fiscal.
 
 ## UX
 

@@ -8,6 +8,43 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const formatNumber = (n: number | null, pointOfSale: number) =>
   n === null ? "BORRADOR" : formatDocumentNumber(pointOfSale, n);
 
+export const OCCASIONAL_CUSTOMER_DISPLAY_NAME = "Cliente ocasional / Consumidor Final";
+
+export function getCustomerDisplayName(entity: {
+  customer_id?: string | null;
+  customer_name?: string | null;
+  customers?: { name?: string | null } | null;
+}) {
+  if (entity.customer_id) {
+    return entity.customers?.name?.trim() || entity.customer_name?.trim() || "Cliente registrado";
+  }
+  return OCCASIONAL_CUSTOMER_DISPLAY_NAME;
+}
+
+export function buildDocumentCustomerSnapshot(input: {
+  customerId: string;
+  manualCustomerName: string;
+  pickedCustomer?: { id: string; name: string; cuit: string | null } | null;
+  manualTaxId: string;
+  manualTaxCondition: string;
+}) {
+  if (input.pickedCustomer) {
+    return {
+      customer_id: input.pickedCustomer.id,
+      customer_name: input.pickedCustomer.name,
+      customer_tax_id: input.pickedCustomer.cuit,
+      customer_tax_condition: null,
+    };
+  }
+
+  return {
+    customer_id: null,
+    customer_name: input.manualCustomerName.trim() || OCCASIONAL_CUSTOMER_DISPLAY_NAME,
+    customer_tax_id: input.manualTaxId.trim() || null,
+    customer_tax_condition: input.manualTaxCondition.trim() || null,
+  };
+}
+
 function applyPriceListRounding(value: number, roundMode: PriceListRow["round_mode"], roundTo: number | null) {
   switch (roundMode) {
     case "integer":

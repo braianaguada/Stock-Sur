@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { EntityDialog } from "@/components/common/EntityDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ export default function CustomersPage() {
   const { currentCompany, user } = useAuth();
   const { toast } = useToast();
   const [accountCustomer, setAccountCustomer] = useState<Customer | null>(null);
+  const [occasionalOpen, setOccasionalOpen] = useState(false);
   const {
     customerToDelete,
     customers,
@@ -72,6 +74,20 @@ export default function CustomersPage() {
           </div>
         </FilterBar>
 
+        <div className="rounded-lg border border-border bg-card px-4 py-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold">Cliente ocasional / Consumidor Final</p>
+              <p className="text-xs text-muted-foreground">
+                Sistema · No editable · customer_id = null · No aplica Factura A ni cuenta corriente.
+              </p>
+            </div>
+            <Button type="button" variant="outline" onClick={() => setOccasionalOpen(true)}>
+              Ver seguimiento
+            </Button>
+          </div>
+        </div>
+
         <DataCard>
           <CustomersDataTable
             customers={customers}
@@ -94,6 +110,27 @@ export default function CustomersPage() {
         onSubmit={() => saveMutation.mutate()}
         onValidateFiscal={() => validateFiscalMutation.mutate()}
       />
+
+      <EntityDialog
+        open={occasionalOpen}
+        onOpenChange={setOccasionalOpen}
+        title="Cliente ocasional / Consumidor Final"
+        description="Vista operativa basica de operaciones sin cliente registrado."
+        contentClassName="sm:max-w-2xl"
+      >
+        <div className="space-y-4 text-sm">
+          <div className="rounded-lg border bg-muted/20 p-4">
+            <p className="font-medium">Entidad de sistema</p>
+            <p className="mt-1 text-muted-foreground">
+              Agrupa documentos, ventas de caja y comprobantes B donde `customer_id` es null. No se crea ni se edita desde Clientes.
+            </p>
+          </div>
+          <div className="rounded-lg border border-dashed p-4 text-muted-foreground">
+            Seguimiento operativo ampliado pendiente: tabla de remitos, ventas de caja, Factura B y Nota de Credito B filtradas por
+            `customer_id = null`.
+          </div>
+        </div>
+      </EntityDialog>
 
       <ConfirmDeleteDialog
         open={!!customerToDelete}

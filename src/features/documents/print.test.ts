@@ -10,7 +10,7 @@ const document: DocRow = {
   point_of_sale: 9,
   document_number: 32,
   issue_date: "2026-05-06",
-  customer_id: null,
+  customer_id: "customer-1",
   technician_id: "tech-1",
   origin_document_id: null,
   customer_name: "Cliente Demo",
@@ -103,6 +103,21 @@ describe("buildDocumentPrintHtml", () => {
 
     expect(html).toContain("Pendiente de numeracion");
     expect(html).toContain("doc-number is-pending");
+  });
+
+  it("prints Consumidor Final when the document has no registered customer", () => {
+    const html = buildDocumentPrintHtml({
+      document: {
+        ...document,
+        customer_id: null,
+        customer_name: "Snapshot legacy",
+      },
+      lines: [line],
+      companySettings: DEFAULT_COMPANY_SETTINGS,
+    });
+
+    expect(html).toContain("Cliente ocasional / Consumidor Final");
+    expect(html).not.toContain("Snapshot legacy");
   });
 
   it("uses a budget-specific totals close", () => {

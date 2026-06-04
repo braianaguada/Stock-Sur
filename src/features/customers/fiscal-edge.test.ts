@@ -4,6 +4,7 @@ import {
   buildAfipSdkPadronPayload,
   extractFiscalLookupData,
   getCuitValidationMessage,
+  normalizeTaxConditionFromConstancia,
   sanitizeProviderPayload,
 } from "../../../supabase/functions/customer-fiscal-lookup/logic";
 
@@ -54,7 +55,10 @@ describe("customer fiscal lookup edge logic", () => {
       legalName: "CLIENTE SA",
       taxCondition: "RESPONSABLE_INSCRIPTO",
       fiscalAddress: "Calle 123",
-      status: "VALIDATED",
+      status: "VALIDATED_AUTO",
+      taxConditionSource: "OFFICIAL_DERIVED",
+      legalNameSource: "OFFICIAL",
+      eligibleForInvoiceA: true,
       snapshot: {
         getPersona_v2Return: {
           token: "[REDACTED]",
@@ -119,6 +123,44 @@ describe("customer fiscal lookup edge logic", () => {
     expect(extractFiscalLookupData("30711582890", response)).toMatchObject({
       legalName: null,
       taxCondition: "RESPONSABLE_INSCRIPTO",
+      legalNameSource: "UNKNOWN",
+    });
+  });
+
+  it("normalizes IVA condition from official constancia fields", () => {
+    expect(normalizeTaxConditionFromConstancia({
+      personaReturn: {
+        datosGenerales: { estadoClave: "ACTIVO" },
+        datosRegimenGeneral: { impuesto: [{ idImpuesto: 30, estadoImpuesto: "ACTIVO" }] },
+      },
+    })).toMatchObject({
+      taxCondition: "RESPONSABLE_INSCRIPTO",
+      taxConditionSource: "OFFICIAL_DERIVED",
+      eligibleForInvoiceA: true,
+      taxpayerStatus: "ACTIVO",
+    });
+
+    expect(normalizeTaxConditionFromConstancia({
+      personaReturn: {
+        datosGenerales: { estadoClave: "ACTIVO" },
+        datosMonotributo: { categoriaMonotributo: "A" },
+      },
+    })).toMatchObject({
+      taxCondition: "MONOTRIBUTO",
+      taxConditionSource: "OFFICIAL_DERIVED",
+      eligibleForInvoiceA: false,
+    });
+
+    expect(normalizeTaxConditionFromConstancia({
+      personaReturn: {
+        datosGenerales: { estadoClave: "INACTIVO" },
+        datosRegimenGeneral: { impuesto: [{ descripcionImpuesto: "IVA" }] },
+      },
+    })).toMatchObject({
+      taxCondition: "UNKNOWN",
+      taxConditionSource: "UNKNOWN",
+      eligibleForInvoiceA: false,
+      reason: "CUIT no activo",
     });
   });
 

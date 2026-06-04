@@ -339,13 +339,20 @@ export function DocumentsEditorDialog({
                   <Select
                     value={documentForm.customer_id || "__none__"}
                     onValueChange={(value) =>
-                      setDraftForm((previousForm) => ({
-                        ...previousForm,
-                        customer_id: value === "__none__" ? "" : value,
-                      }))
+                      setDraftForm((previousForm) => {
+                        const nextCustomerId = value === "__none__" ? "" : value;
+                        const pickedCustomer = customers.find((customer) => customer.id === nextCustomerId) ?? null;
+                        return {
+                          ...previousForm,
+                          customer_id: nextCustomerId,
+                          customer_name: pickedCustomer?.name ?? "",
+                          customer_tax_id: "",
+                          customer_tax_condition: "",
+                        };
+                      })
                     }
                   >
-                    <SelectTrigger><SelectValue placeholder="Cliente ocasional" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Cliente registrado (opcional)" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Sin seleccionar</SelectItem>
                       {customers.map((customer) => (
@@ -384,7 +391,8 @@ export function DocumentsEditorDialog({
                   <Label>Nombre cliente</Label>
                   <Input
                     value={documentForm.customer_name}
-                    placeholder="Cliente ocasional"
+                    placeholder="Cliente ocasional / Consumidor Final"
+                    readOnly={Boolean(documentForm.customer_id)}
                     onChange={(event) =>
                       setDraftForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
                     }

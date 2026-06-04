@@ -13,7 +13,7 @@
 
 - Confirmar CUIT real del emisor con responsable contable.
 - Confirmar razon social, condicion IVA y datos fiscales impresos.
-- Confirmar que los clientes destinados a Factura A tengan `customer_fiscal_profiles` completos, con CUIT valido, condicion IVA y validacion `VALIDATED` previa a cualquier autorizacion.
+- Confirmar que los clientes destinados a Factura A tengan `customer_fiscal_profiles` completos, con CUIT valido, razon social oficial, condicion IVA `RESPONSABLE_INSCRIPTO` derivada oficialmente y validacion `VALIDATED_AUTO` previa a cualquier autorizacion.
 - Habilitar punto de venta real en AFIP/ARCA.
 - Configurar AFIPSDK prod solo en Supabase Secrets.
 - Validar que `billing_settings.environment = prod` solo pueda activarse desde flujo controlado futuro.
