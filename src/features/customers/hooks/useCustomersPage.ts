@@ -24,6 +24,30 @@ const EMPTY_FORM: CustomerFormState = {
   fiscal_validation_status: "PENDING",
 };
 
+type CustomerFiscalLookupResult = {
+  ok?: boolean;
+  error?: string;
+  profile?: Customer["fiscal_profile"];
+};
+
+async function getFunctionErrorMessage(error: unknown) {
+  const context = typeof error === "object" && error !== null && "context" in error
+    ? (error as { context?: unknown }).context
+    : null;
+
+  if (context instanceof Response) {
+    try {
+      const payload = await context.clone().json() as { error?: unknown; message?: unknown };
+      const message = typeof payload.error === "string" ? payload.error : payload.message;
+      if (typeof message === "string" && message.trim()) return message;
+    } catch {
+      // Fall back to the SDK error message below.
+    }
+  }
+
+  return getErrorMessage(error);
+}
+
 type UseCustomersPageOptions = {
   companyId: string | null | undefined;
   userId: string | null | undefined;
@@ -145,12 +169,12 @@ export function useCustomersPage({
           taxId,
         },
       });
-      if (error) throw error;
-      if ((data as { error?: string } | null)?.error) throw new Error((data as { error: string }).error);
-      return (data as { profile?: Customer["fiscal_profile"] }).profile;
+      if (error) throw new Error(await getFunctionErrorMessage(error));
+      return data as CustomerFiscalLookupResult;
     },
-    onSuccess: async (profile) => {
+    onSuccess: async (result) => {
       await invalidateCustomerQueries(qc);
+      const profile = result?.profile;
       if (profile) {
         setForm((current) => ({
           ...current,
@@ -161,6 +185,15 @@ export function useCustomersPage({
           fiscal_validation_status: profile.validation_status,
         }));
       }
+      if (result?.error || result?.ok === false) {
+        toast({
+          title: "No se pudo validar el CUIT",
+          description: result.error ?? "El perfil fiscal quedo marcado con error.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({ title: "CUIT validado", description: "Se actualizo el perfil fiscal del cliente." });
     },
     onError: (error: unknown) => {

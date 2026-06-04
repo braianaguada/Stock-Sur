@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       }, { onConflict: "company_id,customer_id" })
       .select("*")
       .single();
-    return json({ error: message, profile }, 502);
+    return json({ ok: false, error: message, profile });
   }
 
   const authPayload = buildAfipSdkAuthPayload(issuerTaxId);
@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
       .single();
     if (upsertError || !profile) throw new Error("No se pudo guardar el perfil fiscal validado.");
 
-    return json({ profile });
+    return json({ ok: true, profile });
   } catch (error) {
     const message = normalizeFiscalLookupError(error);
     const errorWithProvider = error as Error & { providerResponse?: unknown };
@@ -213,6 +213,6 @@ Deno.serve(async (req) => {
       .select("*")
       .single();
 
-    return json({ error: message, profile }, 502);
+    return json({ ok: false, error: message, profile });
   }
 });
