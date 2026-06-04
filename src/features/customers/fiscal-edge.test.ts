@@ -59,6 +59,50 @@ describe("customer fiscal lookup edge logic", () => {
     });
   });
 
+  it("extracts legal names from persona humana responses", () => {
+    const response = {
+      getPersona_v2Return: {
+        datosGenerales: {
+          apellido: "PEREZ",
+          nombre: "JUAN",
+          domicilioFiscal: {
+            calle: "San Martin",
+            numero: "100",
+            localidad: "Rosario",
+            descripcionProvincia: "Santa Fe",
+          },
+        },
+        datosRegimenGeneral: {
+          impuesto: [{ descripcionImpuesto: "IVA" }],
+        },
+      },
+    };
+
+    expect(extractFiscalLookupData("20409378472", response)).toMatchObject({
+      legalName: "PEREZ JUAN",
+      taxCondition: "RESPONSABLE_INSCRIPTO",
+      fiscalAddress: "San Martin 100 Rosario Santa Fe",
+    });
+  });
+
+  it("extracts legal names from denominacion fields", () => {
+    const response = {
+      payload: {
+        persona: {
+          denominacion: "CLIENTE SRL",
+        },
+        datosRegimenGeneral: {
+          impuesto: [{ descripcion: "IVA" }],
+        },
+      },
+    };
+
+    expect(extractFiscalLookupData("30711582890", response)).toMatchObject({
+      legalName: "CLIENTE SRL",
+      taxCondition: "RESPONSABLE_INSCRIPTO",
+    });
+  });
+
   it("redacts secrets from provider snapshots", () => {
     expect(sanitizeProviderPayload({
       Authorization: "Bearer abc123",

@@ -123,6 +123,12 @@ Deno.serve(async (req) => {
     .limit(1)
     .maybeSingle();
   const issuerTaxId = normalizeCuit(settings?.issuer_tax_id);
+  const { data: existingProfile } = await serviceClient
+    .from("customer_fiscal_profiles")
+    .select("legal_name, tax_condition, fiscal_address")
+    .eq("company_id", customer.company_id)
+    .eq("customer_id", customer.id)
+    .maybeSingle();
 
   if (!afipSdkAccessToken || !issuerTaxId) {
     const message = !afipSdkAccessToken
@@ -134,7 +140,9 @@ Deno.serve(async (req) => {
         company_id: customer.company_id,
         customer_id: customer.id,
         tax_id: taxId,
-        legal_name: customer.name,
+        legal_name: existingProfile?.legal_name || customer.name,
+        tax_condition: existingProfile?.tax_condition ?? null,
+        fiscal_address: existingProfile?.fiscal_address ?? null,
         validation_status: "ERROR",
         validation_source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION",
         validation_error: message,
@@ -201,7 +209,9 @@ Deno.serve(async (req) => {
         company_id: customer.company_id,
         customer_id: customer.id,
         tax_id: taxId,
-        legal_name: customer.name,
+        legal_name: existingProfile?.legal_name || customer.name,
+        tax_condition: existingProfile?.tax_condition ?? null,
+        fiscal_address: existingProfile?.fiscal_address ?? null,
         validation_status: "ERROR",
         validation_source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION",
         validation_error: message,

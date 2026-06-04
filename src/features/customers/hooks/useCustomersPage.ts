@@ -175,17 +175,24 @@ export function useCustomersPage({
     onSuccess: async (result) => {
       await invalidateCustomerQueries(qc);
       const profile = result?.profile;
+      const isControlledError = Boolean(result?.error || result?.ok === false);
       if (profile) {
         setForm((current) => ({
           ...current,
-          fiscal_tax_id: profile.tax_id,
-          fiscal_legal_name: profile.legal_name,
-          fiscal_tax_condition: profile.tax_condition ?? "",
-          fiscal_address: profile.fiscal_address ?? "",
+          fiscal_tax_id: profile.tax_id || current.fiscal_tax_id,
+          fiscal_legal_name: isControlledError
+            ? current.fiscal_legal_name || profile.legal_name
+            : profile.legal_name,
+          fiscal_tax_condition: isControlledError
+            ? current.fiscal_tax_condition || (profile.tax_condition ?? "")
+            : profile.tax_condition ?? "",
+          fiscal_address: isControlledError
+            ? current.fiscal_address || (profile.fiscal_address ?? "")
+            : profile.fiscal_address ?? "",
           fiscal_validation_status: profile.validation_status,
         }));
       }
-      if (result?.error || result?.ok === false) {
+      if (isControlledError) {
         toast({
           title: "No se pudo validar el CUIT",
           description: result.error ?? "El perfil fiscal quedo marcado con error.",

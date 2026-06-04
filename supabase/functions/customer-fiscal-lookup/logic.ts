@@ -82,6 +82,10 @@ function firstText(...values: unknown[]) {
   return "";
 }
 
+function joinText(...values: unknown[]) {
+  return values.map((value) => String(value ?? "").trim()).filter(Boolean).join(" ");
+}
+
 function findNestedObject(root: unknown, key: string): Record<string, unknown> {
   const queue = [root];
   while (queue.length > 0) {
@@ -94,6 +98,40 @@ function findNestedObject(root: unknown, key: string): Record<string, unknown> {
     }
   }
   return {};
+}
+
+function collectNestedObjects(root: unknown, keyPattern: RegExp): Array<Record<string, unknown>> {
+  const result: Array<Record<string, unknown>> = [];
+  const queue = [root];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || typeof current !== "object") continue;
+    const object = current as Record<string, unknown>;
+    for (const [key, value] of Object.entries(object)) {
+      if (value && typeof value === "object") {
+        if (keyPattern.test(key)) result.push(value as Record<string, unknown>);
+        queue.push(value);
+      }
+    }
+  }
+  return result;
+}
+
+function findFirstNestedText(root: unknown, keyPattern: RegExp) {
+  const queue = [root];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || typeof current !== "object") continue;
+    const object = current as Record<string, unknown>;
+    for (const [key, value] of Object.entries(object)) {
+      if (keyPattern.test(key)) {
+        const text = firstText(value);
+        if (text) return text;
+      }
+      if (value && typeof value === "object") queue.push(value);
+    }
+  }
+  return "";
 }
 
 function collectNestedArrays(root: unknown, keyPattern: RegExp): unknown[] {
@@ -126,22 +164,39 @@ export function inferTaxCondition(response: unknown) {
   return null;
 }
 
+function inferLegalName(response: unknown) {
+  const personas = [
+    findNestedObject(response, "datosGenerales"),
+    ...collectNestedObjects(response, /persona|contribuyente|sujeto/i),
+  ];
+
+  for (const persona of personas) {
+    const legalName = firstText(
+      persona.razonSocial,
+      persona.denominacion,
+      persona.nombreCompleto,
+      persona.apellidoNombre,
+      persona.nombreApellido,
+      joinText(persona.apellido, persona.nombre),
+      joinText(persona.apellidos, persona.nombres),
+    );
+    if (legalName) return legalName;
+  }
+
+  return findFirstNestedText(response, /^(razonSocial|denominacion|nombreCompleto|apellidoNombre|nombreApellido)$/i);
+}
+
 export function extractFiscalLookupData(taxId: string, response: unknown): FiscalLookupData {
-  const persona = findNestedObject(response, "datosGenerales");
   const domicilio = findNestedObject(response, "domicilioFiscal");
-  const legalName = firstText(
-    persona.razonSocial,
-    persona.nombre,
-    [persona.apellido, persona.nombre].filter(Boolean).join(" "),
-  );
+  const legalName = inferLegalName(response);
   const taxCondition = inferTaxCondition(response);
   const fiscalAddress = firstText(
     domicilio.direccion,
-    [domicilio.calle, domicilio.numero, domicilio.localidad, domicilio.descripcionProvincia].filter(Boolean).join(" "),
+    joinText(domicilio.calle, domicilio.numero, domicilio.localidad, domicilio.descripcionProvincia),
   ) || null;
 
   if (!legalName) {
-    throw new Error("Afip SDK no devolvio razon social para el CUIT.");
+    throw new Error("Afip SDK no devolvio razon social/nombre fiscal para el CUIT.");
   }
   if (!taxCondition) {
     throw new Error("Afip SDK no devolvio una condicion IVA inferible para el CUIT.");
