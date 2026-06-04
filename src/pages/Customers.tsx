@@ -25,6 +25,7 @@ export default function CustomersPage() {
     form,
     isLoading,
     saveMutation,
+    validateFiscalMutation,
     deleteMutation,
     search,
     setCustomerToDelete,
@@ -87,9 +88,11 @@ export default function CustomersPage() {
         editingCustomer={editing}
         form={form}
         isSaving={saveMutation.isPending}
+        isValidatingFiscal={validateFiscalMutation.isPending}
         onOpenChange={setDialogOpen}
         onFormChange={setForm}
         onSubmit={() => saveMutation.mutate()}
+        onValidateFiscal={() => validateFiscalMutation.mutate()}
       />
 
       <ConfirmDeleteDialog

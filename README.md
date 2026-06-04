@@ -65,6 +65,18 @@ This project is built with:
 - [Sistema visual inicial](docs/UI_SYSTEM.md): auditoria visual, navegacion, componentes base y piloto de Caja.
 - Fix de documentos: los combos se expanden a productos reales usando el mismo detalle de linea que la carga manual, conservando cantidades acumuladas y precios manuales existentes.
 
+## Clientes fiscales para Factura A futura
+
+Clientes soporta un perfil fiscal separado en `customer_fiscal_profiles` para preparar una futura Factura A sin emitirla todavia. Factura B y Nota de Credito B siguen en homologacion/dev como Consumidor Final automatico.
+
+- El perfil fiscal guarda CUIT normalizado, razon social, condicion IVA, domicilio fiscal, estado de validacion, metadata sanitizada y fecha de validacion.
+- El CUIT se valida por formato de 11 digitos y digito verificador; la UI permite guiones o espacios, pero persiste solo digitos.
+- La validacion automatica usa la Edge Function `customer-fiscal-lookup` con AFIPSDK `dev` y el web service de padron `ws_sr_constancia_inscripcion/getPersona_v2` cuando hay secrets disponibles.
+- Si AFIPSDK no devuelve datos inferibles o falla, el perfil queda en `ERROR` o `MANUAL_REVIEW`; no se marca como validado.
+- No se guardan tokens, Authorization, certificados, private keys ni secrets en DB; las respuestas del proveedor se sanitizan antes de persistirse.
+- Cliente ocasional no queda listo para Factura A y la UI lo informa, sin bloquear la edicion general del cliente.
+- Esta fase no toca produccion, caja, stock, cuenta corriente ni autorizacion fiscal de Factura A.
+
 ## Tecnicos: Control de materiales
 
 La vista `/technicians` incluye la tab **Control de materiales** para cierre operativo de servicios. Es un informe de solo lectura sobre remitos y devoluciones vinculados a tecnicos; no representa deuda, cobranza ni cuenta corriente del tecnico.

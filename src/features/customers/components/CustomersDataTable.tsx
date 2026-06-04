@@ -5,6 +5,7 @@ import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import type { Customer } from "@/features/customers/types";
+import { canUseCustomerForInvoiceA } from "@/features/customers/fiscal";
 
 type CustomersDataTableProps = {
   customers: Customer[];
@@ -50,6 +51,18 @@ export function CustomersDataTable({
           {row.original.is_occasional ? "Ocasional" : "Regular"}
         </Badge>
       ),
+    },
+    {
+      id: "fiscal",
+      header: () => "Factura A",
+      cell: ({ row }) => {
+        const readiness = canUseCustomerForInvoiceA(row.original, row.original.fiscal_profile);
+        return (
+          <Badge variant={readiness.allowed ? "default" : "secondary"}>
+            {readiness.allowed ? "Listo" : row.original.fiscal_profile?.validation_status ?? "Pendiente"}
+          </Badge>
+        );
+      },
     },
     {
       id: "actions",

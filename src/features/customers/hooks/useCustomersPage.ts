@@ -9,6 +9,7 @@ import { useSearch } from "@/hooks/useSearch";
 import { searchIncludes } from "@/lib/search";
 import type { CustomerFormState } from "@/features/customers/components/CustomerFormDialog";
 import type { Customer } from "@/features/customers/types";
+import { canUseCustomerForInvoiceA, getCuitValidationMessage, normalizeCuit } from "@/features/customers/fiscal";
 
 const EMPTY_FORM: CustomerFormState = {
   name: "",
@@ -16,6 +17,11 @@ const EMPTY_FORM: CustomerFormState = {
   email: "",
   phone: "",
   is_occasional: false,
+  fiscal_tax_id: "",
+  fiscal_legal_name: "",
+  fiscal_tax_condition: "",
+  fiscal_address: "",
+  fiscal_validation_status: "PENDING",
 };
 
 type UseCustomersPageOptions = {
@@ -40,10 +46,19 @@ export function useCustomersPage({
     queryKey: queryKeys.customers.list(companyId ?? null, trimmedSearch),
     enabled: Boolean(companyId),
     queryFn: async () => {
-      const query = supabase.from("customers").select("*").eq("company_id", companyId!).order("name");
+      const query = supabase
+        .from("customers")
+        .select("*, customer_fiscal_profiles(*)")
+        .eq("company_id", companyId!)
+        .order("name");
       const { data, error } = await query.limit(200);
       if (error) throw error;
-      const rows = (data ?? []) as Customer[];
+      const rows = ((data ?? []) as Array<Customer & { customer_fiscal_profiles?: unknown[] }>).map((customer) => ({
+        ...customer,
+        fiscal_profile: Array.isArray(customer.customer_fiscal_profiles)
+          ? customer.customer_fiscal_profiles[0] ?? null
+          : null,
+      })) as Customer[];
       if (!trimmedSearch) return rows;
       return rows.filter((customer) =>
         searchIncludes([customer.name, customer.cuit, customer.email, customer.phone].filter(Boolean).join(" "), trimmedSearch),
@@ -53,6 +68,12 @@ export function useCustomersPage({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const normalizedFiscalTaxId = normalizeCuit(form.fiscal_tax_id);
+      if (normalizedFiscalTaxId) {
+        const taxIdError = getCuitValidationMessage(normalizedFiscalTaxId);
+        if (taxIdError) throw new Error(taxIdError);
+      }
+
       const payload = {
         company_id: companyId!,
         name: form.name,
@@ -63,14 +84,37 @@ export function useCustomersPage({
         created_by: userId ?? null,
       };
 
+      let customerId = editing?.id ?? "";
       if (editing) {
         const { error } = await supabase.from("customers").update(payload).eq("id", editing.id);
         if (error) throw error;
-        return;
+      } else {
+        const { data, error } = await supabase.from("customers").insert(payload).select("id").single();
+        if (error) throw error;
+        customerId = data.id;
       }
 
-      const { error } = await supabase.from("customers").insert(payload);
-      if (error) throw error;
+      if (!normalizedFiscalTaxId && !form.fiscal_legal_name && !form.fiscal_tax_condition && !form.fiscal_address) return;
+
+      const profilePayload = {
+        company_id: companyId!,
+        customer_id: customerId,
+        tax_id: normalizedFiscalTaxId,
+        legal_name: form.fiscal_legal_name.trim() || form.name.trim(),
+        tax_condition: form.fiscal_tax_condition.trim() || null,
+        fiscal_address: form.fiscal_address.trim() || null,
+        validation_status: form.fiscal_validation_status === "VALIDATED" ? "VALIDATED" : "MANUAL_REVIEW",
+        validation_source: form.fiscal_validation_status === "VALIDATED" ? "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION" : "MANUAL",
+        validation_error: form.fiscal_validation_status === "VALIDATED" ? null : "Perfil fiscal cargado manualmente; requiere revision antes de Factura A.",
+        validated_at: form.fiscal_validation_status === "VALIDATED" ? editing?.fiscal_profile?.validated_at ?? new Date().toISOString() : null,
+        created_by: userId ?? null,
+        updated_by: userId ?? null,
+      };
+
+      const { error: profileError } = await supabase
+        .from("customer_fiscal_profiles")
+        .upsert(profilePayload, { onConflict: "company_id,customer_id" });
+      if (profileError) throw profileError;
     },
     onSuccess: async () => {
       await invalidateCustomerQueries(qc);
@@ -82,6 +126,46 @@ export function useCustomersPage({
     onError: (error: unknown) => {
       toast({
         title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const validateFiscalMutation = useMutation({
+    mutationFn: async () => {
+      if (!editing) throw new Error("Primero guarda el cliente antes de validar el CUIT.");
+      const taxId = normalizeCuit(form.fiscal_tax_id || form.cuit);
+      const taxIdError = getCuitValidationMessage(taxId);
+      if (taxIdError) throw new Error(taxIdError);
+
+      const { data, error } = await supabase.functions.invoke("customer-fiscal-lookup", {
+        body: {
+          customerId: editing.id,
+          taxId,
+        },
+      });
+      if (error) throw error;
+      if ((data as { error?: string } | null)?.error) throw new Error((data as { error: string }).error);
+      return (data as { profile?: Customer["fiscal_profile"] }).profile;
+    },
+    onSuccess: async (profile) => {
+      await invalidateCustomerQueries(qc);
+      if (profile) {
+        setForm((current) => ({
+          ...current,
+          fiscal_tax_id: profile.tax_id,
+          fiscal_legal_name: profile.legal_name,
+          fiscal_tax_condition: profile.tax_condition ?? "",
+          fiscal_address: profile.fiscal_address ?? "",
+          fiscal_validation_status: profile.validation_status,
+        }));
+      }
+      toast({ title: "CUIT validado", description: "Se actualizo el perfil fiscal del cliente." });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "No se pudo validar el CUIT",
         description: getErrorMessage(error),
         variant: "destructive",
       });
@@ -119,6 +203,11 @@ export function useCustomersPage({
       email: customer.email ?? "",
       phone: customer.phone ?? "",
       is_occasional: customer.is_occasional,
+      fiscal_tax_id: customer.fiscal_profile?.tax_id ?? customer.cuit ?? "",
+      fiscal_legal_name: customer.fiscal_profile?.legal_name ?? "",
+      fiscal_tax_condition: customer.fiscal_profile?.tax_condition ?? "",
+      fiscal_address: customer.fiscal_profile?.fiscal_address ?? "",
+      fiscal_validation_status: customer.fiscal_profile?.validation_status ?? "PENDING",
     });
     setDialogOpen(true);
   };
@@ -131,6 +220,7 @@ export function useCustomersPage({
     form,
     isLoading: customersQuery.isLoading,
     saveMutation,
+    validateFiscalMutation,
     deleteMutation,
     search,
     setCustomerToDelete,
@@ -139,5 +229,6 @@ export function useCustomersPage({
     setSearch,
     openCreate,
     openEdit,
+    canUseCustomerForInvoiceA,
   };
 }

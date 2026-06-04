@@ -799,6 +799,78 @@ export type Database = {
           },
         ]
       }
+      customer_fiscal_profiles: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          fiscal_address: string | null
+          id: string
+          legal_name: string
+          tax_condition: string | null
+          tax_id: string
+          updated_at: string
+          updated_by: string | null
+          validated_at: string | null
+          validation_error: string | null
+          validation_snapshot: Json | null
+          validation_source: string | null
+          validation_status: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          fiscal_address?: string | null
+          id?: string
+          legal_name: string
+          tax_condition?: string | null
+          tax_id: string
+          updated_at?: string
+          updated_by?: string | null
+          validated_at?: string | null
+          validation_error?: string | null
+          validation_snapshot?: Json | null
+          validation_source?: string | null
+          validation_status?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          fiscal_address?: string | null
+          id?: string
+          legal_name?: string
+          tax_condition?: string | null
+          tax_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          validated_at?: string | null
+          validation_error?: string | null
+          validation_snapshot?: Json | null
+          validation_source?: string | null
+          validation_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_fiscal_profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_fiscal_profiles_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       technicians: {
         Row: {
           company_id: string
