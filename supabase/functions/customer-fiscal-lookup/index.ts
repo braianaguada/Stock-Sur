@@ -1,12 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   AFIPSDK_BASE_URL,
-  AFIPSDK_ENVIRONMENT,
   buildAfipSdkAuthPayload,
   buildAfipSdkPadronPayload,
   extractFiscalLookupData,
   getCuitValidationMessage,
   normalizeAfipSdkBaseUrl,
+  normalizeAfipSdkEnvironment,
   normalizeCuit,
   normalizeFiscalLookupError,
   sanitizeProviderPayload,
@@ -72,6 +72,7 @@ Deno.serve(async (req) => {
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const afipSdkAccessToken = Deno.env.get("AFIPSDK_ACCESS_TOKEN");
   const afipSdkBaseUrl = normalizeAfipSdkBaseUrl(Deno.env.get("AFIPSDK_BASE_URL") ?? AFIPSDK_BASE_URL);
+  const afipSdkEnvironment = normalizeAfipSdkEnvironment(Deno.env.get("AFIPSDK_ENVIRONMENT"));
 
   if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
     return json({ error: "Faltan secretos requeridos de Supabase." }, 500);
@@ -118,7 +119,7 @@ Deno.serve(async (req) => {
     .select("issuer_tax_id")
     .eq("company_id", customer.company_id)
     .eq("provider", "AFIPSDK")
-    .eq("environment", AFIPSDK_ENVIRONMENT)
+    .eq("environment", afipSdkEnvironment)
     .eq("is_enabled", true)
     .limit(1)
     .maybeSingle();
@@ -156,7 +157,7 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: message, profile });
   }
 
-  const authPayload = buildAfipSdkAuthPayload(issuerTaxId);
+  const authPayload = buildAfipSdkAuthPayload(issuerTaxId, afipSdkEnvironment);
   let providerResponse: unknown = null;
 
   try {
@@ -173,6 +174,7 @@ Deno.serve(async (req) => {
       sign: tokenAuthorization.sign,
       issuerTaxId,
       taxId,
+      environment: afipSdkEnvironment,
     });
     providerResponse = await postAfipSdk(afipSdkBaseUrl, "v1/afip/requests", afipSdkAccessToken, padronPayload);
     const fiscalData = extractFiscalLookupData(taxId, providerResponse);
@@ -183,7 +185,7 @@ Deno.serve(async (req) => {
         company_id: customer.company_id,
         customer_id: customer.id,
         tax_id: fiscalData.taxId,
-        legal_name: fiscalData.legalName,
+        legal_name: fiscalData.legalName || existingProfile?.legal_name || customer.name,
         tax_condition: fiscalData.taxCondition,
         fiscal_address: fiscalData.fiscalAddress,
         validation_status: fiscalData.status,

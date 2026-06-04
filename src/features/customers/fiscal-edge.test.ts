@@ -18,13 +18,17 @@ describe("customer fiscal lookup edge logic", () => {
       environment: "dev",
       wsid: "ws_sr_constancia_inscripcion",
     });
+    expect(buildAfipSdkAuthPayload("20409378472", "prod")).toMatchObject({
+      environment: "prod",
+    });
     expect(buildAfipSdkPadronPayload({
       token: "token",
       sign: "sign",
       issuerTaxId: "20409378472",
       taxId: "20409378472",
+      environment: "prod",
     })).toMatchObject({
-      environment: "dev",
+      environment: "prod",
       method: "getPersona_v2",
       wsid: "ws_sr_constancia_inscripcion",
     });
@@ -99,6 +103,21 @@ describe("customer fiscal lookup edge logic", () => {
 
     expect(extractFiscalLookupData("30711582890", response)).toMatchObject({
       legalName: "CLIENTE SRL",
+      taxCondition: "RESPONSABLE_INSCRIPTO",
+    });
+  });
+
+  it("does not require legal name when IVA condition is inferable", () => {
+    const response = {
+      personaReturn: {
+        datosRegimenGeneral: {
+          impuesto: [{ descripcionImpuesto: "IVA" }],
+        },
+      },
+    };
+
+    expect(extractFiscalLookupData("30711582890", response)).toMatchObject({
+      legalName: null,
       taxCondition: "RESPONSABLE_INSCRIPTO",
     });
   });

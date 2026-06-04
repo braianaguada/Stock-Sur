@@ -4,8 +4,8 @@ export const AFIPSDK_PADRON_WSID = "ws_sr_constancia_inscripcion";
 
 export type FiscalLookupData = {
   taxId: string;
-  legalName: string;
-  taxCondition: string | null;
+  legalName: string | null;
+  taxCondition: string;
   fiscalAddress: string | null;
   status: "VALIDATED";
   source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION";
@@ -15,6 +15,10 @@ export type FiscalLookupData = {
 export function normalizeAfipSdkBaseUrl(value: string | undefined | null) {
   const baseUrl = (value ?? AFIPSDK_BASE_URL).trim() || AFIPSDK_BASE_URL;
   return baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+}
+
+export function normalizeAfipSdkEnvironment(value: string | undefined | null) {
+  return (value ?? AFIPSDK_ENVIRONMENT).trim() || AFIPSDK_ENVIRONMENT;
 }
 
 export function normalizeCuit(value: string | null | undefined) {
@@ -42,17 +46,23 @@ export function getCuitValidationMessage(value: string | null | undefined) {
   return null;
 }
 
-export function buildAfipSdkAuthPayload(taxId: string) {
+export function buildAfipSdkAuthPayload(taxId: string, environment = AFIPSDK_ENVIRONMENT) {
   return {
-    environment: AFIPSDK_ENVIRONMENT,
+    environment,
     tax_id: taxId,
     wsid: AFIPSDK_PADRON_WSID,
   };
 }
 
-export function buildAfipSdkPadronPayload(params: { token: string; sign: string; issuerTaxId: string; taxId: string }) {
+export function buildAfipSdkPadronPayload(params: {
+  token: string;
+  sign: string;
+  issuerTaxId: string;
+  taxId: string;
+  environment?: string;
+}) {
   return {
-    environment: AFIPSDK_ENVIRONMENT,
+    environment: params.environment ?? AFIPSDK_ENVIRONMENT,
     method: "getPersona_v2",
     wsid: AFIPSDK_PADRON_WSID,
     params: {
@@ -160,7 +170,7 @@ export function inferTaxCondition(response: unknown) {
   }).join(" ").toUpperCase();
 
   if (/IVA/.test(labels) && /EXENTO/.test(labels)) return "IVA_EXENTO";
-  if (/IVA/.test(labels)) return "RESPONSABLE_INSCRIPTO";
+  if (/IVA/.test(labels) || /\b30\b/.test(labels)) return "RESPONSABLE_INSCRIPTO";
   return null;
 }
 
@@ -195,16 +205,13 @@ export function extractFiscalLookupData(taxId: string, response: unknown): Fisca
     joinText(domicilio.calle, domicilio.numero, domicilio.localidad, domicilio.descripcionProvincia),
   ) || null;
 
-  if (!legalName) {
-    throw new Error("Afip SDK no devolvio razon social/nombre fiscal para el CUIT.");
-  }
   if (!taxCondition) {
-    throw new Error("Afip SDK no devolvio una condicion IVA inferible para el CUIT.");
+    throw new Error("Afip SDK no devolvio impuestos o regimenes suficientes para inferir la condicion IVA del CUIT.");
   }
 
   return {
     taxId,
-    legalName,
+    legalName: legalName || null,
     taxCondition,
     fiscalAddress,
     status: "VALIDATED",
