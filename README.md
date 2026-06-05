@@ -71,10 +71,13 @@ Clientes soporta un perfil fiscal separado en `customer_fiscal_profiles` para pr
 
 - El perfil fiscal guarda CUIT normalizado, razon social, condicion IVA, domicilio fiscal, estado de clave, fuentes de datos, metadata sanitizada y fecha de validacion.
 - El CUIT se valida por formato de 11 digitos y digito verificador; la UI permite guiones o espacios, pero persiste solo digitos.
-- La validacion automatica usa la Edge Function `customer-fiscal-lookup` con AFIPSDK `dev` y el web service de padron `ws_sr_constancia_inscripcion/getPersona_v2` cuando hay secrets disponibles.
-- Si AFIPSDK no devuelve datos inferibles o falla, el perfil queda en `ERROR`; no se marca como validado y no hay habilitacion manual.
-- Factura A futura solo queda apta para cliente registrado, CUIT valido, razon social oficial, condicion IVA `RESPONSABLE_INSCRIPTO` derivada oficialmente y perfil `VALIDATED_AUTO`.
+- La validacion automatica usa la Edge Function `customer-fiscal-lookup` con AFIPSDK REST, `ws_sr_constancia_inscripcion/getPersona_v2` y `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT` (`dev` o `prod`) cuando hay secrets disponibles. No usa `wsfe` ni `ws_sr_padron_a5` para esta consulta.
+- `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT` solo controla consulta de padron. El ambiente de emision fiscal sigue separado y Factura B/Nota de Credito B continuan limitadas a homologacion/dev.
+- Si AFIPSDK no devuelve datos inferibles o falla, el perfil queda en `ERROR`; no se marca como validado y la UI muestra diagnostico compacto: ambiente, fuente, presencia de datos generales/regimen/impuestos/monotributo, estado CUIT, codigo y motivo.
+- Si no hay razon social oficial, `legal_name` queda vacio y `legal_name_source = UNKNOWN`; no se rellena con CUIT, nombre comercial ni datos viejos.
+- Factura A futura solo queda apta para cliente registrado, CUIT valido, razon social oficial, estado CUIT `ACTIVO`, condicion IVA `RESPONSABLE_INSCRIPTO` derivada oficialmente y perfil `VALIDATED_AUTO`.
 - No se guardan tokens, Authorization, certificados, private keys ni secrets en DB; las respuestas del proveedor se sanitizan antes de persistirse.
+- QA tecnico seguro: `node scripts/customer-fiscal-lookup-qa.mjs <CUIT> <CUSTOMER_ID>` con `SUPABASE_ACCESS_TOKEN` y `SUPABASE_FUNCTIONS_URL`/`VITE_SUPABASE_URL`. El script imprime solo diagnostico compacto y no secrets.
 - Cliente ocasional / Consumidor Final se representa por `customer_id = null`: no se crea ni edita desde Clientes, no tiene perfil fiscal, CUIT, Factura A ni cuenta corriente editable.
 - Esta fase no toca produccion, caja, stock, cuenta corriente ni autorizacion fiscal de Factura A.
 

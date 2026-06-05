@@ -4,7 +4,7 @@ export const AFIPSDK_PADRON_WSID = "ws_sr_constancia_inscripcion";
 
 export type FiscalLookupData = {
   taxId: string;
-  legalName: string | null;
+  legalName: string;
   taxCondition: string;
   fiscalAddress: string | null;
   taxpayerStatus: string | null;
@@ -15,6 +15,36 @@ export type FiscalLookupData = {
   eligibleForInvoiceA: boolean;
   reason: string | null;
   snapshot: unknown;
+  diagnostics: FiscalLookupDiagnostics;
+};
+
+export type FiscalLookupErrorCode =
+  | "TAX_CONDITION_UNKNOWN"
+  | "TAXPAYER_NOT_FOUND"
+  | "TAXPAYER_INACTIVE"
+  | "AFIPSDK_ERROR"
+  | "SERVICE_NOT_ENABLED"
+  | "INVALID_TAX_ID"
+  | "LOOKUP_ENVIRONMENT_MISMATCH";
+
+export type FiscalLookupDiagnostics = {
+  ok: boolean;
+  code: FiscalLookupErrorCode | "VALIDATED_AUTO";
+  message: string;
+  lookupEnvironment: string;
+  wsid: typeof AFIPSDK_PADRON_WSID;
+  method: "getPersona_v2";
+  taxpayerFound: boolean;
+  hasDatosGenerales: boolean;
+  hasRegimenGeneral: boolean;
+  hasImpuestos: boolean;
+  hasMonotributo: boolean;
+  taxpayerStatus: string | null;
+  legalNameFound: boolean;
+  taxCondition: string;
+  normalizationReason: string | null;
+  availableTaxIds: Array<number | string>;
+  availableTaxDescriptions: string[];
 };
 
 export function normalizeAfipSdkBaseUrl(value: string | undefined | null) {
@@ -97,6 +127,18 @@ function firstText(...values: unknown[]) {
   return "";
 }
 
+function isCuitText(value: string) {
+  return /^\d{10,13}$/.test(value.replace(/\D/g, ""));
+}
+
+function sanitizeTaxDescription(value: unknown) {
+  const text = firstText(value)
+    .replace(/[^\w\s().,/-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > 120 ? `${text.slice(0, 120)}...` : text;
+}
+
 function joinText(...values: unknown[]) {
   return values.map((value) => String(value ?? "").trim()).filter(Boolean).join(" ");
 }
@@ -173,31 +215,149 @@ function getTaxpayerStatus(response: unknown) {
   return firstText(findFirstNestedText(response, /^estadoClave$/i)) || null;
 }
 
+function getResponseRoot(response: unknown) {
+  const object = asObject(response);
+  const result = asObject(object.result);
+  const data = asObject(object.data);
+  return firstObject(
+    object.personaReturn,
+    result.personaReturn,
+    data.personaReturn,
+    object.getPersona_v2Return,
+    result.getPersona_v2Return,
+    data.getPersona_v2Return,
+    result,
+    data,
+    response,
+  );
+}
+
+function firstObject(...values: unknown[]) {
+  for (const value of values) {
+    if (value && typeof value === "object" && Object.keys(value as Record<string, unknown>).length > 0) {
+      return value;
+    }
+  }
+  return {};
+}
+
+function getDatosGenerales(response: unknown) {
+  return findNestedObject(getResponseRoot(response), "datosGenerales");
+}
+
+function getDatosRegimenGeneral(response: unknown) {
+  return findNestedObject(getResponseRoot(response), "datosRegimenGeneral");
+}
+
+function getDatosMonotributo(response: unknown) {
+  return findNestedObject(getResponseRoot(response), "datosMonotributo");
+}
+
+function getImpuestos(response: unknown) {
+  const regimen = getDatosRegimenGeneral(response);
+  const monotributo = getDatosMonotributo(response);
+  const items = [
+    ...asArray(regimen.impuesto),
+    ...asArray(regimen.impuestos),
+    ...asArray(monotributo.impuesto),
+    ...asArray(monotributo.impuestos),
+    ...collectNestedArrays(getResponseRoot(response), /^impuestos?$/i),
+  ];
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = JSON.stringify(item);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getTaxItemId(item: unknown) {
+  const object = asObject(item);
+  const raw = object.idImpuesto ?? object.codigoImpuesto ?? object.id ?? object.codigo;
+  const text = firstText(raw);
+  if (!text) return null;
+  const numeric = Number(text);
+  return Number.isFinite(numeric) && text.trim() === String(numeric) ? numeric : text;
+}
+
+function getTaxItemDescription(item: unknown) {
+  const object = asObject(item);
+  return sanitizeTaxDescription(
+    object.descripcionImpuesto ?? object.descImpuesto ?? object.descripcion ?? object.nombre ?? object.detalle,
+  );
+}
+
 export function normalizeTaxConditionFromConstancia(response: unknown) {
+  const root = getResponseRoot(response);
+  const datosGenerales = getDatosGenerales(root);
+  const datosRegimenGeneral = getDatosRegimenGeneral(root);
+  const datosMonotributo = getDatosMonotributo(root);
+  const impuestos = getImpuestos(root);
+  const activeImpuestos = impuestos.filter((item) => isActiveStatus(asObject(item).estadoImpuesto));
+  const availableTaxIds = activeImpuestos.map(getTaxItemId).filter((value): value is number | string => value !== null);
+  const availableTaxDescriptions = activeImpuestos.map(getTaxItemDescription).filter(Boolean);
+  const hasDatosGenerales = Object.keys(datosGenerales).length > 0;
+  const hasRegimenGeneral = Object.keys(datosRegimenGeneral).length > 0;
+  const hasMonotributo = Object.keys(datosMonotributo).length > 0;
+  const hasImpuestos = activeImpuestos.length > 0;
+  const taxpayerFound = hasDatosGenerales || hasRegimenGeneral || hasMonotributo || hasImpuestos;
   const taxpayerStatus = getTaxpayerStatus(response);
+
+  if (!taxpayerFound) {
+    return {
+      code: "TAXPAYER_NOT_FOUND" as const,
+      taxCondition: "UNKNOWN",
+      taxConditionSource: "UNKNOWN" as const,
+      eligibleForInvoiceA: false,
+      reason: "El CUIT no existe en el padron consultado o el ambiente no devolvio datos utiles.",
+      taxpayerStatus,
+      taxpayerFound,
+      hasDatosGenerales,
+      hasRegimenGeneral,
+      hasImpuestos,
+      hasMonotributo,
+      availableTaxIds,
+      availableTaxDescriptions,
+    };
+  }
+
   if (taxpayerStatus && taxpayerStatus.toUpperCase() !== "ACTIVO") {
     return {
+      code: "TAXPAYER_INACTIVE" as const,
       taxCondition: "UNKNOWN",
       taxConditionSource: "UNKNOWN" as const,
       eligibleForInvoiceA: false,
       reason: "CUIT no activo",
       taxpayerStatus,
+      taxpayerFound,
+      hasDatosGenerales,
+      hasRegimenGeneral,
+      hasImpuestos,
+      hasMonotributo,
+      availableTaxIds,
+      availableTaxDescriptions,
     };
   }
 
-  const monotributo = findNestedObject(response, "datosMonotributo");
-  if (Object.keys(monotributo).length > 0) {
+  if (hasMonotributo) {
     return {
+      code: "VALIDATED_AUTO" as const,
       taxCondition: "MONOTRIBUTO",
       taxConditionSource: "OFFICIAL_DERIVED" as const,
       eligibleForInvoiceA: false,
       reason: "Monotributo no habilita Factura A en esta fase",
       taxpayerStatus,
+      taxpayerFound,
+      hasDatosGenerales,
+      hasRegimenGeneral,
+      hasImpuestos,
+      hasMonotributo,
+      availableTaxIds,
+      availableTaxDescriptions,
     };
   }
 
-  const impuestos = collectNestedArrays(response, /impuesto/i);
-  const activeImpuestos = impuestos.filter((item) => isActiveStatus(asObject(item).estadoImpuesto));
   const labels = activeImpuestos.map((item) => {
     const object = asObject(item);
     return firstText(object.descripcionImpuesto, object.descImpuesto, object.descripcion, object.nombre, object.idImpuesto);
@@ -205,28 +365,54 @@ export function normalizeTaxConditionFromConstancia(response: unknown) {
 
   if (/IVA/.test(labels) && /EXENTO/.test(labels)) {
     return {
+      code: "VALIDATED_AUTO" as const,
       taxCondition: "IVA_EXENTO",
       taxConditionSource: "OFFICIAL_DERIVED" as const,
       eligibleForInvoiceA: false,
       reason: "IVA exento no habilita Factura A en esta fase",
       taxpayerStatus,
+      taxpayerFound,
+      hasDatosGenerales,
+      hasRegimenGeneral,
+      hasImpuestos,
+      hasMonotributo,
+      availableTaxIds,
+      availableTaxDescriptions,
     };
   }
-  if (/IVA/.test(labels) || /\b30\b/.test(labels)) {
+  if (activeImpuestos.some((item) => String(getTaxItemId(item)) === "30") || /\bIVA\b/.test(labels)) {
     return {
+      code: "VALIDATED_AUTO" as const,
       taxCondition: "RESPONSABLE_INSCRIPTO",
       taxConditionSource: "OFFICIAL_DERIVED" as const,
       eligibleForInvoiceA: true,
       reason: null,
       taxpayerStatus,
+      taxpayerFound,
+      hasDatosGenerales,
+      hasRegimenGeneral,
+      hasImpuestos,
+      hasMonotributo,
+      availableTaxIds,
+      availableTaxDescriptions,
     };
   }
   return {
+    code: "TAX_CONDITION_UNKNOWN" as const,
     taxCondition: "UNKNOWN",
     taxConditionSource: "UNKNOWN" as const,
     eligibleForInvoiceA: false,
-    reason: "No se pudo determinar automaticamente la condicion IVA",
+    reason: hasImpuestos
+      ? "ARCA devolvio impuestos, pero ninguno permite determinar la condicion IVA."
+      : "ARCA devolvio datos, pero no impuestos suficientes para determinar IVA.",
     taxpayerStatus,
+    taxpayerFound,
+    hasDatosGenerales,
+    hasRegimenGeneral,
+    hasImpuestos,
+    hasMonotributo,
+    availableTaxIds,
+    availableTaxDescriptions,
   };
 }
 
@@ -237,8 +423,8 @@ export function inferTaxCondition(response: unknown) {
 
 function inferLegalName(response: unknown) {
   const personas = [
-    findNestedObject(response, "datosGenerales"),
-    ...collectNestedObjects(response, /persona|contribuyente|sujeto/i),
+    getDatosGenerales(response),
+    ...collectNestedObjects(getResponseRoot(response), /persona|contribuyente|sujeto/i),
   ];
 
   for (const persona of personas) {
@@ -251,13 +437,45 @@ function inferLegalName(response: unknown) {
       joinText(persona.apellido, persona.nombre),
       joinText(persona.apellidos, persona.nombres),
     );
-    if (legalName) return legalName;
+    if (legalName && !isCuitText(legalName)) return legalName;
   }
 
-  return findFirstNestedText(response, /^(razonSocial|denominacion|nombreCompleto|apellidoNombre|nombreApellido)$/i);
+  const nestedLegalName = findFirstNestedText(response, /^(razonSocial|denominacion|nombreCompleto|apellidoNombre|nombreApellido)$/i);
+  return nestedLegalName && !isCuitText(nestedLegalName) ? nestedLegalName : "";
 }
 
-export function extractFiscalLookupData(taxId: string, response: unknown): FiscalLookupData {
+export function buildFiscalLookupDiagnostics(params: {
+  response: unknown;
+  lookupEnvironment?: string | null;
+  code?: FiscalLookupErrorCode | "VALIDATED_AUTO";
+  message?: string | null;
+  taxCondition?: string | null;
+}) {
+  const normalizedCondition = normalizeTaxConditionFromConstancia(params.response);
+  const legalName = inferLegalName(params.response);
+  const code = params.code ?? normalizedCondition.code;
+  return {
+    ok: code === "VALIDATED_AUTO",
+    code,
+    message: params.message ?? normalizedCondition.reason ?? "Perfil fiscal validado automaticamente.",
+    lookupEnvironment: normalizeAfipSdkEnvironment(params.lookupEnvironment),
+    wsid: AFIPSDK_PADRON_WSID,
+    method: "getPersona_v2" as const,
+    taxpayerFound: normalizedCondition.taxpayerFound,
+    hasDatosGenerales: normalizedCondition.hasDatosGenerales,
+    hasRegimenGeneral: normalizedCondition.hasRegimenGeneral,
+    hasImpuestos: normalizedCondition.hasImpuestos,
+    hasMonotributo: normalizedCondition.hasMonotributo,
+    taxpayerStatus: normalizedCondition.taxpayerStatus,
+    legalNameFound: Boolean(legalName),
+    taxCondition: params.taxCondition ?? normalizedCondition.taxCondition,
+    normalizationReason: normalizedCondition.reason,
+    availableTaxIds: normalizedCondition.availableTaxIds,
+    availableTaxDescriptions: normalizedCondition.availableTaxDescriptions,
+  } satisfies FiscalLookupDiagnostics;
+}
+
+export function extractFiscalLookupData(taxId: string, response: unknown, lookupEnvironment = AFIPSDK_ENVIRONMENT): FiscalLookupData {
   const domicilio = findNestedObject(response, "domicilioFiscal");
   const legalName = inferLegalName(response);
   const normalizedCondition = normalizeTaxConditionFromConstancia(response);
@@ -267,12 +485,23 @@ export function extractFiscalLookupData(taxId: string, response: unknown): Fisca
   ) || null;
 
   if (normalizedCondition.taxCondition === "UNKNOWN") {
-    throw new Error(normalizedCondition.reason ?? "No se pudo determinar automaticamente la condicion IVA.");
+    const error = new Error(normalizedCondition.reason ?? "No se pudo determinar automaticamente la condicion IVA.") as Error & {
+      fiscalCode?: FiscalLookupErrorCode;
+      diagnostics?: FiscalLookupDiagnostics;
+    };
+    error.fiscalCode = normalizedCondition.code === "VALIDATED_AUTO" ? "TAX_CONDITION_UNKNOWN" : normalizedCondition.code;
+    error.diagnostics = buildFiscalLookupDiagnostics({
+      response,
+      lookupEnvironment,
+      code: error.fiscalCode,
+      message: error.message,
+    });
+    throw error;
   }
 
   return {
     taxId,
-    legalName: legalName || null,
+    legalName,
     taxCondition: normalizedCondition.taxCondition,
     fiscalAddress,
     taxpayerStatus: normalizedCondition.taxpayerStatus,
@@ -283,6 +512,7 @@ export function extractFiscalLookupData(taxId: string, response: unknown): Fisca
     eligibleForInvoiceA: normalizedCondition.eligibleForInvoiceA,
     reason: normalizedCondition.reason,
     snapshot: sanitizeProviderPayload(response),
+    diagnostics: buildFiscalLookupDiagnostics({ response, lookupEnvironment }),
   };
 }
 
@@ -318,7 +548,7 @@ export function normalizeFiscalLookupError(error: unknown) {
     return "Afip SDK no respondio a tiempo. Reintenta luego.";
   }
   if (/invalid token|unauthorized|forbidden|401|403/i.test(raw) || [401, 403].includes(Number(errorWithStatus.status))) {
-    return "Las credenciales de Afip SDK no son validas o no tienen permisos para padron.";
+    return "El servicio no esta habilitado para el CUIT emisor o las credenciales de Afip SDK no tienen permisos de padron.";
   }
   if (/bearer|authorization|private key|certificate|secret|token/i.test(raw)) {
     return "Error de credenciales fiscales. Revisar Supabase Secrets.";

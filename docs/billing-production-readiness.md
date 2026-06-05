@@ -13,7 +13,8 @@
 
 - Confirmar CUIT real del emisor con responsable contable.
 - Confirmar razon social, condicion IVA y datos fiscales impresos.
-- Confirmar que los clientes destinados a Factura A tengan `customer_fiscal_profiles` completos, con CUIT valido, razon social oficial, condicion IVA `RESPONSABLE_INSCRIPTO` derivada oficialmente y validacion `VALIDATED_AUTO` previa a cualquier autorizacion.
+- Confirmar que los clientes destinados a Factura A tengan `customer_fiscal_profiles` completos, con CUIT valido, razon social oficial, `taxpayer_status = ACTIVO`, condicion IVA `RESPONSABLE_INSCRIPTO` derivada oficialmente y validacion `VALIDATED_AUTO` previa a cualquier autorizacion.
+- Confirmar que `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT` se entiende como ambiente de consulta de padron, separado del ambiente de emision fiscal.
 - Habilitar punto de venta real en AFIP/ARCA.
 - Configurar AFIPSDK prod solo en Supabase Secrets.
 - Validar que `billing_settings.environment = prod` solo pueda activarse desde flujo controlado futuro.
@@ -35,6 +36,7 @@
 - Nota de Credito fiscal sin devolucion comercial.
 - Datos fiscales incompletos.
 - Clientes fiscales no validados para Factura A.
+- Consulta de padron en ambiente incorrecto o con servicio no habilitado para el CUIT emisor.
 - Token expuesto.
 - Costos del proveedor.
 - PDF fiscal con datos legales incompletos.
@@ -53,7 +55,7 @@
 ## Prohibiciones vigentes
 
 - No ejecutar `db:push:prod`.
-- No usar AFIPSDK prod.
+- No usar AFIPSDK prod para emitir comprobantes sin flujo productivo aprobado. Una consulta de padron prod autorizada no habilita emision fiscal prod.
 - No guardar tokens/certificados en DB.
 - No hardcodear CUIT.
 - No exponer secrets.

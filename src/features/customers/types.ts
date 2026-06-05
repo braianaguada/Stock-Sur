@@ -14,7 +14,7 @@ export interface CustomerFiscalProfile {
   company_id: string;
   customer_id: string;
   tax_id: string;
-  legal_name: string;
+  legal_name: string | null;
   tax_condition: string | null;
   fiscal_address: string | null;
   taxpayer_status: string | null;
@@ -29,4 +29,24 @@ export interface CustomerFiscalProfile {
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface CustomerFiscalDiagnostics {
+  ok: boolean;
+  code: string;
+  message: string;
+  lookupEnvironment: string;
+  wsid: string;
+  method: string;
+  taxpayerFound: boolean;
+  hasDatosGenerales: boolean;
+  hasRegimenGeneral: boolean;
+  hasImpuestos: boolean;
+  hasMonotributo: boolean;
+  taxpayerStatus: string | null;
+  legalNameFound: boolean;
+  taxCondition: string;
+  normalizationReason: string | null;
+  availableTaxIds: Array<number | string>;
+  availableTaxDescriptions: string[];
 }

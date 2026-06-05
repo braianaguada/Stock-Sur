@@ -1,6 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   AFIPSDK_BASE_URL,
+  AFIPSDK_PADRON_WSID,
+  buildFiscalLookupDiagnostics,
   buildAfipSdkAuthPayload,
   buildAfipSdkPadronPayload,
   extractFiscalLookupData,
@@ -10,6 +12,7 @@ import {
   normalizeCuit,
   normalizeFiscalLookupError,
   sanitizeProviderPayload,
+  type FiscalLookupErrorCode,
 } from "./logic.ts";
 
 const corsHeaders = {
@@ -30,6 +33,38 @@ function json(body: unknown, status = 200) {
 function getBearerToken(authHeader: string | null) {
   const value = authHeader ?? "";
   return value.toLowerCase().startsWith("bearer ") ? value.slice(7).trim() : "";
+}
+
+function maskTaxId(value: string) {
+  const digits = normalizeCuit(value);
+  if (digits.length < 4) return "[missing]";
+  return `${digits.slice(0, 2)}******${digits.slice(-3)}`;
+}
+
+function sanitizeProfileForClient<T extends Record<string, unknown> | null>(profile: T) {
+  if (!profile) return profile;
+  return {
+    ...profile,
+    validation_snapshot: null,
+  };
+}
+
+function classifyProviderError(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  const status = Number((error as Error & { status?: number | null })?.status);
+  if (/no existe persona|not found|no encontrado|no encontrada/i.test(raw) || status === 404) return "TAXPAYER_NOT_FOUND" as const;
+  if (/service|servicio|habilitad|forbidden|unauthorized|401|403/i.test(raw) || [401, 403].includes(status)) {
+    return "SERVICE_NOT_ENABLED" as const;
+  }
+  return "AFIPSDK_ERROR" as const;
+}
+
+function logLookup(event: string, details: Record<string, unknown>) {
+  console.log(JSON.stringify({
+    event,
+    function: "customer-fiscal-lookup",
+    ...details,
+  }));
 }
 
 async function postAfipSdk(baseUrl: string, path: string, accessToken: string, body: unknown) {
@@ -64,6 +99,7 @@ async function postAfipSdk(baseUrl: string, path: string, accessToken: string, b
 }
 
 Deno.serve(async (req) => {
+  const requestId = crypto.randomUUID();
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Metodo no permitido." }, 405);
 
@@ -99,7 +135,19 @@ Deno.serve(async (req) => {
   if (!customerId) return json({ error: "Debes indicar el cliente a validar." }, 400);
 
   const taxIdError = getCuitValidationMessage(taxId);
-  if (taxIdError) return json({ error: taxIdError }, 400);
+  if (taxIdError) {
+    return json({
+      ok: false,
+      error: taxIdError,
+      diagnostics: buildFiscalLookupDiagnostics({
+        response: null,
+        lookupEnvironment: afipSdkEnvironment,
+        code: "INVALID_TAX_ID",
+        message: taxIdError,
+        taxCondition: "UNKNOWN",
+      }),
+    }, 400);
+  }
 
   const { data: customer, error: customerError } = await serviceClient
     .from("customers")
@@ -126,40 +174,54 @@ Deno.serve(async (req) => {
     .limit(1)
     .maybeSingle();
   const issuerTaxId = normalizeCuit(settings?.issuer_tax_id);
-  const { data: existingProfile } = await serviceClient
-    .from("customer_fiscal_profiles")
-    .select("legal_name, tax_condition, fiscal_address")
-    .eq("company_id", customer.company_id)
-    .eq("customer_id", customer.id)
-    .maybeSingle();
-
   if (!afipSdkAccessToken || !issuerTaxId) {
     const message = !afipSdkAccessToken
       ? "Falta configurar AFIPSDK_ACCESS_TOKEN en Supabase Secrets."
-      : "Falta configurar el CUIT emisor AFIPSDK dev para consultar padron.";
+      : `Falta configurar el CUIT emisor AFIPSDK ${afipSdkEnvironment} para consultar padron.`;
+    const diagnostics = buildFiscalLookupDiagnostics({
+      response: null,
+      lookupEnvironment: afipSdkEnvironment,
+      code: "SERVICE_NOT_ENABLED",
+      message,
+      taxCondition: "UNKNOWN",
+    });
     const { data: profile } = await serviceClient
       .from("customer_fiscal_profiles")
       .upsert({
         company_id: customer.company_id,
         customer_id: customer.id,
         tax_id: taxId,
-        legal_name: existingProfile?.legal_name || customer.name,
-        tax_condition: existingProfile?.tax_condition ?? "UNKNOWN",
-        fiscal_address: existingProfile?.fiscal_address ?? null,
+        legal_name: "",
+        tax_condition: "UNKNOWN",
+        fiscal_address: null,
         taxpayer_status: null,
         validation_status: "ERROR",
         validation_source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION",
         tax_condition_source: "UNKNOWN",
-        legal_name_source: existingProfile?.legal_name ? "OFFICIAL" : "UNKNOWN",
+        legal_name_source: "UNKNOWN",
         validation_error: message,
-        validation_snapshot: null,
+        validation_snapshot: diagnostics,
         validated_at: null,
         created_by: user.id,
         updated_by: user.id,
       }, { onConflict: "company_id,customer_id" })
       .select("*")
       .single();
-    return json({ ok: false, error: message, profile });
+    logLookup("customer_fiscal_lookup_result", {
+      requestId,
+      userId: user.id,
+      companyId: customer.company_id,
+      customerId: customer.id,
+      taxId,
+      lookupEnvironment: afipSdkEnvironment,
+      issuerTaxId: maskTaxId(issuerTaxId),
+      wsid: AFIPSDK_PADRON_WSID,
+      method: "getPersona_v2",
+      responseShape: diagnostics,
+      normalizationResult: diagnostics.taxCondition,
+      errorCode: diagnostics.code,
+    });
+    return json({ ok: false, error: message, code: diagnostics.code, diagnostics, profile: sanitizeProfileForClient(profile) });
   }
 
   const authPayload = buildAfipSdkAuthPayload(issuerTaxId, afipSdkEnvironment);
@@ -182,7 +244,7 @@ Deno.serve(async (req) => {
       environment: afipSdkEnvironment,
     });
     providerResponse = await postAfipSdk(afipSdkBaseUrl, "v1/afip/requests", afipSdkAccessToken, padronPayload);
-    const fiscalData = extractFiscalLookupData(taxId, providerResponse);
+    const fiscalData = extractFiscalLookupData(taxId, providerResponse, afipSdkEnvironment);
 
     const { data: profile, error: upsertError } = await serviceClient
       .from("customer_fiscal_profiles")
@@ -190,7 +252,7 @@ Deno.serve(async (req) => {
         company_id: customer.company_id,
         customer_id: customer.id,
         tax_id: fiscalData.taxId,
-        legal_name: fiscalData.legalName || existingProfile?.legal_name || customer.name,
+        legal_name: fiscalData.legalName,
         tax_condition: fiscalData.taxCondition,
         fiscal_address: fiscalData.fiscalAddress,
         taxpayer_status: fiscalData.taxpayerStatus,
@@ -208,27 +270,57 @@ Deno.serve(async (req) => {
       .single();
     if (upsertError || !profile) throw new Error("No se pudo guardar el perfil fiscal validado.");
 
-    return json({ ok: true, profile });
+    logLookup("customer_fiscal_lookup_result", {
+      requestId,
+      userId: user.id,
+      companyId: customer.company_id,
+      customerId: customer.id,
+      taxId,
+      lookupEnvironment: afipSdkEnvironment,
+      issuerTaxId: maskTaxId(issuerTaxId),
+      wsid: AFIPSDK_PADRON_WSID,
+      method: "getPersona_v2",
+      responseShape: fiscalData.diagnostics,
+      normalizationResult: fiscalData.taxCondition,
+      errorCode: null,
+    });
+
+    return json({ ok: true, diagnostics: fiscalData.diagnostics, profile: sanitizeProfileForClient(profile) });
   } catch (error) {
     const message = normalizeFiscalLookupError(error);
-    const errorWithProvider = error as Error & { providerResponse?: unknown };
+    const errorWithProvider = error as Error & {
+      providerResponse?: unknown;
+      fiscalCode?: FiscalLookupErrorCode;
+      diagnostics?: ReturnType<typeof buildFiscalLookupDiagnostics>;
+    };
+    const code = errorWithProvider.fiscalCode ?? classifyProviderError(error);
     const snapshot = sanitizeProviderPayload(errorWithProvider.providerResponse ?? providerResponse ?? null);
+    const diagnostics = errorWithProvider.diagnostics ?? buildFiscalLookupDiagnostics({
+      response: errorWithProvider.providerResponse ?? providerResponse ?? null,
+      lookupEnvironment: afipSdkEnvironment,
+      code,
+      message,
+      taxCondition: "UNKNOWN",
+    });
     const { data: profile } = await serviceClient
       .from("customer_fiscal_profiles")
       .upsert({
         company_id: customer.company_id,
         customer_id: customer.id,
         tax_id: taxId,
-        legal_name: existingProfile?.legal_name || customer.name,
-        tax_condition: existingProfile?.tax_condition ?? "UNKNOWN",
-        fiscal_address: existingProfile?.fiscal_address ?? null,
-        taxpayer_status: null,
+        legal_name: "",
+        tax_condition: "UNKNOWN",
+        fiscal_address: null,
+        taxpayer_status: diagnostics.taxpayerStatus,
         validation_status: "ERROR",
         validation_source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION",
         tax_condition_source: "UNKNOWN",
-        legal_name_source: existingProfile?.legal_name ? "OFFICIAL" : "UNKNOWN",
+        legal_name_source: "UNKNOWN",
         validation_error: message,
-        validation_snapshot: snapshot,
+        validation_snapshot: {
+          diagnostics,
+          providerSnapshot: snapshot,
+        },
         validated_at: null,
         created_by: user.id,
         updated_by: user.id,
@@ -236,6 +328,21 @@ Deno.serve(async (req) => {
       .select("*")
       .single();
 
-    return json({ ok: false, error: message, profile });
+    logLookup("customer_fiscal_lookup_result", {
+      requestId,
+      userId: user.id,
+      companyId: customer.company_id,
+      customerId: customer.id,
+      taxId,
+      lookupEnvironment: afipSdkEnvironment,
+      issuerTaxId: maskTaxId(issuerTaxId),
+      wsid: AFIPSDK_PADRON_WSID,
+      method: "getPersona_v2",
+      responseShape: diagnostics,
+      normalizationResult: diagnostics.taxCondition,
+      errorCode: diagnostics.code,
+    });
+
+    return json({ ok: false, error: message, code: diagnostics.code, diagnostics, profile: sanitizeProfileForClient(profile) });
   }
 });

@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSearch } from "@/hooks/useSearch";
 import { searchIncludes } from "@/lib/search";
 import type { CustomerFormState } from "@/features/customers/components/CustomerFormDialog";
-import type { Customer } from "@/features/customers/types";
+import type { Customer, CustomerFiscalDiagnostics } from "@/features/customers/types";
 import { canUseCustomerForInvoiceA, getCuitValidationMessage, normalizeCuit } from "@/features/customers/fiscal";
 
 const EMPTY_FORM: CustomerFormState = {
@@ -22,6 +22,8 @@ const EMPTY_FORM: CustomerFormState = {
   fiscal_tax_condition: "",
   fiscal_address: "",
   fiscal_validation_status: "PENDING",
+  fiscal_validated_at: null,
+  fiscal_lookup_diagnostics: null,
 };
 
 function isValidOptionalEmail(value: string) {
@@ -37,8 +39,38 @@ function looksLikeEmail(value: string) {
 type CustomerFiscalLookupResult = {
   ok?: boolean;
   error?: string;
+  code?: string;
+  diagnostics?: CustomerFiscalDiagnostics;
   profile?: Customer["fiscal_profile"];
 };
+
+function getFiscalDiagnosticsFromSnapshot(snapshot: unknown): CustomerFiscalDiagnostics | null {
+  if (!snapshot || typeof snapshot !== "object") return null;
+  const object = snapshot as { diagnostics?: unknown; code?: unknown; lookupEnvironment?: unknown };
+  const candidate = object.diagnostics && typeof object.diagnostics === "object" ? object.diagnostics : object;
+  if (!candidate || typeof candidate !== "object") return null;
+  const diagnostics = candidate as Partial<CustomerFiscalDiagnostics>;
+  if (typeof diagnostics.code !== "string" || typeof diagnostics.lookupEnvironment !== "string") return null;
+  return {
+    ok: Boolean(diagnostics.ok),
+    code: diagnostics.code,
+    message: typeof diagnostics.message === "string" ? diagnostics.message : "",
+    lookupEnvironment: diagnostics.lookupEnvironment,
+    wsid: typeof diagnostics.wsid === "string" ? diagnostics.wsid : "ws_sr_constancia_inscripcion",
+    method: typeof diagnostics.method === "string" ? diagnostics.method : "getPersona_v2",
+    taxpayerFound: Boolean(diagnostics.taxpayerFound),
+    hasDatosGenerales: Boolean(diagnostics.hasDatosGenerales),
+    hasRegimenGeneral: Boolean(diagnostics.hasRegimenGeneral),
+    hasImpuestos: Boolean(diagnostics.hasImpuestos),
+    hasMonotributo: Boolean(diagnostics.hasMonotributo),
+    taxpayerStatus: typeof diagnostics.taxpayerStatus === "string" ? diagnostics.taxpayerStatus : null,
+    legalNameFound: Boolean(diagnostics.legalNameFound),
+    taxCondition: typeof diagnostics.taxCondition === "string" ? diagnostics.taxCondition : "UNKNOWN",
+    normalizationReason: typeof diagnostics.normalizationReason === "string" ? diagnostics.normalizationReason : null,
+    availableTaxIds: Array.isArray(diagnostics.availableTaxIds) ? diagnostics.availableTaxIds : [],
+    availableTaxDescriptions: Array.isArray(diagnostics.availableTaxDescriptions) ? diagnostics.availableTaxDescriptions : [],
+  };
+}
 
 async function getFunctionErrorMessage(error: unknown) {
   const context = typeof error === "object" && error !== null && "context" in error
@@ -173,22 +205,20 @@ export function useCustomersPage({
         setForm((current) => ({
           ...current,
           fiscal_tax_id: profile.tax_id || current.fiscal_tax_id,
-          fiscal_legal_name: isControlledError
-            ? current.fiscal_legal_name || profile.legal_name
-            : profile.legal_name,
-          fiscal_tax_condition: isControlledError
-            ? current.fiscal_tax_condition || (profile.tax_condition ?? "")
-            : profile.tax_condition ?? "",
-          fiscal_address: isControlledError
-            ? current.fiscal_address || (profile.fiscal_address ?? "")
-            : profile.fiscal_address ?? "",
+          fiscal_legal_name: profile.legal_name ?? "",
+          fiscal_tax_condition: profile.tax_condition ?? "",
+          fiscal_address: profile.fiscal_address ?? "",
           fiscal_validation_status: profile.validation_status,
+          fiscal_validated_at: profile.validated_at,
+          fiscal_lookup_diagnostics: result.diagnostics ?? getFiscalDiagnosticsFromSnapshot(profile.validation_snapshot),
         }));
+      } else if (result.diagnostics) {
+        setForm((current) => ({ ...current, fiscal_lookup_diagnostics: result.diagnostics ?? null }));
       }
       if (isControlledError) {
         toast({
           title: "No se pudo validar el CUIT",
-          description: result.error ?? "El perfil fiscal quedo marcado con error.",
+          description: result.diagnostics?.message || result.error || "El perfil fiscal quedo marcado con error.",
           variant: "destructive",
         });
         return;
@@ -241,6 +271,8 @@ export function useCustomersPage({
       fiscal_tax_condition: customer.fiscal_profile?.tax_condition ?? "",
       fiscal_address: customer.fiscal_profile?.fiscal_address ?? "",
       fiscal_validation_status: customer.fiscal_profile?.validation_status ?? "PENDING",
+      fiscal_validated_at: customer.fiscal_profile?.validated_at ?? null,
+      fiscal_lookup_diagnostics: getFiscalDiagnosticsFromSnapshot(customer.fiscal_profile?.validation_snapshot),
     });
     setDialogOpen(true);
   };

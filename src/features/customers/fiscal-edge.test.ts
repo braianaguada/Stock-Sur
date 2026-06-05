@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAfipSdkAuthPayload,
   buildAfipSdkPadronPayload,
+  buildFiscalLookupDiagnostics,
   extractFiscalLookupData,
   getCuitValidationMessage,
   normalizeTaxConditionFromConstancia,
@@ -121,8 +122,36 @@ describe("customer fiscal lookup edge logic", () => {
     };
 
     expect(extractFiscalLookupData("30711582890", response)).toMatchObject({
-      legalName: null,
+      legalName: "",
       taxCondition: "RESPONSABLE_INSCRIPTO",
+      legalNameSource: "UNKNOWN",
+    });
+  });
+
+  it("extracts legal name from datosGenerales.razonSocial and never falls back to CUIT text", () => {
+    const validResponse = {
+      result: {
+        personaReturn: {
+          datosGenerales: { razonSocial: "ALPATACO SA" },
+          datosRegimenGeneral: { impuesto: { idImpuesto: 30 } },
+        },
+      },
+    };
+    const cuitAsNameResponse = {
+      data: {
+        personaReturn: {
+          datosGenerales: { razonSocial: "204209512345" },
+          datosRegimenGeneral: { impuesto: { idImpuesto: 30 } },
+        },
+      },
+    };
+
+    expect(extractFiscalLookupData("30711582890", validResponse)).toMatchObject({
+      legalName: "ALPATACO SA",
+      legalNameSource: "OFFICIAL",
+    });
+    expect(extractFiscalLookupData("30711582890", cuitAsNameResponse)).toMatchObject({
+      legalName: "",
       legalNameSource: "UNKNOWN",
     });
   });
@@ -162,6 +191,90 @@ describe("customer fiscal lookup edge logic", () => {
       eligibleForInvoiceA: false,
       reason: "CUIT no activo",
     });
+  });
+
+  it("supports idImpuesto as string, descripcion IVA, object and array impuesto shapes", () => {
+    expect(normalizeTaxConditionFromConstancia({
+      data: {
+        personaReturn: {
+          datosGenerales: { estadoClave: "ACTIVO" },
+          datosRegimenGeneral: { impuesto: { idImpuesto: "30", estadoImpuesto: "ACTIVO" } },
+        },
+      },
+    })).toMatchObject({ taxCondition: "RESPONSABLE_INSCRIPTO", eligibleForInvoiceA: true });
+
+    expect(normalizeTaxConditionFromConstancia({
+      result: {
+        datosGenerales: { estadoClave: "ACTIVO" },
+        datosRegimenGeneral: { impuestos: [{ descripcionImpuesto: "IVA responsable inscripto" }] },
+      },
+    })).toMatchObject({ taxCondition: "RESPONSABLE_INSCRIPTO", eligibleForInvoiceA: true });
+  });
+
+  it("returns diagnostic codes for missing taxpayer, inactive CUIT and unknown tax condition", () => {
+    expect(normalizeTaxConditionFromConstancia(null)).toMatchObject({
+      code: "TAXPAYER_NOT_FOUND",
+      taxCondition: "UNKNOWN",
+      taxpayerFound: false,
+    });
+
+    expect(normalizeTaxConditionFromConstancia({
+      personaReturn: {
+        datosGenerales: { estadoClave: "BAJA" },
+        datosRegimenGeneral: { impuesto: [{ idImpuesto: 30 }] },
+      },
+    })).toMatchObject({
+      code: "TAXPAYER_INACTIVE",
+      taxCondition: "UNKNOWN",
+      taxpayerStatus: "BAJA",
+    });
+
+    expect(normalizeTaxConditionFromConstancia({
+      personaReturn: {
+        datosGenerales: { estadoClave: "ACTIVO" },
+        datosRegimenGeneral: { impuesto: [{ idImpuesto: 99, descripcionImpuesto: "GANANCIAS" }] },
+      },
+    })).toMatchObject({
+      code: "TAX_CONDITION_UNKNOWN",
+      hasImpuestos: true,
+      availableTaxIds: [99],
+      availableTaxDescriptions: ["GANANCIAS"],
+    });
+  });
+
+  it("builds sanitized compact diagnostics without secrets", () => {
+    const diagnostics = buildFiscalLookupDiagnostics({
+      response: {
+        personaReturn: {
+          datosGenerales: { razonSocial: "CLIENTE SA", estadoClave: "ACTIVO" },
+          datosRegimenGeneral: {
+            impuesto: [
+              { idImpuesto: 99, descripcionImpuesto: "GANANCIAS <script>alert(1)</script>" },
+            ],
+          },
+          token: "secret-token",
+          sign: "secret-sign",
+        },
+      },
+      lookupEnvironment: "dev",
+      code: "TAX_CONDITION_UNKNOWN",
+      message: "No se pudo determinar IVA.",
+    });
+
+    expect(JSON.stringify(diagnostics)).not.toMatch(/token|sign|Bearer|cert|key|secret-token|secret-sign/i);
+    expect(diagnostics).toMatchObject({
+      code: "TAX_CONDITION_UNKNOWN",
+      lookupEnvironment: "dev",
+      wsid: "ws_sr_constancia_inscripcion",
+      method: "getPersona_v2",
+      taxpayerFound: true,
+      hasDatosGenerales: true,
+      hasRegimenGeneral: true,
+      hasImpuestos: true,
+      legalNameFound: true,
+      taxCondition: "UNKNOWN",
+    });
+    expect(diagnostics.availableTaxDescriptions[0]).not.toContain("<script>");
   });
 
   it("redacts secrets from provider snapshots", () => {

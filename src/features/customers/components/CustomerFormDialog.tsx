@@ -1,10 +1,10 @@
 import { EntityDialog } from "@/components/common/EntityDialog";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import type { Customer } from "@/features/customers/types";
+import type { Customer, CustomerFiscalDiagnostics } from "@/features/customers/types";
 import { canUseCustomerForInvoiceA, getCuitValidationMessage } from "@/features/customers/fiscal";
 
 export type CustomerFormState = {
@@ -18,6 +18,8 @@ export type CustomerFormState = {
   fiscal_tax_condition: string;
   fiscal_address: string;
   fiscal_validation_status: "PENDING" | "VALIDATED_AUTO" | "ERROR";
+  fiscal_validated_at: string | null;
+  fiscal_lookup_diagnostics: CustomerFiscalDiagnostics | null;
 };
 
 type CustomerFormDialogProps = {
@@ -31,6 +33,24 @@ type CustomerFormDialogProps = {
   onSubmit: () => void;
   onValidateFiscal: () => void;
 };
+
+function getEnvironmentNotice(environment: string | null | undefined) {
+  if (environment === "dev") return "Consulta en ambiente dev. Los CUIT reales pueden no devolver datos completos.";
+  if (environment === "prod") return "Consulta de padron en produccion. No emite comprobantes.";
+  return null;
+}
+
+function getFiscalDiagnosticMessage(diagnostics: CustomerFiscalDiagnostics | null) {
+  if (!diagnostics) return null;
+  if (diagnostics.code === "TAXPAYER_NOT_FOUND") return "El CUIT no existe en el padron consultado o el ambiente no devolvio datos completos.";
+  if (diagnostics.code === "TAX_CONDITION_UNKNOWN") return diagnostics.normalizationReason || "ARCA devolvio datos, pero no impuestos suficientes para determinar IVA.";
+  if (diagnostics.code === "TAXPAYER_INACTIVE") return "El CUIT no esta activo en el padron consultado.";
+  if (diagnostics.code === "SERVICE_NOT_ENABLED") return "El servicio no esta habilitado para el CUIT emisor o faltan credenciales de padron.";
+  if (diagnostics.code === "INVALID_TAX_ID") return diagnostics.message || "El CUIT ingresado no es valido.";
+  if (diagnostics.code === "LOOKUP_ENVIRONMENT_MISMATCH") return "El ambiente de consulta no coincide con la configuracion fiscal disponible.";
+  if (diagnostics.code === "AFIPSDK_ERROR") return "No se pudo consultar Afip SDK.";
+  return diagnostics.message || null;
+}
 
 export function CustomerFormDialog({
   open,
@@ -85,8 +105,21 @@ export function CustomerFormDialog({
   const cuitMessage = form.fiscal_tax_id ? getCuitValidationMessage(form.fiscal_tax_id) : null;
   const canValidateFiscalTaxId = Boolean(form.fiscal_tax_id.trim()) && !cuitMessage;
   const detectedTaxpayerStatus = editingCustomer?.fiscal_profile?.taxpayer_status ?? "-";
-  const detectedAt = editingCustomer?.fiscal_profile?.validated_at
-    ? new Date(editingCustomer.fiscal_profile.validated_at).toLocaleString("es-AR")
+  const diagnostics = form.fiscal_lookup_diagnostics;
+  const environmentNotice = getEnvironmentNotice(diagnostics?.lookupEnvironment);
+  const diagnosticMessage = getFiscalDiagnosticMessage(diagnostics);
+  const technicalState = diagnostics
+    ? [
+      `taxpayerFound=${diagnostics.taxpayerFound ? "true" : "false"}`,
+      `datosGenerales=${diagnostics.hasDatosGenerales ? "true" : "false"}`,
+      `regimenGeneral=${diagnostics.hasRegimenGeneral ? "true" : "false"}`,
+      `impuestos=${diagnostics.hasImpuestos ? "true" : "false"}`,
+      `monotributo=${diagnostics.hasMonotributo ? "true" : "false"}`,
+      `code=${diagnostics.code}`,
+    ].join(" | ")
+    : null;
+  const detectedAt = form.fiscal_validated_at
+    ? new Date(form.fiscal_validated_at).toLocaleString("es-AR")
     : "-";
 
   return (
@@ -151,7 +184,13 @@ export function CustomerFormDialog({
             <Label>CUIT fiscal para Factura A</Label>
             <Input
               value={form.fiscal_tax_id}
-              onChange={(event) => onFormChange({ ...form, fiscal_tax_id: event.target.value, fiscal_validation_status: "PENDING" })}
+              onChange={(event) => onFormChange({
+                ...form,
+                fiscal_tax_id: event.target.value,
+                fiscal_validation_status: "PENDING",
+                fiscal_validated_at: null,
+                fiscal_lookup_diagnostics: null,
+              })}
               placeholder="20-40937847-2"
             />
             {!form.fiscal_tax_id ? (
@@ -179,7 +218,7 @@ export function CustomerFormDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Estado CUIT / estado clave</Label>
-              <Input value={detectedTaxpayerStatus} readOnly />
+              <Input value={diagnostics?.taxpayerStatus ?? detectedTaxpayerStatus} readOnly />
             </div>
             <div className="space-y-2">
               <Label>Fecha de validacion</Label>
@@ -189,8 +228,30 @@ export function CustomerFormDialog({
 
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>Estado: {form.fiscal_validation_status}</span>
-            <span>Fuente: Constancia de inscripcion ARCA</span>
+            <span>Fuente: {diagnostics ? `${diagnostics.wsid}/${diagnostics.method}` : "Constancia de inscripcion ARCA"}</span>
           </div>
+
+          {diagnostics ? (
+            <div className="space-y-2 rounded-md border border-dashed p-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">Ambiente de consulta: {diagnostics.lookupEnvironment}</Badge>
+                <Badge variant="outline">Condicion: {diagnostics.taxCondition || "UNKNOWN"}</Badge>
+              </div>
+              {environmentNotice ? <p className="text-muted-foreground">{environmentNotice}</p> : null}
+              {diagnosticMessage ? (
+                <p className="flex items-start gap-2 text-destructive">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>{diagnosticMessage}</span>
+                </p>
+              ) : null}
+              {technicalState ? <p className="break-words text-muted-foreground">Estado tecnico QA: {technicalState}</p> : null}
+              {diagnostics.availableTaxDescriptions.length > 0 ? (
+                <p className="break-words text-muted-foreground">
+                  Impuestos detectados: {diagnostics.availableTaxDescriptions.join(", ")}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {!invoiceAReadiness.allowed && invoiceAReadiness.reasons.length > 0 ? (
             <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">

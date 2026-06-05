@@ -58,6 +58,7 @@ describe("customer fiscal profile helpers", () => {
     expect(canUseCustomerForInvoiceA(customer, { ...profile, tax_condition: "MONOTRIBUTO" })).toMatchObject({ allowed: false });
     expect(canUseCustomerForInvoiceA(customer, { ...profile, tax_condition_source: "UNKNOWN" })).toMatchObject({ allowed: false });
     expect(canUseCustomerForInvoiceA(customer, { ...profile, legal_name_source: "UNKNOWN" })).toMatchObject({ allowed: false });
+    expect(canUseCustomerForInvoiceA(customer, { ...profile, taxpayer_status: "INACTIVO" })).toMatchObject({ allowed: false });
   });
 
   it("allows a non occasional customer with a validated complete fiscal profile", () => {

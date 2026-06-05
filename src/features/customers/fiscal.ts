@@ -45,6 +45,7 @@ export function canUseCustomerForInvoiceA(customer: Customer | null | undefined,
   if (!fiscalProfile) reasons.push("El cliente no tiene perfil fiscal.");
   if (fiscalProfile && !isValidCuitChecksum(fiscalProfile.tax_id)) reasons.push("El perfil fiscal no tiene CUIT valido.");
   if (fiscalProfile && !fiscalProfile.legal_name?.trim()) reasons.push("El perfil fiscal no tiene razon social.");
+  if (fiscalProfile && fiscalProfile.taxpayer_status !== "ACTIVO") reasons.push("El CUIT debe estar activo en la constancia oficial.");
   if (fiscalProfile && fiscalProfile.tax_condition !== "RESPONSABLE_INSCRIPTO") {
     reasons.push("Factura A solo se habilita para Responsable Inscripto en esta fase.");
   }

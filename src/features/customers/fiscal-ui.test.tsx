@@ -14,6 +14,8 @@ const baseForm: CustomerFormState = {
   fiscal_tax_condition: "RESPONSABLE_INSCRIPTO",
   fiscal_address: "Calle 123",
   fiscal_validation_status: "VALIDATED_AUTO",
+  fiscal_validated_at: "2026-06-04T12:00:00Z",
+  fiscal_lookup_diagnostics: null,
 };
 
 const customer: Customer = {
@@ -74,5 +76,40 @@ describe("customer fiscal UI", () => {
     renderDialog({ ...baseForm, is_occasional: true }, { ...customer, is_occasional: true });
     expect(screen.queryByRole("checkbox", { name: /cliente ocasional/i })).not.toBeInTheDocument();
     expect(screen.getByText("Cliente ocasional no aplica: los clientes creados aqui son registrados.")).toBeInTheDocument();
+  });
+
+  it("shows lookup environment and clear diagnostic reason when fiscal lookup fails", () => {
+    renderDialog({
+      ...baseForm,
+      fiscal_legal_name: "",
+      fiscal_tax_condition: "UNKNOWN",
+      fiscal_address: "",
+      fiscal_validation_status: "ERROR",
+      fiscal_validated_at: null,
+      fiscal_lookup_diagnostics: {
+        ok: false,
+        code: "TAX_CONDITION_UNKNOWN",
+        message: "ARCA devolvio datos, pero no impuestos suficientes para determinar IVA.",
+        lookupEnvironment: "dev",
+        wsid: "ws_sr_constancia_inscripcion",
+        method: "getPersona_v2",
+        taxpayerFound: true,
+        hasDatosGenerales: true,
+        hasRegimenGeneral: true,
+        hasImpuestos: false,
+        hasMonotributo: false,
+        taxpayerStatus: "ACTIVO",
+        legalNameFound: false,
+        taxCondition: "UNKNOWN",
+        normalizationReason: "ARCA devolvio datos, pero no impuestos suficientes para determinar IVA.",
+        availableTaxIds: [],
+        availableTaxDescriptions: [],
+      },
+    });
+
+    expect(screen.getByText("Ambiente de consulta: dev")).toBeInTheDocument();
+    expect(screen.getByText("Consulta en ambiente dev. Los CUIT reales pueden no devolver datos completos.")).toBeInTheDocument();
+    expect(screen.getByText("ARCA devolvio datos, pero no impuestos suficientes para determinar IVA.")).toBeInTheDocument();
+    expect(screen.getByText(/Estado tecnico QA:/)).toHaveTextContent("taxpayerFound=true");
   });
 });
