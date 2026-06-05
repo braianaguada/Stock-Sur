@@ -5,15 +5,17 @@
 - Factura B homologacion/dev validada.
 - Nota de Credito B total homologacion/dev validada.
 - Impresion interna HTML A4 con QR validada.
+- Factura A borrador interno preparada con autorizacion bloqueada por DB, UI y edge function.
 - No se usa PDF de Afip SDK.
 - Produccion no esta habilitada.
-- Factura A, NC A, Nota de Debito, facturacion parcial y libro IVA no estan implementados.
+- Autorizacion/emision de Factura A, NC A, Nota de Debito, facturacion parcial y libro IVA no estan implementados.
 
 ## Antes de produccion
 
 - Confirmar CUIT real del emisor con responsable contable.
 - Confirmar razon social, condicion IVA y datos fiscales impresos.
 - Confirmar que los clientes destinados a Factura A tengan `customer_fiscal_profiles` completos, con CUIT valido, razon social oficial, `taxpayer_status = ACTIVO`, condicion IVA `RESPONSABLE_INSCRIPTO` derivada oficialmente y validacion `VALIDATED_AUTO` previa a cualquier autorizacion.
+- Confirmar que todo borrador `FACTURA_A` siga sin CAE, sin numero fiscal, sin `voucher_date` y sin `authorized_at`.
 - Confirmar que `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT` se entiende como ambiente de consulta de padron, separado del ambiente de emision fiscal.
 - En `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=dev` solo se debe esperar padron de homologacion. CUIT reales pueden devolver `TAXPAYER_NOT_FOUND`; para validar CUIT reales se requiere `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=prod` con CUIT emisor real y `ws_sr_constancia_inscripcion` habilitado.
 - Usar prod para consulta de padron no habilita emision productiva. Factura A, Nota de Credito A y produccion de comprobantes siguen bloqueadas hasta una fase separada.
@@ -69,12 +71,15 @@ Antes de Factura A de homologacion:
 3. Confirmar `ws_sr_constancia_inscripcion` habilitado.
 4. Probar CUIT real.
 5. Confirmar `VALIDATED_AUTO`.
-6. Recien despues avanzar a Factura A homologacion.
+6. Validar que el borrador `FACTURA_A` se crea solo con snapshot oficial y queda sin CAE/numero fiscal.
+7. Recien despues avanzar a Factura A homologacion.
 
 ## Prohibiciones vigentes
 
 - No ejecutar `db:push:prod`.
 - No usar AFIPSDK prod para emitir comprobantes sin flujo productivo aprobado. Una consulta de padron prod autorizada no habilita emision fiscal prod.
+- No autorizar ni emitir Factura A desde la fase de borrador gated.
+- No crear Nota de Credito A.
 - No guardar tokens/certificados en DB.
 - No hardcodear CUIT.
 - No exponer secrets.

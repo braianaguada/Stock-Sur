@@ -43,7 +43,11 @@ function buildRows(lines: BillingDocumentLineRow[]) {
 export function buildBillingPrintHtml({ document, lines, remito, relatedDocument, qrDataUrl }: BuildBillingPrintHtmlParams) {
   const documentTypeLabel = getBillingDocumentTypeLabel(document);
   const isCreditNote = document.document_kind === "CREDIT_NOTE";
+  const isInvoiceADraft = document.document_kind === "INVOICE" && document.invoice_type === "FACTURA_A";
+  const isAuthorized = document.fiscal_status === "AUTHORIZED" && Boolean(document.cae);
   const originalVoucher = relatedDocument?.voucher_full_number ?? formatDocumentNumber(relatedDocument?.point_of_sale, relatedDocument?.voucher_number);
+  const documentLetter = document.invoice_type === "FACTURA_A" ? "A" : "B";
+  const receiverTaxCondition = isInvoiceADraft ? document.receiver_tax_condition : "A CONSUMIDOR FINAL";
 
   return `<!doctype html>
 <html lang="es">
@@ -88,8 +92,8 @@ export function buildBillingPrintHtml({ document, lines, remito, relatedDocument
     <button class="print-action" onclick="window.print()">Imprimir / Guardar PDF</button>
   </div>
   <main class="page">
-    ${document.fiscal_status !== "AUTHORIZED" || !document.cae ? `
-      <div class="warning">Este comprobante no esta autorizado fiscalmente. No debe entregarse como factura fiscal.</div>
+    ${!isAuthorized ? `
+      <div class="warning">${isInvoiceADraft ? "BORRADOR - No valido como comprobante fiscal. Factura A en preparacion. No emite comprobantes." : "Este comprobante no esta autorizado fiscalmente. No debe entregarse como factura fiscal."}</div>
     ` : ""}
     <section class="header">
       <div>
@@ -97,10 +101,10 @@ export function buildBillingPrintHtml({ document, lines, remito, relatedDocument
         <p>CUIT: ${escapeHtml(document.issuer_tax_id ?? "-")}</p>
         <p>Condicion IVA: ${escapeHtml(document.issuer_tax_condition ?? "-")}</p>
       </div>
-      <div class="letter">B</div>
+      <div class="letter">${documentLetter}</div>
       <div class="right">
         <h1>${escapeHtml(documentTypeLabel)}</h1>
-        <p><strong>HOMOLOGACION / DEV</strong></p>
+        <p><strong>${isInvoiceADraft ? "BORRADOR INTERNO" : "HOMOLOGACION / DEV"}</strong></p>
         <p>Comprobante: ${escapeHtml(document.voucher_full_number ?? formatDocumentNumber(document.point_of_sale, document.voucher_number))}</p>
         <p>Fecha: ${formatDate(document.voucher_date ?? document.created_at)}</p>
         <p>CAE: ${escapeHtml(document.cae ?? "-")}</p>
@@ -112,7 +116,7 @@ export function buildBillingPrintHtml({ document, lines, remito, relatedDocument
       <div>
         <h2>Receptor</h2>
         <p>${escapeHtml(document.receiver_name)}</p>
-        <p>A CONSUMIDOR FINAL</p>
+        <p>${escapeHtml(receiverTaxCondition)}</p>
         <p>Documento: ${escapeHtml(document.receiver_doc_type)} ${escapeHtml(document.receiver_doc_number ?? "0")}</p>
       </div>
       <div>
@@ -154,7 +158,7 @@ export function buildBillingPrintHtml({ document, lines, remito, relatedDocument
       <div class="fiscal">
         ${qrDataUrl ? `<img class="qr" src="${escapeHtml(qrDataUrl)}" alt="QR fiscal ARCA" />` : `<div class="qr"></div>`}
         <div>
-          <p class="muted">QR fiscal ARCA generado internamente.</p>
+          <p class="muted">${isAuthorized ? "QR fiscal ARCA generado internamente." : "Sin QR fiscal: borrador interno no autorizado."}</p>
           <p class="muted">No se usa el PDF de Afip SDK.</p>
         </div>
       </div>

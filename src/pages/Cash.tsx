@@ -26,8 +26,10 @@ import { useCashData } from "@/features/cash/hooks/useCashData";
 import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
 import { useBillingActions } from "@/features/billing/hooks/useBillingActions";
 import { useActiveBillingSourceIds, useBillingSettings } from "@/features/billing/hooks/useBillingData";
+import { canUseCustomerForInvoiceA } from "@/features/customers/fiscal";
 import { OCCASIONAL_CUSTOMER_DISPLAY_NAME } from "@/features/documents/utils";
 import { AmountDisplay } from "@/components/common/VisualSystem";
+import type { BillingInvoiceType } from "@/features/billing/types";
 import type {
   CashExpenseFormState,
   CashExpenseRow,
@@ -381,19 +383,52 @@ export default function CashPage() {
     setDetailDialogOpen(true);
   };
 
-  const createBillingDraft = (sale: CashMovementRow) => {
+  const getInvoiceAReadiness = (sale: CashMovementRow) => {
+    const remito = sale.document_id ? remitosById.get(sale.document_id) : null;
+    const customer = remito?.customers
+      ? {
+          id: remito.customers.id,
+          company_id: remito.customers.company_id,
+          name: remito.customers.name,
+          cuit: remito.customers.cuit,
+          email: remito.customers.email,
+          phone: remito.customers.phone,
+          is_occasional: remito.customers.is_occasional,
+        }
+      : null;
+    const fiscalProfile = remito?.customers?.customer_fiscal_profiles?.[0] ?? null;
+    return canUseCustomerForInvoiceA(customer, fiscalProfile);
+  };
+
+  const createBillingDraft = (sale: CashMovementRow, invoiceType: BillingInvoiceType = "FACTURA_B") => {
+    if (invoiceType === "FACTURA_A") {
+      const readiness = getInvoiceAReadiness(sale);
+      if (!readiness.allowed) {
+        toast({
+          title: "Factura A bloqueada",
+          description: readiness.reasons.join(" "),
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     const confirmed = window.confirm(
-      "Se creara un borrador fiscal Factura B a Consumidor Final desde esta venta/remito. No se emitira CAE todavia.",
+      invoiceType === "FACTURA_A"
+        ? "Se creara un borrador interno Factura A desde esta venta/remito. No se autoriza, no se emite CAE y no se modifica caja, stock ni cuenta corriente."
+        : "Se creara un borrador fiscal Factura B a Consumidor Final desde esta venta/remito. No se emitira CAE todavia.",
     );
     if (!confirmed) return;
 
     createBillingDraftMutation.mutate(
-      { cashSaleId: sale.id, invoiceType: "FACTURA_B" },
+      { cashSaleId: sale.id, invoiceType },
       {
         onSuccess: () => {
           toast({
             title: "Borrador fiscal creado",
-            description: "Se creo una Factura B interna en estado borrador. No tiene CAE.",
+            description: invoiceType === "FACTURA_A"
+              ? "Se creo una Factura A en preparacion. No tiene CAE ni numero fiscal."
+              : "Se creo una Factura B interna en estado borrador. No tiene CAE.",
           });
           window.location.assign("/billing");
         },
@@ -562,7 +597,9 @@ export default function CashPage() {
                   billingEnabled={billingSettingsQuery.billingEnabled}
                   billedSourceIds={billedSourceIds}
                   canCreateBillingDraft={canCreateBillingDraft}
-                  onCreateBillingDraft={createBillingDraft}
+                  onCreateBillingDraft={(sale) => createBillingDraft(sale, "FACTURA_B")}
+                  onCreateInvoiceADraft={(sale) => createBillingDraft(sale, "FACTURA_A")}
+                  getInvoiceAReadiness={getInvoiceAReadiness}
                   createBillingDraftPending={createBillingDraftMutation.isPending}
                   page={salesPagination.page}
                   totalPages={salesPagination.totalPages}

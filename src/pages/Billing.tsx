@@ -36,6 +36,7 @@ import type { BillingDocumentRow } from "@/features/billing/types";
 
 const STATUS_LABEL: Record<BillingDocumentRow["fiscal_status"], string> = {
   DRAFT: "Borrador",
+  BLOCKED: "Bloqueado",
   READY_TO_AUTHORIZE: "Listo para autorizar",
   AUTHORIZING: "Autorizando",
   AUTHORIZED: "Autorizado",
@@ -110,7 +111,8 @@ export default function BillingPage() {
       drafts: documents.filter((document) => document.fiscal_status === "DRAFT" || document.fiscal_status === "READY_TO_AUTHORIZE").length,
       rejected: documents.filter((document) => document.fiscal_status === "REJECTED").length,
       creditNotes: documents.filter((document) => document.invoice_type === "NOTA_CREDITO_B").length,
-      pending: documents.filter((document) => ["DRAFT", "READY_TO_AUTHORIZE", "REJECTED", "AUTHORIZING"].includes(document.fiscal_status)).length,
+      invoiceADrafts: documents.filter((document) => document.invoice_type === "FACTURA_A").length,
+      pending: documents.filter((document) => ["DRAFT", "BLOCKED", "READY_TO_AUTHORIZE", "REJECTED", "AUTHORIZING"].includes(document.fiscal_status)).length,
     }),
     [documents],
   );
@@ -220,11 +222,12 @@ export default function BillingPage() {
                     <h1 className="page-title">Facturacion</h1>
                     <Badge variant="outline">Homologacion / dev</Badge>
                     <Badge variant="outline">Factura B</Badge>
+                    <Badge variant="outline">Factura A borrador</Badge>
                     <Badge variant="outline">NC B total</Badge>
                     <Badge variant="outline">Produccion no habilitada</Badge>
                   </div>
                   <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                    Operacion fiscal en homologacion: autorizar, imprimir y revisar comprobantes. La configuracion fiscal vive en Configuracion.
+                    Operacion fiscal en homologacion: autorizar B/NC B, imprimir y revisar comprobantes. Factura A esta en preparacion y no emite comprobantes.
                   </p>
                 </div>
               </div>
@@ -255,6 +258,7 @@ export default function BillingPage() {
                 ["Borradores", summary.drafts],
                 ["Rechazados", summary.rejected],
                 ["Notas de credito", summary.creditNotes],
+                ["Facturas A borrador", summary.invoiceADrafts],
                 ["Pendientes", summary.pending],
               ].map(([label, value]) => (
                 <Card key={String(label)} className="border-primary/8 shadow-[var(--shadow-xs)]">
@@ -296,6 +300,7 @@ export default function BillingPage() {
                       onChange={(event) => setTypeFilter(event.target.value as BillingDocumentRow["invoice_type"] | "ALL")}
                     >
                       <option value="ALL">Todos los tipos</option>
+                      <option value="FACTURA_A">Factura A</option>
                       <option value="FACTURA_B">Factura B</option>
                       <option value="NOTA_CREDITO_B">Nota de Credito B</option>
                     </select>
@@ -403,7 +408,9 @@ export default function BillingPage() {
                 <CardHeader>
                   <CardTitle>Detalle</CardTitle>
                   <CardDescription>
-                    {selectedDocument?.fiscal_status === "AUTHORIZED"
+                    {selectedDocument?.invoice_type === "FACTURA_A"
+                      ? "Factura A en preparacion. No emite comprobantes."
+                      : selectedDocument?.fiscal_status === "AUTHORIZED"
                       ? "Comprobante autorizado fiscalmente en homologacion."
                       : "Este comprobante todavia no fue autorizado fiscalmente."}
                   </CardDescription>
@@ -481,6 +488,11 @@ export default function BillingPage() {
                         {selectedDocument.document_kind === "CREDIT_NOTE" ? (
                           <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
                             Esta nota de credito es fiscal. No devuelve stock ni modifica caja/cuenta corriente.
+                          </div>
+                        ) : null}
+                        {selectedDocument.invoice_type === "FACTURA_A" ? (
+                          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                            Factura A en preparacion. No emite comprobantes. La autorizacion de Factura A esta bloqueada hasta completar VALIDATED_AUTO real y habilitar la fase correspondiente.
                           </div>
                         ) : null}
                         <div className="flex flex-wrap justify-end gap-2 border-t pt-3">

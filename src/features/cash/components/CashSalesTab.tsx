@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, NotebookText, ReceiptText } from "lucide-react";
+import { Ban, FileText, NotebookText, ReceiptText } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { AmountDisplay, CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
@@ -27,6 +27,8 @@ type CashSalesTabProps = {
   billedSourceIds: ReadonlySet<string>;
   canCreateBillingDraft: boolean;
   onCreateBillingDraft: (sale: CashMovementRow) => void;
+  onCreateInvoiceADraft: (sale: CashMovementRow) => void;
+  getInvoiceAReadiness: (sale: CashMovementRow) => { allowed: boolean; reasons: string[] };
   createBillingDraftPending: boolean;
   page: number;
   totalPages: number;
@@ -51,6 +53,8 @@ export function CashSalesTab({
   billedSourceIds,
   canCreateBillingDraft,
   onCreateBillingDraft,
+  onCreateInvoiceADraft,
+  getInvoiceAReadiness,
   createBillingDraftPending,
   page,
   totalPages,
@@ -136,18 +140,37 @@ export function CashSalesTab({
             sale: row.original,
             billedSourceIds,
           }) ? (
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              aria-label="Crear borrador fiscal"
-              title="Crear borrador fiscal"
-              onClick={() => onCreateBillingDraft(row.original)}
-              disabled={createBillingDraftPending}
-            >
-              <ReceiptText className="h-4 w-4" />
-            </Button>
+            <>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                aria-label="Crear borrador Factura B"
+                title="Crear borrador Factura B"
+                onClick={() => onCreateBillingDraft(row.original)}
+                disabled={createBillingDraftPending}
+              >
+                <ReceiptText className="h-4 w-4" />
+              </Button>
+              {(() => {
+                const readiness = getInvoiceAReadiness(row.original);
+                return (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    aria-label="Crear borrador Factura A"
+                    title={readiness.allowed ? "Crear borrador Factura A" : `Factura A bloqueada: ${readiness.reasons[0] ?? "cliente no elegible"}`}
+                    onClick={() => onCreateInvoiceADraft(row.original)}
+                    disabled={createBillingDraftPending || !readiness.allowed}
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                );
+              })()}
+            </>
           ) : null}
           {row.original.movement_kind === "SALE" && row.original.status !== "ANULADA" ? (
             <Button
@@ -175,6 +198,8 @@ export function CashSalesTab({
     effectiveClosure,
     onCancelSale,
     onCreateBillingDraft,
+    onCreateInvoiceADraft,
+    getInvoiceAReadiness,
     onOpenDetail,
   ]);
 

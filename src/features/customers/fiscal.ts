@@ -58,11 +58,18 @@ export function canUseCustomerForInvoiceA(customer: Customer | null | undefined,
   if (fiscalProfile && !isValidatedFiscalProfile(fiscalProfile)) {
     reasons.push("El perfil fiscal todavia no esta validado automaticamente.");
   }
+  if (fiscalProfile?.validation_source && /mock|fixture|test/i.test(fiscalProfile.validation_source)) {
+    reasons.push("Los perfiles mock no habilitan Factura A.");
+  }
 
   return {
     allowed: reasons.length === 0,
     reasons,
   };
+}
+
+export function getInvoiceAReadinessReasons(customer: Customer | null | undefined, fiscalProfile: CustomerFiscalProfile | null | undefined) {
+  return canUseCustomerForInvoiceA(customer, fiscalProfile).reasons;
 }
 
 export function buildCustomerFiscalSnapshot(customer: Customer, fiscalProfile: CustomerFiscalProfile) {
@@ -76,7 +83,10 @@ export function buildCustomerFiscalSnapshot(customer: Customer, fiscalProfile: C
     validation_source: fiscalProfile.validation_source,
     tax_condition_source: fiscalProfile.tax_condition_source,
     legal_name_source: fiscalProfile.legal_name_source,
+    taxpayer_status: fiscalProfile.taxpayer_status,
     validated_at: fiscalProfile.validated_at,
     snapshot_created_at: new Date().toISOString(),
   };
 }
+
+export const buildInvoiceAFiscalSnapshot = buildCustomerFiscalSnapshot;

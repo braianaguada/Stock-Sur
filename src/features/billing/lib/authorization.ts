@@ -16,6 +16,7 @@ export const STALE_AUTHORIZING_MINUTES = 10;
 
 export function getBillingDocumentTypeLabel(document: Pick<BillingDocumentRow, "document_kind" | "invoice_type"> | null) {
   if (!document) return "Comprobante fiscal";
+  if (document.document_kind === "INVOICE" && document.invoice_type === "FACTURA_A") return "Factura A";
   if (document.document_kind === "CREDIT_NOTE" && document.invoice_type === "NOTA_CREDITO_B") return "Nota de Credito B";
   return "Factura B";
 }
@@ -98,6 +99,18 @@ export function canShowPrintBillingDocumentAction(
   roles: AppRole[],
   context?: BillingAccessContext,
 ) {
+  if (
+    document &&
+    canPrintBilling(roles, context) &&
+    document.document_kind === "INVOICE" &&
+    document.invoice_type === "FACTURA_A" &&
+    ["DRAFT", "BLOCKED", "CANCELLED_INTERNAL"].includes(document.fiscal_status) &&
+    !document.cae &&
+    !document.voucher_number
+  ) {
+    return true;
+  }
+
   return Boolean(
       document &&
       canPrintBilling(roles, context) &&

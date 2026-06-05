@@ -130,7 +130,7 @@ describe("Afip SDK authorization logic", () => {
       document: { ...document, invoice_type: "FACTURA_A" },
       settings,
       lines,
-    })).toThrow("Solo se admite Factura B");
+    })).toThrow("La autorizacion de Factura A esta bloqueada");
     expect(() => assertAuthorizationPreconditions({
       document: { ...document, environment: "prod" },
       settings,
