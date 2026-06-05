@@ -129,6 +129,27 @@ Variables requeridas: `SUPABASE_ACCESS_TOKEN` y `SUPABASE_FUNCTIONS_URL` o `VITE
 
 Usar CUIT de homologacion cuando `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=dev`. Usar CUIT real solo si `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=prod` esta configurado y autorizado por el responsable fiscal. Si no hay CUIT real autorizado, dejar el caso documentado y no declarar exito.
 
+Resultado QA staging PR #255:
+
+- `lookupEnvironment=dev`
+- `code=TAXPAYER_NOT_FOUND`
+- `taxpayerFound=false`
+- `taxCondition=UNKNOWN`
+- Mensaje: el CUIT no existe en el padron consultado o el ambiente no devolvio datos utiles.
+
+Dictamen: el codigo queda apto tecnicamente. La validacion de CUIT reales queda bloqueada por ambiente dev, porque en `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=dev` solo se debe esperar funcionamiento con padron de homologacion. CUIT reales pueden devolver `TAXPAYER_NOT_FOUND` en dev. Para validar CUIT reales se requiere `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=prod`, CUIT emisor real y servicio `ws_sr_constancia_inscripcion` habilitado.
+
 ## Decision tecnica
 
 Este flujo reemplaza la inferencia anterior basada en endpoints que no exponian claramente la condicion IVA. La condicion no viene como texto final, pero queda derivada de datos oficiales del padron y con fuente explicita. Factura A futura solo puede considerar perfiles con cliente real, CUIT valido, `VALIDATED_AUTO`, `legal_name_source = OFFICIAL`, `tax_condition_source = OFFICIAL_DERIVED`, `tax_condition = RESPONSABLE_INSCRIPTO`, `taxpayer_status = ACTIVO` y razon social oficial presente.
+
+Usar `prod` para consulta de padron no habilita emision de comprobantes productivos. Factura A sigue bloqueada. No se emitio Factura A ni Nota de Credito A, no se toco produccion de comprobantes y Factura B/Nota de Credito B siguen sin cambios.
+
+Checklist proxima fase:
+
+- Configurar lookup prod de constancia.
+- Validar CUIT emisor real.
+- Confirmar `ws_sr_constancia_inscripcion` habilitado.
+- Probar CUIT real.
+- Confirmar `VALIDATED_AUTO`.
+- Recien despues avanzar a Factura A homologacion.
