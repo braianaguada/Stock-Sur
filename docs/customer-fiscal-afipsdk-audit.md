@@ -15,8 +15,10 @@ BLOQUEADO para habilitar Factura A productiva: este trabajo solo valida y persis
 - `wsid`: `ws_sr_constancia_inscripcion`
 - Metodo: `getPersona_v2`
 - Ambiente default de consulta Stock Sur: `dev`
-- Variable de ambiente: `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT`, con fallback a `AFIPSDK_ENVIRONMENT`
-- CUIT emisor: `billing_settings.issuer_tax_id` para la compania, provider `AFIPSDK`, environment activo
+- Variable de ambiente lookup: `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT`, con fallback a `AFIPSDK_ENVIRONMENT` y luego `dev`
+- Ambiente de emision fiscal: separado; se resuelve desde `AFIPSDK_ENVIRONMENT`/`billing_settings.environment` y debe seguir en `dev` para esta fase
+- CUIT emisor lookup: `CUSTOMER_FISCAL_LOOKUP_ISSUER_TAX_ID`; si falta, fallback a `billing_settings.issuer_tax_id` de la compania, provider `AFIPSDK`, ambiente de emision activo
+- CUIT emisor real staging para prueba controlada: TFD S.R.L. `30711582890`
 
 ARCA publica `ws_sr_constancia_inscripcion` como Consulta a Padron Constancia de Inscripcion y aclara que reemplaza a `ws_sr_padron_a5`. `ws_sr_padron_a4` sirve para datos tributarios, pero no es el WS recomendado para constancia actual. `ws_sr_padron_a5` queda descartado por deprecacion/reemplazo.
 
@@ -28,8 +30,8 @@ Primero se obtiene token/sign:
 
 ```json
 {
-  "environment": "dev",
-  "tax_id": "20409378472",
+  "environment": "prod",
+  "tax_id": "30711582890",
   "wsid": "ws_sr_constancia_inscripcion"
 }
 ```
@@ -38,13 +40,13 @@ Luego se consulta el padron:
 
 ```json
 {
-  "environment": "dev",
+  "environment": "prod",
   "method": "getPersona_v2",
   "wsid": "ws_sr_constancia_inscripcion",
   "params": {
     "token": "[REDACTED]",
     "sign": "[REDACTED]",
-    "cuitRepresentada": 20409378472,
+    "cuitRepresentada": 30711582890,
     "idPersona": 30711582890
   }
 }
@@ -106,13 +108,15 @@ Codigos principales:
 - `AFIPSDK_ERROR`: error tecnico de Afip SDK no clasificable.
 - `LOOKUP_ENVIRONMENT_MISMATCH`: reservado para inconsistencias explicitas entre ambiente solicitado y configurado.
 
-El diagnostico expone solo campos compactos: ambiente de consulta, `wsid`, metodo, presencia de `datosGenerales`, regimen general, impuestos y monotributo, estado CUIT, razon social encontrada, condicion derivada, motivo de normalizacion e impuestos disponibles sanitizados.
+El diagnostico expone solo campos compactos: ambiente de consulta, ambiente de emision, `wsid`, metodo, CUIT emisor enmascarado, warning prod/dev cuando aplique, presencia de `datosGenerales`, regimen general, impuestos y monotributo, estado CUIT, razon social encontrada, condicion derivada, aptitud futura para Factura A, motivo de normalizacion e impuestos disponibles sanitizados.
 
 En servidor se loguea request id, user id, company id, customer id, CUIT consultado, ambiente, CUIT emisor enmascarado, shape del response, resultado de normalizacion y codigo de error. No se loguean token, sign, Authorization, Bearer, cert, key ni secrets.
 
 ## Dev, produccion, certificados, limites
 
 - Dev funciona con Afip SDK si existe `AFIPSDK_ACCESS_TOKEN` y un `issuer_tax_id` habilitado para `ws_sr_constancia_inscripcion` en `billing_settings`. CUIT reales pueden no devolver datos completos en ambiente dev.
+- Prod para lookup funciona solo si `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=prod` y existe CUIT emisor real por `CUSTOMER_FISCAL_LOOKUP_ISSUER_TAX_ID` o fallback de `billing_settings` del ambiente de emision. No requiere `billing_settings.environment=prod`.
+- Si `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=prod` y el ambiente de emision sigue en `dev`, la consulta se permite y devuelve warning: `Consulta de padron en produccion. La emision de comprobantes sigue en homologacion/dev.`
 - Afip SDK documenta que en desarrollo se puede obtener TA con CUIT `20409378472` sin certificado propio. Para produccion se requiere configuracion/certificado o autorizacion del CUIT representado en Afip SDK/ARCA.
 - En produccion debe usarse el mismo `wsid` y metodo con `environment = prod`. Esto solo cambia la consulta de padron: la emision fiscal productiva sigue bloqueada en este cambio.
 - Los limites y costos dependen del plan de Afip SDK. El sistema normaliza respuestas 429 como limite/rate limit y no agrega scraping ni API no oficial.
@@ -128,6 +132,23 @@ node scripts/customer-fiscal-lookup-qa.mjs <CUIT> <CUSTOMER_ID>
 Variables requeridas: `SUPABASE_ACCESS_TOKEN` y `SUPABASE_FUNCTIONS_URL` o `VITE_SUPABASE_URL`. El script imprime `lookupEnvironment`, `taxpayerFound`, flags de response, `taxpayerStatus`, `taxCondition`, `eligibleForInvoiceA`, `normalizationReason` y `code` sin imprimir secrets.
 
 Usar CUIT de homologacion cuando `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=dev`. Usar CUIT real solo si `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=prod` esta configurado y autorizado por el responsable fiscal. Si no hay CUIT real autorizado, dejar el caso documentado y no declarar exito.
+
+Secrets esperados para staging lookup prod controlado:
+
+- `AFIPSDK_ACCESS_TOKEN`: token de Afip SDK, nunca expuesto en frontend ni logs.
+- `AFIPSDK_BASE_URL`: `https://app.afipsdk.com/api/` salvo override controlado.
+- `AFIPSDK_ENVIRONMENT`: debe seguir en `dev` para la emision fiscal actual.
+- `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT`: `prod` solo para consulta de padron/constancia.
+- `CUSTOMER_FISCAL_LOOKUP_ISSUER_TAX_ID`: `30711582890`.
+- `CUSTOMER_FISCAL_LOOKUP_WSID`: `ws_sr_constancia_inscripcion`.
+
+Estado esperado antes y despues de la prueba:
+
+- `billing_settings.environment` de emision sigue en `dev`.
+- No se cambia `billing_settings.environment` a `prod`.
+- No se emite ningun comprobante.
+- No se crean `billing_documents` `FACTURA_A` ni `NOTA_CREDITO_A`.
+- Factura B y Nota de Credito B siguen usando su flujo actual en homologacion/dev sin cambios.
 
 Resultado QA staging PR #255:
 
@@ -148,8 +169,8 @@ Usar `prod` para consulta de padron no habilita emision de comprobantes producti
 Checklist proxima fase:
 
 - Configurar lookup prod de constancia.
-- Validar CUIT emisor real.
-- Confirmar `ws_sr_constancia_inscripcion` habilitado.
+- Validar CUIT emisor real `30711582890` de TFD S.R.L.
+- Confirmar `ws_sr_constancia_inscripcion` habilitado con servicio/relacion/certificado correctos en Afip SDK/ARCA.
 - Probar CUIT real.
 - Confirmar `VALIDATED_AUTO`.
 - Recien despues avanzar a Factura A homologacion.
