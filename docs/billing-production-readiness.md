@@ -13,6 +13,10 @@
 
 - Confirmar CUIT real del emisor con responsable contable.
 - Confirmar razon social, condicion IVA y datos fiscales impresos.
+- Confirmar que los clientes destinados a Factura A tengan `customer_fiscal_profiles` completos, con CUIT valido, razon social oficial, `taxpayer_status = ACTIVO`, condicion IVA `RESPONSABLE_INSCRIPTO` derivada oficialmente y validacion `VALIDATED_AUTO` previa a cualquier autorizacion.
+- Confirmar que `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT` se entiende como ambiente de consulta de padron, separado del ambiente de emision fiscal.
+- En `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=dev` solo se debe esperar padron de homologacion. CUIT reales pueden devolver `TAXPAYER_NOT_FOUND`; para validar CUIT reales se requiere `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=prod` con CUIT emisor real y `ws_sr_constancia_inscripcion` habilitado.
+- Usar prod para consulta de padron no habilita emision productiva. Factura A, Nota de Credito A y produccion de comprobantes siguen bloqueadas hasta una fase separada.
 - Habilitar punto de venta real en AFIP/ARCA.
 - Configurar AFIPSDK prod solo en Supabase Secrets.
 - Validar que `billing_settings.environment = prod` solo pueda activarse desde flujo controlado futuro.
@@ -33,9 +37,19 @@
 - Facturar venta equivocada.
 - Nota de Credito fiscal sin devolucion comercial.
 - Datos fiscales incompletos.
+- Clientes fiscales no validados para Factura A.
+- Consulta de padron en ambiente incorrecto o con servicio no habilitado para el CUIT emisor.
 - Token expuesto.
 - Costos del proveedor.
 - PDF fiscal con datos legales incompletos.
+
+## Resultado QA PR #255
+
+- Staging devolvio diagnostico correcto para lookup dev: `TAXPAYER_NOT_FOUND`, `taxpayerFound=false`, `taxCondition=UNKNOWN`.
+- El codigo queda apto tecnicamente; la validacion de CUIT reales queda bloqueada por ambiente dev.
+- No se emitio Factura A ni Nota de Credito A.
+- No se toco produccion de comprobantes.
+- Factura B y Nota de Credito B siguen sin cambios.
 
 ## Procedimiento futuro sugerido
 
@@ -48,10 +62,19 @@
 7. Monitorear logs y eventos.
 8. Recién despues evaluar lote inicial o apertura operativa.
 
+Antes de Factura A de homologacion:
+
+1. Configurar lookup prod de constancia.
+2. Validar CUIT emisor real.
+3. Confirmar `ws_sr_constancia_inscripcion` habilitado.
+4. Probar CUIT real.
+5. Confirmar `VALIDATED_AUTO`.
+6. Recien despues avanzar a Factura A homologacion.
+
 ## Prohibiciones vigentes
 
 - No ejecutar `db:push:prod`.
-- No usar AFIPSDK prod.
+- No usar AFIPSDK prod para emitir comprobantes sin flujo productivo aprobado. Una consulta de padron prod autorizada no habilita emision fiscal prod.
 - No guardar tokens/certificados en DB.
 - No hardcodear CUIT.
 - No exponer secrets.

@@ -14,7 +14,7 @@ import type {
   LineDraft,
   PriceListItemRow,
 } from "../types";
-import { calculatePriceFromCostBase, formatNumber } from "../utils";
+import { buildDocumentCustomerSnapshot, calculatePriceFromCostBase, formatNumber } from "../utils";
 import { getOperationalPrice } from "@/features/pricing/operational-price";
 import type { PriceRoundingConfig } from "@/features/pricing/rounding";
 
@@ -223,8 +223,13 @@ export function useDocumentsMutations({
       );
 
       const pickedCustomer = draftForm.customer_id ? customersById.get(draftForm.customer_id) ?? null : null;
-      const customerName = pickedCustomer?.name ?? draftForm.customer_name ?? "Cliente ocasional";
-      const customerTaxId = draftForm.customer_tax_id || pickedCustomer?.cuit || null;
+      const customerSnapshot = buildDocumentCustomerSnapshot({
+        customerId: draftForm.customer_id,
+        pickedCustomer,
+        manualCustomerName: draftForm.customer_name,
+        manualTaxId: draftForm.customer_tax_id,
+        manualTaxCondition: draftForm.customer_tax_condition,
+      });
 
       let documentId = editingDocId;
       if (!documentId) {
@@ -235,12 +240,12 @@ export function useDocumentsMutations({
             doc_type: draftForm.doc_type,
             status: "BORRADOR",
             point_of_sale: draftForm.point_of_sale,
-            customer_id: draftForm.customer_id || null,
+            customer_id: customerSnapshot.customer_id,
             technician_id: draftForm.technician_id || null,
             service_id: draftForm.doc_type === "REMITO" ? draftForm.service_id || null : null,
-            customer_name: customerName || null,
-            customer_tax_condition: draftForm.customer_tax_condition || null,
-            customer_tax_id: customerTaxId,
+            customer_name: customerSnapshot.customer_name,
+            customer_tax_condition: customerSnapshot.customer_tax_condition,
+            customer_tax_id: customerSnapshot.customer_tax_id,
             customer_kind: draftForm.customer_kind,
             internal_remito_type: draftForm.doc_type === "REMITO" && draftForm.customer_kind === "INTERNO" ? draftForm.internal_remito_type || null : null,
             payment_terms: draftForm.payment_terms || null,
@@ -264,12 +269,12 @@ export function useDocumentsMutations({
           .update({
             doc_type: draftForm.doc_type,
             point_of_sale: draftForm.point_of_sale,
-            customer_id: draftForm.customer_id || null,
+            customer_id: customerSnapshot.customer_id,
             technician_id: draftForm.technician_id || null,
             service_id: draftForm.doc_type === "REMITO" ? draftForm.service_id || null : null,
-            customer_name: customerName || null,
-            customer_tax_condition: draftForm.customer_tax_condition || null,
-            customer_tax_id: customerTaxId,
+            customer_name: customerSnapshot.customer_name,
+            customer_tax_condition: customerSnapshot.customer_tax_condition,
+            customer_tax_id: customerSnapshot.customer_tax_id,
             customer_kind: draftForm.customer_kind,
             internal_remito_type: draftForm.doc_type === "REMITO" && draftForm.customer_kind === "INTERNO" ? draftForm.internal_remito_type || null : null,
             payment_terms: draftForm.payment_terms || null,
