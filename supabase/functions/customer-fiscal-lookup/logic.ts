@@ -32,8 +32,11 @@ export type FiscalLookupDiagnostics = {
   code: FiscalLookupErrorCode | "VALIDATED_AUTO";
   message: string;
   lookupEnvironment: string;
-  wsid: typeof AFIPSDK_PADRON_WSID;
+  billingEnvironment: string;
+  wsid: string;
   method: "getPersona_v2";
+  issuerTaxIdMasked: string;
+  warning: string | null;
   taxpayerFound: boolean;
   hasDatosGenerales: boolean;
   hasRegimenGeneral: boolean;
@@ -42,6 +45,8 @@ export type FiscalLookupDiagnostics = {
   taxpayerStatus: string | null;
   legalNameFound: boolean;
   taxCondition: string;
+  eligibleForInvoiceA: boolean;
+  reason: string | null;
   normalizationReason: string | null;
   availableTaxIds: Array<number | string>;
   availableTaxDescriptions: string[];
@@ -56,8 +61,50 @@ export function normalizeAfipSdkEnvironment(value: string | undefined | null) {
   return (value ?? AFIPSDK_ENVIRONMENT).trim() || AFIPSDK_ENVIRONMENT;
 }
 
+export function resolveFiscalLookupEnvironment(params: {
+  customerFiscalLookupEnvironment?: string | null;
+  afipSdkEnvironment?: string | null;
+}) {
+  return normalizeAfipSdkEnvironment(params.customerFiscalLookupEnvironment ?? params.afipSdkEnvironment);
+}
+
+export function normalizeFiscalLookupWsid(value: string | undefined | null) {
+  const normalized = (value ?? AFIPSDK_PADRON_WSID).trim();
+  return normalized === AFIPSDK_PADRON_WSID ? normalized : AFIPSDK_PADRON_WSID;
+}
+
 export function normalizeCuit(value: string | null | undefined) {
   return (value ?? "").replace(/\D/g, "");
+}
+
+export function maskTaxId(value: string | null | undefined) {
+  const digits = normalizeCuit(value);
+  if (digits.length < 4) return "[missing]";
+  return `${digits.slice(0, 2)}******${digits.slice(-3)}`;
+}
+
+export function resolveLookupIssuerTaxId(params: {
+  customerFiscalLookupIssuerTaxId?: string | null;
+  billingIssuerTaxId?: string | null;
+}) {
+  const lookupIssuerTaxId = normalizeCuit(params.customerFiscalLookupIssuerTaxId);
+  if (lookupIssuerTaxId) {
+    return { issuerTaxId: lookupIssuerTaxId, source: "CUSTOMER_FISCAL_LOOKUP_ISSUER_TAX_ID" as const };
+  }
+
+  const billingIssuerTaxId = normalizeCuit(params.billingIssuerTaxId);
+  if (billingIssuerTaxId) {
+    return { issuerTaxId: billingIssuerTaxId, source: "billing_settings.issuer_tax_id" as const };
+  }
+
+  return { issuerTaxId: "", source: null };
+}
+
+export function buildLookupEnvironmentWarning(lookupEnvironment: string, billingEnvironment: string) {
+  if (lookupEnvironment === "prod" && billingEnvironment === "dev") {
+    return "Consulta de padron en produccion. La emision de comprobantes sigue en homologacion/dev.";
+  }
+  return null;
 }
 
 export function isValidCuitChecksum(value: string | null | undefined) {
@@ -81,11 +128,11 @@ export function getCuitValidationMessage(value: string | null | undefined) {
   return null;
 }
 
-export function buildAfipSdkAuthPayload(taxId: string, environment = AFIPSDK_ENVIRONMENT) {
+export function buildAfipSdkAuthPayload(taxId: string, environment = AFIPSDK_ENVIRONMENT, wsid = AFIPSDK_PADRON_WSID) {
   return {
     environment,
     tax_id: taxId,
-    wsid: AFIPSDK_PADRON_WSID,
+    wsid: normalizeFiscalLookupWsid(wsid),
   };
 }
 
@@ -95,11 +142,12 @@ export function buildAfipSdkPadronPayload(params: {
   issuerTaxId: string;
   taxId: string;
   environment?: string;
+  wsid?: string;
 }) {
   return {
     environment: params.environment ?? AFIPSDK_ENVIRONMENT,
     method: "getPersona_v2",
-    wsid: AFIPSDK_PADRON_WSID,
+    wsid: normalizeFiscalLookupWsid(params.wsid),
     params: {
       token: params.token,
       sign: params.sign,
@@ -447,6 +495,10 @@ function inferLegalName(response: unknown) {
 export function buildFiscalLookupDiagnostics(params: {
   response: unknown;
   lookupEnvironment?: string | null;
+  billingEnvironment?: string | null;
+  wsid?: string | null;
+  issuerTaxId?: string | null;
+  warning?: string | null;
   code?: FiscalLookupErrorCode | "VALIDATED_AUTO";
   message?: string | null;
   taxCondition?: string | null;
@@ -459,8 +511,11 @@ export function buildFiscalLookupDiagnostics(params: {
     code,
     message: params.message ?? normalizedCondition.reason ?? "Perfil fiscal validado automaticamente.",
     lookupEnvironment: normalizeAfipSdkEnvironment(params.lookupEnvironment),
-    wsid: AFIPSDK_PADRON_WSID,
+    billingEnvironment: normalizeAfipSdkEnvironment(params.billingEnvironment),
+    wsid: normalizeFiscalLookupWsid(params.wsid),
     method: "getPersona_v2" as const,
+    issuerTaxIdMasked: maskTaxId(params.issuerTaxId),
+    warning: params.warning ?? null,
     taxpayerFound: normalizedCondition.taxpayerFound,
     hasDatosGenerales: normalizedCondition.hasDatosGenerales,
     hasRegimenGeneral: normalizedCondition.hasRegimenGeneral,
@@ -469,13 +524,25 @@ export function buildFiscalLookupDiagnostics(params: {
     taxpayerStatus: normalizedCondition.taxpayerStatus,
     legalNameFound: Boolean(legalName),
     taxCondition: params.taxCondition ?? normalizedCondition.taxCondition,
+    eligibleForInvoiceA: normalizedCondition.eligibleForInvoiceA,
+    reason: normalizedCondition.reason,
     normalizationReason: normalizedCondition.reason,
     availableTaxIds: normalizedCondition.availableTaxIds,
     availableTaxDescriptions: normalizedCondition.availableTaxDescriptions,
   } satisfies FiscalLookupDiagnostics;
 }
 
-export function extractFiscalLookupData(taxId: string, response: unknown, lookupEnvironment = AFIPSDK_ENVIRONMENT): FiscalLookupData {
+export function extractFiscalLookupData(
+  taxId: string,
+  response: unknown,
+  lookupEnvironment = AFIPSDK_ENVIRONMENT,
+  options: {
+    billingEnvironment?: string | null;
+    wsid?: string | null;
+    issuerTaxId?: string | null;
+    warning?: string | null;
+  } = {},
+): FiscalLookupData {
   const domicilio = findNestedObject(response, "domicilioFiscal");
   const legalName = inferLegalName(response);
   const normalizedCondition = normalizeTaxConditionFromConstancia(response);
@@ -493,6 +560,10 @@ export function extractFiscalLookupData(taxId: string, response: unknown, lookup
     error.diagnostics = buildFiscalLookupDiagnostics({
       response,
       lookupEnvironment,
+      billingEnvironment: options.billingEnvironment,
+      wsid: options.wsid,
+      issuerTaxId: options.issuerTaxId,
+      warning: options.warning,
       code: error.fiscalCode,
       message: error.message,
     });
@@ -512,7 +583,14 @@ export function extractFiscalLookupData(taxId: string, response: unknown, lookup
     eligibleForInvoiceA: normalizedCondition.eligibleForInvoiceA,
     reason: normalizedCondition.reason,
     snapshot: sanitizeProviderPayload(response),
-    diagnostics: buildFiscalLookupDiagnostics({ response, lookupEnvironment }),
+    diagnostics: buildFiscalLookupDiagnostics({
+      response,
+      lookupEnvironment,
+      billingEnvironment: options.billingEnvironment,
+      wsid: options.wsid,
+      issuerTaxId: options.issuerTaxId,
+      warning: options.warning,
+    }),
   };
 }
 

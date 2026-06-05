@@ -1,16 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   AFIPSDK_BASE_URL,
-  AFIPSDK_PADRON_WSID,
   buildFiscalLookupDiagnostics,
   buildAfipSdkAuthPayload,
   buildAfipSdkPadronPayload,
+  buildLookupEnvironmentWarning,
   extractFiscalLookupData,
   getCuitValidationMessage,
+  maskTaxId,
   normalizeAfipSdkBaseUrl,
   normalizeAfipSdkEnvironment,
   normalizeCuit,
+  normalizeFiscalLookupWsid,
   normalizeFiscalLookupError,
+  resolveFiscalLookupEnvironment,
+  resolveLookupIssuerTaxId,
   sanitizeProviderPayload,
   type FiscalLookupErrorCode,
 } from "./logic.ts";
@@ -33,12 +37,6 @@ function json(body: unknown, status = 200) {
 function getBearerToken(authHeader: string | null) {
   const value = authHeader ?? "";
   return value.toLowerCase().startsWith("bearer ") ? value.slice(7).trim() : "";
-}
-
-function maskTaxId(value: string) {
-  const digits = normalizeCuit(value);
-  if (digits.length < 4) return "[missing]";
-  return `${digits.slice(0, 2)}******${digits.slice(-3)}`;
 }
 
 function sanitizeProfileForClient<T extends Record<string, unknown> | null>(profile: T) {
@@ -108,9 +106,13 @@ Deno.serve(async (req) => {
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const afipSdkAccessToken = Deno.env.get("AFIPSDK_ACCESS_TOKEN");
   const afipSdkBaseUrl = normalizeAfipSdkBaseUrl(Deno.env.get("AFIPSDK_BASE_URL") ?? AFIPSDK_BASE_URL);
-  const afipSdkEnvironment = normalizeAfipSdkEnvironment(
-    Deno.env.get("CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT") ?? Deno.env.get("AFIPSDK_ENVIRONMENT"),
-  );
+  const afipSdkEnvironment = resolveFiscalLookupEnvironment({
+    customerFiscalLookupEnvironment: Deno.env.get("CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT"),
+    afipSdkEnvironment: Deno.env.get("AFIPSDK_ENVIRONMENT"),
+  });
+  const billingEnvironment = normalizeAfipSdkEnvironment(Deno.env.get("AFIPSDK_ENVIRONMENT"));
+  const lookupWsid = normalizeFiscalLookupWsid(Deno.env.get("CUSTOMER_FISCAL_LOOKUP_WSID"));
+  const lookupWarning = buildLookupEnvironmentWarning(afipSdkEnvironment, billingEnvironment);
 
   if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
     return json({ error: "Faltan secretos requeridos de Supabase." }, 500);
@@ -142,6 +144,9 @@ Deno.serve(async (req) => {
       diagnostics: buildFiscalLookupDiagnostics({
         response: null,
         lookupEnvironment: afipSdkEnvironment,
+        billingEnvironment,
+        wsid: lookupWsid,
+        warning: lookupWarning,
         code: "INVALID_TAX_ID",
         message: taxIdError,
         taxCondition: "UNKNOWN",
@@ -169,18 +174,25 @@ Deno.serve(async (req) => {
     .select("issuer_tax_id")
     .eq("company_id", customer.company_id)
     .eq("provider", "AFIPSDK")
-    .eq("environment", afipSdkEnvironment)
+    .eq("environment", billingEnvironment)
     .eq("is_enabled", true)
     .limit(1)
     .maybeSingle();
-  const issuerTaxId = normalizeCuit(settings?.issuer_tax_id);
+  const { issuerTaxId } = resolveLookupIssuerTaxId({
+    customerFiscalLookupIssuerTaxId: Deno.env.get("CUSTOMER_FISCAL_LOOKUP_ISSUER_TAX_ID"),
+    billingIssuerTaxId: settings?.issuer_tax_id,
+  });
   if (!afipSdkAccessToken || !issuerTaxId) {
     const message = !afipSdkAccessToken
       ? "Falta configurar AFIPSDK_ACCESS_TOKEN en Supabase Secrets."
-      : `Falta configurar el CUIT emisor AFIPSDK ${afipSdkEnvironment} para consultar padron.`;
+      : `Falta configurar CUSTOMER_FISCAL_LOOKUP_ISSUER_TAX_ID o el CUIT emisor AFIPSDK ${billingEnvironment} para consultar padron.`;
     const diagnostics = buildFiscalLookupDiagnostics({
       response: null,
       lookupEnvironment: afipSdkEnvironment,
+      billingEnvironment,
+      wsid: lookupWsid,
+      issuerTaxId,
+      warning: lookupWarning,
       code: "SERVICE_NOT_ENABLED",
       message,
       taxCondition: "UNKNOWN",
@@ -214,9 +226,11 @@ Deno.serve(async (req) => {
       customerId: customer.id,
       taxId,
       lookupEnvironment: afipSdkEnvironment,
+      billingEnvironment,
       issuerTaxId: maskTaxId(issuerTaxId),
-      wsid: AFIPSDK_PADRON_WSID,
+      wsid: lookupWsid,
       method: "getPersona_v2",
+      warning: lookupWarning,
       responseShape: diagnostics,
       normalizationResult: diagnostics.taxCondition,
       errorCode: diagnostics.code,
@@ -224,7 +238,7 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: message, code: diagnostics.code, diagnostics, profile: sanitizeProfileForClient(profile) });
   }
 
-  const authPayload = buildAfipSdkAuthPayload(issuerTaxId, afipSdkEnvironment);
+  const authPayload = buildAfipSdkAuthPayload(issuerTaxId, afipSdkEnvironment, lookupWsid);
   let providerResponse: unknown = null;
 
   try {
@@ -242,9 +256,15 @@ Deno.serve(async (req) => {
       issuerTaxId,
       taxId,
       environment: afipSdkEnvironment,
+      wsid: lookupWsid,
     });
     providerResponse = await postAfipSdk(afipSdkBaseUrl, "v1/afip/requests", afipSdkAccessToken, padronPayload);
-    const fiscalData = extractFiscalLookupData(taxId, providerResponse, afipSdkEnvironment);
+    const fiscalData = extractFiscalLookupData(taxId, providerResponse, afipSdkEnvironment, {
+      billingEnvironment,
+      wsid: lookupWsid,
+      issuerTaxId,
+      warning: lookupWarning,
+    });
 
     const { data: profile, error: upsertError } = await serviceClient
       .from("customer_fiscal_profiles")
@@ -277,9 +297,11 @@ Deno.serve(async (req) => {
       customerId: customer.id,
       taxId,
       lookupEnvironment: afipSdkEnvironment,
+      billingEnvironment,
       issuerTaxId: maskTaxId(issuerTaxId),
-      wsid: AFIPSDK_PADRON_WSID,
+      wsid: lookupWsid,
       method: "getPersona_v2",
+      warning: lookupWarning,
       responseShape: fiscalData.diagnostics,
       normalizationResult: fiscalData.taxCondition,
       errorCode: null,
@@ -298,6 +320,10 @@ Deno.serve(async (req) => {
     const diagnostics = errorWithProvider.diagnostics ?? buildFiscalLookupDiagnostics({
       response: errorWithProvider.providerResponse ?? providerResponse ?? null,
       lookupEnvironment: afipSdkEnvironment,
+      billingEnvironment,
+      wsid: lookupWsid,
+      issuerTaxId,
+      warning: lookupWarning,
       code,
       message,
       taxCondition: "UNKNOWN",
@@ -335,9 +361,11 @@ Deno.serve(async (req) => {
       customerId: customer.id,
       taxId,
       lookupEnvironment: afipSdkEnvironment,
+      billingEnvironment,
       issuerTaxId: maskTaxId(issuerTaxId),
-      wsid: AFIPSDK_PADRON_WSID,
+      wsid: lookupWsid,
       method: "getPersona_v2",
+      warning: lookupWarning,
       responseShape: diagnostics,
       normalizationResult: diagnostics.taxCondition,
       errorCode: diagnostics.code,

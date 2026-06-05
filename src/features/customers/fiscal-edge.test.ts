@@ -3,9 +3,14 @@ import {
   buildAfipSdkAuthPayload,
   buildAfipSdkPadronPayload,
   buildFiscalLookupDiagnostics,
+  buildLookupEnvironmentWarning,
   extractFiscalLookupData,
   getCuitValidationMessage,
+  maskTaxId,
+  normalizeFiscalLookupWsid,
   normalizeTaxConditionFromConstancia,
+  resolveFiscalLookupEnvironment,
+  resolveLookupIssuerTaxId,
   sanitizeProviderPayload,
 } from "../../../supabase/functions/customer-fiscal-lookup/logic";
 
@@ -34,6 +39,57 @@ describe("customer fiscal lookup edge logic", () => {
       method: "getPersona_v2",
       wsid: "ws_sr_constancia_inscripcion",
     });
+  });
+
+  it("uses customer fiscal lookup environment before AFIPSDK environment", () => {
+    expect(resolveFiscalLookupEnvironment({
+      customerFiscalLookupEnvironment: "prod",
+      afipSdkEnvironment: "dev",
+    })).toBe("prod");
+    expect(resolveFiscalLookupEnvironment({
+      customerFiscalLookupEnvironment: null,
+      afipSdkEnvironment: "prod",
+    })).toBe("prod");
+    expect(resolveFiscalLookupEnvironment({
+      customerFiscalLookupEnvironment: null,
+      afipSdkEnvironment: null,
+    })).toBe("dev");
+  });
+
+  it("uses customer fiscal lookup issuer tax id before billing settings fallback", () => {
+    expect(resolveLookupIssuerTaxId({
+      customerFiscalLookupIssuerTaxId: "30-71158289-0",
+      billingIssuerTaxId: "20-40937847-2",
+    })).toEqual({
+      issuerTaxId: "30711582890",
+      source: "CUSTOMER_FISCAL_LOOKUP_ISSUER_TAX_ID",
+    });
+    expect(resolveLookupIssuerTaxId({
+      customerFiscalLookupIssuerTaxId: "",
+      billingIssuerTaxId: "20-40937847-2",
+    })).toEqual({
+      issuerTaxId: "20409378472",
+      source: "billing_settings.issuer_tax_id",
+    });
+    expect(resolveLookupIssuerTaxId({
+      customerFiscalLookupIssuerTaxId: "",
+      billingIssuerTaxId: "",
+    })).toEqual({
+      issuerTaxId: "",
+      source: null,
+    });
+  });
+
+  it("allows lookup prod with billing dev and emits an explicit warning", () => {
+    expect(buildLookupEnvironmentWarning("prod", "dev")).toBe(
+      "Consulta de padron en produccion. La emision de comprobantes sigue en homologacion/dev.",
+    );
+    expect(buildLookupEnvironmentWarning("dev", "dev")).toBeNull();
+  });
+
+  it("keeps fiscal lookup wsid constrained to constancia", () => {
+    expect(normalizeFiscalLookupWsid("ws_sr_constancia_inscripcion")).toBe("ws_sr_constancia_inscripcion");
+    expect(normalizeFiscalLookupWsid("wsfe")).toBe("ws_sr_constancia_inscripcion");
   });
 
   it("extracts fiscal data and stores a sanitized snapshot on success", () => {
@@ -257,6 +313,8 @@ describe("customer fiscal lookup edge logic", () => {
         },
       },
       lookupEnvironment: "dev",
+      billingEnvironment: "dev",
+      issuerTaxId: "30-71158289-0",
       code: "TAX_CONDITION_UNKNOWN",
       message: "No se pudo determinar IVA.",
     });
@@ -265,16 +323,45 @@ describe("customer fiscal lookup edge logic", () => {
     expect(diagnostics).toMatchObject({
       code: "TAX_CONDITION_UNKNOWN",
       lookupEnvironment: "dev",
+      billingEnvironment: "dev",
       wsid: "ws_sr_constancia_inscripcion",
       method: "getPersona_v2",
+      issuerTaxIdMasked: "30******890",
       taxpayerFound: true,
       hasDatosGenerales: true,
       hasRegimenGeneral: true,
       hasImpuestos: true,
       legalNameFound: true,
       taxCondition: "UNKNOWN",
+      eligibleForInvoiceA: false,
     });
     expect(diagnostics.availableTaxDescriptions[0]).not.toContain("<script>");
+  });
+
+  it("masks issuer tax id in diagnostics and never exposes the raw CUIT", () => {
+    const diagnostics = buildFiscalLookupDiagnostics({
+      response: {
+        personaReturn: {
+          datosGenerales: { razonSocial: "CLIENTE SA", estadoClave: "ACTIVO" },
+          datosRegimenGeneral: { impuesto: [{ idImpuesto: 30 }] },
+        },
+      },
+      lookupEnvironment: "prod",
+      billingEnvironment: "dev",
+      issuerTaxId: "30711582890",
+      warning: buildLookupEnvironmentWarning("prod", "dev"),
+    });
+
+    expect(maskTaxId("30711582890")).toBe("30******890");
+    expect(JSON.stringify(diagnostics)).not.toContain("30711582890");
+    expect(diagnostics).toMatchObject({
+      code: "VALIDATED_AUTO",
+      lookupEnvironment: "prod",
+      billingEnvironment: "dev",
+      issuerTaxIdMasked: "30******890",
+      warning: "Consulta de padron en produccion. La emision de comprobantes sigue en homologacion/dev.",
+      eligibleForInvoiceA: true,
+    });
   });
 
   it("redacts secrets from provider snapshots", () => {

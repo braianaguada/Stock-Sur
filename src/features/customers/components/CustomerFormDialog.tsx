@@ -36,7 +36,7 @@ type CustomerFormDialogProps = {
 
 function getEnvironmentNotice(environment: string | null | undefined) {
   if (environment === "dev") return "Consulta en ambiente dev. Los CUIT reales pueden no devolver datos completos.";
-  if (environment === "prod") return "Consulta de padron en produccion. No emite comprobantes.";
+  if (environment === "prod") return "Consulta de padron en produccion. No emite comprobantes. Factura A futura sigue bloqueada.";
   return null;
 }
 
@@ -106,7 +106,7 @@ export function CustomerFormDialog({
   const canValidateFiscalTaxId = Boolean(form.fiscal_tax_id.trim()) && !cuitMessage;
   const detectedTaxpayerStatus = editingCustomer?.fiscal_profile?.taxpayer_status ?? "-";
   const diagnostics = form.fiscal_lookup_diagnostics;
-  const environmentNotice = getEnvironmentNotice(diagnostics?.lookupEnvironment);
+  const environmentNotice = diagnostics?.warning ?? getEnvironmentNotice(diagnostics?.lookupEnvironment);
   const diagnosticMessage = getFiscalDiagnosticMessage(diagnostics);
   const technicalState = diagnostics
     ? [
@@ -115,6 +115,7 @@ export function CustomerFormDialog({
       `regimenGeneral=${diagnostics.hasRegimenGeneral ? "true" : "false"}`,
       `impuestos=${diagnostics.hasImpuestos ? "true" : "false"}`,
       `monotributo=${diagnostics.hasMonotributo ? "true" : "false"}`,
+      `eligibleForInvoiceA=${diagnostics.eligibleForInvoiceA ? "true" : "false"}`,
       `code=${diagnostics.code}`,
     ].join(" | ")
     : null;
@@ -235,9 +236,12 @@ export function CustomerFormDialog({
             <div className="space-y-2 rounded-md border border-dashed p-3 text-xs">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline">Ambiente de consulta: {diagnostics.lookupEnvironment}</Badge>
+                <Badge variant="outline">Emision fiscal: {diagnostics.billingEnvironment}</Badge>
                 <Badge variant="outline">Condicion: {diagnostics.taxCondition || "UNKNOWN"}</Badge>
+                <Badge variant="outline">CUIT emisor: {diagnostics.issuerTaxIdMasked}</Badge>
               </div>
               {environmentNotice ? <p className="text-muted-foreground">{environmentNotice}</p> : null}
+              <p className="text-muted-foreground">Factura A futura. No emite comprobantes desde esta validacion.</p>
               {diagnosticMessage ? (
                 <p className="flex items-start gap-2 text-destructive">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />

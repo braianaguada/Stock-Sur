@@ -91,8 +91,11 @@ describe("customer fiscal UI", () => {
         code: "TAX_CONDITION_UNKNOWN",
         message: "ARCA devolvio datos, pero no impuestos suficientes para determinar IVA.",
         lookupEnvironment: "dev",
+        billingEnvironment: "dev",
         wsid: "ws_sr_constancia_inscripcion",
         method: "getPersona_v2",
+        issuerTaxIdMasked: "20******472",
+        warning: null,
         taxpayerFound: true,
         hasDatosGenerales: true,
         hasRegimenGeneral: true,
@@ -101,6 +104,8 @@ describe("customer fiscal UI", () => {
         taxpayerStatus: "ACTIVO",
         legalNameFound: false,
         taxCondition: "UNKNOWN",
+        eligibleForInvoiceA: false,
+        reason: "ARCA devolvio datos, pero no impuestos suficientes para determinar IVA.",
         normalizationReason: "ARCA devolvio datos, pero no impuestos suficientes para determinar IVA.",
         availableTaxIds: [],
         availableTaxDescriptions: [],
@@ -108,7 +113,10 @@ describe("customer fiscal UI", () => {
     });
 
     expect(screen.getByText("Ambiente de consulta: dev")).toBeInTheDocument();
+    expect(screen.getByText("Emision fiscal: dev")).toBeInTheDocument();
+    expect(screen.getByText("CUIT emisor: 20******472")).toBeInTheDocument();
     expect(screen.getByText("Consulta en ambiente dev. Los CUIT reales pueden no devolver datos completos.")).toBeInTheDocument();
+    expect(screen.getByText("Factura A futura. No emite comprobantes desde esta validacion.")).toBeInTheDocument();
     expect(screen.getByText("ARCA devolvio datos, pero no impuestos suficientes para determinar IVA.")).toBeInTheDocument();
     expect(screen.getByText(/Estado tecnico QA:/)).toHaveTextContent("taxpayerFound=true");
   });
