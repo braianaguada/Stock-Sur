@@ -85,14 +85,16 @@ Clientes soporta un perfil fiscal separado en `customer_fiscal_profiles` para pr
 - QA tecnico seguro: `node scripts/customer-fiscal-lookup-qa.mjs <CUIT> <CUSTOMER_ID>` con `SUPABASE_ACCESS_TOKEN` y `SUPABASE_FUNCTIONS_URL`/`VITE_SUPABASE_URL`. El script imprime solo diagnostico compacto y no secrets.
 - Cliente ocasional / Consumidor Final se representa por `customer_id = null`: no se crea ni edita desde Clientes, no tiene perfil fiscal, CUIT, Factura A ni cuenta corriente editable.
 - QA staging PR #255: el codigo quedo apto tecnicamente. Con `lookupEnvironment=dev`, un CUIT real devolvio `TAXPAYER_NOT_FOUND`, `taxpayerFound=false`, `taxCondition=UNKNOWN`; la validacion de CUIT reales queda bloqueada por ambiente dev, no por normalizacion/UI.
+- QA real PR #256: la separacion lookup prod / emision dev funciona. La prueba devolvio `lookupEnvironment=prod`, `billingEnvironment=dev`, `issuerTaxIdMasked=30******890`, `wsid=ws_sr_constancia_inscripcion`, `method=getPersona_v2`, `provider.statusCode=400`, perfil fiscal `ERROR` y error sanitizado asociado a `key/cert`. Dictamen: apto tecnicamente para merge a staging, bloqueado funcionalmente por configuracion externa de certificado/relacion/credencial Afip SDK/ARCA para `ws_sr_constancia_inscripcion`.
 - Esta fase no toca produccion, caja, stock, cuenta corriente ni autorizacion fiscal de Factura A. No se emitio Factura A ni Nota de Credito A, no se tocaron comprobantes productivos y Factura B/Nota de Credito B siguen sin cambios.
 
 Proxima fase para CUIT reales y Factura A de homologacion:
 
-- Configurar lookup prod de constancia solo para consulta de padron.
+- Configurar certificado/relacion/credencial Afip SDK/ARCA para CUIT emisor `30711582890` y servicio `ws_sr_constancia_inscripcion`.
+- Mantener lookup prod de constancia solo para consulta de padron.
 - Validar CUIT emisor real `30711582890` de TFD S.R.L.
-- Confirmar `ws_sr_constancia_inscripcion` habilitado para el CUIT emisor, con servicio/relacion/certificado correctos en Afip SDK/ARCA.
-- Probar CUIT real.
+- Confirmar `ws_sr_constancia_inscripcion` habilitado para el CUIT emisor.
+- Repetir QA con el mismo flujo y CUIT real.
 - Confirmar `VALIDATED_AUTO`.
 - Recien despues avanzar a Factura A en homologacion.
 

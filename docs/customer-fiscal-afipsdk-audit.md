@@ -160,6 +160,21 @@ Resultado QA staging PR #255:
 
 Dictamen: el codigo queda apto tecnicamente. La validacion de CUIT reales queda bloqueada por ambiente dev, porque en `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=dev` solo se debe esperar funcionamiento con padron de homologacion. CUIT reales pueden devolver `TAXPAYER_NOT_FOUND` en dev. Para validar CUIT reales se requiere `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=prod`, CUIT emisor real y servicio `ws_sr_constancia_inscripcion` habilitado.
 
+Resultado QA real staging PR #256:
+
+- `lookupEnvironment=prod`
+- `billingEnvironment=dev`
+- `issuerTaxIdMasked=30******890`
+- `wsid=ws_sr_constancia_inscripcion`
+- `method=getPersona_v2`
+- `provider.statusCode=400`
+- Error sanitizado asociado a `key/cert`
+- Perfil fiscal `ERROR`
+- `FACTURA_A` / `NOTA_CREDITO_A`: 0
+- `billing_settings.environment` sigue en `dev`
+
+Dictamen PR #256: la separacion lookup prod / emision dev funciona y el CUIT emisor real se toma desde `CUSTOMER_FISCAL_LOOKUP_ISSUER_TAX_ID`. La emision sigue en `dev`, no se habilito Factura A, no se emitieron comprobantes productivos y no se tocaron comprobantes de produccion. La prueba real queda bloqueada funcionalmente por configuracion externa de certificado/relacion/credencial Afip SDK/ARCA para el CUIT `30711582890` y el servicio `ws_sr_constancia_inscripcion`.
+
 ## Decision tecnica
 
 Este flujo reemplaza la inferencia anterior basada en endpoints que no exponian claramente la condicion IVA. La condicion no viene como texto final, pero queda derivada de datos oficiales del padron y con fuente explicita. Factura A futura solo puede considerar perfiles con cliente real, CUIT valido, `VALIDATED_AUTO`, `legal_name_source = OFFICIAL`, `tax_condition_source = OFFICIAL_DERIVED`, `tax_condition = RESPONSABLE_INSCRIPTO`, `taxpayer_status = ACTIVO` y razon social oficial presente.
@@ -168,9 +183,10 @@ Usar `prod` para consulta de padron no habilita emision de comprobantes producti
 
 Checklist proxima fase:
 
-- Configurar lookup prod de constancia.
+- Configurar certificado/relacion/credencial Afip SDK/ARCA para CUIT emisor `30711582890` y servicio `ws_sr_constancia_inscripcion`.
+- Mantener lookup prod de constancia solo para consulta de padron.
 - Validar CUIT emisor real `30711582890` de TFD S.R.L.
-- Confirmar `ws_sr_constancia_inscripcion` habilitado con servicio/relacion/certificado correctos en Afip SDK/ARCA.
-- Probar CUIT real.
+- Confirmar `ws_sr_constancia_inscripcion` habilitado para el CUIT emisor.
+- Repetir QA con el mismo flujo y CUIT real.
 - Confirmar `VALIDATED_AUTO`.
 - Recien despues avanzar a Factura A homologacion.
