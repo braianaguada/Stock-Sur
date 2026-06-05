@@ -190,3 +190,18 @@ Checklist proxima fase:
 - Repetir QA con el mismo flujo y CUIT real.
 - Confirmar `VALIDATED_AUTO`.
 - Recien despues avanzar a Factura A homologacion.
+
+## Factura A borrador gated
+
+La fase `feat/billing-invoice-a-draft-gated` permite preparar `billing_documents.invoice_type = FACTURA_A` solo como borrador interno.
+
+Reglas vigentes:
+
+- Requiere cliente real, no ocasional y no consumidor final.
+- Requiere perfil fiscal con CUIT valido, razon social oficial, `VALIDATED_AUTO`, `legal_name_source = OFFICIAL`, `tax_condition_source = OFFICIAL_DERIVED`, `tax_condition = RESPONSABLE_INSCRIPTO` y `taxpayer_status = ACTIVO`.
+- El snapshot fiscal del receptor se congela desde `customer_fiscal_profiles` en `receiver_fiscal_snapshot`.
+- Perfiles mock/fixture/test no habilitan Factura A.
+- `FACTURA_A` queda sin CAE, sin numero fiscal, sin fecha fiscal y sin autorizacion.
+- La UI muestra/imprime A4 solo como borrador: `Factura A en preparacion. No emite comprobantes.`
+- La edge function de autorizacion rechaza `FACTURA_A` explicitamente.
+- No se implementa Nota de Credito A, no se toca produccion, no se emiten comprobantes productivos y `billing_settings.environment` sigue separado de `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT`.

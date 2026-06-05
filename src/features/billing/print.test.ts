@@ -22,6 +22,7 @@ function buildDocument(overrides: Partial<BillingDocumentRow> = {}): BillingDocu
     receiver_doc_type: "99",
     receiver_doc_number: null,
     receiver_tax_condition: "CONSUMIDOR_FINAL",
+    receiver_fiscal_snapshot: null,
     currency: "ARS",
     currency_rate: 1,
     subtotal: 100,
@@ -94,5 +95,38 @@ describe("billing print html", () => {
     expect(html).toContain("No se usa el PDF de Afip SDK.");
     expect(html).not.toContain("arca.gob.ar/fe/qr");
     expect(html).not.toContain("?p=");
+  });
+
+  it("prints Factura A as internal draft without QR or fiscal authorization", () => {
+    const facturaA = buildDocument({
+      invoice_type: "FACTURA_A",
+      fiscal_status: "DRAFT",
+      receiver_name: "TFD S.R.L.",
+      receiver_doc_type: "80",
+      receiver_doc_number: "30711582890",
+      receiver_tax_condition: "RESPONSABLE_INSCRIPTO",
+      voucher_number: null,
+      voucher_full_number: null,
+      voucher_date: null,
+      cae: null,
+      cae_expires_at: null,
+      authorized_at: null,
+      authorized_by: null,
+    });
+
+    const html = buildBillingPrintHtml({
+      document: facturaA,
+      lines: [line],
+      qrDataUrl: null,
+    });
+
+    expect(html).toContain("Factura A");
+    expect(html).toContain("BORRADOR - No valido como comprobante fiscal");
+    expect(html).toContain("Factura A en preparacion. No emite comprobantes.");
+    expect(html).toContain("<div class=\"letter\">A</div>");
+    expect(html).toContain("TFD S.R.L.");
+    expect(html).toContain("RESPONSABLE_INSCRIPTO");
+    expect(html).toContain("Sin QR fiscal: borrador interno no autorizado.");
+    expect(html).not.toContain("QR fiscal ARCA generado internamente.");
   });
 });

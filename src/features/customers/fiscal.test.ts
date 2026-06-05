@@ -59,6 +59,7 @@ describe("customer fiscal profile helpers", () => {
     expect(canUseCustomerForInvoiceA(customer, { ...profile, tax_condition_source: "UNKNOWN" })).toMatchObject({ allowed: false });
     expect(canUseCustomerForInvoiceA(customer, { ...profile, legal_name_source: "UNKNOWN" })).toMatchObject({ allowed: false });
     expect(canUseCustomerForInvoiceA(customer, { ...profile, taxpayer_status: "INACTIVO" })).toMatchObject({ allowed: false });
+    expect(canUseCustomerForInvoiceA(customer, { ...profile, validation_source: "MOCK_TEST" })).toMatchObject({ allowed: false });
   });
 
   it("allows a non occasional customer with a validated complete fiscal profile", () => {
@@ -77,6 +78,7 @@ describe("customer fiscal profile helpers", () => {
       validation_source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION",
       tax_condition_source: "OFFICIAL_DERIVED",
       legal_name_source: "OFFICIAL",
+      taxpayer_status: "ACTIVO",
       validated_at: "2026-06-04T12:00:00Z",
       snapshot_created_at: "2026-06-04T13:00:00.000Z",
     });

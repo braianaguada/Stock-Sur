@@ -682,7 +682,21 @@ La primera fase de Facturacion agrega una base fiscal interna, sin autorizacion 
 - La creacion del borrador no llama a Afip SDK, no solicita CAE, no asigna punto de venta fiscal, no asigna numero fiscal y no guarda request/response de proveedor.
 - La creacion del borrador no modifica stock, caja, cierre de caja ni cuenta corriente.
 - UI: `/billing` lista borradores internos y muestra detalle con origen, receptor, lineas, totales y aviso de que el comprobante no tiene CAE.
-- Caja muestra `Crear borrador fiscal` solo si Facturacion esta habilitada, el usuario tiene `billing.create`, la venta tiene remito y no existe borrador activo previo.
+- Caja muestra acciones separadas para `Crear borrador Factura B` y `Crear borrador Factura A` solo si Facturacion esta habilitada, el usuario tiene `billing.create`, la venta tiene remito y no existe borrador activo previo.
+
+### Factura A borrador gated
+
+- Migracion: `supabase/migrations/20260605120000_billing_invoice_a_draft_gated.sql`.
+- `billing_documents.invoice_type` admite `FACTURA_A` solo para `document_kind = INVOICE`.
+- Factura A queda limitada a estados `DRAFT`, `BLOCKED` o `CANCELLED_INTERNAL`; la base bloquea CAE, numero fiscal, fecha de comprobante y autorizacion para `FACTURA_A`.
+- La RPC `create_billing_draft_from_cash_sale(cashSaleId, "FACTURA_A")` crea solo borrador interno desde venta/remito existente.
+- Requiere cliente real no ocasional, CUIT valido, razon social oficial, `VALIDATED_AUTO`, `legal_name_source = OFFICIAL`, `tax_condition_source = OFFICIAL_DERIVED`, `tax_condition = RESPONSABLE_INSCRIPTO` y `taxpayer_status = ACTIVO`.
+- El receptor fiscal se congela en `receiver_fiscal_snapshot` desde `customer_fiscal_profiles`; no depende de datos manuales editables ni de mocks.
+- La UI permite ver detalle e imprimir A4 como borrador con leyenda `Factura A en preparacion. No emite comprobantes.`
+- No hay boton de autorizacion para Factura A. La edge function de autorizacion tambien rechaza `FACTURA_A` con bloqueo explicito.
+- No implementa Nota de Credito A, no solicita CAE, no asigna punto de venta fiscal, no asigna numero fiscal y no llama a Afip SDK.
+- La creacion del borrador A no modifica stock, caja, cierre de caja ni cuenta corriente.
+- Factura B y Nota de Credito B siguen sin cambios.
 
 ## Facturacion AFIPSDK dev - CUIT emisor
 

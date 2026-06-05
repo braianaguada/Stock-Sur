@@ -147,7 +147,7 @@ export function useCashData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("documents")
-        .select("id, doc_type, customer_id, customer_name, point_of_sale, document_number, issue_date, created_at, status, total, origin_document_id, source_document_number_snapshot, technician_id, external_invoice_number, external_invoice_status")
+        .select("id, doc_type, customer_id, customer_name, point_of_sale, document_number, issue_date, created_at, status, total, origin_document_id, source_document_number_snapshot, technician_id, external_invoice_number, external_invoice_status, customers(id, company_id, name, cuit, email, phone, is_occasional, customer_fiscal_profiles(*))")
         .eq("company_id", currentCompanyId!)
         .eq("doc_type", "REMITO")
         .eq("status", "EMITIDO")

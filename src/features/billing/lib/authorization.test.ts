@@ -34,6 +34,7 @@ function buildDocument(overrides: Partial<BillingDocumentRow> = {}): BillingDocu
     receiver_doc_type: "CONSUMIDOR_FINAL",
     receiver_doc_number: "0",
     receiver_tax_condition: "CONSUMIDOR_FINAL",
+    receiver_fiscal_snapshot: null,
     currency: "ARS",
     currency_rate: 1,
     subtotal: 100,
@@ -92,7 +93,7 @@ describe("billing authorization UI helpers", () => {
     expect(canShowCreateCreditNoteBAction(invoice, [invoice], ["user"], { companyPermissionCodes: [] })).toBe(false);
   });
 
-  it("shows print only for authorized Factura B with CAE and print permission", () => {
+  it("shows print for authorized B/NC B and draft Factura A with print permission", () => {
     const context = { companyPermissionCodes: ["billing.print"] };
     const authorized = buildDocument({ fiscal_status: "AUTHORIZED", cae: "70400000000001" });
 
@@ -104,6 +105,13 @@ describe("billing authorization UI helpers", () => {
       cae: "70400000000002",
     }), ["user"], context)).toBe(true);
     expect(canShowPrintBillingDocumentAction(buildDocument(), ["user"], context)).toBe(false);
+    expect(canShowPrintBillingDocumentAction(buildDocument({
+      invoice_type: "FACTURA_A",
+      fiscal_status: "DRAFT",
+      receiver_doc_type: "80",
+      receiver_doc_number: "30711582890",
+      receiver_tax_condition: "RESPONSABLE_INSCRIPTO",
+    }), ["user"], context)).toBe(true);
     expect(canShowPrintBillingDocumentAction(authorized, ["user"], { companyPermissionCodes: [] })).toBe(false);
   });
 

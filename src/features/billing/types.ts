@@ -1,5 +1,5 @@
-export type BillingInvoiceType = "FACTURA_B" | "NOTA_CREDITO_B";
-export type BillingFiscalStatus = "DRAFT" | "READY_TO_AUTHORIZE" | "AUTHORIZING" | "AUTHORIZED" | "REJECTED" | "CANCELLED_INTERNAL";
+export type BillingInvoiceType = "FACTURA_B" | "FACTURA_A" | "NOTA_CREDITO_B";
+export type BillingFiscalStatus = "DRAFT" | "BLOCKED" | "READY_TO_AUTHORIZE" | "AUTHORIZING" | "AUTHORIZED" | "REJECTED" | "CANCELLED_INTERNAL";
 
 export type BillingSettingsRow = {
   id: string;
@@ -46,6 +46,7 @@ export type BillingDocumentRow = {
   receiver_doc_type: string;
   receiver_doc_number: string | null;
   receiver_tax_condition: string;
+  receiver_fiscal_snapshot: unknown | null;
   currency: "ARS";
   currency_rate: number;
   subtotal: number;

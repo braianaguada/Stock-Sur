@@ -1,3 +1,5 @@
+import type { CustomerFiscalProfile } from "@/features/customers/types";
+
 export type PaymentMethod =
   | "EFECTIVO"
   | "EFECTIVO_REMITO"
@@ -34,6 +36,16 @@ export type RemitoOption = {
   technician_id: string | null;
   external_invoice_number: string | null;
   external_invoice_status: "ACTIVE" | "VOIDED" | null;
+  customers?: {
+    id: string;
+    company_id: string;
+    name: string;
+    cuit: string | null;
+    email: string | null;
+    phone: string | null;
+    is_occasional: boolean;
+    customer_fiscal_profiles?: CustomerFiscalProfile[] | null;
+  } | null;
   technicians?: { name: string | null } | null;
 };
 

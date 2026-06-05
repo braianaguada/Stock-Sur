@@ -205,6 +205,9 @@ export function assertAuthorizationPreconditions(params: {
     }
   }
   if (document.document_kind === "INVOICE" && document.invoice_type !== "FACTURA_B") {
+    if (document.invoice_type === "FACTURA_A") {
+      throw new Error("La autorizacion de Factura A esta bloqueada hasta completar la validacion real con ARCA/Afip SDK.");
+    }
     throw new Error("Solo se admite Factura B en esta etapa.");
   }
   if (document.document_kind === "CREDIT_NOTE" && document.invoice_type !== "NOTA_CREDITO_B") {
