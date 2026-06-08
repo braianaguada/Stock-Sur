@@ -25,6 +25,7 @@ const ServiceJobsPage = lazy(() => import("./pages/ServiceJobs"));
 const PrintServiceDocumentPage = lazy(() => import("./pages/PrintServiceDocument"));
 const PublicServiceDocumentPage = lazy(() => import("./pages/PublicServiceDocument"));
 const CustomersPage = lazy(() => import("./pages/Customers"));
+const OccasionalCustomerPage = lazy(() => import("./pages/OccasionalCustomer"));
 const CustomerAccountPage = lazy(() => import("./pages/CustomerAccount"));
 const TechniciansPage = lazy(() => import("./pages/Technicians"));
 const UsersPage = lazy(() => import("./pages/Users"));
@@ -100,6 +101,7 @@ const App = () => (
                   <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
                   <Route path="/print/billing/:id" element={<ProtectedRoute><PrintBillingPage /></ProtectedRoute>} />
                   <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
+                  <Route path="/customers/occasional" element={<ProtectedRoute><OccasionalCustomerPage /></ProtectedRoute>} />
                   <Route path="/customer-account" element={<ProtectedRoute><CustomerAccountPage /></ProtectedRoute>} />
                   <Route path="/technicians" element={<ProtectedRoute><TechniciansPage /></ProtectedRoute>} />
                   <Route path="/users" element={<ProtectedRoute requiresSuperadmin><UsersPage /></ProtectedRoute>} />

@@ -10,6 +10,8 @@ export const queryKeys = {
   customers: {
     list: (companyId: string | null, search: string) => ["customers", companyId ?? "no-company", search] as const,
     all: () => ["customers"] as const,
+    occasionalOperations: (companyId: string | null, from: string, to: string) =>
+      ["customers-occasional-operations", companyId ?? "no-company", from, to] as const,
     accountSummary: (companyId: string | null, customerId: string | null) =>
       ["customer-account-summary", companyId ?? "no-company", customerId ?? "no-customer"] as const,
     accountEntries: (companyId: string | null, customerId: string | null) =>

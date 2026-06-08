@@ -86,8 +86,9 @@ export function CustomersDataTable({
             <Pencil className="h-4 w-4" />
           </RowActionButton>
           <RowActionButton
-            label="Eliminar"
+            label={row.original.is_occasional ? "Cliente ocasional no se elimina desde Clientes" : "Eliminar"}
             tone="danger"
+            disabled={row.original.is_occasional}
             onClick={() => onDelete(row.original)}
           >
             <Trash2 className="h-4 w-4" />
