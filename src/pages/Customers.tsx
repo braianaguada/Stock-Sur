@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Plus, Search } from "lucide-react";
+import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { EntityDialog } from "@/components/common/EntityDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { CustomerAccountDialog } from "@/features/customers/components/CustomerAccountDialog";
-import { CustomerFormDialog, type CustomerFormState } from "@/features/customers/components/CustomerFormDialog";
+import { CustomerFormDialog } from "@/features/customers/components/CustomerFormDialog";
 import { CustomersDataTable } from "@/features/customers/components/CustomersDataTable";
 import type { Customer } from "@/features/customers/types";
 import { useCustomersPage } from "@/features/customers/hooks/useCustomersPage";
@@ -18,7 +19,6 @@ export default function CustomersPage() {
   const { currentCompany, user } = useAuth();
   const { toast } = useToast();
   const [accountCustomer, setAccountCustomer] = useState<Customer | null>(null);
-  const [occasionalOpen, setOccasionalOpen] = useState(false);
   const {
     customerToDelete,
     customers,
@@ -54,7 +54,7 @@ export default function CustomersPage() {
         <PageHeader
           eyebrow="Base comercial"
           title="Clientes"
-          description="Gesti�n de clientes con una lectura m�s limpia para escritorio."
+          description="Gestion de clientes con una lectura mas limpia para escritorio."
           actions={(
             <Button onClick={openCreate} disabled={!currentCompany}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo cliente
@@ -66,7 +66,7 @@ export default function CustomersPage() {
           <div className="relative max-w-sm flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nombre, CUIT, email o tel�fono..."
+              placeholder="Buscar por nombre, CUIT, email o telefono..."
               className="pl-9"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -78,12 +78,16 @@ export default function CustomersPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold">Cliente ocasional / Consumidor Final</p>
-              <p className="text-xs text-muted-foreground">
-                Sistema · No editable · customer_id = null · No aplica Factura A ni cuenta corriente.
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">Sistema</Badge>
+                <Badge variant="secondary">No editable</Badge>
+                <Badge variant="outline">Operaciones sin cliente registrado</Badge>
+                <Badge variant="outline">customer_id = null</Badge>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">No aplica Factura A ni cuenta corriente.</p>
             </div>
-            <Button type="button" variant="outline" onClick={() => setOccasionalOpen(true)}>
-              Ver seguimiento
+            <Button type="button" variant="outline" asChild>
+              <Link to="/customers/occasional">Ver seguimiento</Link>
             </Button>
           </div>
         </div>
@@ -110,27 +114,6 @@ export default function CustomersPage() {
         onSubmit={() => saveMutation.mutate()}
         onValidateFiscal={() => validateFiscalMutation.mutate()}
       />
-
-      <EntityDialog
-        open={occasionalOpen}
-        onOpenChange={setOccasionalOpen}
-        title="Cliente ocasional / Consumidor Final"
-        description="Vista operativa basica de operaciones sin cliente registrado."
-        contentClassName="sm:max-w-2xl"
-      >
-        <div className="space-y-4 text-sm">
-          <div className="rounded-lg border bg-muted/20 p-4">
-            <p className="font-medium">Entidad de sistema</p>
-            <p className="mt-1 text-muted-foreground">
-              Agrupa documentos, ventas de caja y comprobantes B donde `customer_id` es null. No se crea ni se edita desde Clientes.
-            </p>
-          </div>
-          <div className="rounded-lg border border-dashed p-4 text-muted-foreground">
-            Seguimiento operativo ampliado pendiente: tabla de remitos, ventas de caja, Factura B y Nota de Credito B filtradas por
-            `customer_id = null`.
-          </div>
-        </div>
-      </EntityDialog>
 
       <ConfirmDeleteDialog
         open={!!customerToDelete}
