@@ -473,7 +473,7 @@ Fecha: 2026-06-10
 - Tecnico se muestra como `Tecnico asociado` para clientes registrados y como responsable requerido del remito interno. No aparece para cliente ocasional.
 - Empresa sigue siendo una etiqueta derivada de cliente registrado. `customers` no tiene campo Persona/Empresa; esta fase usa el listado completo y bloquea `customer_kind = EMPRESA` sin `customer_id`.
 - Remito interno queda separado del destinatario comercial y limpia cliente, datos fiscales, condicion de venta y servicio. Requiere tecnico e imputacion.
-- El remito interno se selecciona en `Uso del remito`, fuera del selector comercial `Destinatario`.
+- Los remitos comerciales usan el mismo bloque de destinatario que los presupuestos. No se muestra un selector `Uso del remito`; los remitos internos historicos conservan su edicion especifica.
 - `resolveDocumentRecipient` centraliza nombre principal/secundario para documentos, impresion y caja.
 - Un remito con servicio debe usar el mismo cliente del trabajo.
 - El guard DB evita que un remito interno conserve identidad comercial, por lo que no puede generar debito de cuenta corriente.

@@ -346,40 +346,6 @@ export function DocumentsEditorDialog({
                   </Select>
                 </div> : null}
 
-                {documentForm.doc_type === "REMITO" ? <div className="space-y-2">
-                  <Label>Uso del remito</Label>
-                  <Select
-                    value={isInternal ? "INTERNAL" : "COMMERCIAL"}
-                    onValueChange={(value) =>
-                      setDraftForm((previousForm) => value === "INTERNAL"
-                        ? {
-                            ...previousForm,
-                            customer_kind: "INTERNO",
-                            recipient_type: undefined,
-                            customer_id: "",
-                            customer_name: "",
-                            customer_tax_id: "",
-                            customer_tax_condition: "",
-                            payment_terms: "",
-                            service_id: "",
-                          }
-                        : {
-                            ...previousForm,
-                            customer_kind: "GENERAL",
-                            recipient_type: "OCCASIONAL",
-                            customer_name: "Cliente ocasional",
-                            internal_remito_type: "",
-                          })
-                    }
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="COMMERCIAL">Comercial</SelectItem>
-                      <SelectItem value="INTERNAL">Personal / técnico interno</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div> : null}
-
                 {documentForm.recipient_type === "REGISTERED" && !isInternal ? <div className="space-y-2">
                   <Label>Tipo de cliente registrado</Label>
                   <Select
