@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DOC_LABEL, DOC_TYPE_CLASS, STATUS_CLASS, STATUS_LABEL, STATUS_VARIANT } from "@/features/documents/constants";
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocRow, DocStatus } from "@/features/documents/types";
-import { formatNumber, getCustomerDisplayName } from "@/features/documents/utils";
+import { formatNumber, resolveDocumentRecipient } from "@/features/documents/utils";
 import { formatIsoDate } from "@/lib/formatters";
 
 interface DocumentsDataTableProps {
@@ -81,9 +81,13 @@ export function DocumentsDataTable({
     {
       accessorKey: "customer_name",
       header: () => "Cliente",
-      cell: ({ row }) => (
-        <span className="block truncate font-medium">{getCustomerDisplayName(row.original)}</span>
-      ),
+      cell: ({ row }) => {
+        const recipient = resolveDocumentRecipient(row.original);
+        return <div className="min-w-0">
+          <span className="block truncate font-medium">{recipient.primaryName}</span>
+          {recipient.secondaryName ? <span className="block truncate text-xs text-muted-foreground">{recipient.secondaryName}</span> : null}
+        </div>;
+      },
       meta: {
         className: "w-[220px]",
         cellClassName: "py-2.5",

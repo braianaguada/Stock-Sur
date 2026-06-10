@@ -462,3 +462,35 @@ No es apto para fix directo sin definicion de producto porque falta decidir:
 - Si el campo manual se preserva en `customer_name` o se migra a un campo nuevo.
 - Si remito interno debe requerir tecnico siempre.
 - Si la referencia ocasional debe imprimirse o solo quedar interna.
+
+## Decision final implementada
+
+Fecha: 2026-06-10
+
+- El selector principal se llama `Destinatario` y ofrece exactamente `Cliente ocasional / Consumidor Final` o `Cliente registrado`. El cliente concreto se elige despues, con divulgacion progresiva.
+- `Nombre cliente` deja de mostrarse. Para ocasionales se usa `Nombre ocasional`, opcional, como dato secundario no fiscal. No crea cliente, no habilita Factura A y no genera cuenta corriente.
+- CUIT y condicion fiscal manual se ocultan y se limpian para documentos sin `customer_id`. Los campos historicos no se borran.
+- Tecnico se muestra como `Tecnico asociado` para clientes registrados y como responsable requerido del remito interno. No aparece para cliente ocasional.
+- Empresa sigue siendo una etiqueta derivada de cliente registrado. `customers` no tiene campo Persona/Empresa; esta fase usa el listado completo y bloquea `customer_kind = EMPRESA` sin `customer_id`.
+- Remito interno queda separado del destinatario comercial y limpia cliente, datos fiscales, condicion de venta y servicio. Requiere tecnico e imputacion.
+- El remito interno se selecciona en `Uso del remito`, fuera del selector comercial `Destinatario`.
+- `resolveDocumentRecipient` centraliza nombre principal/secundario para documentos, impresion y caja.
+- Un remito con servicio debe usar el mismo cliente del trabajo.
+- El guard DB evita que un remito interno conserve identidad comercial, por lo que no puede generar debito de cuenta corriente.
+- Factura B/Nota Credito B no cambian. Factura A autorizada y Nota Credito A no se habilitan.
+
+## Resultado de implementacion y QA tecnico
+
+- Migracion nueva: `20260610120000_document_recipient_guards.sql`.
+- `npm run db:push:staging`: OK; migracion aplicada y verificada en staging.
+- `npm run typecheck`: OK.
+- `npm run lint`: OK.
+- `npm run test`: OK, 343 tests pasaron y 19 tests DB condicionados por entorno quedaron omitidos.
+- `npm run build`: OK.
+- QA manual autenticado en staging: no ejecutado desde este entorno.
+- No se emitieron remitos ni comprobantes fiscales durante QA.
+- No se toco produccion y no se ejecuto `db:push:prod`.
+
+## Dictamen de implementacion
+
+APTO para revision y QA manual en staging. La promocion posterior queda condicionada a completar los casos manuales autenticados.

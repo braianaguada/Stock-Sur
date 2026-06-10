@@ -107,18 +107,10 @@ export function DocumentsEditorDialog({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const deferredItemSearch = useDeferredValue(itemSearch);
   const isReturn = documentForm.doc_type === "REMITO_DEVOLUCION";
-  const selectedService = documentForm.service_id
-    ? serviceOptions.find((service) => service.id === documentForm.service_id) ?? null
-    : null;
+  const isInternal = documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO";
   const filteredServiceOptions = useMemo(() => {
-    const selectedCustomerId = documentForm.customer_id || null;
-    return serviceOptions.filter((service) =>
-      service.id === documentForm.service_id
-      || !selectedCustomerId
-      || !service.customerId
-      || service.customerId === selectedCustomerId,
-    );
-  }, [documentForm.customer_id, documentForm.service_id, serviceOptions]);
+    return serviceOptions.filter((service) => service.customerId === documentForm.customer_id);
+  }, [documentForm.customer_id, serviceOptions]);
 
   const selectedPriceList = useMemo(
     () => priceLists.find((priceList) => priceList.id === documentForm.price_list_id) ?? null,
@@ -232,6 +224,14 @@ export function DocumentsEditorDialog({
                         ...previousForm,
                         doc_type: nextDocType,
                         customer_kind: nextCustomerKind,
+                        recipient_type:
+                          nextDocType !== "REMITO" && previousForm.customer_kind === "INTERNO"
+                            ? "OCCASIONAL"
+                            : previousForm.recipient_type,
+                        customer_name:
+                          nextDocType !== "REMITO" && previousForm.customer_kind === "INTERNO"
+                            ? "Cliente ocasional"
+                            : previousForm.customer_name,
                         internal_remito_type:
                           nextDocType === "REMITO" && nextCustomerKind === "INTERNO"
                             ? previousForm.internal_remito_type
@@ -308,34 +308,100 @@ export function DocumentsEditorDialog({
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Tipo de cliente</Label>
+                {!isInternal ? <div className="space-y-2">
+                  <Label>Destinatario</Label>
+                  <Select
+                    value={documentForm.recipient_type ?? (documentForm.customer_id ? "REGISTERED" : "OCCASIONAL")}
+                    onValueChange={(value) =>
+                      setDraftForm((previousForm) => value === "REGISTERED"
+                        ? {
+                            ...previousForm,
+                            recipient_type: "REGISTERED",
+                            customer_id: "",
+                            customer_name: "",
+                            customer_kind: "GENERAL",
+                            technician_id: "",
+                            service_id: "",
+                            customer_tax_id: "",
+                            customer_tax_condition: "",
+                          }
+                        : {
+                            ...previousForm,
+                            recipient_type: "OCCASIONAL",
+                            customer_id: "",
+                            customer_name: "Cliente ocasional",
+                            customer_kind: "GENERAL",
+                            technician_id: "",
+                            service_id: "",
+                            customer_tax_id: "",
+                            customer_tax_condition: "",
+                          })
+                    }
+                  >
+                    <SelectTrigger><SelectValue placeholder="Seleccionar destinatario" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="OCCASIONAL">Cliente ocasional / Consumidor Final</SelectItem>
+                      <SelectItem value="REGISTERED">Cliente registrado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div> : null}
+
+                {documentForm.doc_type === "REMITO" ? <div className="space-y-2">
+                  <Label>Uso del remito</Label>
+                  <Select
+                    value={isInternal ? "INTERNAL" : "COMMERCIAL"}
+                    onValueChange={(value) =>
+                      setDraftForm((previousForm) => value === "INTERNAL"
+                        ? {
+                            ...previousForm,
+                            customer_kind: "INTERNO",
+                            recipient_type: undefined,
+                            customer_id: "",
+                            customer_name: "",
+                            customer_tax_id: "",
+                            customer_tax_condition: "",
+                            payment_terms: "",
+                            service_id: "",
+                          }
+                        : {
+                            ...previousForm,
+                            customer_kind: "GENERAL",
+                            recipient_type: "OCCASIONAL",
+                            customer_name: "Cliente ocasional",
+                            internal_remito_type: "",
+                          })
+                    }
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="COMMERCIAL">Comercial</SelectItem>
+                      <SelectItem value="INTERNAL">Personal / técnico interno</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div> : null}
+
+                {documentForm.recipient_type === "REGISTERED" && !isInternal ? <div className="space-y-2">
+                  <Label>Tipo de cliente registrado</Label>
                   <Select
                     value={documentForm.customer_kind}
                     onValueChange={(value) =>
                       setDraftForm((previousForm) => ({
                         ...previousForm,
                         customer_kind: value as CustomerKind,
-                        internal_remito_type:
-                          value === "INTERNO" && previousForm.doc_type === "REMITO"
-                            ? previousForm.internal_remito_type
-                            : "",
+                        internal_remito_type: "",
                       }))
                     }
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="GENERAL">Cliente general</SelectItem>
-                      {documentForm.doc_type === "REMITO" ? (
-                          <SelectItem value="INTERNO">Personal / técnico interno</SelectItem>
-                      ) : null}
+                      <SelectItem value="GENERAL">Persona / Particular</SelectItem>
                       <SelectItem value="EMPRESA">Empresa</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </div> : null}
 
-                <div className="space-y-2">
-                  <Label>Cliente registrado</Label>
+                {documentForm.recipient_type === "REGISTERED" && !isInternal ? <div className="space-y-2">
+                  <Label>Cliente / Empresa</Label>
                   <Select
                     value={documentForm.customer_id || "__none__"}
                     onValueChange={(value) =>
@@ -346,26 +412,23 @@ export function DocumentsEditorDialog({
                           ...previousForm,
                           customer_id: nextCustomerId,
                           customer_name: pickedCustomer?.name ?? "",
-                          customer_tax_id: "",
-                          customer_tax_condition: "",
+                          service_id: "",
                         };
                       })
                     }
                   >
-                    <SelectTrigger><SelectValue placeholder="Cliente registrado (opcional)" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar cliente registrado" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Sin seleccionar</SelectItem>
+                      <SelectItem value="__none__">Seleccionar cliente</SelectItem>
                       {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
-                        </SelectItem>
+                        <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </div> : null}
 
-                <div className="space-y-2">
-                  <Label>Tecnico</Label>
+                {(documentForm.customer_id || isInternal) ? <div className="space-y-2">
+                  <Label>{isInternal ? "Tecnico responsable *" : "Tecnico asociado"}</Label>
                   <Select
                     value={documentForm.technician_id || "__none__"}
                     onValueChange={(value) =>
@@ -385,46 +448,24 @@ export function DocumentsEditorDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </div> : null}
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Nombre cliente</Label>
+                {(documentForm.recipient_type === "OCCASIONAL" || isInternal) ? <div className="space-y-2 md:col-span-2">
+                  <Label>{isInternal ? "Motivo / referencia interna" : "Nombre ocasional"}</Label>
                   <Input
                     value={documentForm.customer_name}
-                    placeholder="Cliente ocasional / Consumidor Final"
+                    placeholder="Cliente ocasional"
                     readOnly={Boolean(documentForm.customer_id)}
                     onChange={(event) =>
                       setDraftForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
                     }
                   />
-                </div>
+                  {!documentForm.customer_id && !isInternal ? (
+                    <p className="text-xs text-muted-foreground">Opcional. Sirve para identificar quien compra; no crea un cliente registrado.</p>
+                  ) : null}
+                </div> : null}
 
-                <div className="space-y-2">
-                  <Label>CUIT</Label>
-                  <Input
-                    value={documentForm.customer_tax_id}
-                    placeholder="Opcional"
-                    onChange={(event) =>
-                      setDraftForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Condición fiscal</Label>
-                  <Input
-                    value={documentForm.customer_tax_condition}
-                    placeholder="Opcional"
-                    onChange={(event) =>
-                      setDraftForm((previousForm) => ({
-                        ...previousForm,
-                        customer_tax_condition: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
+                {!isInternal ? <div className="space-y-2">
                   <Label>Condición de venta</Label>
                   <Input
                     value={documentForm.payment_terms}
@@ -433,7 +474,7 @@ export function DocumentsEditorDialog({
                       setDraftForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
                     }
                   />
-                </div>
+                </div> : null}
 
                 <div className="space-y-2">
                   <Label>Vendedor</Label>
@@ -472,7 +513,7 @@ export function DocumentsEditorDialog({
                   </div>
                 ) : null}
 
-                {documentForm.doc_type === "REMITO" && !isReturn ? (
+                {documentForm.doc_type === "REMITO" && !isReturn && !isInternal && Boolean(documentForm.customer_id) ? (
                   <div className="space-y-2 md:col-span-2">
                     <Label>Servicio asociado</Label>
                     <Select
@@ -494,9 +535,6 @@ export function DocumentsEditorDialog({
                         ))}
                       </SelectContent>
                     </Select>
-                    {selectedService && documentForm.customer_id && selectedService.customerId && selectedService.customerId !== documentForm.customer_id ? (
-                      <p className="text-xs text-amber-600">El servicio pertenece a otro cliente. Se permite guardar, pero revisa la trazabilidad.</p>
-                    ) : null}
                   </div>
                 ) : null}
 

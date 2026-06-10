@@ -27,7 +27,7 @@ import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
 import { useBillingActions } from "@/features/billing/hooks/useBillingActions";
 import { useActiveBillingSourceIds, useBillingSettings } from "@/features/billing/hooks/useBillingData";
 import { canUseCustomerForInvoiceA } from "@/features/customers/fiscal";
-import { OCCASIONAL_CUSTOMER_DISPLAY_NAME } from "@/features/documents/utils";
+import { resolveDocumentRecipient } from "@/features/documents/utils";
 import { AmountDisplay } from "@/components/common/VisualSystem";
 import type { BillingInvoiceType } from "@/features/billing/types";
 import type {
@@ -294,8 +294,10 @@ export default function CashPage() {
       ),
     [customers],
   );
-  const formatCashOptionCustomer = (remito: (typeof availableRemitos)[number]) =>
-    remito.customer_name?.trim() ? remito.customer_name.trim() : OCCASIONAL_CUSTOMER_DISPLAY_NAME;
+  const formatCashOptionCustomer = (remito: (typeof availableRemitos)[number]) => {
+    const recipient = resolveDocumentRecipient(remito);
+    return recipient.secondaryName ? `${recipient.primaryName} - ${recipient.secondaryName}` : recipient.primaryName;
+  };
   const remitoOptionLabels = useMemo(
     () =>
       new Map(

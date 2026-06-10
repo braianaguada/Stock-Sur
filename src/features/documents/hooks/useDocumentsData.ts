@@ -48,6 +48,7 @@ export function useDocumentsData({
         .from("customers")
         .select("id, name, cuit")
         .eq("company_id", currentCompanyId!)
+        .eq("is_occasional", false)
         .order("name");
       if (error) throw error;
       return data ?? [];
