@@ -1,4 +1,5 @@
 import { Suspense, lazy, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -16,7 +17,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { UsersAccessTable } from "@/features/users/components/UsersAccessTable";
 import { UsersOverviewHeader } from "@/features/users/components/UsersOverviewHeader";
+import { CreateCompanyDialog } from "@/features/users/components/CreateCompanyDialog";
 import { useUsersAccessManagement } from "@/features/users/hooks/useUsersAccessManagement";
+import { createCompany } from "@/features/users/mutations";
 import { getErrorMessage } from "@/lib/errors";
 import type { UserAccessRow } from "@/features/users/types";
 
@@ -28,8 +31,10 @@ function UsersDialogLoader() {
 }
 
 export default function UsersPage() {
-  const { roles, actorUser, impersonationMeta, startImpersonation } = useAuth();
+  const { roles, actorUser, impersonationMeta, refreshCompanies, setCurrentCompanyId, startImpersonation } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [createCompanyOpen, setCreateCompanyOpen] = useState(false);
   const [impersonationDialogUser, setImpersonationDialogUser] = useState<UserAccessRow | null>(null);
   const [impersonationReason, setImpersonationReason] = useState("");
   const [isStartingImpersonation, setIsStartingImpersonation] = useState(false);
@@ -60,6 +65,28 @@ export default function UsersPage() {
     setSearch,
     setSelectedUser,
   } = useUsersAccessManagement({ roles, toast });
+  const createCompanyMutation = useMutation({
+    mutationFn: createCompany,
+    onSuccess: async (company) => {
+      await Promise.all([
+        refreshCompanies(),
+        queryClient.invalidateQueries({ queryKey: ["users-company-options"] }),
+      ]);
+      setCurrentCompanyId(company.id);
+      setCreateCompanyOpen(false);
+      toast({
+        title: "Empresa creada",
+        description: `${company.name} ya está disponible y no contiene datos de otras empresas.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "No se pudo crear la empresa",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleStartImpersonation = async () => {
     if (!impersonationDialogUser) return;
@@ -108,6 +135,7 @@ export default function UsersPage() {
           overviewStats={overviewStats}
           search={search}
           onFilterChange={setFilter}
+          onCreateCompany={() => setCreateCompanyOpen(true)}
           onSearchChange={setSearch}
         />
 
@@ -207,6 +235,13 @@ export default function UsersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CreateCompanyDialog
+        open={createCompanyOpen}
+        isCreating={createCompanyMutation.isPending}
+        onOpenChange={setCreateCompanyOpen}
+        onCreate={(values) => createCompanyMutation.mutate(values)}
+      />
     </AppLayout>
   );
 }

@@ -5,6 +5,15 @@ import type {
   UserAccessRow,
 } from "@/features/users/types";
 
+export async function createCompany(params: { name: string; slug: string }) {
+  const { data, error } = await supabase.rpc("create_company", {
+    p_name: params.name,
+    p_slug: params.slug,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function saveUserCompanyAccess(params: {
   selectedUser: UserAccessRow | null;
   accessForm: AccessFormState;
