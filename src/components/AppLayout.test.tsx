@@ -9,7 +9,10 @@ vi.mock("@/contexts/AuthContext", () => ({
     signOut: vi.fn(),
     user: { id: "user-1", email: "admin@stocksur.test" },
     roles: ["admin"],
-    companies: [{ id: "company-1", name: "Empresa Demo", slug: "empresa-demo", status: "ACTIVE" }],
+    companies: [
+      { id: "company-1", name: "Empresa Demo", slug: "empresa-demo", status: "ACTIVE" },
+      { id: "company-2", name: "Empresa Oculta", slug: "empresa-oculta", status: "ACTIVE" },
+    ],
     currentCompany: { id: "company-1", name: "Empresa Demo", slug: "empresa-demo", status: "ACTIVE" },
     companyRoleCodes: [],
     companyPermissionCodes: [],
@@ -51,6 +54,7 @@ describe("AppLayout", () => {
     expect(screen.queryByRole("link", { name: "Usuarios" })).not.toBeInTheDocument();
     expect(screen.getByText("admin@stocksur.test")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cerrar sesión" })).toBeInTheDocument();
+    expect(screen.queryByText("Seleccionar empresa")).not.toBeInTheDocument();
     expect(screen.getByText("contenido demo")).toBeInTheDocument();
   });
 

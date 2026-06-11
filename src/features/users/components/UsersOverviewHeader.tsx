@@ -1,5 +1,6 @@
-import { Search, ShieldCheck } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { UsersFilter } from "@/features/users/types";
@@ -14,6 +15,7 @@ interface UsersOverviewHeaderProps {
   };
   search: string;
   onFilterChange: (value: UsersFilter) => void;
+  onCreateCompany: () => void;
   onSearchChange: (value: string) => void;
 }
 
@@ -22,6 +24,7 @@ export function UsersOverviewHeader({
   overviewStats,
   search,
   onFilterChange,
+  onCreateCompany,
   onSearchChange,
 }: UsersOverviewHeaderProps) {
   return (
@@ -37,10 +40,10 @@ export function UsersOverviewHeader({
           </>
         )}
         actions={(
-          <div className="flex items-center gap-2 rounded-full bg-[hsl(var(--panel))]/70 px-4 py-2 text-sm text-muted-foreground">
-            <ShieldCheck className="h-4 w-4 text-primary" />
-            Administración global
-          </div>
+          <Button type="button" onClick={onCreateCompany}>
+            <Plus className="h-4 w-4" />
+            Nueva empresa
+          </Button>
         )}
       />
 

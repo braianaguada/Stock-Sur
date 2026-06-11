@@ -98,7 +98,7 @@ const App = () => (
                   <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
                   <Route path="/customer-account" element={<ProtectedRoute><CustomerAccountPage /></ProtectedRoute>} />
                   <Route path="/technicians" element={<ProtectedRoute><TechniciansPage /></ProtectedRoute>} />
-                  <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
+                  <Route path="/users" element={<ProtectedRoute requiresSuperadmin><UsersPage /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                   <Route path="/items/catalog/import-legacy" element={<ProtectedRoute><LegacyCatalogImportPage /></ProtectedRoute>} />
                   <Route path="/legacy-catalog-import" element={<Navigate to="/items/catalog/import-legacy" replace />} />

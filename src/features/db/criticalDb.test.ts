@@ -30,6 +30,18 @@ async function setActor(userId: string) {
   await client.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: userId, role: "authenticated" })]);
 }
 
+async function expectDbRejection(query: string, params: unknown[] = []) {
+  await client.query("savepoint expected_db_rejection");
+  let rejection: unknown;
+  try {
+    await client.query(query, params);
+  } catch (error) {
+    rejection = error;
+  }
+  await client.query("rollback to savepoint expected_db_rejection");
+  expect(rejection).toBeTruthy();
+}
+
 async function seedUser(userId: string) {
   await client.query(
     `
@@ -133,6 +145,72 @@ describeCriticalDb("critical database rules", () => {
   afterAll(async () => {
     await client.end();
   });
+
+  it("mantiene RLS habilitado en todas las tablas con company_id", async () => {
+    const result = await client.query(
+      `
+      select c.relname as table_name
+      from pg_catalog.pg_class c
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      join information_schema.columns col
+        on col.table_schema = n.nspname
+       and col.table_name = c.relname
+       and col.column_name = 'company_id'
+      where n.nspname = 'public'
+        and c.relkind in ('r', 'p')
+        and not c.relrowsecurity
+      order by c.relname
+      `,
+    );
+
+    expect(result.rows.map((row) => row.table_name)).toEqual([]);
+  });
+
+  it("aísla lecturas, escrituras y RPC entre empresas", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyA = crypto.randomUUID();
+      const companyB = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyA);
+      await seedCompany(companyB);
+      const companyUserId = await seedActor(companyA, userId);
+      await seedPermission(companyUserId, "stock.view");
+      await seedPermission(companyUserId, "stock.edit");
+      await seedPermission(companyUserId, "items.view");
+
+      const itemA = await seedItem(companyA, userId);
+      const itemB = await seedItem(companyB, userId);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      const visibleItems = await client.query(`select id from public.items where id = any($1::uuid[])`, [[itemA, itemB]]);
+      expect(visibleItems.rows.map((row) => row.id)).toEqual([itemA]);
+
+      const crossCompanyUpdate = await client.query(`update public.items set name = 'No permitido' where id = $1`, [itemB]);
+      expect(crossCompanyUpdate.rowCount).toBe(0);
+
+      await expectDbRejection(
+        `
+        insert into public.items (id, sku, name, unit, is_active, created_by, created_at, updated_at, demand_profile, company_id)
+        values ($1, $2, 'No permitido', 'UN', true, $3, now(), now(), 'LOW', $4)
+        `,
+        [crypto.randomUUID(), `SKU-${crypto.randomUUID().slice(0, 8)}`, userId, companyB],
+      );
+
+      await expectDbRejection(
+        `select public.upsert_product_combo_with_lines($1, null, $2, null, true, $3::jsonb)`,
+        [
+          companyB,
+          "Combo no permitido",
+          JSON.stringify([{ item_id: itemB, quantity: 1, line_order: 1, notes: null }]),
+        ],
+      );
+
+      await expectDbRejection(`select public.create_company($1, $2)`, ["No permitida", `no-permitida-${crypto.randomUUID().slice(0, 8)}`]);
+    });
+  }, 15000);
 
   it("emite remito sin stock when the company allows it", async () => {
     await withRollback(async () => {
