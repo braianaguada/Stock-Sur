@@ -2412,6 +2412,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_company: {
+        Args: { p_name: string; p_slug: string }
+        Returns: Database["public"]["Tables"]["companies"]["Row"]
+      }
       attach_cash_sale_receipt: {
         Args: {
           p_document_id?: string

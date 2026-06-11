@@ -41,6 +41,7 @@ interface AuthContextType {
   impersonationMeta: ImpersonationMeta | null;
   loading: boolean;
   setCurrentCompanyId: (companyId: string) => void;
+  refreshCompanies: () => Promise<void>;
   startImpersonation: (params: { targetUserId: string; targetEmail?: string | null; reason?: string }) => Promise<void>;
   stopImpersonation: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -60,6 +61,7 @@ const AuthContext = createContext<AuthContextType>({
   impersonationMeta: null,
   loading: true,
   setCurrentCompanyId: () => {},
+  refreshCompanies: async () => {},
   startImpersonation: async () => {},
   stopImpersonation: async () => {},
   signOut: async () => {},
@@ -136,6 +138,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCurrentCompanyIdState(companyId);
     persistCurrentCompanyId(companyId);
   };
+
+  const refreshCompanies = useCallback(async () => {
+    await loadAuthState(session, impersonationMeta);
+  }, [impersonationMeta, loadAuthState, session]);
 
   useEffect(() => {
     const subscription = subscribeToAuthSession({
@@ -296,6 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         impersonationMeta,
         loading,
         setCurrentCompanyId,
+        refreshCompanies,
         startImpersonation,
         stopImpersonation,
         signOut,
