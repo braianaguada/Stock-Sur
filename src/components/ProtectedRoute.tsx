@@ -1,9 +1,10 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { ReactNode } from "react";
+import { canManageUsers } from "@/lib/permissions";
 
-export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { session, loading } = useAuth();
+export function ProtectedRoute({ children, requiresSuperadmin = false }: { children: ReactNode; requiresSuperadmin?: boolean }) {
+  const { session, loading, roles } = useAuth();
 
   if (loading) {
     return (
@@ -15,6 +16,10 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (!session) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (requiresSuperadmin && !canManageUsers(roles)) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

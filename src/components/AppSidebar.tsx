@@ -72,6 +72,7 @@ export function AppSidebar() {
     }
     return true;
   });
+  const canChangeCompany = canManageUsers(roles);
 
   const userInitial = (user?.email?.[0] ?? currentCompany?.name?.[0] ?? "S").toUpperCase();
 
@@ -124,7 +125,7 @@ export function AppSidebar() {
                 Empresa activa
               </div>
 
-              {companies.length > 1 ? (
+              {canChangeCompany && companies.length > 1 ? (
                 <div className="w-[230px] max-w-full">
                   <Select value={currentCompany?.id ?? undefined} onValueChange={setCurrentCompanyId}>
                     <SelectTrigger className="h-10 rounded-full border-border/55 bg-card/66 px-3.5 text-sm shadow-none hover:bg-accent/45">
