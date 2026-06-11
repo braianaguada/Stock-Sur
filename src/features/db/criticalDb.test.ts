@@ -166,6 +166,44 @@ describeCriticalDb("critical database rules", () => {
     expect(result.rows.map((row) => row.table_name)).toEqual([]);
   });
 
+  it("asigna membresia admin al superadmin que crea una empresa", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const slug = `db-create-company-${userId.slice(0, 8)}`;
+      await seedUser(userId);
+      await client.query(
+        `
+        insert into public.user_roles (user_id, role)
+        values ($1, 'superadmin')
+        on conflict do nothing
+        `,
+        [userId],
+      );
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      const created = await client.query(
+        `select id from public.create_company($1, $2)`,
+        ["DB Created Company", slug],
+      );
+      const companyId = created.rows[0].id;
+      const access = await client.query(
+        `
+        select cu.status, r.code
+        from public.company_users cu
+        join public.company_user_roles cur on cur.company_user_id = cu.id
+        join public.roles r on r.id = cur.role_id
+        where cu.company_id = $1
+          and cu.user_id = $2
+        `,
+        [companyId, userId],
+      );
+
+      expect(access.rows).toEqual([{ status: "ACTIVE", code: "admin" }]);
+    });
+  });
+
   it("aísla lecturas, escrituras y RPC entre empresas", async () => {
     await withRollback(async () => {
       const userId = crypto.randomUUID();
