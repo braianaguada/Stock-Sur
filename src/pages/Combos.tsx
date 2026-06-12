@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Search, Plus, Power, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +38,7 @@ export default function CombosPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const deferredProductSearch = useDeferredValue(productSearch);
   const [selectedComboId, setSelectedComboId] = useState<string | null>(null);
   const [formMode, setFormMode] = useState<"create" | "edit">("edit");
   const [formLoadedForComboId, setFormLoadedForComboId] = useState<string | null>(null);
@@ -128,9 +129,9 @@ export default function CombosPage() {
   }, [combos, formLoadedForComboId, formMode, isDirty, linesByComboId, linesLoading, selectedComboId]);
 
   const filteredProductResults = useMemo(() => {
-    const query = productSearch.trim().toLowerCase();
+    const query = deferredProductSearch.trim();
     return filterComboProductOptions(items, query);
-  }, [items, productSearch]);
+  }, [deferredProductSearch, items]);
 
   const comboSummaries = useMemo(() => {
     const summaryById = new Map<string, ProductComboLine[]>();

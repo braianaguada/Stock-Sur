@@ -72,6 +72,35 @@ describe("natural item search", () => {
     expect(ranked).toHaveLength(0);
   });
 
+  it("matches terms split between product fields and aliases", () => {
+    const ranked = rankNaturalItemSearch({
+      items: ITEMS,
+      aliases: [{ item_id: "2", alias: "refrigerante r134", is_supplier_code: false }],
+      query: "york r134",
+    });
+
+    expect(ranked[0]?.id).toBe("2");
+  });
+
+  it("matches multiword queries across different product fields", () => {
+    const ranked = rankNaturalItemSearch({
+      items: [
+        ...ITEMS,
+        {
+          ...ITEMS[0],
+          id: "3",
+          sku: "REF-134",
+          name: "Lata refrigerante",
+          attributes: "Gas R134",
+        },
+      ],
+      aliases: [],
+      query: "lata r134",
+    });
+
+    expect(ranked.map((item) => item.id)).toEqual(["3"]);
+  });
+
   it("does not return unrelated items for a missing term", () => {
     const ranked = rankNaturalItemSearch({
       items: ITEMS,

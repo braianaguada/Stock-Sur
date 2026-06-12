@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useDeferredValue, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ import type {
   PriceListSummary,
 } from "@/features/price-lists/types";
 import { parseNonNegative } from "@/features/price-lists/utils";
+import { matchesNaturalItemSearch } from "@/features/items/search";
 
 type BaseCatalogRow = {
   id: string;
@@ -94,6 +95,8 @@ export function usePriceListsData({
   listSearch,
   selectedListId,
 }: UsePriceListsDataParams) {
+  const deferredBaseSearch = useDeferredValue(baseSearch);
+  const deferredDetailSearch = useDeferredValue(detailSearch);
   const { currentCompany, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -292,15 +295,11 @@ export function usePriceListsData({
   }, [basePricingByItemId, catalogItems, latestHistoryByItemId]);
 
   const filteredBaseRows = useMemo(() => {
-    const term = baseSearch.trim().toLowerCase();
+    const term = deferredBaseSearch.trim();
     if (!term) return baseRows;
 
-    return baseRows.filter((row) =>
-      [row.sku, row.name, row.attributes, row.brand, row.model, row.category]
-        .filter(Boolean)
-        .some((value) => value!.toLowerCase().includes(term)),
-    );
-  }, [baseRows, baseSearch]);
+    return baseRows.filter((row) => matchesNaturalItemSearch({ id: row.item_id, ...row }, term));
+  }, [baseRows, deferredBaseSearch]);
 
   const basePagination = usePaginationSlice({
     items: filteredBaseRows,
@@ -389,15 +388,11 @@ export function usePriceListsData({
   }, [baseRows, selectedSnapshotsByItemId]);
 
   const filteredSelectedListProducts = useMemo(() => {
-    const term = detailSearch.trim().toLowerCase();
+    const term = deferredDetailSearch.trim();
     if (!term) return selectedListProducts;
 
-    return selectedListProducts.filter((row) =>
-      [row.sku, row.name, row.attributes, row.brand, row.model, row.category]
-        .filter(Boolean)
-        .some((value) => value!.toLowerCase().includes(term)),
-    );
-  }, [detailSearch, selectedListProducts]);
+    return selectedListProducts.filter((row) => matchesNaturalItemSearch({ id: row.item_id, ...row }, term));
+  }, [deferredDetailSearch, selectedListProducts]);
 
   const detailPagination = usePaginationSlice({
     items: filteredSelectedListProducts,

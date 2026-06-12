@@ -1,4 +1,5 @@
 import type { ProductComboFormLine } from "../types";
+import { rankNaturalItemSearch } from "@/features/items/search";
 
 export type ComboProductSearchItem = {
   id: string;
@@ -13,16 +14,13 @@ export type ComboProductSearchItem = {
 };
 
 export function filterComboProductOptions(items: ComboProductSearchItem[], query: string, limit = 8) {
-  const term = query.trim().toLowerCase();
-  if (!term) return [];
+  if (!query.trim()) return [];
 
-  return items
-    .filter((item) => item.is_active)
-    .filter((item) =>
-      [item.sku, item.name, item.brand, item.model, item.attributes, item.category, item.unit]
-        .filter(Boolean)
-        .some((value) => value!.toLowerCase().includes(term)),
-    )
+  return rankNaturalItemSearch({
+    items: items.filter((item) => item.is_active),
+    aliases: [],
+    query,
+  })
     .slice(0, limit);
 }
 
