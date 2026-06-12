@@ -1,56 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { buildDashboardInsights } from "@/features/index/dashboard-insights";
+import { normalizeDashboardInsights } from "@/features/index/dashboard-insights";
 
 describe("dashboard insights", () => {
-  it("builds safe empty-state metrics when there is no data", () => {
-    const insights = buildDashboardInsights({
-      items: [],
-      movements: [],
-      pricingBase: [],
-      suppliersCount: 0,
-      quotesCount: 0,
-      now: new Date("2026-04-13T12:00:00.000Z"),
-    });
+  it("builds a safe empty dashboard from invalid data", () => {
+    const insights = normalizeDashboardInsights(null);
 
     expect(insights.metrics.inventoryValue).toBe(0);
-    expect(insights.metrics.itemsWithStock).toBe(0);
-    expect(insights.metrics.itemsWithoutCost).toBe(0);
-    expect(insights.stockComposition).toHaveLength(0);
-    expect(insights.hasStockData).toBe(false);
-    expect(insights.hasMovementData).toBe(false);
-    expect(insights.monthlyMovements).toHaveLength(6);
+    expect(insights.metrics.salesMonth).toBe(0);
+    expect(insights.actions).toEqual([]);
+    expect(insights.monthlySales).toEqual([]);
   });
 
-  it("calculates valued stock, missing costs and top capital correctly", () => {
-    const insights = buildDashboardInsights({
-      items: [
-        { id: "a", name: "Cable taller", sku: "CAB-01", attributes: "2 x 1,5 mm", category: "Electricidad", is_active: true },
-        { id: "b", name: "Valvula 1/2", sku: "VAL-01", attributes: null, category: "Sanitaria", is_active: true },
-        { id: "c", name: "Filtro", sku: "FIL-01", attributes: null, category: null, is_active: true },
+  it("normalizes numeric database values and action tones", () => {
+    const insights = normalizeDashboardInsights({
+      metrics: {
+        inventoryValue: "12500.50",
+        itemsWithStock: 8,
+        salesMonth: "9000",
+      },
+      actions: [
+        { key: "cost", label: "Sin costo", count: "3", detail: "Revisar", href: "/prices", tone: "warning" },
+        { key: "unknown", label: "Otro", count: 1, tone: "unsupported" },
       ],
-      movements: [
-        { item_id: "a", type: "IN", quantity: 10, created_at: "2026-04-01T10:00:00.000Z" },
-        { item_id: "a", type: "OUT", quantity: 2, created_at: "2026-04-03T10:00:00.000Z" },
-        { item_id: "b", type: "IN", quantity: 5, created_at: "2026-03-01T10:00:00.000Z" },
-      ],
-      pricingBase: [
-        { item_id: "a", base_cost: 1000 },
-        { item_id: "b", base_cost: 0 },
-        { item_id: "c", base_cost: 800 },
-      ],
-      suppliersCount: 4,
-      quotesCount: 2,
-      now: new Date("2026-04-13T12:00:00.000Z"),
+      monthlySales: [{ month: "2026-06", total: "7000", count: "4" }],
+      topItemsByValue: [{ itemId: "a", name: "Cable", stockValue: "8000", quantity: "4", baseCost: "2000" }],
     });
 
-    expect(insights.metrics.inventoryValue).toBe(8000);
-    expect(insights.metrics.itemsWithStock).toBe(2);
-    expect(insights.metrics.itemsWithoutCost).toBe(1);
-    expect(insights.metrics.valuedItemsShare).toBe(50);
-    expect(insights.topItemsByValue[0]?.name).toBe("Cable taller - 2 x 1,5 mm");
-    expect(insights.categoryValues[0]).toEqual({
-      category: "Electricidad",
-      value: 8000,
-    });
+    expect(insights.metrics.inventoryValue).toBe(12500.5);
+    expect(insights.metrics.salesMonth).toBe(9000);
+    expect(insights.actions[0]).toMatchObject({ count: 3, tone: "warning" });
+    expect(insights.actions[1]?.tone).toBe("default");
+    expect(insights.monthlySales[0]).toEqual({ month: "2026-06", total: 7000, count: 4 });
+    expect(insights.topItemsByValue[0]?.stockValue).toBe(8000);
   });
 });
