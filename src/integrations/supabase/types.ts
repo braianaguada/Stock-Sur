@@ -2416,6 +2416,10 @@ export type Database = {
         Args: { p_name: string; p_slug: string }
         Returns: Database["public"]["Tables"]["companies"]["Row"]
       }
+      get_dashboard_operational_overview: {
+        Args: { p_company_id: string }
+        Returns: Json
+      }
       search_items: {
         Args: {
           p_company_id: string

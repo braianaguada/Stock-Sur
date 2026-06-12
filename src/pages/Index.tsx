@@ -1,36 +1,27 @@
 import {
-  AlertCircle,
-  ArrowDownToLine,
-  ArrowUpFromLine,
+  AlertTriangle,
+  ArrowRight,
   Boxes,
-  ChartBarBig,
-  CircleHelp,
-  HandCoins,
-  Package,
+  CircleDollarSign,
+  ClipboardCheck,
+  PackageSearch,
+  ReceiptText,
+  RefreshCw,
   Wallet,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/ui/page";
-import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
+import type { DashboardActionTone } from "@/features/index/dashboard-insights";
 import { useDashboardStats } from "@/features/index/hooks/useDashboardStats";
+import { cn } from "@/lib/utils";
 
 const currencyFormatter = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -38,54 +29,39 @@ const currencyFormatter = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-const numberFormatter = new Intl.NumberFormat("es-AR", {
-  maximumFractionDigits: 0,
-});
+const numberFormatter = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
+const monthFormatter = new Intl.DateTimeFormat("es-AR", { month: "short" });
 
 function formatCurrency(value: number) {
   return currencyFormatter.format(value || 0);
 }
 
-function formatCompactNumber(value: number) {
+function formatNumber(value: number) {
   return numberFormatter.format(value || 0);
 }
 
-function EmptyChartState(props: { title: string; description: string }) {
-  const { title, description } = props;
-  return (
-    <div className="flex h-[260px] flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-border/70 bg-background/50 px-6 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <CircleHelp className="h-5 w-5" />
-      </div>
-      <p className="mt-4 text-sm font-semibold text-foreground">{title}</p>
-      <p className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">{description}</p>
-    </div>
-  );
+function formatMonth(value: string) {
+  const [year, month] = value.split("-").map(Number);
+  if (!year || !month) return value;
+  const label = monthFormatter.format(new Date(year, month - 1, 1)).replace(".", "");
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-function ChartTooltip(props: {
-  active?: boolean;
-  label?: string;
-  payload?: Array<{ name?: string; value?: number; color?: string; payload?: Record<string, unknown> }>;
-  valueFormatter?: (value: number) => string;
-}) {
-  const { active, label, payload, valueFormatter = formatCompactNumber } = props;
-  if (!active || !payload?.length) return null;
+const actionToneClasses: Record<DashboardActionTone, string> = {
+  default: "border-border/60 bg-background/70 text-muted-foreground",
+  info: "border-blue-500/20 bg-blue-500/[.06] text-blue-700",
+  warning: "border-amber-500/25 bg-amber-500/[.07] text-amber-700",
+  danger: "border-red-500/25 bg-red-500/[.07] text-red-700",
+};
+
+function SalesTooltip(props: { active?: boolean; payload?: Array<{ value?: number; payload?: { count?: number } }> }) {
+  if (!props.active || !props.payload?.length) return null;
+  const entry = props.payload[0];
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-card/95 px-3 py-2 shadow-[var(--shadow-sm)] backdrop-blur-sm">
-      {label ? <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</p> : null}
-      <div className="mt-2 space-y-1.5">
-        {payload.map((entry) => (
-          <div key={`${entry.name}-${entry.color}`} className="flex items-center justify-between gap-3 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
-              <span className="text-muted-foreground">{entry.name}</span>
-            </div>
-            <span className="font-semibold text-foreground">{valueFormatter(Number(entry.value ?? 0))}</span>
-          </div>
-        ))}
-      </div>
+    <div className="rounded-xl border border-border/70 bg-card/95 px-3 py-2 shadow-sm backdrop-blur">
+      <p className="text-sm font-semibold">{formatCurrency(Number(entry.value ?? 0))}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{formatNumber(entry.payload?.count ?? 0)} ventas registradas</p>
     </div>
   );
 }
@@ -93,12 +69,9 @@ function ChartTooltip(props: {
 export default function Dashboard() {
   const { settings } = useCompanyBrand();
   const { currentCompany } = useAuth();
-  const { dashboard, stats, isFetching } = useDashboardStats({ companyId: currentCompany?.id });
-
-  const topValueChartData = dashboard.topItemsByValue.map((item) => ({
-    name: item.name,
-    value: item.stockValue,
-  }));
+  const { dashboard, isFetching, error } = useDashboardStats({ companyId: currentCompany?.id });
+  const actions = dashboard.actions.filter((action) => action.count > 0);
+  const monthlySales = dashboard.monthlySales.map((point) => ({ ...point, label: formatMonth(point.month) }));
 
   return (
     <AppLayout>
@@ -108,318 +81,178 @@ export default function Dashboard() {
         ) : null}
 
         <PageHeader
-          eyebrow="Panel ejecutivo"
+          eyebrow="Panel operativo"
           title="Dashboard"
-          description={`Resumen visual de ${settings.app_name} sobre el stock hoy registrado en el sistema. Sirve como referencia operativa mientras la facturacion y el descuento automatico de stock todavia viven afuera.`}
+          description={`Lo importante de ${settings.app_name} para decidir qué atender hoy y dónde está concentrado el negocio.`}
           meta={(
             <>
               <Badge variant="outline">Empresa activa</Badge>
-              <Badge variant="secondary">Referencia sobre stock interno</Badge>
-              {isFetching ? <Badge variant="outline">Actualizando</Badge> : null}
+              <Badge variant="secondary">Datos internos actualizados</Badge>
+              {isFetching ? <Badge variant="outline"><RefreshCw className="mr-1 h-3 w-3 animate-spin" />Actualizando</Badge> : null}
             </>
           )}
         />
 
+        {error ? (
+          <Card className="border-red-500/25 bg-red-500/[.05]">
+            <CardContent className="flex items-start gap-3 py-5">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+              <div>
+                <p className="font-semibold text-foreground">No se pudo actualizar el resumen operativo</p>
+                <p className="mt-1 text-sm text-muted-foreground">El resto del sistema sigue disponible. Volvé a ingresar al dashboard para reintentar.</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            label="Capital cargado en mercaderia"
+            label="Capital en mercaderia"
             value={formatCurrency(dashboard.metrics.inventoryValue)}
             icon={<Wallet className="h-5 w-5" />}
-            hint="Suma del stock positivo registrado aca y valorizado con costo base."
+            hint={`${formatNumber(dashboard.metrics.inventoryUnits)} unidades valorizadas con costo base.`}
             tone="info"
-            className="bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.14),transparent_52%)] shadow-[0_24px_50px_-28px_rgba(37,99,235,0.32)]"
+            className="bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.14),transparent_52%)]"
           />
           <StatCard
             label="Items con stock"
-            value={formatCompactNumber(dashboard.metrics.itemsWithStock)}
+            value={formatNumber(dashboard.metrics.itemsWithStock)}
             icon={<Boxes className="h-5 w-5" />}
-            hint={`${formatCompactNumber(dashboard.metrics.activeItems)} items activos cargados en catalogo.`}
+            hint={`${formatNumber(dashboard.metrics.activeItems)} items activos. ${dashboard.metrics.valuedItemsShare}% con costo.`}
             tone="success"
-            className="bg-[radial-gradient(circle_at_top_right,rgba(5,150,105,0.14),transparent_52%)] shadow-[0_24px_50px_-28px_rgba(5,150,105,0.28)]"
+            className="bg-[radial-gradient(circle_at_top_right,rgba(5,150,105,0.14),transparent_52%)]"
           />
           <StatCard
-            label="Stock sin costo base"
-            value={formatCompactNumber(dashboard.metrics.itemsWithoutCost)}
-            icon={<AlertCircle className="h-5 w-5" />}
-            hint="Tiene stock cargado pero no entra en la valorizacion hasta definir el costo."
-            tone={dashboard.metrics.itemsWithoutCost > 0 ? "warning" : "default"}
+            label="Ventas del mes"
+            value={formatCurrency(dashboard.metrics.salesMonth)}
+            icon={<ReceiptText className="h-5 w-5" />}
+            hint={`Hoy: ${formatCurrency(dashboard.metrics.salesToday)} en ${formatNumber(dashboard.metrics.salesTodayCount)} ventas.`}
+            tone="info"
           />
           <StatCard
-            label="Cobertura valorizada"
-            value={`${dashboard.metrics.valuedItemsShare}%`}
-            icon={<HandCoins className="h-5 w-5" />}
-            hint={`Porcentaje del stock cargado que hoy ya tiene costo base. ${formatCompactNumber(dashboard.metrics.suppliersCount)} proveedores y ${formatCompactNumber(dashboard.metrics.quotesCount)} presupuestos.`}
-            tone={dashboard.metrics.valuedItemsShare >= 75 ? "success" : "warning"}
+            label="Saldo por cobrar"
+            value={formatCurrency(dashboard.metrics.accountsReceivable)}
+            icon={<CircleDollarSign className="h-5 w-5" />}
+            hint="Suma de saldos pendientes positivos por cliente."
+            tone={dashboard.metrics.accountsReceivable > 0 ? "warning" : "default"}
           />
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[1.45fr_0.95fr]">
+        <div className="grid gap-4 xl:grid-cols-[1.35fr_.85fr]">
           <Card className="surface-card overflow-hidden">
             <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/60 pb-5">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Movimiento</p>
-                <CardTitle className="mt-2 text-xl">Entradas y salidas registradas</CardTitle>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Esta lectura toma solo movimientos cargados aca. Mientras la facturacion siga en otro sistema, no representa toda la salida real.
-                </p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Evolucion comercial</p>
+                <CardTitle className="mt-2 text-xl">Ventas registradas en caja</CardTitle>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">Importe real cargado por mes, sin ventas anuladas.</p>
               </div>
-              <Badge variant="outline" className="rounded-full">
-                6 meses
-              </Badge>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/cash-totals">Ver totales</Link>
+              </Button>
             </CardHeader>
             <CardContent className="pt-6">
-              {dashboard.hasMovementData ? (
-                <div className="h-[320px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={dashboard.monthlyMovements} barGap={10}>
-                      <CartesianGrid stroke="hsl(var(--border) / 0.5)" vertical={false} />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                      <YAxis tickLine={false} axisLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                      <Tooltip content={<ChartTooltip />} />
-                      <Bar dataKey="in" name="Entradas" radius={[10, 10, 0, 0]} fill="hsl(var(--info))" />
-                      <Bar dataKey="out" name="Salidas" radius={[10, 10, 0, 0]} fill="hsl(var(--primary))" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <EmptyChartState
-                  title="Todavia no hay movimientos suficientes"
-                  description="Cuando registres mas movimientos internos vas a empezar a ver esta serie. Las facturas hechas afuera todavia no impactan automaticamente."
-                />
-              )}
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlySales}>
+                    <CartesianGrid stroke="hsl(var(--border) / 0.5)" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                    <YAxis tickFormatter={(value) => formatNumber(Number(value))} tickLine={false} axisLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} width={72} />
+                    <Tooltip content={<SalesTooltip />} />
+                    <Bar dataKey="total" name="Ventas" radius={[10, 10, 0, 0]} fill="hsl(var(--primary))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
 
-          <div className="grid gap-4">
-            <Card className="surface-card overflow-hidden">
-              <CardHeader className="border-b border-border/60 pb-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Composicion</p>
-                <CardTitle className="mt-2 text-xl">Estado del stock cargado</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                {dashboard.stockComposition.length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr] md:items-center">
-                    <div className="h-[200px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={dashboard.stockComposition}
-                            dataKey="value"
-                            nameKey="name"
-                            innerRadius={55}
-                            outerRadius={78}
-                            paddingAngle={4}
-                            stroke="transparent"
-                          >
-                            {dashboard.stockComposition.map((slice) => (
-                              <Cell key={slice.name} fill={slice.fill} />
-                            ))}
-                          </Pie>
-                          <Tooltip content={<ChartTooltip />} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="space-y-3">
-                      {dashboard.stockComposition.map((slice) => (
-                        <div key={slice.name} className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/60 px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: slice.fill }} />
-                            <span className="text-sm text-foreground">{slice.name}</span>
-                          </div>
-                          <span className="text-sm font-semibold text-foreground">{formatCompactNumber(slice.value)}</span>
-                        </div>
-                      ))}
-                    </div>
+          <Card className="surface-card-muted overflow-hidden">
+            <CardHeader className="border-b border-border/60 pb-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Requiere atencion</p>
+              <CardTitle className="mt-2 text-xl">Pendientes operativos</CardTitle>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">Cruces de información que tienen una acción concreta asociada.</p>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-5">
+              {actions.length > 0 ? actions.map((action) => (
+                <Link
+                  key={action.key}
+                  to={action.href}
+                  className={cn("group flex items-center gap-3 rounded-2xl border px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-sm", actionToneClasses[action.tone])}
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-background/80 text-base font-bold text-foreground">
+                    {formatNumber(action.count)}
                   </div>
-                ) : (
-                <EmptyChartState
-                  title="Aun no hay stock para clasificar"
-                  description="En cuanto empieces a cargar movimientos o ajustes internos, esta composicion se completa sola."
-                />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground">{action.label}</p>
+                    <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{action.detail}</p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 shrink-0 transition group-hover:translate-x-0.5" />
+                </Link>
+              )) : (
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[.06] px-5 py-6 text-center">
+                  <ClipboardCheck className="mx-auto h-7 w-7 text-emerald-700" />
+                  <p className="mt-3 text-sm font-semibold text-foreground">No hay pendientes detectados</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">Los principales circuitos operativos están al día.</p>
+                </div>
               )}
             </CardContent>
-            </Card>
-
-            <Card className="surface-card-muted overflow-hidden">
-              <CardHeader className="border-b border-border/60 pb-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Lectura rapida</p>
-                <CardTitle className="mt-2 text-xl">Calidad del dato</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 pt-6">
-                <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/70 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Stock valorizado</p>
-                    <p className="text-xs text-muted-foreground">Capital sobre stock registrado aca que ya tiene costo base.</p>
-                  </div>
-                  <span className="text-sm font-semibold text-foreground">{formatCurrency(dashboard.metrics.inventoryValue)}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/70 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Potencial sin cubrir</p>
-                    <p className="text-xs text-muted-foreground">Mercaderia con stock cargado que hoy no se puede valorizar completa.</p>
-                  </div>
-                  <span className="text-sm font-semibold text-foreground">{formatCurrency(dashboard.missingValueEstimate)}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/70 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Unidades disponibles</p>
-                    <p className="text-xs text-muted-foreground">Suma total del stock neto positivo registrado en la app.</p>
-                  </div>
-                  <span className="text-sm font-semibold text-foreground">{formatCompactNumber(dashboard.metrics.inventoryUnits)}</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          </Card>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <div className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
           <Card className="surface-card overflow-hidden">
-            <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/60 pb-5">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Ranking</p>
-                <CardTitle className="mt-2 text-xl">Capital por item registrado</CardTitle>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Los productos que hoy concentran mas plata sobre el stock disponible cargado en el sistema.
-                </p>
-              </div>
-              <ChartBarBig className="mt-1 h-5 w-5 text-primary" />
+            <CardHeader className="border-b border-border/60 pb-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Exposicion de capital</p>
+              <CardTitle className="mt-2 text-xl">Productos con mayor valor inmovilizado</CardTitle>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">Ayuda a detectar dónde se concentra la plata y qué revisar antes de volver a comprar.</p>
             </CardHeader>
-            <CardContent className="pt-6">
-              {topValueChartData.length > 0 ? (
-                <div className="h-[320px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={topValueChartData} layout="vertical" margin={{ left: 16, right: 16 }}>
-                      <CartesianGrid stroke="hsl(var(--border) / 0.5)" horizontal={false} />
-                      <XAxis type="number" hide />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        tickLine={false}
-                        axisLine={false}
-                        width={220}
-                        tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                      />
-                      <Tooltip content={<ChartTooltip valueFormatter={formatCurrency} />} />
-                      <Bar dataKey="value" name="Capital" radius={[0, 12, 12, 0]} fill="hsl(var(--primary))" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <EmptyChartState
-                  title="No hay items valorizados todavia"
-                  description="Este ranking aparece automaticamente cuando un producto tiene stock positivo y costo base cargado dentro de la app."
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="surface-card overflow-hidden">
-            <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/60 pb-5">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Categorias</p>
-                <CardTitle className="mt-2 text-xl">Valor por categoria registrada</CardTitle>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Sirve para ver donde se concentra la mercaderia hoy cargada y empezar a detectar familias sobredimensionadas.
-                </p>
-              </div>
-              <Package className="mt-1 h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent className="pt-6">
-              {dashboard.hasCategoryData ? (
-                <div className="space-y-4">
-                  {dashboard.categoryValues.map((entry, index) => {
-                    const maxValue = dashboard.categoryValues[0]?.value ?? 1;
-                    const width = maxValue > 0 ? Math.max(10, (entry.value / maxValue) * 100) : 0;
-                    const tones = [
-                      "from-primary/90 to-info/75",
-                      "from-info/90 to-primary/55",
-                      "from-success/85 to-info/65",
-                      "from-warning/80 to-primary/60",
-                      "from-primary/70 to-muted-foreground/55",
-                    ];
-
-                    return (
-                      <div key={entry.category} className="space-y-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-sm font-medium text-foreground">{index + 1}. {entry.category}</span>
-                          <span className="text-sm font-semibold text-foreground">{formatCurrency(entry.value)}</span>
-                        </div>
-                        <div className="h-3 rounded-full bg-muted/80">
-                          <div
-                            className={`h-3 rounded-full bg-gradient-to-r ${tones[index] ?? tones[tones.length - 1]}`}
-                            style={{ width: `${width}%` }}
-                          />
-                        </div>
+            <CardContent className="pt-3">
+              {dashboard.topItemsByValue.length > 0 ? (
+                <div className="divide-y divide-border/60">
+                  {dashboard.topItemsByValue.map((item, index) => (
+                    <div key={item.itemId} className="grid gap-3 py-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{index + 1}</span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{item.name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{formatNumber(item.quantity)} unidades · costo {formatCurrency(item.baseCost)}</p>
                       </div>
-                    );
-                  })}
+                      <p className="text-sm font-bold text-foreground">{formatCurrency(item.stockValue)}</p>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <EmptyChartState
-                  title="Todavia no hay categorias con valor"
-                  description="Aparecen apenas haya stock con costo base dentro de alguna categoria del catalogo cargada en la app."
-                />
+                <div className="py-12 text-center text-sm text-muted-foreground">Todavia no hay productos con stock valorizado.</div>
               )}
             </CardContent>
           </Card>
-        </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <Card className="surface-card p-6">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Hoy ya queda resuelto</p>
-                <h2 className="mt-2 text-xl font-bold">Dashboard inicial operativo</h2>
-              </div>
-              <div className="rounded-2xl border border-primary/10 bg-primary/10 p-3 text-primary">
-                <Wallet className="h-5 w-5" />
-              </div>
-            </div>
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <ArrowDownToLine className="h-4 w-4 text-info" />
-                  Total de plata sobre mercaderia cargada
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">Calculado con `stock positivo registrado x costo base`.</p>
-              </div>
-              <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <ArrowUpFromLine className="h-4 w-4 text-primary" />
-                  Lectura honesta para esta etapa
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">No mezcla automaticamente lo facturado afuera con el stock interno cargado aca.</p>
-              </div>
-              <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 md:col-span-2">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <Package className="h-4 w-4 text-info" />
-                      Consultar precios
+          <Card className="surface-card overflow-hidden">
+            <CardHeader className="border-b border-border/60 pb-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Distribucion</p>
+              <CardTitle className="mt-2 text-xl">Capital por categoria</CardTitle>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">Las familias que explican la mayor parte del inventario valorizado.</p>
+            </CardHeader>
+            <CardContent className="space-y-5 pt-6">
+              {dashboard.categoryValues.length > 0 ? dashboard.categoryValues.map((entry, index) => {
+                const maxValue = dashboard.categoryValues[0]?.value ?? 1;
+                const width = Math.max(8, (entry.value / maxValue) * 100);
+                return (
+                  <div key={entry.category} className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="truncate text-sm font-medium text-foreground">{index + 1}. {entry.category}</span>
+                      <span className="shrink-0 text-sm font-semibold text-foreground">{formatCurrency(entry.value)}</span>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">Acceso directo a la consulta rapida de listas de precios.</p>
+                    <div className="h-2.5 rounded-full bg-muted/80">
+                      <div className="h-2.5 rounded-full bg-gradient-to-r from-primary to-blue-400" style={{ width: `${width}%` }} />
+                    </div>
                   </div>
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/price-lists?tab=lists">Abrir precios</Link>
-                  </Button>
+                );
+              }) : (
+                <div className="py-12 text-center">
+                  <PackageSearch className="mx-auto h-7 w-7 text-muted-foreground" />
+                  <p className="mt-3 text-sm text-muted-foreground">Todavia no hay categorias con stock valorizado.</p>
                 </div>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="surface-card-muted p-6">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Graficos siguientes</p>
-            <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-              <div className="rounded-2xl border border-border/60 bg-background/80 px-4 py-3">
-                Rotacion y quiebres reales cuando la facturacion tambien descuente stock dentro del sistema.
-              </div>
-              <div className="rounded-2xl border border-border/60 bg-background/80 px-4 py-3">
-                Ventas por dia y por mes cuando sumemos datos completos desde Caja, Documentos y facturacion.
-              </div>
-              <div className="rounded-2xl border border-border/60 bg-background/80 px-4 py-3">
-                Margen estimado por categoria cruzando costo base con listas de precios y ventas reales.
-              </div>
-            </div>
+              )}
+            </CardContent>
           </Card>
         </div>
       </div>
