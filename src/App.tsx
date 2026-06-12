@@ -10,7 +10,19 @@ import { CompanyBrandProvider } from "@/components/CompanyBrandProvider";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { billingFeatureEnabled } from "@/lib/features";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      gcTime: 10 * 60_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 const Index = lazy(() => import("./pages/Index"));
 const AuthPage = lazy(() => import("./pages/Auth"));
 const ItemsPage = lazy(() => import("./pages/Items"));

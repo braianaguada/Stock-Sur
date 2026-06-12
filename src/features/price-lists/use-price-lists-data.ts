@@ -520,7 +520,7 @@ export function usePriceListsData({
       price: number | null;
       note: string;
     }) => {
-      if (!currentCompany) throw new Error("SeleccionÃ¡ una empresa activa");
+      if (!currentCompany) throw new Error("Selecciona una empresa activa");
       if (enabled && (price === null || !Number.isFinite(price) || price < 0)) {
         throw new Error("El precio personalizado debe ser mayor o igual a 0");
       }

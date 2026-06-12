@@ -521,7 +521,7 @@ Se agregó una capa opcional para PDFs de proveedores con muchas imágenes o tex
 
 ### Configuración
 
-1. ConfiguraciÃ³n mÃ­nima gratis en Supabase:
+1. Configuracion minima gratis en Supabase:
 
 ```sh
 supabase secrets set GEMINI_API_KEY=tu_api_key

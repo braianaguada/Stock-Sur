@@ -15,7 +15,6 @@ import {
 import { logSupplierImportError } from "@/features/suppliers/logging";
 import {
   LOW_CONFIDENCE_THRESHOLD,
-  SHOULD_LOG_SUPPLIER_IMPORT,
 } from "@/features/suppliers/constants";
 import type {
   MappingColumnOption,
@@ -210,16 +209,6 @@ export function useSupplierImportFlow(params: {
       const requestedCatalogId = selectedCatalogId === "new" ? null : selectedCatalogId;
       if (requestedCatalogId && !catalogsById.has(requestedCatalogId)) {
         throw new Error("El listado seleccionado ya no esta disponible. Recarga el historial e intenta de nuevo");
-      }
-
-      if (SHOULD_LOG_SUPPLIER_IMPORT) {
-        console.log("[supplier-import] start", {
-          userId,
-          supplierId: selectedSupplier.id,
-          requestedCatalogId,
-          fileName: selectedFile.name,
-          fileType,
-        });
       }
 
       let lines = [] as ExtractionReviewLine[];
