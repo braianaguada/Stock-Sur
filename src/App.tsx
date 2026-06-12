@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CompanyBrandProvider } from "@/components/CompanyBrandProvider";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
+import { billingFeatureEnabled } from "@/lib/features";
 
 const queryClient = new QueryClient();
 const Index = lazy(() => import("./pages/Index"));
@@ -25,6 +26,7 @@ const ServiceJobsPage = lazy(() => import("./pages/ServiceJobs"));
 const PrintServiceDocumentPage = lazy(() => import("./pages/PrintServiceDocument"));
 const PublicServiceDocumentPage = lazy(() => import("./pages/PublicServiceDocument"));
 const CustomersPage = lazy(() => import("./pages/Customers"));
+const OccasionalCustomerPage = lazy(() => import("./pages/OccasionalCustomer"));
 const CustomerAccountPage = lazy(() => import("./pages/CustomerAccount"));
 const TechniciansPage = lazy(() => import("./pages/Technicians"));
 const UsersPage = lazy(() => import("./pages/Users"));
@@ -97,9 +99,10 @@ const App = () => (
                   <Route path="/print/service-document/:id" element={<ProtectedRoute><PrintServiceDocumentPage /></ProtectedRoute>} />
                   <Route path="/cash" element={<ProtectedRoute><CashPage /></ProtectedRoute>} />
                   <Route path="/cash-totals" element={<ProtectedRoute><CashTotalsPage /></ProtectedRoute>} />
-                  <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
-                  <Route path="/print/billing/:id" element={<ProtectedRoute><PrintBillingPage /></ProtectedRoute>} />
+                  <Route path="/billing" element={billingFeatureEnabled ? <ProtectedRoute><BillingPage /></ProtectedRoute> : <Navigate to="/" replace />} />
+                  <Route path="/print/billing/:id" element={billingFeatureEnabled ? <ProtectedRoute><PrintBillingPage /></ProtectedRoute> : <Navigate to="/" replace />} />
                   <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
+                  <Route path="/customers/occasional" element={<ProtectedRoute><OccasionalCustomerPage /></ProtectedRoute>} />
                   <Route path="/customer-account" element={<ProtectedRoute><CustomerAccountPage /></ProtectedRoute>} />
                   <Route path="/technicians" element={<ProtectedRoute><TechniciansPage /></ProtectedRoute>} />
                   <Route path="/users" element={<ProtectedRoute requiresSuperadmin><UsersPage /></ProtectedRoute>} />

@@ -29,5 +29,6 @@ describe("customers table", () => {
     expect(screen.getByText("Sistema legacy")).toBeInTheDocument();
     expect(screen.getByLabelText("Cliente ocasional no se edita desde Clientes")).toBeDisabled();
     expect(screen.getByLabelText("El cliente ocasional no tiene cuenta corriente")).toBeDisabled();
+    expect(screen.getByLabelText("Cliente ocasional no se elimina desde Clientes")).toBeDisabled();
   });
 });

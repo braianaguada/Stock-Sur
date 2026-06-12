@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { canManageUsers, canViewBilling, canViewSettings } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
+import { billingFeatureEnabled } from "@/lib/features";
 
 const navItems = [
   { title: "Dashboard", url: "/" },
@@ -69,7 +70,7 @@ export function AppSidebar() {
     if (item.requiresSuperadmin) return canManageUsers(roles);
     if (item.requiresAdmin) return canViewSettings(roles, { companyRoleCodes, companyPermissionCodes });
     if (item.requiresBilling) {
-      return canViewBilling(roles, { companyRoleCodes, companyPermissionCodes });
+      return billingFeatureEnabled && canViewBilling(roles, { companyRoleCodes, companyPermissionCodes });
     }
     return true;
   });

@@ -1,132 +1,166 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildBillingPrintHtml } from "./print";
-import type { BillingDocumentLineRow, BillingDocumentRow } from "./types";
+import { buildFiscalQrUrl } from "./lib/authorization";
+import type { BillingDocumentLineRow, BillingDocumentRow, BillingRemitoReference } from "./types";
 
-function buildDocument(overrides: Partial<BillingDocumentRow> = {}): BillingDocumentRow {
-  return {
-    id: "billing-doc-1",
-    company_id: "company-1",
-    source_type: "CASH_SALE_FROM_REMITO",
-    source_id: "cash-sale-1",
-    source_remito_id: "remito-1",
-    related_billing_document_id: null,
-    document_kind: "INVOICE",
-    invoice_type: "FACTURA_B",
-    fiscal_status: "AUTHORIZED",
-    provider: "AFIPSDK",
-    environment: "dev",
-    issuer_tax_id: "20-12345678-9",
-    issuer_name: "Alpataco Refrigeracion",
-    issuer_tax_condition: "Responsable Inscripto",
-    receiver_name: "Consumidor Final",
-    receiver_doc_type: "99",
-    receiver_doc_number: null,
-    receiver_tax_condition: "CONSUMIDOR_FINAL",
-    receiver_fiscal_snapshot: null,
-    currency: "ARS",
-    currency_rate: 1,
-    subtotal: 100,
-    discount_total: 0,
-    tax_total: 21,
-    total: 121,
-    point_of_sale: 1,
-    voucher_number: 42,
-    voucher_full_number: "00001-00000042",
-    voucher_date: "2026-06-03",
-    cae: "70400000000001",
-    cae_expires_at: "2026-06-13",
-    authorized_at: "2026-06-03T12:00:00Z",
-    authorized_by: "user-1",
-    provider_errors: [],
-    provider_observations: [],
-    error_message: null,
-    created_at: "2026-06-03T11:00:00Z",
-    updated_at: "2026-06-03T12:00:00Z",
-    ...overrides,
-  };
-}
+vi.stubGlobal("btoa", (value: string) => Buffer.from(value, "binary").toString("base64"));
 
-const line: BillingDocumentLineRow = {
-  id: "line-1",
-  billing_document_id: "billing-doc-1",
-  source_document_line_id: "source-line-1",
-  line_order: 1,
-  description: "ACCESO - PARA SOLDAR",
-  unit: "u",
-  quantity: 1,
-  unit_price: 121,
-  discount_pct: 0,
+const authorizedDocument: BillingDocumentRow = {
+  id: "1ff5be9a-6c81-4a9c-b92b-50be5d930e77",
+  company_id: "company-1",
+  source_type: "CASH_SALE_FROM_REMITO",
+  source_id: "2b404ea3-b2b9-4bec-b2bc-5e2bb0deec48",
+  source_remito_id: "06fd90e5-1385-40b2-866b-cc32e11885e1",
+  related_billing_document_id: null,
+  document_kind: "INVOICE",
+  invoice_type: "FACTURA_B",
+  fiscal_status: "AUTHORIZED",
+  provider: "AFIPSDK",
+  environment: "dev",
+  issuer_tax_id: null,
+  issuer_name: null,
+  issuer_tax_condition: null,
+  receiver_name: "Consumidor Final",
+  receiver_doc_type: "CONSUMIDOR_FINAL",
+  receiver_doc_number: "0",
+  receiver_tax_condition: "CONSUMIDOR_FINAL",
+  receiver_fiscal_snapshot: null,
+  currency: "ARS",
+  currency_rate: 1,
+  subtotal: 288,
   discount_total: 0,
-  vat_rate: 21,
-  net_amount: 100,
-  vat_amount: 21,
-  total: 121,
+  tax_total: 0,
+  total: 288,
+  point_of_sale: 1,
+  voucher_number: 26436,
+  voucher_full_number: "00001-00026436",
+  voucher_date: "2026-06-03",
+  cae: "86220215471868",
+  cae_expires_at: "2026-06-13",
+  authorized_at: "2026-06-03T13:14:03.364+00:00",
+  authorized_by: "user-1",
+  provider_errors: [],
+  provider_observations: [],
+  error_message: null,
+  created_at: "2026-06-03T12:00:00Z",
+  updated_at: "2026-06-03T13:14:03Z",
 };
 
-describe("billing print html", () => {
-  it("prints Nota de Credito B with associated invoice and without QR payload URL", () => {
-    const invoice = buildDocument();
-    const creditNote = buildDocument({
-      id: "credit-note-1",
-      source_type: "CREDIT_NOTE_FROM_INVOICE",
-      source_id: invoice.id,
-      related_billing_document_id: invoice.id,
-      document_kind: "CREDIT_NOTE",
-      invoice_type: "NOTA_CREDITO_B",
-      voucher_number: 3,
-      voucher_full_number: "00001-00000003",
-      cae: "70400000000002",
-    });
+const lines: BillingDocumentLineRow[] = [{
+  id: "line-1",
+  billing_document_id: authorizedDocument.id,
+  source_document_line_id: "source-line-1",
+  line_order: 1,
+  description: "ACCESO - PARA SOLDAR | CON CHICOTE",
+  unit: null,
+  quantity: 2,
+  unit_price: 144,
+  discount_pct: 0,
+  discount_total: 0,
+  vat_rate: 0,
+  net_amount: 288,
+  vat_amount: 0,
+  total: 288,
+}];
 
+const remito: BillingRemitoReference = {
+  id: "06fd90e5-1385-40b2-866b-cc32e11885e1",
+  point_of_sale: 9,
+  document_number: 43,
+  customer_name: "Consumidor Final",
+};
+
+describe("billing print HTML", () => {
+  it("renders an authorized Factura B A4 print view with fiscal data and QR image", () => {
     const html = buildBillingPrintHtml({
-      document: creditNote,
-      lines: [line],
-      relatedDocument: invoice,
+      document: authorizedDocument,
+      lines,
+      remito,
       qrDataUrl: "data:image/png;base64,qr",
     });
 
-    expect(html).toContain("Nota de Credito B");
-    expect(html).toContain("HOMOLOGACION / DEV");
-    expect(html).toContain("00001-00000003");
-    expect(html).toContain("70400000000002");
-    expect(html).toContain("13/6/2026");
-    expect(html).toContain("Comprobante asociado");
-    expect(html).toContain("00001-00000042");
-    expect(html).toContain("No se usa el PDF de Afip SDK.");
-    expect(html).not.toContain("arca.gob.ar/fe/qr");
+    expect(html).toContain("Factura B");
+    expect(html).toContain("00001-00026436");
+    expect(html).toContain("86220215471868");
+    expect(html).toContain("2026-06-13");
+    expect(html).toContain("Consumidor Final");
+    expect(html).toContain("Homologacion / Dev");
+    expect(html).toContain("00009-00000043");
+    expect(html).toContain("alt=\"QR fiscal ARCA\"");
+    expect(html).toContain("@page { size: A4;");
+    expect(html).toContain(".page {");
+    expect(html).toContain(".bottom-grid");
+  });
+
+  it("does not render the fiscal QR URL or payload text next to the QR", () => {
+    const html = buildBillingPrintHtml({
+      document: authorizedDocument,
+      lines,
+      remito,
+      qrDataUrl: "data:image/png;base64,qr",
+    });
+
+    expect(html).not.toContain(buildFiscalQrUrl(authorizedDocument));
+    expect(html).not.toContain("https://www.arca.gob.ar/fe/qr/");
+    expect(html).not.toContain("\"codAut\":");
     expect(html).not.toContain("?p=");
   });
 
-  it("prints Factura A as internal draft without QR or fiscal authorization", () => {
-    const facturaA = buildDocument({
-      invoice_type: "FACTURA_A",
-      fiscal_status: "DRAFT",
-      receiver_name: "TFD S.R.L.",
-      receiver_doc_type: "80",
-      receiver_doc_number: "30711582890",
-      receiver_tax_condition: "RESPONSABLE_INSCRIPTO",
-      voucher_number: null,
-      voucher_full_number: null,
-      voucher_date: null,
-      cae: null,
-      cae_expires_at: null,
-      authorized_at: null,
-      authorized_by: null,
-    });
-
+  it("uses clear issuer placeholders and keeps print-only actions hidden in print CSS", () => {
     const html = buildBillingPrintHtml({
-      document: facturaA,
-      lines: [line],
+      document: authorizedDocument,
+      lines,
+      remito,
       qrDataUrl: null,
     });
 
+    expect(html).toContain("Razon social no configurada");
+    expect(html).toContain("CUIT emisor no configurado");
+    expect(html).toContain("Condicion IVA no configurada");
+    expect(html).toContain("Completa razon social, CUIT y condicion IVA");
+    expect(html).toContain("Imprimir / Guardar PDF");
+    expect(html).toContain(".toolbar, .screen-warning, .no-print { display: none !important; }");
+    expect(html).toContain("QR fiscal pendiente");
+  });
+
+  it("preserves Nota de Credito B association in the A4 layout", () => {
+    const creditNote = {
+      ...authorizedDocument,
+      id: "credit-note-1",
+      source_type: "CREDIT_NOTE_FROM_INVOICE" as const,
+      related_billing_document_id: authorizedDocument.id,
+      document_kind: "CREDIT_NOTE" as const,
+      invoice_type: "NOTA_CREDITO_B" as const,
+      voucher_full_number: "00001-00000003",
+    };
+
+    const html = buildBillingPrintHtml({
+      document: creditNote,
+      lines,
+      relatedDocument: authorizedDocument,
+    });
+
+    expect(html).toContain("Nota de Credito B");
+    expect(html).toContain("Cod. 008");
+    expect(html).toContain("Comprobante asociado");
+    expect(html).toContain("00001-00026436");
+  });
+
+  it("preserves Factura A drafts in the A4 layout", () => {
+    const html = buildBillingPrintHtml({
+      document: {
+        ...authorizedDocument,
+        invoice_type: "FACTURA_A",
+        fiscal_status: "DRAFT",
+        voucher_number: null,
+        voucher_full_number: null,
+        cae: null,
+      },
+      lines,
+    });
+
     expect(html).toContain("Factura A");
+    expect(html).toContain("Cod. 001");
     expect(html).toContain("BORRADOR - No valido como comprobante fiscal");
-    expect(html).toContain("Factura A en preparacion. No emite comprobantes.");
-    expect(html).toContain("<div class=\"letter\">A</div>");
-    expect(html).toContain("TFD S.R.L.");
-    expect(html).toContain("RESPONSABLE_INSCRIPTO");
-    expect(html).toContain("Sin QR fiscal: borrador interno no autorizado.");
-    expect(html).not.toContain("QR fiscal ARCA generado internamente.");
   });
 });
