@@ -1,4 +1,4 @@
-import { escapeHtml } from "@/lib/print";
+import { escapeHtml, PRINT_FAVICON_TAG } from "@/lib/print";
 import type { BillingDocumentLineRow, BillingDocumentRow, BillingRemitoReference } from "./types";
 import { getBillingDocumentTypeLabel } from "./lib/authorization";
 
@@ -55,6 +55,7 @@ export function buildBillingPrintHtml({ document, lines, remito, relatedDocument
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(documentTypeLabel)} ${escapeHtml(document.voucher_full_number ?? document.id)}</title>
+  ${PRINT_FAVICON_TAG}
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; background: #f4f5f7; color: #111827; font-family: Arial, Helvetica, sans-serif; }
