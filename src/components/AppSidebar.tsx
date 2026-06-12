@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
-import { LogOut, Package, ShieldAlert } from "lucide-react";
+import { LogOut, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StockSurMark } from "@/components/StockSurMark";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
@@ -108,9 +109,7 @@ export function AppSidebar() {
                   <img src={settings.logo_url} alt={settings.app_name} className="h-full w-full object-contain p-1.5" />
                 </div>
               ) : (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <Package className="h-4 w-4" />
-                </div>
+                <StockSurMark className="h-9 w-9" />
               )}
 
               <div className="min-w-0">
