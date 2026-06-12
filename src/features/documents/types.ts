@@ -138,15 +138,4 @@ export interface PriceListItemRow {
   final_price_override: number | null;
   manual_price_enabled: boolean;
   manual_price_note: string | null;
-  items: {
-    id: string;
-    sku: string;
-    name: string;
-    supplier?: string | null;
-    attributes?: string | null;
-    brand?: string | null;
-    model?: string | null;
-    category?: string | null;
-    unit: string;
-  } | null;
 }
