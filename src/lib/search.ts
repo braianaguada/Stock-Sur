@@ -1,4 +1,4 @@
-export function normalizeSearchText(value: string) {
+function normalizeSearchText(value: string) {
   return String(value ?? "")
     .toLowerCase()
     .normalize("NFD")

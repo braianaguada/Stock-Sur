@@ -8,11 +8,11 @@ type BillingAccessContext = {
 };
 
 export const FISCAL_QR_BASE_URL = "https://www.arca.gob.ar/fe/qr/";
-export const FACTURA_B_CBTE_TIPO = 6;
+const FACTURA_B_CBTE_TIPO = 6;
 export const NOTA_CREDITO_B_CBTE_TIPO = 8;
-export const CONSUMIDOR_FINAL_DOC_TIPO = 99;
-export const CONSUMIDOR_FINAL_DOC_NRO = 0;
-export const STALE_AUTHORIZING_MINUTES = 10;
+const CONSUMIDOR_FINAL_DOC_TIPO = 99;
+const CONSUMIDOR_FINAL_DOC_NRO = 0;
+const STALE_AUTHORIZING_MINUTES = 10;
 
 export function getBillingDocumentTypeLabel(document: Pick<BillingDocumentRow, "document_kind" | "invoice_type"> | null) {
   if (!document) return "Comprobante fiscal";
@@ -142,7 +142,7 @@ export function buildFiscalQrPayload(document: BillingDocumentRow) {
   };
 }
 
-export function encodeBase64Utf8(value: string) {
+function encodeBase64Utf8(value: string) {
   const bytes = new TextEncoder().encode(value);
   let binary = "";
   bytes.forEach((byte) => {

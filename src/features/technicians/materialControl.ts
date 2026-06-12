@@ -164,11 +164,11 @@ export function getDocumentControlUrl(documentId: string) {
   return `/documents?document_id=${documentId}`;
 }
 
-export function getServiceControlUrl(serviceId: string | null) {
+function getServiceControlUrl(serviceId: string | null) {
   return serviceId ? `/service-jobs?serviceId=${serviceId}` : null;
 }
 
-export function getDeletedTechnicianLabel(technicianId: string) {
+function getDeletedTechnicianLabel(technicianId: string) {
   return technicianId ? `Tecnico eliminado (${technicianId.slice(0, 8)})` : "Tecnico eliminado";
 }
 
