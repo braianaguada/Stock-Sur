@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { EMPTY_DASHBOARD, normalizeDashboardInsights } from "@/features/index/dashboard-insights";
+import { EMPTY_DASHBOARD, mergeDashboardInsights, normalizeDashboardInsights } from "@/features/index/dashboard-insights";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -13,12 +13,14 @@ export function useDashboardStats({ companyId }: UseDashboardStatsOptions) {
     enabled: Boolean(companyId),
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_dashboard_operational_overview", {
-        p_company_id: companyId!,
-      });
+      const [overview, business] = await Promise.all([
+        supabase.rpc("get_dashboard_operational_overview", { p_company_id: companyId! }),
+        supabase.rpc("get_dashboard_business_insights", { p_company_id: companyId! }),
+      ]);
 
-      if (error) throw error;
-      return normalizeDashboardInsights(data);
+      if (overview.error) throw overview.error;
+      if (business.error) throw business.error;
+      return mergeDashboardInsights(normalizeDashboardInsights(overview.data), business.data);
     },
   });
 

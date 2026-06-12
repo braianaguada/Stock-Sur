@@ -2420,6 +2420,10 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: Json
       }
+      get_dashboard_business_insights: {
+        Args: { p_company_id: string }
+        Returns: Json
+      }
       search_items: {
         Args: {
           p_company_id: string
