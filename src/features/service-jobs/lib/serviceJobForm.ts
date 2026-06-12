@@ -37,12 +37,12 @@ export function normalizeJobPriority(value: string | null | undefined): ServiceJ
   return SERVICE_JOB_PRIORITIES.includes(normalized as ServiceJobPriority) ? (normalized as ServiceJobPriority) : "NORMAL";
 }
 
-export function normalizeServiceStatus(value: string): ServiceStatus {
+function normalizeServiceStatus(value: string): ServiceStatus {
   const normalized = value.trim().toUpperCase();
   return SERVICE_STATUSES.includes(normalized as ServiceStatus) ? (normalized as ServiceStatus) : "PENDING";
 }
 
-export function uniqueTechnicianIds(ids: string[]) {
+function uniqueTechnicianIds(ids: string[]) {
   return Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
 }
 

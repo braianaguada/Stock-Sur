@@ -1,17 +1,15 @@
 import type { Customer, CustomerFiscalProfile } from "./types";
 
-export const CUSTOMER_FISCAL_VALIDATION_STATUSES = ["PENDING", "VALIDATED_AUTO", "ERROR"] as const;
+const CUSTOMER_FISCAL_VALIDATION_STATUSES = ["PENDING", "VALIDATED_AUTO", "ERROR"] as const;
 
 export type CustomerFiscalValidationStatus = typeof CUSTOMER_FISCAL_VALIDATION_STATUSES[number];
 
 export function normalizeCuit(value: string | null | undefined) {
   return (value ?? "").replace(/\D/g, "");
 }
-
 export function isValidCuitFormat(value: string | null | undefined) {
   return normalizeCuit(value).length === 11;
 }
-
 export function isValidCuitChecksum(value: string | null | undefined) {
   const digits = normalizeCuit(value);
   if (digits.length !== 11) return false;
@@ -33,7 +31,7 @@ export function getCuitValidationMessage(value: string | null | undefined) {
   return null;
 }
 
-export function isValidatedFiscalProfile(profile: CustomerFiscalProfile | null | undefined) {
+function isValidatedFiscalProfile(profile: CustomerFiscalProfile | null | undefined) {
   return profile?.validation_status === "VALIDATED_AUTO";
 }
 
@@ -67,8 +65,7 @@ export function canUseCustomerForInvoiceA(customer: Customer | null | undefined,
     reasons,
   };
 }
-
-export function getInvoiceAReadinessReasons(customer: Customer | null | undefined, fiscalProfile: CustomerFiscalProfile | null | undefined) {
+function getInvoiceAReadinessReasons(customer: Customer | null | undefined, fiscalProfile: CustomerFiscalProfile | null | undefined) {
   return canUseCustomerForInvoiceA(customer, fiscalProfile).reasons;
 }
 
@@ -89,4 +86,3 @@ export function buildCustomerFiscalSnapshot(customer: Customer, fiscalProfile: C
   };
 }
 
-export const buildInvoiceAFiscalSnapshot = buildCustomerFiscalSnapshot;

@@ -94,7 +94,7 @@ export function formatDocumentReference(document: AccountStatementSource["docume
   return document.doc_type ?? "Documento";
 }
 
-export function resolveReference(entry: AccountStatementSource): string {
+function resolveReference(entry: AccountStatementSource): string {
   const metadataReference =
     getMetadataText(entry.metadata, "reference_number") ??
     getMetadataText(entry.metadata, "reference") ??
@@ -106,7 +106,7 @@ export function resolveReference(entry: AccountStatementSource): string {
   return entry.origin_type === "MANUAL" ? "Cobro manual" : entry.origin_id;
 }
 
-export function resolveDueDate(entry: AccountStatementSource, defaultDebitDays = 30): string | null {
+function resolveDueDate(entry: AccountStatementSource, defaultDebitDays = 30): string | null {
   if (entry.entry_type !== "DEBIT") return null;
   const explicitDueDate = getMetadataText(entry.metadata, "due_date");
   if (explicitDueDate) return asDateOnly(explicitDueDate);
@@ -191,7 +191,7 @@ export function buildAccountStatement(
   return { rows: filteredRows.reverse(), summary };
 }
 
-export function daysUntil(date: string | null, today = new Date().toISOString().slice(0, 10)): number | null {
+function daysUntil(date: string | null, today = new Date().toISOString().slice(0, 10)): number | null {
   if (!date) return null;
   return Math.round((new Date(`${date}T00:00:00Z`).getTime() - new Date(`${today}T00:00:00Z`).getTime()) / DAY_MS);
 }
