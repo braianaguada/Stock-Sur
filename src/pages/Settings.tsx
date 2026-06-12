@@ -15,6 +15,7 @@ import { useSettingsManagement } from "@/features/settings/hooks/useSettingsMana
 import { BillingFiscalSettingsSection } from "@/features/billing/components/BillingFiscalSettingsSection";
 import { useBillingActions } from "@/features/billing/hooks/useBillingActions";
 import { useBillingDiagnostics, useBillingPointsOfSale, useBillingSettings } from "@/features/billing/hooks/useBillingData";
+import { billingFeatureEnabled } from "@/lib/features";
 
 export default function SettingsPage() {
   const { roles, currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
@@ -415,7 +416,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <section id="billing-fiscal-settings">
+        {billingFeatureEnabled ? <section id="billing-fiscal-settings">
           <BillingFiscalSettingsSection
             settings={billingSettingsQuery.settings}
             pointsOfSale={billingPointsQuery.data ?? []}
@@ -431,7 +432,7 @@ export default function SettingsPage() {
             diagnostics={billingDiagnosticsQuery.data ?? null}
             diagnosticsLoading={billingDiagnosticsQuery.isLoading}
           />
-        </section>
+        </section> : null}
       </div>
     </AppLayout>
   );

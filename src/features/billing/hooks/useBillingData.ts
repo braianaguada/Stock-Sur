@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
+import { billingFeatureEnabled } from "@/lib/features";
 import type { BillingDiagnosticsResult, BillingDocumentLineRow, BillingDocumentRow, BillingPointOfSaleRow, BillingRemitoReference, BillingSettingsRow } from "../types";
 
 type SupabaseQueryResult = { data: unknown; error: Error | null };
@@ -20,7 +21,7 @@ const billingDb = supabase as unknown as {
 export function useBillingSettings(companyId: string | null) {
   const query = useQuery({
     queryKey: queryKeys.billing.settings(companyId),
-    enabled: Boolean(companyId),
+    enabled: billingFeatureEnabled && Boolean(companyId),
     queryFn: async () => {
       const { data, error } = await billingDb
         .from("billing_settings")
@@ -45,7 +46,7 @@ export function useBillingSettings(companyId: string | null) {
 export function useBillingDiagnostics(companyId: string | null) {
   return useQuery({
     queryKey: queryKeys.billing.diagnostics(companyId),
-    enabled: Boolean(companyId),
+    enabled: billingFeatureEnabled && Boolean(companyId),
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("billing-diagnostics", {
         body: { companyId },
@@ -61,7 +62,7 @@ export function useBillingDiagnostics(companyId: string | null) {
 export function useBillingPointsOfSale(companyId: string | null) {
   return useQuery({
     queryKey: queryKeys.billing.pointsOfSale(companyId),
-    enabled: Boolean(companyId),
+    enabled: billingFeatureEnabled && Boolean(companyId),
     queryFn: async () => {
       const { data, error } = await billingDb
         .from("billing_points_of_sale")
@@ -78,7 +79,7 @@ export function useBillingPointsOfSale(companyId: string | null) {
 export function useBillingDocuments(companyId: string | null) {
   return useQuery({
     queryKey: queryKeys.billing.documents(companyId),
-    enabled: Boolean(companyId),
+    enabled: billingFeatureEnabled && Boolean(companyId),
     queryFn: async () => {
       const { data, error } = await billingDb
         .from("billing_documents")
@@ -96,7 +97,7 @@ export function useBillingDocuments(companyId: string | null) {
 export function useBillingDocumentLines(documentId: string | null) {
   return useQuery({
     queryKey: queryKeys.billing.lines(documentId),
-    enabled: Boolean(documentId),
+    enabled: billingFeatureEnabled && Boolean(documentId),
     queryFn: async () => {
       const { data, error } = await billingDb
         .from("billing_document_lines")
@@ -113,7 +114,7 @@ export function useBillingDocumentLines(documentId: string | null) {
 export function useActiveBillingSourceIds(companyId: string | null) {
   const query = useQuery({
     queryKey: queryKeys.billing.activeSourceIds(companyId),
-    enabled: Boolean(companyId),
+    enabled: billingFeatureEnabled && Boolean(companyId),
     queryFn: async () => {
       const { data, error } = await billingDb
         .from("billing_documents")
@@ -138,7 +139,7 @@ export function useBillingRemitoReferences(companyId: string | null, remitoIds: 
 
   return useQuery({
     queryKey: queryKeys.billing.remitos(companyId, stableIds.join(",")),
-    enabled: Boolean(companyId) && stableIds.length > 0,
+    enabled: billingFeatureEnabled && Boolean(companyId) && stableIds.length > 0,
     queryFn: async () => {
       const { data, error } = await billingDb
         .from("documents")

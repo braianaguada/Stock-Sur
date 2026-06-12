@@ -115,7 +115,7 @@ export default function OccasionalCustomerPage() {
   const billingAccessContext = { companyRoleCodes, companyPermissionCodes };
   const canCreateBillingDraft = canCreateBilling(roles, billingAccessContext);
   const settingsQuery = useBillingSettings(currentCompany?.id ?? null);
-  const billingEnabled = Boolean(settingsQuery.data?.is_enabled);
+  const billingEnabled = settingsQuery.billingEnabled;
   const environment = settingsQuery.data?.environment ?? "sin configurar";
   const operationsQuery = useOccasionalCustomerOperations(currentCompany?.id ?? null, from, to);
   const { createBillingDraftMutation } = useBillingActions({ companyId: currentCompany?.id ?? null, businessDate: from === to ? from : undefined });
