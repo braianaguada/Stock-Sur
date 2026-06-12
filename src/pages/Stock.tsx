@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
@@ -15,11 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowDownCircle, ArrowUpCircle, Plus, Search, Settings2 } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Loader2, Plus, Search, Settings2, Sparkles } from "lucide-react";
 import { DataCard, PageHeader, StatCard } from "@/components/ui/page";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { cn } from "@/lib/utils";
-import { fetchStockAiAlerts } from "@/features/stock/aiAlerts";
+import { fetchStockAiSummary, type StockAiSummaryResult } from "@/features/stock/aiAlerts";
 import { StockCurrentTable } from "@/features/stock/components/StockCurrentTable";
 import { StockMovementDialog } from "@/features/stock/components/StockMovementDialog";
 import { StockMovementsTable } from "@/features/stock/components/StockMovementsTable";
@@ -60,6 +60,7 @@ export default function StockPage() {
   const [movementsPageSize, setMovementsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [healthFilter, setHealthFilter] = useState<StockHealth | "ALL">("ALL");
   const [demandFilter, setDemandFilter] = useState<DemandProfile | "ALL">("ALL");
+  const [aiSummary, setAiSummary] = useState<(StockAiSummaryResult & { signature: string }) | null>(null);
   const {
     currentCompany,
     dialogOpen,
@@ -152,22 +153,24 @@ export default function StockPage() {
   };
 
   const alerts = useMemo(() => buildStockInsights(stockRows), [stockRows]);
-  const aiAlertsQuery = useQuery({
-    queryKey: ["stock-ai-alerts", currentCompany?.id ?? null, stockRows],
-    enabled: Boolean(currentCompany?.id && stockRows.length > 0),
-    queryFn: () =>
-      fetchStockAiAlerts({
+  const alertsSignature = useMemo(
+    () => `${currentCompany?.id ?? "none"}:${alerts.map((alert) => `${alert.id}:${alert.priority}`).join("|")}`,
+    [alerts, currentCompany?.id],
+  );
+  const aiSummaryMutation = useMutation({
+    mutationFn: (variables: { alerts: typeof alerts; signature: string }) =>
+      fetchStockAiSummary({
         companyName: currentCompany?.name ?? null,
-        rows: stockRows,
+        alerts: variables.alerts,
       }),
+    onSuccess: (result, variables) => {
+      setAiSummary(result ? { ...result, signature: variables.signature } : null);
+    },
   });
-  const displayedAlerts = aiAlertsQuery.data?.alerts?.length ? aiAlertsQuery.data.alerts : alerts;
-  const insightSummary = aiAlertsQuery.data?.summary ?? null;
-  const insightSource = aiAlertsQuery.data?.alerts?.length ? "IA" : "Fallback local";
-  const insightModel = aiAlertsQuery.data?.model ?? null;
-  const insightCounts = useMemo(() => countStockInsightTones(displayedAlerts), [displayedAlerts]);
+  const currentAiSummary = aiSummary?.signature === alertsSignature ? aiSummary : null;
+  const insightCounts = useMemo(() => countStockInsightTones(alerts), [alerts]);
   const alertsPagination = usePaginationSlice({
-    items: displayedAlerts,
+    items: alerts,
     page: alertsPage,
     pageSize: alertsPageSize,
   });
@@ -245,18 +248,43 @@ export default function StockPage() {
                 className="bg-[radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(16,185,129,0.55)]"
               />
             </div>
-            <p className="text-xs text-muted-foreground">
-              {insightSummary ?? "La IA prioriza riesgo de quiebre, aceleracion de consumo, sobrestock y stock inmovilizado sobre el snapshot actual."}
-            </p>
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-              <span>Fuente: {insightSource}</span>
-              {insightModel ? <span>Modelo: {insightModel}</span> : null}
-              {aiAlertsQuery.isFetching ? <span>Actualizando lectura IA...</span> : null}
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  {currentAiSummary?.summary ??
+                    "Alertas calculadas con reglas operativas sobre cobertura, consumo, sobrestock y stock inmovilizado."}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  <span>Fuente: reglas operativas</span>
+                  {currentAiSummary?.model ? <span>Resumen IA: {currentAiSummary.model}</span> : null}
+                  {aiSummaryMutation.isError ? (
+                    <span className="text-destructive">
+                      {aiSummaryMutation.error instanceof Error
+                        ? aiSummaryMutation.error.message
+                        : "No se pudo generar el resumen con IA."}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={alerts.length === 0 || aiSummaryMutation.isPending}
+                onClick={() => aiSummaryMutation.mutate({ alerts, signature: alertsSignature })}
+              >
+                {aiSummaryMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
+                {currentAiSummary ? "Actualizar resumen IA" : "Resumir con IA"}
+              </Button>
             </div>
-            {displayedAlerts.length > 0 ? (
+            {alerts.length > 0 ? (
               <Card className="overflow-hidden">
                 <CardHeader className="border-b border-border/70 bg-[hsl(var(--panel))]/55">
-                  <CardTitle className="text-lg">Stock inteligente</CardTitle>
+                  <CardTitle className="text-lg">Alertas operativas</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-7">
                   <div className="space-y-2.5 pt-4">
@@ -282,7 +310,7 @@ export default function StockPage() {
                     <DataTablePagination
                       page={alertsPagination.page}
                       totalPages={alertsPagination.totalPages}
-                      totalItems={displayedAlerts.length}
+                      totalItems={alerts.length}
                       rangeStart={alertsPagination.rangeStart}
                       rangeEnd={alertsPagination.rangeEnd}
                       pageSize={alertsPageSize}
