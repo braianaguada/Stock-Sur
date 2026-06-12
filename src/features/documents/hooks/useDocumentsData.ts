@@ -105,7 +105,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("items")
-        .select("id, sku, name, attributes, brand, model, unit")
+        .select("id, sku, name, supplier, attributes, brand, model, category, unit")
         .eq("company_id", currentCompanyId!)
         .eq("is_active", true)
         .order("name");
@@ -134,7 +134,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
-        .select("item_id, is_active, base_cost, calculated_price, flete_pct, utilidad_pct, impuesto_pct, final_price_override, manual_price_enabled, manual_price_note, items(id, sku, name, attributes, brand, model, unit)")
+        .select("item_id, is_active, base_cost, calculated_price, flete_pct, utilidad_pct, impuesto_pct, final_price_override, manual_price_enabled, manual_price_note, items(id, sku, name, supplier, attributes, brand, model, category, unit)")
         .eq("company_id", currentCompanyId!)
         .eq("price_list_id", selectedPriceListId)
         .eq("is_active", true);

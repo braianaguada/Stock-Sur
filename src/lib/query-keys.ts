@@ -36,7 +36,8 @@ export const queryKeys = {
     categoriesAll: () => ["items-categories"] as const,
     categories: (companyId: string | null, statusFilter: "active" | "inactive" | "all") =>
       ["items-categories", companyId ?? "no-company", statusFilter] as const,
-    searchAliases: (companyId: string | null) => ["items-search-aliases", companyId ?? "no-company"] as const,
+    searchAliases: (companyId: string | null, search: string) =>
+      ["items-search-aliases", companyId ?? "no-company", search] as const,
     aliases: (companyId: string | null, itemId: string | null | undefined) =>
       ["item-aliases", companyId ?? "no-company", itemId] as const,
   },

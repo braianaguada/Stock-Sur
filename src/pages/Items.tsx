@@ -28,7 +28,7 @@ import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { invalidateItemQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchAllPages } from "@/lib/supabase-pagination";
-import { rankNaturalItemSearch, type ItemSearchAliasRecord } from "@/features/items/search";
+import { getItemSearchTokens, rankNaturalItemSearch, type ItemSearchAliasRecord } from "@/features/items/search";
 import { type Item, type ItemAlias, type ItemOperationalMeta } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
@@ -437,14 +437,19 @@ export default function ItemsPage() {
 
   const hasActiveSearch = deferredSearch.trim().length > 0;
   const aliasesSearchQuery = useQuery({
-    queryKey: queryKeys.items.searchAliases(currentCompany?.id ?? null),
+    queryKey: queryKeys.items.searchAliases(currentCompany?.id ?? null, trimmedSearch),
     enabled: Boolean(currentCompany) && hasActiveSearch,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const tokens = getItemSearchTokens(trimmedSearch);
+      let query = supabase
         .from("item_aliases")
         .select("item_id, alias, is_supplier_code")
         .eq("company_id", currentCompany!.id);
+      if (tokens.length > 0) {
+        query = query.or(tokens.map((token) => `alias.ilike.%${token}%`).join(","));
+      }
+      const { data, error } = await query.limit(1000);
       if (error) throw error;
       return (data ?? []) as ItemSearchAliasRecord[];
     },

@@ -2416,6 +2416,24 @@ export type Database = {
         Args: { p_name: string; p_slug: string }
         Returns: Database["public"]["Tables"]["companies"]["Row"]
       }
+      search_items: {
+        Args: {
+          p_company_id: string
+          p_limit?: number
+          p_query: string
+        }
+        Returns: {
+          attributes: string | null
+          brand: string | null
+          id: string
+          model: string | null
+          name: string
+          sku: string
+          supplier: string | null
+          category: string | null
+          unit: string
+        }[]
+      }
       attach_cash_sale_receipt: {
         Args: {
           p_document_id?: string

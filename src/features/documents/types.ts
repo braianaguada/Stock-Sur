@@ -141,9 +141,11 @@ export interface PriceListItemRow {
     id: string;
     sku: string;
     name: string;
+    supplier?: string | null;
     attributes?: string | null;
     brand?: string | null;
     model?: string | null;
+    category?: string | null;
     unit: string;
   } | null;
 }

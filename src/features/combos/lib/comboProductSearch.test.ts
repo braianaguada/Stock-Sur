@@ -52,6 +52,10 @@ describe("combo product search", () => {
     expect(filterComboProductOptions(items, "inactivo")).toEqual([]);
   });
 
+  it("matches terms distributed across product fields", () => {
+    expect(filterComboProductOptions(items, "cano premium").map((item) => item.id)).toEqual(["item-1"]);
+  });
+
   it("detects duplicate combo lines before adding a product", () => {
     expect(hasComboProductLine([{ item_id: "item-1", quantity: 1, line_order: 1, notes: "" }], "item-1")).toBe(true);
     expect(hasComboProductLine([{ item_id: "item-1", quantity: 1, line_order: 1, notes: "" }], "item-2")).toBe(false);

@@ -7,9 +7,11 @@ export interface StockRow {
   item_name: string;
   item_sku: string;
   item_unit: string;
+  item_supplier: string | null;
   item_brand: string | null;
   item_model: string | null;
   item_attributes: string | null;
+  item_category: string | null;
   total: number;
   avg_daily_out_30d: number;
   avg_daily_out_90d: number;
@@ -47,9 +49,11 @@ export interface SearchableItem {
   name: string;
   sku: string;
   unit: string | null;
+  supplier?: string | null;
   brand?: string | null;
   model?: string | null;
   attributes?: string | null;
+  category?: string | null;
 }
 
 export interface StockMovementForm {

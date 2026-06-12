@@ -8,6 +8,7 @@ import { invalidateStockQueries } from "@/lib/invalidate";
 import { businessDateFromTimestamp } from "@/lib/formatters";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchAllPages } from "@/lib/supabase-pagination";
+import { matchesNaturalItemSearch } from "@/features/items/search";
 import type {
   DemandProfile,
   Movement,
@@ -56,9 +57,11 @@ function normalizeItem(item: SearchableItem | null | undefined) {
         name: item.name,
         sku: item.sku,
         unit: item.unit,
+        supplier: item.supplier ?? null,
         brand: item.brand ?? null,
         model: item.model ?? null,
         attributes: item.attributes ?? null,
+        category: item.category ?? null,
       }
     : null;
 }
@@ -123,7 +126,7 @@ export function useStockPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("stock_movements")
-        .select("item_id, created_at, items(id, name, sku, unit, brand, model, attributes, is_active)")
+        .select("item_id, created_at, items(id, name, sku, unit, supplier, brand, model, attributes, category, is_active)")
         .eq("company_id", currentCompany!.id)
         .eq("created_by", user!.id)
         .order("created_at", { ascending: false })
@@ -139,9 +142,11 @@ export function useStockPage() {
           name: item.name,
           sku: item.sku,
           unit: item.unit,
+          supplier: item.supplier,
           brand: item.brand,
           model: item.model,
           attributes: item.attributes,
+          category: item.category,
         });
       }
 
@@ -154,56 +159,17 @@ export function useStockPage() {
     enabled: Boolean(currentCompany && deferredItemSearch.trim()),
     queryFn: async () => {
       const searchTerm = deferredItemSearch.trim();
-      let matchingItemIdsFromAlias: string[] = [];
-
-      try {
-        const { data: aliasMatches, error: aliasError } = await supabase
-          .from("item_aliases")
-          .select("item_id")
-          .eq("company_id", currentCompany!.id)
-          .ilike("alias", `%${searchTerm}%`)
-          .limit(200);
-        if (!aliasError) {
-          matchingItemIdsFromAlias = [...new Set((aliasMatches ?? []).map((row) => row.item_id))];
-        }
-      } catch {
-        matchingItemIdsFromAlias = [];
-      }
-
-      const query = supabase
-        .from("items")
-        .select("id, name, sku, unit, brand, model, attributes")
-        .eq("company_id", currentCompany!.id)
-        .eq("is_active", true);
-
-      const searchFilters = [
-        `name.ilike.%${searchTerm}%`,
-        `sku.ilike.%${searchTerm}%`,
-        `brand.ilike.%${searchTerm}%`,
-        `model.ilike.%${searchTerm}%`,
-        `attributes.ilike.%${searchTerm}%`,
-      ];
-      if (matchingItemIdsFromAlias.length > 0) {
-        searchFilters.push(`id.in.(${matchingItemIdsFromAlias.join(",")})`);
-      }
-
-      const { data, error } = await query
-        .or(searchFilters.join(","))
-        .order("name")
-        .limit(20);
+      const { data, error } = await supabase.rpc("search_items", {
+        p_company_id: currentCompany!.id,
+        p_query: searchTerm,
+        p_limit: 20,
+      });
       if (error) throw error;
 
       const remoteResults = (data ?? []) as SearchableItem[];
       if (remoteResults.length > 0) return remoteResults;
 
-      const normalized = searchTerm.toLowerCase();
-      return recentItems.filter((item) =>
-        item.name.toLowerCase().includes(normalized) ||
-        item.sku.toLowerCase().includes(normalized) ||
-        (item.brand ?? "").toLowerCase().includes(normalized) ||
-        (item.model ?? "").toLowerCase().includes(normalized) ||
-        (item.attributes ?? "").toLowerCase().includes(normalized),
-      );
+      return recentItems.filter((item) => matchesNaturalItemSearch(item, searchTerm));
     },
   });
 
@@ -236,7 +202,7 @@ export function useStockPage() {
       const [{ data: items, error: itemsError }, movements] = await Promise.all([
         supabase
           .from("items")
-          .select("id, name, sku, unit, brand, model, attributes, demand_profile, demand_monthly_estimate")
+          .select("id, name, sku, unit, supplier, brand, model, attributes, category, demand_profile, demand_monthly_estimate")
           .eq("company_id", currentCompany!.id)
           .eq("is_active", true),
         fetchAllPages(() =>
@@ -265,9 +231,11 @@ export function useStockPage() {
         name: string;
         sku: string;
         unit: string | null;
+        supplier: string | null;
         brand: string | null;
         model: string | null;
         attributes: string | null;
+        category: string | null;
         demand_profile: DemandProfile | null;
         demand_monthly_estimate: number | null;
       }>) {
@@ -276,9 +244,11 @@ export function useStockPage() {
           item_name: item.name ?? "",
           item_sku: item.sku ?? "",
           item_unit: item.unit ?? "",
+          item_supplier: item.supplier ?? null,
           item_brand: item.brand ?? null,
           item_model: item.model ?? null,
           item_attributes: item.attributes ?? null,
+          item_category: item.category ?? null,
           total: 0,
           avg_daily_out_30d: 0,
           avg_daily_out_90d: 0,
@@ -320,9 +290,11 @@ export function useStockPage() {
             item_name: movement.items?.name ?? "",
             item_sku: movement.items?.sku ?? "",
             item_unit: movement.items?.unit ?? "",
+            item_supplier: null,
             item_brand: movement.items?.brand ?? null,
             item_model: movement.items?.model ?? null,
             item_attributes: movement.items?.attributes ?? null,
+            item_category: null,
             total: 0,
             avg_daily_out_30d: 0,
             avg_daily_out_90d: 0,
@@ -423,9 +395,11 @@ export function useStockPage() {
           item_name: row.item_name,
           item_sku: row.item_sku,
           item_unit: row.item_unit,
+          item_supplier: row.item_supplier,
           item_brand: row.item_brand,
           item_model: row.item_model,
           item_attributes: row.item_attributes,
+          item_category: row.item_category,
           total: row.total,
           avg_daily_out_30d: avgDailyOut30,
           avg_daily_out_90d: avgDailyOut90,
@@ -445,15 +419,21 @@ export function useStockPage() {
   });
 
   const stockRows = useMemo(() => {
-    const normalizedSearch = deferredSearch.trim().toLowerCase();
+    const normalizedSearch = deferredSearch.trim();
     if (!normalizedSearch) return allStockRows;
 
     return allStockRows.filter((row) =>
-      row.item_name.toLowerCase().includes(normalizedSearch) ||
-      row.item_sku.toLowerCase().includes(normalizedSearch) ||
-      (row.item_brand ?? "").toLowerCase().includes(normalizedSearch) ||
-      (row.item_model ?? "").toLowerCase().includes(normalizedSearch) ||
-      (row.item_attributes ?? "").toLowerCase().includes(normalizedSearch),
+      matchesNaturalItemSearch({
+        id: row.item_id,
+        name: row.item_name,
+        sku: row.item_sku,
+        unit: row.item_unit,
+        supplier: row.item_supplier,
+        brand: row.item_brand,
+        model: row.item_model,
+        attributes: row.item_attributes,
+        category: row.item_category,
+      }, normalizedSearch),
     );
   }, [allStockRows, deferredSearch]);
 
