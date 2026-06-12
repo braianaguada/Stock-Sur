@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
+import type { DocumentFormState } from "@/features/documents/types";
 import { DocumentsEditorDialog } from "./DocumentsEditorDialog";
 
 vi.mock("@/components/common/EntityDialog", () => ({
@@ -31,48 +32,87 @@ vi.mock("@/components/ui/select", () => ({
   SelectValue: () => <div />,
 }));
 
+const baseForm: DocumentFormState = {
+  recipient_type: "OCCASIONAL",
+  doc_type: "REMITO",
+  point_of_sale: 1,
+  customer_id: "",
+  customer_name: "Cliente ocasional",
+  customer_tax_condition: "",
+  customer_tax_id: "",
+  customer_kind: "GENERAL",
+  internal_remito_type: "",
+  payment_terms: "",
+  delivery_address: "",
+  salesperson: "",
+  valid_until: "",
+  price_list_id: "",
+  notes: "",
+};
+
+function renderDialog(documentForm: DocumentFormState) {
+  render(
+    <DocumentsEditorDialog
+      open
+      onOpenChange={vi.fn()}
+      editingDocId={null}
+      documentForm={documentForm}
+      setDraftForm={vi.fn()}
+      lines={[]}
+      setLines={vi.fn()}
+      totalDraft={0}
+      customers={[{ id: "customer-1", name: "Cliente registrado" }]}
+      technicians={[{ id: "technician-1", name: "Tecnico Uno" }]}
+      serviceOptions={[]}
+      priceLists={[]}
+      availableItems={[]}
+      combos={[]}
+      onPriceListChange={vi.fn()}
+      onAddItem={vi.fn()}
+      onAddCombo={vi.fn()}
+      removeLine={vi.fn()}
+      onSubmit={vi.fn()}
+      onResetDraftForm={vi.fn()}
+      isSubmitting={false}
+    />,
+  );
+}
+
 describe("DocumentsEditorDialog", () => {
   it("keeps the internal customer kind available for remitos", () => {
-    render(
-      <DocumentsEditorDialog
-        open
-        onOpenChange={vi.fn()}
-        editingDocId={null}
-        documentForm={{
-          doc_type: "REMITO",
-          point_of_sale: 1,
-          customer_id: "",
-          customer_name: "",
-          customer_tax_condition: "",
-          customer_tax_id: "",
-          customer_kind: "GENERAL",
-          internal_remito_type: "",
-          payment_terms: "",
-          delivery_address: "",
-          salesperson: "",
-          valid_until: "",
-          price_list_id: "",
-          notes: "",
-        }}
-        setDraftForm={vi.fn()}
-        lines={[]}
-        setLines={vi.fn()}
-        totalDraft={0}
-        customers={[]}
-        technicians={[]}
-        priceLists={[]}
-        availableItems={[]}
-        combos={[]}
-        onPriceListChange={vi.fn()}
-        onAddItem={vi.fn()}
-        onAddCombo={vi.fn()}
-        removeLine={vi.fn()}
-        onSubmit={vi.fn()}
-        onResetDraftForm={vi.fn()}
-        isSubmitting={false}
-      />,
-    );
+    renderDialog({ ...baseForm, customer_kind: "INTERNO", customer_name: "" });
 
-    expect(screen.getByText("Personal / técnico interno")).toBeInTheDocument();
+    expect(screen.queryByText("Uso del remito")).not.toBeInTheDocument();
+    expect(screen.getByText("Tecnico responsable *")).toBeInTheDocument();
+    expect(screen.queryByText("Destinatario")).not.toBeInTheDocument();
+    expect(screen.queryByText("Servicio asociado")).not.toBeInTheDocument();
+  });
+
+  it("shows occasional identification without fiscal, technician, or service fields", () => {
+    renderDialog(baseForm);
+
+    expect(screen.getByText("Destinatario")).toBeInTheDocument();
+    expect(screen.queryByText("Uso del remito")).not.toBeInTheDocument();
+    expect(screen.getByText("Cliente ocasional / Consumidor Final")).toBeInTheDocument();
+    expect(screen.getByText("Cliente registrado")).toBeInTheDocument();
+    expect(screen.getByText("Nombre ocasional")).toBeInTheDocument();
+    expect(screen.queryByText("Nombre cliente")).not.toBeInTheDocument();
+    expect(screen.queryByText("CUIT")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tecnico asociado")).not.toBeInTheDocument();
+    expect(screen.queryByText("Servicio asociado")).not.toBeInTheDocument();
+    expect(screen.queryByText("Cliente registrado", { selector: "label" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Cliente / Empresa")).not.toBeInTheDocument();
+  });
+
+  it("allows service association only for a registered customer", () => {
+    renderDialog({ ...baseForm, recipient_type: "REGISTERED", customer_id: "customer-1", customer_name: "Cliente registrado" });
+
+    expect(screen.getByText("Tipo de cliente registrado")).toBeInTheDocument();
+    expect(screen.getByText("Persona / Particular")).toBeInTheDocument();
+    expect(screen.getByText("Empresa")).toBeInTheDocument();
+    expect(screen.getByText("Cliente / Empresa")).toBeInTheDocument();
+    expect(screen.getByText("Tecnico asociado")).toBeInTheDocument();
+    expect(screen.getByText("Servicio asociado")).toBeInTheDocument();
+    expect(screen.queryByText("Nombre ocasional")).not.toBeInTheDocument();
   });
 });

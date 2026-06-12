@@ -1,9 +1,9 @@
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { escapeHtml, PRINT_BRAND_MARK, PRINT_FAVICON_TAG } from "@/lib/print";
 import { formatDateTime, formatIsoDate } from "@/lib/formatters";
-import { CUSTOMER_KIND_LABEL, DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "./constants";
+import { DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "./constants";
 import type { DocLineRow, DocRow } from "./types";
-import { formatNumber, getCustomerDisplayName } from "./utils";
+import { formatNumber, resolveDocumentRecipient } from "./utils";
 
 type PrintableLine = Pick<
   DocLineRow,
@@ -232,10 +232,8 @@ export function buildDocumentPrintHtml({
         <section class="meta-grid avoid-break">
           <div class="box">
             <p class="box-title">Cliente</p>
-            ${optionalMeta("Nombre", getCustomerDisplayName(document))}
-            ${optionalMeta("Tipo", CUSTOMER_KIND_LABEL[document.customer_kind])}
-            ${optionalMeta("CUIT", document.customer_tax_id ?? "-")}
-            ${optionalMeta("Fiscal", document.customer_tax_condition ?? "-")}
+            ${optionalMeta("Cliente", resolveDocumentRecipient(document, { technicianName }).primaryName)}
+            ${resolveDocumentRecipient(document, { technicianName }).secondaryName ? optionalMeta("Nombre ocasional", resolveDocumentRecipient(document, { technicianName }).secondaryName) : ""}
           </div>
           <div class="box">
             <p class="box-title">Operacion</p>

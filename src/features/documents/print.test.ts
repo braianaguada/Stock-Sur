@@ -117,7 +117,8 @@ describe("buildDocumentPrintHtml", () => {
     });
 
     expect(html).toContain("Cliente ocasional / Consumidor Final");
-    expect(html).not.toContain("Snapshot legacy");
+    expect(html).toContain("Nombre ocasional");
+    expect(html).toContain("Snapshot legacy");
   });
 
   it("uses a budget-specific totals close", () => {

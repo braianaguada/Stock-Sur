@@ -25,6 +25,7 @@ export interface LineDraft {
 }
 
 export interface DocumentFormState {
+  recipient_type?: "OCCASIONAL" | "REGISTERED";
   doc_type: DocType;
   point_of_sale: number;
   customer_id: string;

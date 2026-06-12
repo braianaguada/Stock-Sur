@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
+import { resolveDocumentRecipient } from "@/features/documents/utils";
 import { businessDateFromTimestamp, formatDocumentNumber } from "@/lib/formatters";
 import type {
   CashClosureRow,
@@ -124,7 +125,12 @@ export function useCashMutations({
         payment_method: form.paymentMethod as PaymentMethod,
         receipt_kind: form.receiptKind as ReceiptKind,
         customer_id: form.customerId === "__none__" ? selectedRemito?.customer_id ?? null : form.customerId,
-        customer_name_snapshot: selectedCustomer?.name ?? selectedRemito?.customer_name ?? "Consumidor final",
+        customer_name_snapshot: selectedCustomer?.name ?? (selectedRemito
+          ? (() => {
+              const recipient = resolveDocumentRecipient(selectedRemito);
+              return recipient.secondaryName ? `${recipient.primaryName} - ${recipient.secondaryName}` : recipient.primaryName;
+            })()
+          : "Consumidor final"),
         document_id: form.receiptKind === "REMITO" ? selectedRemito?.id ?? null : null,
         receipt_reference: form.receiptKind === "PENDIENTE" ? null : selectedReference || null,
         notes: form.notes.trim() || null,

@@ -50,6 +50,7 @@ export function useDocumentDraftLoader({ documentsById }: UseDocumentDraftLoader
     return {
       editingDocId: docId,
       form: {
+        recipient_type: target.customer_kind === "INTERNO" ? undefined : target.customer_id ? "REGISTERED" : "OCCASIONAL",
         doc_type: target.doc_type,
         point_of_sale: target.point_of_sale,
         customer_id: target.customer_id ?? "",
