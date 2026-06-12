@@ -863,7 +863,7 @@ function finalizePendingPdfProduct(pending: PendingPdfProduct | null): CatalogIm
   if (!pending || !pending.priceValue || pending.priceValue <= 0) return null;
   const rawDescription = pending.descriptionParts.join(" ").replace(/\s+/g, " ").trim();
   if (!rawDescription || rawDescription.length < 3) return null;
-  if (!/[a-zA-ZÃ¡Ã©Ã­Ã³ÃºÃ±]/i.test(rawDescription)) return null;
+  if (!/\p{L}/u.test(rawDescription)) return null;
   if (isLikelyTechnicalDescription(rawDescription)) return null;
   return {
     supplier_code: pending.supplierCode,
