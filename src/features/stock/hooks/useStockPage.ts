@@ -229,8 +229,8 @@ export function useStockPage() {
     [availableItems],
   );
 
-  const { data: stockRows = [], isLoading: loadingStock } = useQuery({
-    queryKey: queryKeys.stock.current(currentCompany?.id ?? null, deferredSearch),
+  const { data: allStockRows = [], isLoading: loadingStock } = useQuery({
+    queryKey: queryKeys.stock.current(currentCompany?.id ?? null, ""),
     enabled: Boolean(currentCompany),
     queryFn: async () => {
       const [{ data: items, error: itemsError }, movements] = await Promise.all([
@@ -377,7 +377,7 @@ export function useStockPage() {
         }
       }
 
-      let rows = Array.from(rowsByItem.values()).map((row) => {
+      const rows = Array.from(rowsByItem.values()).map((row) => {
         const avgDailyOut30 = row.out_30d / 30;
         const avgDailyOut90 = row.out_90d / 90;
         const avgDailyOut365 = row.out_365d / 365;
@@ -440,20 +440,22 @@ export function useStockPage() {
         };
       });
 
-      if (deferredSearch) {
-        const normalizedSearch = deferredSearch.toLowerCase();
-        rows = rows.filter((row) =>
-          row.item_name.toLowerCase().includes(normalizedSearch) ||
-          row.item_sku.toLowerCase().includes(normalizedSearch) ||
-          (row.item_brand ?? "").toLowerCase().includes(normalizedSearch) ||
-          (row.item_model ?? "").toLowerCase().includes(normalizedSearch) ||
-          (row.item_attributes ?? "").toLowerCase().includes(normalizedSearch),
-        );
-      }
-
       return rows.sort((a, b) => a.item_name.localeCompare(b.item_name));
     },
   });
+
+  const stockRows = useMemo(() => {
+    const normalizedSearch = deferredSearch.trim().toLowerCase();
+    if (!normalizedSearch) return allStockRows;
+
+    return allStockRows.filter((row) =>
+      row.item_name.toLowerCase().includes(normalizedSearch) ||
+      row.item_sku.toLowerCase().includes(normalizedSearch) ||
+      (row.item_brand ?? "").toLowerCase().includes(normalizedSearch) ||
+      (row.item_model ?? "").toLowerCase().includes(normalizedSearch) ||
+      (row.item_attributes ?? "").toLowerCase().includes(normalizedSearch),
+    );
+  }, [allStockRows, deferredSearch]);
 
   const { data: movements = [], isLoading: loadingMovements } = useQuery({
     queryKey: queryKeys.stock.movements(currentCompany?.id ?? null),
@@ -545,13 +547,13 @@ export function useStockPage() {
       });
       if (error) throw error;
     },
-    onSuccess: async () => {
-      await invalidateStockQueries(queryClient);
+    onSuccess: () => {
       setForm((currentForm) => ({
         ...DEFAULT_STOCK_MOVEMENT_FORM,
         item_id: currentForm.item_id,
       }));
       toast({ title: "Movimiento registrado" });
+      void invalidateStockQueries(queryClient);
     },
     onError: (error: unknown) => {
       toast({
