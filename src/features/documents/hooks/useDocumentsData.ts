@@ -135,7 +135,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
-        .select("item_id, is_active, base_cost, calculated_price, flete_pct, utilidad_pct, impuesto_pct, final_price_override, manual_price_enabled, manual_price_note, items(id, sku, name, supplier, attributes, brand, model, category, unit)")
+        .select("item_id, is_active, base_cost, calculated_price, flete_pct, utilidad_pct, impuesto_pct, final_price_override, manual_price_enabled, manual_price_note")
         .eq("company_id", currentCompanyId!)
         .eq("price_list_id", selectedPriceListId)
         .eq("is_active", true);
@@ -184,19 +184,8 @@ export function useDocumentsData({
   );
 
   const availableItems = useMemo(() => {
-    if (!selectedPriceListId) {
-      return items.map((item) => ({
-        ...item,
-        display_name: buildItemDisplayName({
-          name: item.name,
-          brand: "brand" in item ? (item.brand as string | null | undefined) : null,
-          model: "model" in item ? (item.model as string | null | undefined) : null,
-          attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
-        }),
-      }));
-    }
-
-    return items.map((item) => ({
+    const availableItemIds = new Set(priceListItems.map((row) => row.item_id));
+    return items.filter((item) => !selectedPriceListId || availableItemIds.has(item.id)).map((item) => ({
       ...item,
       display_name: buildItemDisplayName({
         name: item.name,
@@ -205,7 +194,7 @@ export function useDocumentsData({
         attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
       }),
     }));
-  }, [items, selectedPriceListId]);
+  }, [items, priceListItems, selectedPriceListId]);
 
   const priceByItem = useMemo(() => {
     const map = new Map<string, number>();

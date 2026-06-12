@@ -129,12 +129,13 @@ export function DocumentsEditorDialog({
     return counts;
   }, [lines]);
 
-  const filteredItems = useMemo(() => {
+  const itemSearchResults = useMemo(() => {
     const query = deferredItemSearch.trim().toLowerCase();
     if (!documentForm.price_list_id || query.length === 0) return [];
 
-    return rankNaturalItemSearch({ items: availableItems, aliases: [], query }).slice(0, 8);
+    return rankNaturalItemSearch({ items: availableItems, aliases: [], query });
   }, [availableItems, documentForm.price_list_id, deferredItemSearch]);
+  const filteredItems = useMemo(() => itemSearchResults.slice(0, 50), [itemSearchResults]);
   const filteredCombos = useMemo(() => {
     const query = deferredItemSearch.trim().toLowerCase();
     if (!documentForm.price_list_id || query.length === 0) return [];
@@ -577,7 +578,12 @@ export function DocumentsEditorDialog({
 
             {itemSearch.trim().length > 0 ? (
               filteredItems.length > 0 ? (
-                <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-2">
+                <div className="rounded-xl border border-border/70 bg-background/70 p-2">
+                  <div className="flex items-center justify-between gap-3 px-1 pb-2 text-xs text-muted-foreground">
+                    <span>{itemSearchResults.length} producto{itemSearchResults.length === 1 ? "" : "s"} encontrado{itemSearchResults.length === 1 ? "" : "s"}</span>
+                    {itemSearchResults.length > filteredItems.length ? <span>Mostrando los primeros {filteredItems.length}</span> : null}
+                  </div>
+                  <div className="max-h-[min(46vh,28rem)] space-y-2 overflow-y-auto pr-1 [scrollbar-gutter:stable]">
                   {filteredItems.map((item) => {
                     const alreadyAdded = lineCountByItemId.has(item.id);
                     const displayName = buildItemDisplayName(item);
@@ -603,6 +609,7 @@ export function DocumentsEditorDialog({
                       </div>
                     );
                   })}
+                  </div>
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">
