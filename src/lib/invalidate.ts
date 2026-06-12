@@ -40,9 +40,7 @@ export async function invalidateStockQueries(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: queryKeys.stock.allCurrent() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.stock.allMovements() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.stock.allRecentItems() }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.stock.allItemSearch() }),
     queryClient.invalidateQueries({ queryKey: ["items-stock-totals"] }),
-    queryClient.invalidateQueries({ queryKey: ["stock-ai-alerts"] }),
     queryClient.invalidateQueries({ queryKey: ["dashboard-overview"] }),
   ]);
 }
