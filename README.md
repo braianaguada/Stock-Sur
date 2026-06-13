@@ -1,5 +1,7 @@
 # Stock Sur
 
+Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, datos fiscales, condicion de venta ni servicio, y nunca generan cuenta corriente ni comprobantes fiscales. Al emitirse mantienen la salida normal de stock.
+
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
 ## Desarrollo local

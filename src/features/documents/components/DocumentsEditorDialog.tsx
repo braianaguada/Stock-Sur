@@ -19,7 +19,7 @@ import type {
   LinePricingMode,
   PriceListRow,
 } from "@/features/documents/types";
-import { calculatePriceFromCostBase, changeDocumentRecipientType } from "@/features/documents/utils";
+import { calculatePriceFromCostBase, changeDocumentRecipientType, changeRemitoUsage } from "@/features/documents/utils";
 import { rankNaturalItemSearch } from "@/features/items/search";
 
 type CustomerOption = {
@@ -269,6 +269,26 @@ export function DocumentsEditorDialog({
                 </Select>
               </div>
 
+              {documentForm.doc_type === "REMITO" && !isReturn ? (
+                <div className="space-y-2">
+                  <Label>Uso del remito *</Label>
+                  <Select
+                    value={isInternal ? "INTERNAL" : "COMMERCIAL"}
+                    onValueChange={(value) =>
+                      setDraftForm((previousForm) =>
+                        changeRemitoUsage(previousForm, value as "COMMERCIAL" | "INTERNAL"),
+                      )
+                    }
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="COMMERCIAL">Comercial</SelectItem>
+                      <SelectItem value="INTERNAL">Personal interno</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+
               <div className="flex items-center justify-end h-full w-full">
                 <CollapsibleTrigger asChild>
                   <Button type="button" variant="outline" size="sm" className="h-9 mt-6 w-full shadow-none bg-background/50 hover:bg-background">
@@ -364,8 +384,8 @@ export function DocumentsEditorDialog({
                   </Select>
                 </div> : null}
 
-                {(documentForm.recipient_type === "OCCASIONAL" || isInternal) ? <div className="space-y-2 md:col-span-2">
-                  <Label>{isInternal ? "Motivo / referencia interna" : "Nombre ocasional"}</Label>
+                {documentForm.recipient_type === "OCCASIONAL" && !isInternal ? <div className="space-y-2 md:col-span-2">
+                  <Label>Nombre ocasional</Label>
                   <Input
                     value={documentForm.customer_name}
                     placeholder="Cliente ocasional"
@@ -374,7 +394,7 @@ export function DocumentsEditorDialog({
                       setDraftForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
                     }
                   />
-                  {!documentForm.customer_id && !isInternal ? (
+                  {!documentForm.customer_id ? (
                     <p className="text-xs text-muted-foreground">Opcional. Permite identificar a la persona que compra; no crea un cliente registrado.</p>
                   ) : null}
                 </div> : null}
@@ -454,7 +474,7 @@ export function DocumentsEditorDialog({
 
                 {documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO" ? (
                   <div className="space-y-2">
-                    <Label>Imputación del remito</Label>
+                    <Label>Tipo / motivo interno *</Label>
                     <Select
                       value={documentForm.internal_remito_type || "__none__"}
                       onValueChange={(value) =>

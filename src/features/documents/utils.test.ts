@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildDocumentCustomerSnapshot,
   changeDocumentRecipientType,
+  changeRemitoUsage,
   getCustomerDisplayName,
   OCCASIONAL_CUSTOMER_DISPLAY_NAME,
   resolveDocumentRecipient,
@@ -32,15 +33,106 @@ describe("document customer helpers", () => {
     }).primaryName).toBe("Cliente Real SA");
   });
 
-  it("uses the technician as internal recipient", () => {
+  it("uses Personal interno as internal recipient", () => {
     expect(resolveDocumentRecipient(
       { customer_kind: "INTERNO", customer_id: null, customer_name: null },
       { technicianName: "Tecnico Demo", internalReference: "Instalacion" },
     )).toMatchObject({
-      primaryName: "Tecnico Demo",
+      primaryName: "Personal interno",
       secondaryName: "Instalacion",
       isInternal: true,
     });
+  });
+
+  it("changes commercial remito to internal preserving commercial work fields", () => {
+    const draft = {
+      recipient_type: "REGISTERED" as const,
+      doc_type: "REMITO" as const,
+      point_of_sale: 1,
+      customer_id: "customer-1",
+      technician_id: "tech-1",
+      service_id: "service-1",
+      customer_name: "Cliente",
+      customer_tax_condition: "RI",
+      customer_tax_id: "20-123",
+      customer_kind: "GENERAL" as const,
+      internal_remito_type: "" as const,
+      payment_terms: "CUENTA_CORRIENTE",
+      delivery_address: "Deposito",
+      salesperson: "Ana",
+      valid_until: "",
+      price_list_id: "list-1",
+      notes: "Conservar notas",
+    };
+
+    expect(changeRemitoUsage(draft, "INTERNAL")).toEqual({
+      ...draft,
+      customer_kind: "INTERNO",
+      recipient_type: undefined,
+      customer_id: "",
+      customer_name: "",
+      customer_tax_id: "",
+      customer_tax_condition: "",
+      payment_terms: "",
+      service_id: "",
+    });
+  });
+
+  it("changes internal remito to commercial and clears internal state", () => {
+    const draft = {
+      doc_type: "REMITO" as const,
+      point_of_sale: 1,
+      customer_id: "",
+      technician_id: "tech-1",
+      service_id: "",
+      customer_name: "",
+      customer_tax_condition: "",
+      customer_tax_id: "",
+      customer_kind: "INTERNO" as const,
+      internal_remito_type: "DESCUENTO_SUELDO" as const,
+      payment_terms: "",
+      delivery_address: "",
+      salesperson: "",
+      valid_until: "",
+      price_list_id: "list-1",
+      notes: "Conservar notas",
+    };
+
+    expect(changeRemitoUsage(draft, "COMMERCIAL")).toMatchObject({
+      customer_kind: "GENERAL",
+      recipient_type: "OCCASIONAL",
+      technician_id: "tech-1",
+      internal_remito_type: "",
+      notes: "Conservar notas",
+    });
+  });
+
+  it.each([
+    [{ technician_id: "" }, "requiere tecnico"],
+    [{ internal_remito_type: "" }, "requiere tipo"],
+    [{ customer_id: "customer-1" }, "no puede conservar"],
+    [{ payment_terms: "CUENTA_CORRIENTE" }, "no puede conservar"],
+    [{ service_id: "service-1" }, "no puede conservar"],
+  ])("blocks invalid internal remito recipient state", (override, message) => {
+    expect(() => validateDocumentRecipientDraft({
+      doc_type: "REMITO",
+      point_of_sale: 1,
+      customer_id: "",
+      technician_id: "tech-1",
+      service_id: "",
+      customer_name: "",
+      customer_tax_condition: "",
+      customer_tax_id: "",
+      customer_kind: "INTERNO",
+      internal_remito_type: "DESCUENTO_SUELDO",
+      payment_terms: "",
+      delivery_address: "",
+      salesperson: "",
+      valid_until: "",
+      price_list_id: "list-1",
+      notes: "",
+      ...override,
+    }, [])).toThrow(message);
   });
 
   it("uses the registered customer name when customer_id is present", () => {

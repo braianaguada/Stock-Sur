@@ -170,6 +170,31 @@ describe("duplicate document logic", () => {
     });
   });
 
+  it("does not propagate incompatible commercial state when duplicating an internal remito", () => {
+    const payload = buildDuplicateDocumentPayload({
+      sourceDocument: {
+        ...sourceDocument,
+        doc_type: "REMITO",
+        customer_kind: "INTERNO",
+        internal_remito_type: "DESCUENTO_SUELDO",
+        service_id: "legacy-service",
+      },
+      sourceLines,
+      currentDate: "2026-05-08",
+    });
+
+    expect(payload.document).toMatchObject({
+      customer_kind: "INTERNO",
+      customer_id: null,
+      customer_name: null,
+      customer_tax_id: null,
+      customer_tax_condition: null,
+      payment_terms: null,
+      service_id: null,
+      internal_remito_type: "DESCUENTO_SUELDO",
+    });
+  });
+
   it("creates traceability event payload and does not copy previous events", () => {
     const payload = buildDuplicateDocumentPayload({
       sourceDocument,

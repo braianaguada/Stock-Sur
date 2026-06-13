@@ -82,8 +82,9 @@ describe("DocumentsEditorDialog", () => {
   it("keeps the internal customer kind available for remitos", () => {
     renderDialog({ ...baseForm, customer_kind: "INTERNO", customer_name: "" });
 
-    expect(screen.queryByText("Uso del remito")).not.toBeInTheDocument();
+    expect(screen.getByText("Uso del remito *")).toBeInTheDocument();
     expect(screen.getByText("Tecnico responsable *")).toBeInTheDocument();
+    expect(screen.getByText("Tipo / motivo interno *")).toBeInTheDocument();
     expect(screen.queryByText("Destinatario")).not.toBeInTheDocument();
     expect(screen.queryByText("Servicio asociado")).not.toBeInTheDocument();
   });
@@ -92,7 +93,7 @@ describe("DocumentsEditorDialog", () => {
     renderDialog(baseForm);
 
     expect(screen.getByText("Destinatario")).toBeInTheDocument();
-    expect(screen.queryByText("Uso del remito")).not.toBeInTheDocument();
+    expect(screen.getByText("Uso del remito *")).toBeInTheDocument();
     expect(screen.getByText("Cliente ocasional / Consumidor Final")).toBeInTheDocument();
     expect(screen.getByText("Cliente registrado")).toBeInTheDocument();
     expect(screen.getByText("Nombre ocasional")).toBeInTheDocument();

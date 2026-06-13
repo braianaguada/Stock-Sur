@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync("supabase/migrations/20260610120000_document_recipient_guards.sql", "utf8");
+const hardeningMigration = readFileSync("supabase/migrations/20260613143000_harden_internal_remito_guards.sql", "utf8");
 
 describe("document recipient database guards", () => {
   it("normalizes internal remitos before issue side effects", () => {
@@ -15,5 +16,20 @@ describe("document recipient database guards", () => {
   it("blocks invalid registered-company and service relationships", () => {
     expect(migration).toContain("new.customer_kind = 'EMPRESA' and new.customer_id is null");
     expect(migration).toContain("v_service_customer_id is distinct from new.customer_id");
+  });
+});
+
+describe("internal remito database hardening", () => {
+  it("rejects every incompatible internal remito state before issue side effects", () => {
+    expect(hardeningMigration).toContain("new.technician_id is null");
+    expect(hardeningMigration).toContain("new.internal_remito_type is null");
+    expect(hardeningMigration).toContain("new.customer_id is not null");
+    expect(hardeningMigration).toContain("new.payment_terms is not null");
+    expect(hardeningMigration).toContain("new.service_id is not null");
+  });
+
+  it("blocks account and fiscal documents for internal remitos", () => {
+    expect(hardeningMigration).toContain("v_doc.customer_kind = 'INTERNO' or v_doc.customer_id is null");
+    expect(hardeningMigration).toContain("Los remitos internos no generan comprobantes fiscales");
   });
 });

@@ -299,6 +299,106 @@ describeCriticalDb("critical database rules", () => {
     });
   });
 
+  it("emite remito interno con stock OUT y sin cuenta corriente", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await setActor(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedPermission(companyUserId, "documents.issue");
+      await client.query(
+        `insert into public.company_settings (company_id, app_name, primary_color, secondary_color, accent_color, default_point_of_sale, allow_issue_remitos_without_stock, auto_close_cash_enabled)
+         values ($1, 'Test', '#000000', '#111111', '#222222', 1, true, false)
+         on conflict (company_id) do update set allow_issue_remitos_without_stock = excluded.allow_issue_remitos_without_stock`,
+        [companyId],
+      );
+
+      const itemId = await seedItem(companyId, userId);
+      const technicianId = crypto.randomUUID();
+      await client.query(
+        `insert into public.technicians (id, company_id, name, created_by, created_at, updated_at)
+         values ($1, $2, 'Tecnico Interno', $3, now(), now())`,
+        [technicianId, companyId, userId],
+      );
+      const documentId = crypto.randomUUID();
+      await client.query(
+        `insert into public.documents (
+           id, doc_type, status, point_of_sale, issue_date, subtotal, discount_total, total, tax_total,
+           customer_kind, technician_id, internal_remito_type, created_by, created_at, updated_at, company_id
+         ) values (
+           $1, 'REMITO', 'BORRADOR', 1, current_date, 100, 0, 100, 0,
+           'INTERNO', $2, 'DESCUENTO_SUELDO', $3, now(), now(), $4
+         )`,
+        [documentId, technicianId, userId, companyId],
+      );
+      await client.query(
+        `insert into public.document_lines (id, document_id, line_order, item_id, description, quantity, unit_price, discount_pct, line_total, created_by, created_at, updated_at, tax_pct, pricing_mode, suggested_unit_price)
+         values ($1, $2, 1, $3, 'Line', 2, 50, 0, 100, $4, now(), now(), 0, 'MANUAL_PRICE', 50)`,
+        [crypto.randomUUID(), documentId, itemId, userId],
+      );
+
+      const issued = await client.query(`select status from public.issue_document($1)`, [documentId]);
+      expect(issued.rows[0].status).toBe("EMITIDO");
+
+      const stock = await client.query(
+        `select count(*)::int as count from public.stock_movements
+         where company_id = $1 and item_id = $2 and type = 'OUT' and quantity = 2`,
+        [companyId, itemId],
+      );
+      expect(stock.rows[0].count).toBe(1);
+
+      const entries = await client.query(
+        `select count(*)::int as count from public.customer_account_entries where document_id = $1`,
+        [documentId],
+      );
+      expect(entries.rows[0].count).toBe(0);
+    });
+  });
+
+  it("rechaza estados incompatibles de remito interno", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await setActor(userId);
+      await seedCompany(companyId);
+      await seedActor(companyId, userId);
+
+      const technicianId = crypto.randomUUID();
+      await client.query(
+        `insert into public.technicians (id, company_id, name, created_by, created_at, updated_at)
+         values ($1, $2, 'Tecnico Interno', $3, now(), now())`,
+        [technicianId, companyId, userId],
+      );
+      const customerId = await seedCustomer(companyId, "Cliente no permitido");
+
+      const insertInternalRemito = `
+        insert into public.documents (
+          id, doc_type, status, point_of_sale, issue_date, subtotal, discount_total, total, tax_total,
+          customer_kind, technician_id, internal_remito_type, customer_id, payment_terms, service_id,
+          created_by, created_at, updated_at, company_id
+        ) values (
+          $1, 'REMITO', 'BORRADOR', 1, current_date, 0, 0, 0, 0,
+          'INTERNO', $2, $3, $4, $5, $6, $7, now(), now(), $8
+        )
+      `;
+
+      const invalidStates = [
+        [null, "DESCUENTO_SUELDO", null, null, null],
+        [technicianId, null, null, null, null],
+        [technicianId, "DESCUENTO_SUELDO", customerId, null, null],
+        [technicianId, "DESCUENTO_SUELDO", null, "CUENTA_CORRIENTE", null],
+        [technicianId, "DESCUENTO_SUELDO", null, null, crypto.randomUUID()],
+      ];
+
+      for (const state of invalidStates) {
+        await expectDbRejection(insertInternalRemito, [crypto.randomUUID(), ...state, userId, companyId]);
+      }
+    });
+  });
+
   it("genera y no duplica DEBIT desde remito emitido", async () => {
     await withRollback(async () => {
       const userId = crypto.randomUUID();

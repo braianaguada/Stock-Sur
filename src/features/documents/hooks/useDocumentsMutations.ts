@@ -371,6 +371,12 @@ export function useDocumentsMutations({
       if (currentDocument.doc_type === "REMITO" && currentDocument.customer_kind === "INTERNO" && !currentDocument.technician_id) {
         throw new Error("El remito interno debe estar asociado a un tecnico");
       }
+      if (currentDocument.doc_type === "REMITO" && currentDocument.customer_kind === "INTERNO") {
+        if (!currentDocument.internal_remito_type) throw new Error("El remito interno requiere tipo interno");
+        if (currentDocument.customer_id) throw new Error("El remito interno no puede tener cliente comercial");
+        if (currentDocument.payment_terms) throw new Error("El remito interno no puede tener condicion de venta");
+        if (currentDocument.service_id) throw new Error("El remito interno no puede tener servicio asociado");
+      }
       const { data: remitoLines, error: linesError } = await supabase
         .from("document_lines")
         .select("item_id")
@@ -464,6 +470,7 @@ export function useDocumentsMutations({
           point_of_sale: src.point_of_sale,
           customer_id: src.customer_kind === "INTERNO" ? null : src.customer_id,
           technician_id: src.customer_kind === "INTERNO" ? null : src.technician_id,
+          service_id: null,
           customer_name: src.customer_kind === "INTERNO" ? null : src.customer_name,
           customer_tax_condition: src.customer_kind === "INTERNO" ? null : src.customer_tax_condition,
           customer_tax_id: src.customer_kind === "INTERNO" ? null : src.customer_tax_id,
