@@ -50,6 +50,7 @@ This project is built with:
 
 - [Sistema visual inicial](docs/UI_SYSTEM.md): auditoria visual, navegacion, componentes base y piloto de Caja.
 - Fix de documentos: los combos se expanden a productos reales usando el mismo detalle de linea que la carga manual, conservando cantidades acumuladas y precios manuales existentes.
+- Destinatarios de presupuestos y remitos: seleccion simplificada entre cliente ocasional y registrado; Persona/Empresa queda pendiente de un campo confiable en `customers`.
 
 ## Clientes fiscales para Factura A futura
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildDocumentCustomerSnapshot,
+  changeDocumentRecipientType,
   getCustomerDisplayName,
   OCCASIONAL_CUSTOMER_DISPLAY_NAME,
   resolveDocumentRecipient,
@@ -77,6 +78,40 @@ describe("document customer helpers", () => {
       customer_name: "Juan Perez",
       customer_tax_id: null,
       customer_tax_condition: null,
+    });
+  });
+
+  it("changes recipient without clearing commercial details", () => {
+    const draft = {
+      recipient_type: "REGISTERED" as const,
+      doc_type: "PRESUPUESTO" as const,
+      point_of_sale: 1,
+      customer_id: "customer-1",
+      technician_id: "technician-1",
+      service_id: "service-1",
+      customer_name: "Cliente registrado",
+      customer_tax_condition: "RI",
+      customer_tax_id: "20-123",
+      customer_kind: "EMPRESA" as const,
+      internal_remito_type: "" as const,
+      payment_terms: "Cuenta corriente",
+      delivery_address: "Deposito",
+      salesperson: "Ana",
+      valid_until: "2026-07-01",
+      price_list_id: "list-1",
+      notes: "Conservar estas notas",
+    };
+
+    expect(changeDocumentRecipientType(draft, "OCCASIONAL")).toEqual({
+      ...draft,
+      recipient_type: "OCCASIONAL",
+      customer_id: "",
+      technician_id: "",
+      service_id: "",
+      customer_name: "Cliente ocasional",
+      customer_tax_condition: "",
+      customer_tax_id: "",
+      customer_kind: "GENERAL",
     });
   });
 

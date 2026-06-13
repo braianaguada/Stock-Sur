@@ -110,6 +110,23 @@ export function buildDocumentCustomerSnapshot(input: {
   };
 }
 
+export function changeDocumentRecipientType(
+  draft: DocumentFormState,
+  recipientType: NonNullable<DocumentFormState["recipient_type"]>,
+): DocumentFormState {
+  return {
+    ...draft,
+    recipient_type: recipientType,
+    customer_id: "",
+    customer_name: recipientType === "OCCASIONAL" ? OCCASIONAL_CUSTOMER_DEFAULT_NAME : "",
+    customer_kind: "GENERAL",
+    technician_id: "",
+    service_id: "",
+    customer_tax_id: "",
+    customer_tax_condition: "",
+  };
+}
+
 export function validateDocumentRecipientDraft(
   draft: DocumentFormState,
   serviceOptions: DocumentServiceOption[],

@@ -494,3 +494,12 @@ Fecha: 2026-06-10
 ## Dictamen de implementacion
 
 APTO para revision y QA manual en staging. La promocion posterior queda condicionada a completar los casos manuales autenticados.
+
+## Ajuste de UX posterior
+
+Fecha: 2026-06-13
+
+- Se elimino el selector manual `Tipo de cliente registrado` con Persona/Empresa porque `customers` no tiene un campo confiable para esa clasificacion.
+- La seleccion queda reducida a `Cliente ocasional / Consumidor Final` o `Cliente registrado`.
+- El cambio de destinatario conserva lineas y datos comerciales, y limpia solo cliente, tecnico, servicio y snapshots fiscales incompatibles.
+- Pendiente de producto/modelo: agregar una clasificacion Persona/Empresa confiable en `customers` antes de volver a exponerla.
