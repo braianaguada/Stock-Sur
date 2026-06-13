@@ -107,10 +107,9 @@ describe("DocumentsEditorDialog", () => {
   it("allows service association only for a registered customer", () => {
     renderDialog({ ...baseForm, recipient_type: "REGISTERED", customer_id: "customer-1", customer_name: "Cliente registrado" });
 
-    expect(screen.getByText("Tipo de cliente registrado")).toBeInTheDocument();
-    expect(screen.getByText("Persona / Particular")).toBeInTheDocument();
-    expect(screen.getByText("Empresa")).toBeInTheDocument();
-    expect(screen.getByText("Cliente / Empresa")).toBeInTheDocument();
+    expect(screen.queryByText("Tipo de cliente registrado")).not.toBeInTheDocument();
+    expect(screen.queryByText("Persona / Particular")).not.toBeInTheDocument();
+    expect(screen.getByText("Cliente registrado", { selector: "label" })).toBeInTheDocument();
     expect(screen.getByText("Tecnico asociado")).toBeInTheDocument();
     expect(screen.getByText("Servicio asociado")).toBeInTheDocument();
     expect(screen.queryByText("Nombre ocasional")).not.toBeInTheDocument();

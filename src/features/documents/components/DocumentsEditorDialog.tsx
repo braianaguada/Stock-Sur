@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { PRICING_MODE_LABEL } from "@/features/documents/constants";
 import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type {
-  CustomerKind,
   DocType,
   DocumentFormState,
   DocumentServiceOption,
@@ -20,7 +19,7 @@ import type {
   LinePricingMode,
   PriceListRow,
 } from "@/features/documents/types";
-import { calculatePriceFromCostBase } from "@/features/documents/utils";
+import { calculatePriceFromCostBase, changeDocumentRecipientType } from "@/features/documents/utils";
 import { rankNaturalItemSearch } from "@/features/items/search";
 
 type CustomerOption = {
@@ -302,29 +301,9 @@ export function DocumentsEditorDialog({
                   <Select
                     value={documentForm.recipient_type ?? (documentForm.customer_id ? "REGISTERED" : "OCCASIONAL")}
                     onValueChange={(value) =>
-                      setDraftForm((previousForm) => value === "REGISTERED"
-                        ? {
-                            ...previousForm,
-                            recipient_type: "REGISTERED",
-                            customer_id: "",
-                            customer_name: "",
-                            customer_kind: "GENERAL",
-                            technician_id: "",
-                            service_id: "",
-                            customer_tax_id: "",
-                            customer_tax_condition: "",
-                          }
-                        : {
-                            ...previousForm,
-                            recipient_type: "OCCASIONAL",
-                            customer_id: "",
-                            customer_name: "Cliente ocasional",
-                            customer_kind: "GENERAL",
-                            technician_id: "",
-                            service_id: "",
-                            customer_tax_id: "",
-                            customer_tax_condition: "",
-                          })
+                      setDraftForm((previousForm) =>
+                        changeDocumentRecipientType(previousForm, value as "OCCASIONAL" | "REGISTERED"),
+                      )
                     }
                   >
                     <SelectTrigger><SelectValue placeholder="Seleccionar destinatario" /></SelectTrigger>
@@ -336,27 +315,7 @@ export function DocumentsEditorDialog({
                 </div> : null}
 
                 {documentForm.recipient_type === "REGISTERED" && !isInternal ? <div className="space-y-2">
-                  <Label>Tipo de cliente registrado</Label>
-                  <Select
-                    value={documentForm.customer_kind}
-                    onValueChange={(value) =>
-                      setDraftForm((previousForm) => ({
-                        ...previousForm,
-                        customer_kind: value as CustomerKind,
-                        internal_remito_type: "",
-                      }))
-                    }
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="GENERAL">Persona / Particular</SelectItem>
-                      <SelectItem value="EMPRESA">Empresa</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div> : null}
-
-                {documentForm.recipient_type === "REGISTERED" && !isInternal ? <div className="space-y-2">
-                  <Label>Cliente / Empresa</Label>
+                  <Label>Cliente registrado</Label>
                   <Select
                     value={documentForm.customer_id || "__none__"}
                     onValueChange={(value) =>
@@ -416,7 +375,7 @@ export function DocumentsEditorDialog({
                     }
                   />
                   {!documentForm.customer_id && !isInternal ? (
-                    <p className="text-xs text-muted-foreground">Opcional. Sirve para identificar quien compra; no crea un cliente registrado.</p>
+                    <p className="text-xs text-muted-foreground">Opcional. Permite identificar a la persona que compra; no crea un cliente registrado.</p>
                   ) : null}
                 </div> : null}
 
