@@ -53,14 +53,14 @@ async function seedUser(userId: string) {
   );
 }
 
-async function seedCompany(companyId: string) {
+async function seedCompany(companyId: string, status: "ACTIVE" | "INACTIVE" = "ACTIVE") {
   await client.query(
     `
     insert into public.companies (id, name, slug, status, created_at, updated_at)
-    values ($1, 'DB Test Co', $2, 'ACTIVE', now(), now())
-    on conflict (id) do nothing
+    values ($1, 'DB Test Co', $2, $3, now(), now())
+    on conflict (id) do update set status = excluded.status
     `,
-    [companyId, `db-test-${companyId.slice(0, 8)}`],
+    [companyId, `db-test-${companyId.slice(0, 8)}`, status],
   );
 }
 
@@ -97,6 +97,42 @@ async function seedActor(companyId: string, userId: string) {
     [companyUserId, companyId, userId],
   );
   return companyUserId;
+}
+
+async function seedCompanyRole(companyUserId: string, code: string) {
+  await client.query(
+    `
+    insert into public.company_user_roles (company_user_id, role_id)
+    select $1, r.id
+    from public.roles r
+    where r.code = $2
+      and r.scope = 'COMPANY'
+    on conflict do nothing
+    `,
+    [companyUserId, code],
+  );
+}
+
+async function seedSuperadmin(userId: string) {
+  await client.query(
+    `
+    insert into public.user_roles (user_id, role)
+    values ($1, 'superadmin')
+    on conflict do nothing
+    `,
+    [userId],
+  );
+  await client.query(
+    `
+    insert into public.global_user_roles (user_id, role_id)
+    select $1, r.id
+    from public.roles r
+    where r.code = 'superadmin'
+      and r.scope = 'GLOBAL'
+    on conflict do nothing
+    `,
+    [userId],
+  );
 }
 
 async function seedItem(companyId: string, userId: string) {
@@ -191,14 +227,7 @@ describeCriticalDb("critical database rules", () => {
       const userId = crypto.randomUUID();
       const slug = `db-create-company-${userId.slice(0, 8)}`;
       await seedUser(userId);
-      await client.query(
-        `
-        insert into public.user_roles (user_id, role)
-        values ($1, 'superadmin')
-        on conflict do nothing
-        `,
-        [userId],
-      );
+      await seedSuperadmin(userId);
 
       await setActor(userId);
       await client.query("set local role authenticated");
@@ -374,6 +403,106 @@ describeCriticalDb("critical database rules", () => {
         [documentId],
       );
       expect(entries.rows[0].count).toBe(0);
+    });
+  });
+
+  it("limita acceso operativo a empresas activas con membresia activa", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const superadminId = crypto.randomUUID();
+      const activeCompanyId = crypto.randomUUID();
+      const inactiveCompanyId = crypto.randomUUID();
+      const suspendedMembershipCompanyId = crypto.randomUUID();
+      const nonexistentCompanyId = crypto.randomUUID();
+
+      await seedUser(userId);
+      await seedUser(superadminId);
+      await seedSuperadmin(superadminId);
+      await seedCompany(activeCompanyId);
+      await seedCompany(inactiveCompanyId, "INACTIVE");
+      await seedCompany(suspendedMembershipCompanyId);
+
+      const activeCompanyUserId = await seedActor(activeCompanyId, userId);
+      const inactiveCompanyUserId = await seedActor(inactiveCompanyId, userId);
+      await seedActor(suspendedMembershipCompanyId, userId);
+      await client.query(
+        `
+        update public.company_users
+        set status = 'INACTIVE'
+        where user_id = $1
+          and company_id = $2
+        `,
+        [userId, suspendedMembershipCompanyId],
+      );
+
+      await seedCompanyRole(activeCompanyUserId, "admin");
+      await seedCompanyRole(inactiveCompanyUserId, "admin");
+      await seedPermission(activeCompanyUserId, "stock.view");
+      await seedPermission(inactiveCompanyUserId, "stock.view");
+
+      const initialAccess = await client.query(
+        `
+        select
+          public.is_company_member($1, $2) as active_member,
+          public.is_company_member($1, $3) as inactive_company_member,
+          public.is_company_member($1, $4) as inactive_membership,
+          public.is_company_member($1, $5) as nonexistent_company,
+          public.has_company_role($1, $2, 'admin') as active_role,
+          public.has_company_role($1, $3, 'admin') as inactive_role,
+          public.has_company_permission($1, $2, 'stock.view') as active_permission,
+          public.has_company_permission($1, $3, 'stock.view') as inactive_permission,
+          public.can_admin_company($6, $3) as superadmin_can_admin_inactive,
+          public.is_company_member($6, $3) as superadmin_not_operable_inactive,
+          public.has_company_permission($6, $3, 'stock.view') as superadmin_permission_inactive
+        `,
+        [
+          userId,
+          activeCompanyId,
+          inactiveCompanyId,
+          suspendedMembershipCompanyId,
+          nonexistentCompanyId,
+          superadminId,
+        ],
+      );
+
+      expect(initialAccess.rows[0]).toMatchObject({
+        active_member: true,
+        inactive_company_member: false,
+        inactive_membership: false,
+        nonexistent_company: false,
+        active_role: true,
+        inactive_role: false,
+        active_permission: true,
+        inactive_permission: false,
+        superadmin_can_admin_inactive: true,
+        superadmin_not_operable_inactive: false,
+        superadmin_permission_inactive: false,
+      });
+
+      const companyIds = await client.query(`select public.get_user_company_ids($1) as company_id order by company_id`, [userId]);
+      expect(companyIds.rows.map((row) => row.company_id)).toEqual([activeCompanyId]);
+
+      await client.query(`update public.companies set status = 'ACTIVE' where id = $1`, [inactiveCompanyId]);
+      const restoredAccess = await client.query(
+        `
+        select
+          public.is_company_member($1, $2) as restored_member,
+          public.has_company_role($1, $2, 'admin') as restored_role,
+          public.has_company_permission($1, $2, 'stock.view') as restored_permission
+        `,
+        [userId, inactiveCompanyId],
+      );
+      expect(restoredAccess.rows[0]).toEqual({
+        restored_member: true,
+        restored_role: true,
+        restored_permission: true,
+      });
+
+      await setActor(superadminId);
+      await client.query("set local role authenticated");
+      const slug = `db-create-company-${crypto.randomUUID().slice(0, 8)}`;
+      const created = await client.query(`select id from public.create_company($1, $2)`, ["DB Created Company", slug]);
+      expect(created.rows[0].id).toBeTruthy();
     });
   });
 

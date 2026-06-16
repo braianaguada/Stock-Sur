@@ -497,6 +497,12 @@ For operational tables (`items`, `item_aliases`, `stock_movements`, `suppliers`,
 
 This preserves current functionality for each creator while removing previous permissive `USING (true)` write access.
 
+### Multiempresa: empresa activa operable
+
+La migracion `20260616150000_active_company_operational_guards.sql` endurece los helpers operativos multiempresa. `is_company_member`, `get_user_company_ids`, `has_company_role` y `has_company_permission` solo consideran empresas `ACTIVE` con membresia `ACTIVE`; una empresa `INACTIVE` no puede usarse como empresa activa aunque la membresia siga activa. `can_admin_company` separa el acceso administrativo superadmin para listar o mantener empresas inactivas sin habilitarlas en modulos operativos.
+
+Deuda tecnica vigente: `is_superadmin` y las RPC modernas usan `global_user_roles`, mientras que parte del frontend y funciones legacy siguen consultando `user_roles`/`has_role`. No se migro destructivamente en esta fase; conviene unificar la fuente de verdad de roles globales en un PR separado.
+
 ## Importación de listas (CSV + XLSX)
 
 Flujo rápido:
