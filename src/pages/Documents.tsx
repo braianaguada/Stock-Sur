@@ -586,6 +586,7 @@ export default function DocumentsPage() {
           documents={documentsPagination.pagedItems}
           isLoading={isLoading}
           pageSize={documentsPageSize}
+          technicianNamesById={new Map(allTechnicians.map((technician) => [technician.id, technician.name]))}
           onOpenDetail={(documentId) => {
             setSelectedDocId(documentId);
             setDetailOpen(true);

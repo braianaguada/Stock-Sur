@@ -121,6 +121,30 @@ describe("buildDocumentPrintHtml", () => {
     expect(html).toContain("Snapshot legacy");
   });
 
+  it("prints internal recipient, technician and internal type without commercial customer", () => {
+    const html = buildDocumentPrintHtml({
+      document: {
+        ...document,
+        customer_id: null,
+        customer_name: null,
+        customer_tax_id: null,
+        customer_tax_condition: null,
+        customer_kind: "INTERNO",
+        internal_remito_type: "DESCUENTO_SUELDO",
+        payment_terms: null,
+      },
+      lines: [line],
+      companySettings: DEFAULT_COMPANY_SETTINGS,
+      technicianName: "Tecnico Interno",
+    });
+
+    expect(html).toContain("Personal interno");
+    expect(html).toContain("Tecnico Interno");
+    expect(html).toContain("Tipo / motivo interno");
+    expect(html).toContain("Descuento de sueldo");
+    expect(html).not.toContain("Cliente ocasional");
+  });
+
   it("uses a budget-specific totals close", () => {
     const html = buildDocumentPrintHtml({
       document: {

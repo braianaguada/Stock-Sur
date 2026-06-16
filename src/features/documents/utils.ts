@@ -37,7 +37,7 @@ export function resolveDocumentRecipient(
 
   if (document.customer_kind === "INTERNO") {
     return {
-      primaryName: technicianName || "Personal interno",
+      primaryName: "Personal interno",
       secondaryName: options.internalReference?.trim() || customerName,
       fiscalLabel: null,
       isRegisteredCustomer: false,
@@ -107,6 +107,37 @@ export function buildDocumentCustomerSnapshot(input: {
     customer_name: input.manualCustomerName.trim() || OCCASIONAL_CUSTOMER_DEFAULT_NAME,
     customer_tax_id: null,
     customer_tax_condition: null,
+  };
+}
+
+export function changeRemitoUsage(
+  draft: DocumentFormState,
+  usage: "COMMERCIAL" | "INTERNAL",
+): DocumentFormState {
+  if (usage === "INTERNAL") {
+    return {
+      ...draft,
+      customer_kind: "INTERNO",
+      recipient_type: undefined,
+      customer_id: "",
+      customer_name: "",
+      customer_tax_id: "",
+      customer_tax_condition: "",
+      payment_terms: "",
+      service_id: "",
+    };
+  }
+
+  return {
+    ...draft,
+    customer_kind: "GENERAL",
+    recipient_type: "OCCASIONAL",
+    customer_id: "",
+    customer_name: OCCASIONAL_CUSTOMER_DEFAULT_NAME,
+    customer_tax_id: "",
+    customer_tax_condition: "",
+    service_id: "",
+    internal_remito_type: "",
   };
 }
 

@@ -231,15 +231,15 @@ export function buildDocumentPrintHtml({
 
         <section class="meta-grid avoid-break">
           <div class="box">
-            <p class="box-title">Cliente</p>
-            ${optionalMeta("Cliente", resolveDocumentRecipient(document, { technicianName }).primaryName)}
-            ${resolveDocumentRecipient(document, { technicianName }).secondaryName ? optionalMeta("Nombre ocasional", resolveDocumentRecipient(document, { technicianName }).secondaryName) : ""}
+            <p class="box-title">${document.customer_kind === "INTERNO" ? "Destinatario" : "Cliente"}</p>
+            ${optionalMeta(document.customer_kind === "INTERNO" ? "Destinatario" : "Cliente", resolveDocumentRecipient(document, { technicianName }).primaryName)}
+            ${document.customer_kind !== "INTERNO" && resolveDocumentRecipient(document, { technicianName }).secondaryName ? optionalMeta("Nombre ocasional", resolveDocumentRecipient(document, { technicianName }).secondaryName) : ""}
           </div>
           <div class="box">
             <p class="box-title">Operacion</p>
             ${optionalMeta("Tipo", documentTypeLabel)}
             ${technicianName ? optionalMeta("Tecnico", technicianName) : ""}
-            ${document.doc_type !== "REMITO_DEVOLUCION" && document.internal_remito_type ? optionalMeta("Imputacion", INTERNAL_REMITO_LABEL[document.internal_remito_type]) : ""}
+            ${document.doc_type !== "REMITO_DEVOLUCION" && document.internal_remito_type ? optionalMeta("Tipo / motivo interno", INTERNAL_REMITO_LABEL[document.internal_remito_type]) : ""}
             ${sourceLabel ? optionalMeta("Origen", sourceLabel) : ""}
             ${externalInvoice ? optionalMeta("Factura ext.", externalInvoice) : ""}
             ${document.payment_terms ? optionalMeta("Cond. venta", document.payment_terms) : ""}
