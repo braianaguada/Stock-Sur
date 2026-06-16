@@ -51,9 +51,12 @@ export const queryKeys = {
     totals: (companyId: string | null, from: string, to: string) => ["cash-totals", companyId ?? "no-company", from, to] as const,
     remitos: (companyId: string | null, businessDate: string) => ["cash-remitos", companyId ?? "no-company", businessDate] as const,
     closure: (companyId: string | null, businessDate: string) => ["cash-closure", companyId ?? "no-company", businessDate] as const,
-    linkedDocument: (documentId: string | null) => ["cash-linked-document", documentId] as const,
-    linkedDocumentLines: (documentId: string | null) => ["cash-linked-document-lines", documentId] as const,
-    linkedDocumentEvents: (documentId: string | null) => ["cash-linked-document-events", documentId] as const,
+    linkedDocument: (companyId: string | null, documentId: string | null) =>
+      ["cash-linked-document", companyId ?? "no-company", documentId] as const,
+    linkedDocumentLines: (companyId: string | null, documentId: string | null) =>
+      ["cash-linked-document-lines", companyId ?? "no-company", documentId] as const,
+    linkedDocumentEvents: (companyId: string | null, documentId: string | null) =>
+      ["cash-linked-document-events", companyId ?? "no-company", documentId] as const,
     closuresHistory: (companyId: string | null) => ["cash-closures-history", companyId ?? "no-company"] as const,
     closureSales: (companyId: string | null, closureId: string | null) => ["cash-closure-sales", companyId ?? "no-company", closureId] as const,
   },
@@ -62,7 +65,8 @@ export const queryKeys = {
     diagnostics: (companyId: string | null) => ["billing-diagnostics", companyId ?? "no-company"] as const,
     pointsOfSale: (companyId: string | null) => ["billing-points-of-sale", companyId ?? "no-company"] as const,
     documents: (companyId: string | null) => ["billing-documents", companyId ?? "no-company"] as const,
-    lines: (documentId: string | null) => ["billing-document-lines", documentId ?? "no-document"] as const,
+    lines: (companyId: string | null, documentId: string | null) =>
+      ["billing-document-lines", companyId ?? "no-company", documentId ?? "no-document"] as const,
     remitos: (companyId: string | null, idsKey: string) => ["billing-remitos", companyId ?? "no-company", idsKey] as const,
     activeSourceIds: (companyId: string | null) => ["billing-active-source-ids", companyId ?? "no-company"] as const,
   },
@@ -81,8 +85,12 @@ export const queryKeys = {
       technicianFilter = "ALL",
     ) => ["documents", companyId ?? "no-company", search, typeFilter, statusFilter, customerFilter, technicianFilter] as const,
     all: () => ["documents"] as const,
-    lines: (documentId: string | null) => ["document-lines", documentId] as const,
-    events: (documentId: string | null) => ["document-events", documentId] as const,
+    detail: (companyId: string | null, documentId: string | null) =>
+      ["documents", "detail", companyId ?? "no-company", documentId ?? "no-document"] as const,
+    lines: (companyId: string | null, documentId: string | null) =>
+      ["document-lines", companyId ?? "no-company", documentId] as const,
+    events: (companyId: string | null, documentId: string | null) =>
+      ["document-events", companyId ?? "no-company", documentId] as const,
   },
   combos: {
     list: (companyId: string | null) => ["product-combos", companyId ?? "no-company"] as const,
@@ -95,10 +103,16 @@ export const queryKeys = {
     list: (companyId: string | null, search: string, status: string, customerFilter = "ALL") =>
       ["service-documents", companyId ?? "no-company", search, status, customerFilter] as const,
     all: () => ["service-documents"] as const,
-    detail: (documentId: string | null) => ["service-document", documentId ?? "no-document"] as const,
-    lines: (documentId: string | null) => ["service-document-lines", documentId ?? "no-document"] as const,
-    attachments: (documentId: string | null) => ["service-document-attachments", documentId ?? "no-document"] as const,
-    shareLinks: (documentId: string | null) => ["service-document-share-links", documentId ?? "no-document"] as const,
+    detail: (companyId: string | null, documentId: string | null) =>
+      ["service-document", companyId ?? "no-company", documentId ?? "no-document"] as const,
+    lines: (companyId: string | null, documentId: string | null) =>
+      ["service-document-lines", companyId ?? "no-company", documentId ?? "no-document"] as const,
+    attachments: (companyId: string | null, documentId: string | null) =>
+      ["service-document-attachments", companyId ?? "no-company", documentId ?? "no-document"] as const,
+    shareLinks: (companyId: string | null, documentId: string | null) =>
+      ["service-document-share-links", companyId ?? "no-company", documentId ?? "no-document"] as const,
+    events: (companyId: string | null, documentId: string | null) =>
+      ["service-document-events", companyId ?? "no-company", documentId ?? "no-document"] as const,
     public: (token: string | null) => ["public-service-document", token ?? "no-token"] as const,
   },
   serviceJobs: {

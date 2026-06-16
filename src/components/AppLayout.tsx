@@ -1,9 +1,12 @@
 import { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const { companies, currentCompany, loading, user } = useAuth();
+  const hasNoActiveCompanyAccess = Boolean(user) && !loading && companies.length === 0 && !currentCompany;
 
   return (
     <div className="app-shell min-h-screen w-full bg-transparent">
@@ -13,7 +16,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
           key={location.pathname}
           className="route-transition mx-auto max-w-[1480px] px-6 py-8 lg:px-10 lg:py-10"
         >
-          {children}
+          {hasNoActiveCompanyAccess ? (
+            <section className="mx-auto max-w-2xl rounded-3xl border border-destructive/20 bg-card p-8 text-center shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-destructive">Empresa activa</p>
+              <h1 className="mt-3 text-2xl font-semibold text-foreground">
+                Tu usuario no tiene acceso a ninguna empresa activa.
+              </h1>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Pedile a un administrador que revise tu membresia o active una empresa antes de operar.
+              </p>
+            </section>
+          ) : children}
         </div>
       </main>
     </div>

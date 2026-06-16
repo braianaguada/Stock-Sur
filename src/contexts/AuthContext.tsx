@@ -18,7 +18,10 @@ import {
 } from "@/contexts/auth-access-state";
 import {
   clearAuthSessionArtifacts,
+  clearLegacyCurrentCompanyId,
+  clearPersistedCurrentCompanyId,
   CURRENT_COMPANY_STORAGE_KEY,
+  getCurrentCompanyStorageKey,
   persistCurrentCompanyId,
   subscribeToAuthSession,
   syncActorSession,
@@ -40,7 +43,9 @@ interface AuthContextType {
   isImpersonating: boolean;
   impersonationMeta: ImpersonationMeta | null;
   loading: boolean;
+  switchingCompany: boolean;
   setCurrentCompanyId: (companyId: string) => void;
+  switchCompany: (companyId: string) => Promise<CompanySummary>;
   refreshCompanies: () => Promise<void>;
   startImpersonation: (params: { targetUserId: string; targetEmail?: string | null; reason?: string }) => Promise<void>;
   stopImpersonation: () => Promise<void>;
@@ -60,7 +65,11 @@ const AuthContext = createContext<AuthContextType>({
   isImpersonating: false,
   impersonationMeta: null,
   loading: true,
+  switchingCompany: false,
   setCurrentCompanyId: () => {},
+  switchCompany: async () => {
+    throw new Error("No hay una sesion activa.");
+  },
   refreshCompanies: async () => {},
   startImpersonation: async () => {},
   stopImpersonation: async () => {},
@@ -80,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [impersonationMeta, setImpersonationMeta] = useState<ImpersonationMeta | null>(readStoredImpersonationMeta);
   const [authHydrated, setAuthHydrated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [switchingCompany, setSwitchingCompany] = useState(false);
   const lastIdentityKeyRef = useRef<string | null>(null);
 
   const isImpersonating = Boolean(impersonationMeta);
@@ -107,9 +117,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadAuthState = useCallback(async (actorSession: Session | null, nextImpersonationMeta: ImpersonationMeta | null) => {
     try {
+      const nextUserId = nextImpersonationMeta?.targetUserId ?? actorSession?.user?.id ?? null;
       const nextState = await loadAuthStateSnapshot({
         actorSession,
-        currentCompanyStorageKey: CURRENT_COMPANY_STORAGE_KEY,
+        currentCompanyStorageKey: nextUserId
+          ? getCurrentCompanyStorageKey(nextUserId)
+          : CURRENT_COMPANY_STORAGE_KEY,
         impersonationMeta: nextImpersonationMeta,
       });
 
@@ -122,6 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRoles(nextState.roles);
       setCompanies(nextState.companies);
       setCurrentCompanyIdState(nextState.currentCompanyId);
+      persistCurrentCompanyId(nextState.effectiveUser.id, nextState.currentCompanyId);
+      clearLegacyCurrentCompanyId();
 
       if (!nextState.currentCompanyId) {
         setCompanyRoleCodes([]);
@@ -136,8 +151,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setCurrentCompanyId = (companyId: string) => {
     setCurrentCompanyIdState(companyId);
-    persistCurrentCompanyId(companyId);
+    persistCurrentCompanyId(effectiveUser?.id, companyId);
   };
+
+  const applyAuthSnapshot = useCallback((nextState: NonNullable<Awaited<ReturnType<typeof loadAuthStateSnapshot>>>) => {
+    setEffectiveUser(nextState.effectiveUser);
+    setRoles(nextState.roles);
+    setCompanies(nextState.companies);
+    setCurrentCompanyIdState(nextState.currentCompanyId);
+    persistCurrentCompanyId(nextState.effectiveUser.id, nextState.currentCompanyId);
+    clearLegacyCurrentCompanyId();
+  }, []);
+
+  const switchCompany = useCallback(async (companyId: string) => {
+    if (!effectiveUser?.id || !session) {
+      throw new Error("Necesitas una sesion activa para cambiar de empresa.");
+    }
+
+    setSwitchingCompany(true);
+    try {
+      const nextState = await loadAuthStateSnapshot({
+        actorSession: session,
+        currentCompanyStorageKey: getCurrentCompanyStorageKey(effectiveUser.id),
+        impersonationMeta,
+      });
+
+      if (!nextState) {
+        clearAuthState();
+        throw new Error("No se pudo validar tu acceso a empresas.");
+      }
+
+      const nextCompany = nextState.companies.find((company) => company.id === companyId) ?? null;
+      if (!nextCompany) {
+        applyAuthSnapshot(nextState);
+        const nextAccess = await loadCompanyAccessSnapshot({
+          companyId: nextState.currentCompanyId,
+          userId: nextState.effectiveUser.id,
+        });
+        setCompanyRoleCodes(nextAccess.companyRoleCodes);
+        setCompanyPermissionCodes(nextAccess.companyPermissionCodes);
+        throw new Error("Tu acceso a esa empresa ya no esta disponible.");
+      }
+
+      const nextAccess = await loadCompanyAccessSnapshot({
+        companyId,
+        userId: nextState.effectiveUser.id,
+      });
+
+      setEffectiveUser(nextState.effectiveUser);
+      setRoles(nextState.roles);
+      setCompanies(nextState.companies);
+      setCurrentCompanyIdState(companyId);
+      setCompanyRoleCodes(nextAccess.companyRoleCodes);
+      setCompanyPermissionCodes(nextAccess.companyPermissionCodes);
+      persistCurrentCompanyId(nextState.effectiveUser.id, companyId);
+      clearLegacyCurrentCompanyId();
+
+      return nextCompany;
+    } finally {
+      setSwitchingCompany(false);
+    }
+  }, [applyAuthSnapshot, clearAuthState, effectiveUser?.id, impersonationMeta, session]);
 
   const refreshCompanies = useCallback(async () => {
     await loadAuthState(session, impersonationMeta);
@@ -203,8 +277,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [currentCompanyId, effectiveUser?.id]);
 
   useEffect(() => {
-    persistCurrentCompanyId(currentCompanyId);
-  }, [currentCompanyId]);
+    persistCurrentCompanyId(effectiveUser?.id, currentCompanyId);
+  }, [currentCompanyId, effectiveUser?.id]);
 
   useEffect(() => {
     if (authHydrated && !session) {
@@ -279,7 +353,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    localStorage.removeItem(CURRENT_COMPANY_STORAGE_KEY);
+    clearPersistedCurrentCompanyId(effectiveUser?.id);
+    clearPersistedCurrentCompanyId(session?.user?.id);
+    clearLegacyCurrentCompanyId();
     clearAuthSessionArtifacts({ setImpersonationMeta });
     await supabaseAuth.auth.signOut();
   };
@@ -301,7 +377,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isImpersonating,
         impersonationMeta,
         loading,
+        switchingCompany,
         setCurrentCompanyId,
+        switchCompany,
         refreshCompanies,
         startImpersonation,
         stopImpersonation,

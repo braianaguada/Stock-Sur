@@ -16,6 +16,19 @@ export type CompanyAccessSnapshot = {
   companyRoleCodes: string[];
 };
 
+export function resolveCurrentCompanyId(params: {
+  companies: Pick<CompanySummary, "id">[];
+  storedCompanyId: string | null;
+}) {
+  const { companies, storedCompanyId } = params;
+  const storedCompanyIsValid = Boolean(storedCompanyId && companies.some((company) => company.id === storedCompanyId));
+
+  return {
+    currentCompanyId: storedCompanyIsValid ? storedCompanyId : companies[0]?.id ?? null,
+    shouldClearStoredCompanyId: Boolean(storedCompanyId && !storedCompanyIsValid),
+  };
+}
+
 export async function loadAuthStateSnapshot(params: {
   actorSession: Session | null;
   currentCompanyStorageKey: string;
@@ -77,10 +90,14 @@ export async function loadAuthStateSnapshot(params: {
 
   const companies = companiesResult.data ?? [];
   const storedCompanyId = localStorage.getItem(currentCompanyStorageKey);
-  const currentCompanyId =
-    (storedCompanyId && companies.some((company) => company.id === storedCompanyId) ? storedCompanyId : null) ??
-    companies[0]?.id ??
-    null;
+  const { currentCompanyId, shouldClearStoredCompanyId } = resolveCurrentCompanyId({
+    companies,
+    storedCompanyId,
+  });
+
+  if (shouldClearStoredCompanyId) {
+    localStorage.removeItem(currentCompanyStorageKey);
+  }
 
   return {
     companies,
