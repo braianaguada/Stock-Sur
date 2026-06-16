@@ -195,6 +195,24 @@ describe("duplicate document logic", () => {
     });
   });
 
+  it("does not propagate service links when duplicating a commercial remito", () => {
+    const payload = buildDuplicateDocumentPayload({
+      sourceDocument: {
+        ...sourceDocument,
+        doc_type: "REMITO",
+        customer_kind: "GENERAL",
+        service_id: "service-1",
+      },
+      sourceLines,
+      currentDate: "2026-05-08",
+    });
+
+    expect(payload.document).toMatchObject({
+      customer_id: "customer-1",
+      service_id: null,
+    });
+  });
+
   it("creates traceability event payload and does not copy previous events", () => {
     const payload = buildDuplicateDocumentPayload({
       sourceDocument,

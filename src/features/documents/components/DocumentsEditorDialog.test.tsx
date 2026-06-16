@@ -23,7 +23,11 @@ vi.mock("@/components/ui/collapsible", () => ({
 vi.mock("@/components/ui/input", () => ({ Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} /> }));
 vi.mock("@/components/ui/label", () => ({ Label: ({ children }: { children: ReactNode }) => <label>{children}</label> }));
 vi.mock("@/components/ui/textarea", () => ({ Textarea: (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea {...props} /> }));
-vi.mock("@/features/documents/utils", () => ({ calculatePriceFromCostBase: () => 0 }));
+vi.mock("@/features/documents/utils", () => ({
+  calculatePriceFromCostBase: () => 0,
+  changeDocumentRecipientType: (form: DocumentFormState) => form,
+  changeRemitoUsage: (form: DocumentFormState) => form,
+}));
 vi.mock("@/lib/item-display", () => ({ buildItemDisplayMeta: () => "", buildItemDisplayName: () => "" }));
 
 vi.mock("@/components/ui/select", () => ({
@@ -65,7 +69,17 @@ function renderDialog(documentForm: DocumentFormState, onSubmit = vi.fn()) {
       totalDraft={0}
       customers={[{ id: "customer-1", name: "Cliente registrado" }]}
       technicians={[{ id: "technician-1", name: "Tecnico Uno" }]}
-      serviceOptions={[]}
+      serviceOptions={[
+        {
+          id: "service-1",
+          title: "Instalacion",
+          status: "PENDING",
+          jobId: "job-1",
+          jobTitle: "Trabajo",
+          customerId: "customer-1",
+          customerName: "Cliente registrado",
+        },
+      ]}
       priceLists={[]}
       availableItems={[]}
       combos={[]}
@@ -118,6 +132,19 @@ describe("DocumentsEditorDialog", () => {
     expect(screen.getByText("Tecnico asociado")).toBeInTheDocument();
     expect(screen.getByText("Servicio asociado")).toBeInTheDocument();
     expect(screen.queryByText("Nombre ocasional")).not.toBeInTheDocument();
+  });
+
+  it("locks customer changes while a service is linked", () => {
+    renderDialog({
+      ...baseForm,
+      recipient_type: "REGISTERED",
+      customer_id: "customer-1",
+      customer_name: "Cliente registrado",
+      service_id: "service-1",
+    });
+
+    expect(screen.getByText("Cliente bloqueado por el servicio asociado. Desvincula el servicio para cambiar cliente.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desvincular servicio para cambiar cliente" })).toBeInTheDocument();
   });
 
   it("shows inline errors for internal remitos without technician or internal type", () => {

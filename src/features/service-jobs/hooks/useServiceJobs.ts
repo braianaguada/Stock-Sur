@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { serviceDb } from "@/features/services/db";
 import { getServiceJobDeleteState } from "../lib/serviceJobLifecycle";
 import { getServiceJobOperationalFields } from "../lib/operationalSummary";
-import { buildServiceRemitoDraftPayload } from "../lib/serviceRemitos";
+import { buildServiceRemitoDraftPayload, isLinkableRemitoForService } from "../lib/serviceRemitos";
 import { buildServiceJobPayload, buildServicePayload, buildTechnicianAssignments } from "../lib/serviceJobForm";
 import type {
   LinkableMaterialRemito,
@@ -114,7 +114,7 @@ export function useServiceJobs(params: {
           .in("service_id", serviceIds),
         serviceDb
           .from("documents")
-          .select("id, service_id, status, point_of_sale, document_number, issue_date, customer_id, technician_id, customer_name, total, created_at")
+          .select("id, service_id, status, point_of_sale, document_number, issue_date, customer_id, customer_kind, technician_id, customer_name, total, created_at")
           .eq("company_id", companyId)
           .eq("doc_type", "REMITO")
           .in("service_id", serviceIds)
@@ -163,9 +163,11 @@ export function useServiceJobs(params: {
     queryFn: async () => {
       const { data, error } = await serviceDb
         .from("documents")
-        .select("id, service_id, status, point_of_sale, document_number, issue_date, customer_id, technician_id, customer_name, total, created_at")
+        .select("id, service_id, status, point_of_sale, document_number, issue_date, customer_id, customer_kind, technician_id, customer_name, total, created_at")
         .eq("company_id", companyId)
         .eq("doc_type", "REMITO")
+        .not("customer_id", "is", null)
+        .neq("customer_kind", "INTERNO")
         .order("created_at", { ascending: false })
         .limit(300);
       if (error) throw error;
@@ -343,6 +345,9 @@ export function useServiceJobs(params: {
       pointOfSale: number;
     }) => {
       if (!companyId) throw new Error("Selecciona una empresa antes de crear remitos");
+      if (!payload.customer?.id) {
+        throw new Error("El trabajo necesita un cliente registrado para crear remitos de materiales");
+      }
       const body = buildServiceRemitoDraftPayload({
         companyId,
         userId,
@@ -375,7 +380,11 @@ export function useServiceJobs(params: {
   });
 
   const linkMaterialRemitoMutation = useMutation({
-    mutationFn: async (payload: { documentId: string; serviceId: string }) => {
+    mutationFn: async (payload: { documentId: string; serviceId: string; customerId: string }) => {
+      const candidate = linkableRemitosQuery.data?.find((remito) => remito.id === payload.documentId) ?? null;
+      if (!candidate || !isLinkableRemitoForService(candidate, { serviceId: payload.serviceId, customerId: payload.customerId })) {
+        throw new Error("El remito no corresponde al cliente del trabajo o no es compatible con servicios");
+      }
       const { error } = await serviceDb
         .from("documents")
         .update({ service_id: payload.serviceId })

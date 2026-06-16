@@ -113,6 +113,11 @@ export function DocumentsEditorDialog({
   const isInternal = documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO";
   const showTechnicianRequired = submitAttempted && isInternal && !documentForm.technician_id;
   const showInternalTypeRequired = submitAttempted && isInternal && !documentForm.internal_remito_type;
+  const selectedServiceOption = useMemo(
+    () => serviceOptions.find((service) => service.id === documentForm.service_id) ?? null,
+    [documentForm.service_id, serviceOptions],
+  );
+  const isCustomerLockedByService = Boolean(documentForm.service_id && selectedServiceOption?.customerId);
   const filteredServiceOptions = useMemo(() => {
     return serviceOptions.filter((service) => service.customerId === documentForm.customer_id);
   }, [documentForm.customer_id, serviceOptions]);
@@ -284,11 +289,12 @@ export function DocumentsEditorDialog({
               {documentForm.doc_type === "REMITO" && !isReturn ? (
                 <div className="space-y-2">
                   <Label>Uso del remito *</Label>
-                  <Select
-                    value={isInternal ? "INTERNAL" : "COMMERCIAL"}
-                    onValueChange={(value) =>
-                      setDraftForm((previousForm) =>
-                        changeRemitoUsage(previousForm, value as "COMMERCIAL" | "INTERNAL"),
+                <Select
+                  value={isInternal ? "INTERNAL" : "COMMERCIAL"}
+                  disabled={isCustomerLockedByService}
+                  onValueChange={(value) =>
+                    setDraftForm((previousForm) =>
+                      changeRemitoUsage(previousForm, value as "COMMERCIAL" | "INTERNAL"),
                       )
                     }
                   >
@@ -331,7 +337,8 @@ export function DocumentsEditorDialog({
                 {!isInternal ? <div className="space-y-2">
                   <Label>Destinatario</Label>
                   <Select
-                    value={documentForm.recipient_type ?? (documentForm.customer_id ? "REGISTERED" : "OCCASIONAL")}
+                  value={documentForm.recipient_type ?? (documentForm.customer_id ? "REGISTERED" : "OCCASIONAL")}
+                    disabled={isCustomerLockedByService}
                     onValueChange={(value) =>
                       setDraftForm((previousForm) =>
                         changeDocumentRecipientType(previousForm, value as "OCCASIONAL" | "REGISTERED"),
@@ -350,6 +357,7 @@ export function DocumentsEditorDialog({
                   <Label>Cliente registrado</Label>
                   <Select
                     value={documentForm.customer_id || "__none__"}
+                    disabled={isCustomerLockedByService}
                     onValueChange={(value) =>
                       setDraftForm((previousForm) => {
                         const nextCustomerId = value === "__none__" ? "" : value;
@@ -371,6 +379,11 @@ export function DocumentsEditorDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                  {isCustomerLockedByService ? (
+                    <p className="text-xs text-muted-foreground">
+                      Cliente bloqueado por el servicio asociado. Desvincula el servicio para cambiar cliente.
+                    </p>
+                  ) : null}
                 </div> : null}
 
                 {(documentForm.customer_id || isInternal) ? <div className="space-y-2">
@@ -484,6 +497,28 @@ export function DocumentsEditorDialog({
                         ))}
                       </SelectContent>
                     </Select>
+                    {documentForm.service_id ? (
+                      <div className="flex flex-col gap-2 rounded-lg border border-border/70 bg-muted/20 p-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                        <span>
+                          Servicio vinculado: {selectedServiceOption ? `${selectedServiceOption.jobTitle} / ${selectedServiceOption.title}` : "servicio asociado"}.
+                          {" "}El cliente no puede cambiar mientras siga vinculado.
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 shrink-0"
+                          onClick={() =>
+                            setDraftForm((previousForm) => ({
+                              ...previousForm,
+                              service_id: "",
+                            }))
+                          }
+                        >
+                          Desvincular servicio para cambiar cliente
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 
