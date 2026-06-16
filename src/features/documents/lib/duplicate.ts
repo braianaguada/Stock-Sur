@@ -94,7 +94,7 @@ export function buildDuplicateDocumentPayload({
       issue_date: currentDate,
       customer_id: isInternalRemito ? null : sourceDocument.customer_id,
       technician_id: sourceDocument.technician_id,
-      service_id: isInternalRemito ? null : sourceDocument.service_id ?? null,
+      service_id: null,
       origin_document_id: null,
       customer_name: isInternalRemito ? null : sourceDocument.customer_name,
       customer_tax_condition: isInternalRemito ? null : sourceDocument.customer_tax_condition,

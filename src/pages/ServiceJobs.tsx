@@ -26,7 +26,7 @@ import { useServiceJobs } from "@/features/service-jobs/hooks/useServiceJobs";
 import { isServiceJobArchived } from "@/features/service-jobs/lib/serviceJobLifecycle";
 import { getServiceJobOperationalStats } from "@/features/service-jobs/lib/operationalSummary";
 import { DEFAULT_JOB_FORM, DEFAULT_SERVICE_FORM } from "@/features/service-jobs/lib/serviceJobForm";
-import { getServiceRemitoTechnicianWarning, summarizeServiceRemitos } from "@/features/service-jobs/lib/serviceRemitos";
+import { getServiceRemitoTechnicianWarning, isLinkableRemitoForService, summarizeServiceRemitos } from "@/features/service-jobs/lib/serviceRemitos";
 import { SERVICE_JOB_PRIORITIES, SERVICE_JOB_STATUSES, SERVICE_STATUSES } from "@/features/service-jobs/types";
 import type { LinkableMaterialRemito, ServiceForm, ServiceJobForm, ServiceJobListItem, ServiceRow, ServiceWithTechnicians } from "@/features/service-jobs/types";
 import { formatNumber } from "@/features/documents/utils";
@@ -163,13 +163,15 @@ export default function ServiceJobsPage() {
     ? customers.find((customer) => customer.id === selectedJob.customer_id) ?? null
     : null;
   const selectedJobArchived = selectedJob ? isServiceJobArchived(selectedJob) : false;
+  const selectedJobHasRegisteredCustomer = Boolean(selectedJobCustomer?.id);
 
   const filteredLinkableRemitos = useMemo(() => {
     if (!linkingService || !selectedJob) return [];
     const query = remitoSearch.trim().toLowerCase();
     return linkableRemitos
-      .filter((remito) => remito.service_id === null || remito.service_id === linkingService.id)
-      .filter((remito) => !selectedJob.customer_id || !remito.customer_id || remito.customer_id === selectedJob.customer_id)
+      .filter((remito) =>
+        isLinkableRemitoForService(remito, { serviceId: linkingService.id, customerId: selectedJob.customer_id }),
+      )
       .filter((remito) => {
         if (!query) return true;
         return [
@@ -474,7 +476,8 @@ export default function ServiceJobsPage() {
                                   { onSuccess: openDocument },
                                 )
                               }
-                              disabled={createMaterialRemitoMutation.isPending || selectedJobArchived}
+                              disabled={createMaterialRemitoMutation.isPending || selectedJobArchived || !selectedJobHasRegisteredCustomer}
+                              title={selectedJobHasRegisteredCustomer ? undefined : "El trabajo necesita un cliente registrado para crear remitos"}
                             >
                               <FilePlus2 className="mr-2 h-4 w-4" /> Crear remito
                             </Button>
@@ -482,7 +485,8 @@ export default function ServiceJobsPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => { setLinkingService(service); setRemitoSearch(""); }}
-                              disabled={selectedJobArchived}
+                              disabled={selectedJobArchived || !selectedJobHasRegisteredCustomer}
+                              title={selectedJobHasRegisteredCustomer ? undefined : "El trabajo necesita un cliente registrado para vincular remitos"}
                             >
                               <Link2 className="mr-2 h-4 w-4" /> Vincular existente
                             </Button>
@@ -674,7 +678,7 @@ export default function ServiceJobsPage() {
                       onClick={() => {
                         if (!linkingService) return;
                         linkMaterialRemitoMutation.mutate(
-                          { documentId: remito.id, serviceId: linkingService.id },
+                          { documentId: remito.id, serviceId: linkingService.id, customerId: selectedJob?.customer_id ?? "" },
                           { onSuccess: () => setLinkingService(null) },
                         );
                       }}

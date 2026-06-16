@@ -266,11 +266,11 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
 - Vinculacion de remitos de materiales a servicios v1:
   - `documents.service_id` permite asociar remitos actuales del modulo Documentos con servicios de Trabajos
   - solo `REMITO` puede guardar `service_id`; `PRESUPUESTO` y `REMITO_DEVOLUCION` quedan bloqueados por validacion de DB/UI
-  - el trigger valida que documento y servicio pertenezcan a la misma empresa
+  - el trigger valida que documento y servicio pertenezcan a la misma empresa y al mismo cliente registrado; bloquea remitos internos, ocasionales, sin cliente o trabajos/servicios sin cliente
   - desde el detalle de servicio se puede crear un `REMITO` `BORRADOR` vinculado, con cliente del trabajo y tecnico automatico solo si el servicio tiene un unico tecnico
   - desde el detalle de servicio se pueden vincular y desvincular remitos existentes sin borrar documentos ni generar movimientos de stock
   - los servicios muestran remitos asociados con numero, estado, fecha, tecnico, lineas, total y costo estimado por snapshots de lineas
-  - el editor de Documentos muestra el campo opcional `Servicio asociado` solo para `REMITO`, filtrado por cliente cuando aplica
+  - el editor de Documentos muestra el campo opcional `Servicio asociado` solo para `REMITO`, filtrado por cliente cuando aplica; con servicio vinculado bloquea el cambio de cliente hasta desvincular
   - la vista previa de Documentos muestra el trabajo/servicio asociado y link de vuelta a `/service-jobs?serviceId=<id>`
   - emitir remitos sigue usando el flujo existente de Documentos; crear/vincular/desvincular no emite ni mueve stock
 - Control operativo de trabajos/servicios:

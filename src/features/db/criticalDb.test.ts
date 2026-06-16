@@ -123,6 +123,26 @@ async function seedCustomer(companyId: string, name: string, isOccasional = fals
   return customerId;
 }
 
+async function seedServiceJobWithService(companyId: string, userId: string, customerId: string | null) {
+  const jobId = crypto.randomUUID();
+  const serviceId = crypto.randomUUID();
+  await client.query(
+    `
+    insert into public.service_jobs (id, company_id, customer_id, title, status, priority, created_by, created_at, updated_at)
+    values ($1, $2, $3, 'Trabajo DB Test', 'OPEN', 'NORMAL', $4, now(), now())
+    `,
+    [jobId, companyId, customerId, userId],
+  );
+  await client.query(
+    `
+    insert into public.service_job_services (id, company_id, job_id, title, status, created_by, created_at, updated_at)
+    values ($1, $2, $3, 'Servicio DB Test', 'PENDING', $4, now(), now())
+    `,
+    [serviceId, companyId, jobId, userId],
+  );
+  return { jobId, serviceId };
+}
+
 describeCriticalDb("critical database rules", () => {
   beforeAll(async () => {
     const { Client } = await new Function('return import("pg")')();
@@ -939,6 +959,121 @@ describeCriticalDb("critical database rules", () => {
         [companyId, customerId],
       );
       expect(Number(balance.rows[0].balance)).toBe(60);
+    });
+  });
+
+  it("permite vincular un remito de servicio solo con el mismo cliente registrado", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const customerId = await seedCustomer(companyId, "Cliente Servicio");
+      const { serviceId } = await seedServiceJobWithService(companyId, userId, customerId);
+      const documentId = crypto.randomUUID();
+
+      await client.query(
+        `insert into public.documents (
+          id, doc_type, status, point_of_sale, issue_date, subtotal, discount_total, total, tax_total,
+          customer_id, customer_name, customer_kind, service_id, created_by, created_at, updated_at, company_id
+        )
+        values ($1, 'REMITO', 'BORRADOR', 1, current_date, 0, 0, 0, 0, $2, 'Cliente Servicio', 'GENERAL', $3, $4, now(), now(), $5)`,
+        [documentId, customerId, serviceId, userId, companyId],
+      );
+
+      const saved = await client.query(`select service_id from public.documents where id = $1`, [documentId]);
+      expect(saved.rows[0].service_id).toBe(serviceId);
+    });
+  });
+
+  it("bloquea servicio con documento no remito, interno, sin cliente o de otro cliente", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const customerId = await seedCustomer(companyId, "Cliente Servicio");
+      const otherCustomerId = await seedCustomer(companyId, "Otro Cliente");
+      const { serviceId } = await seedServiceJobWithService(companyId, userId, customerId);
+
+      await expectDbRejection(
+        `insert into public.documents (
+          id, doc_type, status, point_of_sale, issue_date, subtotal, discount_total, total, tax_total,
+          customer_id, customer_name, customer_kind, service_id, created_by, created_at, updated_at, company_id
+        )
+        values ($1, 'PRESUPUESTO', 'BORRADOR', 1, current_date, 0, 0, 0, 0, $2, 'Cliente Servicio', 'GENERAL', $3, $4, now(), now(), $5)`,
+        [crypto.randomUUID(), customerId, serviceId, userId, companyId],
+      );
+
+      await expectDbRejection(
+        `insert into public.documents (
+          id, doc_type, status, point_of_sale, issue_date, subtotal, discount_total, total, tax_total,
+          customer_kind, technician_id, internal_remito_type, service_id, created_by, created_at, updated_at, company_id
+        )
+        values ($1, 'REMITO', 'BORRADOR', 1, current_date, 0, 0, 0, 0, 'INTERNO', $2, 'DESCUENTO_SUELDO', $3, $4, now(), now(), $5)`,
+        [crypto.randomUUID(), crypto.randomUUID(), serviceId, userId, companyId],
+      );
+
+      await expectDbRejection(
+        `insert into public.documents (
+          id, doc_type, status, point_of_sale, issue_date, subtotal, discount_total, total, tax_total,
+          customer_kind, service_id, created_by, created_at, updated_at, company_id
+        )
+        values ($1, 'REMITO', 'BORRADOR', 1, current_date, 0, 0, 0, 0, 'GENERAL', $2, $3, now(), now(), $4)`,
+        [crypto.randomUUID(), serviceId, userId, companyId],
+      );
+
+      await expectDbRejection(
+        `insert into public.documents (
+          id, doc_type, status, point_of_sale, issue_date, subtotal, discount_total, total, tax_total,
+          customer_id, customer_name, customer_kind, service_id, created_by, created_at, updated_at, company_id
+        )
+        values ($1, 'REMITO', 'BORRADOR', 1, current_date, 0, 0, 0, 0, $2, 'Otro Cliente', 'GENERAL', $3, $4, now(), now(), $5)`,
+        [crypto.randomUUID(), otherCustomerId, serviceId, userId, companyId],
+      );
+    });
+  });
+
+  it("bloquea servicios sin cliente registrado y cambios de cliente mientras el remito sigue vinculado", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const customerId = await seedCustomer(companyId, "Cliente Servicio");
+      const otherCustomerId = await seedCustomer(companyId, "Otro Cliente");
+      const { serviceId } = await seedServiceJobWithService(companyId, userId, customerId);
+      const { serviceId: orphanServiceId } = await seedServiceJobWithService(companyId, userId, null);
+      const documentId = crypto.randomUUID();
+
+      await expectDbRejection(
+        `insert into public.documents (
+          id, doc_type, status, point_of_sale, issue_date, subtotal, discount_total, total, tax_total,
+          customer_id, customer_name, customer_kind, service_id, created_by, created_at, updated_at, company_id
+        )
+        values ($1, 'REMITO', 'BORRADOR', 1, current_date, 0, 0, 0, 0, $2, 'Cliente Servicio', 'GENERAL', $3, $4, now(), now(), $5)`,
+        [crypto.randomUUID(), customerId, orphanServiceId, userId, companyId],
+      );
+
+      await client.query(
+        `insert into public.documents (
+          id, doc_type, status, point_of_sale, issue_date, subtotal, discount_total, total, tax_total,
+          customer_id, customer_name, customer_kind, service_id, created_by, created_at, updated_at, company_id
+        )
+        values ($1, 'REMITO', 'BORRADOR', 1, current_date, 0, 0, 0, 0, $2, 'Cliente Servicio', 'GENERAL', $3, $4, now(), now(), $5)`,
+        [documentId, customerId, serviceId, userId, companyId],
+      );
+
+      await expectDbRejection(
+        `update public.documents set customer_id = $1, customer_name = 'Otro Cliente' where id = $2`,
+        [otherCustomerId, documentId],
+      );
+
+      await client.query(`update public.documents set service_id = null where id = $1`, [documentId]);
+      await client.query(`update public.documents set customer_id = $1, customer_name = 'Otro Cliente' where id = $2`, [otherCustomerId, documentId]);
+      const saved = await client.query(`select customer_id, service_id from public.documents where id = $1`, [documentId]);
+      expect(saved.rows[0].customer_id).toBe(otherCustomerId);
+      expect(saved.rows[0].service_id).toBeNull();
     });
   });
 

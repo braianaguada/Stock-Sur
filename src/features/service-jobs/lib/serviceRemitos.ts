@@ -17,7 +17,17 @@ export type ServiceRemitoSummarySource = {
   estimatedCost: number;
 };
 
+export type ServiceLinkableRemitoInput = {
+  service_id?: string | null;
+  customer_id?: string | null;
+  customer_kind?: string | null;
+};
+
 export function buildServiceRemitoDraftPayload(input: ServiceRemitoDraftInput) {
+  if (!input.customerId) {
+    throw new Error("El trabajo necesita un cliente registrado para crear remitos de materiales");
+  }
+
   const uniqueTechnicianIds = Array.from(new Set(input.technicianIds.filter(Boolean)));
 
   return {
@@ -42,6 +52,10 @@ export function validateDocumentServiceLink(input: {
   docType: DocType;
   documentCompanyId: string;
   serviceCompanyId: string;
+  documentCustomerId?: string | null;
+  serviceCustomerId?: string | null;
+  customerKind?: string | null;
+  customerIsOccasional?: boolean | null;
 }) {
   if (input.docType !== "REMITO") {
     throw new Error("Solo los remitos pueden asociarse a servicios");
@@ -49,7 +63,32 @@ export function validateDocumentServiceLink(input: {
   if (input.documentCompanyId !== input.serviceCompanyId) {
     throw new Error("El servicio no pertenece a la empresa del documento");
   }
+  if (input.customerKind === "INTERNO") {
+    throw new Error("Un remito interno no puede asociarse a servicios");
+  }
+  if (!input.documentCustomerId) {
+    throw new Error("El remito asociado a un servicio requiere cliente registrado");
+  }
+  if (!input.serviceCustomerId) {
+    throw new Error("El servicio asociado no tiene cliente registrado");
+  }
+  if (input.documentCustomerId !== input.serviceCustomerId) {
+    throw new Error("El cliente del remito debe coincidir con el cliente del servicio");
+  }
+  if (input.customerIsOccasional) {
+    throw new Error("Un remito de cliente ocasional no puede asociarse a servicios");
+  }
   return true;
+}
+
+export function isLinkableRemitoForService(
+  remito: ServiceLinkableRemitoInput,
+  input: { serviceId: string; customerId?: string | null },
+) {
+  if (!input.customerId) return false;
+  if (remito.customer_kind === "INTERNO") return false;
+  if (remito.customer_id !== input.customerId) return false;
+  return remito.service_id === null || remito.service_id === undefined || remito.service_id === input.serviceId;
 }
 
 export function summarizeServiceRemitos(remitos: ServiceRemitoSummarySource[]) {
