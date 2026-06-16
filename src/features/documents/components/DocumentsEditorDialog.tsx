@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
@@ -107,9 +107,12 @@ export function DocumentsEditorDialog({
   const [itemSearch, setItemSearch] = useState("");
   const [comboQuantities, setComboQuantities] = useState<Record<string, string>>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const deferredItemSearch = useDeferredValue(itemSearch);
   const isReturn = documentForm.doc_type === "REMITO_DEVOLUCION";
   const isInternal = documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO";
+  const showTechnicianRequired = submitAttempted && isInternal && !documentForm.technician_id;
+  const showInternalTypeRequired = submitAttempted && isInternal && !documentForm.internal_remito_type;
   const filteredServiceOptions = useMemo(() => {
     return serviceOptions.filter((service) => service.customerId === documentForm.customer_id);
   }, [documentForm.customer_id, serviceOptions]);
@@ -163,6 +166,21 @@ export function DocumentsEditorDialog({
     setItemSearch("");
   };
 
+  useEffect(() => {
+    if (!open) setSubmitAttempted(false);
+  }, [open]);
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitAttempted(true);
+
+    if (isInternal && (!documentForm.technician_id || !documentForm.internal_remito_type)) {
+      return;
+    }
+
+    onSubmit();
+  };
+
   return (
     <EntityDialog
       open={open}
@@ -178,13 +196,7 @@ export function DocumentsEditorDialog({
       title={editingDocId ? (isReturn ? "Editar devolucion" : "Editar borrador") : "Nuevo documento"}
       contentClassName="!w-[min(98vw,1680px)] sm:!w-[min(98vw,1680px)] !max-w-[1680px] sm:!max-w-[1680px] max-h-[92vh] overflow-x-hidden overflow-y-auto"
     >
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSubmit();
-        }}
-        className="space-y-4"
-      >
+      <form onSubmit={handleSubmit} className="space-y-4">
         {isReturn ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             Devolucion de remito origen: <span className="font-semibold">{sourceDocumentLabel ?? "sin referencia visible"}</span>
@@ -382,6 +394,9 @@ export function DocumentsEditorDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                  {showTechnicianRequired ? (
+                    <p className="text-xs font-medium text-destructive">Selecciona un tecnico responsable para el remito interno.</p>
+                  ) : null}
                 </div> : null}
 
                 {documentForm.recipient_type === "OCCASIONAL" && !isInternal ? <div className="space-y-2 md:col-span-2">
@@ -491,6 +506,9 @@ export function DocumentsEditorDialog({
                         <SelectItem value="DESCUENTO_SUELDO">Descuento de sueldo</SelectItem>
                       </SelectContent>
                     </Select>
+                    {showInternalTypeRequired ? (
+                      <p className="text-xs font-medium text-destructive">Selecciona el tipo o motivo interno del remito.</p>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

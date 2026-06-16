@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import type { DocumentFormState } from "@/features/documents/types";
@@ -9,7 +9,9 @@ vi.mock("@/components/common/EntityDialog", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children }: { children: ReactNode }) => <button>{children}</button>,
+  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode }) => (
+    <button {...props}>{children}</button>
+  ),
 }));
 
 vi.mock("@/components/ui/collapsible", () => ({
@@ -50,7 +52,7 @@ const baseForm: DocumentFormState = {
   notes: "",
 };
 
-function renderDialog(documentForm: DocumentFormState) {
+function renderDialog(documentForm: DocumentFormState, onSubmit = vi.fn()) {
   render(
     <DocumentsEditorDialog
       open
@@ -71,11 +73,13 @@ function renderDialog(documentForm: DocumentFormState) {
       onAddItem={vi.fn()}
       onAddCombo={vi.fn()}
       removeLine={vi.fn()}
-      onSubmit={vi.fn()}
+      onSubmit={onSubmit}
       onResetDraftForm={vi.fn()}
       isSubmitting={false}
     />,
   );
+
+  return { onSubmit };
 }
 
 describe("DocumentsEditorDialog", () => {
@@ -114,5 +118,35 @@ describe("DocumentsEditorDialog", () => {
     expect(screen.getByText("Tecnico asociado")).toBeInTheDocument();
     expect(screen.getByText("Servicio asociado")).toBeInTheDocument();
     expect(screen.queryByText("Nombre ocasional")).not.toBeInTheDocument();
+  });
+
+  it("shows inline errors for internal remitos without technician or internal type", () => {
+    const { onSubmit } = renderDialog({
+      ...baseForm,
+      customer_kind: "INTERNO",
+      customer_name: "",
+      technician_id: "",
+      internal_remito_type: "",
+    });
+
+    fireEvent.submit(screen.getByRole("button", { name: "Guardar borrador" }).closest("form")!);
+
+    expect(screen.getByText("Selecciona un tecnico responsable para el remito interno.")).toBeInTheDocument();
+    expect(screen.getByText("Selecciona el tipo o motivo interno del remito.")).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("keeps submit enabled for valid internal remitos", () => {
+    const { onSubmit } = renderDialog({
+      ...baseForm,
+      customer_kind: "INTERNO",
+      customer_name: "",
+      technician_id: "technician-1",
+      internal_remito_type: "DESCUENTO_SUELDO",
+    });
+
+    fireEvent.submit(screen.getByRole("button", { name: "Guardar borrador" }).closest("form")!);
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 });
