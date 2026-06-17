@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import crypto from "node:crypto";
+import { Client } from "pg";
 
 const DEFAULT_DB_HOST = "db.tihjnbfdjnjobxxecuaz.supabase.co";
 const DB_PASSWORD = process.env.PGPASSWORD ?? "";
@@ -9,9 +10,32 @@ const DB_USER = process.env.PGUSER ?? "postgres";
 const DB_NAME = process.env.PGDATABASE ?? "postgres";
 const DATABASE_URL = process.env.DATABASE_URL;
 
-const describeCriticalDb = DB_PASSWORD ? describe : describe.skip;
+const describeCriticalDb = DATABASE_URL || DB_PASSWORD ? describe : describe.skip;
 
 let client: import("pg").Client;
+
+function shouldUseSsl(connectionString: string) {
+  const hostname = new URL(connectionString).hostname;
+  return !["127.0.0.1", "localhost", "::1"].includes(hostname);
+}
+
+async function createDbClient() {
+  const dbClient = DATABASE_URL
+    ? new Client({
+        connectionString: DATABASE_URL,
+        ssl: shouldUseSsl(DATABASE_URL) ? { rejectUnauthorized: false } : undefined,
+      })
+    : new Client({
+        host: DB_HOST,
+        port: DB_PORT,
+        user: DB_USER,
+        password: DB_PASSWORD,
+        database: DB_NAME,
+        ssl: { rejectUnauthorized: false },
+      });
+  await dbClient.connect();
+  return dbClient as import("pg").Client;
+}
 
 async function withRollback<T>(fn: () => Promise<T>): Promise<T> {
   await client.query("begin");
@@ -25,9 +49,9 @@ async function withRollback<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-async function setActor(userId: string) {
-  await client.query("select set_config('request.jwt.claim.sub', $1, false)", [userId]);
-  await client.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: userId, role: "authenticated" })]);
+async function setActor(userId: string, dbClient = client) {
+  await dbClient.query("select set_config('request.jwt.claim.sub', $1, false)", [userId]);
+  await dbClient.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: userId, role: "authenticated" })]);
 }
 
 async function expectDbRejection(query: string, params: unknown[] = []) {
@@ -53,14 +77,14 @@ async function seedUser(userId: string) {
   );
 }
 
-async function seedCompany(companyId: string) {
+async function seedCompany(companyId: string, status: "ACTIVE" | "INACTIVE" = "ACTIVE") {
   await client.query(
     `
     insert into public.companies (id, name, slug, status, created_at, updated_at)
-    values ($1, 'DB Test Co', $2, 'ACTIVE', now(), now())
-    on conflict (id) do nothing
+    values ($1, 'DB Test Co', $2, $3, now(), now())
+    on conflict (id) do update set status = excluded.status, updated_at = now()
     `,
-    [companyId, `db-test-${companyId.slice(0, 8)}`],
+    [companyId, `db-test-${companyId.slice(0, 8)}`, status],
   );
 }
 
@@ -86,17 +110,77 @@ async function seedPermission(companyUserId: string, code: string) {
   );
 }
 
-async function seedActor(companyId: string, userId: string) {
+async function seedActor(companyId: string, userId: string, status: "ACTIVE" | "INACTIVE" = "ACTIVE") {
   const companyUserId = crypto.randomUUID();
-  await client.query(
+  const inserted = await client.query(
     `
     insert into public.company_users (id, company_id, user_id, status, created_at, updated_at)
-    values ($1, $2, $3, 'ACTIVE', now(), now())
-    on conflict (company_id, user_id) do nothing
+    values ($1, $2, $3, $4, now(), now())
+    on conflict (company_id, user_id) do update set status = excluded.status, updated_at = now()
+    returning id
     `,
-    [companyUserId, companyId, userId],
+    [companyUserId, companyId, userId, status],
   );
-  return companyUserId;
+  return inserted.rows[0].id as string;
+}
+
+const SETTLEMENT_PERMISSIONS = [
+  "settlements.view",
+  "settlements.create",
+  "settlements.edit",
+  "settlements.submit",
+  "settlements.receive",
+  "settlements.cancel",
+];
+
+async function seedSettlementPermissions(companyUserId: string, permissions = SETTLEMENT_PERMISSIONS) {
+  for (const permission of permissions) {
+    await seedPermission(companyUserId, permission);
+  }
+}
+
+async function createSettlement(companyId: string, userId: string) {
+  const settlementId = crypto.randomUUID();
+  await client.query(
+    `
+    insert into public.settlements (
+      id, company_id, settlement_date, period_from, period_to, prepared_by_name, notes, created_by
+    )
+    values ($1, $2, current_date, current_date - interval '7 days', current_date, 'Preparador QA', 'Borrador QA', $3)
+    `,
+    [settlementId, companyId, userId],
+  );
+  return settlementId;
+}
+
+async function insertSettlementIncomeLine(settlementId: string, userId: string, cashAmount: number, otherAmount: number, displayOrder = 1) {
+  const lineId = crypto.randomUUID();
+  await client.query(
+    `
+    insert into public.settlement_income_lines (
+      id, settlement_id, line_date, work_order, receipt, quote, customer_name, concept,
+      cash_amount, other_amount, income_type, display_order, created_by
+    )
+    values ($1, $2, current_date, 'OT-1', 'REC-1', 'PRE-1', 'Cliente manual', 'Ingreso QA', $3, $4, 'COBRO', $5, $6)
+    `,
+    [lineId, settlementId, cashAmount, otherAmount, displayOrder, userId],
+  );
+  return lineId;
+}
+
+async function insertSettlementExpenseLine(settlementId: string, userId: string, cashAmount: number, otherAmount: number, displayOrder = 1) {
+  const lineId = crypto.randomUUID();
+  await client.query(
+    `
+    insert into public.settlement_expense_lines (
+      id, settlement_id, line_date, receipt, supplier_name, detail, purchase_order,
+      cash_amount, other_amount, display_order, created_by
+    )
+    values ($1, $2, current_date, 'COMP-1', 'Proveedor manual', 'Egreso QA', 'OC-1', $3, $4, $5, $6)
+    `,
+    [lineId, settlementId, cashAmount, otherAmount, displayOrder, userId],
+  );
+  return lineId;
 }
 
 async function seedItem(companyId: string, userId: string) {
@@ -145,25 +229,11 @@ async function seedServiceJobWithService(companyId: string, userId: string, cust
 
 describeCriticalDb("critical database rules", () => {
   beforeAll(async () => {
-    const { Client } = await new Function('return import("pg")')();
-    client = DATABASE_URL
-      ? new Client({
-          connectionString: DATABASE_URL,
-          ssl: { rejectUnauthorized: false },
-        })
-      : new Client({
-          host: DB_HOST,
-          port: DB_PORT,
-          user: DB_USER,
-          password: DB_PASSWORD,
-          database: DB_NAME,
-          ssl: { rejectUnauthorized: false },
-        });
-    await client.connect();
+    client = await createDbClient();
   });
 
   afterAll(async () => {
-    await client.end();
+    await client?.end();
   });
 
   it("mantiene RLS habilitado en todas las tablas con company_id", async () => {
@@ -1293,6 +1363,594 @@ describeCriticalDb("critical database rules", () => {
 
       const combos = await client.query(`select count(*)::int as count from public.product_combos where company_id = $1`, [companyId]);
       expect(combos.rows[0].count).toBe(0);
+    });
+  }, 15000);
+
+  it("permite CRUD de borrador de rendicion en empresa activa", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedSettlementPermissions(companyUserId, ["settlements.view", "settlements.create", "settlements.edit"]);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      const settlementId = await createSettlement(companyId, userId);
+      const incomeLineId = await insertSettlementIncomeLine(settlementId, userId, 100, 25);
+      const expenseLineId = await insertSettlementExpenseLine(settlementId, userId, 40, 10);
+
+      const updated = await client.query(`update public.settlements set notes = 'Borrador actualizado' where id = $1`, [settlementId]);
+      expect(updated.rowCount).toBe(1);
+
+      const deletedExpense = await client.query(`delete from public.settlement_expense_lines where id = $1`, [expenseLineId]);
+      expect(deletedExpense.rowCount).toBe(1);
+
+      const saved = await client.query(
+        `
+        select s.status, s.settlement_number, i.company_id, i.concept, i.cash_amount, i.other_amount
+        from public.settlements s
+        join public.settlement_income_lines i on i.settlement_id = s.id
+        where s.id = $1 and i.id = $2
+        `,
+        [settlementId, incomeLineId],
+      );
+      expect(saved.rows[0]).toMatchObject({
+        status: "DRAFT",
+        settlement_number: null,
+        company_id: companyId,
+        concept: "Ingreso QA",
+      });
+      expect(Number(saved.rows[0].cash_amount)).toBe(100);
+      expect(Number(saved.rows[0].other_amount)).toBe(25);
+    });
+  }, 15000);
+
+  it("mantiene created_by integro e impide mover detalles entre rendiciones", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const otherUserId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedUser(otherUserId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedSettlementPermissions(companyUserId, ["settlements.view", "settlements.create", "settlements.edit"]);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      const settlementA = await createSettlement(companyId, userId);
+      const settlementB = await createSettlement(companyId, userId);
+      const incomeLine = await insertSettlementIncomeLine(settlementA, userId, 100, 0);
+      const expenseLine = await insertSettlementExpenseLine(settlementA, userId, 10, 0);
+
+      await expectDbRejection(
+        `
+        insert into public.settlement_income_lines (id, settlement_id, line_date, concept, cash_amount, created_by)
+        values ($1, $2, current_date, 'Creador falso', 1, $3)
+        `,
+        [crypto.randomUUID(), settlementA, otherUserId],
+      );
+      await expectDbRejection(`update public.settlement_income_lines set created_by = $2 where id = $1`, [incomeLine, otherUserId]);
+      await expectDbRejection(`update public.settlement_income_lines set created_by = null where id = $1`, [incomeLine]);
+      await expectDbRejection(`update public.settlement_income_lines set settlement_id = $2 where id = $1`, [incomeLine, settlementB]);
+      await expectDbRejection(`update public.settlement_expense_lines set created_by = $2 where id = $1`, [expenseLine, otherUserId]);
+      await expectDbRejection(`update public.settlement_expense_lines set created_by = null where id = $1`, [expenseLine]);
+      await expectDbRejection(`update public.settlement_expense_lines set settlement_id = $2 where id = $1`, [expenseLine, settlementB]);
+
+      await client.query("reset role");
+      await client.query("select set_config('request.jwt.claim.sub', '', false)");
+      await client.query("select set_config('request.jwt.claims', '{}', false)");
+      await client.query(`delete from auth.users where id = $1`, [userId]);
+
+      const nulledCreators = await client.query(
+        `
+        select
+          s.created_by as settlement_created_by,
+          i.created_by as income_created_by,
+          e.created_by as expense_created_by
+        from public.settlements s
+        join public.settlement_income_lines i on i.settlement_id = s.id
+        join public.settlement_expense_lines e on e.settlement_id = s.id
+        where s.id = $1 and i.id = $2 and e.id = $3
+        `,
+        [settlementA, incomeLine, expenseLine],
+      );
+      expect(nulledCreators.rows[0]).toEqual({
+        settlement_created_by: null,
+        income_created_by: null,
+        expense_created_by: null,
+      });
+    });
+  }, 15000);
+
+  it("aisla rendiciones entre empresas", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyA = crypto.randomUUID();
+      const companyB = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyA);
+      await seedCompany(companyB);
+      const companyUserId = await seedActor(companyA, userId);
+      await seedSettlementPermissions(companyUserId, ["settlements.view", "settlements.create", "settlements.edit"]);
+
+      const settlementA = crypto.randomUUID();
+      const settlementB = crypto.randomUUID();
+      await client.query(
+        `
+        insert into public.settlements (id, company_id, settlement_date, notes, created_by)
+        values ($1, $2, current_date, 'A', $5), ($3, $4, current_date, 'B', $5)
+        `,
+        [settlementA, companyA, settlementB, companyB, userId],
+      );
+      const incomeA = await insertSettlementIncomeLine(settlementA, userId, 100, 0);
+      const incomeB = await insertSettlementIncomeLine(settlementB, userId, 200, 0);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      const visible = await client.query(`select id from public.settlements where id = any($1::uuid[]) order by notes`, [
+        [settlementA, settlementB],
+      ]);
+      expect(visible.rows.map((row) => row.id)).toEqual([settlementA]);
+
+      const visibleLines = await client.query(`select id from public.settlement_income_lines where id = any($1::uuid[])`, [
+        [incomeA, incomeB],
+      ]);
+      expect(visibleLines.rows.map((row) => row.id)).toEqual([incomeA]);
+
+      const hiddenTotals = await client.query(`select * from public.get_settlement_totals($1)`, [settlementB]);
+      expect(hiddenTotals.rowCount).toBe(0);
+
+      const crossCompanyUpdate = await client.query(`update public.settlements set notes = 'No permitido' where id = $1`, [settlementB]);
+      expect(crossCompanyUpdate.rowCount).toBe(0);
+
+      const crossCompanyLineUpdate = await client.query(`update public.settlement_income_lines set cash_amount = 1 where id = $1`, [incomeB]);
+      expect(crossCompanyLineUpdate.rowCount).toBe(0);
+
+      await expectDbRejection(
+        `
+        insert into public.settlements (id, company_id, settlement_date, created_by)
+        values ($1, $2, current_date, $3)
+        `,
+        [crypto.randomUUID(), companyB, userId],
+      );
+    });
+  }, 15000);
+
+  it("bloquea operaciones de rendiciones con empresa o membresia inactiva", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      const inactiveMembershipCompany = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId, "INACTIVE");
+      await seedCompany(inactiveMembershipCompany);
+      const companyUserId = await seedActor(companyId, userId);
+      const inactiveCompanyUserId = await seedActor(inactiveMembershipCompany, userId, "INACTIVE");
+      await seedSettlementPermissions(companyUserId);
+      await seedSettlementPermissions(inactiveCompanyUserId);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      await expectDbRejection(
+        `
+        insert into public.settlements (id, company_id, settlement_date, created_by)
+        values ($1, $2, current_date, $3)
+        `,
+        [crypto.randomUUID(), companyId, userId],
+      );
+
+      await expectDbRejection(
+        `
+        insert into public.settlements (id, company_id, settlement_date, created_by)
+        values ($1, $2, current_date, $3)
+        `,
+        [crypto.randomUUID(), inactiveMembershipCompany, userId],
+      );
+
+      await client.query("reset role");
+      const settlementId = crypto.randomUUID();
+      const inactiveMembershipSettlement = crypto.randomUUID();
+      await client.query(
+        `
+        insert into public.settlements (id, company_id, settlement_date, created_by)
+        values ($1, $2, current_date, $3)
+        `,
+        [settlementId, companyId, userId],
+      );
+      await client.query(
+        `
+        insert into public.settlements (id, company_id, settlement_date, prepared_by_name, created_by)
+        values ($1, $2, current_date, 'Preparador QA', $3)
+        `,
+        [inactiveMembershipSettlement, inactiveMembershipCompany, userId],
+      );
+      await client.query("set local role authenticated");
+
+      await expectDbRejection(`select public.submit_settlement($1)`, [settlementId]);
+      await expectDbRejection(`select public.submit_settlement($1)`, [inactiveMembershipSettlement]);
+    });
+  }, 15000);
+
+  it("exige permisos especificos de rendiciones por operacion", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      await expectDbRejection(
+        `
+        insert into public.settlements (id, company_id, settlement_date, created_by)
+        values ($1, $2, current_date, $3)
+        `,
+        [crypto.randomUUID(), companyId, userId],
+      );
+
+      await client.query("reset role");
+      await seedSettlementPermissions(companyUserId, ["settlements.view", "settlements.create"]);
+      await client.query("set local role authenticated");
+
+      const settlementId = await createSettlement(companyId, userId);
+
+      await expectDbRejection(
+        `
+        insert into public.settlement_income_lines (id, settlement_id, line_date, concept, cash_amount, created_by)
+        values ($1, $2, current_date, 'Sin permiso edit', 1, $3)
+        `,
+        [crypto.randomUUID(), settlementId, userId],
+      );
+      await expectDbRejection(`select public.submit_settlement($1)`, [settlementId]);
+      await expectDbRejection(`select public.receive_settlement($1, $2)`, [settlementId, "Mesa"]);
+      await expectDbRejection(`select public.cancel_settlement($1)`, [settlementId]);
+    });
+  }, 15000);
+
+  it("bloquea workflow directo y exige preparador para presentar", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedSettlementPermissions(companyUserId);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      await expectDbRejection(
+        `
+        insert into public.settlements (
+          id, company_id, settlement_date, status, settlement_number, submitted_by, submitted_at,
+          received_by_name, received_at, cancelled_by, cancelled_at, created_by
+        )
+        values ($1, $2, current_date, 'SUBMITTED', 99, $3, now(), 'Mesa', now(), $3, now(), $3)
+        `,
+        [crypto.randomUUID(), companyId, userId],
+      );
+      await expectDbRejection(
+        `
+        insert into public.settlements (
+          id, company_id, settlement_date, submitted_by, submitted_at,
+          received_by_name, received_at, cancelled_by, cancelled_at, created_by
+        )
+        values ($1, $2, current_date, $3, now(), 'Mesa', now(), $3, now(), $3)
+        `,
+        [crypto.randomUUID(), companyId, userId],
+      );
+
+      const settlementId = await createSettlement(companyId, userId);
+      const blankPreparedSettlement = crypto.randomUUID();
+      await client.query(
+        `
+        insert into public.settlements (id, company_id, settlement_date, created_by)
+        values ($1, $2, current_date, $3)
+        `,
+        [blankPreparedSettlement, companyId, userId],
+      );
+
+      await expectDbRejection(`update public.settlements set status = 'SUBMITTED' where id = $1`, [settlementId]);
+      await expectDbRejection(`update public.settlements set settlement_number = 7 where id = $1`, [settlementId]);
+      await expectDbRejection(`update public.settlements set submitted_by = $2, submitted_at = now() where id = $1`, [
+        settlementId,
+        userId,
+      ]);
+      await expectDbRejection(`update public.settlements set received_by_name = 'Mesa', received_at = now() where id = $1`, [
+        settlementId,
+      ]);
+      await expectDbRejection(`update public.settlements set cancelled_by = $2, cancelled_at = now() where id = $1`, [
+        settlementId,
+        userId,
+      ]);
+      await expectDbRejection(`select public.submit_settlement($1)`, [blankPreparedSettlement]);
+    });
+  }, 15000);
+
+  it("calcula totales de rendicion desde los detalles", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedSettlementPermissions(companyUserId, ["settlements.view", "settlements.create", "settlements.edit"]);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      const settlementId = await createSettlement(companyId, userId);
+      await insertSettlementIncomeLine(settlementId, userId, 100, 50, 1);
+      await insertSettlementIncomeLine(settlementId, userId, 25, 10, 2);
+      await insertSettlementExpenseLine(settlementId, userId, 30, 5, 1);
+      await insertSettlementExpenseLine(settlementId, userId, 10, 0, 2);
+
+      const totals = await client.query(`select * from public.get_settlement_totals($1)`, [settlementId]);
+      expect(totals.rowCount).toBe(1);
+      expect(Number(totals.rows[0].income_cash_total)).toBe(125);
+      expect(Number(totals.rows[0].income_other_total)).toBe(60);
+      expect(Number(totals.rows[0].income_total)).toBe(185);
+      expect(Number(totals.rows[0].expense_cash_total)).toBe(40);
+      expect(Number(totals.rows[0].expense_other_total)).toBe(5);
+      expect(Number(totals.rows[0].expense_total)).toBe(45);
+      expect(Number(totals.rows[0].settlement_total)).toBe(140);
+    });
+  }, 15000);
+
+  it("asigna numeros consecutivos por empresa al presentar rendiciones", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyA = crypto.randomUUID();
+      const companyB = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyA);
+      await seedCompany(companyB);
+      const companyUserA = await seedActor(companyA, userId);
+      const companyUserB = await seedActor(companyB, userId);
+      await seedSettlementPermissions(companyUserA, ["settlements.view", "settlements.create", "settlements.edit", "settlements.submit"]);
+      await seedSettlementPermissions(companyUserB, ["settlements.view", "settlements.create", "settlements.edit", "settlements.submit"]);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      const settlementA1 = await createSettlement(companyA, userId);
+      const settlementB1 = await createSettlement(companyB, userId);
+      const settlementA2 = await createSettlement(companyA, userId);
+
+      const submittedA1 = await client.query(`select settlement_number from public.submit_settlement($1)`, [settlementA1]);
+      const submittedB1 = await client.query(`select settlement_number from public.submit_settlement($1)`, [settlementB1]);
+      const submittedA2 = await client.query(`select settlement_number from public.submit_settlement($1)`, [settlementA2]);
+
+      expect(submittedA1.rows[0].settlement_number).toBe(1);
+      expect(submittedB1.rows[0].settlement_number).toBe(1);
+      expect(submittedA2.rows[0].settlement_number).toBe(2);
+    });
+  }, 15000);
+
+  it("asigna numeros consecutivos concurrentes e independientes por empresa", async () => {
+    const userId = crypto.randomUUID();
+    const companyA = crypto.randomUUID();
+    const companyB = crypto.randomUUID();
+    const settlementA1 = crypto.randomUUID();
+    const settlementA2 = crypto.randomUUID();
+    const settlementB1 = crypto.randomUUID();
+    const settlementB2 = crypto.randomUUID();
+    const createdIds = [settlementA1, settlementA2, settlementB1, settlementB2];
+
+    const submitWithClient = async (settlementId: string) => {
+      const dbClient = await createDbClient();
+      try {
+        await setActor(userId, dbClient);
+        await dbClient.query("set role authenticated");
+        const submitted = await dbClient.query(`select settlement_number from public.submit_settlement($1)`, [settlementId]);
+        return Number(submitted.rows[0].settlement_number);
+      } finally {
+        await dbClient.query("reset role").catch(() => undefined);
+        await dbClient.end();
+      }
+    };
+
+    try {
+      await seedUser(userId);
+      await seedCompany(companyA);
+      await seedCompany(companyB);
+      const companyUserA = await seedActor(companyA, userId);
+      const companyUserB = await seedActor(companyB, userId);
+      await seedSettlementPermissions(companyUserA, ["settlements.view", "settlements.create", "settlements.edit", "settlements.submit"]);
+      await seedSettlementPermissions(companyUserB, ["settlements.view", "settlements.create", "settlements.edit", "settlements.submit"]);
+      await client.query(
+        `
+        insert into public.settlements (id, company_id, settlement_date, prepared_by_name, created_by)
+        values
+          ($1, $5, current_date, 'Preparador QA', $7),
+          ($2, $5, current_date, 'Preparador QA', $7),
+          ($3, $6, current_date, 'Preparador QA', $7),
+          ($4, $6, current_date, 'Preparador QA', $7)
+        `,
+        [settlementA1, settlementA2, settlementB1, settlementB2, companyA, companyB, userId],
+      );
+
+      const [numberA1, numberA2, numberB1, numberB2] = await Promise.all([
+        submitWithClient(settlementA1),
+        submitWithClient(settlementA2),
+        submitWithClient(settlementB1),
+        submitWithClient(settlementB2),
+      ]);
+
+      expect([numberA1, numberA2].sort()).toEqual([1, 2]);
+      expect([numberB1, numberB2].sort()).toEqual([1, 2]);
+    } finally {
+      await client.query(`delete from public.settlements where id = any($1::uuid[])`, [createdIds]).catch(() => undefined);
+      await client.query(`delete from public.company_users where company_id = any($1::uuid[])`, [[companyA, companyB]]).catch(() => undefined);
+      await client.query(`delete from public.companies where id = any($1::uuid[])`, [[companyA, companyB]]).catch(() => undefined);
+      await client.query(`delete from auth.users where id = $1`, [userId]).catch(() => undefined);
+    }
+  }, 30000);
+
+  it("bloquea edicion de detalles fuera de borrador", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedSettlementPermissions(companyUserId, ["settlements.view", "settlements.create", "settlements.edit", "settlements.submit"]);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      const settlementId = await createSettlement(companyId, userId);
+      const lineId = await insertSettlementIncomeLine(settlementId, userId, 80, 20);
+      await client.query(`select public.submit_settlement($1)`, [settlementId]);
+
+      await expectDbRejection(
+        `
+        insert into public.settlement_income_lines (id, settlement_id, line_date, concept, cash_amount, other_amount, created_by)
+        values ($1, $2, current_date, 'No permitido', 1, 0, $3)
+        `,
+        [crypto.randomUUID(), settlementId, userId],
+      );
+
+      const updated = await client.query(`update public.settlement_income_lines set cash_amount = 1 where id = $1`, [lineId]);
+      expect(updated.rowCount).toBe(0);
+
+      const deleted = await client.query(`delete from public.settlement_income_lines where id = $1`, [lineId]);
+      expect(deleted.rowCount).toBe(0);
+
+      await client.query(`select public.cancel_settlement($1)`, [settlementId]);
+      await expectDbRejection(
+        `
+        insert into public.settlement_expense_lines (id, settlement_id, line_date, detail, cash_amount, created_by)
+        values ($1, $2, current_date, 'No permitido', 1, $3)
+        `,
+        [crypto.randomUUID(), settlementId, userId],
+      );
+    });
+  }, 15000);
+
+  it("registra receptor y fecha al recibir una rendicion", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedSettlementPermissions(companyUserId, [
+        "settlements.view",
+        "settlements.create",
+        "settlements.edit",
+        "settlements.submit",
+        "settlements.receive",
+      ]);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      const settlementId = await createSettlement(companyId, userId);
+      await client.query(`select public.submit_settlement($1)`, [settlementId]);
+      const received = await client.query(`select status, received_by_name, received_at from public.receive_settlement($1, $2)`, [
+        settlementId,
+        "Mesa de entrada",
+      ]);
+
+      expect(received.rows[0].status).toBe("RECEIVED");
+      expect(received.rows[0].received_by_name).toBe("Mesa de entrada");
+      expect(received.rows[0].received_at).toBeTruthy();
+
+      const updated = await client.query(`update public.settlements set notes = 'No permitido' where id = $1`, [settlementId]);
+      expect(updated.rowCount).toBe(0);
+    });
+  }, 15000);
+
+  it("anula rendiciones conservando datos y numero asignado", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedSettlementPermissions(companyUserId);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      const settlementId = await createSettlement(companyId, userId);
+      await insertSettlementIncomeLine(settlementId, userId, 200, 30);
+      const submitted = await client.query(`select settlement_number from public.submit_settlement($1)`, [settlementId]);
+      const cancelled = await client.query(`select status, settlement_number, cancelled_at from public.cancel_settlement($1)`, [settlementId]);
+      const lines = await client.query(
+        `select count(*)::int as count, coalesce(sum(cash_amount + other_amount), 0)::numeric as total from public.settlement_income_lines where settlement_id = $1`,
+        [settlementId],
+      );
+
+      expect(cancelled.rows[0].status).toBe("CANCELLED");
+      expect(cancelled.rows[0].settlement_number).toBe(submitted.rows[0].settlement_number);
+      expect(cancelled.rows[0].cancelled_at).toBeTruthy();
+      expect(lines.rows[0].count).toBe(1);
+      expect(Number(lines.rows[0].total)).toBe(230);
+
+      const updated = await client.query(`update public.settlements set notes = 'No permitido' where id = $1`, [settlementId]);
+      expect(updated.rowCount).toBe(0);
+    });
+  }, 15000);
+
+  it("no crea registros en caja, stock, cuenta corriente, documentos, trabajos ni facturacion", async () => {
+    const sideEffectTables = [
+      "cash_closures",
+      "cash_sales",
+      "cash_expenses",
+      "cash_adjustments",
+      "stock_movements",
+      "customer_account_entries",
+      "documents",
+      "service_jobs",
+      "service_documents",
+      "billing_documents",
+      "billing_events",
+    ];
+
+    async function readCounts(companyId: string) {
+      const counts: Record<string, number> = {};
+      for (const table of sideEffectTables) {
+        const result = await client.query(`select count(*)::int as count from public.${table} where company_id = $1`, [companyId]);
+        counts[table] = result.rows[0].count;
+      }
+      return counts;
+    }
+
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedSettlementPermissions(companyUserId);
+
+      const beforeCounts = await readCounts(companyId);
+
+      await setActor(userId);
+      await client.query("set local role authenticated");
+
+      const settlementId = await createSettlement(companyId, userId);
+      await insertSettlementIncomeLine(settlementId, userId, 120, 40);
+      await insertSettlementExpenseLine(settlementId, userId, 50, 5);
+      await client.query(`select public.submit_settlement($1)`, [settlementId]);
+      await client.query(`select public.receive_settlement($1, $2)`, [settlementId, "Administracion"]);
+      await client.query(`select public.cancel_settlement($1)`, [settlementId]);
+
+      await client.query("reset role");
+      const afterCounts = await readCounts(companyId);
+
+      expect(afterCounts).toEqual(beforeCounts);
     });
   }, 15000);
 

@@ -15,6 +15,23 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 - Esta implementacion mantiene la dependencia legacy de roles globales en `user_roles`; el modelo nuevo por empresa se recarga desde membresias, roles y permisos efectivos.
 - Validaciones esperadas para cambios en esta zona: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build` y `git diff --check`.
 
+## Rendiciones
+
+Rendiciones queda preparado como modulo generico por empresa, disponible para cualquier empresa activa y aislado por `company_id`.
+
+- Migraciones: `supabase/migrations/20260617120000_settlements_base.sql`, `supabase/migrations/20260617130000_settlements_hardening.sql` y `supabase/migrations/20260617140000_settlements_created_by_nullable.sql`.
+- Tablas nuevas: `settlements`, `settlement_income_lines` y `settlement_expense_lines`.
+- Estados: `DRAFT`, `SUBMITTED`, `RECEIVED` y `CANCELLED`.
+- El numero de rendicion es consecutivo por empresa y se asigna al presentar con `submit_settlement`, no al crear el borrador.
+- Los ingresos y egresos son cargas manuales propias del modulo. Cliente y proveedor son texto libre; no son relaciones obligatorias.
+- Los totales se calculan desde los detalles con `get_settlement_totals`: efectivo, otros medios, totales de ingresos, egresos y total neto de rendicion.
+- El frontend no debe enviar totales arbitrarios como fuente de verdad.
+- RPCs operativas: `submit_settlement`, `receive_settlement` y `cancel_settlement`.
+- RLS valida empresa activa, membresia y permisos `settlements.*`; los detalles solo se pueden modificar mientras la rendicion esta en `DRAFT`.
+- Los campos de presentacion, recepcion y anulacion solo pueden cambiar por RPC; `created_by` de ingresos/egresos se completa obligatoriamente con `auth.uid()` al insertar, queda inmutable para usuarios y se mantiene nullable para respetar los FK `ON DELETE SET NULL`.
+- El modulo no lee, crea ni modifica Caja, ventas, gastos de Caja, cierres, Totales, cuenta corriente, documentos, stock, trabajos ni facturacion.
+- Origen verificado de `supabase/migrations/20260616150000_active_company_operational_guards.sql`: commit `de4b985 Harden active company operational guards`; el diff normalizado contra ese commit no tiene cambios locales. En staging, `npx supabase migration list --linked` muestra aplicada la version `20260616150000` con fecha `2026-06-16 15:00:00`.
+
 ## Desarrollo local
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
