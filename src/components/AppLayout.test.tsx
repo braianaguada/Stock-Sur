@@ -19,7 +19,6 @@ let authState = {
   loading: false,
   switchingCompany: false,
   switchCompany: vi.fn(),
-  setCurrentCompanyId: vi.fn(),
 };
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -51,7 +50,6 @@ describe("AppLayout", () => {
       loading: false,
       switchingCompany: false,
       switchCompany: vi.fn(),
-      setCurrentCompanyId: vi.fn(),
     };
   });
 

@@ -44,7 +44,6 @@ interface AuthContextType {
   impersonationMeta: ImpersonationMeta | null;
   loading: boolean;
   switchingCompany: boolean;
-  setCurrentCompanyId: (companyId: string) => void;
   switchCompany: (companyId: string) => Promise<CompanySummary>;
   refreshCompanies: () => Promise<void>;
   startImpersonation: (params: { targetUserId: string; targetEmail?: string | null; reason?: string }) => Promise<void>;
@@ -66,7 +65,6 @@ const AuthContext = createContext<AuthContextType>({
   impersonationMeta: null,
   loading: true,
   switchingCompany: false,
-  setCurrentCompanyId: () => {},
   switchCompany: async () => {
     throw new Error("No hay una sesion activa.");
   },
@@ -148,11 +146,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   }, [clearAuthState]);
-
-  const setCurrentCompanyId = (companyId: string) => {
-    setCurrentCompanyIdState(companyId);
-    persistCurrentCompanyId(effectiveUser?.id, companyId);
-  };
 
   const applyAuthSnapshot = useCallback((nextState: NonNullable<Awaited<ReturnType<typeof loadAuthStateSnapshot>>>) => {
     setEffectiveUser(nextState.effectiveUser);
@@ -378,7 +371,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         impersonationMeta,
         loading,
         switchingCompany,
-        setCurrentCompanyId,
         switchCompany,
         refreshCompanies,
         startImpersonation,

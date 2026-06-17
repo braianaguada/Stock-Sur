@@ -66,6 +66,8 @@ export function AppSidebar() {
         description: `Ahora operas con ${nextCompany.name}.`,
       });
     } catch (error) {
+      queryClient.clear();
+      navigate("/", { replace: true });
       toast({
         title: "No se pudo cambiar de empresa",
         description: getErrorMessage(error),
