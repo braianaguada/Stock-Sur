@@ -45,6 +45,7 @@ vi.mock("./pages/Technicians", () => ({ default: () => <div>route:technicians</d
 vi.mock("./pages/CashTotals", () => ({ default: () => <div>route:cash-totals</div> }));
 vi.mock("./pages/PrintServiceDocument", () => ({ default: () => <div>route:print-service-document</div> }));
 vi.mock("./pages/Cash", () => ({ default: () => <div>route:cash</div> }));
+vi.mock("./pages/Settlements", () => ({ default: () => <div>route:settlements</div> }));
 vi.mock("./pages/Customers", () => ({ default: () => <div>route:customers</div> }));
 vi.mock("./pages/Users", () => ({ default: () => <div>route:users</div> }));
 vi.mock("./pages/LegacyCatalogImport", () => ({ default: () => <div>route:legacy-import</div> }));
@@ -76,6 +77,7 @@ describe("App route smoke test", () => {
     ["/service-jobs", "route:service-jobs"],
     ["/print/service-document/document-1", "route:print-service-document"],
     ["/cash", "route:cash"],
+    ["/settlements", "route:settlements"],
     ["/cash-totals", "route:cash-totals"],
     ["/customers", "route:customers"],
     ["/customer-account", "route:customer-account"],

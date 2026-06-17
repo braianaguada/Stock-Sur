@@ -29,6 +29,9 @@ Rendiciones queda preparado como modulo generico por empresa, disponible para cu
 - RPCs operativas: `submit_settlement`, `receive_settlement` y `cancel_settlement`.
 - RLS valida empresa activa, membresia y permisos `settlements.*`; los detalles solo se pueden modificar mientras la rendicion esta en `DRAFT`.
 - Los campos de presentacion, recepcion y anulacion solo pueden cambiar por RPC; `created_by` de ingresos/egresos se completa obligatoriamente con `auth.uid()` al insertar, queda inmutable para usuarios y se mantiene nullable para respetar los FK `ON DELETE SET NULL`.
+- UI MVP: `/settlements` queda en la navegacion para usuarios con permiso de vista; permite listar por empresa activa, crear/editar borradores, cargar ingresos y egresos manuales, ver totales automaticos, presentar, recibir y anular con confirmacion.
+- Las query keys de Rendiciones siempre incluyen `companyId` y el cambio de empresa limpia seleccion, encabezado y lineas locales para no reutilizar datos de otra empresa.
+- La UI bloquea la edicion fuera de `DRAFT`; los cambios de workflow usan exclusivamente las RPCs `submit_settlement`, `receive_settlement` y `cancel_settlement`.
 - El modulo no lee, crea ni modifica Caja, ventas, gastos de Caja, cierres, Totales, cuenta corriente, documentos, stock, trabajos ni facturacion.
 - Origen verificado de `supabase/migrations/20260616150000_active_company_operational_guards.sql`: commit `de4b985 Harden active company operational guards`; el diff normalizado contra ese commit no tiene cambios locales. En staging, `npx supabase migration list --linked` muestra aplicada la version `20260616150000` con fecha `2026-06-16 15:00:00`.
 
