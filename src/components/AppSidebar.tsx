@@ -1,4 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StockSurMark } from "@/components/StockSurMark";
@@ -33,6 +34,8 @@ const navItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const {
     signOut,
@@ -43,12 +46,35 @@ export function AppSidebar() {
     currentCompany,
     companyRoleCodes,
     companyPermissionCodes,
-    setCurrentCompanyId,
+    switchCompany,
+    switchingCompany,
     isImpersonating,
     impersonationMeta,
     stopImpersonation,
   } = useAuth();
   const { settings } = useCompanyBrand();
+
+  const handleCompanyChange = async (companyId: string) => {
+    if (!companyId || companyId === currentCompany?.id || switchingCompany) return;
+
+    try {
+      const nextCompany = await switchCompany(companyId);
+      queryClient.clear();
+      navigate("/", { replace: true });
+      toast({
+        title: "Empresa activa actualizada",
+        description: `Ahora operas con ${nextCompany.name}.`,
+      });
+    } catch (error) {
+      queryClient.clear();
+      navigate("/", { replace: true });
+      toast({
+        title: "No se pudo cambiar de empresa",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleStopImpersonation = async () => {
     try {
@@ -74,7 +100,6 @@ export function AppSidebar() {
     }
     return true;
   });
-  const canChangeCompany = canManageUsers(roles);
 
   const userInitial = (user?.email?.[0] ?? currentCompany?.name?.[0] ?? "S").toUpperCase();
 
@@ -125,11 +150,15 @@ export function AppSidebar() {
                 Empresa activa
               </div>
 
-              {canChangeCompany && companies.length > 1 ? (
+              {companies.length > 1 ? (
                 <div className="w-[230px] max-w-full">
-                  <Select value={currentCompany?.id ?? undefined} onValueChange={setCurrentCompanyId}>
+                  <Select
+                    value={currentCompany?.id ?? undefined}
+                    onValueChange={(companyId) => void handleCompanyChange(companyId)}
+                    disabled={switchingCompany}
+                  >
                     <SelectTrigger className="h-10 rounded-full border-border/55 bg-card/66 px-3.5 text-sm shadow-none hover:bg-accent/45">
-                      <SelectValue placeholder="Seleccionar empresa" />
+                      <SelectValue placeholder={switchingCompany ? "Cambiando empresa..." : "Seleccionar empresa"} />
                     </SelectTrigger>
                     <SelectContent>
                       {companies.map((company) => (
@@ -139,6 +168,18 @@ export function AppSidebar() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              ) : null}
+
+              {companies.length === 1 && currentCompany ? (
+                <div className="max-w-[260px] truncate rounded-full border border-border/55 bg-card/66 px-3.5 py-2 text-sm font-medium text-foreground shadow-none">
+                  {currentCompany.name}
+                </div>
+              ) : null}
+
+              {companies.length === 0 ? (
+                <div className="max-w-[260px] truncate rounded-full border border-destructive/25 bg-destructive/10 px-3.5 py-2 text-sm font-medium text-destructive">
+                  Sin empresa activa
                 </div>
               ) : null}
 

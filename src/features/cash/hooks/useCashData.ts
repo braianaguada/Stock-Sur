@@ -202,17 +202,17 @@ export function useCashData({
   });
 
   const linkedDocumentQuery = useQuery({
-    queryKey: queryKeys.cash.linkedDocument(detailDocumentId ?? detailReceiptReference),
-    enabled: Boolean(detailDocumentId || detailReceiptReference),
+    queryKey: queryKeys.cash.linkedDocument(currentCompanyId, detailDocumentId ?? detailReceiptReference),
+    enabled: Boolean(currentCompanyId && (detailDocumentId || detailReceiptReference)),
     queryFn: async () => {
       const baseQuery = supabase
         .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_name, total, notes, external_invoice_number, external_invoice_status");
+        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_name, total, notes, external_invoice_number, external_invoice_status")
+        .eq("company_id", currentCompanyId!);
 
       const query = detailDocumentId
         ? baseQuery.eq("id", detailDocumentId)
         : baseQuery
-          .eq("company_id", currentCompanyId!)
           .eq("doc_type", "REMITO")
           .eq("external_invoice_status", "ACTIVE")
           .eq("external_invoice_number", detailReceiptReference!);
@@ -225,8 +225,8 @@ export function useCashData({
   });
 
   const linkedDocumentLinesQuery = useQuery({
-    queryKey: queryKeys.cash.linkedDocumentLines(detailDocumentId),
-    enabled: Boolean(detailDocumentId),
+    queryKey: queryKeys.cash.linkedDocumentLines(currentCompanyId, detailDocumentId),
+    enabled: Boolean(currentCompanyId && detailDocumentId),
     queryFn: async () => {
       if (!detailDocumentId) return [];
       const { data, error } = await supabase
@@ -241,8 +241,8 @@ export function useCashData({
   });
 
   const linkedDocumentEventsQuery = useQuery({
-    queryKey: queryKeys.cash.linkedDocumentEvents(detailDocumentId),
-    enabled: Boolean(detailDocumentId),
+    queryKey: queryKeys.cash.linkedDocumentEvents(currentCompanyId, detailDocumentId),
+    enabled: Boolean(currentCompanyId && detailDocumentId),
     queryFn: async () => {
       if (!detailDocumentId) return [];
       const { data, error } = await supabase

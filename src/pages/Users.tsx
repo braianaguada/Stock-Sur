@@ -31,7 +31,7 @@ function UsersDialogLoader() {
 }
 
 export default function UsersPage() {
-  const { roles, actorUser, impersonationMeta, refreshCompanies, setCurrentCompanyId, startImpersonation } = useAuth();
+  const { roles, actorUser, impersonationMeta, refreshCompanies, switchCompany, startImpersonation } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [createCompanyOpen, setCreateCompanyOpen] = useState(false);
@@ -72,7 +72,7 @@ export default function UsersPage() {
         refreshCompanies(),
         queryClient.invalidateQueries({ queryKey: ["users-company-options"] }),
       ]);
-      setCurrentCompanyId(company.id);
+      await switchCompany(company.id);
       setCreateCompanyOpen(false);
       toast({
         title: "Empresa creada",

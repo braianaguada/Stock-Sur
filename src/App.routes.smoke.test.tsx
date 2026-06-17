@@ -14,7 +14,8 @@ vi.mock("@/contexts/AuthContext", () => ({
     companyRoleCodes: [],
     companyPermissionCodes: [],
     isAdmin: true,
-    setCurrentCompanyId: vi.fn(),
+    switchCompany: vi.fn(),
+    switchingCompany: false,
     signOut: vi.fn(),
   }),
 }));

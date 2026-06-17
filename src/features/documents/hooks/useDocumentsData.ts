@@ -258,8 +258,8 @@ export function useDocumentsData({
   );
 
   const { data: selectedDocument = null } = useQuery({
-    queryKey: ["documents", "detail", selectedDocId],
-    enabled: Boolean(selectedDocId),
+    queryKey: queryKeys.documents.detail(currentCompanyId, selectedDocId),
+    enabled: Boolean(currentCompanyId && selectedDocId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("documents")
@@ -273,8 +273,8 @@ export function useDocumentsData({
   });
 
   const { data: selectedLines = [] } = useQuery({
-    queryKey: queryKeys.documents.lines(selectedDocId),
-    enabled: !!selectedDocId,
+    queryKey: queryKeys.documents.lines(currentCompanyId, selectedDocId),
+    enabled: Boolean(currentCompanyId && selectedDocId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("document_lines")
@@ -287,8 +287,8 @@ export function useDocumentsData({
   });
 
   const { data: selectedEvents = [] } = useQuery({
-    queryKey: queryKeys.documents.events(selectedDocId),
-    enabled: !!selectedDocId,
+    queryKey: queryKeys.documents.events(currentCompanyId, selectedDocId),
+    enabled: Boolean(currentCompanyId && selectedDocId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("document_events")

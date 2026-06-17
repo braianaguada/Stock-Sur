@@ -94,10 +94,10 @@ export function useBillingDocuments(companyId: string | null) {
   });
 }
 
-export function useBillingDocumentLines(documentId: string | null) {
+export function useBillingDocumentLines(companyId: string | null, documentId: string | null) {
   return useQuery({
-    queryKey: queryKeys.billing.lines(documentId),
-    enabled: billingFeatureEnabled && Boolean(documentId),
+    queryKey: queryKeys.billing.lines(companyId, documentId),
+    enabled: billingFeatureEnabled && Boolean(companyId && documentId),
     queryFn: async () => {
       const { data, error } = await billingDb
         .from("billing_document_lines")

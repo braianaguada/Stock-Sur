@@ -4,6 +4,17 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Selector de empresa activa
+
+- La empresa activa se resuelve desde empresas activas disponibles para el usuario: membresias activas para usuarios normales y empresas activas operables para superadmin.
+- Con una sola empresa se selecciona automaticamente y se muestra su nombre sin dropdown. Con varias empresas se muestra el selector en el encabezado, tambien en mobile.
+- La empresa recordada se guarda por usuario con `stock-sur.current-company-id.<user_id>`; si deja de ser valida se descarta y se usa la primera empresa activa disponible.
+- El cambio seguro valida acceso antes de operar, recarga roles/permisos efectivos, limpia cache dependiente de empresa, redirige a `/` y evita reutilizar datos de la empresa anterior.
+- Si el usuario no tiene ninguna empresa activa disponible, la app muestra `Tu usuario no tiene acceso a ninguna empresa activa.` y bloquea los modulos operativos.
+- Las empresas inactivas quedan fuera del contexto operativo. La administracion de empresas, miembros y roles se resuelve en una fase separada.
+- Esta implementacion mantiene la dependencia legacy de roles globales en `user_roles`; el modelo nuevo por empresa se recarga desde membresias, roles y permisos efectivos.
+- Validaciones esperadas para cambios en esta zona: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build` y `git diff --check`.
+
 ## Desarrollo local
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)

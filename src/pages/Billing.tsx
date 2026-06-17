@@ -99,7 +99,7 @@ export default function BillingPage() {
     [documents],
   );
   const remitosQuery = useBillingRemitoReferences(currentCompany?.id ?? null, remitoIds);
-  const linesQuery = useBillingDocumentLines(selectedDocument?.id ?? null);
+  const linesQuery = useBillingDocumentLines(currentCompany?.id ?? null, selectedDocument?.id ?? null);
   const authorizationPending = authorizeBillingDocumentMutation.isPending;
   const creditNotePending = createBillingCreditNoteMutation.isPending;
   const resetPending = resetStaleAuthorizationMutation.isPending;
