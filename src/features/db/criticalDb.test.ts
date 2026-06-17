@@ -14,11 +14,16 @@ const describeCriticalDb = DATABASE_URL || DB_PASSWORD ? describe : describe.ski
 
 let client: import("pg").Client;
 
+function shouldUseSsl(connectionString: string) {
+  const hostname = new URL(connectionString).hostname;
+  return !["127.0.0.1", "localhost", "::1"].includes(hostname);
+}
+
 async function createDbClient() {
   const dbClient = DATABASE_URL
     ? new Client({
         connectionString: DATABASE_URL,
-        ssl: { rejectUnauthorized: false },
+        ssl: shouldUseSsl(DATABASE_URL) ? { rejectUnauthorized: false } : undefined,
       })
     : new Client({
         host: DB_HOST,
@@ -1430,9 +1435,35 @@ describeCriticalDb("critical database rules", () => {
         [crypto.randomUUID(), settlementA, otherUserId],
       );
       await expectDbRejection(`update public.settlement_income_lines set created_by = $2 where id = $1`, [incomeLine, otherUserId]);
+      await expectDbRejection(`update public.settlement_income_lines set created_by = null where id = $1`, [incomeLine]);
       await expectDbRejection(`update public.settlement_income_lines set settlement_id = $2 where id = $1`, [incomeLine, settlementB]);
       await expectDbRejection(`update public.settlement_expense_lines set created_by = $2 where id = $1`, [expenseLine, otherUserId]);
+      await expectDbRejection(`update public.settlement_expense_lines set created_by = null where id = $1`, [expenseLine]);
       await expectDbRejection(`update public.settlement_expense_lines set settlement_id = $2 where id = $1`, [expenseLine, settlementB]);
+
+      await client.query("reset role");
+      await client.query("select set_config('request.jwt.claim.sub', '', false)");
+      await client.query("select set_config('request.jwt.claims', '{}', false)");
+      await client.query(`delete from auth.users where id = $1`, [userId]);
+
+      const nulledCreators = await client.query(
+        `
+        select
+          s.created_by as settlement_created_by,
+          i.created_by as income_created_by,
+          e.created_by as expense_created_by
+        from public.settlements s
+        join public.settlement_income_lines i on i.settlement_id = s.id
+        join public.settlement_expense_lines e on e.settlement_id = s.id
+        where s.id = $1 and i.id = $2 and e.id = $3
+        `,
+        [settlementA, incomeLine, expenseLine],
+      );
+      expect(nulledCreators.rows[0]).toEqual({
+        settlement_created_by: null,
+        income_created_by: null,
+        expense_created_by: null,
+      });
     });
   }, 15000);
 
