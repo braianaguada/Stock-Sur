@@ -15,6 +15,21 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 - Esta implementacion mantiene la dependencia legacy de roles globales en `user_roles`; el modelo nuevo por empresa se recarga desde membresias, roles y permisos efectivos.
 - Validaciones esperadas para cambios en esta zona: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build` y `git diff --check`.
 
+## Rendiciones
+
+Rendiciones queda preparado como modulo generico por empresa, disponible para cualquier empresa activa y aislado por `company_id`.
+
+- Migracion base: `supabase/migrations/20260617120000_settlements_base.sql`.
+- Tablas nuevas: `settlements`, `settlement_income_lines` y `settlement_expense_lines`.
+- Estados: `DRAFT`, `SUBMITTED`, `RECEIVED` y `CANCELLED`.
+- El numero de rendicion es consecutivo por empresa y se asigna al presentar con `submit_settlement`, no al crear el borrador.
+- Los ingresos y egresos son cargas manuales propias del modulo. Cliente y proveedor son texto libre; no son relaciones obligatorias.
+- Los totales se calculan desde los detalles con `get_settlement_totals`: efectivo, otros medios, totales de ingresos, egresos y total neto de rendicion.
+- El frontend no debe enviar totales arbitrarios como fuente de verdad.
+- RPCs operativas: `submit_settlement`, `receive_settlement` y `cancel_settlement`.
+- RLS valida empresa activa, membresia y permisos `settlements.*`; los detalles solo se pueden modificar mientras la rendicion esta en `DRAFT`.
+- El modulo no lee, crea ni modifica Caja, ventas, gastos de Caja, cierres, Totales, cuenta corriente, documentos, stock, trabajos ni facturacion.
+
 ## Desarrollo local
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
