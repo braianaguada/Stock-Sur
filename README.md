@@ -19,7 +19,7 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 
 Rendiciones queda preparado como modulo generico por empresa, disponible para cualquier empresa activa y aislado por `company_id`.
 
-- Migracion base: `supabase/migrations/20260617120000_settlements_base.sql`.
+- Migraciones: `supabase/migrations/20260617120000_settlements_base.sql` y `supabase/migrations/20260617130000_settlements_hardening.sql`.
 - Tablas nuevas: `settlements`, `settlement_income_lines` y `settlement_expense_lines`.
 - Estados: `DRAFT`, `SUBMITTED`, `RECEIVED` y `CANCELLED`.
 - El numero de rendicion es consecutivo por empresa y se asigna al presentar con `submit_settlement`, no al crear el borrador.
@@ -28,6 +28,7 @@ Rendiciones queda preparado como modulo generico por empresa, disponible para cu
 - El frontend no debe enviar totales arbitrarios como fuente de verdad.
 - RPCs operativas: `submit_settlement`, `receive_settlement` y `cancel_settlement`.
 - RLS valida empresa activa, membresia y permisos `settlements.*`; los detalles solo se pueden modificar mientras la rendicion esta en `DRAFT`.
+- Los campos de presentacion, recepcion y anulacion solo pueden cambiar por RPC; `created_by` de ingresos/egresos es obligatorio e inmutable y no se puede mover un detalle a otra rendicion.
 - El modulo no lee, crea ni modifica Caja, ventas, gastos de Caja, cierres, Totales, cuenta corriente, documentos, stock, trabajos ni facturacion.
 
 ## Desarrollo local
