@@ -9,20 +9,43 @@ import {
 } from "@/lib/permissions";
 
 describe("settlement permissions", () => {
-  it("allows global admins to use settlement actions", () => {
-    expect(canViewSettlements(["admin"])).toBe(true);
-    expect(canCreateSettlements(["admin"])).toBe(true);
-    expect(canEditSettlements(["admin"])).toBe(true);
-    expect(canSubmitSettlements(["admin"])).toBe(true);
-    expect(canReceiveSettlements(["admin"])).toBe(true);
-    expect(canCancelSettlements(["admin"])).toBe(true);
+  it("requires effective company permissions even for global superadmins", () => {
+    const context = {
+      companyPermissionCodes: ["settlements.view", "settlements.submit"],
+    };
+
+    expect(canViewSettlements(["superadmin"], context)).toBe(true);
+    expect(canSubmitSettlements(["superadmin"], context)).toBe(true);
+    expect(canReceiveSettlements(["superadmin"], context)).toBe(false);
+    expect(canCancelSettlements(["superadmin"], context)).toBe(false);
   });
 
-  it("allows company admins through the company role context", () => {
-    const context = { companyRoleCodes: ["admin"], companyPermissionCodes: [] };
+  it("does not let legacy global admin bypass company permissions", () => {
+    const context = { companyPermissionCodes: ["settlements.view"] };
+
+    expect(canViewSettlements(["admin"], context)).toBe(true);
+    expect(canReceiveSettlements(["admin"], context)).toBe(false);
+  });
+
+  it("allows company admins through effective inherited permissions", () => {
+    const context = {
+      companyRoleCodes: ["admin"],
+      companyPermissionCodes: ["settlements.view", "settlements.submit"],
+    };
 
     expect(canViewSettlements(["user"], context)).toBe(true);
     expect(canSubmitSettlements(["user"], context)).toBe(true);
+  });
+
+  it("honors denied company permissions even when the raw company role is admin", () => {
+    const context = {
+      companyRoleCodes: ["admin"],
+      companyPermissionCodes: ["settlements.view", "settlements.submit", "settlements.cancel"],
+    };
+
+    expect(canViewSettlements(["user"], context)).toBe(true);
+    expect(canSubmitSettlements(["user"], context)).toBe(true);
+    expect(canReceiveSettlements(["user"], context)).toBe(false);
   });
 
   it("requires the matching granular permission for regular users", () => {

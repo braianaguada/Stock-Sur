@@ -50,6 +50,12 @@ function hasCompanyPermission(
   return companyRoleCodes.includes("admin") || companyPermissionCodes.includes(permissionCode);
 }
 
+function hasEffectiveCompanyPermission(context: CompanyAccessContext | undefined, permissionCode: string) {
+  const companyPermissionCodes = context?.companyPermissionCodes ?? [];
+
+  return companyPermissionCodes.includes(permissionCode);
+}
+
 export function canManageUsers(roles: AppRole[]) {
   return isSuperAdmin(roles);
 }
@@ -132,22 +138,22 @@ export function canViewSettlements(roles: AppRole[], context?: CompanyAccessCont
   return hasCompanyPermission(roles, context, "settlements.view");
 }
 
-export function canCreateSettlements(roles: AppRole[], context?: CompanyAccessContext) {
-  return hasCompanyPermission(roles, context, "settlements.create");
+export function canCreateSettlements(_roles: AppRole[], context?: CompanyAccessContext) {
+  return hasEffectiveCompanyPermission(context, "settlements.create");
 }
 
-export function canEditSettlements(roles: AppRole[], context?: CompanyAccessContext) {
-  return hasCompanyPermission(roles, context, "settlements.edit");
+export function canEditSettlements(_roles: AppRole[], context?: CompanyAccessContext) {
+  return hasEffectiveCompanyPermission(context, "settlements.edit");
 }
 
-export function canSubmitSettlements(roles: AppRole[], context?: CompanyAccessContext) {
-  return hasCompanyPermission(roles, context, "settlements.submit");
+export function canSubmitSettlements(_roles: AppRole[], context?: CompanyAccessContext) {
+  return hasEffectiveCompanyPermission(context, "settlements.submit");
 }
 
-export function canReceiveSettlements(roles: AppRole[], context?: CompanyAccessContext) {
-  return hasCompanyPermission(roles, context, "settlements.receive");
+export function canReceiveSettlements(_roles: AppRole[], context?: CompanyAccessContext) {
+  return hasEffectiveCompanyPermission(context, "settlements.receive");
 }
 
-export function canCancelSettlements(roles: AppRole[], context?: CompanyAccessContext) {
-  return hasCompanyPermission(roles, context, "settlements.cancel");
+export function canCancelSettlements(_roles: AppRole[], context?: CompanyAccessContext) {
+  return hasEffectiveCompanyPermission(context, "settlements.cancel");
 }
