@@ -20,12 +20,16 @@ export const EMPTY_SETTLEMENT_TOTALS: SettlementTotals = {
   settlement_total: 0,
 };
 
-export const settlementStatusLabel: Record<SettlementStatus, string> = {
+const settlementStatusLabels: Record<SettlementStatus, string> = {
   DRAFT: "Borrador",
   SUBMITTED: "Presentada",
   RECEIVED: "Recibida",
   CANCELLED: "Anulada",
 };
+
+export function settlementStatusLabel(status: SettlementStatus) {
+  return settlementStatusLabels[status];
+}
 
 export function isDraftSettlement(status: SettlementStatus | null | undefined) {
   return status === "DRAFT";
@@ -95,8 +99,8 @@ export function makeIncomeLineDraft(date = todayBusinessDateInputValue()): Edita
     id: `new-income-${crypto.randomUUID()}`,
     line_date: date,
     work_order: "",
-    receipt_number: "",
-    budget_number: "",
+    receipt: "",
+    quote: "",
     customer_name: "",
     concept: "",
     cash_amount: "0",
@@ -109,7 +113,7 @@ export function makeExpenseLineDraft(date = todayBusinessDateInputValue()): Edit
   return {
     id: `new-expense-${crypto.randomUUID()}`,
     line_date: date,
-    receipt_number: "",
+    receipt: "",
     supplier_name: "",
     detail: "",
     purchase_order: "",
@@ -123,8 +127,8 @@ export function incomeLineToForm(line: SettlementIncomeLine): EditableIncomeLine
     id: line.id,
     line_date: line.line_date,
     work_order: line.work_order ?? "",
-    receipt_number: line.receipt_number ?? "",
-    budget_number: line.budget_number ?? "",
+    receipt: line.receipt ?? "",
+    quote: line.quote ?? "",
     customer_name: line.customer_name ?? "",
     concept: line.concept,
     cash_amount: String(line.cash_amount ?? 0),
@@ -137,7 +141,7 @@ export function expenseLineToForm(line: SettlementExpenseLine): EditableExpenseL
   return {
     id: line.id,
     line_date: line.line_date,
-    receipt_number: line.receipt_number ?? "",
+    receipt: line.receipt ?? "",
     supplier_name: line.supplier_name ?? "",
     detail: line.detail,
     purchase_order: line.purchase_order ?? "",
@@ -146,8 +150,58 @@ export function expenseLineToForm(line: SettlementExpenseLine): EditableExpenseL
   };
 }
 
-export function isExistingLineId(id: string) {
-  return !id.startsWith("new-");
+export function editableLineTotal(line: Pick<EditableIncomeLine | EditableExpenseLine, "cash_amount" | "other_amount">) {
+  return parseMoneyInput(line.cash_amount) + parseMoneyInput(line.other_amount);
+}
+
+function comparableHeader(form: SettlementHeaderForm) {
+  return headerFormToPayload(form);
+}
+
+function comparableIncomeLines(lines: EditableIncomeLine[]) {
+  return lines.map((line) => ({
+    line_date: line.line_date,
+    work_order: optionalText(line.work_order),
+    receipt: optionalText(line.receipt),
+    quote: optionalText(line.quote),
+    customer_name: optionalText(line.customer_name),
+    concept: line.concept.trim(),
+    cash_amount: parseMoneyInput(line.cash_amount),
+    other_amount: parseMoneyInput(line.other_amount),
+    income_type: optionalText(line.income_type),
+  }));
+}
+
+function comparableExpenseLines(lines: EditableExpenseLine[]) {
+  return lines.map((line) => ({
+    line_date: line.line_date,
+    receipt: optionalText(line.receipt),
+    supplier_name: optionalText(line.supplier_name),
+    detail: line.detail.trim(),
+    purchase_order: optionalText(line.purchase_order),
+    cash_amount: parseMoneyInput(line.cash_amount),
+    other_amount: parseMoneyInput(line.other_amount),
+  }));
+}
+
+export function hasSettlementDraftChanges(
+  headerForm: SettlementHeaderForm,
+  incomeLines: EditableIncomeLine[],
+  expenseLines: EditableExpenseLine[],
+  originalHeaderForm: SettlementHeaderForm | null,
+  originalIncomeLines: EditableIncomeLine[],
+  originalExpenseLines: EditableExpenseLine[],
+) {
+  if (!originalHeaderForm) return false;
+  return JSON.stringify({
+    header: comparableHeader(headerForm),
+    income: comparableIncomeLines(incomeLines),
+    expense: comparableExpenseLines(expenseLines),
+  }) !== JSON.stringify({
+    header: comparableHeader(originalHeaderForm),
+    income: comparableIncomeLines(originalIncomeLines),
+    expense: comparableExpenseLines(originalExpenseLines),
+  });
 }
 
 export function normalizeTotals(value: Partial<SettlementTotals> | null | undefined): SettlementTotals {

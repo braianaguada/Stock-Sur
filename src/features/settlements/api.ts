@@ -12,7 +12,6 @@ import type {
 import {
   EMPTY_SETTLEMENT_TOTALS,
   headerFormToPayload,
-  isExistingLineId,
   normalizeTotals,
   optionalText,
   parseMoneyInput,
@@ -49,6 +48,7 @@ type TableClient<T> = {
 
 type SettlementRpc = {
   rpc(fn: "get_settlement_totals", args: { p_settlement_id: string }): DbResponse<SettlementTotals[] | SettlementTotals>;
+  rpc(fn: "save_settlement_draft", args: SaveSettlementDraftRpcArgs): DbResponse<Settlement>;
   rpc(fn: "submit_settlement", args: { p_settlement_id: string }): DbResponse<Settlement>;
   rpc(fn: "receive_settlement", args: { p_settlement_id: string; p_received_by_name: string }): DbResponse<Settlement>;
   rpc(fn: "cancel_settlement", args: { p_settlement_id: string }): DbResponse<Settlement>;
@@ -58,6 +58,13 @@ type SettlementRpc = {
 };
 
 const db = supabase as unknown as SettlementRpc;
+
+export type SaveSettlementDraftRpcArgs = {
+  p_settlement_id: string;
+  p_header: ReturnType<typeof headerFormToPayload>;
+  p_income_lines: Array<ReturnType<typeof incomeLinePayload>>;
+  p_expense_lines: Array<ReturnType<typeof expenseLinePayload>>;
+};
 
 function assertData<T>(data: T | null, error: DbError | null, fallbackMessage: string): T {
   if (error) throw new Error(error.message);
@@ -142,50 +149,29 @@ export async function createSettlementDraft(companyId: string, userEmail?: strin
   return assertData(data, error, "No se pudo crear la rendicion.");
 }
 
-export async function updateSettlementHeader(companyId: string, settlementId: string, form: SettlementHeaderForm) {
-  const { data, error } = await db
-    .from("settlements")
-    .update(headerFormToPayload(form))
-    .eq("company_id", companyId)
-    .eq("id", settlementId)
-    .select("*")
-    .single();
-
-  return assertData(data, error, "No se pudo guardar la cabecera.");
-}
-
-export async function saveSettlementLines(params: {
-  companyId: string;
+export function buildSaveSettlementDraftArgs(params: {
   settlementId: string;
+  headerForm: SettlementHeaderForm;
   incomeLines: EditableIncomeLine[];
   expenseLines: EditableExpenseLine[];
-  originalIncomeIds: string[];
-  originalExpenseIds: string[];
+}): SaveSettlementDraftRpcArgs {
+  const { settlementId, headerForm, incomeLines, expenseLines } = params;
+  return {
+    p_settlement_id: settlementId,
+    p_header: headerFormToPayload(headerForm),
+    p_income_lines: incomeLines.map((line, index) => incomeLinePayload(line, index + 1)),
+    p_expense_lines: expenseLines.map((line, index) => expenseLinePayload(line, index + 1)),
+  };
+}
+
+export async function saveSettlementDraft(params: {
+  settlementId: string;
+  headerForm: SettlementHeaderForm;
+  incomeLines: EditableIncomeLine[];
+  expenseLines: EditableExpenseLine[];
 }) {
-  const { companyId, settlementId, incomeLines, expenseLines, originalIncomeIds, originalExpenseIds } = params;
-  const incomeIds = new Set(incomeLines.filter((line) => isExistingLineId(line.id)).map((line) => line.id));
-  const expenseIds = new Set(expenseLines.filter((line) => isExistingLineId(line.id)).map((line) => line.id));
-
-  await Promise.all(originalIncomeIds.filter((id) => !incomeIds.has(id)).map((id) => deleteIncomeLine(companyId, settlementId, id)));
-  await Promise.all(originalExpenseIds.filter((id) => !expenseIds.has(id)).map((id) => deleteExpenseLine(companyId, settlementId, id)));
-
-  for (const [index, line] of incomeLines.entries()) {
-    const payload = incomeLinePayload(companyId, settlementId, line, index + 1);
-    if (isExistingLineId(line.id)) {
-      await updateIncomeLine(companyId, settlementId, line.id, payload);
-    } else {
-      await insertIncomeLine(payload);
-    }
-  }
-
-  for (const [index, line] of expenseLines.entries()) {
-    const payload = expenseLinePayload(companyId, settlementId, line, index + 1);
-    if (isExistingLineId(line.id)) {
-      await updateExpenseLine(companyId, settlementId, line.id, payload);
-    } else {
-      await insertExpenseLine(payload);
-    }
-  }
+  const { data, error } = await db.rpc("save_settlement_draft", buildSaveSettlementDraftArgs(params));
+  return assertData(data, error, "No se pudo guardar el borrador.");
 }
 
 export async function submitSettlement(settlementId: string) {
@@ -206,14 +192,12 @@ export async function cancelSettlement(settlementId: string) {
   return assertData(data, error, "No se pudo anular la rendicion.");
 }
 
-function incomeLinePayload(companyId: string, settlementId: string, line: EditableIncomeLine, displayOrder: number) {
+function incomeLinePayload(line: EditableIncomeLine, displayOrder: number) {
   return {
-    company_id: companyId,
-    settlement_id: settlementId,
     line_date: line.line_date,
     work_order: optionalText(line.work_order),
-    receipt_number: optionalText(line.receipt_number),
-    budget_number: optionalText(line.budget_number),
+    receipt: optionalText(line.receipt),
+    quote: optionalText(line.quote),
     customer_name: optionalText(line.customer_name),
     concept: line.concept.trim(),
     cash_amount: parseMoneyInput(line.cash_amount),
@@ -223,12 +207,10 @@ function incomeLinePayload(companyId: string, settlementId: string, line: Editab
   };
 }
 
-function expenseLinePayload(companyId: string, settlementId: string, line: EditableExpenseLine, displayOrder: number) {
+function expenseLinePayload(line: EditableExpenseLine, displayOrder: number) {
   return {
-    company_id: companyId,
-    settlement_id: settlementId,
     line_date: line.line_date,
-    receipt_number: optionalText(line.receipt_number),
+    receipt: optionalText(line.receipt),
     supplier_name: optionalText(line.supplier_name),
     detail: line.detail.trim(),
     purchase_order: optionalText(line.purchase_order),
@@ -236,58 +218,4 @@ function expenseLinePayload(companyId: string, settlementId: string, line: Edita
     other_amount: parseMoneyInput(line.other_amount),
     display_order: displayOrder,
   };
-}
-
-async function insertIncomeLine(payload: Record<string, unknown>) {
-  const { error } = await db.from("settlement_income_lines").insert(payload).select("id").single();
-  if (error) throw new Error(error.message);
-}
-
-async function updateIncomeLine(companyId: string, settlementId: string, lineId: string, payload: Record<string, unknown>) {
-  const { error } = await db
-    .from("settlement_income_lines")
-    .update(payload)
-    .eq("company_id", companyId)
-    .eq("settlement_id", settlementId)
-    .eq("id", lineId)
-    .select("id")
-    .single();
-  if (error) throw new Error(error.message);
-}
-
-async function deleteIncomeLine(companyId: string, settlementId: string, lineId: string) {
-  const { error } = await db
-    .from("settlement_income_lines")
-    .delete()
-    .eq("company_id", companyId)
-    .eq("settlement_id", settlementId)
-    .eq("id", lineId);
-  if (error) throw new Error(error.message);
-}
-
-async function insertExpenseLine(payload: Record<string, unknown>) {
-  const { error } = await db.from("settlement_expense_lines").insert(payload).select("id").single();
-  if (error) throw new Error(error.message);
-}
-
-async function updateExpenseLine(companyId: string, settlementId: string, lineId: string, payload: Record<string, unknown>) {
-  const { error } = await db
-    .from("settlement_expense_lines")
-    .update(payload)
-    .eq("company_id", companyId)
-    .eq("settlement_id", settlementId)
-    .eq("id", lineId)
-    .select("id")
-    .single();
-  if (error) throw new Error(error.message);
-}
-
-async function deleteExpenseLine(companyId: string, settlementId: string, lineId: string) {
-  const { error } = await db
-    .from("settlement_expense_lines")
-    .delete()
-    .eq("company_id", companyId)
-    .eq("settlement_id", settlementId)
-    .eq("id", lineId);
-  if (error) throw new Error(error.message);
 }

@@ -30,17 +30,18 @@ import {
   fetchSettlementLines,
   fetchSettlements,
   receiveSettlement,
-  saveSettlementLines,
+  saveSettlementDraft,
   submitSettlement,
-  updateSettlementHeader,
 } from "@/features/settlements/api";
-import type { EditableExpenseLine, EditableIncomeLine, SettlementStatus } from "@/features/settlements/types";
+import type { EditableExpenseLine, EditableIncomeLine, SettlementHeaderForm, SettlementStatus } from "@/features/settlements/types";
 import {
   EMPTY_SETTLEMENT_TOTALS,
   calculateSettlementTotals,
   createHeaderForm,
+  editableLineTotal,
   expenseLineToForm,
   formatSettlementNumber,
+  hasSettlementDraftChanges,
   incomeLineToForm,
   isDraftSettlement,
   makeExpenseLineDraft,
@@ -101,8 +102,9 @@ export default function SettlementsPage() {
   const [headerForm, setHeaderForm] = useState(createHeaderForm());
   const [incomeLines, setIncomeLines] = useState<EditableIncomeLine[]>([]);
   const [expenseLines, setExpenseLines] = useState<EditableExpenseLine[]>([]);
-  const [originalIncomeIds, setOriginalIncomeIds] = useState<string[]>([]);
-  const [originalExpenseIds, setOriginalExpenseIds] = useState<string[]>([]);
+  const [originalHeaderForm, setOriginalHeaderForm] = useState<SettlementHeaderForm | null>(null);
+  const [originalIncomeLines, setOriginalIncomeLines] = useState<EditableIncomeLine[]>([]);
+  const [originalExpenseLines, setOriginalExpenseLines] = useState<EditableExpenseLine[]>([]);
   const [confirmAction, setConfirmAction] = useState<"submit" | "cancel" | null>(null);
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [receivedByName, setReceivedByName] = useState("");
@@ -112,11 +114,23 @@ export default function SettlementsPage() {
     setHeaderForm(createHeaderForm());
     setIncomeLines([]);
     setExpenseLines([]);
-    setOriginalIncomeIds([]);
-    setOriginalExpenseIds([]);
+    setOriginalHeaderForm(null);
+    setOriginalIncomeLines([]);
+    setOriginalExpenseLines([]);
     setConfirmAction(null);
     setReceiveOpen(false);
   }, [companyId]);
+
+  useEffect(() => {
+    setHeaderForm(createHeaderForm());
+    setIncomeLines([]);
+    setExpenseLines([]);
+    setOriginalHeaderForm(null);
+    setOriginalIncomeLines([]);
+    setOriginalExpenseLines([]);
+    setConfirmAction(null);
+    setReceiveOpen(false);
+  }, [selectedSettlementId]);
 
   const settlementsQuery = useQuery({
     queryKey: queryKeys.settlements.list(companyId),
@@ -141,17 +155,25 @@ export default function SettlementsPage() {
     queryFn: () => fetchSettlementLines(companyId!, selectedSettlementId!),
   });
 
-  const selectedSettlement = detailQuery.data ?? settlementsQuery.data?.find((settlement) => settlement.id === selectedSettlementId) ?? null;
-  const editable = Boolean(selectedSettlement && isDraftSettlement(selectedSettlement.status) && canEdit);
+  const selectedSettlement = detailQuery.data ?? null;
+  const editorLoading = Boolean(selectedSettlementId && (detailQuery.isLoading || linesQuery.isLoading || detailQuery.isFetching || linesQuery.isFetching));
+  const editorError = detailQuery.error ?? linesQuery.error ?? null;
+  const editorBlocked = editorLoading || Boolean(editorError);
+  const editable = Boolean(selectedSettlement && isDraftSettlement(selectedSettlement.status) && canEdit && !editorBlocked);
   const liveTotals = useMemo(() => calculateSettlementTotals(incomeLines, expenseLines), [expenseLines, incomeLines]);
   const displayedTotals = selectedSettlement && isDraftSettlement(selectedSettlement.status)
     ? liveTotals
     : (settlementsQuery.data?.find((settlement) => settlement.id === selectedSettlementId)?.totals ?? EMPTY_SETTLEMENT_TOTALS);
-  const busy = detailQuery.isFetching || linesQuery.isFetching;
+  const draftHasChanges = useMemo(
+    () => hasSettlementDraftChanges(headerForm, incomeLines, expenseLines, originalHeaderForm, originalIncomeLines, originalExpenseLines),
+    [expenseLines, headerForm, incomeLines, originalExpenseLines, originalHeaderForm, originalIncomeLines],
+  );
 
   useEffect(() => {
     if (!detailQuery.data) return;
-    setHeaderForm(createHeaderForm(detailQuery.data));
+    const nextHeaderForm = createHeaderForm(detailQuery.data);
+    setHeaderForm(nextHeaderForm);
+    setOriginalHeaderForm(nextHeaderForm);
     setReceivedByName(detailQuery.data.received_by_name ?? user?.email?.split("@")[0] ?? "");
   }, [detailQuery.data, user?.email]);
 
@@ -161,8 +183,8 @@ export default function SettlementsPage() {
     const nextExpenseLines = linesQuery.data.expenseLines.map(expenseLineToForm);
     setIncomeLines(nextIncomeLines);
     setExpenseLines(nextExpenseLines);
-    setOriginalIncomeIds(nextIncomeLines.map((line) => line.id));
-    setOriginalExpenseIds(nextExpenseLines.map((line) => line.id));
+    setOriginalIncomeLines(nextIncomeLines);
+    setOriginalExpenseLines(nextExpenseLines);
   }, [linesQuery.data]);
 
   const invalidateSettlement = async (settlementId = selectedSettlementId) => {
@@ -178,18 +200,17 @@ export default function SettlementsPage() {
   const persistDraft = async () => {
     if (!companyId || !selectedSettlementId) throw new Error("Selecciona una rendicion.");
     if (!selectedSettlement || !isDraftSettlement(selectedSettlement.status)) throw new Error("Solo los borradores se pueden modificar.");
+    if (!canEdit) throw new Error("No tenes permiso para editar rendiciones.");
+    if (editorBlocked) throw new Error("El detalle de la rendicion todavia no esta disponible.");
     if (!headerForm.prepared_by_name.trim()) throw new Error("El responsable de preparacion es obligatorio.");
     if (incomeLines.some((line) => !line.concept.trim())) throw new Error("Cada ingreso necesita concepto.");
     if (expenseLines.some((line) => !line.detail.trim())) throw new Error("Cada egreso necesita detalle.");
 
-    await updateSettlementHeader(companyId, selectedSettlementId, headerForm);
-    await saveSettlementLines({
-      companyId,
+    await saveSettlementDraft({
       settlementId: selectedSettlementId,
+      headerForm,
       incomeLines,
       expenseLines,
-      originalIncomeIds,
-      originalExpenseIds,
     });
   };
 
@@ -209,6 +230,9 @@ export default function SettlementsPage() {
   const saveMutation = useMutation({
     mutationFn: persistDraft,
     onSuccess: async () => {
+      setOriginalHeaderForm(headerForm);
+      setOriginalIncomeLines(incomeLines);
+      setOriginalExpenseLines(expenseLines);
       await invalidateSettlement();
       toast({ title: "Borrador guardado" });
     },
@@ -219,7 +243,9 @@ export default function SettlementsPage() {
     mutationFn: async (action: "submit" | "cancel" | "receive") => {
       if (!selectedSettlementId) throw new Error("Selecciona una rendicion.");
       if (action === "submit") {
-        await persistDraft();
+        if (canEdit && draftHasChanges) {
+          await persistDraft();
+        }
         return submitSettlement(selectedSettlementId);
       }
       if (action === "receive") {
@@ -342,7 +368,19 @@ export default function SettlementsPage() {
             </Card>
 
             <section className="space-y-5">
-              {!selectedSettlement ? (
+              {editorLoading ? (
+                <Card>
+                  <CardContent className="p-8 text-center text-sm text-muted-foreground">
+                    Cargando detalle de la rendicion...
+                  </CardContent>
+                </Card>
+              ) : editorError ? (
+                <Card>
+                  <CardContent className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                    {getErrorMessage(editorError, "No se pudo cargar el detalle de la rendicion.")}
+                  </CardContent>
+                </Card>
+              ) : !selectedSettlement ? (
                 <Card>
                   <CardContent className="p-8 text-center text-sm text-muted-foreground">
                     Selecciona una rendicion para ver el detalle.
@@ -366,16 +404,16 @@ export default function SettlementsPage() {
                         </CardDescription>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <Button type="button" variant="outline" onClick={() => saveMutation.mutate()} disabled={!editable || saveMutation.isPending || busy}>
+                        <Button type="button" variant="outline" onClick={() => saveMutation.mutate()} disabled={!editable || !draftHasChanges || saveMutation.isPending || editorBlocked}>
                           <Save className="mr-2 h-4 w-4" /> Guardar
                         </Button>
-                        <Button type="button" onClick={() => setConfirmAction("submit")} disabled={!isDraftSettlement(selectedSettlement.status) || !canSubmit || workflowMutation.isPending}>
+                        <Button type="button" onClick={() => setConfirmAction("submit")} disabled={!isDraftSettlement(selectedSettlement.status) || !canSubmit || workflowMutation.isPending || editorBlocked}>
                           <Send className="mr-2 h-4 w-4" /> Presentar
                         </Button>
-                        <Button type="button" variant="outline" onClick={() => setReceiveOpen(true)} disabled={selectedSettlement.status !== "SUBMITTED" || !canReceive || workflowMutation.isPending}>
+                        <Button type="button" variant="outline" onClick={() => setReceiveOpen(true)} disabled={selectedSettlement.status !== "SUBMITTED" || !canReceive || workflowMutation.isPending || editorBlocked}>
                           <CheckCircle2 className="mr-2 h-4 w-4" /> Recibir
                         </Button>
-                        <Button type="button" variant="destructive" onClick={() => setConfirmAction("cancel")} disabled={selectedSettlement.status === "CANCELLED" || !canCancel || workflowMutation.isPending}>
+                        <Button type="button" variant="destructive" onClick={() => setConfirmAction("cancel")} disabled={selectedSettlement.status === "CANCELLED" || !canCancel || workflowMutation.isPending || editorBlocked}>
                           <Ban className="mr-2 h-4 w-4" /> Anular
                         </Button>
                       </div>
@@ -427,23 +465,25 @@ export default function SettlementsPage() {
                               <TableHead>Concepto</TableHead>
                               <TableHead className="text-right">Efectivo</TableHead>
                               <TableHead className="text-right">Otros</TableHead>
+                              <TableHead className="text-right">Total</TableHead>
                               <TableHead>Tipo</TableHead>
                               <TableHead />
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {incomeLines.length === 0 ? (
-                              <TableRow><TableCell colSpan={10} className="py-8 text-center text-sm text-muted-foreground">Sin ingresos cargados.</TableCell></TableRow>
+                              <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">Sin ingresos cargados.</TableCell></TableRow>
                             ) : incomeLines.map((line) => (
                               <TableRow key={line.id}>
                                 <TableCell><Input type="date" value={line.line_date} onChange={(event) => updateIncomeLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /></TableCell>
                                 <TableCell><Input value={line.work_order} onChange={(event) => updateIncomeLine(line.id, { work_order: event.target.value })} disabled={!editable} className="min-w-24" /></TableCell>
-                                <TableCell><Input value={line.receipt_number} onChange={(event) => updateIncomeLine(line.id, { receipt_number: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
-                                <TableCell><Input value={line.budget_number} onChange={(event) => updateIncomeLine(line.id, { budget_number: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
+                                <TableCell><Input value={line.receipt} onChange={(event) => updateIncomeLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
+                                <TableCell><Input value={line.quote} onChange={(event) => updateIncomeLine(line.id, { quote: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
                                 <TableCell><Input value={line.customer_name} onChange={(event) => updateIncomeLine(line.id, { customer_name: event.target.value })} disabled={!editable} className="min-w-40" /></TableCell>
                                 <TableCell><Input value={line.concept} onChange={(event) => updateIncomeLine(line.id, { concept: event.target.value })} disabled={!editable} className="min-w-52" /></TableCell>
                                 <TableCell>{moneyInput(line.cash_amount, (value) => updateIncomeLine(line.id, { cash_amount: value }), !editable)}</TableCell>
                                 <TableCell>{moneyInput(line.other_amount, (value) => updateIncomeLine(line.id, { other_amount: value }), !editable)}</TableCell>
+                                <TableCell className="text-right font-medium tabular-nums">{currency.format(editableLineTotal(line))}</TableCell>
                                 <TableCell><Input value={line.income_type} onChange={(event) => updateIncomeLine(line.id, { income_type: event.target.value })} disabled={!editable} className="min-w-32" /></TableCell>
                                 <TableCell className="text-right">
                                   <Button type="button" size="icon" variant="ghost" onClick={() => removeIncomeLine(line.id)} disabled={!editable} aria-label="Eliminar ingreso">
@@ -480,21 +520,23 @@ export default function SettlementsPage() {
                               <TableHead>OC</TableHead>
                               <TableHead className="text-right">Efectivo</TableHead>
                               <TableHead className="text-right">Otros</TableHead>
+                              <TableHead className="text-right">Total</TableHead>
                               <TableHead />
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {expenseLines.length === 0 ? (
-                              <TableRow><TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">Sin egresos cargados.</TableCell></TableRow>
+                              <TableRow><TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">Sin egresos cargados.</TableCell></TableRow>
                             ) : expenseLines.map((line) => (
                               <TableRow key={line.id}>
                                 <TableCell><Input type="date" value={line.line_date} onChange={(event) => updateExpenseLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /></TableCell>
-                                <TableCell><Input value={line.receipt_number} onChange={(event) => updateExpenseLine(line.id, { receipt_number: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
+                                <TableCell><Input value={line.receipt} onChange={(event) => updateExpenseLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
                                 <TableCell><Input value={line.supplier_name} onChange={(event) => updateExpenseLine(line.id, { supplier_name: event.target.value })} disabled={!editable} className="min-w-40" /></TableCell>
                                 <TableCell><Input value={line.detail} onChange={(event) => updateExpenseLine(line.id, { detail: event.target.value })} disabled={!editable} className="min-w-52" /></TableCell>
                                 <TableCell><Input value={line.purchase_order} onChange={(event) => updateExpenseLine(line.id, { purchase_order: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
                                 <TableCell>{moneyInput(line.cash_amount, (value) => updateExpenseLine(line.id, { cash_amount: value }), !editable)}</TableCell>
                                 <TableCell>{moneyInput(line.other_amount, (value) => updateExpenseLine(line.id, { other_amount: value }), !editable)}</TableCell>
+                                <TableCell className="text-right font-medium tabular-nums">{currency.format(editableLineTotal(line))}</TableCell>
                                 <TableCell className="text-right">
                                   <Button type="button" size="icon" variant="ghost" onClick={() => removeExpenseLine(line.id)} disabled={!editable} aria-label="Eliminar egreso">
                                     <Trash2 className="h-4 w-4" />

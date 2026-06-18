@@ -22,8 +22,8 @@ export type SettlementIncomeLine = {
   settlement_id: string;
   line_date: string;
   work_order: string | null;
-  receipt_number: string | null;
-  budget_number: string | null;
+  receipt: string | null;
+  quote: string | null;
   customer_name: string | null;
   concept: string;
   cash_amount: number | string;
@@ -37,7 +37,7 @@ export type SettlementExpenseLine = {
   company_id: string;
   settlement_id: string;
   line_date: string;
-  receipt_number: string | null;
+  receipt: string | null;
   supplier_name: string | null;
   detail: string;
   purchase_order: string | null;
@@ -72,8 +72,8 @@ export type EditableIncomeLine = {
   id: string;
   line_date: string;
   work_order: string;
-  receipt_number: string;
-  budget_number: string;
+  receipt: string;
+  quote: string;
   customer_name: string;
   concept: string;
   cash_amount: string;
@@ -84,7 +84,7 @@ export type EditableIncomeLine = {
 export type EditableExpenseLine = {
   id: string;
   line_date: string;
-  receipt_number: string;
+  receipt: string;
   supplier_name: string;
   detail: string;
   purchase_order: string;
