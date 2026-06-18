@@ -30,6 +30,7 @@ Rendiciones queda preparado como modulo generico por empresa, disponible para cu
 - RLS valida empresa activa, membresia y permisos `settlements.*`; los detalles solo se pueden modificar mientras la rendicion esta en `DRAFT`.
 - Los campos de presentacion, recepcion y anulacion solo pueden cambiar por RPC; `created_by` de ingresos/egresos se completa obligatoriamente con `auth.uid()` al insertar, queda inmutable para usuarios y se mantiene nullable para respetar los FK `ON DELETE SET NULL`.
 - UI MVP: `/settlements` queda en la navegacion para usuarios con permiso de vista; permite listar por empresa activa, crear/editar borradores, cargar ingresos y egresos manuales, ver totales automaticos, presentar, recibir y anular con confirmacion.
+- Al seleccionar una rendicion se abre primero un resumen consolidado de solo lectura con encabezado, lineas, subtotales, cantidades y total neto; solo los borradores con `settlements.edit` pueden entrar a edicion y volver al resumen sin mostrar cambios locales como persistidos.
 - Las query keys de Rendiciones siempre incluyen `companyId` y el cambio de empresa o rendicion limpia seleccion, encabezado y lineas locales para no reutilizar datos de otro contexto.
 - Mientras hay guardado o workflow pendiente, la UI bloquea edicion, seleccion de otra rendicion y acciones para evitar estados cruzados.
 - El guardado de borrador usa `save_settlement_draft` para persistir encabezado, ingresos y egresos en una sola transaccion; la base deriva empresa y usuario autenticado.

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CheckCircle2, Plus, RefreshCw, Save, Send, Trash2 } from "lucide-react";
+import { Ban, CheckCircle2, Edit3, Eye, Plus, RefreshCw, Save, Send, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import {
@@ -96,6 +96,24 @@ function moneyInput(value: string, onChange: (value: string) => void, disabled: 
   );
 }
 
+function readOnlyValue(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : "Sin dato";
+}
+
+function readOnlyDate(value: string | null | undefined) {
+  return value ? formatBusinessDate(value) : "Sin dato";
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
+      <p className="min-h-6 break-words text-sm font-medium">{value}</p>
+    </div>
+  );
+}
+
 export default function SettlementsPage() {
   const { roles, currentCompany, companyRoleCodes, companyPermissionCodes, user } = useAuth();
   const { toast } = useToast();
@@ -122,6 +140,7 @@ export default function SettlementsPage() {
   const [confirmAction, setConfirmAction] = useState<"submit" | "cancel" | null>(null);
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [receivedByName, setReceivedByName] = useState("");
+  const [detailMode, setDetailMode] = useState<"summary" | "edit">("summary");
 
   useEffect(() => {
     setSelectedSettlementId(null);
@@ -133,6 +152,7 @@ export default function SettlementsPage() {
     setOriginalExpenseLines([]);
     setConfirmAction(null);
     setReceiveOpen(false);
+    setDetailMode("summary");
   }, [companyId]);
 
   useEffect(() => {
@@ -144,6 +164,7 @@ export default function SettlementsPage() {
     setOriginalExpenseLines([]);
     setConfirmAction(null);
     setReceiveOpen(false);
+    setDetailMode("summary");
   }, [selectedSettlementId]);
 
   const settlementsQuery = useQuery({
@@ -174,9 +195,10 @@ export default function SettlementsPage() {
   const editorError = detailQuery.error ?? linesQuery.error ?? null;
   const editorBlocked = editorLoading || Boolean(editorError);
   const liveTotals = useMemo(() => calculateSettlementTotals(incomeLines, expenseLines), [expenseLines, incomeLines]);
-  const displayedTotals = selectedSettlement && isDraftSettlement(selectedSettlement.status)
+  const persistedTotals = useMemo(() => calculateSettlementTotals(originalIncomeLines, originalExpenseLines), [originalExpenseLines, originalIncomeLines]);
+  const displayedTotals = selectedSettlement && isDraftSettlement(selectedSettlement.status) && detailMode === "edit"
     ? liveTotals
-    : (settlementsQuery.data?.find((settlement) => settlement.id === selectedSettlementId)?.totals ?? EMPTY_SETTLEMENT_TOTALS);
+    : (selectedSettlement ? persistedTotals : EMPTY_SETTLEMENT_TOTALS);
   const draftHasChanges = useMemo(
     () => hasSettlementDraftChanges(headerForm, incomeLines, expenseLines, originalHeaderForm, originalIncomeLines, originalExpenseLines),
     [expenseLines, headerForm, incomeLines, originalExpenseLines, originalHeaderForm, originalIncomeLines],
@@ -199,6 +221,12 @@ export default function SettlementsPage() {
     setOriginalIncomeLines(nextIncomeLines);
     setOriginalExpenseLines(nextExpenseLines);
   }, [linesQuery.data]);
+
+  useEffect(() => {
+    if (selectedSettlement && !isDraftSettlement(selectedSettlement.status) && detailMode === "edit") {
+      setDetailMode("summary");
+    }
+  }, [detailMode, selectedSettlement]);
 
   const invalidateSettlement = async (settlementId = selectedSettlementId) => {
     if (!companyId) return;
@@ -282,7 +310,9 @@ export default function SettlementsPage() {
 
   const mutationPending = saveMutation.isPending || workflowMutation.isPending;
   const editorLocked = editorBlocked || mutationPending;
-  const editable = Boolean(selectedSettlement && isDraftSettlement(selectedSettlement.status) && canEdit && !editorLocked);
+  const canEditSelectedDraft = Boolean(selectedSettlement && isDraftSettlement(selectedSettlement.status) && canEdit);
+  const editable = Boolean(canEditSelectedDraft && detailMode === "edit" && !editorLocked);
+  const summaryHeader = originalHeaderForm ?? (selectedSettlement ? createHeaderForm(selectedSettlement) : createHeaderForm());
 
   const updateIncomeLine = (lineId: string, patch: Partial<EditableIncomeLine>) => {
     setIncomeLines((current) => current.map((line) => (line.id === lineId ? { ...line, ...patch } : line)));
@@ -421,16 +451,28 @@ export default function SettlementsPage() {
                   <Card>
                     <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div>
-                        <CardTitle>Encabezado</CardTitle>
+                        <CardTitle>{detailMode === "edit" ? "Editar rendicion" : "Resumen de rendicion"}</CardTitle>
                         <CardDescription>
                           {formatSettlementNumber(selectedSettlement.settlement_number)} - {settlementStatusLabel(selectedSettlement.status)}
                           {selectedSettlement.received_at ? ` - Recibida ${formatDateTime(selectedSettlement.received_at)}` : ""}
                         </CardDescription>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <Button type="button" variant="outline" onClick={() => saveMutation.mutate()} disabled={!editable || !draftHasChanges}>
-                          <Save className="mr-2 h-4 w-4" /> Guardar
-                        </Button>
+                        {detailMode === "summary" && canEditSelectedDraft ? (
+                          <Button type="button" variant="outline" onClick={() => setDetailMode("edit")} disabled={editorLocked}>
+                            <Edit3 className="mr-2 h-4 w-4" /> Editar
+                          </Button>
+                        ) : null}
+                        {detailMode === "edit" ? (
+                          <>
+                            <Button type="button" variant="outline" onClick={() => setDetailMode("summary")} disabled={mutationPending}>
+                              <Eye className="mr-2 h-4 w-4" /> Ver resumen
+                            </Button>
+                            <Button type="button" variant="outline" onClick={() => saveMutation.mutate()} disabled={!editable || !draftHasChanges}>
+                              <Save className="mr-2 h-4 w-4" /> Guardar
+                            </Button>
+                          </>
+                        ) : null}
                         <Button type="button" onClick={() => setConfirmAction("submit")} disabled={!isDraftSettlement(selectedSettlement.status) || !canSubmit || editorLocked}>
                           <Send className="mr-2 h-4 w-4" /> Presentar
                         </Button>
@@ -442,27 +484,53 @@ export default function SettlementsPage() {
                         </Button>
                       </div>
                     </CardHeader>
-                    <CardContent className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="settlement-date">Fecha</Label>
-                        <Input id="settlement-date" type="date" value={headerForm.settlement_date} onChange={(event) => setHeaderForm((current) => ({ ...current, settlement_date: event.target.value }))} disabled={!editable} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="prepared-by">Preparado por</Label>
-                        <Input id="prepared-by" value={headerForm.prepared_by_name} onChange={(event) => setHeaderForm((current) => ({ ...current, prepared_by_name: event.target.value }))} disabled={!editable} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="period-from">Periodo desde</Label>
-                        <Input id="period-from" type="date" value={headerForm.period_from} onChange={(event) => setHeaderForm((current) => ({ ...current, period_from: event.target.value }))} disabled={!editable} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="period-to">Periodo hasta</Label>
-                        <Input id="period-to" type="date" value={headerForm.period_to} onChange={(event) => setHeaderForm((current) => ({ ...current, period_to: event.target.value }))} disabled={!editable} />
-                      </div>
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="notes">Notas</Label>
-                        <Textarea id="notes" value={headerForm.notes} onChange={(event) => setHeaderForm((current) => ({ ...current, notes: event.target.value }))} disabled={!editable} rows={3} />
-                      </div>
+                    <CardContent className="space-y-4">
+                      {detailMode === "summary" && draftHasChanges ? (
+                        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                          Hay cambios sin guardar en el editor. Este resumen muestra el ultimo detalle persistido.
+                        </div>
+                      ) : null}
+
+                      {detailMode === "summary" ? (
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <DetailField label="Fecha" value={readOnlyDate(summaryHeader.settlement_date)} />
+                          <DetailField label="Preparado por" value={readOnlyValue(summaryHeader.prepared_by_name)} />
+                          <DetailField label="Periodo desde" value={readOnlyDate(summaryHeader.period_from)} />
+                          <DetailField label="Periodo hasta" value={readOnlyDate(summaryHeader.period_to)} />
+                          <div className="md:col-span-2">
+                            <DetailField label="Notas" value={readOnlyValue(summaryHeader.notes)} />
+                          </div>
+                          <DetailField label="Creada" value={formatDateTime(selectedSettlement.created_at)} />
+                          <DetailField label="Actualizada" value={formatDateTime(selectedSettlement.updated_at)} />
+                          <DetailField label="Recibido por" value={readOnlyValue(selectedSettlement.received_by_name)} />
+                          <DetailField label="Fecha recepcion" value={selectedSettlement.received_at ? formatDateTime(selectedSettlement.received_at) : "Sin dato"} />
+                          <DetailField label="Cantidad ingresos" value={String(originalIncomeLines.length)} />
+                          <DetailField label="Cantidad egresos" value={String(originalExpenseLines.length)} />
+                        </div>
+                      ) : (
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="settlement-date">Fecha</Label>
+                            <Input id="settlement-date" type="date" value={headerForm.settlement_date} onChange={(event) => setHeaderForm((current) => ({ ...current, settlement_date: event.target.value }))} disabled={!editable} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="prepared-by">Preparado por</Label>
+                            <Input id="prepared-by" value={headerForm.prepared_by_name} onChange={(event) => setHeaderForm((current) => ({ ...current, prepared_by_name: event.target.value }))} disabled={!editable} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="period-from">Periodo desde</Label>
+                            <Input id="period-from" type="date" value={headerForm.period_from} onChange={(event) => setHeaderForm((current) => ({ ...current, period_from: event.target.value }))} disabled={!editable} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="period-to">Periodo hasta</Label>
+                            <Input id="period-to" type="date" value={headerForm.period_to} onChange={(event) => setHeaderForm((current) => ({ ...current, period_to: event.target.value }))} disabled={!editable} />
+                          </div>
+                          <div className="space-y-2 md:col-span-2">
+                            <Label htmlFor="notes">Notas</Label>
+                            <Textarea id="notes" value={headerForm.notes} onChange={(event) => setHeaderForm((current) => ({ ...current, notes: event.target.value }))} disabled={!editable} rows={3} />
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -470,11 +538,13 @@ export default function SettlementsPage() {
                     <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
                         <CardTitle>Ingresos</CardTitle>
-                        <CardDescription>Totales calculados desde las lineas.</CardDescription>
+                        <CardDescription>{detailMode === "summary" ? `${originalIncomeLines.length} filas persistidas.` : "Totales calculados desde las lineas."}</CardDescription>
                       </div>
-                      <Button type="button" variant="outline" onClick={() => setIncomeLines((current) => [...current, makeIncomeLineDraft(headerForm.settlement_date)])} disabled={!editable}>
-                        <Plus className="mr-2 h-4 w-4" /> Agregar ingreso
-                      </Button>
+                      {detailMode === "edit" ? (
+                        <Button type="button" variant="outline" onClick={() => setIncomeLines((current) => [...current, makeIncomeLineDraft(headerForm.settlement_date)])} disabled={!editable}>
+                          <Plus className="mr-2 h-4 w-4" /> Agregar ingreso
+                        </Button>
+                      ) : null}
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-auto rounded-xl border">
@@ -495,27 +565,36 @@ export default function SettlementsPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {incomeLines.length === 0 ? (
+                            {(detailMode === "summary" ? originalIncomeLines : incomeLines).length === 0 ? (
                               <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">Sin ingresos cargados.</TableCell></TableRow>
-                            ) : incomeLines.map((line) => (
+                            ) : (detailMode === "summary" ? originalIncomeLines : incomeLines).map((line) => (
                               <TableRow key={line.id}>
-                                <TableCell><Input type="date" value={line.line_date} onChange={(event) => updateIncomeLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /></TableCell>
-                                <TableCell><Input value={line.work_order} onChange={(event) => updateIncomeLine(line.id, { work_order: event.target.value })} disabled={!editable} className="min-w-24" /></TableCell>
-                                <TableCell><Input value={line.receipt} onChange={(event) => updateIncomeLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
-                                <TableCell><Input value={line.quote} onChange={(event) => updateIncomeLine(line.id, { quote: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
-                                <TableCell><Input value={line.customer_name} onChange={(event) => updateIncomeLine(line.id, { customer_name: event.target.value })} disabled={!editable} className="min-w-40" /></TableCell>
-                                <TableCell><Input value={line.concept} onChange={(event) => updateIncomeLine(line.id, { concept: event.target.value })} disabled={!editable} className="min-w-52" /></TableCell>
-                                <TableCell>{moneyInput(line.cash_amount, (value) => updateIncomeLine(line.id, { cash_amount: value }), !editable)}</TableCell>
-                                <TableCell>{moneyInput(line.other_amount, (value) => updateIncomeLine(line.id, { other_amount: value }), !editable)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input type="date" value={line.line_date} onChange={(event) => updateIncomeLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /> : readOnlyDate(line.line_date)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input value={line.work_order} onChange={(event) => updateIncomeLine(line.id, { work_order: event.target.value })} disabled={!editable} className="min-w-24" /> : readOnlyValue(line.work_order)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input value={line.receipt} onChange={(event) => updateIncomeLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.receipt)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input value={line.quote} onChange={(event) => updateIncomeLine(line.id, { quote: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.quote)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input value={line.customer_name} onChange={(event) => updateIncomeLine(line.id, { customer_name: event.target.value })} disabled={!editable} className="min-w-40" /> : readOnlyValue(line.customer_name)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input value={line.concept} onChange={(event) => updateIncomeLine(line.id, { concept: event.target.value })} disabled={!editable} className="min-w-52" /> : readOnlyValue(line.concept)}</TableCell>
+                                <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.cash_amount, (value) => updateIncomeLine(line.id, { cash_amount: value }), !editable) : currency.format(Number(line.cash_amount || 0))}</TableCell>
+                                <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.other_amount, (value) => updateIncomeLine(line.id, { other_amount: value }), !editable) : currency.format(Number(line.other_amount || 0))}</TableCell>
                                 <TableCell className="text-right font-medium tabular-nums">{currency.format(editableLineTotal(line))}</TableCell>
-                                <TableCell><Input value={line.income_type} onChange={(event) => updateIncomeLine(line.id, { income_type: event.target.value })} disabled={!editable} className="min-w-32" /></TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input value={line.income_type} onChange={(event) => updateIncomeLine(line.id, { income_type: event.target.value })} disabled={!editable} className="min-w-32" /> : readOnlyValue(line.income_type)}</TableCell>
                                 <TableCell className="text-right">
-                                  <Button type="button" size="icon" variant="ghost" onClick={() => removeIncomeLine(line.id)} disabled={!editable} aria-label="Eliminar ingreso">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  {detailMode === "edit" ? (
+                                    <Button type="button" size="icon" variant="ghost" onClick={() => removeIncomeLine(line.id)} disabled={!editable} aria-label="Eliminar ingreso">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  ) : null}
                                 </TableCell>
                               </TableRow>
                             ))}
+                            <TableRow className="bg-muted/40 font-semibold">
+                              <TableCell colSpan={6}>Subtotal ingresos</TableCell>
+                              <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.income_cash_total)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.income_other_total)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.income_total)}</TableCell>
+                              <TableCell colSpan={2}>{(detailMode === "summary" ? originalIncomeLines : incomeLines).length} filas</TableCell>
+                            </TableRow>
                           </TableBody>
                         </Table>
                       </div>
@@ -526,11 +605,13 @@ export default function SettlementsPage() {
                     <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
                         <CardTitle>Egresos</CardTitle>
-                        <CardDescription>Los proveedores son texto manual.</CardDescription>
+                        <CardDescription>{detailMode === "summary" ? `${originalExpenseLines.length} filas persistidas.` : "Los proveedores son texto manual."}</CardDescription>
                       </div>
-                      <Button type="button" variant="outline" onClick={() => setExpenseLines((current) => [...current, makeExpenseLineDraft(headerForm.settlement_date)])} disabled={!editable}>
-                        <Plus className="mr-2 h-4 w-4" /> Agregar egreso
-                      </Button>
+                      {detailMode === "edit" ? (
+                        <Button type="button" variant="outline" onClick={() => setExpenseLines((current) => [...current, makeExpenseLineDraft(headerForm.settlement_date)])} disabled={!editable}>
+                          <Plus className="mr-2 h-4 w-4" /> Agregar egreso
+                        </Button>
+                      ) : null}
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-auto rounded-xl border">
@@ -549,27 +630,50 @@ export default function SettlementsPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {expenseLines.length === 0 ? (
+                            {(detailMode === "summary" ? originalExpenseLines : expenseLines).length === 0 ? (
                               <TableRow><TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">Sin egresos cargados.</TableCell></TableRow>
-                            ) : expenseLines.map((line) => (
+                            ) : (detailMode === "summary" ? originalExpenseLines : expenseLines).map((line) => (
                               <TableRow key={line.id}>
-                                <TableCell><Input type="date" value={line.line_date} onChange={(event) => updateExpenseLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /></TableCell>
-                                <TableCell><Input value={line.receipt} onChange={(event) => updateExpenseLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
-                                <TableCell><Input value={line.supplier_name} onChange={(event) => updateExpenseLine(line.id, { supplier_name: event.target.value })} disabled={!editable} className="min-w-40" /></TableCell>
-                                <TableCell><Input value={line.detail} onChange={(event) => updateExpenseLine(line.id, { detail: event.target.value })} disabled={!editable} className="min-w-52" /></TableCell>
-                                <TableCell><Input value={line.purchase_order} onChange={(event) => updateExpenseLine(line.id, { purchase_order: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
-                                <TableCell>{moneyInput(line.cash_amount, (value) => updateExpenseLine(line.id, { cash_amount: value }), !editable)}</TableCell>
-                                <TableCell>{moneyInput(line.other_amount, (value) => updateExpenseLine(line.id, { other_amount: value }), !editable)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input type="date" value={line.line_date} onChange={(event) => updateExpenseLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /> : readOnlyDate(line.line_date)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input value={line.receipt} onChange={(event) => updateExpenseLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.receipt)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input value={line.supplier_name} onChange={(event) => updateExpenseLine(line.id, { supplier_name: event.target.value })} disabled={!editable} className="min-w-40" /> : readOnlyValue(line.supplier_name)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input value={line.detail} onChange={(event) => updateExpenseLine(line.id, { detail: event.target.value })} disabled={!editable} className="min-w-52" /> : readOnlyValue(line.detail)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input value={line.purchase_order} onChange={(event) => updateExpenseLine(line.id, { purchase_order: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.purchase_order)}</TableCell>
+                                <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.cash_amount, (value) => updateExpenseLine(line.id, { cash_amount: value }), !editable) : currency.format(Number(line.cash_amount || 0))}</TableCell>
+                                <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.other_amount, (value) => updateExpenseLine(line.id, { other_amount: value }), !editable) : currency.format(Number(line.other_amount || 0))}</TableCell>
                                 <TableCell className="text-right font-medium tabular-nums">{currency.format(editableLineTotal(line))}</TableCell>
                                 <TableCell className="text-right">
-                                  <Button type="button" size="icon" variant="ghost" onClick={() => removeExpenseLine(line.id)} disabled={!editable} aria-label="Eliminar egreso">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  {detailMode === "edit" ? (
+                                    <Button type="button" size="icon" variant="ghost" onClick={() => removeExpenseLine(line.id)} disabled={!editable} aria-label="Eliminar egreso">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  ) : null}
                                 </TableCell>
                               </TableRow>
                             ))}
+                            <TableRow className="bg-muted/40 font-semibold">
+                              <TableCell colSpan={5}>Subtotal egresos</TableCell>
+                              <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.expense_cash_total)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.expense_other_total)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.expense_total)}</TableCell>
+                              <TableCell>{(detailMode === "summary" ? originalExpenseLines : expenseLines).length} filas</TableCell>
+                            </TableRow>
                           </TableBody>
                         </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Total rendicion</CardTitle>
+                      <CardDescription>Consolidado de ingresos menos egresos.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <DetailField label="Total ingresos" value={currency.format(displayedTotals.income_total)} />
+                        <DetailField label="Total egresos" value={currency.format(displayedTotals.expense_total)} />
+                        <DetailField label="Total rendicion" value={currency.format(displayedTotals.settlement_total)} />
                       </div>
                     </CardContent>
                   </Card>
