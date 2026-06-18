@@ -68,6 +68,20 @@ const statusTone: Record<SettlementStatus, "default" | "secondary" | "destructiv
   CANCELLED: "destructive",
 };
 
+type SettlementDraftSnapshot = {
+  headerForm: SettlementHeaderForm;
+  incomeLines: EditableIncomeLine[];
+  expenseLines: EditableExpenseLine[];
+};
+
+function cloneDraftSnapshot(snapshot: SettlementDraftSnapshot): SettlementDraftSnapshot {
+  return {
+    headerForm: { ...snapshot.headerForm },
+    incomeLines: snapshot.incomeLines.map((line) => ({ ...line })),
+    expenseLines: snapshot.expenseLines.map((line) => ({ ...line })),
+  };
+}
+
 function moneyInput(value: string, onChange: (value: string) => void, disabled: boolean) {
   return (
     <Input
@@ -159,7 +173,6 @@ export default function SettlementsPage() {
   const editorLoading = Boolean(selectedSettlementId && (detailQuery.isLoading || linesQuery.isLoading || detailQuery.isFetching || linesQuery.isFetching));
   const editorError = detailQuery.error ?? linesQuery.error ?? null;
   const editorBlocked = editorLoading || Boolean(editorError);
-  const editable = Boolean(selectedSettlement && isDraftSettlement(selectedSettlement.status) && canEdit && !editorBlocked);
   const liveTotals = useMemo(() => calculateSettlementTotals(incomeLines, expenseLines), [expenseLines, incomeLines]);
   const displayedTotals = selectedSettlement && isDraftSettlement(selectedSettlement.status)
     ? liveTotals
@@ -206,12 +219,16 @@ export default function SettlementsPage() {
     if (incomeLines.some((line) => !line.concept.trim())) throw new Error("Cada ingreso necesita concepto.");
     if (expenseLines.some((line) => !line.detail.trim())) throw new Error("Cada egreso necesita detalle.");
 
+    const snapshot = cloneDraftSnapshot({ headerForm, incomeLines, expenseLines });
+
     await saveSettlementDraft({
       settlementId: selectedSettlementId,
-      headerForm,
-      incomeLines,
-      expenseLines,
+      headerForm: snapshot.headerForm,
+      incomeLines: snapshot.incomeLines,
+      expenseLines: snapshot.expenseLines,
     });
+
+    return snapshot;
   };
 
   const createMutation = useMutation({
@@ -229,10 +246,10 @@ export default function SettlementsPage() {
 
   const saveMutation = useMutation({
     mutationFn: persistDraft,
-    onSuccess: async () => {
-      setOriginalHeaderForm(headerForm);
-      setOriginalIncomeLines(incomeLines);
-      setOriginalExpenseLines(expenseLines);
+    onSuccess: async (savedSnapshot) => {
+      setOriginalHeaderForm(savedSnapshot.headerForm);
+      setOriginalIncomeLines(savedSnapshot.incomeLines);
+      setOriginalExpenseLines(savedSnapshot.expenseLines);
       await invalidateSettlement();
       toast({ title: "Borrador guardado" });
     },
@@ -262,6 +279,10 @@ export default function SettlementsPage() {
     },
     onError: (error) => toast({ title: "No se pudo actualizar", description: getErrorMessage(error), variant: "destructive" }),
   });
+
+  const mutationPending = saveMutation.isPending || workflowMutation.isPending;
+  const editorLocked = editorBlocked || mutationPending;
+  const editable = Boolean(selectedSettlement && isDraftSettlement(selectedSettlement.status) && canEdit && !editorLocked);
 
   const updateIncomeLine = (lineId: string, patch: Partial<EditableIncomeLine>) => {
     setIncomeLines((current) => current.map((line) => (line.id === lineId ? { ...line, ...patch } : line)));
@@ -302,10 +323,10 @@ export default function SettlementsPage() {
           subtitle="Carga manual de ingresos y egresos por empresa activa."
           actions={
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => void invalidateSettlement()} disabled={!companyId || settlementsQuery.isFetching}>
+              <Button type="button" variant="outline" onClick={() => void invalidateSettlement()} disabled={!companyId || settlementsQuery.isFetching || mutationPending}>
                 <RefreshCw className="mr-2 h-4 w-4" /> Actualizar
               </Button>
-              <Button type="button" onClick={() => createMutation.mutate()} disabled={!companyId || !canCreate || createMutation.isPending}>
+              <Button type="button" onClick={() => createMutation.mutate()} disabled={!companyId || !canCreate || createMutation.isPending || mutationPending}>
                 <Plus className="mr-2 h-4 w-4" /> Nueva rendicion
               </Button>
             </div>
@@ -343,8 +364,11 @@ export default function SettlementsPage() {
                         {settlementsQuery.data.map((settlement) => (
                           <TableRow
                             key={settlement.id}
-                            className={selectedSettlementId === settlement.id ? "bg-muted/55" : "cursor-pointer"}
-                            onClick={() => setSelectedSettlementId(settlement.id)}
+                            aria-disabled={mutationPending}
+                            className={selectedSettlementId === settlement.id ? "bg-muted/55" : mutationPending ? "cursor-not-allowed opacity-60" : "cursor-pointer"}
+                            onClick={() => {
+                              if (!mutationPending) setSelectedSettlementId(settlement.id);
+                            }}
                           >
                             <TableCell>
                               <p className="font-medium">{formatSettlementNumber(settlement.settlement_number)}</p>
@@ -404,16 +428,16 @@ export default function SettlementsPage() {
                         </CardDescription>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <Button type="button" variant="outline" onClick={() => saveMutation.mutate()} disabled={!editable || !draftHasChanges || saveMutation.isPending || editorBlocked}>
+                        <Button type="button" variant="outline" onClick={() => saveMutation.mutate()} disabled={!editable || !draftHasChanges}>
                           <Save className="mr-2 h-4 w-4" /> Guardar
                         </Button>
-                        <Button type="button" onClick={() => setConfirmAction("submit")} disabled={!isDraftSettlement(selectedSettlement.status) || !canSubmit || workflowMutation.isPending || editorBlocked}>
+                        <Button type="button" onClick={() => setConfirmAction("submit")} disabled={!isDraftSettlement(selectedSettlement.status) || !canSubmit || editorLocked}>
                           <Send className="mr-2 h-4 w-4" /> Presentar
                         </Button>
-                        <Button type="button" variant="outline" onClick={() => setReceiveOpen(true)} disabled={selectedSettlement.status !== "SUBMITTED" || !canReceive || workflowMutation.isPending || editorBlocked}>
+                        <Button type="button" variant="outline" onClick={() => setReceiveOpen(true)} disabled={selectedSettlement.status !== "SUBMITTED" || !canReceive || editorLocked}>
                           <CheckCircle2 className="mr-2 h-4 w-4" /> Recibir
                         </Button>
-                        <Button type="button" variant="destructive" onClick={() => setConfirmAction("cancel")} disabled={selectedSettlement.status === "CANCELLED" || !canCancel || workflowMutation.isPending || editorBlocked}>
+                        <Button type="button" variant="destructive" onClick={() => setConfirmAction("cancel")} disabled={selectedSettlement.status === "CANCELLED" || !canCancel || editorLocked}>
                           <Ban className="mr-2 h-4 w-4" /> Anular
                         </Button>
                       </div>
@@ -556,7 +580,7 @@ export default function SettlementsPage() {
         )}
       </div>
 
-      <AlertDialog open={confirmAction !== null} onOpenChange={(open) => !open && setConfirmAction(null)}>
+      <AlertDialog open={confirmAction !== null} onOpenChange={(open) => !open && !mutationPending && setConfirmAction(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{confirmAction === "submit" ? "Presentar rendicion" : "Anular rendicion"}</AlertDialogTitle>
@@ -567,18 +591,20 @@ export default function SettlementsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={mutationPending}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={(event) => {
               event.preventDefault();
               if (confirmAction) workflowMutation.mutate(confirmAction);
-            }}>
+            }} disabled={mutationPending}>
               Confirmar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={receiveOpen} onOpenChange={setReceiveOpen}>
+      <Dialog open={receiveOpen} onOpenChange={(open) => {
+        if (!mutationPending) setReceiveOpen(open);
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Recibir rendicion</DialogTitle>
@@ -586,11 +612,11 @@ export default function SettlementsPage() {
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="received-by">Recibido por</Label>
-            <Input id="received-by" value={receivedByName} onChange={(event) => setReceivedByName(event.target.value)} />
+            <Input id="received-by" value={receivedByName} onChange={(event) => setReceivedByName(event.target.value)} disabled={mutationPending} />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setReceiveOpen(false)}>Cancelar</Button>
-            <Button type="button" onClick={() => workflowMutation.mutate("receive")} disabled={workflowMutation.isPending}>Recibir</Button>
+            <Button type="button" variant="outline" onClick={() => setReceiveOpen(false)} disabled={mutationPending}>Cancelar</Button>
+            <Button type="button" onClick={() => workflowMutation.mutate("receive")} disabled={mutationPending}>Recibir</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

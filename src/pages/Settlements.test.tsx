@@ -97,6 +97,16 @@ function amountText(amount: string) {
     element?.textContent?.replace(/\s|\u00a0/g, " ").trim() === `$ ${amount}`;
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
 describe("SettlementsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -160,6 +170,43 @@ describe("SettlementsPage", () => {
       headerForm: expect.objectContaining({ prepared_by_name: "Header Editado" }),
     })));
     expect(mocks.submitSettlement).toHaveBeenCalledWith("settlement-1");
+  });
+
+  it("blocks editing, selection and actions while saving and keeps the sent snapshot as original", async () => {
+    const saveRequest = deferred<{ id: string }>();
+    mocks.fetchSettlements.mockResolvedValue([
+      settlement("settlement-1", 1, "Listado Uno"),
+      settlement("settlement-2", 2, "Listado Dos"),
+    ]);
+    mocks.fetchSettlementDetail
+      .mockResolvedValueOnce({ ...settlement("settlement-1", 1, "Header Uno"), totals: undefined })
+      .mockResolvedValue({ ...settlement("settlement-1", 1, "Header Guardado"), totals: undefined });
+    mocks.saveSettlementDraft.mockReturnValueOnce(saveRequest.promise);
+
+    renderPage();
+
+    const preparedBy = await screen.findByLabelText("Preparado por");
+    fireEvent.change(preparedBy, { target: { value: "Header Guardado" } });
+    fireEvent.click(screen.getByRole("button", { name: /Guardar/i }));
+
+    await waitFor(() => expect(mocks.saveSettlementDraft).toHaveBeenCalledWith(expect.objectContaining({
+      headerForm: expect.objectContaining({ prepared_by_name: "Header Guardado" }),
+    })));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Presentar/i })).toBeDisabled());
+
+    expect((screen.getByLabelText("Preparado por") as HTMLInputElement).value).toBe("Header Guardado");
+    fireEvent.click(screen.getByText("#00002"));
+
+    expect(screen.getByLabelText("Preparado por")).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Presentar/i })).toBeDisabled();
+    expect((screen.getByLabelText("Preparado por") as HTMLInputElement).value).toBe("Header Guardado");
+    expect(mocks.fetchSettlementDetail).not.toHaveBeenCalledWith("company-1", "settlement-2");
+
+    saveRequest.resolve({ id: "settlement-1" });
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /Guardar/i })).toBeDisabled());
+    await waitFor(() => expect(screen.queryByText("Cargando detalle de la rendicion...")).not.toBeInTheDocument());
+    expect((screen.getByLabelText("Preparado por") as HTMLInputElement).value).toBe("Header Guardado");
   });
 
   it("shows line totals as cash plus other amounts", async () => {
