@@ -476,12 +476,16 @@ export default function SettlementsPage() {
                         <Button type="button" onClick={() => setConfirmAction("submit")} disabled={!isDraftSettlement(selectedSettlement.status) || !canSubmit || editorLocked}>
                           <Send className="mr-2 h-4 w-4" /> Presentar
                         </Button>
-                        <Button type="button" variant="outline" onClick={() => setReceiveOpen(true)} disabled={selectedSettlement.status !== "SUBMITTED" || !canReceive || editorLocked}>
-                          <CheckCircle2 className="mr-2 h-4 w-4" /> Recibir
-                        </Button>
-                        <Button type="button" variant="destructive" onClick={() => setConfirmAction("cancel")} disabled={selectedSettlement.status === "CANCELLED" || !canCancel || editorLocked}>
-                          <Ban className="mr-2 h-4 w-4" /> Anular
-                        </Button>
+                        {canReceive ? (
+                          <Button type="button" variant="outline" onClick={() => setReceiveOpen(true)} disabled={selectedSettlement.status !== "SUBMITTED" || editorLocked}>
+                            <CheckCircle2 className="mr-2 h-4 w-4" /> Recibir
+                          </Button>
+                        ) : null}
+                        {canCancel ? (
+                          <Button type="button" variant="destructive" onClick={() => setConfirmAction("cancel")} disabled={selectedSettlement.status === "CANCELLED" || editorLocked}>
+                            <Ban className="mr-2 h-4 w-4" /> Anular
+                          </Button>
+                        ) : null}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">

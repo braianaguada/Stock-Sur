@@ -29,6 +29,7 @@ Rendiciones queda preparado como modulo generico por empresa, disponible para cu
 - RPCs operativas: `save_settlement_draft`, `submit_settlement`, `receive_settlement` y `cancel_settlement`.
 - RLS valida empresa activa, membresia y permisos `settlements.*`; los detalles solo se pueden modificar mientras la rendicion esta en `DRAFT`.
 - La UI usa permisos efectivos por empresa para las acciones de Rendiciones; si un permiso esta ausente o denegado, la accion se oculta o bloquea igual que en las RPC/RLS.
+- `Recibir` y `Anular` solo se muestran cuando la empresa activa otorga `settlements.receive` o `settlements.cancel`, respectivamente.
 - Los campos de presentacion, recepcion y anulacion solo pueden cambiar por RPC; `created_by` de ingresos/egresos se completa obligatoriamente con `auth.uid()` al insertar, queda inmutable para usuarios y se mantiene nullable para respetar los FK `ON DELETE SET NULL`.
 - UI MVP: `/settlements` queda en la navegacion para usuarios con permiso de vista; permite listar por empresa activa, crear/editar borradores, cargar ingresos y egresos manuales, ver totales automaticos, presentar, recibir y anular con confirmacion.
 - Al seleccionar una rendicion se abre primero un resumen consolidado de solo lectura con encabezado, lineas, subtotales, cantidades y total neto; solo los borradores con `settlements.edit` pueden entrar a edicion y volver al resumen sin mostrar cambios locales como persistidos.

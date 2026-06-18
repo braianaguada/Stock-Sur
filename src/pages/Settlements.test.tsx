@@ -315,6 +315,30 @@ describe("SettlementsPage", () => {
     expect(screen.getByRole("button", { name: /Presentar/i })).toBeEnabled();
   });
 
+  it("does not show receive action without receive permission", async () => {
+    mocks.auth.companyPermissionCodes = ["settlements.view", "settlements.submit", "settlements.cancel"];
+    mocks.fetchSettlements.mockResolvedValue([{ ...settlement("settlement-1", 1, "Header Uno"), status: "SUBMITTED" as const }]);
+    mocks.fetchSettlementDetail.mockResolvedValue({ ...settlement("settlement-1", 1, "Header Uno"), status: "SUBMITTED" as const, totals: undefined });
+
+    renderPage();
+
+    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Recibir/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Anular/i })).toBeEnabled();
+  });
+
+  it("does not show cancel action without cancel permission", async () => {
+    mocks.auth.companyPermissionCodes = ["settlements.view", "settlements.submit", "settlements.receive"];
+    mocks.fetchSettlements.mockResolvedValue([{ ...settlement("settlement-1", 1, "Header Uno"), status: "SUBMITTED" as const }]);
+    mocks.fetchSettlementDetail.mockResolvedValue({ ...settlement("settlement-1", 1, "Header Uno"), status: "SUBMITTED" as const, totals: undefined });
+
+    renderPage();
+
+    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Recibir/i })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /Anular/i })).not.toBeInTheDocument();
+  });
+
   it("shows non draft settlements as historical detail instead of a disabled form", async () => {
     mocks.fetchSettlements.mockResolvedValue([{ ...settlement("settlement-1", 1, "Header Uno"), status: "SUBMITTED" as const }]);
     mocks.fetchSettlementDetail.mockResolvedValue({ ...settlement("settlement-1", 1, "Header Uno"), status: "SUBMITTED" as const, totals: undefined });
