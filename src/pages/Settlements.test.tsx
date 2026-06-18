@@ -78,6 +78,62 @@ function settlement(id: string, number: number, preparedByName: string) {
   };
 }
 
+function incomeLine(overrides: Partial<{
+  id: string;
+  line_date: string;
+  work_order: string | null;
+  receipt: string | null;
+  quote: string | null;
+  customer_name: string | null;
+  concept: string;
+  cash_amount: number;
+  other_amount: number;
+  income_type: string | null;
+  display_order: number;
+}> = {}) {
+  return {
+    id: overrides.id ?? "income-1",
+    company_id: "company-1",
+    settlement_id: "settlement-1",
+    line_date: overrides.line_date ?? "2026-06-18",
+    work_order: overrides.work_order ?? "OT-1",
+    receipt: overrides.receipt ?? "R-1",
+    quote: overrides.quote ?? "P-1",
+    customer_name: overrides.customer_name ?? "Cliente",
+    concept: overrides.concept ?? "Cobro",
+    cash_amount: overrides.cash_amount ?? 100,
+    other_amount: overrides.other_amount ?? 50,
+    income_type: overrides.income_type ?? "Venta",
+    display_order: overrides.display_order ?? 1,
+  };
+}
+
+function expenseLine(overrides: Partial<{
+  id: string;
+  line_date: string;
+  receipt: string | null;
+  supplier_name: string | null;
+  detail: string;
+  purchase_order: string | null;
+  cash_amount: number;
+  other_amount: number;
+  display_order: number;
+}> = {}) {
+  return {
+    id: overrides.id ?? "expense-1",
+    company_id: "company-1",
+    settlement_id: "settlement-1",
+    line_date: overrides.line_date ?? "2026-06-18",
+    receipt: overrides.receipt ?? "F-1",
+    supplier_name: overrides.supplier_name ?? "Proveedor",
+    detail: overrides.detail ?? "Gasto",
+    purchase_order: overrides.purchase_order ?? "OC-1",
+    cash_amount: overrides.cash_amount ?? 20,
+    other_amount: overrides.other_amount ?? 5,
+    display_order: overrides.display_order ?? 1,
+  };
+}
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -137,11 +193,11 @@ describe("SettlementsPage", () => {
 
     renderPage();
 
-    expect(await screen.findByDisplayValue("Header Uno")).toBeInTheDocument();
+    expect(await screen.findByText("Header Uno")).toBeInTheDocument();
     fireEvent.click(screen.getByText("#00002"));
 
     expect(await screen.findByText("Cargando detalle de la rendicion...")).toBeInTheDocument();
-    expect(screen.queryByDisplayValue("Header Uno")).not.toBeInTheDocument();
+    expect(screen.queryByText("Header Uno")).not.toBeInTheDocument();
   });
 
   it("allows submit permission without edit and does not save first", async () => {
@@ -149,7 +205,7 @@ describe("SettlementsPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Encabezado")).toBeInTheDocument();
+    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Presentar/i }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
 
@@ -160,6 +216,8 @@ describe("SettlementsPage", () => {
   it("saves editable changes through the RPC before submitting", async () => {
     renderPage();
 
+    await screen.findByText("Resumen de rendicion");
+    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
     const preparedBy = await screen.findByLabelText("Preparado por");
     fireEvent.change(preparedBy, { target: { value: "Header Editado" } });
     fireEvent.click(screen.getByRole("button", { name: /Presentar/i }));
@@ -185,6 +243,8 @@ describe("SettlementsPage", () => {
 
     renderPage();
 
+    await screen.findByText("Resumen de rendicion");
+    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
     const preparedBy = await screen.findByLabelText("Preparado por");
     fireEvent.change(preparedBy, { target: { value: "Header Guardado" } });
     fireEvent.click(screen.getByRole("button", { name: /Guardar/i }));
@@ -211,41 +271,62 @@ describe("SettlementsPage", () => {
 
   it("shows line totals as cash plus other amounts", async () => {
     mocks.fetchSettlementLines.mockResolvedValue({
-      incomeLines: [{
-        id: "income-1",
-        company_id: "company-1",
-        settlement_id: "settlement-1",
-        line_date: "2026-06-18",
-        work_order: null,
-        receipt: "R-1",
-        quote: "P-1",
-        customer_name: "Cliente",
-        concept: "Cobro",
-        cash_amount: 100,
-        other_amount: 50,
-        income_type: null,
-        display_order: 1,
-      }],
-      expenseLines: [{
-        id: "expense-1",
-        company_id: "company-1",
-        settlement_id: "settlement-1",
-        line_date: "2026-06-18",
-        receipt: "F-1",
-        supplier_name: "Proveedor",
-        detail: "Gasto",
-        purchase_order: null,
-        cash_amount: 20,
-        other_amount: 5,
-        display_order: 1,
-      }],
+      incomeLines: [incomeLine()],
+      expenseLines: [expenseLine()],
     });
 
     renderPage();
 
-    expect(await screen.findByDisplayValue("Cliente")).toBeInTheDocument();
+    expect(await screen.findByText("Cliente")).toBeInTheDocument();
     const incomeTotals = await screen.findAllByText(amountText("150,00"));
     expect(incomeTotals.length).toBeGreaterThan(0);
     expect(screen.getAllByText(amountText("25,00")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("1 filas").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Subtotal ingresos").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Subtotal egresos").length).toBeGreaterThan(0);
+  });
+
+  it("shows summary by default, enters edit mode and returns without showing unsaved changes as persisted", async () => {
+    renderPage();
+
+    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
+    expect(screen.getByText("Header Uno")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Guardar/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
+    const preparedBy = await screen.findByLabelText("Preparado por");
+    fireEvent.change(preparedBy, { target: { value: "Header Sin Guardar" } });
+    fireEvent.click(screen.getByRole("button", { name: /Ver resumen/i }));
+
+    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
+    expect(screen.getByText("Hay cambios sin guardar en el editor. Este resumen muestra el ultimo detalle persistido.")).toBeInTheDocument();
+    expect(screen.getByText("Header Uno")).toBeInTheDocument();
+    expect(screen.queryByText("Header Sin Guardar")).not.toBeInTheDocument();
+  });
+
+  it("hides edit controls without edit permission", async () => {
+    mocks.auth.companyPermissionCodes = ["settlements.view", "settlements.submit"];
+
+    renderPage();
+
+    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Editar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Guardar/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Presentar/i })).toBeEnabled();
+  });
+
+  it("shows non draft settlements as historical detail instead of a disabled form", async () => {
+    mocks.fetchSettlements.mockResolvedValue([{ ...settlement("settlement-1", 1, "Header Uno"), status: "SUBMITTED" as const }]);
+    mocks.fetchSettlementDetail.mockResolvedValue({ ...settlement("settlement-1", 1, "Header Uno"), status: "SUBMITTED" as const, totals: undefined });
+    mocks.fetchSettlementLines.mockResolvedValue({ incomeLines: [incomeLine()], expenseLines: [] });
+
+    renderPage();
+
+    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
+    expect(screen.getAllByText("Presentada").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Cliente").length).toBeGreaterThan(1);
+    expect(screen.queryByRole("button", { name: /Editar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Guardar/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Preparado por")).not.toBeInTheDocument();
   });
 });
