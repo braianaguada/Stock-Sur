@@ -127,3 +127,27 @@ export function canPrintBilling(roles: AppRole[], context?: CompanyAccessContext
 export function canManageBillingSettings(roles: AppRole[], context?: CompanyAccessContext) {
   return hasCompanyPermission(roles, context, "billing.settings");
 }
+
+export function canViewSettlements(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "settlements.view");
+}
+
+export function canCreateSettlements(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "settlements.create");
+}
+
+export function canEditSettlements(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "settlements.edit");
+}
+
+export function canSubmitSettlements(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "settlements.submit");
+}
+
+export function canReceiveSettlements(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "settlements.receive");
+}
+
+export function canCancelSettlements(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "settlements.cancel");
+}

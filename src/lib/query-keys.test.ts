@@ -22,4 +22,12 @@ describe("company scoped query keys", () => {
     expect(queryKeys.serviceDocuments.shareLinks("company-1", "service-1")).toEqual(["service-document-share-links", "company-1", "service-1"]);
     expect(queryKeys.serviceDocuments.events("company-1", "service-1")).toEqual(["service-document-events", "company-1", "service-1"]);
   });
+
+  it("scopes settlement list, detail, lines and totals by company", () => {
+    expect(queryKeys.settlements.list("company-1")).toEqual(["settlements", "list", "company-1"]);
+    expect(queryKeys.settlements.detail("company-1", "settlement-1")).toEqual(["settlements", "detail", "company-1", "settlement-1"]);
+    expect(queryKeys.settlements.lines("company-1", "settlement-1")).toEqual(["settlements", "lines", "company-1", "settlement-1"]);
+    expect(queryKeys.settlements.totals("company-1", "settlement-1")).toEqual(["settlements", "totals", "company-1", "settlement-1"]);
+    expect(queryKeys.settlements.list(null)).toEqual(["settlements", "list", "no-company"]);
+  });
 });

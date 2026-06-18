@@ -77,6 +77,7 @@ describe("AppLayout", () => {
     expect(screen.getByText(/Gesti/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Items" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Tecnicos" })).toHaveAttribute("href", "/technicians");
+    expect(screen.getByRole("link", { name: "Rendiciones" })).toHaveAttribute("href", "/settlements");
     expect(screen.getByRole("link", { name: /Configuraci/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Usuarios" })).not.toBeInTheDocument();
     expect(screen.getByText("admin@stocksur.test")).toBeInTheDocument();

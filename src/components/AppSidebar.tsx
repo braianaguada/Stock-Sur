@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
-import { canManageUsers, canViewBilling, canViewSettings } from "@/lib/permissions";
+import { canManageUsers, canViewBilling, canViewSettings, canViewSettlements } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { billingFeatureEnabled } from "@/lib/features";
 
@@ -25,6 +25,7 @@ const navItems = [
   { title: "Tecnicos", url: "/technicians" },
   { title: "Totales", url: "/cash-totals" },
   { title: "Caja", url: "/cash" },
+  { title: "Rendiciones", url: "/settlements", requiresSettlements: true },
   { title: "Facturacion", url: "/billing", requiresBilling: true },
   { title: "Clientes", url: "/customers" },
   { title: "Estado de cuenta", url: "/customer-account" },
@@ -97,6 +98,9 @@ export function AppSidebar() {
     if (item.requiresAdmin) return canViewSettings(roles, { companyRoleCodes, companyPermissionCodes });
     if (item.requiresBilling) {
       return billingFeatureEnabled && canViewBilling(roles, { companyRoleCodes, companyPermissionCodes });
+    }
+    if (item.requiresSettlements) {
+      return canViewSettlements(roles, { companyRoleCodes, companyPermissionCodes });
     }
     return true;
   });

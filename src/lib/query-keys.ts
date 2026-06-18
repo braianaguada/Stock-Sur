@@ -70,6 +70,15 @@ export const queryKeys = {
     remitos: (companyId: string | null, idsKey: string) => ["billing-remitos", companyId ?? "no-company", idsKey] as const,
     activeSourceIds: (companyId: string | null) => ["billing-active-source-ids", companyId ?? "no-company"] as const,
   },
+  settlements: {
+    list: (companyId: string | null) => ["settlements", "list", companyId ?? "no-company"] as const,
+    detail: (companyId: string | null, settlementId: string | null) =>
+      ["settlements", "detail", companyId ?? "no-company", settlementId ?? "no-settlement"] as const,
+    lines: (companyId: string | null, settlementId: string | null) =>
+      ["settlements", "lines", companyId ?? "no-company", settlementId ?? "no-settlement"] as const,
+    totals: (companyId: string | null, settlementId: string | null) =>
+      ["settlements", "totals", companyId ?? "no-company", settlementId ?? "no-settlement"] as const,
+  },
   documents: {
     customers: (companyId: string | null) => ["documents-customers", companyId ?? "no-company"] as const,
     items: (companyId: string | null) => ["documents-items", companyId ?? "no-company"] as const,

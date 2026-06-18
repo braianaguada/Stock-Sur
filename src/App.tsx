@@ -46,6 +46,7 @@ const LegacyCatalogImportPage = lazy(() => import("./pages/LegacyCatalogImport")
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const CashPage = lazy(() => import("./pages/Cash"));
 const CashTotalsPage = lazy(() => import("./pages/CashTotals"));
+const SettlementsPage = lazy(() => import("./pages/Settlements"));
 const BillingPage = lazy(() => import("./pages/Billing"));
 const PrintBillingPage = lazy(() => import("./pages/PrintBilling"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -111,6 +112,7 @@ const App = () => (
                   <Route path="/print/service-document/:id" element={<ProtectedRoute><PrintServiceDocumentPage /></ProtectedRoute>} />
                   <Route path="/cash" element={<ProtectedRoute><CashPage /></ProtectedRoute>} />
                   <Route path="/cash-totals" element={<ProtectedRoute><CashTotalsPage /></ProtectedRoute>} />
+                  <Route path="/settlements" element={<ProtectedRoute><SettlementsPage /></ProtectedRoute>} />
                   <Route path="/billing" element={billingFeatureEnabled ? <ProtectedRoute><BillingPage /></ProtectedRoute> : <Navigate to="/" replace />} />
                   <Route path="/print/billing/:id" element={billingFeatureEnabled ? <ProtectedRoute><PrintBillingPage /></ProtectedRoute> : <Navigate to="/" replace />} />
                   <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
