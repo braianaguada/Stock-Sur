@@ -325,8 +325,11 @@ describe("SettlementsPage", () => {
     expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
     expect(screen.getAllByText("Presentada").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Cliente").length).toBeGreaterThan(1);
+    expect(screen.getByText("Cobro")).toBeInTheDocument();
+    expect(screen.getAllByText(amountText("150,00")).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: /Editar/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Guardar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Agregar ingreso/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Preparado por")).not.toBeInTheDocument();
   });
 });
