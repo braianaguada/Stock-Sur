@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CheckCircle2, Edit3, Eye, Plus, Printer, RefreshCw, Save, Send, Trash2, X } from "lucide-react";
+import { Ban, CheckCircle2, Plus, Printer, RefreshCw, Save, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import {
@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader, StatCard } from "@/components/ui/page";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
@@ -148,9 +149,12 @@ export default function SettlementsPage() {
   const [confirmAction, setConfirmAction] = useState<"submit" | "cancel" | null>(null);
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [receivedByName, setReceivedByName] = useState("");
-  const [detailMode, setDetailMode] = useState<"summary" | "edit">("summary");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
+  const [printOpen, setPrintOpen] = useState(false);
+  const [printRange, setPrintRange] = useState<"all" | "period" | "custom">("period");
+  const [printFrom, setPrintFrom] = useState("");
+  const [printTo, setPrintTo] = useState("");
 
   useEffect(() => {
     setSelectedSettlementId(null);
@@ -162,9 +166,9 @@ export default function SettlementsPage() {
     setOriginalExpenseLines([]);
     setConfirmAction(null);
     setReceiveOpen(false);
-    setDetailMode("summary");
     setFilterFrom("");
     setFilterTo("");
+    setPrintOpen(false);
   }, [companyId]);
 
   useEffect(() => {
@@ -176,9 +180,9 @@ export default function SettlementsPage() {
     setOriginalExpenseLines([]);
     setConfirmAction(null);
     setReceiveOpen(false);
-    setDetailMode("summary");
     setFilterFrom("");
     setFilterTo("");
+    setPrintOpen(false);
   }, [selectedSettlementId]);
 
   const settlementsQuery = useQuery({
@@ -208,8 +212,8 @@ export default function SettlementsPage() {
   const editorLoading = Boolean(selectedSettlementId && (detailQuery.isLoading || linesQuery.isLoading || detailQuery.isFetching || linesQuery.isFetching));
   const editorError = detailQuery.error ?? linesQuery.error ?? null;
   const editorBlocked = editorLoading || Boolean(editorError);
-  const visibleIncomeSource = detailMode === "edit" ? incomeLines : originalIncomeLines;
-  const visibleExpenseSource = detailMode === "edit" ? expenseLines : originalExpenseLines;
+  const visibleIncomeSource = canEdit && selectedSettlement?.status === "DRAFT" ? incomeLines : originalIncomeLines;
+  const visibleExpenseSource = canEdit && selectedSettlement?.status === "DRAFT" ? expenseLines : originalExpenseLines;
   const visibleIncomeLines = useMemo(
     () => visibleIncomeSource.filter((line) => isDateInRange(line.line_date, filterFrom, filterTo)),
     [filterFrom, filterTo, visibleIncomeSource],
@@ -243,12 +247,6 @@ export default function SettlementsPage() {
     setOriginalIncomeLines(nextIncomeLines);
     setOriginalExpenseLines(nextExpenseLines);
   }, [linesQuery.data]);
-
-  useEffect(() => {
-    if (selectedSettlement && !isDraftSettlement(selectedSettlement.status) && detailMode === "edit") {
-      setDetailMode("summary");
-    }
-  }, [detailMode, selectedSettlement]);
 
   const invalidateSettlement = async (settlementId = selectedSettlementId) => {
     if (!companyId) return;
@@ -337,8 +335,8 @@ export default function SettlementsPage() {
   const mutationPending = saveMutation.isPending || workflowMutation.isPending;
   const editorLocked = editorBlocked || mutationPending;
   const canEditSelectedDraft = Boolean(selectedSettlement && isDraftSettlement(selectedSettlement.status) && canEdit);
-  const editable = Boolean(canEditSelectedDraft && detailMode === "edit" && !editorLocked);
-  const summaryHeader = originalHeaderForm ?? (selectedSettlement ? createHeaderForm(selectedSettlement) : createHeaderForm());
+  const editable = Boolean(canEditSelectedDraft && !editorLocked);
+  const detailMode = editable ? "edit" : "summary";
 
   const updateIncomeLine = (lineId: string, patch: Partial<EditableIncomeLine>) => {
     setIncomeLines((current) => current.map((line) => (line.id === lineId ? { ...line, ...patch } : line)));
@@ -350,19 +348,31 @@ export default function SettlementsPage() {
 
   const removeIncomeLine = (lineId: string) => setIncomeLines((current) => current.filter((line) => line.id !== lineId));
   const removeExpenseLine = (lineId: string) => setExpenseLines((current) => current.filter((line) => line.id !== lineId));
+  const openPrintDialog = () => {
+    if (!originalHeaderForm) return;
+    setPrintRange(originalHeaderForm.period_from || originalHeaderForm.period_to ? "period" : "all");
+    setPrintFrom(originalHeaderForm.period_from);
+    setPrintTo(originalHeaderForm.period_to);
+    setPrintOpen(true);
+  };
+
   const printSettlement = () => {
     if (!selectedSettlement || !originalHeaderForm) return;
+    const from = printRange === "all" ? "" : printRange === "period" ? originalHeaderForm.period_from : printFrom;
+    const to = printRange === "all" ? "" : printRange === "period" ? originalHeaderForm.period_to : printTo;
     const win = openPrintWindow(buildSettlementPrintHtml({
       companyName: currentCompany?.name ?? "Stock Sur",
       settlementNumber: selectedSettlement.settlement_number,
       status: selectedSettlement.status,
       header: originalHeaderForm,
-      incomeLines: originalIncomeLines.filter((line) => isDateInRange(line.line_date, filterFrom, filterTo)),
-      expenseLines: originalExpenseLines.filter((line) => isDateInRange(line.line_date, filterFrom, filterTo)),
-      filterFrom,
-      filterTo,
+      createdAt: selectedSettlement.created_at,
+      incomeLines: originalIncomeLines.filter((line) => isDateInRange(line.line_date, from, to)),
+      expenseLines: originalExpenseLines.filter((line) => isDateInRange(line.line_date, from, to)),
+      filterFrom: from,
+      filterTo: to,
     }));
     if (!win) toast({ title: "No se pudo abrir la impresion", description: "Habilita las ventanas emergentes e intenta nuevamente.", variant: "destructive" });
+    else setPrintOpen(false);
   };
 
   const renderAccessState = () => {
@@ -405,61 +415,31 @@ export default function SettlementsPage() {
 
         {accessState ? accessState : (
           <div className="space-y-5">
-            <Card>
-              <CardHeader>
-                <CardTitle>Rendiciones de {currentCompany.name}</CardTitle>
-                <CardDescription>Selecciona una rendicion para consultar o completar su detalle.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {settlementsQuery.isLoading ? (
-                  <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Cargando rendiciones...</div>
-                ) : settlementsQuery.error ? (
-                  <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-                    {getErrorMessage(settlementsQuery.error, "No se pudo cargar el listado.")}
-                  </div>
-                ) : !settlementsQuery.data?.length ? (
-                  <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">No hay rendiciones cargadas.</div>
-                ) : (
-                  <div className="overflow-auto rounded-xl border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Rendicion</TableHead>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Responsables</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {settlementsQuery.data.map((settlement) => (
-                          <TableRow
-                            key={settlement.id}
-                            aria-disabled={mutationPending}
-                            className={selectedSettlementId === settlement.id ? "bg-muted/55" : mutationPending ? "cursor-not-allowed opacity-60" : "cursor-pointer"}
-                            onClick={() => {
-                              if (!mutationPending) setSelectedSettlementId(settlement.id);
-                            }}
-                          >
-                            <TableCell>
-                              <p className="font-medium">{formatSettlementNumber(settlement.settlement_number)}</p>
-                              <Badge variant={statusTone[settlement.status]}>{settlementStatusLabel(settlement.status)}</Badge>
-                            </TableCell>
-                            <TableCell>{formatBusinessDate(settlement.settlement_date)}</TableCell>
-                            <TableCell>
-                              <p className="max-w-40 truncate">{settlement.prepared_by_name}</p>
-                              <p className="max-w-40 truncate text-xs text-muted-foreground">{settlement.received_by_name ?? "Sin recepcion"}</p>
-                            </TableCell>
-                            <TableCell className="text-right font-semibold tabular-nums">
-                              {currency.format(settlement.totals.settlement_total)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <div className="flex flex-col gap-3 border-y bg-muted/20 px-4 py-3 md:flex-row md:items-end">
+              <div className="min-w-0 flex-1 space-y-2">
+                <Label htmlFor="settlement-selector">Rendicion activa</Label>
+                <Select
+                  value={selectedSettlementId ?? ""}
+                  onValueChange={(value) => {
+                    if (!mutationPending) setSelectedSettlementId(value);
+                  }}
+                  disabled={settlementsQuery.isLoading || mutationPending || !settlementsQuery.data?.length}
+                >
+                  <SelectTrigger id="settlement-selector" className="w-full md:max-w-xl">
+                    <SelectValue placeholder={settlementsQuery.isLoading ? "Cargando rendiciones..." : "Seleccionar rendicion"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {settlementsQuery.data?.map((settlement) => (
+                      <SelectItem key={settlement.id} value={settlement.id}>
+                        {formatSettlementNumber(settlement.settlement_number)} · {formatBusinessDate(settlement.settlement_date)} · {settlementStatusLabel(settlement.status)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedSettlement ? <Badge variant={statusTone[selectedSettlement.status]}>{settlementStatusLabel(selectedSettlement.status)}</Badge> : null}
+              {settlementsQuery.error ? <p className="text-sm text-destructive">{getErrorMessage(settlementsQuery.error, "No se pudieron cargar las rendiciones.")}</p> : null}
+            </div>
 
             <section className="space-y-5" aria-label="Detalle de la rendicion">
               {editorLoading ? (
@@ -491,31 +471,16 @@ export default function SettlementsPage() {
                   <Card>
                     <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div>
-                        <CardTitle>{detailMode === "edit" ? "Editar rendicion" : "Resumen de rendicion"}</CardTitle>
+                        <CardTitle>Datos de la rendicion</CardTitle>
                         <CardDescription>
                           {formatSettlementNumber(selectedSettlement.settlement_number)} - {settlementStatusLabel(selectedSettlement.status)}
                           {selectedSettlement.received_at ? ` - Recibida ${formatDateTime(selectedSettlement.received_at)}` : ""}
                         </CardDescription>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {detailMode === "summary" && canEditSelectedDraft ? (
-                          <Button type="button" variant="outline" onClick={() => setDetailMode("edit")} disabled={editorLocked}>
-                            <Edit3 className="mr-2 h-4 w-4" /> Editar
-                          </Button>
-                        ) : null}
-                        {detailMode === "edit" ? (
-                          <>
-                            <Button type="button" variant="outline" onClick={() => setDetailMode("summary")} disabled={mutationPending}>
-                              <Eye className="mr-2 h-4 w-4" /> Ver resumen
-                            </Button>
-                            <Button type="button" variant="outline" onClick={() => saveMutation.mutate()} disabled={!editable || !draftHasChanges}>
-                              <Save className="mr-2 h-4 w-4" /> Guardar
-                            </Button>
-                          </>
-                        ) : null}
-                        <Button type="button" variant="outline" onClick={printSettlement} disabled={editorLocked}>
-                          <Printer className="mr-2 h-4 w-4" /> Imprimir
-                        </Button>
+                        {canEditSelectedDraft ? <Button type="button" variant="outline" onClick={() => saveMutation.mutate()} disabled={!editable || !draftHasChanges}>
+                          <Save className="mr-2 h-4 w-4" /> Guardar
+                        </Button> : null}
                         <Button type="button" onClick={() => setConfirmAction("submit")} disabled={!isDraftSettlement(selectedSettlement.status) || !canSubmit || editorLocked}>
                           <Send className="mr-2 h-4 w-4" /> Presentar
                         </Button>
@@ -532,56 +497,43 @@ export default function SettlementsPage() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-5">
-                      {detailMode === "summary" && draftHasChanges ? (
-                        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                          Hay cambios sin guardar en el editor. Este resumen muestra el ultimo detalle persistido.
-                        </div>
-                      ) : null}
-
-                      {detailMode === "summary" ? (
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <DetailField label="Fecha" value={readOnlyDate(summaryHeader.settlement_date)} />
-                          <DetailField label="Preparado por" value={readOnlyValue(summaryHeader.prepared_by_name)} />
-                          <DetailField label="Periodo desde" value={readOnlyDate(summaryHeader.period_from)} />
-                          <DetailField label="Periodo hasta" value={readOnlyDate(summaryHeader.period_to)} />
-                          <div className="md:col-span-2">
-                            <DetailField label="Notas" value={readOnlyValue(summaryHeader.notes)} />
-                          </div>
-                          <DetailField label="Creada" value={formatDateTime(selectedSettlement.created_at)} />
-                          <DetailField label="Actualizada" value={formatDateTime(selectedSettlement.updated_at)} />
-                          <DetailField label="Recibido por" value={readOnlyValue(selectedSettlement.received_by_name)} />
-                          <DetailField label="Fecha recepcion" value={selectedSettlement.received_at ? formatDateTime(selectedSettlement.received_at) : "Sin dato"} />
-                          <DetailField label="Cantidad ingresos" value={String(originalIncomeLines.length)} />
-                          <DetailField label="Cantidad egresos" value={String(originalExpenseLines.length)} />
-                        </div>
-                      ) : (
-                        <div className="grid gap-4 md:grid-cols-2">
+                      <div className="grid gap-4 md:grid-cols-2">
                           <div className="space-y-2">
                             <Label htmlFor="settlement-date">Fecha</Label>
-                            <Input id="settlement-date" type="date" value={headerForm.settlement_date} onChange={(event) => setHeaderForm((current) => ({ ...current, settlement_date: event.target.value }))} disabled={!editable} />
+                            {canEditSelectedDraft ? <Input id="settlement-date" type="date" value={headerForm.settlement_date} onChange={(event) => setHeaderForm((current) => ({ ...current, settlement_date: event.target.value }))} disabled={!editable} /> : <p className="text-sm font-medium">{readOnlyDate(headerForm.settlement_date)}</p>}
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="prepared-by">Preparado por</Label>
-                            <Input id="prepared-by" value={headerForm.prepared_by_name} onChange={(event) => setHeaderForm((current) => ({ ...current, prepared_by_name: event.target.value }))} disabled={!editable} />
+                            {canEditSelectedDraft ? <Input id="prepared-by" value={headerForm.prepared_by_name} onChange={(event) => setHeaderForm((current) => ({ ...current, prepared_by_name: event.target.value }))} disabled={!editable} /> : <p className="text-sm font-medium">{readOnlyValue(headerForm.prepared_by_name)}</p>}
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="period-from">Periodo desde</Label>
-                            <Input id="period-from" type="date" value={headerForm.period_from} onChange={(event) => setHeaderForm((current) => ({ ...current, period_from: event.target.value }))} disabled={!editable} />
+                            {canEditSelectedDraft ? <Input id="period-from" type="date" value={headerForm.period_from} onChange={(event) => setHeaderForm((current) => ({ ...current, period_from: event.target.value }))} disabled={!editable} /> : <p className="text-sm font-medium">{readOnlyDate(headerForm.period_from)}</p>}
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="period-to">Periodo hasta</Label>
-                            <Input id="period-to" type="date" value={headerForm.period_to} onChange={(event) => setHeaderForm((current) => ({ ...current, period_to: event.target.value }))} disabled={!editable} />
+                            {canEditSelectedDraft ? <Input id="period-to" type="date" value={headerForm.period_to} onChange={(event) => setHeaderForm((current) => ({ ...current, period_to: event.target.value }))} disabled={!editable} /> : <p className="text-sm font-medium">{readOnlyDate(headerForm.period_to)}</p>}
                           </div>
                           <div className="space-y-2 md:col-span-2">
                             <Label htmlFor="notes">Notas</Label>
-                            <Textarea id="notes" value={headerForm.notes} onChange={(event) => setHeaderForm((current) => ({ ...current, notes: event.target.value }))} disabled={!editable} rows={3} />
+                            {canEditSelectedDraft ? <Textarea id="notes" value={headerForm.notes} onChange={(event) => setHeaderForm((current) => ({ ...current, notes: event.target.value }))} disabled={!editable} rows={2} /> : <p className="text-sm font-medium">{readOnlyValue(headerForm.notes)}</p>}
                           </div>
-                        </div>
-                      )}
+                      </div>
                     </CardContent>
                   </Card>
 
-                  <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4 md:flex-row md:items-end">
+                  <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4 lg:flex-row lg:items-end">
+                    {canEditSelectedDraft ? <>
+                      <Button type="button" onClick={() => setIncomeLines((current) => [...current, makeIncomeLineDraft(headerForm.settlement_date)])} disabled={!editable}>
+                        <Plus className="mr-2 h-4 w-4" /> Nuevo ingreso
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={() => setExpenseLines((current) => [...current, makeExpenseLineDraft(headerForm.settlement_date)])} disabled={!editable}>
+                        <Plus className="mr-2 h-4 w-4" /> Nuevo egreso
+                      </Button>
+                    </> : null}
+                    <Button type="button" variant="outline" onClick={openPrintDialog} disabled={editorLocked}>
+                      <Printer className="mr-2 h-4 w-4" /> Imprimir
+                    </Button>
                     <div className="space-y-2">
                       <Label htmlFor="lines-filter-from">Mostrar desde</Label>
                       <Input id="lines-filter-from" type="date" value={filterFrom} onChange={(event) => setFilterFrom(event.target.value)} className="md:w-44" />
@@ -611,11 +563,6 @@ export default function SettlementsPage() {
                             : "Agrega un ingreso por cada cobro o entrada de dinero."}
                         </CardDescription>
                       </div>
-                      {detailMode === "edit" ? (
-                        <Button type="button" onClick={() => setIncomeLines((current) => [...current, makeIncomeLineDraft(headerForm.settlement_date)])} disabled={!editable}>
-                          <Plus className="mr-2 h-4 w-4" /> Nuevo ingreso
-                        </Button>
-                      ) : null}
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-auto rounded-lg border" role="region" aria-labelledby="settlement-income-title" tabIndex={0}>
@@ -640,7 +587,7 @@ export default function SettlementsPage() {
                               <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">Sin ingresos cargados.</TableCell></TableRow>
                             ) : visibleIncomeLines.map((line) => (
                               <TableRow key={line.id}>
-                                <TableCell>{detailMode === "edit" ? <Input aria-label="Fecha cobro ingreso" type="date" required value={line.line_date} onChange={(event) => updateIncomeLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /> : readOnlyDate(line.line_date)}</TableCell>
+                                <TableCell>{editable ? <Input aria-label="Fecha cobro ingreso" type="date" required value={line.line_date} onChange={(event) => updateIncomeLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /> : readOnlyDate(line.line_date)}</TableCell>
                                 <TableCell>{detailMode === "edit" ? <Input value={line.work_order} onChange={(event) => updateIncomeLine(line.id, { work_order: event.target.value })} disabled={!editable} className="min-w-24" /> : readOnlyValue(line.work_order)}</TableCell>
                                 <TableCell>{detailMode === "edit" ? <Input value={line.receipt} onChange={(event) => updateIncomeLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.receipt)}</TableCell>
                                 <TableCell>{detailMode === "edit" ? <Input value={line.quote} onChange={(event) => updateIncomeLine(line.id, { quote: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.quote)}</TableCell>
@@ -686,11 +633,6 @@ export default function SettlementsPage() {
                             : "Agrega un egreso por cada pago o salida de dinero."}
                         </CardDescription>
                       </div>
-                      {detailMode === "edit" ? (
-                        <Button type="button" onClick={() => setExpenseLines((current) => [...current, makeExpenseLineDraft(headerForm.settlement_date)])} disabled={!editable}>
-                          <Plus className="mr-2 h-4 w-4" /> Nuevo egreso
-                        </Button>
-                      ) : null}
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-auto rounded-lg border" role="region" aria-labelledby="settlement-expense-title" tabIndex={0}>
@@ -756,6 +698,51 @@ export default function SettlementsPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={printOpen} onOpenChange={setPrintOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Imprimir rendicion</DialogTitle>
+            <DialogDescription>Elegí qué fechas incluir. La impresión usa únicamente información guardada.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="print-range">Periodo a imprimir</Label>
+              <Select value={printRange} onValueChange={(value: "all" | "period" | "custom") => setPrintRange(value)}>
+                <SelectTrigger id="print-range"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las fechas</SelectItem>
+                  <SelectItem value="period">Periodo de la rendicion</SelectItem>
+                  <SelectItem value="custom">Fecha o rango personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {printRange === "period" ? (
+              <p className="rounded-md border bg-muted/30 p-3 text-sm">
+                {originalHeaderForm?.period_from ? formatBusinessDate(originalHeaderForm.period_from) : "Inicio"} a {originalHeaderForm?.period_to ? formatBusinessDate(originalHeaderForm.period_to) : "fin"}
+              </p>
+            ) : null}
+            {printRange === "custom" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="print-from">Desde</Label>
+                  <Input id="print-from" type="date" value={printFrom} onChange={(event) => setPrintFrom(event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="print-to">Hasta</Label>
+                  <Input id="print-to" type="date" value={printTo} onChange={(event) => setPrintTo(event.target.value)} />
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPrintOpen(false)}>Cancelar</Button>
+            <Button type="button" onClick={printSettlement}>
+              <Printer className="mr-2 h-4 w-4" /> Abrir impresión
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={confirmAction !== null} onOpenChange={(open) => !open && !mutationPending && setConfirmAction(null)}>
         <AlertDialogContent>

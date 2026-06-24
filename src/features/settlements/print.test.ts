@@ -7,6 +7,7 @@ describe("buildSettlementPrintHtml", () => {
       companyName: "Empresa Uno",
       settlementNumber: 12,
       status: "SUBMITTED",
+      createdAt: "2026-06-19T10:30:00Z",
       header: {
         settlement_date: "2026-06-24",
         period_from: "",
@@ -40,13 +41,16 @@ describe("buildSettlementPrintHtml", () => {
       filterTo: "2026-06-21",
     });
 
-    expect(html).toContain("FECHA COBRO");
-    expect(html).toContain("TRANSF/TARJ/CHEQ");
+    expect(html).toContain("Fecha cobro");
+    expect(html).toContain("Transf/Tarj/Cheq");
     expect(html).toContain("FC Nº");
     expect(html).toContain("Total a rendir");
+    expect(html).toContain("Creado");
+    expect(html).toContain("Cantidad ingresos");
+    expect(html).toContain("Cantidad egresos");
     expect(html).toContain("Firma");
     expect(html).toContain("Aclaracion");
-    expect(html).toContain("Fecha de rendicion");
+    expect(html).toContain("<span>Fecha</span>");
     expect(html).toContain("125");
   });
 });

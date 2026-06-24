@@ -193,11 +193,14 @@ describe("SettlementsPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Header Uno")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("#00002"));
+    expect(await screen.findByDisplayValue("Header Uno")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("combobox", { name: "Rendicion activa" }));
+    fireEvent.click(
+      await screen.findByRole("option", { name: /#00002/ }),
+    );
 
     expect(await screen.findByText("Cargando detalle de la rendicion...")).toBeInTheDocument();
-    expect(screen.queryByText("Header Uno")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Header Uno")).not.toBeInTheDocument();
   });
 
   it("allows submit permission without edit and does not save first", async () => {
@@ -205,7 +208,7 @@ describe("SettlementsPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
+    expect(await screen.findByText("Datos de la rendicion")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Presentar/i }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
 
@@ -216,8 +219,7 @@ describe("SettlementsPage", () => {
   it("saves editable changes through the RPC before submitting", async () => {
     renderPage();
 
-    await screen.findByText("Resumen de rendicion");
-    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
+    await screen.findByText("Datos de la rendicion");
     const preparedBy = await screen.findByLabelText("Preparado por");
     fireEvent.change(preparedBy, { target: { value: "Header Editado" } });
     fireEvent.click(screen.getByRole("button", { name: /Presentar/i }));
@@ -243,8 +245,7 @@ describe("SettlementsPage", () => {
 
     renderPage();
 
-    await screen.findByText("Resumen de rendicion");
-    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
+    await screen.findByText("Datos de la rendicion");
     const preparedBy = await screen.findByLabelText("Preparado por");
     fireEvent.change(preparedBy, { target: { value: "Header Guardado" } });
     fireEvent.click(screen.getByRole("button", { name: /Guardar/i }));
@@ -255,7 +256,7 @@ describe("SettlementsPage", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: /Presentar/i })).toBeDisabled());
 
     expect((screen.getByLabelText("Preparado por") as HTMLInputElement).value).toBe("Header Guardado");
-    fireEvent.click(screen.getByText("#00002"));
+    expect(screen.getByRole("combobox", { name: "Rendicion activa" })).toBeDisabled();
 
     expect(screen.getByLabelText("Preparado por")).toBeDisabled();
     expect(screen.getByRole("button", { name: /Presentar/i })).toBeDisabled();
@@ -286,22 +287,14 @@ describe("SettlementsPage", () => {
     expect(screen.getAllByText("Subtotal egresos").length).toBeGreaterThan(0);
   });
 
-  it("shows summary by default, enters edit mode and returns without showing unsaved changes as persisted", async () => {
+  it("shows the operational tables directly without a settlements table or summary mode", async () => {
     renderPage();
 
-    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
-    expect(screen.getByText("Header Uno")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Guardar/i })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
-    const preparedBy = await screen.findByLabelText("Preparado por");
-    fireEvent.change(preparedBy, { target: { value: "Header Sin Guardar" } });
-    fireEvent.click(screen.getByRole("button", { name: /Ver resumen/i }));
-
-    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
-    expect(screen.getByText("Hay cambios sin guardar en el editor. Este resumen muestra el ultimo detalle persistido.")).toBeInTheDocument();
-    expect(screen.getByText("Header Uno")).toBeInTheDocument();
-    expect(screen.queryByText("Header Sin Guardar")).not.toBeInTheDocument();
+    expect(await screen.findByText("Datos de la rendicion")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Ingresos" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Egresos" })).toBeInTheDocument();
+    expect(screen.queryByText("Resumen de rendicion")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Guardar/i })).toBeInTheDocument();
   });
 
   it("presents separate income and expense tables with a clear add action for each one", async () => {
@@ -309,11 +302,6 @@ describe("SettlementsPage", () => {
 
     expect(await screen.findByRole("region", { name: "Ingresos" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Egresos" })).toBeInTheDocument();
-    expect(screen.getByText("Dinero recibido incluido en esta rendicion.")).toBeInTheDocument();
-    expect(screen.getByText("Dinero pagado incluido en esta rendicion.")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
-
     const addIncome = await screen.findByRole("button", { name: /Nuevo ingreso/i });
     const addExpense = screen.getByRole("button", { name: /Nuevo egreso/i });
     expect(addIncome).toBeEnabled();
@@ -328,12 +316,22 @@ describe("SettlementsPage", () => {
     expect(screen.getByText("Agrega un egreso por cada pago o salida de dinero.")).toBeInTheDocument();
   });
 
+  it("opens print date selection from the operational toolbar", async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Imprimir/i }));
+
+    expect(screen.getByRole("dialog", { name: "Imprimir rendicion" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Periodo a imprimir")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Abrir impresi.n/i })).toBeInTheDocument();
+  });
+
   it("hides edit controls without edit permission", async () => {
     mocks.auth.companyPermissionCodes = ["settlements.view", "settlements.submit"];
 
     renderPage();
 
-    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
+    expect(await screen.findByText("Datos de la rendicion")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Editar/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Guardar/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Presentar/i })).toBeEnabled();
@@ -346,7 +344,7 @@ describe("SettlementsPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
+    expect(await screen.findByText("Datos de la rendicion")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Recibir/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Anular/i })).toBeEnabled();
   });
@@ -358,7 +356,7 @@ describe("SettlementsPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
+    expect(await screen.findByText("Datos de la rendicion")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Recibir/i })).toBeEnabled();
     expect(screen.queryByRole("button", { name: /Anular/i })).not.toBeInTheDocument();
   });
@@ -370,7 +368,7 @@ describe("SettlementsPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Resumen de rendicion")).toBeInTheDocument();
+    expect(await screen.findByText("Datos de la rendicion")).toBeInTheDocument();
     expect(screen.getAllByText("Presentada").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Cliente").length).toBeGreaterThan(1);
     expect(screen.getByText("Cobro")).toBeInTheDocument();
@@ -399,8 +397,8 @@ describe("SettlementsPage", () => {
 
     fireEvent.change(screen.getByLabelText("Mostrar desde"), { target: { value: "2026-06-18" } });
 
-    expect(screen.getByText("Cliente visible")).toBeInTheDocument();
-    expect(screen.queryByText("Cliente oculto")).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("Cliente visible")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Cliente oculto")).not.toBeInTheDocument();
     expect(screen.getByText("1 ingresos y 1 egresos visibles")).toBeInTheDocument();
     expect(screen.getAllByText(amountText("120,00")).length).toBeGreaterThan(0);
     expect(screen.getAllByText(amountText("90,00")).length).toBeGreaterThan(0);
@@ -409,8 +407,7 @@ describe("SettlementsPage", () => {
   it("requires the operational fields before saving a new line", async () => {
     renderPage();
 
-    await screen.findByText("Resumen de rendicion");
-    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
+    await screen.findByText("Datos de la rendicion");
     fireEvent.click(await screen.findByRole("button", { name: /Nuevo ingreso/i }));
     fireEvent.click(screen.getByRole("button", { name: /Guardar/i }));
 
