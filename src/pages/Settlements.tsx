@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CheckCircle2, Edit3, Eye, Plus, RefreshCw, Save, Send, Trash2 } from "lucide-react";
+import { Plus, Printer, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,60 +15,48 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader, StatCard } from "@/components/ui/page";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompanyBrand } from "@/contexts/company-brand-context";
 import {
-  cancelSettlement,
   createSettlementDraft,
   fetchSettlementDetail,
   fetchSettlementLines,
   fetchSettlements,
-  receiveSettlement,
   saveSettlementDraft,
-  submitSettlement,
 } from "@/features/settlements/api";
-import type { EditableExpenseLine, EditableIncomeLine, SettlementHeaderForm, SettlementStatus } from "@/features/settlements/types";
+import type { EditableExpenseLine, EditableIncomeLine, SettlementHeaderForm } from "@/features/settlements/types";
 import {
   EMPTY_SETTLEMENT_TOTALS,
   calculateSettlementTotals,
   createHeaderForm,
   editableLineTotal,
   expenseLineToForm,
-  formatSettlementNumber,
   hasSettlementDraftChanges,
   incomeLineToForm,
   isDraftSettlement,
   makeExpenseLineDraft,
   makeIncomeLineDraft,
-  settlementStatusLabel,
 } from "@/features/settlements/utils";
+import { buildSettlementPrintHtml } from "@/features/settlements/print";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
-import { currency, formatBusinessDate, formatDateTime } from "@/lib/formatters";
+import { currency, formatBusinessDate } from "@/lib/formatters";
 import {
-  canCancelSettlements,
   canCreateSettlements,
   canEditSettlements,
-  canReceiveSettlements,
-  canSubmitSettlements,
   canViewSettlements,
 } from "@/lib/permissions";
 import { queryKeys } from "@/lib/query-keys";
-
-const statusTone: Record<SettlementStatus, "default" | "secondary" | "destructive" | "outline"> = {
-  DRAFT: "secondary",
-  SUBMITTED: "default",
-  RECEIVED: "outline",
-  CANCELLED: "destructive",
-};
+import { openPrintWindow } from "@/lib/print";
 
 type SettlementDraftSnapshot = {
   headerForm: SettlementHeaderForm;
@@ -82,7 +72,7 @@ function cloneDraftSnapshot(snapshot: SettlementDraftSnapshot): SettlementDraftS
   };
 }
 
-function moneyInput(value: string, onChange: (value: string) => void, disabled: boolean) {
+function moneyInput(value: string, onChange: (value: string) => void, disabled: boolean, required = false, ariaLabel?: string) {
   return (
     <Input
       type="number"
@@ -91,31 +81,25 @@ function moneyInput(value: string, onChange: (value: string) => void, disabled: 
       value={value}
       onChange={(event) => onChange(event.target.value)}
       disabled={disabled}
+      required={required}
+      aria-required={required}
+      aria-label={ariaLabel}
       className="min-w-28 text-right tabular-nums"
     />
   );
-}
-
-function readOnlyValue(value: string | null | undefined) {
-  const normalized = value?.trim();
-  return normalized ? normalized : "Sin dato";
 }
 
 function readOnlyDate(value: string | null | undefined) {
   return value ? formatBusinessDate(value) : "Sin dato";
 }
 
-function DetailField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
-      <p className="min-h-6 break-words text-sm font-medium">{value}</p>
-    </div>
-  );
+function isDateInRange(lineDate: string, from: string, to: string) {
+  return (!from || lineDate >= from) && (!to || lineDate <= to);
 }
 
 export default function SettlementsPage() {
   const { roles, currentCompany, companyRoleCodes, companyPermissionCodes, user } = useAuth();
+  const { settings: companySettings } = useCompanyBrand();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const companyId = currentCompany?.id ?? null;
@@ -126,9 +110,6 @@ export default function SettlementsPage() {
   const canView = canViewSettlements(roles, accessContext);
   const canCreate = canCreateSettlements(roles, accessContext);
   const canEdit = canEditSettlements(roles, accessContext);
-  const canSubmit = canSubmitSettlements(roles, accessContext);
-  const canReceive = canReceiveSettlements(roles, accessContext);
-  const canCancel = canCancelSettlements(roles, accessContext);
 
   const [selectedSettlementId, setSelectedSettlementId] = useState<string | null>(null);
   const [headerForm, setHeaderForm] = useState(createHeaderForm());
@@ -137,10 +118,18 @@ export default function SettlementsPage() {
   const [originalHeaderForm, setOriginalHeaderForm] = useState<SettlementHeaderForm | null>(null);
   const [originalIncomeLines, setOriginalIncomeLines] = useState<EditableIncomeLine[]>([]);
   const [originalExpenseLines, setOriginalExpenseLines] = useState<EditableExpenseLine[]>([]);
-  const [confirmAction, setConfirmAction] = useState<"submit" | "cancel" | null>(null);
-  const [receiveOpen, setReceiveOpen] = useState(false);
-  const [receivedByName, setReceivedByName] = useState("");
-  const [detailMode, setDetailMode] = useState<"summary" | "edit">("summary");
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+  const [printOpen, setPrintOpen] = useState(false);
+  const [printRange, setPrintRange] = useState<"all" | "period" | "custom">("period");
+  const [printFrom, setPrintFrom] = useState("");
+  const [printTo, setPrintTo] = useState("");
+  const [printNote, setPrintNote] = useState("");
+  const [incomeDialogOpen, setIncomeDialogOpen] = useState(false);
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [incomeDraft, setIncomeDraft] = useState(() => makeIncomeLineDraft());
+  const [expenseDraft, setExpenseDraft] = useState(() => makeExpenseLineDraft());
+  const [pendingDeletion, setPendingDeletion] = useState<{ type: "income" | "expense"; id: string } | null>(null);
 
   useEffect(() => {
     setSelectedSettlementId(null);
@@ -150,9 +139,9 @@ export default function SettlementsPage() {
     setOriginalHeaderForm(null);
     setOriginalIncomeLines([]);
     setOriginalExpenseLines([]);
-    setConfirmAction(null);
-    setReceiveOpen(false);
-    setDetailMode("summary");
+    setFilterFrom("");
+    setFilterTo("");
+    setPrintOpen(false);
   }, [companyId]);
 
   useEffect(() => {
@@ -162,9 +151,9 @@ export default function SettlementsPage() {
     setOriginalHeaderForm(null);
     setOriginalIncomeLines([]);
     setOriginalExpenseLines([]);
-    setConfirmAction(null);
-    setReceiveOpen(false);
-    setDetailMode("summary");
+    setFilterFrom("");
+    setFilterTo("");
+    setPrintOpen(false);
   }, [selectedSettlementId]);
 
   const settlementsQuery = useQuery({
@@ -173,9 +162,28 @@ export default function SettlementsPage() {
     queryFn: () => fetchSettlements(companyId!),
   });
 
+  const profileQuery = useQuery({
+    queryKey: ["profile-name", user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.full_name?.trim() ?? "";
+    },
+  });
+  const currentUserName = profileQuery.data
+    || String(user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? "").trim()
+    || user?.email
+    || "";
+
   useEffect(() => {
     if (selectedSettlementId || !settlementsQuery.data?.length) return;
-    setSelectedSettlementId(settlementsQuery.data[0].id);
+    const activeDraft = settlementsQuery.data.find((settlement) => settlement.status === "DRAFT");
+    if (activeDraft) setSelectedSettlementId(activeDraft.id);
   }, [selectedSettlementId, settlementsQuery.data]);
 
   const detailQuery = useQuery({
@@ -194,11 +202,19 @@ export default function SettlementsPage() {
   const editorLoading = Boolean(selectedSettlementId && (detailQuery.isLoading || linesQuery.isLoading || detailQuery.isFetching || linesQuery.isFetching));
   const editorError = detailQuery.error ?? linesQuery.error ?? null;
   const editorBlocked = editorLoading || Boolean(editorError);
-  const liveTotals = useMemo(() => calculateSettlementTotals(incomeLines, expenseLines), [expenseLines, incomeLines]);
-  const persistedTotals = useMemo(() => calculateSettlementTotals(originalIncomeLines, originalExpenseLines), [originalExpenseLines, originalIncomeLines]);
-  const displayedTotals = selectedSettlement && isDraftSettlement(selectedSettlement.status) && detailMode === "edit"
-    ? liveTotals
-    : (selectedSettlement ? persistedTotals : EMPTY_SETTLEMENT_TOTALS);
+  const visibleIncomeSource = incomeLines;
+  const visibleExpenseSource = expenseLines;
+  const visibleIncomeLines = useMemo(
+    () => visibleIncomeSource.filter((line) => isDateInRange(line.line_date, filterFrom, filterTo)),
+    [filterFrom, filterTo, visibleIncomeSource],
+  );
+  const visibleExpenseLines = useMemo(
+    () => visibleExpenseSource.filter((line) => isDateInRange(line.line_date, filterFrom, filterTo)),
+    [filterFrom, filterTo, visibleExpenseSource],
+  );
+  const displayedTotals = selectedSettlement
+    ? calculateSettlementTotals(visibleIncomeLines, visibleExpenseLines)
+    : EMPTY_SETTLEMENT_TOTALS;
   const draftHasChanges = useMemo(
     () => hasSettlementDraftChanges(headerForm, incomeLines, expenseLines, originalHeaderForm, originalIncomeLines, originalExpenseLines),
     [expenseLines, headerForm, incomeLines, originalExpenseLines, originalHeaderForm, originalIncomeLines],
@@ -209,8 +225,7 @@ export default function SettlementsPage() {
     const nextHeaderForm = createHeaderForm(detailQuery.data);
     setHeaderForm(nextHeaderForm);
     setOriginalHeaderForm(nextHeaderForm);
-    setReceivedByName(detailQuery.data.received_by_name ?? user?.email?.split("@")[0] ?? "");
-  }, [detailQuery.data, user?.email]);
+  }, [detailQuery.data]);
 
   useEffect(() => {
     if (!linesQuery.data) return;
@@ -221,12 +236,6 @@ export default function SettlementsPage() {
     setOriginalIncomeLines(nextIncomeLines);
     setOriginalExpenseLines(nextExpenseLines);
   }, [linesQuery.data]);
-
-  useEffect(() => {
-    if (selectedSettlement && !isDraftSettlement(selectedSettlement.status) && detailMode === "edit") {
-      setDetailMode("summary");
-    }
-  }, [detailMode, selectedSettlement]);
 
   const invalidateSettlement = async (settlementId = selectedSettlementId) => {
     if (!companyId) return;
@@ -244,8 +253,12 @@ export default function SettlementsPage() {
     if (!canEdit) throw new Error("No tenes permiso para editar rendiciones.");
     if (editorBlocked) throw new Error("El detalle de la rendicion todavia no esta disponible.");
     if (!headerForm.prepared_by_name.trim()) throw new Error("El responsable de preparacion es obligatorio.");
-    if (incomeLines.some((line) => !line.concept.trim())) throw new Error("Cada ingreso necesita concepto.");
-    if (expenseLines.some((line) => !line.detail.trim())) throw new Error("Cada egreso necesita detalle.");
+    if (incomeLines.some((line) => !line.line_date || !line.customer_name.trim() || !line.concept.trim() || !line.cash_amount.trim())) {
+      throw new Error("Cada ingreso necesita fecha de cobro, cliente, concepto de pago y efectivo.");
+    }
+    if (expenseLines.some((line) => !line.line_date || !line.detail.trim() || !line.cash_amount.trim())) {
+      throw new Error("Cada egreso necesita fecha, detalle y efectivo.");
+    }
 
     const snapshot = cloneDraftSnapshot({ headerForm, incomeLines, expenseLines });
 
@@ -262,12 +275,12 @@ export default function SettlementsPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!companyId) throw new Error("Necesitas una empresa activa.");
-      return createSettlementDraft(companyId, user?.email ?? undefined);
+      return createSettlementDraft(companyId, currentUserName || undefined);
     },
     onSuccess: async (settlement) => {
       setSelectedSettlementId(settlement.id);
       await invalidateSettlement(settlement.id);
-      toast({ title: "Borrador creado" });
+      toast({ title: "Registro listo" });
     },
     onError: (error) => toast({ title: "No se pudo crear", description: getErrorMessage(error), variant: "destructive" }),
   });
@@ -279,51 +292,93 @@ export default function SettlementsPage() {
       setOriginalIncomeLines(savedSnapshot.incomeLines);
       setOriginalExpenseLines(savedSnapshot.expenseLines);
       await invalidateSettlement();
-      toast({ title: "Borrador guardado" });
     },
     onError: (error) => toast({ title: "No se pudo guardar", description: getErrorMessage(error), variant: "destructive" }),
   });
 
-  const workflowMutation = useMutation({
-    mutationFn: async (action: "submit" | "cancel" | "receive") => {
-      if (!selectedSettlementId) throw new Error("Selecciona una rendicion.");
-      if (action === "submit") {
-        if (canEdit && draftHasChanges) {
-          await persistDraft();
-        }
-        return submitSettlement(selectedSettlementId);
-      }
-      if (action === "receive") {
-        if (!receivedByName.trim()) throw new Error("Indica quien recibio la rendicion.");
-        return receiveSettlement(selectedSettlementId, receivedByName.trim());
-      }
-      return cancelSettlement(selectedSettlementId);
-    },
-    onSuccess: async () => {
-      await invalidateSettlement();
-      setConfirmAction(null);
-      setReceiveOpen(false);
-      toast({ title: "Rendicion actualizada" });
-    },
-    onError: (error) => toast({ title: "No se pudo actualizar", description: getErrorMessage(error), variant: "destructive" }),
-  });
+  useEffect(() => {
+    if (selectedSettlementId || !companyId || !canCreate || !canEdit || settlementsQuery.isLoading || createMutation.isPending) return;
+    if (settlementsQuery.data && !settlementsQuery.data.some((settlement) => settlement.status === "DRAFT")) {
+      createMutation.mutate();
+    }
+  }, [canCreate, canEdit, companyId, createMutation, selectedSettlementId, settlementsQuery.data, settlementsQuery.isLoading]);
 
-  const mutationPending = saveMutation.isPending || workflowMutation.isPending;
+  useEffect(() => {
+    if (!draftHasChanges || !selectedSettlement || !isDraftSettlement(selectedSettlement.status) || editorBlocked || saveMutation.isPending) return;
+    const validIncomeLines = incomeLines.every((line) => line.line_date && line.customer_name.trim() && line.concept.trim() && line.cash_amount.trim());
+    const validExpenseLines = expenseLines.every((line) => line.line_date && line.detail.trim() && line.cash_amount.trim());
+    if (!validIncomeLines || !validExpenseLines) return;
+    const timeout = window.setTimeout(() => saveMutation.mutate(), 700);
+    return () => window.clearTimeout(timeout);
+  }, [draftHasChanges, editorBlocked, expenseLines, incomeLines, saveMutation, selectedSettlement]);
+
+  const mutationPending = saveMutation.isPending || createMutation.isPending;
   const editorLocked = editorBlocked || mutationPending;
   const canEditSelectedDraft = Boolean(selectedSettlement && isDraftSettlement(selectedSettlement.status) && canEdit);
-  const editable = Boolean(canEditSelectedDraft && detailMode === "edit" && !editorLocked);
-  const summaryHeader = originalHeaderForm ?? (selectedSettlement ? createHeaderForm(selectedSettlement) : createHeaderForm());
-
-  const updateIncomeLine = (lineId: string, patch: Partial<EditableIncomeLine>) => {
-    setIncomeLines((current) => current.map((line) => (line.id === lineId ? { ...line, ...patch } : line)));
-  };
-
-  const updateExpenseLine = (lineId: string, patch: Partial<EditableExpenseLine>) => {
-    setExpenseLines((current) => current.map((line) => (line.id === lineId ? { ...line, ...patch } : line)));
-  };
+  const editable = Boolean(canEditSelectedDraft && !editorLocked);
 
   const removeIncomeLine = (lineId: string) => setIncomeLines((current) => current.filter((line) => line.id !== lineId));
   const removeExpenseLine = (lineId: string) => setExpenseLines((current) => current.filter((line) => line.id !== lineId));
+  const openIncomeDialog = () => {
+    setIncomeDraft(makeIncomeLineDraft(headerForm.settlement_date));
+    setIncomeDialogOpen(true);
+  };
+  const openExpenseDialog = () => {
+    setExpenseDraft(makeExpenseLineDraft(headerForm.settlement_date));
+    setExpenseDialogOpen(true);
+  };
+  const addIncomeLine = () => {
+    if (!incomeDraft.line_date || !incomeDraft.customer_name.trim() || !incomeDraft.concept.trim() || !incomeDraft.cash_amount.trim()) {
+      toast({ title: "Faltan datos obligatorios", description: "Completa fecha de cobro, cliente, concepto de pago y efectivo.", variant: "destructive" });
+      return;
+    }
+    setIncomeLines((current) => [...current, incomeDraft]);
+    setIncomeDialogOpen(false);
+  };
+  const addExpenseLine = () => {
+    if (!expenseDraft.line_date || !expenseDraft.detail.trim() || !expenseDraft.cash_amount.trim()) {
+      toast({ title: "Faltan datos obligatorios", description: "Completa fecha, detalle y efectivo.", variant: "destructive" });
+      return;
+    }
+    setExpenseLines((current) => [...current, expenseDraft]);
+    setExpenseDialogOpen(false);
+  };
+  const confirmDeletion = () => {
+    if (!pendingDeletion) return;
+    if (pendingDeletion.type === "income") removeIncomeLine(pendingDeletion.id);
+    else removeExpenseLine(pendingDeletion.id);
+    setPendingDeletion(null);
+  };
+  const openPrintDialog = () => {
+    if (!originalHeaderForm) return;
+    setPrintRange(originalHeaderForm.period_from || originalHeaderForm.period_to ? "period" : "all");
+    setPrintFrom(originalHeaderForm.period_from);
+    setPrintTo(originalHeaderForm.period_to);
+    setPrintNote("");
+    setPrintOpen(true);
+  };
+
+  const printSettlement = () => {
+    if (!selectedSettlement || !originalHeaderForm) return;
+    const from = printRange === "all" ? "" : printRange === "period" ? originalHeaderForm.period_from : printFrom;
+    const to = printRange === "all" ? "" : printRange === "period" ? originalHeaderForm.period_to : printTo;
+    const win = openPrintWindow(buildSettlementPrintHtml({
+      companyName: currentCompany?.name ?? "Stock Sur",
+      companyLogoUrl: companySettings.logo_url,
+      settlementNumber: selectedSettlement.settlement_number,
+      status: selectedSettlement.status,
+      header: originalHeaderForm,
+      createdAt: selectedSettlement.created_at,
+      incomeLines: originalIncomeLines.filter((line) => isDateInRange(line.line_date, from, to)),
+      expenseLines: originalExpenseLines.filter((line) => isDateInRange(line.line_date, from, to)),
+      filterFrom: from,
+      filterTo: to,
+      printNote,
+      preparedByName: currentUserName,
+    }));
+    if (!win) toast({ title: "No se pudo abrir la impresion", description: "Habilita las ventanas emergentes e intenta nuevamente.", variant: "destructive" });
+    else setPrintOpen(false);
+  };
 
   const renderAccessState = () => {
     if (!currentCompany) {
@@ -351,81 +406,21 @@ export default function SettlementsPage() {
           eyebrow="Administracion"
           title="Rendiciones"
           subtitle="Carga manual de ingresos y egresos por empresa activa."
-          actions={
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => void invalidateSettlement()} disabled={!companyId || settlementsQuery.isFetching || mutationPending}>
-                <RefreshCw className="mr-2 h-4 w-4" /> Actualizar
-              </Button>
-              <Button type="button" onClick={() => createMutation.mutate()} disabled={!companyId || !canCreate || createMutation.isPending || mutationPending}>
-                <Plus className="mr-2 h-4 w-4" /> Nueva rendicion
-              </Button>
-            </div>
-          }
         />
 
         {accessState ? accessState : (
           <div className="space-y-5">
-            <Card>
-              <CardHeader>
-                <CardTitle>Rendiciones de {currentCompany.name}</CardTitle>
-                <CardDescription>Selecciona una rendicion para consultar o completar su detalle.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {settlementsQuery.isLoading ? (
-                  <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Cargando rendiciones...</div>
-                ) : settlementsQuery.error ? (
-                  <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-                    {getErrorMessage(settlementsQuery.error, "No se pudo cargar el listado.")}
-                  </div>
-                ) : !settlementsQuery.data?.length ? (
-                  <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">No hay rendiciones cargadas.</div>
-                ) : (
-                  <div className="overflow-auto rounded-xl border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Rendicion</TableHead>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Responsables</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {settlementsQuery.data.map((settlement) => (
-                          <TableRow
-                            key={settlement.id}
-                            aria-disabled={mutationPending}
-                            className={selectedSettlementId === settlement.id ? "bg-muted/55" : mutationPending ? "cursor-not-allowed opacity-60" : "cursor-pointer"}
-                            onClick={() => {
-                              if (!mutationPending) setSelectedSettlementId(settlement.id);
-                            }}
-                          >
-                            <TableCell>
-                              <p className="font-medium">{formatSettlementNumber(settlement.settlement_number)}</p>
-                              <Badge variant={statusTone[settlement.status]}>{settlementStatusLabel(settlement.status)}</Badge>
-                            </TableCell>
-                            <TableCell>{formatBusinessDate(settlement.settlement_date)}</TableCell>
-                            <TableCell>
-                              <p className="max-w-40 truncate">{settlement.prepared_by_name}</p>
-                              <p className="max-w-40 truncate text-xs text-muted-foreground">{settlement.received_by_name ?? "Sin recepcion"}</p>
-                            </TableCell>
-                            <TableCell className="text-right font-semibold tabular-nums">
-                              {currency.format(settlement.totals.settlement_total)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
             <section className="space-y-5" aria-label="Detalle de la rendicion">
-              {editorLoading ? (
+              {settlementsQuery.error ? (
+                <Card>
+                  <CardContent className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                    {getErrorMessage(settlementsQuery.error, "No se pudieron cargar los ingresos y egresos.")}
+                  </CardContent>
+                </Card>
+              ) : editorLoading || createMutation.isPending ? (
                 <Card>
                   <CardContent className="p-8 text-center text-sm text-muted-foreground">
-                    Cargando detalle de la rendicion...
+                    Preparando ingresos y egresos...
                   </CardContent>
                 </Card>
               ) : editorError ? (
@@ -437,7 +432,7 @@ export default function SettlementsPage() {
               ) : !selectedSettlement ? (
                 <Card>
                   <CardContent className="p-8 text-center text-sm text-muted-foreground">
-                    Selecciona una rendicion para ver el detalle.
+                    No hay un registro editable disponible.
                   </CardContent>
                 </Card>
               ) : (
@@ -445,115 +440,44 @@ export default function SettlementsPage() {
                   <div className="grid gap-3 md:grid-cols-3">
                     <StatCard label="Ingresos" value={currency.format(displayedTotals.income_total)} hint={`Efectivo ${currency.format(displayedTotals.income_cash_total)}`} />
                     <StatCard label="Egresos" value={currency.format(displayedTotals.expense_total)} hint={`Efectivo ${currency.format(displayedTotals.expense_cash_total)}`} tone="warning" />
-                    <StatCard label="Total rendicion" value={currency.format(displayedTotals.settlement_total)} hint={`Otros medios neto ${currency.format(displayedTotals.income_other_total - displayedTotals.expense_other_total)}`} tone={displayedTotals.settlement_total < 0 ? "danger" : "success"} />
+                    <StatCard label="Total a rendir" value={currency.format(displayedTotals.settlement_total)} hint={`Ingresos menos egresos`} tone={displayedTotals.settlement_total < 0 ? "danger" : "success"} />
                   </div>
 
-                  <Card>
-                    <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
-                        <CardTitle>{detailMode === "edit" ? "Editar rendicion" : "Resumen de rendicion"}</CardTitle>
-                        <CardDescription>
-                          {formatSettlementNumber(selectedSettlement.settlement_number)} - {settlementStatusLabel(selectedSettlement.status)}
-                          {selectedSettlement.received_at ? ` - Recibida ${formatDateTime(selectedSettlement.received_at)}` : ""}
-                        </CardDescription>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {detailMode === "summary" && canEditSelectedDraft ? (
-                          <Button type="button" variant="outline" onClick={() => setDetailMode("edit")} disabled={editorLocked}>
-                            <Edit3 className="mr-2 h-4 w-4" /> Editar
-                          </Button>
-                        ) : null}
-                        {detailMode === "edit" ? (
-                          <>
-                            <Button type="button" variant="outline" onClick={() => setDetailMode("summary")} disabled={mutationPending}>
-                              <Eye className="mr-2 h-4 w-4" /> Ver resumen
-                            </Button>
-                            <Button type="button" variant="outline" onClick={() => saveMutation.mutate()} disabled={!editable || !draftHasChanges}>
-                              <Save className="mr-2 h-4 w-4" /> Guardar
-                            </Button>
-                          </>
-                        ) : null}
-                        <Button type="button" onClick={() => setConfirmAction("submit")} disabled={!isDraftSettlement(selectedSettlement.status) || !canSubmit || editorLocked}>
-                          <Send className="mr-2 h-4 w-4" /> Presentar
-                        </Button>
-                        {canReceive ? (
-                          <Button type="button" variant="outline" onClick={() => setReceiveOpen(true)} disabled={selectedSettlement.status !== "SUBMITTED" || editorLocked}>
-                            <CheckCircle2 className="mr-2 h-4 w-4" /> Recibir
-                          </Button>
-                        ) : null}
-                        {canCancel ? (
-                          <Button type="button" variant="destructive" onClick={() => setConfirmAction("cancel")} disabled={selectedSettlement.status === "CANCELLED" || editorLocked}>
-                            <Ban className="mr-2 h-4 w-4" /> Anular
-                          </Button>
-                        ) : null}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-5">
-                      {detailMode === "summary" && draftHasChanges ? (
-                        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                          Hay cambios sin guardar en el editor. Este resumen muestra el ultimo detalle persistido.
-                        </div>
-                      ) : null}
-
-                      {detailMode === "summary" ? (
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <DetailField label="Fecha" value={readOnlyDate(summaryHeader.settlement_date)} />
-                          <DetailField label="Preparado por" value={readOnlyValue(summaryHeader.prepared_by_name)} />
-                          <DetailField label="Periodo desde" value={readOnlyDate(summaryHeader.period_from)} />
-                          <DetailField label="Periodo hasta" value={readOnlyDate(summaryHeader.period_to)} />
-                          <div className="md:col-span-2">
-                            <DetailField label="Notas" value={readOnlyValue(summaryHeader.notes)} />
-                          </div>
-                          <DetailField label="Creada" value={formatDateTime(selectedSettlement.created_at)} />
-                          <DetailField label="Actualizada" value={formatDateTime(selectedSettlement.updated_at)} />
-                          <DetailField label="Recibido por" value={readOnlyValue(selectedSettlement.received_by_name)} />
-                          <DetailField label="Fecha recepcion" value={selectedSettlement.received_at ? formatDateTime(selectedSettlement.received_at) : "Sin dato"} />
-                          <DetailField label="Cantidad ingresos" value={String(originalIncomeLines.length)} />
-                          <DetailField label="Cantidad egresos" value={String(originalExpenseLines.length)} />
-                        </div>
-                      ) : (
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor="settlement-date">Fecha</Label>
-                            <Input id="settlement-date" type="date" value={headerForm.settlement_date} onChange={(event) => setHeaderForm((current) => ({ ...current, settlement_date: event.target.value }))} disabled={!editable} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="prepared-by">Preparado por</Label>
-                            <Input id="prepared-by" value={headerForm.prepared_by_name} onChange={(event) => setHeaderForm((current) => ({ ...current, prepared_by_name: event.target.value }))} disabled={!editable} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="period-from">Periodo desde</Label>
-                            <Input id="period-from" type="date" value={headerForm.period_from} onChange={(event) => setHeaderForm((current) => ({ ...current, period_from: event.target.value }))} disabled={!editable} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="period-to">Periodo hasta</Label>
-                            <Input id="period-to" type="date" value={headerForm.period_to} onChange={(event) => setHeaderForm((current) => ({ ...current, period_to: event.target.value }))} disabled={!editable} />
-                          </div>
-                          <div className="space-y-2 md:col-span-2">
-                            <Label htmlFor="notes">Notas</Label>
-                            <Textarea id="notes" value={headerForm.notes} onChange={(event) => setHeaderForm((current) => ({ ...current, notes: event.target.value }))} disabled={!editable} rows={3} />
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4 lg:flex-row lg:items-end">
+                    <Button type="button" variant="outline" onClick={openPrintDialog} disabled={editorLocked}>
+                      <Printer className="mr-2 h-4 w-4" /> Imprimir
+                    </Button>
+                    {saveMutation.isPending ? <p className="text-sm text-muted-foreground">Guardando cambios...</p> : null}
+                    <div className="space-y-2">
+                      <Label htmlFor="lines-filter-from">Mostrar desde</Label>
+                      <Input id="lines-filter-from" type="date" value={filterFrom} onChange={(event) => setFilterFrom(event.target.value)} className="md:w-44" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lines-filter-to">Mostrar hasta</Label>
+                      <Input id="lines-filter-to" type="date" value={filterTo} onChange={(event) => setFilterTo(event.target.value)} className="md:w-44" />
+                    </div>
+                    <Button type="button" variant="ghost" onClick={() => { setFilterFrom(""); setFilterTo(""); }} disabled={!filterFrom && !filterTo}>
+                      <X className="mr-2 h-4 w-4" /> Limpiar filtro
+                    </Button>
+                    <p className="text-sm text-muted-foreground md:ml-auto">
+                      {visibleIncomeLines.length} ingresos y {visibleExpenseLines.length} egresos visibles
+                    </p>
+                  </div>
 
                   <Card>
                     <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
                         <div className="flex items-center gap-2">
                           <CardTitle id="settlement-income-title">Ingresos</CardTitle>
-                          <Badge variant="secondary">{(detailMode === "summary" ? originalIncomeLines : incomeLines).length}</Badge>
+                          <Badge variant="secondary">{visibleIncomeLines.length}</Badge>
                         </div>
                         <CardDescription>
-                          {detailMode === "summary"
-                            ? "Dinero recibido incluido en esta rendicion."
-                            : "Agrega un ingreso por cada cobro o entrada de dinero."}
+                          Agrega un ingreso por cada cobro o entrada de dinero.
                         </CardDescription>
                       </div>
-                      {detailMode === "edit" ? (
-                        <Button type="button" onClick={() => setIncomeLines((current) => [...current, makeIncomeLineDraft(headerForm.settlement_date)])} disabled={!editable}>
-                          <Plus className="mr-2 h-4 w-4" /> Agregar ingreso
+                      {canEditSelectedDraft ? (
+                        <Button type="button" onClick={openIncomeDialog} disabled={!editable}>
+                          <Plus className="mr-2 h-4 w-4" /> Nuevo ingreso
                         </Button>
                       ) : null}
                     </CardHeader>
@@ -562,37 +486,37 @@ export default function SettlementsPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Fecha</TableHead>
-                              <TableHead>OT</TableHead>
-                              <TableHead>Recibo</TableHead>
+                              <TableHead>FECHA COBRO</TableHead>
+                              <TableHead>OT Nº</TableHead>
+                              <TableHead>RECIBO Nº</TableHead>
                               <TableHead>Presupuesto</TableHead>
                               <TableHead>Cliente</TableHead>
-                              <TableHead>Concepto</TableHead>
+                              <TableHead>CONCEPTO PAGO</TableHead>
                               <TableHead className="text-right">Efectivo</TableHead>
-                              <TableHead className="text-right">Otros</TableHead>
-                              <TableHead className="text-right">Total</TableHead>
+                              <TableHead className="text-right">TRANSF/TARJ/CHEQ</TableHead>
                               <TableHead>Tipo</TableHead>
+                              <TableHead className="text-right">Total</TableHead>
                               <TableHead />
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {(detailMode === "summary" ? originalIncomeLines : incomeLines).length === 0 ? (
+                            {visibleIncomeLines.length === 0 ? (
                               <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">Sin ingresos cargados.</TableCell></TableRow>
-                            ) : (detailMode === "summary" ? originalIncomeLines : incomeLines).map((line) => (
+                            ) : visibleIncomeLines.map((line) => (
                               <TableRow key={line.id}>
-                                <TableCell>{detailMode === "edit" ? <Input type="date" value={line.line_date} onChange={(event) => updateIncomeLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /> : readOnlyDate(line.line_date)}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.work_order} onChange={(event) => updateIncomeLine(line.id, { work_order: event.target.value })} disabled={!editable} className="min-w-24" /> : readOnlyValue(line.work_order)}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.receipt} onChange={(event) => updateIncomeLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.receipt)}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.quote} onChange={(event) => updateIncomeLine(line.id, { quote: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.quote)}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.customer_name} onChange={(event) => updateIncomeLine(line.id, { customer_name: event.target.value })} disabled={!editable} className="min-w-40" /> : readOnlyValue(line.customer_name)}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.concept} onChange={(event) => updateIncomeLine(line.id, { concept: event.target.value })} disabled={!editable} className="min-w-52" /> : readOnlyValue(line.concept)}</TableCell>
-                                <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.cash_amount, (value) => updateIncomeLine(line.id, { cash_amount: value }), !editable) : currency.format(Number(line.cash_amount || 0))}</TableCell>
-                                <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.other_amount, (value) => updateIncomeLine(line.id, { other_amount: value }), !editable) : currency.format(Number(line.other_amount || 0))}</TableCell>
+                                <TableCell>{readOnlyDate(line.line_date)}</TableCell>
+                                <TableCell>{line.work_order || "-"}</TableCell>
+                                <TableCell>{line.receipt || "-"}</TableCell>
+                                <TableCell>{line.quote || "-"}</TableCell>
+                                <TableCell>{line.customer_name}</TableCell>
+                                <TableCell>{line.concept}</TableCell>
+                                <TableCell className="text-right tabular-nums">{currency.format(Number(line.cash_amount || 0))}</TableCell>
+                                <TableCell className="text-right tabular-nums">{currency.format(Number(line.other_amount || 0))}</TableCell>
+                                <TableCell>{line.income_type || "-"}</TableCell>
                                 <TableCell className="text-right font-medium tabular-nums">{currency.format(editableLineTotal(line))}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.income_type} onChange={(event) => updateIncomeLine(line.id, { income_type: event.target.value })} disabled={!editable} className="min-w-32" /> : readOnlyValue(line.income_type)}</TableCell>
                                 <TableCell className="text-right">
-                                  {detailMode === "edit" ? (
-                                    <Button type="button" size="icon" variant="ghost" onClick={() => removeIncomeLine(line.id)} disabled={!editable} aria-label="Eliminar ingreso">
+                                  {editable ? (
+                                    <Button type="button" size="icon" variant="ghost" onClick={() => setPendingDeletion({ type: "income", id: line.id })} disabled={!editable} aria-label="Eliminar ingreso">
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   ) : null}
@@ -603,8 +527,9 @@ export default function SettlementsPage() {
                               <TableCell colSpan={6}>Subtotal ingresos</TableCell>
                               <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.income_cash_total)}</TableCell>
                               <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.income_other_total)}</TableCell>
+                              <TableCell />
                               <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.income_total)}</TableCell>
-                              <TableCell colSpan={2}>{(detailMode === "summary" ? originalIncomeLines : incomeLines).length} filas</TableCell>
+                              <TableCell>{visibleIncomeLines.length} filas</TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -617,17 +542,15 @@ export default function SettlementsPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <CardTitle id="settlement-expense-title">Egresos</CardTitle>
-                          <Badge variant="secondary">{(detailMode === "summary" ? originalExpenseLines : expenseLines).length}</Badge>
+                          <Badge variant="secondary">{visibleExpenseLines.length}</Badge>
                         </div>
                         <CardDescription>
-                          {detailMode === "summary"
-                            ? "Dinero pagado incluido en esta rendicion."
-                            : "Agrega un egreso por cada pago o salida de dinero."}
+                          Agrega un egreso por cada pago o salida de dinero.
                         </CardDescription>
                       </div>
-                      {detailMode === "edit" ? (
-                        <Button type="button" onClick={() => setExpenseLines((current) => [...current, makeExpenseLineDraft(headerForm.settlement_date)])} disabled={!editable}>
-                          <Plus className="mr-2 h-4 w-4" /> Agregar egreso
+                      {canEditSelectedDraft ? (
+                        <Button type="button" onClick={openExpenseDialog} disabled={!editable}>
+                          <Plus className="mr-2 h-4 w-4" /> Nuevo egreso
                         </Button>
                       ) : null}
                     </CardHeader>
@@ -636,33 +559,29 @@ export default function SettlementsPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Fecha</TableHead>
-                              <TableHead>Comprobante</TableHead>
+                              <TableHead>FECHA</TableHead>
+                              <TableHead>FC Nº</TableHead>
                               <TableHead>Proveedor</TableHead>
                               <TableHead>Detalle</TableHead>
-                              <TableHead>OC</TableHead>
+                              <TableHead>O/C</TableHead>
                               <TableHead className="text-right">Efectivo</TableHead>
-                              <TableHead className="text-right">Otros</TableHead>
-                              <TableHead className="text-right">Total</TableHead>
                               <TableHead />
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {(detailMode === "summary" ? originalExpenseLines : expenseLines).length === 0 ? (
-                              <TableRow><TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">Sin egresos cargados.</TableCell></TableRow>
-                            ) : (detailMode === "summary" ? originalExpenseLines : expenseLines).map((line) => (
+                            {visibleExpenseLines.length === 0 ? (
+                              <TableRow><TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">Sin egresos cargados.</TableCell></TableRow>
+                            ) : visibleExpenseLines.map((line) => (
                               <TableRow key={line.id}>
-                                <TableCell>{detailMode === "edit" ? <Input type="date" value={line.line_date} onChange={(event) => updateExpenseLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /> : readOnlyDate(line.line_date)}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.receipt} onChange={(event) => updateExpenseLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.receipt)}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.supplier_name} onChange={(event) => updateExpenseLine(line.id, { supplier_name: event.target.value })} disabled={!editable} className="min-w-40" /> : readOnlyValue(line.supplier_name)}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.detail} onChange={(event) => updateExpenseLine(line.id, { detail: event.target.value })} disabled={!editable} className="min-w-52" /> : readOnlyValue(line.detail)}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.purchase_order} onChange={(event) => updateExpenseLine(line.id, { purchase_order: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.purchase_order)}</TableCell>
-                                <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.cash_amount, (value) => updateExpenseLine(line.id, { cash_amount: value }), !editable) : currency.format(Number(line.cash_amount || 0))}</TableCell>
-                                <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.other_amount, (value) => updateExpenseLine(line.id, { other_amount: value }), !editable) : currency.format(Number(line.other_amount || 0))}</TableCell>
-                                <TableCell className="text-right font-medium tabular-nums">{currency.format(editableLineTotal(line))}</TableCell>
+                                <TableCell>{readOnlyDate(line.line_date)}</TableCell>
+                                <TableCell>{line.receipt || "-"}</TableCell>
+                                <TableCell>{line.supplier_name || "-"}</TableCell>
+                                <TableCell>{line.detail}</TableCell>
+                                <TableCell>{line.purchase_order || "-"}</TableCell>
+                                <TableCell className="text-right tabular-nums">{currency.format(Number(line.cash_amount || 0))}</TableCell>
                                 <TableCell className="text-right">
-                                  {detailMode === "edit" ? (
-                                    <Button type="button" size="icon" variant="ghost" onClick={() => removeExpenseLine(line.id)} disabled={!editable} aria-label="Eliminar egreso">
+                                  {editable ? (
+                                    <Button type="button" size="icon" variant="ghost" onClick={() => setPendingDeletion({ type: "expense", id: line.id })} disabled={!editable} aria-label="Eliminar egreso">
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   ) : null}
@@ -671,10 +590,8 @@ export default function SettlementsPage() {
                             ))}
                             <TableRow className="bg-muted/40 font-semibold">
                               <TableCell colSpan={5}>Subtotal egresos</TableCell>
-                              <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.expense_cash_total)}</TableCell>
-                              <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.expense_other_total)}</TableCell>
                               <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.expense_total)}</TableCell>
-                              <TableCell>{(detailMode === "summary" ? originalExpenseLines : expenseLines).length} filas</TableCell>
+                              <TableCell>{visibleExpenseLines.length} filas</TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -682,19 +599,6 @@ export default function SettlementsPage() {
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Total rendicion</CardTitle>
-                      <CardDescription>Consolidado de ingresos menos egresos.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-3 md:grid-cols-3">
-                        <DetailField label="Total ingresos" value={currency.format(displayedTotals.income_total)} />
-                        <DetailField label="Total egresos" value={currency.format(displayedTotals.expense_total)} />
-                        <DetailField label="Total rendicion" value={currency.format(displayedTotals.settlement_total)} />
-                      </div>
-                    </CardContent>
-                  </Card>
                 </>
               )}
             </section>
@@ -702,46 +606,118 @@ export default function SettlementsPage() {
         )}
       </div>
 
-      <AlertDialog open={confirmAction !== null} onOpenChange={(open) => !open && !mutationPending && setConfirmAction(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{confirmAction === "submit" ? "Presentar rendicion" : "Anular rendicion"}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmAction === "submit"
-                ? "Al presentar se asigna el numero consecutivo y se bloquean los detalles."
-                : "La anulacion conserva los datos y la trazabilidad."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={mutationPending}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={(event) => {
-              event.preventDefault();
-              if (confirmAction) workflowMutation.mutate(confirmAction);
-            }} disabled={mutationPending}>
-              Confirmar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog open={receiveOpen} onOpenChange={(open) => {
-        if (!mutationPending) setReceiveOpen(open);
-      }}>
+      <Dialog open={printOpen} onOpenChange={setPrintOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Recibir rendicion</DialogTitle>
-            <DialogDescription>La recepcion registra nombre y fecha desde la base.</DialogDescription>
+            <DialogTitle>Imprimir rendicion</DialogTitle>
+            <DialogDescription>Elegí qué fechas incluir. La impresión usa únicamente información guardada.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="received-by">Recibido por</Label>
-            <Input id="received-by" value={receivedByName} onChange={(event) => setReceivedByName(event.target.value)} disabled={mutationPending} />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="print-range">Periodo a imprimir</Label>
+              <Select value={printRange} onValueChange={(value: "all" | "period" | "custom") => setPrintRange(value)}>
+                <SelectTrigger id="print-range"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las fechas</SelectItem>
+                  <SelectItem value="period">Periodo de la rendicion</SelectItem>
+                  <SelectItem value="custom">Fecha o rango personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {printRange === "period" ? (
+              <p className="rounded-md border bg-muted/30 p-3 text-sm">
+                {originalHeaderForm?.period_from ? formatBusinessDate(originalHeaderForm.period_from) : "Inicio"} a {originalHeaderForm?.period_to ? formatBusinessDate(originalHeaderForm.period_to) : "fin"}
+              </p>
+            ) : null}
+            {printRange === "custom" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="print-from">Desde</Label>
+                  <Input id="print-from" type="date" value={printFrom} onChange={(event) => setPrintFrom(event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="print-to">Hasta</Label>
+                  <Input id="print-to" type="date" value={printTo} onChange={(event) => setPrintTo(event.target.value)} />
+                </div>
+              </div>
+            ) : null}
+            <div className="space-y-2">
+              <Label htmlFor="print-note">Nota para la hoja impresa</Label>
+              <Textarea
+                id="print-note"
+                value={printNote}
+                onChange={(event) => setPrintNote(event.target.value)}
+                placeholder="Observaciones que deben aparecer en la impresión"
+                rows={4}
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setReceiveOpen(false)} disabled={mutationPending}>Cancelar</Button>
-            <Button type="button" onClick={() => workflowMutation.mutate("receive")} disabled={mutationPending}>Recibir</Button>
+            <Button type="button" variant="outline" onClick={() => setPrintOpen(false)}>Cancelar</Button>
+            <Button type="button" onClick={printSettlement}>
+              <Printer className="mr-2 h-4 w-4" /> Abrir impresión
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={incomeDialogOpen} onOpenChange={setIncomeDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Nuevo ingreso</DialogTitle>
+            <DialogDescription>Completa los datos del cobro. Los campos marcados son obligatorios.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-2"><Label>Fecha cobro *</Label><Input aria-label="Fecha cobro ingreso" type="date" value={incomeDraft.line_date} onChange={(event) => setIncomeDraft((line) => ({ ...line, line_date: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>OT N°</Label><Input aria-label="OT ingreso" value={incomeDraft.work_order} onChange={(event) => setIncomeDraft((line) => ({ ...line, work_order: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Recibo N°</Label><Input aria-label="Recibo ingreso" value={incomeDraft.receipt} onChange={(event) => setIncomeDraft((line) => ({ ...line, receipt: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Presupuesto</Label><Input aria-label="Presupuesto ingreso" value={incomeDraft.quote} onChange={(event) => setIncomeDraft((line) => ({ ...line, quote: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Cliente *</Label><Input aria-label="Cliente ingreso" value={incomeDraft.customer_name} onChange={(event) => setIncomeDraft((line) => ({ ...line, customer_name: event.target.value }))} /></div>
+            <div className="space-y-2 sm:col-span-2"><Label>Concepto pago *</Label><Input aria-label="Concepto pago ingreso" value={incomeDraft.concept} onChange={(event) => setIncomeDraft((line) => ({ ...line, concept: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Efectivo *</Label>{moneyInput(incomeDraft.cash_amount, (value) => setIncomeDraft((line) => ({ ...line, cash_amount: value })), false, true, "Efectivo ingreso")}</div>
+            <div className="space-y-2"><Label>Transf/Tarj/Cheq</Label>{moneyInput(incomeDraft.other_amount, (value) => setIncomeDraft((line) => ({ ...line, other_amount: value })), false, false, "Otros medios ingreso")}</div>
+            <div className="space-y-2"><Label>Tipo</Label><Input aria-label="Tipo ingreso" value={incomeDraft.income_type} onChange={(event) => setIncomeDraft((line) => ({ ...line, income_type: event.target.value }))} /></div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIncomeDialogOpen(false)}>Cancelar</Button>
+            <Button type="button" onClick={addIncomeLine}>Agregar ingreso</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nuevo egreso</DialogTitle>
+            <DialogDescription>Completa los datos del pago. Los campos marcados son obligatorios.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2"><Label>Fecha *</Label><Input aria-label="Fecha egreso" type="date" value={expenseDraft.line_date} onChange={(event) => setExpenseDraft((line) => ({ ...line, line_date: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>FC N°</Label><Input aria-label="FC egreso" value={expenseDraft.receipt} onChange={(event) => setExpenseDraft((line) => ({ ...line, receipt: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Proveedor</Label><Input aria-label="Proveedor egreso" value={expenseDraft.supplier_name} onChange={(event) => setExpenseDraft((line) => ({ ...line, supplier_name: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>O/C</Label><Input aria-label="OC egreso" value={expenseDraft.purchase_order} onChange={(event) => setExpenseDraft((line) => ({ ...line, purchase_order: event.target.value }))} /></div>
+            <div className="space-y-2 sm:col-span-2"><Label>Detalle *</Label><Input aria-label="Detalle egreso" value={expenseDraft.detail} onChange={(event) => setExpenseDraft((line) => ({ ...line, detail: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Efectivo *</Label>{moneyInput(expenseDraft.cash_amount, (value) => setExpenseDraft((line) => ({ ...line, cash_amount: value })), false, true, "Efectivo egreso")}</div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setExpenseDialogOpen(false)}>Cancelar</Button>
+            <Button type="button" onClick={addExpenseLine}>Agregar egreso</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(pendingDeletion)} onOpenChange={(open) => { if (!open) setPendingDeletion(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar fila</AlertDialogTitle>
+            <AlertDialogDescription>Esta fila se quitará de la rendición. El cambio se guardará automáticamente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeletion}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

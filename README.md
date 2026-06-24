@@ -31,15 +31,21 @@ Rendiciones queda preparado como modulo generico por empresa, disponible para cu
 - La UI usa permisos efectivos por empresa para las acciones de Rendiciones; si un permiso esta ausente o denegado, la accion se oculta o bloquea igual que en las RPC/RLS.
 - `Recibir` y `Anular` solo se muestran cuando la empresa activa otorga `settlements.receive` o `settlements.cancel`, respectivamente.
 - Los campos de presentacion, recepcion y anulacion solo pueden cambiar por RPC; `created_by` de ingresos/egresos se completa obligatoriamente con `auth.uid()` al insertar, queda inmutable para usuarios y se mantiene nullable para respetar los FK `ON DELETE SET NULL`.
-- UI MVP: `/settlements` queda en la navegacion para usuarios con permiso de vista; permite listar por empresa activa, crear/editar borradores, cargar ingresos y egresos manuales, ver totales automaticos, presentar, recibir y anular con confirmacion.
-- Al seleccionar una rendicion se abre primero un resumen consolidado de solo lectura con encabezado, lineas, subtotales, cantidades y total neto; solo los borradores con `settlements.edit` pueden entrar a edicion y volver al resumen sin mostrar cambios locales como persistidos.
-- La pantalla usa un flujo vertical de ancho completo: listado, totales, encabezado y tablas separadas de ingresos y egresos, cada una con su accion de alta visible durante la edicion.
+- UI operativa: `/settlements` muestra directamente las tablas de ingresos y egresos de la empresa activa, sin selector, historial, ficha de rendicion ni acciones de workflow. Los cambios completos se guardan automaticamente en el borrador operativo.
+- Cada tabla tiene su propia accion primaria: `Nuevo ingreso` y `Nuevo egreso` abren formularios modales y agregan filas compactas de solo lectura; eliminar una fila exige confirmacion.
+- La impresion permite elegir periodo o rango, agregar una nota para la hoja y usa el logo configurado para la empresa, con marca generica como respaldo. Observaciones, totales y recepcion quedan al pie de la hoja.
+- El detalle separa ingresos y egresos con sus columnas operativas, altas independientes, filtro por fecha y totales sobre las filas visibles. La impresion A4 apaisada usa solo datos persistidos, permite elegir todo, el periodo de la rendicion o una fecha/rango personalizado, e incluye encabezado, cantidades, totales, observaciones y recepcion con firma, aclaracion y fecha.
+- La pantalla usa un flujo vertical de ancho completo: selector compacto de rendicion, totales, encabezado y tablas separadas de ingresos y egresos.
 - Las query keys de Rendiciones siempre incluyen `companyId` y el cambio de empresa o rendicion limpia seleccion, encabezado y lineas locales para no reutilizar datos de otro contexto.
 - Mientras hay guardado o workflow pendiente, la UI bloquea edicion, seleccion de otra rendicion y acciones para evitar estados cruzados.
 - El guardado de borrador usa `save_settlement_draft` para persistir encabezado, ingresos y egresos en una sola transaccion; la base deriva empresa y usuario autenticado.
 - La UI bloquea la edicion fuera de `DRAFT`; los cambios de workflow usan exclusivamente las RPCs `submit_settlement`, `receive_settlement` y `cancel_settlement`.
 - El modulo no lee, crea ni modifica Caja, ventas, gastos de Caja, cierres, Totales, cuenta corriente, documentos, stock, trabajos ni facturacion.
 - Origen verificado de `supabase/migrations/20260616150000_active_company_operational_guards.sql`: commit `de4b985 Harden active company operational guards`; el diff normalizado contra ese commit no tiene cambios locales. En staging, `npx supabase migration list --linked` muestra aplicada la version `20260616150000` con fecha `2026-06-16 15:00:00`.
+
+## Configuracion por empresa
+
+- `supabase/migrations/20260624183000_restore_global_admin_company_permissions.sql` alinea RLS con la UI y restaura permisos efectivos de administradores globales sobre empresas activas. Esto permite guardar tema y configuracion sin ampliar acceso a empresas inactivas.
 
 ## Desarrollo local
 
