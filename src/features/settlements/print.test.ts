@@ -5,6 +5,7 @@ describe("buildSettlementPrintHtml", () => {
   it("prints the requested columns, filtered totals and receipt footer", () => {
     const html = buildSettlementPrintHtml({
       companyName: "Empresa Uno",
+      companyLogoUrl: "https://example.com/company-logo.png",
       settlementNumber: 12,
       status: "SUBMITTED",
       createdAt: "2026-06-19T10:30:00Z",
@@ -39,6 +40,7 @@ describe("buildSettlementPrintHtml", () => {
       }],
       filterFrom: "2026-06-20",
       filterTo: "2026-06-21",
+      printNote: "Entregar comprobantes originales.",
     });
 
     expect(html).toContain("Fecha cobro");
@@ -52,5 +54,7 @@ describe("buildSettlementPrintHtml", () => {
     expect(html).toContain("Aclaracion");
     expect(html).toContain("<span>Fecha</span>");
     expect(html).toContain("125");
+    expect(html).toContain("https://example.com/company-logo.png");
+    expect(html).toContain("Entregar comprobantes originales.");
   });
 });

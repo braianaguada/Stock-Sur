@@ -5,6 +5,7 @@ import { formatBusinessDate, formatDateTime } from "@/lib/formatters";
 
 type BuildSettlementPrintHtmlParams = {
   companyName: string;
+  companyLogoUrl?: string | null;
   settlementNumber: number | null;
   status: SettlementStatus;
   header: SettlementHeaderForm;
@@ -13,6 +14,7 @@ type BuildSettlementPrintHtmlParams = {
   expenseLines: EditableExpenseLine[];
   filterFrom?: string;
   filterTo?: string;
+  printNote?: string;
 };
 
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" });
@@ -21,6 +23,7 @@ const date = (value: string) => escapeHtml(value ? formatBusinessDate(value) : "
 
 export function buildSettlementPrintHtml({
   companyName,
+  companyLogoUrl,
   settlementNumber,
   status,
   header,
@@ -29,6 +32,7 @@ export function buildSettlementPrintHtml({
   expenseLines,
   filterFrom,
   filterTo,
+  printNote,
 }: BuildSettlementPrintHtmlParams) {
   const totals = calculateSettlementTotals(incomeLines, expenseLines);
   const incomeRows = incomeLines.length
@@ -53,6 +57,9 @@ export function buildSettlementPrintHtml({
   const settlementPeriod = header.period_from || header.period_to
     ? `${header.period_from ? formatBusinessDate(header.period_from) : "Inicio"} a ${header.period_to ? formatBusinessDate(header.period_to) : "fin"}`
     : "Sin periodo definido";
+  const logoMarkup = companyLogoUrl
+    ? `<img src="${escapeHtml(companyLogoUrl)}" alt="${escapeHtml(companyName)}" />`
+    : PRINT_BRAND_MARK;
 
   return `<!doctype html>
 <html><head><meta charset="utf-8" />${PRINT_FAVICON_TAG}
@@ -78,7 +85,7 @@ export function buildSettlementPrintHtml({
     footer{display:flex;justify-content:space-between;margin-top:4mm;padding-top:2mm;border-top:1px solid #e2e8f0;color:#64748b;font-size:7px}.print-action{display:block;margin:5mm auto 0;border:0;border-radius:999px;background:#0f172a;color:#fff;padding:10px 16px;font-size:13px;font-weight:750;cursor:pointer}
     @media print{body{background:#fff}.preview{width:297mm;padding:0}.sheet{width:297mm;min-height:210mm;border:0;border-radius:0;box-shadow:none}.print-action{display:none}}
   </style></head><body><div class="preview"><article class="sheet"><div class="rule"></div><div class="content">
-    <header class="header"><div class="brand"><div class="mark">${PRINT_BRAND_MARK}</div><div><h1>${escapeHtml(companyName)}</h1><p>Control operativo de ingresos y egresos</p></div></div>
+    <header class="header"><div class="brand"><div class="mark">${logoMarkup}</div><div><h1>${escapeHtml(companyName)}</h1><p>Control operativo de ingresos y egresos</p></div></div>
       <div class="doc"><span>Documento</span><strong>Rendicion ${escapeHtml(formatSettlementNumber(settlementNumber))}</strong><div class="doc-grid"><div><span>Fecha</span><strong>${date(header.settlement_date)}</strong></div><div><span>Estado</span><strong>${escapeHtml(settlementStatusLabel(status))}</strong></div></div></div>
     </header>
     <section class="meta-grid">
@@ -96,7 +103,7 @@ export function buildSettlementPrintHtml({
     <section class="section"><div class="section-head"><h2>Egresos</h2><span class="count">${expenseLines.length} filas</span></div><table><thead><tr>
       <th>Fecha</th><th>FC Nº</th><th>Proveedor</th><th>Detalle</th><th>O/C</th><th>Efectivo</th>
     </tr></thead><tbody>${expenseRows}</tbody></table></section>
-    <section class="summary"><div class="notes"><strong>Observaciones</strong></div><div class="right">
+    <section class="summary"><div class="notes"><strong>Observaciones</strong><p>${text(printNote ?? "")}</p></div><div class="right">
       <div class="totals"><div class="total"><span>Total ingresos</span><strong>${money.format(totals.income_total)}</strong></div><div class="total"><span>Total egresos</span><strong>${money.format(totals.expense_total)}</strong></div><div class="total grand"><span>Total a rendir</span><strong>${money.format(totals.settlement_total)}</strong></div></div>
       <div class="received"><div class="received-title">Recibido</div><div class="signatures"><div class="line">Firma</div><div class="line">Aclaracion</div><div class="line">Fecha</div></div></div>
     </div></section>
