@@ -253,6 +253,37 @@ describe("SettlementsPage", () => {
     expect(screen.getAllByText(amountText("90,00")).length).toBeGreaterThan(0);
   });
 
+  it("paginates income and expense tables independently", async () => {
+    mocks.fetchSettlementLines.mockResolvedValue({
+      incomeLines: Array.from({ length: 12 }, (_, index) => incomeLine({
+        id: `income-${index + 1}`,
+        customer_name: `Cliente ${index + 1}`,
+        display_order: index + 1,
+      })),
+      expenseLines: Array.from({ length: 12 }, (_, index) => expenseLine({
+        id: `expense-${index + 1}`,
+        detail: `Egreso ${index + 1}`,
+        display_order: index + 1,
+      })),
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Cliente 1")).toBeInTheDocument();
+    expect(screen.getByText("Cliente 10")).toBeInTheDocument();
+    expect(screen.queryByText("Cliente 11")).not.toBeInTheDocument();
+    expect(screen.getByText("Mostrando 1-10 de 12 ingresos")).toBeInTheDocument();
+    expect(screen.getByText("Mostrando 1-10 de 12 egresos")).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Pagina siguiente" })[0]);
+
+    expect(screen.getByText("Cliente 11")).toBeInTheDocument();
+    expect(screen.queryByText("Cliente 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Mostrando 11-12 de 12 ingresos")).toBeInTheDocument();
+    expect(screen.getByText("Mostrando 1-10 de 12 egresos")).toBeInTheDocument();
+    expect(screen.getByText("Egreso 1")).toBeInTheDocument();
+  });
+
   it("automatically saves a complete modal line and asks before deleting it", async () => {
     renderPage();
 
@@ -272,5 +303,32 @@ describe("SettlementsPage", () => {
     expect(screen.getByText("Cliente nuevo")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(screen.getByText("Cliente nuevo")).toBeInTheDocument();
+  });
+
+  it("keeps the tables visible while an added line is being saved", async () => {
+    let finishSave: (() => void) | undefined;
+    mocks.saveSettlementDraft.mockImplementation(() => new Promise<void>((resolve) => {
+      finishSave = resolve;
+    }));
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Nuevo ingreso/i }));
+    fireEvent.change(screen.getByLabelText("Cliente ingreso"), { target: { value: "Cliente sin parpadeo" } });
+    fireEvent.change(screen.getByLabelText("Concepto pago ingreso"), { target: { value: "Cobro pendiente" } });
+    fireEvent.change(screen.getByLabelText("Efectivo ingreso"), { target: { value: "80" } });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar ingreso" }));
+
+    await waitFor(() => expect(mocks.saveSettlementDraft).toHaveBeenCalled());
+
+    expect(screen.getByRole("region", { name: "Ingresos" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Egresos" })).toBeInTheDocument();
+    expect(screen.getByText("Cliente sin parpadeo")).toBeInTheDocument();
+    expect(screen.getByText("Guardando cambios...")).toBeInTheDocument();
+    expect(screen.queryByText("Preparando ingresos y egresos...")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Nuevo ingreso/i })).toBeDisabled();
+
+    finishSave?.();
+    await waitFor(() => expect(screen.queryByText("Guardando cambios...")).not.toBeInTheDocument());
   });
 });
