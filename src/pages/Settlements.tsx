@@ -199,7 +199,7 @@ export default function SettlementsPage() {
   });
 
   const selectedSettlement = detailQuery.data ?? null;
-  const editorLoading = Boolean(selectedSettlementId && (detailQuery.isLoading || linesQuery.isLoading || detailQuery.isFetching || linesQuery.isFetching));
+  const editorLoading = Boolean(selectedSettlementId && (detailQuery.isLoading || linesQuery.isLoading));
   const editorError = detailQuery.error ?? linesQuery.error ?? null;
   const editorBlocked = editorLoading || Boolean(editorError);
   const visibleIncomeSource = incomeLines;
@@ -450,13 +450,13 @@ export default function SettlementsPage() {
                     {saveMutation.isPending ? <p className="text-sm text-muted-foreground">Guardando cambios...</p> : null}
                     <div className="space-y-2">
                       <Label htmlFor="lines-filter-from">Mostrar desde</Label>
-                      <Input id="lines-filter-from" type="date" value={filterFrom} onChange={(event) => setFilterFrom(event.target.value)} className="md:w-44" />
+                      <Input id="lines-filter-from" type="date" value={filterFrom} onChange={(event) => setFilterFrom(event.target.value)} className="md:w-44" disabled={editorLocked} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lines-filter-to">Mostrar hasta</Label>
-                      <Input id="lines-filter-to" type="date" value={filterTo} onChange={(event) => setFilterTo(event.target.value)} className="md:w-44" />
+                      <Input id="lines-filter-to" type="date" value={filterTo} onChange={(event) => setFilterTo(event.target.value)} className="md:w-44" disabled={editorLocked} />
                     </div>
-                    <Button type="button" variant="ghost" onClick={() => { setFilterFrom(""); setFilterTo(""); }} disabled={!filterFrom && !filterTo}>
+                    <Button type="button" variant="ghost" onClick={() => { setFilterFrom(""); setFilterTo(""); }} disabled={editorLocked || (!filterFrom && !filterTo)}>
                       <X className="mr-2 h-4 w-4" /> Limpiar filtro
                     </Button>
                     <p className="text-sm text-muted-foreground md:ml-auto">

@@ -273,4 +273,31 @@ describe("SettlementsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(screen.getByText("Cliente nuevo")).toBeInTheDocument();
   });
+
+  it("keeps the tables visible while an added line is being saved", async () => {
+    let finishSave: (() => void) | undefined;
+    mocks.saveSettlementDraft.mockImplementation(() => new Promise<void>((resolve) => {
+      finishSave = resolve;
+    }));
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Nuevo ingreso/i }));
+    fireEvent.change(screen.getByLabelText("Cliente ingreso"), { target: { value: "Cliente sin parpadeo" } });
+    fireEvent.change(screen.getByLabelText("Concepto pago ingreso"), { target: { value: "Cobro pendiente" } });
+    fireEvent.change(screen.getByLabelText("Efectivo ingreso"), { target: { value: "80" } });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar ingreso" }));
+
+    await waitFor(() => expect(mocks.saveSettlementDraft).toHaveBeenCalled());
+
+    expect(screen.getByRole("region", { name: "Ingresos" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Egresos" })).toBeInTheDocument();
+    expect(screen.getByText("Cliente sin parpadeo")).toBeInTheDocument();
+    expect(screen.getByText("Guardando cambios...")).toBeInTheDocument();
+    expect(screen.queryByText("Preparando ingresos y egresos...")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Nuevo ingreso/i })).toBeDisabled();
+
+    finishSave?.();
+    await waitFor(() => expect(screen.queryByText("Guardando cambios...")).not.toBeInTheDocument());
+  });
 });
