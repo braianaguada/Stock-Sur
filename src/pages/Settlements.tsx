@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CheckCircle2, Edit3, Eye, Plus, RefreshCw, Save, Send, Trash2 } from "lucide-react";
+import { Ban, CheckCircle2, Edit3, Eye, Plus, Printer, RefreshCw, Save, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import {
@@ -48,6 +48,7 @@ import {
   makeIncomeLineDraft,
   settlementStatusLabel,
 } from "@/features/settlements/utils";
+import { buildSettlementPrintHtml } from "@/features/settlements/print";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { currency, formatBusinessDate, formatDateTime } from "@/lib/formatters";
@@ -60,6 +61,7 @@ import {
   canViewSettlements,
 } from "@/lib/permissions";
 import { queryKeys } from "@/lib/query-keys";
+import { openPrintWindow } from "@/lib/print";
 
 const statusTone: Record<SettlementStatus, "default" | "secondary" | "destructive" | "outline"> = {
   DRAFT: "secondary",
@@ -82,7 +84,7 @@ function cloneDraftSnapshot(snapshot: SettlementDraftSnapshot): SettlementDraftS
   };
 }
 
-function moneyInput(value: string, onChange: (value: string) => void, disabled: boolean) {
+function moneyInput(value: string, onChange: (value: string) => void, disabled: boolean, required = false) {
   return (
     <Input
       type="number"
@@ -91,6 +93,8 @@ function moneyInput(value: string, onChange: (value: string) => void, disabled: 
       value={value}
       onChange={(event) => onChange(event.target.value)}
       disabled={disabled}
+      required={required}
+      aria-required={required}
       className="min-w-28 text-right tabular-nums"
     />
   );
@@ -103,6 +107,10 @@ function readOnlyValue(value: string | null | undefined) {
 
 function readOnlyDate(value: string | null | undefined) {
   return value ? formatBusinessDate(value) : "Sin dato";
+}
+
+function isDateInRange(lineDate: string, from: string, to: string) {
+  return (!from || lineDate >= from) && (!to || lineDate <= to);
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -141,6 +149,8 @@ export default function SettlementsPage() {
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [receivedByName, setReceivedByName] = useState("");
   const [detailMode, setDetailMode] = useState<"summary" | "edit">("summary");
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
 
   useEffect(() => {
     setSelectedSettlementId(null);
@@ -153,6 +163,8 @@ export default function SettlementsPage() {
     setConfirmAction(null);
     setReceiveOpen(false);
     setDetailMode("summary");
+    setFilterFrom("");
+    setFilterTo("");
   }, [companyId]);
 
   useEffect(() => {
@@ -165,6 +177,8 @@ export default function SettlementsPage() {
     setConfirmAction(null);
     setReceiveOpen(false);
     setDetailMode("summary");
+    setFilterFrom("");
+    setFilterTo("");
   }, [selectedSettlementId]);
 
   const settlementsQuery = useQuery({
@@ -194,11 +208,19 @@ export default function SettlementsPage() {
   const editorLoading = Boolean(selectedSettlementId && (detailQuery.isLoading || linesQuery.isLoading || detailQuery.isFetching || linesQuery.isFetching));
   const editorError = detailQuery.error ?? linesQuery.error ?? null;
   const editorBlocked = editorLoading || Boolean(editorError);
-  const liveTotals = useMemo(() => calculateSettlementTotals(incomeLines, expenseLines), [expenseLines, incomeLines]);
-  const persistedTotals = useMemo(() => calculateSettlementTotals(originalIncomeLines, originalExpenseLines), [originalExpenseLines, originalIncomeLines]);
-  const displayedTotals = selectedSettlement && isDraftSettlement(selectedSettlement.status) && detailMode === "edit"
-    ? liveTotals
-    : (selectedSettlement ? persistedTotals : EMPTY_SETTLEMENT_TOTALS);
+  const visibleIncomeSource = detailMode === "edit" ? incomeLines : originalIncomeLines;
+  const visibleExpenseSource = detailMode === "edit" ? expenseLines : originalExpenseLines;
+  const visibleIncomeLines = useMemo(
+    () => visibleIncomeSource.filter((line) => isDateInRange(line.line_date, filterFrom, filterTo)),
+    [filterFrom, filterTo, visibleIncomeSource],
+  );
+  const visibleExpenseLines = useMemo(
+    () => visibleExpenseSource.filter((line) => isDateInRange(line.line_date, filterFrom, filterTo)),
+    [filterFrom, filterTo, visibleExpenseSource],
+  );
+  const displayedTotals = selectedSettlement
+    ? calculateSettlementTotals(visibleIncomeLines, visibleExpenseLines)
+    : EMPTY_SETTLEMENT_TOTALS;
   const draftHasChanges = useMemo(
     () => hasSettlementDraftChanges(headerForm, incomeLines, expenseLines, originalHeaderForm, originalIncomeLines, originalExpenseLines),
     [expenseLines, headerForm, incomeLines, originalExpenseLines, originalHeaderForm, originalIncomeLines],
@@ -244,8 +266,12 @@ export default function SettlementsPage() {
     if (!canEdit) throw new Error("No tenes permiso para editar rendiciones.");
     if (editorBlocked) throw new Error("El detalle de la rendicion todavia no esta disponible.");
     if (!headerForm.prepared_by_name.trim()) throw new Error("El responsable de preparacion es obligatorio.");
-    if (incomeLines.some((line) => !line.concept.trim())) throw new Error("Cada ingreso necesita concepto.");
-    if (expenseLines.some((line) => !line.detail.trim())) throw new Error("Cada egreso necesita detalle.");
+    if (incomeLines.some((line) => !line.line_date || !line.customer_name.trim() || !line.concept.trim() || !line.cash_amount.trim())) {
+      throw new Error("Cada ingreso necesita fecha de cobro, cliente, concepto de pago y efectivo.");
+    }
+    if (expenseLines.some((line) => !line.line_date || !line.detail.trim() || !line.cash_amount.trim())) {
+      throw new Error("Cada egreso necesita fecha, detalle y efectivo.");
+    }
 
     const snapshot = cloneDraftSnapshot({ headerForm, incomeLines, expenseLines });
 
@@ -324,6 +350,20 @@ export default function SettlementsPage() {
 
   const removeIncomeLine = (lineId: string) => setIncomeLines((current) => current.filter((line) => line.id !== lineId));
   const removeExpenseLine = (lineId: string) => setExpenseLines((current) => current.filter((line) => line.id !== lineId));
+  const printSettlement = () => {
+    if (!selectedSettlement || !originalHeaderForm) return;
+    const win = openPrintWindow(buildSettlementPrintHtml({
+      companyName: currentCompany?.name ?? "Stock Sur",
+      settlementNumber: selectedSettlement.settlement_number,
+      status: selectedSettlement.status,
+      header: originalHeaderForm,
+      incomeLines: originalIncomeLines.filter((line) => isDateInRange(line.line_date, filterFrom, filterTo)),
+      expenseLines: originalExpenseLines.filter((line) => isDateInRange(line.line_date, filterFrom, filterTo)),
+      filterFrom,
+      filterTo,
+    }));
+    if (!win) toast({ title: "No se pudo abrir la impresion", description: "Habilita las ventanas emergentes e intenta nuevamente.", variant: "destructive" });
+  };
 
   const renderAccessState = () => {
     if (!currentCompany) {
@@ -445,7 +485,7 @@ export default function SettlementsPage() {
                   <div className="grid gap-3 md:grid-cols-3">
                     <StatCard label="Ingresos" value={currency.format(displayedTotals.income_total)} hint={`Efectivo ${currency.format(displayedTotals.income_cash_total)}`} />
                     <StatCard label="Egresos" value={currency.format(displayedTotals.expense_total)} hint={`Efectivo ${currency.format(displayedTotals.expense_cash_total)}`} tone="warning" />
-                    <StatCard label="Total rendicion" value={currency.format(displayedTotals.settlement_total)} hint={`Otros medios neto ${currency.format(displayedTotals.income_other_total - displayedTotals.expense_other_total)}`} tone={displayedTotals.settlement_total < 0 ? "danger" : "success"} />
+                    <StatCard label="Total a rendir" value={currency.format(displayedTotals.settlement_total)} hint={`Ingresos menos egresos`} tone={displayedTotals.settlement_total < 0 ? "danger" : "success"} />
                   </div>
 
                   <Card>
@@ -473,6 +513,9 @@ export default function SettlementsPage() {
                             </Button>
                           </>
                         ) : null}
+                        <Button type="button" variant="outline" onClick={printSettlement} disabled={editorLocked}>
+                          <Printer className="mr-2 h-4 w-4" /> Imprimir
+                        </Button>
                         <Button type="button" onClick={() => setConfirmAction("submit")} disabled={!isDraftSettlement(selectedSettlement.status) || !canSubmit || editorLocked}>
                           <Send className="mr-2 h-4 w-4" /> Presentar
                         </Button>
@@ -538,12 +581,29 @@ export default function SettlementsPage() {
                     </CardContent>
                   </Card>
 
+                  <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4 md:flex-row md:items-end">
+                    <div className="space-y-2">
+                      <Label htmlFor="lines-filter-from">Mostrar desde</Label>
+                      <Input id="lines-filter-from" type="date" value={filterFrom} onChange={(event) => setFilterFrom(event.target.value)} className="md:w-44" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lines-filter-to">Mostrar hasta</Label>
+                      <Input id="lines-filter-to" type="date" value={filterTo} onChange={(event) => setFilterTo(event.target.value)} className="md:w-44" />
+                    </div>
+                    <Button type="button" variant="ghost" onClick={() => { setFilterFrom(""); setFilterTo(""); }} disabled={!filterFrom && !filterTo}>
+                      <X className="mr-2 h-4 w-4" /> Limpiar filtro
+                    </Button>
+                    <p className="text-sm text-muted-foreground md:ml-auto">
+                      {visibleIncomeLines.length} ingresos y {visibleExpenseLines.length} egresos visibles
+                    </p>
+                  </div>
+
                   <Card>
                     <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
                         <div className="flex items-center gap-2">
                           <CardTitle id="settlement-income-title">Ingresos</CardTitle>
-                          <Badge variant="secondary">{(detailMode === "summary" ? originalIncomeLines : incomeLines).length}</Badge>
+                          <Badge variant="secondary">{visibleIncomeLines.length}</Badge>
                         </div>
                         <CardDescription>
                           {detailMode === "summary"
@@ -553,7 +613,7 @@ export default function SettlementsPage() {
                       </div>
                       {detailMode === "edit" ? (
                         <Button type="button" onClick={() => setIncomeLines((current) => [...current, makeIncomeLineDraft(headerForm.settlement_date)])} disabled={!editable}>
-                          <Plus className="mr-2 h-4 w-4" /> Agregar ingreso
+                          <Plus className="mr-2 h-4 w-4" /> Nuevo ingreso
                         </Button>
                       ) : null}
                     </CardHeader>
@@ -562,34 +622,34 @@ export default function SettlementsPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Fecha</TableHead>
-                              <TableHead>OT</TableHead>
-                              <TableHead>Recibo</TableHead>
+                              <TableHead>FECHA COBRO</TableHead>
+                              <TableHead>OT Nº</TableHead>
+                              <TableHead>RECIBO Nº</TableHead>
                               <TableHead>Presupuesto</TableHead>
                               <TableHead>Cliente</TableHead>
-                              <TableHead>Concepto</TableHead>
+                              <TableHead>CONCEPTO PAGO</TableHead>
                               <TableHead className="text-right">Efectivo</TableHead>
-                              <TableHead className="text-right">Otros</TableHead>
-                              <TableHead className="text-right">Total</TableHead>
+                              <TableHead className="text-right">TRANSF/TARJ/CHEQ</TableHead>
                               <TableHead>Tipo</TableHead>
+                              <TableHead className="text-right">Total</TableHead>
                               <TableHead />
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {(detailMode === "summary" ? originalIncomeLines : incomeLines).length === 0 ? (
+                            {visibleIncomeLines.length === 0 ? (
                               <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">Sin ingresos cargados.</TableCell></TableRow>
-                            ) : (detailMode === "summary" ? originalIncomeLines : incomeLines).map((line) => (
+                            ) : visibleIncomeLines.map((line) => (
                               <TableRow key={line.id}>
-                                <TableCell>{detailMode === "edit" ? <Input type="date" value={line.line_date} onChange={(event) => updateIncomeLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /> : readOnlyDate(line.line_date)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input aria-label="Fecha cobro ingreso" type="date" required value={line.line_date} onChange={(event) => updateIncomeLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /> : readOnlyDate(line.line_date)}</TableCell>
                                 <TableCell>{detailMode === "edit" ? <Input value={line.work_order} onChange={(event) => updateIncomeLine(line.id, { work_order: event.target.value })} disabled={!editable} className="min-w-24" /> : readOnlyValue(line.work_order)}</TableCell>
                                 <TableCell>{detailMode === "edit" ? <Input value={line.receipt} onChange={(event) => updateIncomeLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.receipt)}</TableCell>
                                 <TableCell>{detailMode === "edit" ? <Input value={line.quote} onChange={(event) => updateIncomeLine(line.id, { quote: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.quote)}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.customer_name} onChange={(event) => updateIncomeLine(line.id, { customer_name: event.target.value })} disabled={!editable} className="min-w-40" /> : readOnlyValue(line.customer_name)}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.concept} onChange={(event) => updateIncomeLine(line.id, { concept: event.target.value })} disabled={!editable} className="min-w-52" /> : readOnlyValue(line.concept)}</TableCell>
-                                <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.cash_amount, (value) => updateIncomeLine(line.id, { cash_amount: value }), !editable) : currency.format(Number(line.cash_amount || 0))}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input aria-label="Cliente ingreso" required value={line.customer_name} onChange={(event) => updateIncomeLine(line.id, { customer_name: event.target.value })} disabled={!editable} className="min-w-40" /> : readOnlyValue(line.customer_name)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input aria-label="Concepto pago ingreso" required value={line.concept} onChange={(event) => updateIncomeLine(line.id, { concept: event.target.value })} disabled={!editable} className="min-w-52" /> : readOnlyValue(line.concept)}</TableCell>
+                                <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.cash_amount, (value) => updateIncomeLine(line.id, { cash_amount: value }), !editable, true) : currency.format(Number(line.cash_amount || 0))}</TableCell>
                                 <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.other_amount, (value) => updateIncomeLine(line.id, { other_amount: value }), !editable) : currency.format(Number(line.other_amount || 0))}</TableCell>
-                                <TableCell className="text-right font-medium tabular-nums">{currency.format(editableLineTotal(line))}</TableCell>
                                 <TableCell>{detailMode === "edit" ? <Input value={line.income_type} onChange={(event) => updateIncomeLine(line.id, { income_type: event.target.value })} disabled={!editable} className="min-w-32" /> : readOnlyValue(line.income_type)}</TableCell>
+                                <TableCell className="text-right font-medium tabular-nums">{currency.format(editableLineTotal(line))}</TableCell>
                                 <TableCell className="text-right">
                                   {detailMode === "edit" ? (
                                     <Button type="button" size="icon" variant="ghost" onClick={() => removeIncomeLine(line.id)} disabled={!editable} aria-label="Eliminar ingreso">
@@ -603,8 +663,9 @@ export default function SettlementsPage() {
                               <TableCell colSpan={6}>Subtotal ingresos</TableCell>
                               <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.income_cash_total)}</TableCell>
                               <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.income_other_total)}</TableCell>
+                              <TableCell />
                               <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.income_total)}</TableCell>
-                              <TableCell colSpan={2}>{(detailMode === "summary" ? originalIncomeLines : incomeLines).length} filas</TableCell>
+                              <TableCell>{visibleIncomeLines.length} filas</TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -617,7 +678,7 @@ export default function SettlementsPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <CardTitle id="settlement-expense-title">Egresos</CardTitle>
-                          <Badge variant="secondary">{(detailMode === "summary" ? originalExpenseLines : expenseLines).length}</Badge>
+                          <Badge variant="secondary">{visibleExpenseLines.length}</Badge>
                         </div>
                         <CardDescription>
                           {detailMode === "summary"
@@ -627,7 +688,7 @@ export default function SettlementsPage() {
                       </div>
                       {detailMode === "edit" ? (
                         <Button type="button" onClick={() => setExpenseLines((current) => [...current, makeExpenseLineDraft(headerForm.settlement_date)])} disabled={!editable}>
-                          <Plus className="mr-2 h-4 w-4" /> Agregar egreso
+                          <Plus className="mr-2 h-4 w-4" /> Nuevo egreso
                         </Button>
                       ) : null}
                     </CardHeader>
@@ -636,30 +697,26 @@ export default function SettlementsPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Fecha</TableHead>
-                              <TableHead>Comprobante</TableHead>
+                              <TableHead>FECHA</TableHead>
+                              <TableHead>FC Nº</TableHead>
                               <TableHead>Proveedor</TableHead>
                               <TableHead>Detalle</TableHead>
-                              <TableHead>OC</TableHead>
+                              <TableHead>O/C</TableHead>
                               <TableHead className="text-right">Efectivo</TableHead>
-                              <TableHead className="text-right">Otros</TableHead>
-                              <TableHead className="text-right">Total</TableHead>
                               <TableHead />
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {(detailMode === "summary" ? originalExpenseLines : expenseLines).length === 0 ? (
-                              <TableRow><TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">Sin egresos cargados.</TableCell></TableRow>
-                            ) : (detailMode === "summary" ? originalExpenseLines : expenseLines).map((line) => (
+                            {visibleExpenseLines.length === 0 ? (
+                              <TableRow><TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">Sin egresos cargados.</TableCell></TableRow>
+                            ) : visibleExpenseLines.map((line) => (
                               <TableRow key={line.id}>
-                                <TableCell>{detailMode === "edit" ? <Input type="date" value={line.line_date} onChange={(event) => updateExpenseLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /> : readOnlyDate(line.line_date)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input aria-label="Fecha egreso" type="date" required value={line.line_date} onChange={(event) => updateExpenseLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /> : readOnlyDate(line.line_date)}</TableCell>
                                 <TableCell>{detailMode === "edit" ? <Input value={line.receipt} onChange={(event) => updateExpenseLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.receipt)}</TableCell>
                                 <TableCell>{detailMode === "edit" ? <Input value={line.supplier_name} onChange={(event) => updateExpenseLine(line.id, { supplier_name: event.target.value })} disabled={!editable} className="min-w-40" /> : readOnlyValue(line.supplier_name)}</TableCell>
-                                <TableCell>{detailMode === "edit" ? <Input value={line.detail} onChange={(event) => updateExpenseLine(line.id, { detail: event.target.value })} disabled={!editable} className="min-w-52" /> : readOnlyValue(line.detail)}</TableCell>
+                                <TableCell>{detailMode === "edit" ? <Input aria-label="Detalle egreso" required value={line.detail} onChange={(event) => updateExpenseLine(line.id, { detail: event.target.value })} disabled={!editable} className="min-w-52" /> : readOnlyValue(line.detail)}</TableCell>
                                 <TableCell>{detailMode === "edit" ? <Input value={line.purchase_order} onChange={(event) => updateExpenseLine(line.id, { purchase_order: event.target.value })} disabled={!editable} className="min-w-28" /> : readOnlyValue(line.purchase_order)}</TableCell>
-                                <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.cash_amount, (value) => updateExpenseLine(line.id, { cash_amount: value }), !editable) : currency.format(Number(line.cash_amount || 0))}</TableCell>
-                                <TableCell className={detailMode === "summary" ? "text-right tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.other_amount, (value) => updateExpenseLine(line.id, { other_amount: value }), !editable) : currency.format(Number(line.other_amount || 0))}</TableCell>
-                                <TableCell className="text-right font-medium tabular-nums">{currency.format(editableLineTotal(line))}</TableCell>
+                                <TableCell className={detailMode === "summary" ? "text-right font-medium tabular-nums" : undefined}>{detailMode === "edit" ? moneyInput(line.cash_amount, (value) => updateExpenseLine(line.id, { cash_amount: value }), !editable, true) : currency.format(editableLineTotal(line))}</TableCell>
                                 <TableCell className="text-right">
                                   {detailMode === "edit" ? (
                                     <Button type="button" size="icon" variant="ghost" onClick={() => removeExpenseLine(line.id)} disabled={!editable} aria-label="Eliminar egreso">
@@ -671,10 +728,8 @@ export default function SettlementsPage() {
                             ))}
                             <TableRow className="bg-muted/40 font-semibold">
                               <TableCell colSpan={5}>Subtotal egresos</TableCell>
-                              <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.expense_cash_total)}</TableCell>
-                              <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.expense_other_total)}</TableCell>
                               <TableCell className="text-right tabular-nums">{currency.format(displayedTotals.expense_total)}</TableCell>
-                              <TableCell>{(detailMode === "summary" ? originalExpenseLines : expenseLines).length} filas</TableCell>
+                              <TableCell>{visibleExpenseLines.length} filas</TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -684,14 +739,14 @@ export default function SettlementsPage() {
 
                   <Card>
                     <CardHeader>
-                      <CardTitle>Total rendicion</CardTitle>
+                      <CardTitle>Total a rendir</CardTitle>
                       <CardDescription>Consolidado de ingresos menos egresos.</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="grid gap-3 md:grid-cols-3">
                         <DetailField label="Total ingresos" value={currency.format(displayedTotals.income_total)} />
                         <DetailField label="Total egresos" value={currency.format(displayedTotals.expense_total)} />
-                        <DetailField label="Total rendicion" value={currency.format(displayedTotals.settlement_total)} />
+                        <DetailField label="Total a rendir" value={currency.format(displayedTotals.settlement_total)} />
                       </div>
                     </CardContent>
                   </Card>

@@ -314,8 +314,8 @@ describe("SettlementsPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
 
-    const addIncome = await screen.findByRole("button", { name: /Agregar ingreso/i });
-    const addExpense = screen.getByRole("button", { name: /Agregar egreso/i });
+    const addIncome = await screen.findByRole("button", { name: /Nuevo ingreso/i });
+    const addExpense = screen.getByRole("button", { name: /Nuevo egreso/i });
     expect(addIncome).toBeEnabled();
     expect(addExpense).toBeEnabled();
 
@@ -377,7 +377,47 @@ describe("SettlementsPage", () => {
     expect(screen.getAllByText(amountText("150,00")).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: /Editar/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Guardar/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Agregar ingreso/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Nuevo ingreso/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Preparado por")).not.toBeInTheDocument();
+  });
+
+  it("shows the requested columns and filters rows and totals by date", async () => {
+    mocks.fetchSettlementLines.mockResolvedValue({
+      incomeLines: [
+        incomeLine({ id: "income-1", line_date: "2026-06-18", customer_name: "Cliente visible", cash_amount: 100, other_amount: 20 }),
+        incomeLine({ id: "income-2", line_date: "2026-06-10", customer_name: "Cliente oculto", cash_amount: 500, other_amount: 0 }),
+      ],
+      expenseLines: [expenseLine({ line_date: "2026-06-18", detail: "Egreso visible", cash_amount: 30, other_amount: 0 })],
+    });
+
+    renderPage();
+
+    expect(await screen.findByRole("columnheader", { name: "FECHA COBRO" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "OT Nº" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "TRANSF/TARJ/CHEQ" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "FC Nº" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Mostrar desde"), { target: { value: "2026-06-18" } });
+
+    expect(screen.getByText("Cliente visible")).toBeInTheDocument();
+    expect(screen.queryByText("Cliente oculto")).not.toBeInTheDocument();
+    expect(screen.getByText("1 ingresos y 1 egresos visibles")).toBeInTheDocument();
+    expect(screen.getAllByText(amountText("120,00")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(amountText("90,00")).length).toBeGreaterThan(0);
+  });
+
+  it("requires the operational fields before saving a new line", async () => {
+    renderPage();
+
+    await screen.findByText("Resumen de rendicion");
+    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Nuevo ingreso/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Guardar/i }));
+
+    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: "No se pudo guardar",
+      description: "Cada ingreso necesita fecha de cobro, cliente, concepto de pago y efectivo.",
+    })));
+    expect(mocks.saveSettlementDraft).not.toHaveBeenCalled();
   });
 });
