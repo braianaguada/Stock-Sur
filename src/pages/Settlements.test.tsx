@@ -253,6 +253,37 @@ describe("SettlementsPage", () => {
     expect(screen.getAllByText(amountText("90,00")).length).toBeGreaterThan(0);
   });
 
+  it("paginates income and expense tables independently", async () => {
+    mocks.fetchSettlementLines.mockResolvedValue({
+      incomeLines: Array.from({ length: 12 }, (_, index) => incomeLine({
+        id: `income-${index + 1}`,
+        customer_name: `Cliente ${index + 1}`,
+        display_order: index + 1,
+      })),
+      expenseLines: Array.from({ length: 12 }, (_, index) => expenseLine({
+        id: `expense-${index + 1}`,
+        detail: `Egreso ${index + 1}`,
+        display_order: index + 1,
+      })),
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Cliente 1")).toBeInTheDocument();
+    expect(screen.getByText("Cliente 10")).toBeInTheDocument();
+    expect(screen.queryByText("Cliente 11")).not.toBeInTheDocument();
+    expect(screen.getByText("Mostrando 1-10 de 12 ingresos")).toBeInTheDocument();
+    expect(screen.getByText("Mostrando 1-10 de 12 egresos")).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Pagina siguiente" })[0]);
+
+    expect(screen.getByText("Cliente 11")).toBeInTheDocument();
+    expect(screen.queryByText("Cliente 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Mostrando 11-12 de 12 ingresos")).toBeInTheDocument();
+    expect(screen.getByText("Mostrando 1-10 de 12 egresos")).toBeInTheDocument();
+    expect(screen.getByText("Egreso 1")).toBeInTheDocument();
+  });
+
   it("automatically saves a complete modal line and asks before deleting it", async () => {
     renderPage();
 

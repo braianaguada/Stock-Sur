@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Printer, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
+import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import {
   createSettlementDraft,
   fetchSettlementDetail,
@@ -57,6 +59,8 @@ import {
 } from "@/lib/permissions";
 import { queryKeys } from "@/lib/query-keys";
 import { openPrintWindow } from "@/lib/print";
+
+const SETTLEMENT_LINES_PAGE_SIZE = 10;
 
 type SettlementDraftSnapshot = {
   headerForm: SettlementHeaderForm;
@@ -127,6 +131,8 @@ export default function SettlementsPage() {
   const [printNote, setPrintNote] = useState("");
   const [incomeDialogOpen, setIncomeDialogOpen] = useState(false);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [incomePage, setIncomePage] = useState(1);
+  const [expensePage, setExpensePage] = useState(1);
   const [incomeDraft, setIncomeDraft] = useState(() => makeIncomeLineDraft());
   const [expenseDraft, setExpenseDraft] = useState(() => makeExpenseLineDraft());
   const [pendingDeletion, setPendingDeletion] = useState<{ type: "income" | "expense"; id: string } | null>(null);
@@ -142,6 +148,8 @@ export default function SettlementsPage() {
     setFilterFrom("");
     setFilterTo("");
     setPrintOpen(false);
+    setIncomePage(1);
+    setExpensePage(1);
   }, [companyId]);
 
   useEffect(() => {
@@ -154,6 +162,8 @@ export default function SettlementsPage() {
     setFilterFrom("");
     setFilterTo("");
     setPrintOpen(false);
+    setIncomePage(1);
+    setExpensePage(1);
   }, [selectedSettlementId]);
 
   const settlementsQuery = useQuery({
@@ -212,6 +222,16 @@ export default function SettlementsPage() {
     () => visibleExpenseSource.filter((line) => isDateInRange(line.line_date, filterFrom, filterTo)),
     [filterFrom, filterTo, visibleExpenseSource],
   );
+  const incomePagination = usePaginationSlice({
+    items: visibleIncomeLines,
+    page: incomePage,
+    pageSize: SETTLEMENT_LINES_PAGE_SIZE,
+  });
+  const expensePagination = usePaginationSlice({
+    items: visibleExpenseLines,
+    page: expensePage,
+    pageSize: SETTLEMENT_LINES_PAGE_SIZE,
+  });
   const displayedTotals = selectedSettlement
     ? calculateSettlementTotals(visibleIncomeLines, visibleExpenseLines)
     : EMPTY_SETTLEMENT_TOTALS;
@@ -333,6 +353,7 @@ export default function SettlementsPage() {
       return;
     }
     setIncomeLines((current) => [...current, incomeDraft]);
+    setIncomePage(Math.max(1, Math.ceil((visibleIncomeLines.length + 1) / SETTLEMENT_LINES_PAGE_SIZE)));
     setIncomeDialogOpen(false);
   };
   const addExpenseLine = () => {
@@ -341,6 +362,7 @@ export default function SettlementsPage() {
       return;
     }
     setExpenseLines((current) => [...current, expenseDraft]);
+    setExpensePage(Math.max(1, Math.ceil((visibleExpenseLines.length + 1) / SETTLEMENT_LINES_PAGE_SIZE)));
     setExpenseDialogOpen(false);
   };
   const confirmDeletion = () => {
@@ -450,13 +472,13 @@ export default function SettlementsPage() {
                     {saveMutation.isPending ? <p className="text-sm text-muted-foreground">Guardando cambios...</p> : null}
                     <div className="space-y-2">
                       <Label htmlFor="lines-filter-from">Mostrar desde</Label>
-                      <Input id="lines-filter-from" type="date" value={filterFrom} onChange={(event) => setFilterFrom(event.target.value)} className="md:w-44" disabled={editorLocked} />
+                      <Input id="lines-filter-from" type="date" value={filterFrom} onChange={(event) => { setFilterFrom(event.target.value); setIncomePage(1); setExpensePage(1); }} className="md:w-44" disabled={editorLocked} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lines-filter-to">Mostrar hasta</Label>
-                      <Input id="lines-filter-to" type="date" value={filterTo} onChange={(event) => setFilterTo(event.target.value)} className="md:w-44" disabled={editorLocked} />
+                      <Input id="lines-filter-to" type="date" value={filterTo} onChange={(event) => { setFilterTo(event.target.value); setIncomePage(1); setExpensePage(1); }} className="md:w-44" disabled={editorLocked} />
                     </div>
-                    <Button type="button" variant="ghost" onClick={() => { setFilterFrom(""); setFilterTo(""); }} disabled={editorLocked || (!filterFrom && !filterTo)}>
+                    <Button type="button" variant="ghost" onClick={() => { setFilterFrom(""); setFilterTo(""); setIncomePage(1); setExpensePage(1); }} disabled={editorLocked || (!filterFrom && !filterTo)}>
                       <X className="mr-2 h-4 w-4" /> Limpiar filtro
                     </Button>
                     <p className="text-sm text-muted-foreground md:ml-auto">
@@ -502,7 +524,7 @@ export default function SettlementsPage() {
                           <TableBody>
                             {visibleIncomeLines.length === 0 ? (
                               <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">Sin ingresos cargados.</TableCell></TableRow>
-                            ) : visibleIncomeLines.map((line) => (
+                            ) : incomePagination.pagedItems.map((line) => (
                               <TableRow key={line.id}>
                                 <TableCell>{readOnlyDate(line.line_date)}</TableCell>
                                 <TableCell>{line.work_order || "-"}</TableCell>
@@ -533,6 +555,17 @@ export default function SettlementsPage() {
                             </TableRow>
                           </TableBody>
                         </Table>
+                      </div>
+                      <div className="mt-3">
+                        <DataTablePagination
+                          page={incomePagination.page}
+                          totalPages={incomePagination.totalPages}
+                          totalItems={visibleIncomeLines.length}
+                          rangeStart={incomePagination.rangeStart}
+                          rangeEnd={incomePagination.rangeEnd}
+                          onPageChange={setIncomePage}
+                          itemLabel="ingresos"
+                        />
                       </div>
                     </CardContent>
                   </Card>
@@ -571,7 +604,7 @@ export default function SettlementsPage() {
                           <TableBody>
                             {visibleExpenseLines.length === 0 ? (
                               <TableRow><TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">Sin egresos cargados.</TableCell></TableRow>
-                            ) : visibleExpenseLines.map((line) => (
+                            ) : expensePagination.pagedItems.map((line) => (
                               <TableRow key={line.id}>
                                 <TableCell>{readOnlyDate(line.line_date)}</TableCell>
                                 <TableCell>{line.receipt || "-"}</TableCell>
@@ -595,6 +628,17 @@ export default function SettlementsPage() {
                             </TableRow>
                           </TableBody>
                         </Table>
+                      </div>
+                      <div className="mt-3">
+                        <DataTablePagination
+                          page={expensePagination.page}
+                          totalPages={expensePagination.totalPages}
+                          totalItems={visibleExpenseLines.length}
+                          rangeStart={expensePagination.rangeStart}
+                          rangeEnd={expensePagination.rangeEnd}
+                          onPageChange={setExpensePage}
+                          itemLabel="egresos"
+                        />
                       </div>
                     </CardContent>
                   </Card>

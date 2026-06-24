@@ -64,6 +64,7 @@ export function DataTablePagination({
             type="button"
             variant="outline"
             size="icon"
+            aria-label="Pagina anterior"
             onClick={() => onPageChange(Math.max(1, page - 1))}
             disabled={page <= 1}
           >
@@ -76,6 +77,7 @@ export function DataTablePagination({
             type="button"
             variant="outline"
             size="icon"
+            aria-label="Pagina siguiente"
             onClick={() => onPageChange(Math.min(totalPages, page + 1))}
             disabled={page >= totalPages}
           >

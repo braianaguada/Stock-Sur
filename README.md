@@ -35,6 +35,7 @@ Rendiciones queda preparado como modulo generico por empresa, disponible para cu
 - Cada tabla tiene su propia accion primaria: `Nuevo ingreso` y `Nuevo egreso` abren formularios modales y agregan filas compactas de solo lectura; eliminar una fila exige confirmacion.
 - El autoguardado mantiene tablas y totales visibles mientras persiste los cambios, sin reemplazar la vista por un estado de carga.
 - La impresion pagina listados extensos repitiendo encabezados y mantiene unidos observaciones, totales y firma.
+- Las tablas de ingresos y egresos usan la paginacion estandar del sistema de forma independiente; filtros, totales e impresion consideran todas las filas correspondientes.
 - La impresion permite elegir periodo o rango, agregar una nota para la hoja y usa el logo configurado para la empresa, con marca generica como respaldo. Observaciones, totales y recepcion quedan al pie de la hoja.
 - El detalle separa ingresos y egresos con sus columnas operativas, altas independientes, filtro por fecha y totales sobre las filas visibles. La impresion A4 apaisada usa solo datos persistidos, permite elegir todo, el periodo de la rendicion o una fecha/rango personalizado, e incluye encabezado, cantidades, totales, observaciones y recepcion con firma, aclaracion y fecha.
 - La pantalla usa un flujo vertical de ancho completo: selector compacto de rendicion, totales, encabezado y tablas separadas de ingresos y egresos.
