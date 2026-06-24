@@ -150,4 +150,3 @@ export function CashOverviewPanel({
     </Card>
   );
 }
-

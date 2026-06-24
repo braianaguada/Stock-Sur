@@ -19,7 +19,6 @@ export function isValidCuitChecksum(value: string | null | undefined) {
   const verifier = mod === 0 ? 0 : mod === 1 ? 9 : 11 - mod;
   return verifier === Number(digits[10]);
 }
-
 export function getCuitValidationMessage(value: string | null | undefined) {
   const raw = value ?? "";
   if (/[A-Za-z]/.test(raw)) return "El CUIT solo puede contener numeros, guiones o espacios.";
@@ -85,4 +84,3 @@ export function buildCustomerFiscalSnapshot(customer: Customer, fiscalProfile: C
     snapshot_created_at: new Date().toISOString(),
   };
 }
-
