@@ -61,7 +61,8 @@ describe("buildSettlementPrintHtml", () => {
     expect(html).toContain("20/06/2026 a 21/06/2026");
     expect(html).not.toContain("Fechas impresas");
     expect(html).not.toContain("<span>Notas</span>");
-    expect(html).toContain("margin-top:auto");
+    expect(html).toContain('class="closing"');
+    expect(html).not.toContain('class="closing closing-page"');
   });
 
   it("keeps large income and expense tables printable across multiple pages", () => {
@@ -113,7 +114,10 @@ describe("buildSettlementPrintHtml", () => {
     expect(html).toContain("5.625,00");
     expect(html).toContain("thead{display:table-header-group}");
     expect(html).toContain("page-break-inside:avoid");
-    expect(html).toContain(".content{display:block");
-    expect(html).toContain(".summary{margin-top:8mm}");
+    expect(html).toContain(".content{display:flex");
+    expect(html).toContain('class="closing closing-page"');
+    expect(html).toContain("break-before:page");
+    expect(html).toContain("justify-content:flex-end");
+    expect(html).toContain("min-height:197mm");
   });
 });
