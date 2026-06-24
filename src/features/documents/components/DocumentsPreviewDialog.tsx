@@ -18,10 +18,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { CompanySettings } from "@/contexts/company-brand-context";
-import { CUSTOMER_KIND_LABEL, DOC_LABEL, DOC_TYPE_CLASS, STATUS_LABEL } from "@/features/documents/constants";
+import { CUSTOMER_KIND_LABEL, DOC_LABEL, DOC_TYPE_CLASS, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "@/features/documents/constants";
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
-import { describeDocumentHistoryEvent, formatNumber } from "@/features/documents/utils";
+import { describeDocumentHistoryEvent, formatNumber, resolveDocumentRecipient } from "@/features/documents/utils";
 import { formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 
 interface DocumentsPreviewDialogProps {
@@ -215,13 +215,15 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
 
                   <section className="grid border-b border-slate-200 lg:grid-cols-[minmax(0,1fr)_320px]">
                     <div className="grid gap-x-5 gap-y-4 border-b border-slate-200 p-5 sm:grid-cols-2 xl:grid-cols-4 lg:border-b-0 lg:border-r">
-                      <PreviewField label="Cliente" value={selectedDocument.customer_name ?? "Cliente ocasional"} />
+                      <PreviewField label={selectedDocument.customer_kind === "INTERNO" ? "Destinatario" : "Cliente"} value={resolveDocumentRecipient(selectedDocument, { technicianName }).primaryName} />
+                      {selectedDocument.customer_kind === "INTERNO" && selectedDocument.internal_remito_type ? <PreviewField label="Tipo / motivo interno" value={INTERNAL_REMITO_LABEL[selectedDocument.internal_remito_type]} /> : null}
+                      {selectedDocument.customer_kind !== "INTERNO" && resolveDocumentRecipient(selectedDocument, { technicianName }).secondaryName ? <PreviewField label="Nombre ocasional" value={resolveDocumentRecipient(selectedDocument, { technicianName }).secondaryName} /> : null}
                       <PreviewField label="Tipo" value={CUSTOMER_KIND_LABEL[selectedDocument.customer_kind]} />
-                      <PreviewField label="CUIT" value={<span className="font-mono">{selectedDocument.customer_tax_id ?? "-"}</span>} />
-                      <PreviewField label="Cond. fiscal" value={selectedDocument.customer_tax_condition ?? "-"} />
+                      {selectedDocument.customer_kind !== "INTERNO" ? <PreviewField label="CUIT" value={<span className="font-mono">{selectedDocument.customer_tax_id ?? "-"}</span>} /> : null}
+                      {selectedDocument.customer_kind !== "INTERNO" ? <PreviewField label="Cond. fiscal" value={selectedDocument.customer_tax_condition ?? "-"} /> : null}
                       <PreviewField label="PDV" value={<span className="font-mono">{String(selectedDocument.point_of_sale).padStart(4, "0")}</span>} />
                       <PreviewField label="Validez" value={selectedDocument.valid_until ? formatIsoDate(selectedDocument.valid_until) : "-"} />
-                      <PreviewField label="Condicion" value={selectedDocument.payment_terms ?? "-"} />
+                      {selectedDocument.customer_kind !== "INTERNO" ? <PreviewField label="Condicion" value={selectedDocument.payment_terms ?? "-"} /> : null}
                       <PreviewField label="Vendedor" value={selectedDocument.salesperson ?? "-"} />
                       <PreviewField label="Tecnico" value={technicianName ?? "-"} />
                     </div>

@@ -75,7 +75,7 @@ export type ReturnDraftPayload = {
   lines: ReturnLine[];
 };
 
-export function sumQuantitiesByItem(lines: Pick<ReturnLine, "item_id" | "quantity">[]) {
+function sumQuantitiesByItem(lines: Pick<ReturnLine, "item_id" | "quantity">[]) {
   const totals = new Map<string, number>();
   for (const line of lines) {
     if (!line.item_id) continue;

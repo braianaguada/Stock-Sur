@@ -1,33 +1,67 @@
-# Welcome to your Lovable project
+# Stock Sur
 
-## Project info
+Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, datos fiscales, condicion de venta ni servicio, y nunca generan cuenta corriente ni comprobantes fiscales. Al emitirse mantienen la salida normal de stock.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
-## How can I edit this code?
+## Selector de empresa activa
 
-There are several ways of editing your application.
+- La empresa activa se resuelve desde empresas activas disponibles para el usuario: membresias activas para usuarios normales y empresas activas operables para superadmin.
+- Con una sola empresa se selecciona automaticamente y se muestra su nombre sin dropdown. Con varias empresas se muestra el selector en el encabezado, tambien en mobile.
+- La empresa recordada se guarda por usuario con `stock-sur.current-company-id.<user_id>`; si deja de ser valida se descarta y se usa la primera empresa activa disponible.
+- El cambio seguro valida acceso antes de operar, recarga roles/permisos efectivos, limpia cache dependiente de empresa, redirige a `/` y evita reutilizar datos de la empresa anterior.
+- Si el usuario no tiene ninguna empresa activa disponible, la app muestra `Tu usuario no tiene acceso a ninguna empresa activa.` y bloquea los modulos operativos.
+- Las empresas inactivas quedan fuera del contexto operativo. La administracion de empresas, miembros y roles se resuelve en una fase separada.
+- Esta implementacion mantiene la dependencia legacy de roles globales en `user_roles`; el modelo nuevo por empresa se recarga desde membresias, roles y permisos efectivos.
+- Validaciones esperadas para cambios en esta zona: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build` y `git diff --check`.
 
-**Use Lovable**
+## Rendiciones
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+Rendiciones queda preparado como modulo generico por empresa, disponible para cualquier empresa activa y aislado por `company_id`.
 
-Changes made via Lovable will be committed automatically to this repo.
+- Migraciones: `supabase/migrations/20260617120000_settlements_base.sql`, `supabase/migrations/20260617130000_settlements_hardening.sql`, `supabase/migrations/20260617140000_settlements_created_by_nullable.sql` y `supabase/migrations/20260618120000_save_settlement_draft_rpc.sql`.
+- Tablas nuevas: `settlements`, `settlement_income_lines` y `settlement_expense_lines`.
+- Estados: `DRAFT`, `SUBMITTED`, `RECEIVED` y `CANCELLED`.
+- El numero de rendicion es consecutivo por empresa y se asigna al presentar con `submit_settlement`, no al crear el borrador.
+- Los ingresos y egresos son cargas manuales propias del modulo. Cliente y proveedor son texto libre; no son relaciones obligatorias.
+- Los totales se calculan desde los detalles con `get_settlement_totals`: efectivo, otros medios, totales de ingresos, egresos y total neto de rendicion.
+- El frontend no debe enviar totales arbitrarios como fuente de verdad.
+- RPCs operativas: `save_settlement_draft`, `submit_settlement`, `receive_settlement` y `cancel_settlement`.
+- RLS valida empresa activa, membresia y permisos `settlements.*`; los detalles solo se pueden modificar mientras la rendicion esta en `DRAFT`.
+- La UI usa permisos efectivos por empresa para las acciones de Rendiciones; si un permiso esta ausente o denegado, la accion se oculta o bloquea igual que en las RPC/RLS.
+- `Recibir` y `Anular` solo se muestran cuando la empresa activa otorga `settlements.receive` o `settlements.cancel`, respectivamente.
+- Los campos de presentacion, recepcion y anulacion solo pueden cambiar por RPC; `created_by` de ingresos/egresos se completa obligatoriamente con `auth.uid()` al insertar, queda inmutable para usuarios y se mantiene nullable para respetar los FK `ON DELETE SET NULL`.
+- UI operativa: `/settlements` muestra directamente las tablas de ingresos y egresos de la empresa activa, sin selector, historial, ficha de rendicion ni acciones de workflow. Los cambios completos se guardan automaticamente en el borrador operativo.
+- Cada tabla tiene su propia accion primaria: `Nuevo ingreso` y `Nuevo egreso` abren formularios modales y agregan filas compactas de solo lectura; eliminar una fila exige confirmacion.
+- El autoguardado mantiene tablas y totales visibles mientras persiste los cambios, sin reemplazar la vista por un estado de carga.
+- La impresion pagina listados extensos, repite encabezados y ubica el bloque indivisible de observaciones, totales y firma al pie de la hoja actual o de una hoja final.
+- Las tablas de ingresos y egresos usan la paginacion estandar del sistema de forma independiente; filtros, totales e impresion consideran todas las filas correspondientes.
+- La impresion permite elegir periodo o rango, agregar una nota para la hoja y usa el logo configurado para la empresa, con marca generica como respaldo. Observaciones, totales y recepcion quedan al pie de la hoja.
+- El detalle separa ingresos y egresos con sus columnas operativas, altas independientes, filtro por fecha y totales sobre las filas visibles. La impresion A4 apaisada usa solo datos persistidos, permite elegir todo, el periodo de la rendicion o una fecha/rango personalizado, e incluye encabezado, cantidades, totales, observaciones y recepcion con firma, aclaracion y fecha.
+- La pantalla usa un flujo vertical de ancho completo: selector compacto de rendicion, totales, encabezado y tablas separadas de ingresos y egresos.
+- Las query keys de Rendiciones siempre incluyen `companyId` y el cambio de empresa o rendicion limpia seleccion, encabezado y lineas locales para no reutilizar datos de otro contexto.
+- Mientras hay guardado o workflow pendiente, la UI bloquea edicion, seleccion de otra rendicion y acciones para evitar estados cruzados.
+- El guardado de borrador usa `save_settlement_draft` para persistir encabezado, ingresos y egresos en una sola transaccion; la base deriva empresa y usuario autenticado.
+- La UI bloquea la edicion fuera de `DRAFT`; los cambios de workflow usan exclusivamente las RPCs `submit_settlement`, `receive_settlement` y `cancel_settlement`.
+- El modulo no lee, crea ni modifica Caja, ventas, gastos de Caja, cierres, Totales, cuenta corriente, documentos, stock, trabajos ni facturacion.
+- Origen verificado de `supabase/migrations/20260616150000_active_company_operational_guards.sql`: commit `de4b985 Harden active company operational guards`; el diff normalizado contra ese commit no tiene cambios locales. En staging, `npx supabase migration list --linked` muestra aplicada la version `20260616150000` con fecha `2026-06-16 15:00:00`.
 
-**Use your preferred IDE**
+## Configuracion por empresa
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- `supabase/migrations/20260624183000_restore_global_admin_company_permissions.sql` alinea RLS con la UI y restaura permisos efectivos de administradores globales sobre empresas activas. Esto permite guardar tema y configuracion sin ampliar acceso a empresas inactivas.
+
+## Desarrollo local
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
 Follow these steps:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Step 1: Clone the repository.
 git clone <YOUR_GIT_URL>
 
 # Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+cd Stock-Sur
 
 # Step 3: Install the necessary dependencies.
 npm i
@@ -64,6 +98,40 @@ This project is built with:
 
 - [Sistema visual inicial](docs/UI_SYSTEM.md): auditoria visual, navegacion, componentes base y piloto de Caja.
 - Fix de documentos: los combos se expanden a productos reales usando el mismo detalle de linea que la carga manual, conservando cantidades acumuladas y precios manuales existentes.
+- Destinatarios de presupuestos y remitos: seleccion simplificada entre cliente ocasional y registrado; Persona/Empresa queda pendiente de un campo confiable en `customers`.
+
+## Clientes fiscales para Factura A futura
+
+Clientes soporta un perfil fiscal separado en `customer_fiscal_profiles` para preparar una futura Factura A sin emitirla todavia. Factura B y Nota de Credito B siguen en homologacion/dev como Consumidor Final automatico.
+
+- El perfil fiscal guarda CUIT normalizado, razon social, condicion IVA, domicilio fiscal, estado de clave, fuentes de datos, metadata sanitizada y fecha de validacion.
+- El CUIT se valida por formato de 11 digitos y digito verificador; la UI permite guiones o espacios, pero persiste solo digitos.
+- La validacion automatica usa la Edge Function `customer-fiscal-lookup` con AFIPSDK REST, `ws_sr_constancia_inscripcion/getPersona_v2` y `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT` (`dev` o `prod`) cuando hay secrets disponibles. No usa `wsfe` ni `ws_sr_padron_a5` para esta consulta.
+- `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT` solo controla consulta de padron. El ambiente de emision fiscal sigue separado y Factura B/Nota de Credito B continuan limitadas a homologacion/dev.
+- En `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=dev` solo se debe esperar funcionamiento con padron de homologacion. CUIT reales pueden devolver `TAXPAYER_NOT_FOUND` porque el ambiente no devuelve datos utiles para ese contribuyente.
+- Para validar CUIT reales se requiere `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=prod` con CUIT emisor real autorizado para `ws_sr_constancia_inscripcion`. El CUIT emisor de lookup puede venir de `CUSTOMER_FISCAL_LOOKUP_ISSUER_TAX_ID`; si falta, cae a `billing_settings.issuer_tax_id` del ambiente de emision actual.
+- Variables de lookup controlado en staging: `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT=prod`, `CUSTOMER_FISCAL_LOOKUP_ISSUER_TAX_ID=30711582890` y `CUSTOMER_FISCAL_LOOKUP_WSID=ws_sr_constancia_inscripcion`. Esto solo consulta constancia/padron.
+- `CUSTOMER_FISCAL_LOOKUP_ENVIRONMENT` esta separado del ambiente de emision fiscal. La emision debe seguir en `billing_settings.environment=dev`; no cambiarla a `prod` para esta prueba.
+- Usar `prod` para consulta de padron no habilita emision de comprobantes productivos. No implementa Factura A, no emite Factura A, no emite Nota de Credito A y no toca comprobantes productivos.
+- Si AFIPSDK no devuelve datos inferibles o falla, el perfil queda en `ERROR`; no se marca como validado y la UI muestra diagnostico compacto: ambiente, fuente, presencia de datos generales/regimen/impuestos/monotributo, estado CUIT, codigo y motivo.
+- Si no hay razon social oficial, `legal_name` queda vacio y `legal_name_source = UNKNOWN`; no se rellena con CUIT, nombre comercial ni datos viejos.
+- Factura A futura solo queda apta para cliente registrado, CUIT valido, razon social oficial, estado CUIT `ACTIVO`, condicion IVA `RESPONSABLE_INSCRIPTO` derivada oficialmente y perfil `VALIDATED_AUTO`.
+- No se guardan tokens, Authorization, certificados, private keys ni secrets en DB; las respuestas del proveedor se sanitizan antes de persistirse.
+- QA tecnico seguro: `node scripts/customer-fiscal-lookup-qa.mjs <CUIT> <CUSTOMER_ID>` con `SUPABASE_ACCESS_TOKEN` y `SUPABASE_FUNCTIONS_URL`/`VITE_SUPABASE_URL`. El script imprime solo diagnostico compacto y no secrets.
+- Cliente ocasional / Consumidor Final se representa por `customer_id = null`: no se crea ni edita desde Clientes, no tiene perfil fiscal, CUIT, Factura A ni cuenta corriente editable.
+- QA staging PR #255: el codigo quedo apto tecnicamente. Con `lookupEnvironment=dev`, un CUIT real devolvio `TAXPAYER_NOT_FOUND`, `taxpayerFound=false`, `taxCondition=UNKNOWN`; la validacion de CUIT reales queda bloqueada por ambiente dev, no por normalizacion/UI.
+- QA real PR #256: la separacion lookup prod / emision dev funciona. La prueba devolvio `lookupEnvironment=prod`, `billingEnvironment=dev`, `issuerTaxIdMasked=30******890`, `wsid=ws_sr_constancia_inscripcion`, `method=getPersona_v2`, `provider.statusCode=400`, perfil fiscal `ERROR` y error sanitizado asociado a `key/cert`. Dictamen: apto tecnicamente para merge a staging, bloqueado funcionalmente por configuracion externa de certificado/relacion/credencial Afip SDK/ARCA para `ws_sr_constancia_inscripcion`.
+- Esta fase no toca produccion, caja, stock, cuenta corriente ni autorizacion fiscal de Factura A. No se emitio Factura A ni Nota de Credito A, no se tocaron comprobantes productivos y Factura B/Nota de Credito B siguen sin cambios.
+
+Proxima fase para CUIT reales y Factura A de homologacion:
+
+- Configurar certificado/relacion/credencial Afip SDK/ARCA para CUIT emisor `30711582890` y servicio `ws_sr_constancia_inscripcion`.
+- Mantener lookup prod de constancia solo para consulta de padron.
+- Validar CUIT emisor real `30711582890` de TFD S.R.L.
+- Confirmar `ws_sr_constancia_inscripcion` habilitado para el CUIT emisor.
+- Repetir QA con el mismo flujo y CUIT real.
+- Confirmar `VALIDATED_AUTO`.
+- Recien despues avanzar a Factura A en homologacion.
 
 ## Tecnicos: Control de materiales
 
@@ -244,11 +312,11 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
 - Vinculacion de remitos de materiales a servicios v1:
   - `documents.service_id` permite asociar remitos actuales del modulo Documentos con servicios de Trabajos
   - solo `REMITO` puede guardar `service_id`; `PRESUPUESTO` y `REMITO_DEVOLUCION` quedan bloqueados por validacion de DB/UI
-  - el trigger valida que documento y servicio pertenezcan a la misma empresa
+  - el trigger valida que documento y servicio pertenezcan a la misma empresa y al mismo cliente registrado; bloquea remitos internos, ocasionales, sin cliente o trabajos/servicios sin cliente
   - desde el detalle de servicio se puede crear un `REMITO` `BORRADOR` vinculado, con cliente del trabajo y tecnico automatico solo si el servicio tiene un unico tecnico
   - desde el detalle de servicio se pueden vincular y desvincular remitos existentes sin borrar documentos ni generar movimientos de stock
   - los servicios muestran remitos asociados con numero, estado, fecha, tecnico, lineas, total y costo estimado por snapshots de lineas
-  - el editor de Documentos muestra el campo opcional `Servicio asociado` solo para `REMITO`, filtrado por cliente cuando aplica
+  - el editor de Documentos muestra el campo opcional `Servicio asociado` solo para `REMITO`, filtrado por cliente cuando aplica; con servicio vinculado bloquea el cambio de cliente hasta desvincular
   - la vista previa de Documentos muestra el trabajo/servicio asociado y link de vuelta a `/service-jobs?serviceId=<id>`
   - emitir remitos sigue usando el flujo existente de Documentos; crear/vincular/desvincular no emite ni mueve stock
 - Control operativo de trabajos/servicios:
@@ -424,17 +492,9 @@ Notas:
 - Limitacion restante de QA visual: quedan modales grandes y vistas de impresion para una pasada visual especifica con screenshots comparativos antes de promover a `main`.
 - Recomendacion QA integral: staging puede avanzar a QA manual final sobre datos reales antes de promover a `main`; no se detectaron cambios de esquema pendientes en esta fase.
 
-## How can I deploy this project?
+## Deploy
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+La aplicacion web se despliega mediante la integracion de Vercel configurada para el repositorio. Las migraciones se publican por separado con los scripts `db:push:staging` y `db:push:prod`.
 
 ## Security hardening (PR1)
 
@@ -510,7 +570,7 @@ Se agregó una capa opcional para PDFs de proveedores con muchas imágenes o tex
 
 ### Configuración
 
-1. ConfiguraciÃ³n mÃ­nima gratis en Supabase:
+1. Configuracion minima gratis en Supabase:
 
 ```sh
 supabase secrets set GEMINI_API_KEY=tu_api_key
@@ -631,6 +691,77 @@ where table_schema = 'public'
   and table_name = 'price_lists'
   and column_name = 'supplier_id';
 ```
+
+## Facturacion - base interna
+
+La primera fase de Facturacion agrega una base fiscal interna, sin autorizacion fiscal real:
+
+- Migracion: `supabase/migrations/20260602120000_billing_base_model.sql`.
+- Tablas nuevas: `billing_settings`, `billing_points_of_sale`, `billing_documents`, `billing_document_lines` y `billing_events`.
+- Permisos nuevos: `billing.view`, `billing.create`, `billing.authorize`, `billing.credit_note`, `billing.print` y `billing.settings`.
+- Roles: `admin` recibe todos los permisos `billing.*`; `operador` recibe `billing.view`, `billing.create` y `billing.print`; `consulta` recibe solo `billing.view`.
+- RLS sigue el patron multitenant por `company_id` con `is_company_member` y `has_company_permission`.
+- Feature flag: la UI y la RPC usan `billing_settings.is_enabled`; no existe un sistema general de feature flags en esta base.
+- Flujo implementado: desde una venta de Caja (`cash_sales`) asociada a un `REMITO EMITIDO`, se crea un `billing_documents` en `DRAFT` para `FACTURA_B` a `Consumidor Final`.
+- La RPC `create_billing_draft_from_cash_sale(cashSaleId, invoiceType)` valida empresa, permiso, venta no anulada, `receipt_kind = REMITO`, remito emitido, misma empresa, lineas existentes y ausencia de documento fiscal activo previo.
+- Las lineas se copian desde `document_lines` a `billing_document_lines`; los totales se congelan desde el remito comercial.
+- Fallback fiscal: en esta fase no se calcula ni distribuye IVA fiscal autoritativo; se preservan `tax_total`/`tax_pct` comerciales cuando existen, sin convertirlos en autorizacion fiscal.
+- La creacion del borrador no llama a Afip SDK, no solicita CAE, no asigna punto de venta fiscal, no asigna numero fiscal y no guarda request/response de proveedor.
+- La creacion del borrador no modifica stock, caja, cierre de caja ni cuenta corriente.
+- UI: `/billing` lista borradores internos y muestra detalle con origen, receptor, lineas, totales y aviso de que el comprobante no tiene CAE.
+- Caja muestra acciones separadas para `Crear borrador Factura B` y `Crear borrador Factura A` solo si Facturacion esta habilitada, el usuario tiene `billing.create`, la venta tiene remito y no existe borrador activo previo.
+
+### Factura A borrador gated
+
+- Migracion: `supabase/migrations/20260605120000_billing_invoice_a_draft_gated.sql`.
+- `billing_documents.invoice_type` admite `FACTURA_A` solo para `document_kind = INVOICE`.
+- Factura A queda limitada a estados `DRAFT`, `BLOCKED` o `CANCELLED_INTERNAL`; la base bloquea CAE, numero fiscal, fecha de comprobante y autorizacion para `FACTURA_A`.
+- La RPC `create_billing_draft_from_cash_sale(cashSaleId, "FACTURA_A")` crea solo borrador interno desde venta/remito existente.
+- Requiere cliente real no ocasional, CUIT valido, razon social oficial, `VALIDATED_AUTO`, `legal_name_source = OFFICIAL`, `tax_condition_source = OFFICIAL_DERIVED`, `tax_condition = RESPONSABLE_INSCRIPTO` y `taxpayer_status = ACTIVO`.
+- El receptor fiscal se congela en `receiver_fiscal_snapshot` desde `customer_fiscal_profiles`; no depende de datos manuales editables ni de mocks.
+- La UI permite ver detalle e imprimir A4 como borrador con leyenda `Factura A en preparacion. No emite comprobantes.`
+- No hay boton de autorizacion para Factura A. La edge function de autorizacion tambien rechaza `FACTURA_A` con bloqueo explicito.
+- No implementa Nota de Credito A, no solicita CAE, no asigna punto de venta fiscal, no asigna numero fiscal y no llama a Afip SDK.
+- La creacion del borrador A no modifica stock, caja, cierre de caja ni cuenta corriente.
+- Factura B y Nota de Credito B siguen sin cambios.
+
+## Facturacion AFIPSDK dev - CUIT emisor
+
+La autorizacion fiscal de Factura B en homologacion AFIPSDK usa datos no secretos configurados por empresa:
+
+- El CUIT emisor se carga desde **Facturacion > Configuracion fiscal** y se guarda normalizado, solo numeros, en `billing_settings.issuer_tax_id`.
+- El CUIT puede ingresarse con o sin guiones; la UI valida que queden 11 digitos antes de guardar.
+- El ambiente disponible en esta fase es `dev`/homologacion. No se habilita `prod` desde la UI.
+- Los puntos de venta fiscales se gestionan en la misma seccion usando `billing_points_of_sale`.
+- Los tokens, certificados y credenciales de Afip SDK siguen configurandose como Supabase Secrets. No se guardan en la base ni se exponen al frontend.
+- No hay CUIT hardcodeado en la aplicacion: el usuario debe cargarlo manualmente.
+- La autorizacion de Factura B Consumidor Final sigue limitada a ambiente dev. No incluye Factura A, Nota de Credito A, Nota de Debito ni PDF de Afip SDK.
+
+## Facturacion AFIPSDK dev - Nota de Credito B
+
+La Nota de Credito B de homologacion permite anular fiscalmente una Factura B autorizada sin mezclarla con devoluciones fisicas:
+
+- Migracion: `supabase/migrations/20260603170000_billing_credit_note_b_dev.sql`.
+- Nace solo desde una `FACTURA_B` con `document_kind = INVOICE`, `fiscal_status = AUTHORIZED`, numero fiscal y CAE.
+- La RPC `create_billing_credit_note_b_from_invoice(billingDocumentId)` crea un `billing_documents` en `DRAFT` con `document_kind = CREDIT_NOTE`, `invoice_type = NOTA_CREDITO_B`, `source_type = CREDIT_NOTE_FROM_INVOICE` y `related_billing_document_id` apuntando a la factura original.
+- El MVP es total: copia receptor, lineas, remito interno de referencia y totales completos desde la factura original. No implementa notas parciales.
+- La base bloquea mas de una Nota de Credito B activa/autorizada para la misma factura mediante indice unico parcial.
+- La autorizacion reutiliza `billing-authorize-document` en ambiente `dev`, usa Afip SDK/WSFE con tipo de comprobante Nota de Credito B y envia `CbtesAsoc` con tipo, punto de venta, numero y fecha de la Factura B asociada.
+- La creacion y autorizacion no modifican stock, caja, remito original, lineas del remito ni cuenta corriente.
+- La Nota de Credito B fiscal no dispara `REMITO_DEVOLUCION`; una devolucion fisica sigue siendo otro flujo.
+- La impresion usa la vista HTML interna y `window.print()`, muestra la factura asociada, CAE, vencimiento y QR fiscal. No usa el endpoint PDF de Afip SDK.
+- Pendiente: notas parciales, Nota de Credito A, Factura A, Nota de Debito y produccion.
+
+## Facturacion - hardening preproduccion
+
+La pantalla operativa `/billing` queda separada de la configuracion fiscal:
+
+- `/billing` muestra solo comprobantes, filtros, estados, acciones de autorizacion, impresion y Nota de Credito B total.
+- La configuracion de CUIT, provider, ambiente, puntos de venta y diagnostico vive en `Configuracion > Facturacion fiscal`.
+- El diagnostico fiscal expone solo estados booleanos/presencia de secrets. No devuelve tokens, certificados ni valores sensibles.
+- Los comprobantes `AUTHORIZING` recientes quedan bloqueados para evitar doble emision; los trabados por mas de 10 minutos pueden liberarse con una RPC controlada si no tienen CAE ni numero fiscal.
+- Los errores de Afip SDK se normalizan para mostrar mensajes accionables sin Bearer, tokens, certificados, private keys ni payloads largos.
+- El ambiente habilitado sigue siendo `dev`/homologacion. Produccion, Factura A, Nota de Credito A, Nota de Debito y notas parciales quedan fuera de esta fase.
 
 ## Database migrations
 

@@ -4,7 +4,7 @@ export const currency = new Intl.NumberFormat("es-AR", {
   minimumFractionDigits: 2,
 });
 
-export const usdCurrency = new Intl.NumberFormat("es-AR", {
+const usdCurrency = new Intl.NumberFormat("es-AR", {
   style: "currency",
   currency: "USD",
   minimumFractionDigits: 2,
@@ -69,7 +69,7 @@ export function businessDateFromTimestamp(value: string) {
   return `${year}-${month}-${day}`;
 }
 
-export function monthKeyFromTimestamp(value: string) {
+function monthKeyFromTimestamp(value: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: AR_TIME_ZONE,
     year: "numeric",

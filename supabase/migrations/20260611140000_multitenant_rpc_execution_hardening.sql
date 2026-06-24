@@ -61,6 +61,9 @@ grant execute on function public.create_service_document_share_link(uuid, timest
 revoke all on function public.revoke_service_document_share_link(text) from public;
 grant execute on function public.revoke_service_document_share_link(text) to authenticated;
 
+revoke all on function public.reset_stale_billing_authorization(uuid) from public;
+grant execute on function public.reset_stale_billing_authorization(uuid) to authenticated;
+
 revoke all on function public.cancel_cash_expense(uuid, text) from public;
 grant execute on function public.cancel_cash_expense(uuid, text) to authenticated;
 

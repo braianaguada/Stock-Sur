@@ -56,12 +56,13 @@ export function useServiceDocuments(params: {
   });
 
   const documentQuery = useQuery({
-    queryKey: queryKeys.serviceDocuments.detail(documentId),
-    enabled: Boolean(documentId),
+    queryKey: queryKeys.serviceDocuments.detail(companyId, documentId),
+    enabled: Boolean(companyId && documentId),
     queryFn: async () => {
       const { data, error } = await serviceDb
         .from("service_documents")
         .select("*, customers(id, name, cuit, email, phone)")
+        .eq("company_id", companyId)
         .eq("id", documentId)
         .single();
       if (error) throw error;
@@ -70,8 +71,8 @@ export function useServiceDocuments(params: {
   });
 
   const linesQuery = useQuery({
-    queryKey: queryKeys.serviceDocuments.lines(documentId),
-    enabled: Boolean(documentId),
+    queryKey: queryKeys.serviceDocuments.lines(companyId, documentId),
+    enabled: Boolean(companyId && documentId),
     queryFn: async () => {
       const { data, error } = await serviceDb
         .from("service_document_lines")
@@ -84,8 +85,8 @@ export function useServiceDocuments(params: {
   });
 
   const attachmentsQuery = useQuery({
-    queryKey: queryKeys.serviceDocuments.attachments(documentId),
-    enabled: Boolean(documentId),
+    queryKey: queryKeys.serviceDocuments.attachments(companyId, documentId),
+    enabled: Boolean(companyId && documentId),
     queryFn: async () => {
       const { data, error } = await serviceDb
         .from("service_document_attachments")
@@ -106,8 +107,8 @@ export function useServiceDocuments(params: {
   });
 
   const shareLinksQuery = useQuery({
-    queryKey: queryKeys.serviceDocuments.shareLinks(documentId),
-    enabled: Boolean(documentId),
+    queryKey: queryKeys.serviceDocuments.shareLinks(companyId, documentId),
+    enabled: Boolean(companyId && documentId),
     queryFn: async () => {
       const { data, error } = await serviceDb
         .from("service_document_share_links")
@@ -120,8 +121,8 @@ export function useServiceDocuments(params: {
   });
 
   const eventsQuery = useQuery({
-    queryKey: ["service-document-events", documentId ?? "no-document"],
-    enabled: Boolean(documentId),
+    queryKey: queryKeys.serviceDocuments.events(companyId, documentId),
+    enabled: Boolean(companyId && documentId),
     queryFn: async () => {
       const { data, error } = await serviceDb
         .from("service_document_events")

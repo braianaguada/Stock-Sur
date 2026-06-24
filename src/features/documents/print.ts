@@ -1,9 +1,9 @@
 import type { CompanySettings } from "@/contexts/company-brand-context";
-import { escapeHtml } from "@/lib/print";
+import { escapeHtml, PRINT_BRAND_MARK, PRINT_FAVICON_TAG } from "@/lib/print";
 import { formatDateTime, formatIsoDate } from "@/lib/formatters";
-import { CUSTOMER_KIND_LABEL, DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "./constants";
+import { DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "./constants";
 import type { DocLineRow, DocRow } from "./types";
-import { formatNumber } from "./utils";
+import { formatNumber, resolveDocumentRecipient } from "./utils";
 
 type PrintableLine = Pick<
   DocLineRow,
@@ -98,13 +98,14 @@ export function buildDocumentPrintHtml({
 
   const logoMarkup = companySettings.logo_url
     ? `<img class="brand-logo" src="${escapeHtml(companySettings.logo_url)}" alt="${escapeHtml(companySettings.app_name)}" />`
-    : `<div class="brand-fallback">${escapeHtml(legalName.slice(0, 2).toUpperCase())}</div>`;
+    : `<div class="brand-fallback">${PRINT_BRAND_MARK}</div>`;
 
   return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
+  ${PRINT_FAVICON_TAG}
   <style>
     @page{size:A4 portrait;margin:0}
     *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -121,7 +122,8 @@ export function buildDocumentPrintHtml({
     .brand{display:grid;grid-template-columns:55mm minmax(0,1fr);gap:5mm;align-items:center;min-width:0}
     .brand-mark{display:grid;place-items:center;min-height:38mm;padding:1.2mm;border-right:1px solid #e3e8f0}
     .brand-logo{max-width:51mm;max-height:37mm;object-fit:contain}
-    .brand-fallback{width:36mm;height:36mm;display:grid;place-items:center;border-radius:7px;background:#111827;color:white;font-weight:850;font-size:23px}
+    .brand-fallback{width:32mm;height:32mm;display:grid;place-items:center}
+    .brand-fallback img{width:100%;height:100%;object-fit:contain}
     .brand-title{margin:0;color:#0f172a;font-size:17.5px;font-weight:850;line-height:1.08;letter-spacing:0}
     .brand-sub{margin:1.2mm 0 0;color:#475569;font-size:8.1px;line-height:1.25}
     .company-meta{display:grid;grid-template-columns:1fr 1fr;gap:.8mm 3mm;margin-top:2.4mm;color:#64748b;font-size:7.7px;line-height:1.2}
@@ -229,17 +231,15 @@ export function buildDocumentPrintHtml({
 
         <section class="meta-grid avoid-break">
           <div class="box">
-            <p class="box-title">Cliente</p>
-            ${optionalMeta("Nombre", document.customer_name ?? "Cliente ocasional")}
-            ${optionalMeta("Tipo", CUSTOMER_KIND_LABEL[document.customer_kind])}
-            ${optionalMeta("CUIT", document.customer_tax_id ?? "-")}
-            ${optionalMeta("Fiscal", document.customer_tax_condition ?? "-")}
+            <p class="box-title">${document.customer_kind === "INTERNO" ? "Destinatario" : "Cliente"}</p>
+            ${optionalMeta(document.customer_kind === "INTERNO" ? "Destinatario" : "Cliente", resolveDocumentRecipient(document, { technicianName }).primaryName)}
+            ${document.customer_kind !== "INTERNO" && resolveDocumentRecipient(document, { technicianName }).secondaryName ? optionalMeta("Nombre ocasional", resolveDocumentRecipient(document, { technicianName }).secondaryName) : ""}
           </div>
           <div class="box">
             <p class="box-title">Operacion</p>
             ${optionalMeta("Tipo", documentTypeLabel)}
             ${technicianName ? optionalMeta("Tecnico", technicianName) : ""}
-            ${document.doc_type !== "REMITO_DEVOLUCION" && document.internal_remito_type ? optionalMeta("Imputacion", INTERNAL_REMITO_LABEL[document.internal_remito_type]) : ""}
+            ${document.doc_type !== "REMITO_DEVOLUCION" && document.internal_remito_type ? optionalMeta("Tipo / motivo interno", INTERNAL_REMITO_LABEL[document.internal_remito_type]) : ""}
             ${sourceLabel ? optionalMeta("Origen", sourceLabel) : ""}
             ${externalInvoice ? optionalMeta("Factura ext.", externalInvoice) : ""}
             ${document.payment_terms ? optionalMeta("Cond. venta", document.payment_terms) : ""}

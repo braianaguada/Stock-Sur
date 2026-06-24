@@ -1,12 +1,197 @@
 import { formatDocumentNumber } from "@/lib/formatters";
 import { STATUS_LABEL } from "./constants";
-import type { DocEventRow, DocStatus, PriceListRow } from "./types";
+import type { DocEventRow, DocStatus, DocumentFormState, DocumentServiceOption, PriceListRow } from "./types";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 export const formatNumber = (n: number | null, pointOfSale: number) =>
   n === null ? "BORRADOR" : formatDocumentNumber(pointOfSale, n);
+
+export const OCCASIONAL_CUSTOMER_DISPLAY_NAME = "Cliente ocasional / Consumidor Final";
+const OCCASIONAL_CUSTOMER_DEFAULT_NAME = "Cliente ocasional";
+
+export type RecipientDisplay = {
+  primaryName: string;
+  secondaryName: string | null;
+  fiscalLabel: string | null;
+  isRegisteredCustomer: boolean;
+  isOccasional: boolean;
+  isInternal: boolean;
+  isServiceLinked: boolean;
+  technicianName: string | null;
+};
+
+export function resolveDocumentRecipient(
+  document: {
+    customer_id?: string | null;
+    customer_name?: string | null;
+    customer_kind?: string | null;
+    service_id?: string | null;
+    customers?: { name?: string | null } | null;
+  },
+  options: { technicianName?: string | null; internalReference?: string | null } = {},
+): RecipientDisplay {
+  const customerName = document.customer_name?.trim() || null;
+  const technicianName = options.technicianName?.trim() || null;
+
+  if (document.customer_kind === "INTERNO") {
+    return {
+      primaryName: "Personal interno",
+      secondaryName: options.internalReference?.trim() || customerName,
+      fiscalLabel: null,
+      isRegisteredCustomer: false,
+      isOccasional: false,
+      isInternal: true,
+      isServiceLinked: Boolean(document.service_id),
+      technicianName,
+    };
+  }
+
+  if (document.customer_id) {
+    return {
+      primaryName: document.customers?.name?.trim() || customerName || "Cliente registrado",
+      secondaryName: null,
+      fiscalLabel: null,
+      isRegisteredCustomer: true,
+      isOccasional: false,
+      isInternal: false,
+      isServiceLinked: Boolean(document.service_id),
+      technicianName,
+    };
+  }
+
+  const normalizedName = customerName?.toLocaleLowerCase("es-AR");
+  const isDefaultName = !normalizedName
+    || normalizedName === OCCASIONAL_CUSTOMER_DEFAULT_NAME.toLocaleLowerCase("es-AR")
+    || normalizedName === OCCASIONAL_CUSTOMER_DISPLAY_NAME.toLocaleLowerCase("es-AR");
+
+  return {
+    primaryName: OCCASIONAL_CUSTOMER_DISPLAY_NAME,
+    secondaryName: isDefaultName ? null : customerName,
+    fiscalLabel: "Consumidor Final",
+    isRegisteredCustomer: false,
+    isOccasional: true,
+    isInternal: false,
+    isServiceLinked: Boolean(document.service_id),
+    technicianName,
+  };
+}
+
+export function getCustomerDisplayName(entity: {
+  customer_id?: string | null;
+  customer_name?: string | null;
+  customers?: { name?: string | null } | null;
+}) {
+  return resolveDocumentRecipient(entity).primaryName;
+}
+
+export function buildDocumentCustomerSnapshot(input: {
+  customerId: string;
+  manualCustomerName: string;
+  pickedCustomer?: { id: string; name: string; cuit: string | null } | null;
+  manualTaxId: string;
+  manualTaxCondition: string;
+}) {
+  if (input.pickedCustomer) {
+    return {
+      customer_id: input.pickedCustomer.id,
+      customer_name: input.pickedCustomer.name,
+      customer_tax_id: input.pickedCustomer.cuit,
+      customer_tax_condition: null,
+    };
+  }
+
+  return {
+    customer_id: null,
+    customer_name: input.manualCustomerName.trim() || OCCASIONAL_CUSTOMER_DEFAULT_NAME,
+    customer_tax_id: null,
+    customer_tax_condition: null,
+  };
+}
+
+export function changeRemitoUsage(
+  draft: DocumentFormState,
+  usage: "COMMERCIAL" | "INTERNAL",
+): DocumentFormState {
+  if (usage === "INTERNAL") {
+    return {
+      ...draft,
+      customer_kind: "INTERNO",
+      recipient_type: undefined,
+      customer_id: "",
+      customer_name: "",
+      customer_tax_id: "",
+      customer_tax_condition: "",
+      payment_terms: "",
+      service_id: "",
+    };
+  }
+
+  return {
+    ...draft,
+    customer_kind: "GENERAL",
+    recipient_type: "OCCASIONAL",
+    customer_id: "",
+    customer_name: OCCASIONAL_CUSTOMER_DEFAULT_NAME,
+    customer_tax_id: "",
+    customer_tax_condition: "",
+    service_id: "",
+    internal_remito_type: "",
+  };
+}
+
+export function changeDocumentRecipientType(
+  draft: DocumentFormState,
+  recipientType: NonNullable<DocumentFormState["recipient_type"]>,
+): DocumentFormState {
+  return {
+    ...draft,
+    recipient_type: recipientType,
+    customer_id: "",
+    customer_name: recipientType === "OCCASIONAL" ? OCCASIONAL_CUSTOMER_DEFAULT_NAME : "",
+    customer_kind: "GENERAL",
+    technician_id: "",
+    service_id: "",
+    customer_tax_id: "",
+    customer_tax_condition: "",
+  };
+}
+
+export function validateDocumentRecipientDraft(
+  draft: DocumentFormState,
+  serviceOptions: DocumentServiceOption[],
+) {
+  if (draft.customer_kind === "INTERNO") {
+    if (draft.doc_type !== "REMITO") throw new Error("El remito interno solo aplica a remitos");
+    if (!draft.technician_id) throw new Error("El remito interno requiere tecnico");
+    if (!draft.internal_remito_type) throw new Error("El remito interno requiere tipo de imputacion");
+    if (draft.customer_id || draft.payment_terms || draft.service_id) {
+      throw new Error("El remito interno no puede conservar cliente, condicion de venta ni servicio");
+    }
+    return;
+  }
+
+  if (draft.recipient_type === "REGISTERED" && !draft.customer_id) {
+    throw new Error("Cliente registrado requiere seleccionar un cliente");
+  }
+
+  if (draft.recipient_type === "OCCASIONAL" && draft.technician_id) {
+    throw new Error("Cliente ocasional no puede tener tecnico asociado");
+  }
+
+  if (draft.customer_kind === "EMPRESA" && !draft.customer_id) {
+    throw new Error("Empresa requiere seleccionar un cliente registrado");
+  }
+
+  if (draft.service_id) {
+    const service = serviceOptions.find((option) => option.id === draft.service_id);
+    if (!service) throw new Error("El servicio asociado no esta disponible");
+    if (service.customerId !== draft.customer_id) {
+      throw new Error("El cliente del remito debe coincidir con el cliente del servicio");
+    }
+  }
+}
 
 function applyPriceListRounding(value: number, roundMode: PriceListRow["round_mode"], roundTo: number | null) {
   switch (roundMode) {

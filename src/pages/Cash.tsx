@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { getErrorMessage } from "@/lib/errors";
-import { canAttachCashReceipt, canCancelCashExpense, canCancelCashSale, canCloseCash, canCreateCashExpense, canCreateCashSale } from "@/lib/permissions";
+import { canAttachCashReceipt, canCancelCashExpense, canCancelCashSale, canCloseCash, canCreateBilling, canCreateCashExpense, canCreateCashSale } from "@/lib/permissions";
 import { openPrintWindow } from "@/lib/print";
 import { currentTimeInBuenosAires } from "@/lib/formatters";
 import { ArrowLeft, History, Plus } from "lucide-react";
@@ -24,7 +24,12 @@ import { CashSalesTab } from "@/features/cash/components/CashSalesTab";
 import { CashOverviewPanel } from "@/features/cash/components/CashSummaryCards";
 import { useCashData } from "@/features/cash/hooks/useCashData";
 import { useCashMutations } from "@/features/cash/hooks/useCashMutations";
+import { useBillingActions } from "@/features/billing/hooks/useBillingActions";
+import { useActiveBillingSourceIds, useBillingSettings } from "@/features/billing/hooks/useBillingData";
+import { canUseCustomerForInvoiceA } from "@/features/customers/fiscal";
+import { resolveDocumentRecipient } from "@/features/documents/utils";
 import { AmountDisplay } from "@/components/common/VisualSystem";
+import type { BillingInvoiceType } from "@/features/billing/types";
 import type {
   CashExpenseFormState,
   CashExpenseRow,
@@ -70,7 +75,7 @@ function CashDialogLoader() {
 
 export default function CashPage() {
   const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
-  const { roles, currentCompany } = useAuth();
+  const { roles, currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
   const [businessDate, setBusinessDate] = useState(todayDateInputValue());
@@ -149,6 +154,12 @@ export default function CashPage() {
     currentCompanyId: currentCompany?.id ?? null,
   });
   const remitosById = useMemo(() => new Map(remitos.map((remito) => [remito.id, remito])), [remitos]);
+  const billingSettingsQuery = useBillingSettings(currentCompany?.id ?? null);
+  const { billedSourceIds } = useActiveBillingSourceIds(currentCompany?.id ?? null);
+  const { createBillingDraftMutation } = useBillingActions({
+    companyId: currentCompany?.id ?? null,
+    businessDate,
+  });
   const selectedReceiptRemito = useMemo(
     () => remitosById.get(selectedRemitoId) ?? null,
     [remitosById, selectedRemitoId],
@@ -283,8 +294,10 @@ export default function CashPage() {
       ),
     [customers],
   );
-  const formatCashOptionCustomer = (remito: (typeof availableRemitos)[number]) =>
-    remito.customer_name?.trim() ? remito.customer_name.trim() : "Cliente ocasional";
+  const formatCashOptionCustomer = (remito: (typeof availableRemitos)[number]) => {
+    const recipient = resolveDocumentRecipient(remito);
+    return recipient.secondaryName ? `${recipient.primaryName} - ${recipient.secondaryName}` : recipient.primaryName;
+  };
   const remitoOptionLabels = useMemo(
     () =>
       new Map(
@@ -345,6 +358,7 @@ export default function CashPage() {
   const canCreateSale = canCreateCashSale(roles);
   const canCreateExpense = canCreateCashExpense(roles);
   const canCloseCashAction = canCloseCash(roles);
+  const canCreateBillingDraft = canCreateBilling(roles, { companyRoleCodes, companyPermissionCodes });
   const canCancelSale = (sale: CashMovementRow) =>
     sale.movement_kind === "SALE" && canCancelCashSale(roles) && !sale.closure_id;
   const canCancelExpense = (expense: CashExpenseRow) => canCancelCashExpense(roles) && !expense.closure_id;
@@ -369,6 +383,66 @@ export default function CashPage() {
   const openSaleDetail = (sale: CashMovementRow) => {
     setDetailSale(sale);
     setDetailDialogOpen(true);
+  };
+
+  const getInvoiceAReadiness = (sale: CashMovementRow) => {
+    const remito = sale.document_id ? remitosById.get(sale.document_id) : null;
+    const customer = remito?.customers
+      ? {
+          id: remito.customers.id,
+          company_id: remito.customers.company_id,
+          name: remito.customers.name,
+          cuit: remito.customers.cuit,
+          email: remito.customers.email,
+          phone: remito.customers.phone,
+          is_occasional: remito.customers.is_occasional,
+        }
+      : null;
+    const fiscalProfile = remito?.customers?.customer_fiscal_profiles?.[0] ?? null;
+    return canUseCustomerForInvoiceA(customer, fiscalProfile);
+  };
+
+  const createBillingDraft = (sale: CashMovementRow, invoiceType: BillingInvoiceType = "FACTURA_B") => {
+    if (invoiceType === "FACTURA_A") {
+      const readiness = getInvoiceAReadiness(sale);
+      if (!readiness.allowed) {
+        toast({
+          title: "Factura A bloqueada",
+          description: readiness.reasons.join(" "),
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    const confirmed = window.confirm(
+      invoiceType === "FACTURA_A"
+        ? "Se creara un borrador interno Factura A desde esta venta/remito. No se autoriza, no se emite CAE y no se modifica caja, stock ni cuenta corriente."
+        : "Se creara un borrador fiscal Factura B a Consumidor Final desde esta venta/remito. No se emitira CAE todavia.",
+    );
+    if (!confirmed) return;
+
+    createBillingDraftMutation.mutate(
+      { cashSaleId: sale.id, invoiceType },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Borrador fiscal creado",
+            description: invoiceType === "FACTURA_A"
+              ? "Se creo una Factura A en preparacion. No tiene CAE ni numero fiscal."
+              : "Se creo una Factura B interna en estado borrador. No tiene CAE.",
+          });
+          window.location.assign("/billing");
+        },
+        onError: (error) => {
+          toast({
+            title: "No se pudo crear el borrador fiscal",
+            description: getErrorMessage(error),
+            variant: "destructive",
+          });
+        },
+      },
+    );
   };
 
   const printClosurePreview = () => {
@@ -522,6 +596,13 @@ export default function CashPage() {
                   }}
                   canCancelSale={canCancelSale}
                   cancelPending={cancelSaleMutation.isPending}
+                  billingEnabled={billingSettingsQuery.billingEnabled}
+                  billedSourceIds={billedSourceIds}
+                  canCreateBillingDraft={canCreateBillingDraft}
+                  onCreateBillingDraft={(sale) => createBillingDraft(sale, "FACTURA_B")}
+                  onCreateInvoiceADraft={(sale) => createBillingDraft(sale, "FACTURA_A")}
+                  getInvoiceAReadiness={getInvoiceAReadiness}
+                  createBillingDraftPending={createBillingDraftMutation.isPending}
                   page={salesPagination.page}
                   totalPages={salesPagination.totalPages}
                   totalItems={filteredSales.length}

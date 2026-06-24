@@ -13,6 +13,7 @@ export type DuplicateDocumentSource = {
   issue_date: string;
   customer_id: string | null;
   technician_id: string | null;
+  service_id?: string | null;
   origin_document_id?: string | null;
   customer_name: string | null;
   customer_tax_condition: string | null;
@@ -82,6 +83,7 @@ export function buildDuplicateDocumentPayload({
   const sourceNumber = sourceDocument.document_number === null
     ? null
     : formatNumber(sourceDocument.document_number, sourceDocument.point_of_sale);
+  const isInternalRemito = sourceDocument.doc_type === "REMITO" && sourceDocument.customer_kind === "INTERNO";
 
   return {
     document: {
@@ -90,15 +92,16 @@ export function buildDuplicateDocumentPayload({
       point_of_sale: sourceDocument.point_of_sale,
       document_number: null,
       issue_date: currentDate,
-      customer_id: sourceDocument.customer_id,
+      customer_id: isInternalRemito ? null : sourceDocument.customer_id,
       technician_id: sourceDocument.technician_id,
+      service_id: null,
       origin_document_id: null,
-      customer_name: sourceDocument.customer_name,
-      customer_tax_condition: sourceDocument.customer_tax_condition,
-      customer_tax_id: sourceDocument.customer_tax_id,
+      customer_name: isInternalRemito ? null : sourceDocument.customer_name,
+      customer_tax_condition: isInternalRemito ? null : sourceDocument.customer_tax_condition,
+      customer_tax_id: isInternalRemito ? null : sourceDocument.customer_tax_id,
       customer_kind: sourceDocument.customer_kind,
       internal_remito_type: sourceDocument.internal_remito_type,
-      payment_terms: sourceDocument.payment_terms,
+      payment_terms: isInternalRemito ? null : sourceDocument.payment_terms,
       delivery_address: sourceDocument.delivery_address,
       salesperson: sourceDocument.salesperson,
       valid_until: sourceDocument.doc_type === "PRESUPUESTO" ? sourceDocument.valid_until ?? null : null,

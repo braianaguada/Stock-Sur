@@ -10,6 +10,8 @@ export const queryKeys = {
   customers: {
     list: (companyId: string | null, search: string) => ["customers", companyId ?? "no-company", search] as const,
     all: () => ["customers"] as const,
+    occasionalOperations: (companyId: string | null, from: string, to: string) =>
+      ["customers-occasional-operations", companyId ?? "no-company", from, to] as const,
     accountSummary: (companyId: string | null, customerId: string | null) =>
       ["customer-account-summary", companyId ?? "no-company", customerId ?? "no-customer"] as const,
     accountEntries: (companyId: string | null, customerId: string | null) =>
@@ -36,7 +38,8 @@ export const queryKeys = {
     categoriesAll: () => ["items-categories"] as const,
     categories: (companyId: string | null, statusFilter: "active" | "inactive" | "all") =>
       ["items-categories", companyId ?? "no-company", statusFilter] as const,
-    searchAliases: (companyId: string | null) => ["items-search-aliases", companyId ?? "no-company"] as const,
+    searchAliases: (companyId: string | null, search: string) =>
+      ["items-search-aliases", companyId ?? "no-company", search] as const,
     aliases: (companyId: string | null, itemId: string | null | undefined) =>
       ["item-aliases", companyId ?? "no-company", itemId] as const,
   },
@@ -48,11 +51,33 @@ export const queryKeys = {
     totals: (companyId: string | null, from: string, to: string) => ["cash-totals", companyId ?? "no-company", from, to] as const,
     remitos: (companyId: string | null, businessDate: string) => ["cash-remitos", companyId ?? "no-company", businessDate] as const,
     closure: (companyId: string | null, businessDate: string) => ["cash-closure", companyId ?? "no-company", businessDate] as const,
-    linkedDocument: (documentId: string | null) => ["cash-linked-document", documentId] as const,
-    linkedDocumentLines: (documentId: string | null) => ["cash-linked-document-lines", documentId] as const,
-    linkedDocumentEvents: (documentId: string | null) => ["cash-linked-document-events", documentId] as const,
+    linkedDocument: (companyId: string | null, documentId: string | null) =>
+      ["cash-linked-document", companyId ?? "no-company", documentId] as const,
+    linkedDocumentLines: (companyId: string | null, documentId: string | null) =>
+      ["cash-linked-document-lines", companyId ?? "no-company", documentId] as const,
+    linkedDocumentEvents: (companyId: string | null, documentId: string | null) =>
+      ["cash-linked-document-events", companyId ?? "no-company", documentId] as const,
     closuresHistory: (companyId: string | null) => ["cash-closures-history", companyId ?? "no-company"] as const,
     closureSales: (companyId: string | null, closureId: string | null) => ["cash-closure-sales", companyId ?? "no-company", closureId] as const,
+  },
+  billing: {
+    settings: (companyId: string | null) => ["billing-settings", companyId ?? "no-company"] as const,
+    diagnostics: (companyId: string | null) => ["billing-diagnostics", companyId ?? "no-company"] as const,
+    pointsOfSale: (companyId: string | null) => ["billing-points-of-sale", companyId ?? "no-company"] as const,
+    documents: (companyId: string | null) => ["billing-documents", companyId ?? "no-company"] as const,
+    lines: (companyId: string | null, documentId: string | null) =>
+      ["billing-document-lines", companyId ?? "no-company", documentId ?? "no-document"] as const,
+    remitos: (companyId: string | null, idsKey: string) => ["billing-remitos", companyId ?? "no-company", idsKey] as const,
+    activeSourceIds: (companyId: string | null) => ["billing-active-source-ids", companyId ?? "no-company"] as const,
+  },
+  settlements: {
+    list: (companyId: string | null) => ["settlements", "list", companyId ?? "no-company"] as const,
+    detail: (companyId: string | null, settlementId: string | null) =>
+      ["settlements", "detail", companyId ?? "no-company", settlementId ?? "no-settlement"] as const,
+    lines: (companyId: string | null, settlementId: string | null) =>
+      ["settlements", "lines", companyId ?? "no-company", settlementId ?? "no-settlement"] as const,
+    totals: (companyId: string | null, settlementId: string | null) =>
+      ["settlements", "totals", companyId ?? "no-company", settlementId ?? "no-settlement"] as const,
   },
   documents: {
     customers: (companyId: string | null) => ["documents-customers", companyId ?? "no-company"] as const,
@@ -69,8 +94,12 @@ export const queryKeys = {
       technicianFilter = "ALL",
     ) => ["documents", companyId ?? "no-company", search, typeFilter, statusFilter, customerFilter, technicianFilter] as const,
     all: () => ["documents"] as const,
-    lines: (documentId: string | null) => ["document-lines", documentId] as const,
-    events: (documentId: string | null) => ["document-events", documentId] as const,
+    detail: (companyId: string | null, documentId: string | null) =>
+      ["documents", "detail", companyId ?? "no-company", documentId ?? "no-document"] as const,
+    lines: (companyId: string | null, documentId: string | null) =>
+      ["document-lines", companyId ?? "no-company", documentId] as const,
+    events: (companyId: string | null, documentId: string | null) =>
+      ["document-events", companyId ?? "no-company", documentId] as const,
   },
   combos: {
     list: (companyId: string | null) => ["product-combos", companyId ?? "no-company"] as const,
@@ -83,10 +112,16 @@ export const queryKeys = {
     list: (companyId: string | null, search: string, status: string, customerFilter = "ALL") =>
       ["service-documents", companyId ?? "no-company", search, status, customerFilter] as const,
     all: () => ["service-documents"] as const,
-    detail: (documentId: string | null) => ["service-document", documentId ?? "no-document"] as const,
-    lines: (documentId: string | null) => ["service-document-lines", documentId ?? "no-document"] as const,
-    attachments: (documentId: string | null) => ["service-document-attachments", documentId ?? "no-document"] as const,
-    shareLinks: (documentId: string | null) => ["service-document-share-links", documentId ?? "no-document"] as const,
+    detail: (companyId: string | null, documentId: string | null) =>
+      ["service-document", companyId ?? "no-company", documentId ?? "no-document"] as const,
+    lines: (companyId: string | null, documentId: string | null) =>
+      ["service-document-lines", companyId ?? "no-company", documentId ?? "no-document"] as const,
+    attachments: (companyId: string | null, documentId: string | null) =>
+      ["service-document-attachments", companyId ?? "no-company", documentId ?? "no-document"] as const,
+    shareLinks: (companyId: string | null, documentId: string | null) =>
+      ["service-document-share-links", companyId ?? "no-company", documentId ?? "no-document"] as const,
+    events: (companyId: string | null, documentId: string | null) =>
+      ["service-document-events", companyId ?? "no-company", documentId ?? "no-document"] as const,
     public: (token: string | null) => ["public-service-document", token ?? "no-token"] as const,
   },
   serviceJobs: {

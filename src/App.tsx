@@ -8,8 +8,21 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CompanyBrandProvider } from "@/components/CompanyBrandProvider";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
+import { billingFeatureEnabled } from "@/lib/features";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      gcTime: 10 * 60_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 const Index = lazy(() => import("./pages/Index"));
 const AuthPage = lazy(() => import("./pages/Auth"));
 const ItemsPage = lazy(() => import("./pages/Items"));
@@ -25,6 +38,7 @@ const ServiceJobsPage = lazy(() => import("./pages/ServiceJobs"));
 const PrintServiceDocumentPage = lazy(() => import("./pages/PrintServiceDocument"));
 const PublicServiceDocumentPage = lazy(() => import("./pages/PublicServiceDocument"));
 const CustomersPage = lazy(() => import("./pages/Customers"));
+const OccasionalCustomerPage = lazy(() => import("./pages/OccasionalCustomer"));
 const CustomerAccountPage = lazy(() => import("./pages/CustomerAccount"));
 const TechniciansPage = lazy(() => import("./pages/Technicians"));
 const UsersPage = lazy(() => import("./pages/Users"));
@@ -32,6 +46,9 @@ const LegacyCatalogImportPage = lazy(() => import("./pages/LegacyCatalogImport")
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const CashPage = lazy(() => import("./pages/Cash"));
 const CashTotalsPage = lazy(() => import("./pages/CashTotals"));
+const SettlementsPage = lazy(() => import("./pages/Settlements"));
+const BillingPage = lazy(() => import("./pages/Billing"));
+const PrintBillingPage = lazy(() => import("./pages/PrintBilling"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function RouteLoader() {
@@ -95,7 +112,11 @@ const App = () => (
                   <Route path="/print/service-document/:id" element={<ProtectedRoute><PrintServiceDocumentPage /></ProtectedRoute>} />
                   <Route path="/cash" element={<ProtectedRoute><CashPage /></ProtectedRoute>} />
                   <Route path="/cash-totals" element={<ProtectedRoute><CashTotalsPage /></ProtectedRoute>} />
+                  <Route path="/settlements" element={<ProtectedRoute><SettlementsPage /></ProtectedRoute>} />
+                  <Route path="/billing" element={billingFeatureEnabled ? <ProtectedRoute><BillingPage /></ProtectedRoute> : <Navigate to="/" replace />} />
+                  <Route path="/print/billing/:id" element={billingFeatureEnabled ? <ProtectedRoute><PrintBillingPage /></ProtectedRoute> : <Navigate to="/" replace />} />
                   <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
+                  <Route path="/customers/occasional" element={<ProtectedRoute><OccasionalCustomerPage /></ProtectedRoute>} />
                   <Route path="/customer-account" element={<ProtectedRoute><CustomerAccountPage /></ProtectedRoute>} />
                   <Route path="/technicians" element={<ProtectedRoute><TechniciansPage /></ProtectedRoute>} />
                   <Route path="/users" element={<ProtectedRoute requiresSuperadmin><UsersPage /></ProtectedRoute>} />

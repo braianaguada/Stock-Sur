@@ -1,9 +1,19 @@
-import type { Item } from "@/features/items/types";
-
 export interface ItemSearchAliasRecord {
   item_id: string;
   alias: string;
   is_supplier_code: boolean;
+}
+
+export interface ItemSearchFields {
+  id: string;
+  sku?: string | null;
+  name: string;
+  supplier?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  attributes?: string | null;
+  category?: string | null;
+  unit?: string | null;
 }
 
 const PHRASE_NORMALIZATIONS: Array<[RegExp, string]> = [
@@ -69,15 +79,20 @@ function tokenize(value: string) {
   return [...expanded];
 }
 
-function buildItemText(item: Item) {
+export function getItemSearchTokens(value: string) {
+  return tokenize(value);
+}
+
+function buildItemText(item: ItemSearchFields) {
   return normalizeSearchText([
-    item.sku,
+    item.sku ?? "",
     item.name,
     item.supplier ?? "",
     item.brand ?? "",
     item.model ?? "",
     item.attributes ?? "",
     item.category ?? "",
+    item.unit ?? "",
   ].join(" "));
 }
 
@@ -122,11 +137,17 @@ function satisfiesQuery(baseTokens: string[], candidateText: string) {
   return baseTokens.every((token) => tokenMatchesCandidate(token, candidateText));
 }
 
-export function rankNaturalItemSearch(params: {
-  items: Item[];
+export function matchesNaturalItemSearch(item: ItemSearchFields, query: string) {
+  const queryTokens = getBaseTokens(query);
+  if (queryTokens.length === 0) return true;
+  return satisfiesQuery(queryTokens, buildItemText(item));
+}
+
+export function rankNaturalItemSearch<T extends ItemSearchFields>(params: {
+  items: T[];
   aliases: ItemSearchAliasRecord[];
   query: string;
-}) {
+}): T[] {
   const queryText = normalizeSearchText(params.query);
   const queryBaseTokens = getBaseTokens(params.query);
   const queryTokens = tokenize(params.query);
@@ -141,13 +162,15 @@ export function rankNaturalItemSearch(params: {
   return params.items
     .map((item) => {
       const itemText = buildItemText(item);
-      const itemMatched = satisfiesQuery(queryBaseTokens, itemText);
+      const itemAliases = aliasesByItemId.get(item.id) ?? [];
+      const combinedText = normalizeSearchText([itemText, ...itemAliases.map((alias) => alias.alias)].join(" "));
+      const itemMatched = satisfiesQuery(queryBaseTokens, combinedText);
       const itemTokenResult = scoreTokenOverlap(queryTokens, itemText);
       const nameScore = scoreTextMatch(queryText, normalizeSearchText(item.name));
       const skuScore = scoreTextMatch(queryText, normalizeSearchText(item.sku));
       const baseScore = itemMatched ? Math.max(nameScore, skuScore) + itemTokenResult.score : 0;
 
-      const aliasRank = (aliasesByItemId.get(item.id) ?? []).reduce((best, alias) => {
+      const aliasRank = itemAliases.reduce((best, alias) => {
         const aliasText = normalizeSearchText(alias.alias);
         if (!satisfiesQuery(queryBaseTokens, aliasText)) {
           return best;
@@ -165,8 +188,9 @@ export function rankNaturalItemSearch(params: {
         return best;
       }, { score: 0, matches: 0 });
 
-      const score = Math.max(baseScore, aliasRank.score);
-      const tokenMatches = Math.max(itemTokenResult.matches, aliasRank.matches);
+      const combinedTokenResult = scoreTokenOverlap(queryTokens, combinedText);
+      const score = Math.max(baseScore, aliasRank.score, itemMatched ? combinedTokenResult.score : 0);
+      const tokenMatches = Math.max(itemTokenResult.matches, aliasRank.matches, combinedTokenResult.matches);
       const phraseMatched = Math.max(nameScore, skuScore, aliasRank.score) > 0 || itemMatched;
 
       return { item, score, tokenMatches, phraseMatched };

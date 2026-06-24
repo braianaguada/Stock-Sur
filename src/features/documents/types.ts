@@ -25,6 +25,7 @@ export interface LineDraft {
 }
 
 export interface DocumentFormState {
+  recipient_type?: "OCCASIONAL" | "REGISTERED";
   doc_type: DocType;
   point_of_sale: number;
   customer_id: string;
@@ -137,13 +138,4 @@ export interface PriceListItemRow {
   final_price_override: number | null;
   manual_price_enabled: boolean;
   manual_price_note: string | null;
-  items: {
-    id: string;
-    sku: string;
-    name: string;
-    attributes?: string | null;
-    brand?: string | null;
-    model?: string | null;
-    unit: string;
-  } | null;
 }

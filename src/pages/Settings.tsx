@@ -9,8 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/ui/page";
 import { THEME_OPTIONS, buildCompanyThemePayload } from "@/lib/companyTheme";
+import { canManageBillingSettings, canViewSettings } from "@/lib/permissions";
 import { useToast } from "@/hooks/use-toast";
 import { useSettingsManagement } from "@/features/settings/hooks/useSettingsManagement";
+import { BillingFiscalSettingsSection } from "@/features/billing/components/BillingFiscalSettingsSection";
+import { useBillingActions } from "@/features/billing/hooks/useBillingActions";
+import { useBillingDiagnostics, useBillingPointsOfSale, useBillingSettings } from "@/features/billing/hooks/useBillingData";
+import { billingFeatureEnabled } from "@/lib/features";
 
 export default function SettingsPage() {
   const { roles, currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
@@ -33,8 +38,19 @@ export default function SettingsPage() {
     companyPermissionCodes,
     toast,
   });
+  const settingsAccessContext = { companyRoleCodes, companyPermissionCodes };
+  const canAccessSettings = canManage || canViewSettings(roles, settingsAccessContext) || canManageBillingSettings(roles, settingsAccessContext);
+  const canEditBillingSettings = canManageBillingSettings(roles, settingsAccessContext);
+  const billingSettingsQuery = useBillingSettings(currentCompany?.id ?? null);
+  const billingPointsQuery = useBillingPointsOfSale(currentCompany?.id ?? null);
+  const billingDiagnosticsQuery = useBillingDiagnostics(canEditBillingSettings ? currentCompany?.id ?? null : null);
+  const {
+    saveBillingSettingsMutation,
+    createBillingPointOfSaleMutation,
+    updateBillingPointOfSaleMutation,
+  } = useBillingActions({ companyId: currentCompany?.id ?? null });
 
-  if (!canManage) {
+  if (!canAccessSettings) {
     return (
       <AppLayout>
         <div className="page-shell">
@@ -47,7 +63,7 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>Sin permisos</CardTitle>
               <CardDescription>
-                La configuracion global de empresa y branding solo puede modificarla un administrador.
+                La configuracion global y fiscal requiere permisos de configuracion.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -390,13 +406,33 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
-                <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || isLoading} className="w-full">
-                  {saveMutation.isPending ? "Guardando..." : "Guardar configuracion"}
-                </Button>
+                {canManage ? (
+                  <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || isLoading} className="w-full">
+                    {saveMutation.isPending ? "Guardando..." : "Guardar configuracion"}
+                  </Button>
+                ) : null}
               </CardContent>
             </Card>
           </div>
         </div>
+
+        {billingFeatureEnabled ? <section id="billing-fiscal-settings">
+          <BillingFiscalSettingsSection
+            settings={billingSettingsQuery.settings}
+            pointsOfSale={billingPointsQuery.data ?? []}
+            isLoading={billingSettingsQuery.isLoading || billingPointsQuery.isLoading}
+            onSaveSettings={(input, callbacks) => saveBillingSettingsMutation.mutate(input, callbacks)}
+            onCreatePointOfSale={(input, callbacks) => createBillingPointOfSaleMutation.mutate(input, callbacks)}
+            onUpdatePointOfSale={(input, callbacks) => updateBillingPointOfSaleMutation.mutate(input, callbacks)}
+            savingSettings={saveBillingSettingsMutation.isPending}
+            creatingPointOfSale={createBillingPointOfSaleMutation.isPending}
+            updatingPointOfSale={updateBillingPointOfSaleMutation.isPending}
+            toast={toast}
+            canEdit={canEditBillingSettings}
+            diagnostics={billingDiagnosticsQuery.data ?? null}
+            diagnosticsLoading={billingDiagnosticsQuery.isLoading}
+          />
+        </section> : null}
       </div>
     </AppLayout>
   );

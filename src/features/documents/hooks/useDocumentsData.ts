@@ -48,6 +48,7 @@ export function useDocumentsData({
         .from("customers")
         .select("id, name, cuit")
         .eq("company_id", currentCompanyId!)
+        .eq("is_occasional", false)
         .order("name");
       if (error) throw error;
       return data ?? [];
@@ -105,7 +106,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("items")
-        .select("id, sku, name, attributes, brand, model, unit")
+        .select("id, sku, name, supplier, attributes, brand, model, category, unit")
         .eq("company_id", currentCompanyId!)
         .eq("is_active", true)
         .order("name");
@@ -134,7 +135,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
-        .select("item_id, is_active, base_cost, calculated_price, flete_pct, utilidad_pct, impuesto_pct, final_price_override, manual_price_enabled, manual_price_note, items(id, sku, name, attributes, brand, model, unit)")
+        .select("item_id, is_active, base_cost, calculated_price, flete_pct, utilidad_pct, impuesto_pct, final_price_override, manual_price_enabled, manual_price_note")
         .eq("company_id", currentCompanyId!)
         .eq("price_list_id", selectedPriceListId)
         .eq("is_active", true);
@@ -183,19 +184,8 @@ export function useDocumentsData({
   );
 
   const availableItems = useMemo(() => {
-    if (!selectedPriceListId) {
-      return items.map((item) => ({
-        ...item,
-        display_name: buildItemDisplayName({
-          name: item.name,
-          brand: "brand" in item ? (item.brand as string | null | undefined) : null,
-          model: "model" in item ? (item.model as string | null | undefined) : null,
-          attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
-        }),
-      }));
-    }
-
-    return items.map((item) => ({
+    const availableItemIds = new Set(priceListItems.map((row) => row.item_id));
+    return items.filter((item) => !selectedPriceListId || availableItemIds.has(item.id)).map((item) => ({
       ...item,
       display_name: buildItemDisplayName({
         name: item.name,
@@ -204,7 +194,7 @@ export function useDocumentsData({
         attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
       }),
     }));
-  }, [items, selectedPriceListId]);
+  }, [items, priceListItems, selectedPriceListId]);
 
   const priceByItem = useMemo(() => {
     const map = new Map<string, number>();
@@ -268,8 +258,8 @@ export function useDocumentsData({
   );
 
   const { data: selectedDocument = null } = useQuery({
-    queryKey: ["documents", "detail", selectedDocId],
-    enabled: Boolean(selectedDocId),
+    queryKey: queryKeys.documents.detail(currentCompanyId, selectedDocId),
+    enabled: Boolean(currentCompanyId && selectedDocId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("documents")
@@ -283,8 +273,8 @@ export function useDocumentsData({
   });
 
   const { data: selectedLines = [] } = useQuery({
-    queryKey: queryKeys.documents.lines(selectedDocId),
-    enabled: !!selectedDocId,
+    queryKey: queryKeys.documents.lines(currentCompanyId, selectedDocId),
+    enabled: Boolean(currentCompanyId && selectedDocId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("document_lines")
@@ -297,8 +287,8 @@ export function useDocumentsData({
   });
 
   const { data: selectedEvents = [] } = useQuery({
-    queryKey: queryKeys.documents.events(selectedDocId),
-    enabled: !!selectedDocId,
+    queryKey: queryKeys.documents.events(currentCompanyId, selectedDocId),
+    enabled: Boolean(currentCompanyId && selectedDocId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("document_events")

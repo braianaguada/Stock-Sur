@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Plus, Search } from "lucide-react";
+import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { CustomerAccountDialog } from "@/features/customers/components/CustomerAccountDialog";
-import { CustomerFormDialog, type CustomerFormState } from "@/features/customers/components/CustomerFormDialog";
+import { CustomerFormDialog } from "@/features/customers/components/CustomerFormDialog";
 import { CustomersDataTable } from "@/features/customers/components/CustomersDataTable";
 import type { Customer } from "@/features/customers/types";
 import { useCustomersPage } from "@/features/customers/hooks/useCustomersPage";
@@ -25,6 +27,7 @@ export default function CustomersPage() {
     form,
     isLoading,
     saveMutation,
+    validateFiscalMutation,
     deleteMutation,
     search,
     setCustomerToDelete,
@@ -51,7 +54,7 @@ export default function CustomersPage() {
         <PageHeader
           eyebrow="Base comercial"
           title="Clientes"
-          description="Gesti�n de clientes con una lectura m�s limpia para escritorio."
+          description="Gestion de clientes con una lectura mas limpia para escritorio."
           actions={(
             <Button onClick={openCreate} disabled={!currentCompany}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo cliente
@@ -63,13 +66,31 @@ export default function CustomersPage() {
           <div className="relative max-w-sm flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nombre, CUIT, email o tel�fono..."
+              placeholder="Buscar por nombre, CUIT, email o telefono..."
               className="pl-9"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
         </FilterBar>
+
+        <div className="rounded-lg border border-border bg-card px-4 py-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold">Cliente ocasional / Consumidor Final</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">Sistema</Badge>
+                <Badge variant="secondary">No editable</Badge>
+                <Badge variant="outline">Operaciones sin cliente registrado</Badge>
+                <Badge variant="outline">customer_id = null</Badge>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">No aplica Factura A ni cuenta corriente.</p>
+            </div>
+            <Button type="button" variant="outline" asChild>
+              <Link to="/customers/occasional">Ver seguimiento</Link>
+            </Button>
+          </div>
+        </div>
 
         <DataCard>
           <CustomersDataTable
@@ -87,9 +108,11 @@ export default function CustomersPage() {
         editingCustomer={editing}
         form={form}
         isSaving={saveMutation.isPending}
+        isValidatingFiscal={validateFiscalMutation.isPending}
         onOpenChange={setDialogOpen}
         onFormChange={setForm}
         onSubmit={() => saveMutation.mutate()}
+        onValidateFiscal={() => validateFiscalMutation.mutate()}
       />
 
       <ConfirmDeleteDialog

@@ -4,16 +4,17 @@ import { Ban, Check, Copy, Eye, FileText, Loader2, Pencil, Printer, RotateCcw, S
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DOC_LABEL, DOC_TYPE_CLASS, STATUS_CLASS, STATUS_LABEL, STATUS_VARIANT } from "@/features/documents/constants";
+import { DOC_LABEL, DOC_TYPE_CLASS, INTERNAL_REMITO_LABEL, STATUS_CLASS, STATUS_LABEL, STATUS_VARIANT } from "@/features/documents/constants";
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocRow, DocStatus } from "@/features/documents/types";
-import { formatNumber } from "@/features/documents/utils";
+import { formatNumber, resolveDocumentRecipient } from "@/features/documents/utils";
 import { formatIsoDate } from "@/lib/formatters";
 
 interface DocumentsDataTableProps {
   documents: DocRow[];
   isLoading: boolean;
   pageSize: number;
+  technicianNamesById?: Map<string, string>;
   onOpenDetail: (documentId: string) => void;
   onPrint: (document: DocRow) => void;
   onEditDraft: (documentId: string) => void;
@@ -35,6 +36,7 @@ export function DocumentsDataTable({
   documents,
   isLoading,
   pageSize,
+  technicianNamesById = new Map(),
   onOpenDetail,
   onPrint,
   onEditDraft,
@@ -81,9 +83,20 @@ export function DocumentsDataTable({
     {
       accessorKey: "customer_name",
       header: () => "Cliente",
-      cell: ({ row }) => (
-        <span className="block truncate font-medium">{row.original.customer_name ?? "Cliente ocasional"}</span>
-      ),
+      cell: ({ row }) => {
+        const recipient = resolveDocumentRecipient(row.original);
+        return <div className="min-w-0">
+          <span className="block truncate font-medium">{recipient.primaryName}</span>
+          {row.original.customer_kind === "INTERNO" && row.original.internal_remito_type ? (
+            <>
+              <span className="block truncate text-xs text-muted-foreground">
+                Tecnico: {row.original.technician_id ? technicianNamesById.get(row.original.technician_id) ?? "Tecnico eliminado" : "-"}
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">{INTERNAL_REMITO_LABEL[row.original.internal_remito_type]}</span>
+            </>
+          ) : recipient.secondaryName ? <span className="block truncate text-xs text-muted-foreground">{recipient.secondaryName}</span> : null}
+        </div>;
+      },
       meta: {
         className: "w-[220px]",
         cellClassName: "py-2.5",
@@ -236,6 +249,7 @@ export function DocumentsDataTable({
     onTransition,
     onCloneAsRemito,
     onDuplicateDocument,
+    technicianNamesById,
   ]);
 
   return (

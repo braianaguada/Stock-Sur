@@ -70,12 +70,13 @@ function DocumentsDialogLoader() {
 
 function buildEmptyDocumentForm(defaultPointOfSale: number, defaultCustomerId = ""): DocumentFormState {
   return {
+    recipient_type: defaultCustomerId ? "REGISTERED" : "OCCASIONAL",
     doc_type: "PRESUPUESTO",
     point_of_sale: defaultPointOfSale,
     customer_id: defaultCustomerId,
     technician_id: "",
     service_id: "",
-    customer_name: "",
+    customer_name: defaultCustomerId ? "" : "Cliente ocasional",
     customer_tax_condition: "",
     customer_tax_id: "",
     customer_kind: "GENERAL" as CustomerKind,
@@ -190,10 +191,6 @@ export default function DocumentsPage() {
     page: documentsPage,
     pageSize: documentsPageSize,
   });
-  const defaultCustomerId = useMemo(
-    () => customers.find((customer) => customer.name.trim().toLowerCase() === "cliente ocasional")?.id ?? "",
-    [customers],
-  );
   const linkedDocumentId = searchParams.get("document_id");
   const serviceOptionsById = useMemo(
     () => new Map(serviceOptions.map((service) => [service.id, service])),
@@ -218,10 +215,6 @@ export default function DocumentsPage() {
     setDraftForm((previousForm) => ({ ...previousForm, price_list_id: priceLists[0].id }));
   }, [draftForm.price_list_id, priceLists]);
 
-  useEffect(() => {
-    if (draftForm.customer_id || !defaultCustomerId) return;
-    setDraftForm((previousForm) => ({ ...previousForm, customer_id: defaultCustomerId }));
-  }, [defaultCustomerId, draftForm.customer_id]);
 
   const syncLineWithPriceList = useCallback(
     (
@@ -259,7 +252,7 @@ export default function DocumentsPage() {
 
   const resetDraftForm = () => {
     setEditingDocId(null);
-    setDraftForm(buildEmptyDocumentForm(defaultPointOfSale, defaultCustomerId));
+    setDraftForm(buildEmptyDocumentForm(defaultPointOfSale));
     setLines([]);
   };
 
@@ -593,6 +586,7 @@ export default function DocumentsPage() {
           documents={documentsPagination.pagedItems}
           isLoading={isLoading}
           pageSize={documentsPageSize}
+          technicianNamesById={new Map(allTechnicians.map((technician) => [technician.id, technician.name]))}
           onOpenDetail={(documentId) => {
             setSelectedDocId(documentId);
             setDetailOpen(true);

@@ -14,7 +14,7 @@ import type {
   LineDraft,
   PriceListItemRow,
 } from "../types";
-import { calculatePriceFromCostBase, formatNumber } from "../utils";
+import { buildDocumentCustomerSnapshot, calculatePriceFromCostBase, formatNumber, validateDocumentRecipientDraft } from "../utils";
 import { getOperationalPrice } from "@/features/pricing/operational-price";
 import type { PriceRoundingConfig } from "@/features/pricing/rounding";
 
@@ -205,6 +205,7 @@ export function useDocumentsMutations({
       if (draftForm.customer_kind !== "INTERNO" && draftForm.internal_remito_type) {
         throw new Error("El tipo de remito interno solo aplica a remitos del personal interno");
       }
+      validateDocumentRecipientDraft(draftForm, serviceOptions);
       if (draftForm.price_list_id && valid.some((line) => !line.item_id)) {
         throw new Error("Con lista de precios activa, todas las lineas deben tener item");
       }
@@ -223,8 +224,17 @@ export function useDocumentsMutations({
       );
 
       const pickedCustomer = draftForm.customer_id ? customersById.get(draftForm.customer_id) ?? null : null;
-      const customerName = pickedCustomer?.name ?? draftForm.customer_name ?? "Cliente ocasional";
-      const customerTaxId = draftForm.customer_tax_id || pickedCustomer?.cuit || null;
+      const customerSnapshot = buildDocumentCustomerSnapshot({
+        customerId: draftForm.customer_id,
+        pickedCustomer,
+        manualCustomerName: draftForm.customer_name,
+        manualTaxId: draftForm.customer_tax_id,
+        manualTaxCondition: draftForm.customer_tax_condition,
+      });
+      const isInternal = draftForm.doc_type === "REMITO" && draftForm.customer_kind === "INTERNO";
+      const recipientSnapshot = isInternal
+        ? { customer_id: null, customer_name: null, customer_tax_id: null, customer_tax_condition: null }
+        : customerSnapshot;
 
       let documentId = editingDocId;
       if (!documentId) {
@@ -235,15 +245,15 @@ export function useDocumentsMutations({
             doc_type: draftForm.doc_type,
             status: "BORRADOR",
             point_of_sale: draftForm.point_of_sale,
-            customer_id: draftForm.customer_id || null,
-            technician_id: draftForm.technician_id || null,
-            service_id: draftForm.doc_type === "REMITO" ? draftForm.service_id || null : null,
-            customer_name: customerName || null,
-            customer_tax_condition: draftForm.customer_tax_condition || null,
-            customer_tax_id: customerTaxId,
+            customer_id: recipientSnapshot.customer_id,
+            technician_id: isInternal ? draftForm.technician_id : draftForm.technician_id || null,
+            service_id: isInternal ? null : draftForm.doc_type === "REMITO" ? draftForm.service_id || null : null,
+            customer_name: recipientSnapshot.customer_name,
+            customer_tax_condition: recipientSnapshot.customer_tax_condition,
+            customer_tax_id: recipientSnapshot.customer_tax_id,
             customer_kind: draftForm.customer_kind,
             internal_remito_type: draftForm.doc_type === "REMITO" && draftForm.customer_kind === "INTERNO" ? draftForm.internal_remito_type || null : null,
-            payment_terms: draftForm.payment_terms || null,
+            payment_terms: isInternal ? null : draftForm.payment_terms || null,
             delivery_address: draftForm.delivery_address || null,
             salesperson: draftForm.salesperson || null,
             valid_until: draftForm.doc_type === "PRESUPUESTO" ? draftForm.valid_until || null : null,
@@ -264,15 +274,15 @@ export function useDocumentsMutations({
           .update({
             doc_type: draftForm.doc_type,
             point_of_sale: draftForm.point_of_sale,
-            customer_id: draftForm.customer_id || null,
-            technician_id: draftForm.technician_id || null,
-            service_id: draftForm.doc_type === "REMITO" ? draftForm.service_id || null : null,
-            customer_name: customerName || null,
-            customer_tax_condition: draftForm.customer_tax_condition || null,
-            customer_tax_id: customerTaxId,
+            customer_id: recipientSnapshot.customer_id,
+            technician_id: isInternal ? draftForm.technician_id : draftForm.technician_id || null,
+            service_id: isInternal ? null : draftForm.doc_type === "REMITO" ? draftForm.service_id || null : null,
+            customer_name: recipientSnapshot.customer_name,
+            customer_tax_condition: recipientSnapshot.customer_tax_condition,
+            customer_tax_id: recipientSnapshot.customer_tax_id,
             customer_kind: draftForm.customer_kind,
             internal_remito_type: draftForm.doc_type === "REMITO" && draftForm.customer_kind === "INTERNO" ? draftForm.internal_remito_type || null : null,
-            payment_terms: draftForm.payment_terms || null,
+            payment_terms: isInternal ? null : draftForm.payment_terms || null,
             delivery_address: draftForm.delivery_address || null,
             salesperson: draftForm.salesperson || null,
             valid_until: draftForm.doc_type === "PRESUPUESTO" ? draftForm.valid_until || null : null,
@@ -357,6 +367,15 @@ export function useDocumentsMutations({
       }
       if (currentDocument.doc_type === "REMITO_DEVOLUCION" && !currentDocument.technician_id) {
         throw new Error("La devolucion debe estar asociada a un tecnico");
+      }
+      if (currentDocument.doc_type === "REMITO" && currentDocument.customer_kind === "INTERNO" && !currentDocument.technician_id) {
+        throw new Error("El remito interno debe estar asociado a un tecnico");
+      }
+      if (currentDocument.doc_type === "REMITO" && currentDocument.customer_kind === "INTERNO") {
+        if (!currentDocument.internal_remito_type) throw new Error("El remito interno requiere tipo interno");
+        if (currentDocument.customer_id) throw new Error("El remito interno no puede tener cliente comercial");
+        if (currentDocument.payment_terms) throw new Error("El remito interno no puede tener condicion de venta");
+        if (currentDocument.service_id) throw new Error("El remito interno no puede tener servicio asociado");
       }
       const { data: remitoLines, error: linesError } = await supabase
         .from("document_lines")
@@ -449,14 +468,15 @@ export function useDocumentsMutations({
           doc_type: "REMITO",
           status: "BORRADOR",
           point_of_sale: src.point_of_sale,
-          customer_id: src.customer_id,
-          technician_id: src.technician_id,
-          customer_name: src.customer_name,
-          customer_tax_condition: src.customer_tax_condition,
-          customer_tax_id: src.customer_tax_id,
-          customer_kind: src.customer_kind,
-          internal_remito_type: src.internal_remito_type,
-          payment_terms: src.payment_terms,
+          customer_id: src.customer_kind === "INTERNO" ? null : src.customer_id,
+          technician_id: src.customer_kind === "INTERNO" ? null : src.technician_id,
+          service_id: null,
+          customer_name: src.customer_kind === "INTERNO" ? null : src.customer_name,
+          customer_tax_condition: src.customer_kind === "INTERNO" ? null : src.customer_tax_condition,
+          customer_tax_id: src.customer_kind === "INTERNO" ? null : src.customer_tax_id,
+          customer_kind: src.customer_kind === "INTERNO" ? "GENERAL" : src.customer_kind,
+          internal_remito_type: null,
+          payment_terms: src.customer_kind === "INTERNO" ? null : src.payment_terms,
           delivery_address: src.delivery_address,
           salesperson: src.salesperson,
           price_list_id: src.price_list_id,

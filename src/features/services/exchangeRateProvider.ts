@@ -30,7 +30,7 @@ function normalizeRate(value: unknown) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-export function normalizeExchangeRateResponse(payload: unknown): number | null {
+function normalizeExchangeRateResponse(payload: unknown): number | null {
   if (!payload) return null;
   if (Array.isArray(payload)) {
     for (const item of payload) {

@@ -37,6 +37,25 @@ export function canViewSettings(roles: AppRole[], context?: CompanyAccessContext
   return companyPermissionCodes.includes("settings.view");
 }
 
+function hasCompanyPermission(
+  roles: AppRole[],
+  context: CompanyAccessContext | undefined,
+  permissionCode: string,
+) {
+  if (isSuperAdmin(roles) || hasRole(roles, "admin")) return true;
+
+  const companyRoleCodes = context?.companyRoleCodes ?? [];
+  const companyPermissionCodes = context?.companyPermissionCodes ?? [];
+
+  return companyRoleCodes.includes("admin") || companyPermissionCodes.includes(permissionCode);
+}
+
+function hasEffectiveCompanyPermission(context: CompanyAccessContext | undefined, permissionCode: string) {
+  const companyPermissionCodes = context?.companyPermissionCodes ?? [];
+
+  return companyPermissionCodes.includes(permissionCode);
+}
+
 export function canManageUsers(roles: AppRole[]) {
   return isSuperAdmin(roles);
 }
@@ -89,4 +108,52 @@ export function canTransitionDocumentTo(roles: AppRole[], status: "ENVIADO" | "A
   if (isSuperAdmin(roles) || hasRole(roles, "admin")) return true;
   if (!hasAnyRole(roles)) return false;
   return ["ENVIADO", "APROBADO", "RECHAZADO", "ANULADO"].includes(status);
+}
+
+export function canViewBilling(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "billing.view");
+}
+
+export function canCreateBilling(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "billing.create");
+}
+
+export function canAuthorizeBilling(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "billing.authorize");
+}
+
+export function canCreateBillingCreditNote(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "billing.credit_note");
+}
+
+export function canPrintBilling(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "billing.print");
+}
+
+export function canManageBillingSettings(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "billing.settings");
+}
+
+export function canViewSettlements(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "settlements.view");
+}
+
+export function canCreateSettlements(_roles: AppRole[], context?: CompanyAccessContext) {
+  return hasEffectiveCompanyPermission(context, "settlements.create");
+}
+
+export function canEditSettlements(_roles: AppRole[], context?: CompanyAccessContext) {
+  return hasEffectiveCompanyPermission(context, "settlements.edit");
+}
+
+export function canSubmitSettlements(_roles: AppRole[], context?: CompanyAccessContext) {
+  return hasEffectiveCompanyPermission(context, "settlements.submit");
+}
+
+export function canReceiveSettlements(_roles: AppRole[], context?: CompanyAccessContext) {
+  return hasEffectiveCompanyPermission(context, "settlements.receive");
+}
+
+export function canCancelSettlements(_roles: AppRole[], context?: CompanyAccessContext) {
+  return hasEffectiveCompanyPermission(context, "settlements.cancel");
 }

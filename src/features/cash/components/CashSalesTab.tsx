@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, NotebookText } from "lucide-react";
+import { Ban, FileText, NotebookText, ReceiptText } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { AmountDisplay, CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
@@ -11,6 +11,7 @@ import { formatTime } from "@/lib/formatters";
 import { PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LABEL } from "../constants";
 import type { CashMovementRow, SituationFilter } from "../types";
 import { getClosureSituationWithClosure } from "../utils";
+import { canShowCreateBillingDraftAction } from "@/features/billing/lib/draft";
 
 type CashSalesTabProps = {
   filteredSales: CashMovementRow[];
@@ -22,6 +23,13 @@ type CashSalesTabProps = {
   onCancelSale: (saleId: string) => void;
   canCancelSale: (sale: CashMovementRow) => boolean;
   cancelPending: boolean;
+  billingEnabled: boolean;
+  billedSourceIds: ReadonlySet<string>;
+  canCreateBillingDraft: boolean;
+  onCreateBillingDraft: (sale: CashMovementRow) => void;
+  onCreateInvoiceADraft: (sale: CashMovementRow) => void;
+  getInvoiceAReadiness: (sale: CashMovementRow) => { allowed: boolean; reasons: string[] };
+  createBillingDraftPending: boolean;
   page: number;
   totalPages: number;
   totalItems: number;
@@ -41,6 +49,13 @@ export function CashSalesTab({
   onCancelSale,
   canCancelSale,
   cancelPending,
+  billingEnabled,
+  billedSourceIds,
+  canCreateBillingDraft,
+  onCreateBillingDraft,
+  onCreateInvoiceADraft,
+  getInvoiceAReadiness,
+  createBillingDraftPending,
   page,
   totalPages,
   totalItems,
@@ -119,6 +134,44 @@ export function CashSalesTab({
           <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => onOpenDetail(row.original)}>
             <NotebookText className="h-4 w-4" />
           </Button>
+          {canShowCreateBillingDraftAction({
+            billingEnabled,
+            canCreate: canCreateBillingDraft,
+            sale: row.original,
+            billedSourceIds,
+          }) ? (
+            <>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                aria-label="Crear borrador Factura B"
+                title="Crear borrador Factura B"
+                onClick={() => onCreateBillingDraft(row.original)}
+                disabled={createBillingDraftPending}
+              >
+                <ReceiptText className="h-4 w-4" />
+              </Button>
+              {(() => {
+                const readiness = getInvoiceAReadiness(row.original);
+                return (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    aria-label="Crear borrador Factura A"
+                    title={readiness.allowed ? "Crear borrador Factura A" : `Factura A bloqueada: ${readiness.reasons[0] ?? "cliente no elegible"}`}
+                    onClick={() => onCreateInvoiceADraft(row.original)}
+                    disabled={createBillingDraftPending || !readiness.allowed}
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                );
+              })()}
+            </>
+          ) : null}
           {row.original.movement_kind === "SALE" && row.original.status !== "ANULADA" ? (
             <Button
               type="button"
@@ -133,9 +186,22 @@ export function CashSalesTab({
           ) : null}
         </div>
       ),
-      meta: { className: "w-[92px]", cellClassName: "py-2.5" },
+      meta: { className: "w-[128px]", cellClassName: "py-2.5" },
     },
-  ], [cancelPending, canCancelSale, effectiveClosure, onCancelSale, onOpenDetail]);
+  ], [
+    billedSourceIds,
+    billingEnabled,
+    cancelPending,
+    canCancelSale,
+    canCreateBillingDraft,
+    createBillingDraftPending,
+    effectiveClosure,
+    onCancelSale,
+    onCreateBillingDraft,
+    onCreateInvoiceADraft,
+    getInvoiceAReadiness,
+    onOpenDetail,
+  ]);
 
   return (
     <OperationalTableShell

@@ -1,6 +1,6 @@
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { formatIsoDate, formatMoney } from "@/lib/formatters";
-import { escapeHtml, escapeHtmlWithLineBreaks } from "@/lib/print";
+import { escapeHtml, escapeHtmlWithLineBreaks, PRINT_BRAND_MARK, PRINT_FAVICON_TAG } from "@/lib/print";
 import { SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "./constants";
 import type { ServiceDocument, ServiceDocumentAttachment, ServiceDocumentLine } from "./types";
 
@@ -94,13 +94,14 @@ export function buildServiceDocumentPrintHtml({
   const currencyCode = document.currency ?? "ARS";
   const logoMarkup = companySettings.logo_url
     ? `<img class="brand-logo" src="${escapeHtml(companySettings.logo_url)}" alt="${escapeHtml(appName)}" />`
-    : `<div class="brand-fallback">${escapeHtml(legalName.slice(0, 2).toUpperCase())}</div>`;
+    : `<div class="brand-fallback">${PRINT_BRAND_MARK}</div>`;
 
   return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(documentNumber)}</title>
+  ${PRINT_FAVICON_TAG}
   <style>
     @page{size:A4 portrait;margin:0}
     *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -116,7 +117,8 @@ export function buildServiceDocumentPrintHtml({
     .brand{display:grid;grid-template-columns:55mm minmax(0,1fr);gap:5mm;align-items:center;min-width:0}
     .brand-mark{display:grid;place-items:center;min-height:38mm;padding:1.2mm;border-right:1px solid #e3e8f0}
     .brand-logo{max-width:51mm;max-height:37mm;object-fit:contain}
-    .brand-fallback{width:36mm;height:36mm;display:grid;place-items:center;border-radius:7px;background:#111827;color:white;font-weight:850;font-size:23px}
+    .brand-fallback{width:32mm;height:32mm;display:grid;place-items:center}
+    .brand-fallback img{width:100%;height:100%;object-fit:contain}
     .brand-title{margin:0;color:#0f172a;font-size:17.5px;font-weight:850;line-height:1.08}
     .brand-sub{margin:1.2mm 0 0;color:#475569;font-size:8.1px;line-height:1.25}
     .company-meta{display:grid;grid-template-columns:1fr 1fr;gap:.8mm 3mm;margin-top:2.4mm;color:#64748b;font-size:7.7px;line-height:1.2}

@@ -1,5 +1,5 @@
 ﻿import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber, formatTime, todayBusinessDateInputValue } from "@/lib/formatters";
-import { escapeHtml, escapeHtmlWithLineBreaks } from "@/lib/print";
+import { escapeHtml, escapeHtmlWithLineBreaks, PRINT_FAVICON_TAG } from "@/lib/print";
 import { PAYMENT_LABEL, RECEIPT_LABEL } from "./constants";
 import type {
   CashAdjustmentRow,
@@ -244,7 +244,7 @@ export function buildCashClosurePrintHtml({
       </tr>
     `).join("");
 
-  return `<!doctype html><html><head><title>Cierre ${closure.business_date}</title><style>
+  return `<!doctype html><html><head><title>Cierre ${closure.business_date}</title>${PRINT_FAVICON_TAG}<style>
       @page { size: A4 portrait; margin: 10mm; }
       * { box-sizing: border-box; }
       body{font-family:Arial,sans-serif;color:#0f172a;margin:0;font-size:11px;line-height:1.25}

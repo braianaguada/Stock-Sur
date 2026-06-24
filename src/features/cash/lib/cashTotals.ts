@@ -58,7 +58,7 @@ const emptyDailyTotal = (businessDate: string): CashDailyTotal => ({
   netTotal: 0,
 });
 
-export const CASH_TOTALS_SUMMARY_DATE = "__summary__";
+const CASH_TOTALS_SUMMARY_DATE = "__summary__";
 
 function addAmountForPaymentMethod(day: CashDailyTotal, paymentMethod: PaymentMethod, amount: number) {
   if (paymentMethod === "EFECTIVO" || paymentMethod === "EFECTIVO_REMITO") {

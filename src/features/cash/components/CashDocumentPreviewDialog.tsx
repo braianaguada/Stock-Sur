@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { currency, formatDocumentNumber, formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
+import { getCustomerDisplayName } from "@/features/documents/utils";
 import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL } from "../constants";
 import type { CashMovementRow, DocumentEventQuickRow, DocumentLineQuickRow, DocumentQuickRow } from "../types";
 import { describeDocumentEvent } from "../utils";
@@ -82,7 +83,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                           <div>
                             <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Cliente</p>
-                            <p className="mt-1 text-base font-semibold text-foreground">{linkedDocument.customer_name ?? "Cliente ocasional"}</p>
+                            <p className="mt-1 text-base font-semibold text-foreground">{getCustomerDisplayName(linkedDocument)}</p>
                             <p className="mt-1 text-xs text-muted-foreground">Movimiento asociado</p>
                           </div>
                           <div>

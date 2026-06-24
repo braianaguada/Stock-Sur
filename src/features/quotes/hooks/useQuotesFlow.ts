@@ -6,6 +6,7 @@ import { invalidateQuoteQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import { escapeHtml, escapeHtmlWithLineBreaks, openPrintWindow } from "@/lib/print";
 import { businessDateFromTimestamp } from "@/lib/formatters";
+import { OCCASIONAL_CUSTOMER_DISPLAY_NAME } from "@/features/documents/utils";
 import type { QuoteFormState, QuoteLine, QuoteLineRow, QuoteListRow } from "@/features/quotes/types";
 
 type ToastFn = (params: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
@@ -97,7 +98,7 @@ export function useQuotesFlow(params: {
       const total = validLines.reduce((sum, line) => sum + line.quantity * line.unit_price, 0);
       const customerName = form.customer_id
         ? customers.find((customer) => customer.id === form.customer_id)?.name ?? form.customer_name
-        : form.customer_name || "Cliente ocasional";
+        : form.customer_name || OCCASIONAL_CUSTOMER_DISPLAY_NAME;
 
       const { data: quote, error } = await supabase
         .from("quotes")

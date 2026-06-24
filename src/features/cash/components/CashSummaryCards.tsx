@@ -24,7 +24,6 @@ function BreakdownRow({ label, value, icon }: { label: string; value: number; ic
     </div>
   );
 }
-
 function SummaryFact({ label, value, tone = "default" }: { label: string; value: number; tone?: "default" | "success" | "warning" | "danger" }) {
   const toneClassName = {
     default: "text-foreground",
@@ -40,7 +39,6 @@ function SummaryFact({ label, value, tone = "default" }: { label: string; value:
     </div>
   );
 }
-
 export function CashOverviewPanel({
   summary,
   closureStatus,
@@ -151,8 +149,4 @@ export function CashOverviewPanel({
       </CardContent>
     </Card>
   );
-}
-
-export function CashSummaryCards(props: CashSummaryCardsProps) {
-  return <CashOverviewPanel {...props} />;
 }

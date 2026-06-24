@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { PRICING_MODE_LABEL } from "@/features/documents/constants";
 import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type {
-  CustomerKind,
   DocType,
   DocumentFormState,
   DocumentServiceOption,
@@ -20,7 +19,8 @@ import type {
   LinePricingMode,
   PriceListRow,
 } from "@/features/documents/types";
-import { calculatePriceFromCostBase } from "@/features/documents/utils";
+import { calculatePriceFromCostBase, changeDocumentRecipientType, changeRemitoUsage } from "@/features/documents/utils";
+import { rankNaturalItemSearch } from "@/features/items/search";
 
 type CustomerOption = {
   id: string;
@@ -37,9 +37,11 @@ type AvailableItemOption = {
   sku: string;
   name: string;
   unit?: string | null;
+  supplier?: string | null;
   attributes?: string | null;
   brand?: string | null;
   model?: string | null;
+  category?: string | null;
 };
 
 type ComboOption = {
@@ -105,20 +107,20 @@ export function DocumentsEditorDialog({
   const [itemSearch, setItemSearch] = useState("");
   const [comboQuantities, setComboQuantities] = useState<Record<string, string>>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const deferredItemSearch = useDeferredValue(itemSearch);
   const isReturn = documentForm.doc_type === "REMITO_DEVOLUCION";
-  const selectedService = documentForm.service_id
-    ? serviceOptions.find((service) => service.id === documentForm.service_id) ?? null
-    : null;
+  const isInternal = documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO";
+  const showTechnicianRequired = submitAttempted && isInternal && !documentForm.technician_id;
+  const showInternalTypeRequired = submitAttempted && isInternal && !documentForm.internal_remito_type;
+  const selectedServiceOption = useMemo(
+    () => serviceOptions.find((service) => service.id === documentForm.service_id) ?? null,
+    [documentForm.service_id, serviceOptions],
+  );
+  const isCustomerLockedByService = Boolean(documentForm.service_id && selectedServiceOption?.customerId);
   const filteredServiceOptions = useMemo(() => {
-    const selectedCustomerId = documentForm.customer_id || null;
-    return serviceOptions.filter((service) =>
-      service.id === documentForm.service_id
-      || !selectedCustomerId
-      || !service.customerId
-      || service.customerId === selectedCustomerId,
-    );
-  }, [documentForm.customer_id, documentForm.service_id, serviceOptions]);
+    return serviceOptions.filter((service) => service.customerId === documentForm.customer_id);
+  }, [documentForm.customer_id, serviceOptions]);
 
   const selectedPriceList = useMemo(
     () => priceLists.find((priceList) => priceList.id === documentForm.price_list_id) ?? null,
@@ -134,27 +136,13 @@ export function DocumentsEditorDialog({
     return counts;
   }, [lines]);
 
-  const filteredItems = useMemo(() => {
+  const itemSearchResults = useMemo(() => {
     const query = deferredItemSearch.trim().toLowerCase();
     if (!documentForm.price_list_id || query.length === 0) return [];
 
-    return availableItems
-      .filter((item) => {
-        const searchableText = [
-          item.sku,
-          item.name,
-          item.unit ?? "",
-          item.brand ?? "",
-          item.model ?? "",
-          item.attributes ?? "",
-          buildItemDisplayName(item),
-          buildItemDisplayMeta(item),
-        ].join(" ").toLowerCase();
-
-        return searchableText.includes(query);
-      })
-      .slice(0, 8);
+    return rankNaturalItemSearch({ items: availableItems, aliases: [], query });
   }, [availableItems, documentForm.price_list_id, deferredItemSearch]);
+  const filteredItems = useMemo(() => itemSearchResults.slice(0, 50), [itemSearchResults]);
   const filteredCombos = useMemo(() => {
     const query = deferredItemSearch.trim().toLowerCase();
     if (!documentForm.price_list_id || query.length === 0) return [];
@@ -183,6 +171,21 @@ export function DocumentsEditorDialog({
     setItemSearch("");
   };
 
+  useEffect(() => {
+    if (!open) setSubmitAttempted(false);
+  }, [open]);
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitAttempted(true);
+
+    if (isInternal && (!documentForm.technician_id || !documentForm.internal_remito_type)) {
+      return;
+    }
+
+    onSubmit();
+  };
+
   return (
     <EntityDialog
       open={open}
@@ -198,13 +201,7 @@ export function DocumentsEditorDialog({
       title={editingDocId ? (isReturn ? "Editar devolucion" : "Editar borrador") : "Nuevo documento"}
       contentClassName="!w-[min(98vw,1680px)] sm:!w-[min(98vw,1680px)] !max-w-[1680px] sm:!max-w-[1680px] max-h-[92vh] overflow-x-hidden overflow-y-auto"
     >
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSubmit();
-        }}
-        className="space-y-4"
-      >
+      <form onSubmit={handleSubmit} className="space-y-4">
         {isReturn ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             Devolucion de remito origen: <span className="font-semibold">{sourceDocumentLabel ?? "sin referencia visible"}</span>
@@ -232,6 +229,14 @@ export function DocumentsEditorDialog({
                         ...previousForm,
                         doc_type: nextDocType,
                         customer_kind: nextCustomerKind,
+                        recipient_type:
+                          nextDocType !== "REMITO" && previousForm.customer_kind === "INTERNO"
+                            ? "OCCASIONAL"
+                            : previousForm.recipient_type,
+                        customer_name:
+                          nextDocType !== "REMITO" && previousForm.customer_kind === "INTERNO"
+                            ? "Cliente ocasional"
+                            : previousForm.customer_name,
                         internal_remito_type:
                           nextDocType === "REMITO" && nextCustomerKind === "INTERNO"
                             ? previousForm.internal_remito_type
@@ -281,6 +286,27 @@ export function DocumentsEditorDialog({
                 </Select>
               </div>
 
+              {documentForm.doc_type === "REMITO" && !isReturn ? (
+                <div className="space-y-2">
+                  <Label>Uso del remito *</Label>
+                <Select
+                  value={isInternal ? "INTERNAL" : "COMMERCIAL"}
+                  disabled={isCustomerLockedByService}
+                  onValueChange={(value) =>
+                    setDraftForm((previousForm) =>
+                      changeRemitoUsage(previousForm, value as "COMMERCIAL" | "INTERNAL"),
+                      )
+                    }
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="COMMERCIAL">Comercial</SelectItem>
+                      <SelectItem value="INTERNAL">Personal interno</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+
               <div className="flex items-center justify-end h-full w-full">
                 <CollapsibleTrigger asChild>
                   <Button type="button" variant="outline" size="sm" className="h-9 mt-6 w-full shadow-none bg-background/50 hover:bg-background">
@@ -308,57 +334,60 @@ export function DocumentsEditorDialog({
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Tipo de cliente</Label>
+                {!isInternal ? <div className="space-y-2">
+                  <Label>Destinatario</Label>
                   <Select
-                    value={documentForm.customer_kind}
+                  value={documentForm.recipient_type ?? (documentForm.customer_id ? "REGISTERED" : "OCCASIONAL")}
+                    disabled={isCustomerLockedByService}
                     onValueChange={(value) =>
-                      setDraftForm((previousForm) => ({
-                        ...previousForm,
-                        customer_kind: value as CustomerKind,
-                        internal_remito_type:
-                          value === "INTERNO" && previousForm.doc_type === "REMITO"
-                            ? previousForm.internal_remito_type
-                            : "",
-                      }))
+                      setDraftForm((previousForm) =>
+                        changeDocumentRecipientType(previousForm, value as "OCCASIONAL" | "REGISTERED"),
+                      )
                     }
                   >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar destinatario" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="GENERAL">Cliente general</SelectItem>
-                      {documentForm.doc_type === "REMITO" ? (
-                          <SelectItem value="INTERNO">Personal / técnico interno</SelectItem>
-                      ) : null}
-                      <SelectItem value="EMPRESA">Empresa</SelectItem>
+                      <SelectItem value="OCCASIONAL">Cliente ocasional / Consumidor Final</SelectItem>
+                      <SelectItem value="REGISTERED">Cliente registrado</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </div> : null}
 
-                <div className="space-y-2">
+                {documentForm.recipient_type === "REGISTERED" && !isInternal ? <div className="space-y-2">
                   <Label>Cliente registrado</Label>
                   <Select
                     value={documentForm.customer_id || "__none__"}
+                    disabled={isCustomerLockedByService}
                     onValueChange={(value) =>
-                      setDraftForm((previousForm) => ({
-                        ...previousForm,
-                        customer_id: value === "__none__" ? "" : value,
-                      }))
+                      setDraftForm((previousForm) => {
+                        const nextCustomerId = value === "__none__" ? "" : value;
+                        const pickedCustomer = customers.find((customer) => customer.id === nextCustomerId) ?? null;
+                        return {
+                          ...previousForm,
+                          customer_id: nextCustomerId,
+                          customer_name: pickedCustomer?.name ?? "",
+                          service_id: "",
+                        };
+                      })
                     }
                   >
-                    <SelectTrigger><SelectValue placeholder="Cliente ocasional" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar cliente registrado" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Sin seleccionar</SelectItem>
+                      <SelectItem value="__none__">Seleccionar cliente</SelectItem>
                       {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
-                        </SelectItem>
+                        <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                  {isCustomerLockedByService ? (
+                    <p className="text-xs text-muted-foreground">
+                      Cliente bloqueado por el servicio asociado. Desvincula el servicio para cambiar cliente.
+                    </p>
+                  ) : null}
+                </div> : null}
 
-                <div className="space-y-2">
-                  <Label>Tecnico</Label>
+                {(documentForm.customer_id || isInternal) ? <div className="space-y-2">
+                  <Label>{isInternal ? "Tecnico responsable *" : "Tecnico asociado"}</Label>
                   <Select
                     value={documentForm.technician_id || "__none__"}
                     onValueChange={(value) =>
@@ -378,45 +407,27 @@ export function DocumentsEditorDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                  {showTechnicianRequired ? (
+                    <p className="text-xs font-medium text-destructive">Selecciona un tecnico responsable para el remito interno.</p>
+                  ) : null}
+                </div> : null}
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Nombre cliente</Label>
+                {documentForm.recipient_type === "OCCASIONAL" && !isInternal ? <div className="space-y-2 md:col-span-2">
+                  <Label>Nombre ocasional</Label>
                   <Input
                     value={documentForm.customer_name}
                     placeholder="Cliente ocasional"
+                    readOnly={Boolean(documentForm.customer_id)}
                     onChange={(event) =>
                       setDraftForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
                     }
                   />
-                </div>
+                  {!documentForm.customer_id ? (
+                    <p className="text-xs text-muted-foreground">Opcional. Permite identificar a la persona que compra; no crea un cliente registrado.</p>
+                  ) : null}
+                </div> : null}
 
-                <div className="space-y-2">
-                  <Label>CUIT</Label>
-                  <Input
-                    value={documentForm.customer_tax_id}
-                    placeholder="Opcional"
-                    onChange={(event) =>
-                      setDraftForm((previousForm) => ({ ...previousForm, customer_tax_id: event.target.value }))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Condición fiscal</Label>
-                  <Input
-                    value={documentForm.customer_tax_condition}
-                    placeholder="Opcional"
-                    onChange={(event) =>
-                      setDraftForm((previousForm) => ({
-                        ...previousForm,
-                        customer_tax_condition: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
+                {!isInternal ? <div className="space-y-2">
                   <Label>Condición de venta</Label>
                   <Input
                     value={documentForm.payment_terms}
@@ -425,7 +436,7 @@ export function DocumentsEditorDialog({
                       setDraftForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
                     }
                   />
-                </div>
+                </div> : null}
 
                 <div className="space-y-2">
                   <Label>Vendedor</Label>
@@ -464,7 +475,7 @@ export function DocumentsEditorDialog({
                   </div>
                 ) : null}
 
-                {documentForm.doc_type === "REMITO" && !isReturn ? (
+                {documentForm.doc_type === "REMITO" && !isReturn && !isInternal && Boolean(documentForm.customer_id) ? (
                   <div className="space-y-2 md:col-span-2">
                     <Label>Servicio asociado</Label>
                     <Select
@@ -486,15 +497,34 @@ export function DocumentsEditorDialog({
                         ))}
                       </SelectContent>
                     </Select>
-                    {selectedService && documentForm.customer_id && selectedService.customerId && selectedService.customerId !== documentForm.customer_id ? (
-                      <p className="text-xs text-amber-600">El servicio pertenece a otro cliente. Se permite guardar, pero revisa la trazabilidad.</p>
+                    {documentForm.service_id ? (
+                      <div className="flex flex-col gap-2 rounded-lg border border-border/70 bg-muted/20 p-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                        <span>
+                          Servicio vinculado: {selectedServiceOption ? `${selectedServiceOption.jobTitle} / ${selectedServiceOption.title}` : "servicio asociado"}.
+                          {" "}El cliente no puede cambiar mientras siga vinculado.
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 shrink-0"
+                          onClick={() =>
+                            setDraftForm((previousForm) => ({
+                              ...previousForm,
+                              service_id: "",
+                            }))
+                          }
+                        >
+                          Desvincular servicio para cambiar cliente
+                        </Button>
+                      </div>
                     ) : null}
                   </div>
                 ) : null}
 
                 {documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO" ? (
                   <div className="space-y-2">
-                    <Label>Imputación del remito</Label>
+                    <Label>Tipo / motivo interno *</Label>
                     <Select
                       value={documentForm.internal_remito_type || "__none__"}
                       onValueChange={(value) =>
@@ -511,6 +541,9 @@ export function DocumentsEditorDialog({
                         <SelectItem value="DESCUENTO_SUELDO">Descuento de sueldo</SelectItem>
                       </SelectContent>
                     </Select>
+                    {showInternalTypeRequired ? (
+                      <p className="text-xs font-medium text-destructive">Selecciona el tipo o motivo interno del remito.</p>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -577,7 +610,12 @@ export function DocumentsEditorDialog({
 
             {itemSearch.trim().length > 0 ? (
               filteredItems.length > 0 ? (
-                <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-2">
+                <div className="rounded-xl border border-border/70 bg-background/70 p-2">
+                  <div className="flex items-center justify-between gap-3 px-1 pb-2 text-xs text-muted-foreground">
+                    <span>{itemSearchResults.length} producto{itemSearchResults.length === 1 ? "" : "s"} encontrado{itemSearchResults.length === 1 ? "" : "s"}</span>
+                    {itemSearchResults.length > filteredItems.length ? <span>Mostrando los primeros {filteredItems.length}</span> : null}
+                  </div>
+                  <div className="max-h-[min(46vh,28rem)] space-y-2 overflow-y-auto pr-1 [scrollbar-gutter:stable]">
                   {filteredItems.map((item) => {
                     const alreadyAdded = lineCountByItemId.has(item.id);
                     const displayName = buildItemDisplayName(item);
@@ -603,6 +641,7 @@ export function DocumentsEditorDialog({
                       </div>
                     );
                   })}
+                  </div>
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">

@@ -110,6 +110,7 @@ export type ServiceMaterialRemito = {
   document_number: number | null;
   issue_date: string;
   customer_id: string | null;
+  customer_kind?: string | null;
   technician_id: string | null;
   customer_name: string | null;
   total: number;
