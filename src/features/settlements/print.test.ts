@@ -41,6 +41,7 @@ describe("buildSettlementPrintHtml", () => {
       filterFrom: "2026-06-20",
       filterTo: "2026-06-21",
       printNote: "Entregar comprobantes originales.",
+      preparedByName: "Braian Aguada",
     });
 
     expect(html).toContain("Fecha cobro");
@@ -56,5 +57,10 @@ describe("buildSettlementPrintHtml", () => {
     expect(html).toContain("125");
     expect(html).toContain("https://example.com/company-logo.png");
     expect(html).toContain("Entregar comprobantes originales.");
+    expect(html).toContain("Braian Aguada");
+    expect(html).toContain("20/06/2026 a 21/06/2026");
+    expect(html).not.toContain("Fechas impresas");
+    expect(html).not.toContain("<span>Notas</span>");
+    expect(html).toContain("margin-top:auto");
   });
 });

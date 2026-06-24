@@ -198,10 +198,10 @@ describe("SettlementsPage", () => {
     expect(addExpense).toBeEnabled();
 
     fireEvent.click(addIncome);
+    expect(screen.getByRole("dialog", { name: "Nuevo ingreso" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     fireEvent.click(addExpense);
-
-    expect(screen.getByRole("button", { name: "Eliminar ingreso" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Eliminar egreso" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Nuevo egreso" })).toBeInTheDocument();
     expect(screen.getByText("Agrega un ingreso por cada cobro o entrada de dinero.")).toBeInTheDocument();
     expect(screen.getByText("Agrega un egreso por cada pago o salida de dinero.")).toBeInTheDocument();
   });
@@ -246,28 +246,31 @@ describe("SettlementsPage", () => {
 
     fireEvent.change(screen.getByLabelText("Mostrar desde"), { target: { value: "2026-06-18" } });
 
-    expect(screen.getByDisplayValue("Cliente visible")).toBeInTheDocument();
-    expect(screen.queryByDisplayValue("Cliente oculto")).not.toBeInTheDocument();
+    expect(screen.getByText("Cliente visible")).toBeInTheDocument();
+    expect(screen.queryByText("Cliente oculto")).not.toBeInTheDocument();
     expect(screen.getByText("1 ingresos y 1 egresos visibles")).toBeInTheDocument();
     expect(screen.getAllByText(amountText("120,00")).length).toBeGreaterThan(0);
     expect(screen.getAllByText(amountText("90,00")).length).toBeGreaterThan(0);
   });
 
-  it("automatically saves a complete edited line and not an incomplete new line", async () => {
-    mocks.fetchSettlementLines.mockResolvedValue({ incomeLines: [incomeLine()], expenseLines: [] });
+  it("automatically saves a complete modal line and asks before deleting it", async () => {
     renderPage();
 
-    const customer = await screen.findByLabelText("Cliente ingreso");
-    fireEvent.change(customer, { target: { value: "Cliente actualizado" } });
+    fireEvent.click(await screen.findByRole("button", { name: /Nuevo ingreso/i }));
+    fireEvent.change(screen.getByLabelText("Cliente ingreso"), { target: { value: "Cliente nuevo" } });
+    fireEvent.change(screen.getByLabelText("Concepto pago ingreso"), { target: { value: "Cobro nuevo" } });
+    fireEvent.change(screen.getByLabelText("Efectivo ingreso"), { target: { value: "125" } });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar ingreso" }));
 
     await waitFor(() => expect(mocks.saveSettlementDraft).toHaveBeenCalledWith(expect.objectContaining({
       settlementId: "settlement-1",
-      incomeLines: [expect.objectContaining({ customer_name: "Cliente actualizado" })],
+      incomeLines: [expect.objectContaining({ customer_name: "Cliente nuevo", concept: "Cobro nuevo", cash_amount: "125" })],
     })), { timeout: 2000 });
 
-    mocks.saveSettlementDraft.mockClear();
-    fireEvent.click(await screen.findByRole("button", { name: /Nuevo ingreso/i }));
-    await new Promise((resolve) => window.setTimeout(resolve, 800));
-    expect(mocks.saveSettlementDraft).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar ingreso" }));
+    expect(screen.getByRole("alertdialog", { name: "Eliminar fila" })).toBeInTheDocument();
+    expect(screen.getByText("Cliente nuevo")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByText("Cliente nuevo")).toBeInTheDocument();
   });
 });

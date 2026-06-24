@@ -5,6 +5,16 @@ import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -14,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import {
   createSettlementDraft,
@@ -61,7 +72,7 @@ function cloneDraftSnapshot(snapshot: SettlementDraftSnapshot): SettlementDraftS
   };
 }
 
-function moneyInput(value: string, onChange: (value: string) => void, disabled: boolean, required = false) {
+function moneyInput(value: string, onChange: (value: string) => void, disabled: boolean, required = false, ariaLabel?: string) {
   return (
     <Input
       type="number"
@@ -72,6 +83,7 @@ function moneyInput(value: string, onChange: (value: string) => void, disabled: 
       disabled={disabled}
       required={required}
       aria-required={required}
+      aria-label={ariaLabel}
       className="min-w-28 text-right tabular-nums"
     />
   );
@@ -113,6 +125,11 @@ export default function SettlementsPage() {
   const [printFrom, setPrintFrom] = useState("");
   const [printTo, setPrintTo] = useState("");
   const [printNote, setPrintNote] = useState("");
+  const [incomeDialogOpen, setIncomeDialogOpen] = useState(false);
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [incomeDraft, setIncomeDraft] = useState(() => makeIncomeLineDraft());
+  const [expenseDraft, setExpenseDraft] = useState(() => makeExpenseLineDraft());
+  const [pendingDeletion, setPendingDeletion] = useState<{ type: "income" | "expense"; id: string } | null>(null);
 
   useEffect(() => {
     setSelectedSettlementId(null);
@@ -144,6 +161,24 @@ export default function SettlementsPage() {
     enabled: Boolean(companyId && canView),
     queryFn: () => fetchSettlements(companyId!),
   });
+
+  const profileQuery = useQuery({
+    queryKey: ["profile-name", user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.full_name?.trim() ?? "";
+    },
+  });
+  const currentUserName = profileQuery.data
+    || String(user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? "").trim()
+    || user?.email
+    || "";
 
   useEffect(() => {
     if (selectedSettlementId || !settlementsQuery.data?.length) return;
@@ -240,7 +275,7 @@ export default function SettlementsPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!companyId) throw new Error("Necesitas una empresa activa.");
-      return createSettlementDraft(companyId, user?.email ?? undefined);
+      return createSettlementDraft(companyId, currentUserName || undefined);
     },
     onSuccess: async (settlement) => {
       setSelectedSettlementId(settlement.id);
@@ -282,16 +317,38 @@ export default function SettlementsPage() {
   const canEditSelectedDraft = Boolean(selectedSettlement && isDraftSettlement(selectedSettlement.status) && canEdit);
   const editable = Boolean(canEditSelectedDraft && !editorLocked);
 
-  const updateIncomeLine = (lineId: string, patch: Partial<EditableIncomeLine>) => {
-    setIncomeLines((current) => current.map((line) => (line.id === lineId ? { ...line, ...patch } : line)));
-  };
-
-  const updateExpenseLine = (lineId: string, patch: Partial<EditableExpenseLine>) => {
-    setExpenseLines((current) => current.map((line) => (line.id === lineId ? { ...line, ...patch } : line)));
-  };
-
   const removeIncomeLine = (lineId: string) => setIncomeLines((current) => current.filter((line) => line.id !== lineId));
   const removeExpenseLine = (lineId: string) => setExpenseLines((current) => current.filter((line) => line.id !== lineId));
+  const openIncomeDialog = () => {
+    setIncomeDraft(makeIncomeLineDraft(headerForm.settlement_date));
+    setIncomeDialogOpen(true);
+  };
+  const openExpenseDialog = () => {
+    setExpenseDraft(makeExpenseLineDraft(headerForm.settlement_date));
+    setExpenseDialogOpen(true);
+  };
+  const addIncomeLine = () => {
+    if (!incomeDraft.line_date || !incomeDraft.customer_name.trim() || !incomeDraft.concept.trim() || !incomeDraft.cash_amount.trim()) {
+      toast({ title: "Faltan datos obligatorios", description: "Completa fecha de cobro, cliente, concepto de pago y efectivo.", variant: "destructive" });
+      return;
+    }
+    setIncomeLines((current) => [...current, incomeDraft]);
+    setIncomeDialogOpen(false);
+  };
+  const addExpenseLine = () => {
+    if (!expenseDraft.line_date || !expenseDraft.detail.trim() || !expenseDraft.cash_amount.trim()) {
+      toast({ title: "Faltan datos obligatorios", description: "Completa fecha, detalle y efectivo.", variant: "destructive" });
+      return;
+    }
+    setExpenseLines((current) => [...current, expenseDraft]);
+    setExpenseDialogOpen(false);
+  };
+  const confirmDeletion = () => {
+    if (!pendingDeletion) return;
+    if (pendingDeletion.type === "income") removeIncomeLine(pendingDeletion.id);
+    else removeExpenseLine(pendingDeletion.id);
+    setPendingDeletion(null);
+  };
   const openPrintDialog = () => {
     if (!originalHeaderForm) return;
     setPrintRange(originalHeaderForm.period_from || originalHeaderForm.period_to ? "period" : "all");
@@ -317,6 +374,7 @@ export default function SettlementsPage() {
       filterFrom: from,
       filterTo: to,
       printNote,
+      preparedByName: currentUserName,
     }));
     if (!win) toast({ title: "No se pudo abrir la impresion", description: "Habilita las ventanas emergentes e intenta nuevamente.", variant: "destructive" });
     else setPrintOpen(false);
@@ -386,14 +444,6 @@ export default function SettlementsPage() {
                   </div>
 
                   <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4 lg:flex-row lg:items-end">
-                    {canEditSelectedDraft ? <>
-                      <Button type="button" onClick={() => setIncomeLines((current) => [...current, makeIncomeLineDraft(headerForm.settlement_date)])} disabled={!editable}>
-                        <Plus className="mr-2 h-4 w-4" /> Nuevo ingreso
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={() => setExpenseLines((current) => [...current, makeExpenseLineDraft(headerForm.settlement_date)])} disabled={!editable}>
-                        <Plus className="mr-2 h-4 w-4" /> Nuevo egreso
-                      </Button>
-                    </> : null}
                     <Button type="button" variant="outline" onClick={openPrintDialog} disabled={editorLocked}>
                       <Printer className="mr-2 h-4 w-4" /> Imprimir
                     </Button>
@@ -425,6 +475,11 @@ export default function SettlementsPage() {
                           Agrega un ingreso por cada cobro o entrada de dinero.
                         </CardDescription>
                       </div>
+                      {canEditSelectedDraft ? (
+                        <Button type="button" onClick={openIncomeDialog} disabled={!editable}>
+                          <Plus className="mr-2 h-4 w-4" /> Nuevo ingreso
+                        </Button>
+                      ) : null}
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-auto rounded-lg border" role="region" aria-labelledby="settlement-income-title" tabIndex={0}>
@@ -449,19 +504,19 @@ export default function SettlementsPage() {
                               <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">Sin ingresos cargados.</TableCell></TableRow>
                             ) : visibleIncomeLines.map((line) => (
                               <TableRow key={line.id}>
-                                <TableCell>{editable ? <Input aria-label="Fecha cobro ingreso" type="date" required value={line.line_date} onChange={(event) => updateIncomeLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /> : readOnlyDate(line.line_date)}</TableCell>
-                                <TableCell><Input value={line.work_order} onChange={(event) => updateIncomeLine(line.id, { work_order: event.target.value })} disabled={!editable} className="min-w-24" /></TableCell>
-                                <TableCell><Input value={line.receipt} onChange={(event) => updateIncomeLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
-                                <TableCell><Input value={line.quote} onChange={(event) => updateIncomeLine(line.id, { quote: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
-                                <TableCell><Input aria-label="Cliente ingreso" required value={line.customer_name} onChange={(event) => updateIncomeLine(line.id, { customer_name: event.target.value })} disabled={!editable} className="min-w-40" /></TableCell>
-                                <TableCell><Input aria-label="Concepto pago ingreso" required value={line.concept} onChange={(event) => updateIncomeLine(line.id, { concept: event.target.value })} disabled={!editable} className="min-w-52" /></TableCell>
-                                <TableCell>{moneyInput(line.cash_amount, (value) => updateIncomeLine(line.id, { cash_amount: value }), !editable, true)}</TableCell>
-                                <TableCell>{moneyInput(line.other_amount, (value) => updateIncomeLine(line.id, { other_amount: value }), !editable)}</TableCell>
-                                <TableCell><Input value={line.income_type} onChange={(event) => updateIncomeLine(line.id, { income_type: event.target.value })} disabled={!editable} className="min-w-32" /></TableCell>
+                                <TableCell>{readOnlyDate(line.line_date)}</TableCell>
+                                <TableCell>{line.work_order || "-"}</TableCell>
+                                <TableCell>{line.receipt || "-"}</TableCell>
+                                <TableCell>{line.quote || "-"}</TableCell>
+                                <TableCell>{line.customer_name}</TableCell>
+                                <TableCell>{line.concept}</TableCell>
+                                <TableCell className="text-right tabular-nums">{currency.format(Number(line.cash_amount || 0))}</TableCell>
+                                <TableCell className="text-right tabular-nums">{currency.format(Number(line.other_amount || 0))}</TableCell>
+                                <TableCell>{line.income_type || "-"}</TableCell>
                                 <TableCell className="text-right font-medium tabular-nums">{currency.format(editableLineTotal(line))}</TableCell>
                                 <TableCell className="text-right">
                                   {editable ? (
-                                    <Button type="button" size="icon" variant="ghost" onClick={() => removeIncomeLine(line.id)} disabled={!editable} aria-label="Eliminar ingreso">
+                                    <Button type="button" size="icon" variant="ghost" onClick={() => setPendingDeletion({ type: "income", id: line.id })} disabled={!editable} aria-label="Eliminar ingreso">
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   ) : null}
@@ -493,6 +548,11 @@ export default function SettlementsPage() {
                           Agrega un egreso por cada pago o salida de dinero.
                         </CardDescription>
                       </div>
+                      {canEditSelectedDraft ? (
+                        <Button type="button" onClick={openExpenseDialog} disabled={!editable}>
+                          <Plus className="mr-2 h-4 w-4" /> Nuevo egreso
+                        </Button>
+                      ) : null}
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-auto rounded-lg border" role="region" aria-labelledby="settlement-expense-title" tabIndex={0}>
@@ -513,15 +573,15 @@ export default function SettlementsPage() {
                               <TableRow><TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">Sin egresos cargados.</TableCell></TableRow>
                             ) : visibleExpenseLines.map((line) => (
                               <TableRow key={line.id}>
-                                <TableCell><Input aria-label="Fecha egreso" type="date" required value={line.line_date} onChange={(event) => updateExpenseLine(line.id, { line_date: event.target.value })} disabled={!editable} className="min-w-36" /></TableCell>
-                                <TableCell><Input value={line.receipt} onChange={(event) => updateExpenseLine(line.id, { receipt: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
-                                <TableCell><Input value={line.supplier_name} onChange={(event) => updateExpenseLine(line.id, { supplier_name: event.target.value })} disabled={!editable} className="min-w-40" /></TableCell>
-                                <TableCell><Input aria-label="Detalle egreso" required value={line.detail} onChange={(event) => updateExpenseLine(line.id, { detail: event.target.value })} disabled={!editable} className="min-w-52" /></TableCell>
-                                <TableCell><Input value={line.purchase_order} onChange={(event) => updateExpenseLine(line.id, { purchase_order: event.target.value })} disabled={!editable} className="min-w-28" /></TableCell>
-                                <TableCell>{moneyInput(line.cash_amount, (value) => updateExpenseLine(line.id, { cash_amount: value }), !editable, true)}</TableCell>
+                                <TableCell>{readOnlyDate(line.line_date)}</TableCell>
+                                <TableCell>{line.receipt || "-"}</TableCell>
+                                <TableCell>{line.supplier_name || "-"}</TableCell>
+                                <TableCell>{line.detail}</TableCell>
+                                <TableCell>{line.purchase_order || "-"}</TableCell>
+                                <TableCell className="text-right tabular-nums">{currency.format(Number(line.cash_amount || 0))}</TableCell>
                                 <TableCell className="text-right">
                                   {editable ? (
-                                    <Button type="button" size="icon" variant="ghost" onClick={() => removeExpenseLine(line.id)} disabled={!editable} aria-label="Eliminar egreso">
+                                    <Button type="button" size="icon" variant="ghost" onClick={() => setPendingDeletion({ type: "expense", id: line.id })} disabled={!editable} aria-label="Eliminar egreso">
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   ) : null}
@@ -600,6 +660,64 @@ export default function SettlementsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={incomeDialogOpen} onOpenChange={setIncomeDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Nuevo ingreso</DialogTitle>
+            <DialogDescription>Completa los datos del cobro. Los campos marcados son obligatorios.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-2"><Label>Fecha cobro *</Label><Input aria-label="Fecha cobro ingreso" type="date" value={incomeDraft.line_date} onChange={(event) => setIncomeDraft((line) => ({ ...line, line_date: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>OT N°</Label><Input aria-label="OT ingreso" value={incomeDraft.work_order} onChange={(event) => setIncomeDraft((line) => ({ ...line, work_order: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Recibo N°</Label><Input aria-label="Recibo ingreso" value={incomeDraft.receipt} onChange={(event) => setIncomeDraft((line) => ({ ...line, receipt: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Presupuesto</Label><Input aria-label="Presupuesto ingreso" value={incomeDraft.quote} onChange={(event) => setIncomeDraft((line) => ({ ...line, quote: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Cliente *</Label><Input aria-label="Cliente ingreso" value={incomeDraft.customer_name} onChange={(event) => setIncomeDraft((line) => ({ ...line, customer_name: event.target.value }))} /></div>
+            <div className="space-y-2 sm:col-span-2"><Label>Concepto pago *</Label><Input aria-label="Concepto pago ingreso" value={incomeDraft.concept} onChange={(event) => setIncomeDraft((line) => ({ ...line, concept: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Efectivo *</Label>{moneyInput(incomeDraft.cash_amount, (value) => setIncomeDraft((line) => ({ ...line, cash_amount: value })), false, true, "Efectivo ingreso")}</div>
+            <div className="space-y-2"><Label>Transf/Tarj/Cheq</Label>{moneyInput(incomeDraft.other_amount, (value) => setIncomeDraft((line) => ({ ...line, other_amount: value })), false, false, "Otros medios ingreso")}</div>
+            <div className="space-y-2"><Label>Tipo</Label><Input aria-label="Tipo ingreso" value={incomeDraft.income_type} onChange={(event) => setIncomeDraft((line) => ({ ...line, income_type: event.target.value }))} /></div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIncomeDialogOpen(false)}>Cancelar</Button>
+            <Button type="button" onClick={addIncomeLine}>Agregar ingreso</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nuevo egreso</DialogTitle>
+            <DialogDescription>Completa los datos del pago. Los campos marcados son obligatorios.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2"><Label>Fecha *</Label><Input aria-label="Fecha egreso" type="date" value={expenseDraft.line_date} onChange={(event) => setExpenseDraft((line) => ({ ...line, line_date: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>FC N°</Label><Input aria-label="FC egreso" value={expenseDraft.receipt} onChange={(event) => setExpenseDraft((line) => ({ ...line, receipt: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Proveedor</Label><Input aria-label="Proveedor egreso" value={expenseDraft.supplier_name} onChange={(event) => setExpenseDraft((line) => ({ ...line, supplier_name: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>O/C</Label><Input aria-label="OC egreso" value={expenseDraft.purchase_order} onChange={(event) => setExpenseDraft((line) => ({ ...line, purchase_order: event.target.value }))} /></div>
+            <div className="space-y-2 sm:col-span-2"><Label>Detalle *</Label><Input aria-label="Detalle egreso" value={expenseDraft.detail} onChange={(event) => setExpenseDraft((line) => ({ ...line, detail: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Efectivo *</Label>{moneyInput(expenseDraft.cash_amount, (value) => setExpenseDraft((line) => ({ ...line, cash_amount: value })), false, true, "Efectivo egreso")}</div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setExpenseDialogOpen(false)}>Cancelar</Button>
+            <Button type="button" onClick={addExpenseLine}>Agregar egreso</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(pendingDeletion)} onOpenChange={(open) => { if (!open) setPendingDeletion(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar fila</AlertDialogTitle>
+            <AlertDialogDescription>Esta fila se quitará de la rendición. El cambio se guardará automáticamente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeletion}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
