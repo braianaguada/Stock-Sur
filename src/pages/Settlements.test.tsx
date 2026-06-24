@@ -304,6 +304,30 @@ describe("SettlementsPage", () => {
     expect(screen.queryByText("Header Sin Guardar")).not.toBeInTheDocument();
   });
 
+  it("presents separate income and expense tables with a clear add action for each one", async () => {
+    renderPage();
+
+    expect(await screen.findByRole("region", { name: "Ingresos" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Egresos" })).toBeInTheDocument();
+    expect(screen.getByText("Dinero recibido incluido en esta rendicion.")).toBeInTheDocument();
+    expect(screen.getByText("Dinero pagado incluido en esta rendicion.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
+
+    const addIncome = await screen.findByRole("button", { name: /Agregar ingreso/i });
+    const addExpense = screen.getByRole("button", { name: /Agregar egreso/i });
+    expect(addIncome).toBeEnabled();
+    expect(addExpense).toBeEnabled();
+
+    fireEvent.click(addIncome);
+    fireEvent.click(addExpense);
+
+    expect(screen.getByRole("button", { name: "Eliminar ingreso" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Eliminar egreso" })).toBeInTheDocument();
+    expect(screen.getByText("Agrega un ingreso por cada cobro o entrada de dinero.")).toBeInTheDocument();
+    expect(screen.getByText("Agrega un egreso por cada pago o salida de dinero.")).toBeInTheDocument();
+  });
+
   it("hides edit controls without edit permission", async () => {
     mocks.auth.companyPermissionCodes = ["settlements.view", "settlements.submit"];
 
