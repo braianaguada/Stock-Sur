@@ -364,11 +364,11 @@ export default function SettlementsPage() {
         />
 
         {accessState ? accessState : (
-          <div className="grid gap-5 xl:grid-cols-[minmax(360px,0.9fr)_minmax(0,1.7fr)]">
-            <Card className="h-fit">
+          <div className="space-y-5">
+            <Card>
               <CardHeader>
-                <CardTitle>Listado</CardTitle>
-                <CardDescription>{currentCompany.name}</CardDescription>
+                <CardTitle>Rendiciones de {currentCompany.name}</CardTitle>
+                <CardDescription>Selecciona una rendicion para consultar o completar su detalle.</CardDescription>
               </CardHeader>
               <CardContent>
                 {settlementsQuery.isLoading ? (
@@ -421,7 +421,7 @@ export default function SettlementsPage() {
               </CardContent>
             </Card>
 
-            <section className="space-y-5">
+            <section className="space-y-5" aria-label="Detalle de la rendicion">
               {editorLoading ? (
                 <Card>
                   <CardContent className="p-8 text-center text-sm text-muted-foreground">
@@ -488,7 +488,7 @@ export default function SettlementsPage() {
                         ) : null}
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-5">
                       {detailMode === "summary" && draftHasChanges ? (
                         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
                           Hay cambios sin guardar en el editor. Este resumen muestra el ultimo detalle persistido.
@@ -541,17 +541,24 @@ export default function SettlementsPage() {
                   <Card>
                     <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <CardTitle>Ingresos</CardTitle>
-                        <CardDescription>{detailMode === "summary" ? `${originalIncomeLines.length} filas persistidas.` : "Totales calculados desde las lineas."}</CardDescription>
+                        <div className="flex items-center gap-2">
+                          <CardTitle id="settlement-income-title">Ingresos</CardTitle>
+                          <Badge variant="secondary">{(detailMode === "summary" ? originalIncomeLines : incomeLines).length}</Badge>
+                        </div>
+                        <CardDescription>
+                          {detailMode === "summary"
+                            ? "Dinero recibido incluido en esta rendicion."
+                            : "Agrega un ingreso por cada cobro o entrada de dinero."}
+                        </CardDescription>
                       </div>
                       {detailMode === "edit" ? (
-                        <Button type="button" variant="outline" onClick={() => setIncomeLines((current) => [...current, makeIncomeLineDraft(headerForm.settlement_date)])} disabled={!editable}>
+                        <Button type="button" onClick={() => setIncomeLines((current) => [...current, makeIncomeLineDraft(headerForm.settlement_date)])} disabled={!editable}>
                           <Plus className="mr-2 h-4 w-4" /> Agregar ingreso
                         </Button>
                       ) : null}
                     </CardHeader>
                     <CardContent>
-                      <div className="overflow-auto rounded-xl border">
+                      <div className="overflow-auto rounded-lg border" role="region" aria-labelledby="settlement-income-title" tabIndex={0}>
                         <Table>
                           <TableHeader>
                             <TableRow>
@@ -608,17 +615,24 @@ export default function SettlementsPage() {
                   <Card>
                     <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <CardTitle>Egresos</CardTitle>
-                        <CardDescription>{detailMode === "summary" ? `${originalExpenseLines.length} filas persistidas.` : "Los proveedores son texto manual."}</CardDescription>
+                        <div className="flex items-center gap-2">
+                          <CardTitle id="settlement-expense-title">Egresos</CardTitle>
+                          <Badge variant="secondary">{(detailMode === "summary" ? originalExpenseLines : expenseLines).length}</Badge>
+                        </div>
+                        <CardDescription>
+                          {detailMode === "summary"
+                            ? "Dinero pagado incluido en esta rendicion."
+                            : "Agrega un egreso por cada pago o salida de dinero."}
+                        </CardDescription>
                       </div>
                       {detailMode === "edit" ? (
-                        <Button type="button" variant="outline" onClick={() => setExpenseLines((current) => [...current, makeExpenseLineDraft(headerForm.settlement_date)])} disabled={!editable}>
+                        <Button type="button" onClick={() => setExpenseLines((current) => [...current, makeExpenseLineDraft(headerForm.settlement_date)])} disabled={!editable}>
                           <Plus className="mr-2 h-4 w-4" /> Agregar egreso
                         </Button>
                       ) : null}
                     </CardHeader>
                     <CardContent>
-                      <div className="overflow-auto rounded-xl border">
+                      <div className="overflow-auto rounded-lg border" role="region" aria-labelledby="settlement-expense-title" tabIndex={0}>
                         <Table>
                           <TableHeader>
                             <TableRow>
