@@ -17,7 +17,7 @@ type RawAccountEntry = {
   description: string | null;
   notes: string | null;
   metadata: Record<string, unknown> | null;
-  customers: { name: string | null; is_occasional: boolean | null } | null;
+  customers: { name: string | null; is_occasional: boolean | null; account_due_days: number | null } | null;
   documents: {
     id: string;
     doc_type: string | null;
@@ -41,6 +41,7 @@ function normalizeEntry(entry: RawAccountEntry): AccountStatementSource {
     customer_id: entry.customer_id,
     customer_name: entry.customers?.name ?? null,
     customer_is_occasional: entry.customers?.is_occasional ?? null,
+    customer_account_due_days: entry.customers?.account_due_days ?? 30,
     entry_type: entry.entry_type,
     origin_type: entry.origin_type,
     origin_id: entry.origin_id,
@@ -77,7 +78,7 @@ export function useCustomerAccountStatement(companyId: string | null | undefined
           description,
           notes,
           metadata,
-          customers!inner(name, is_occasional),
+          customers!inner(name, is_occasional, account_due_days),
           documents(id, doc_type, point_of_sale, document_number, external_invoice_number, issue_date),
           cash_sales(id, receipt_kind, receipt_reference, business_date)
         `)
@@ -87,7 +88,42 @@ export function useCustomerAccountStatement(companyId: string | null | undefined
         .order("created_at", { ascending: true })
         .limit(1000);
       if (error) throw error;
-      return (data ?? []).map((row) => normalizeEntry(row as unknown as RawAccountEntry));
+      const entries = (data ?? []).map((row) => normalizeEntry(row as unknown as RawAccountEntry));
+      const invoiceReferences = Array.from(new Set(
+        entries
+          .filter((entry) => !entry.document_id)
+          .map((entry) => {
+            const metadata = entry.metadata ?? {};
+            const value = metadata.reference_number ?? metadata.reference ?? metadata.receipt_reference ?? entry.cashSale?.receipt_reference;
+            return typeof value === "string" ? value.trim() : "";
+          })
+          .filter(Boolean),
+      ));
+
+      if (invoiceReferences.length === 0) return entries;
+
+      const { data: linkedDocuments, error: linkedDocumentsError } = await supabase
+        .from("documents")
+        .select("id, doc_type, point_of_sale, document_number, external_invoice_number, issue_date")
+        .eq("company_id", companyId!)
+        .eq("external_invoice_status", "ACTIVE")
+        .in("external_invoice_number", invoiceReferences);
+      if (linkedDocumentsError) throw linkedDocumentsError;
+
+      const documentByInvoice = new Map(
+        (linkedDocuments ?? [])
+          .filter((document) => document.external_invoice_number)
+          .map((document) => [document.external_invoice_number!.trim(), document]),
+      );
+
+      return entries.map((entry) => {
+        if (entry.document_id) return entry;
+        const metadata = entry.metadata ?? {};
+        const rawReference = metadata.reference_number ?? metadata.reference ?? metadata.receipt_reference ?? entry.cashSale?.receipt_reference;
+        const reference = typeof rawReference === "string" ? rawReference.trim() : "";
+        const document = documentByInvoice.get(reference);
+        return document ? { ...entry, document_id: document.id, document } : entry;
+      });
     },
     select: (entries) => buildAccountStatement(entries, filters),
   });

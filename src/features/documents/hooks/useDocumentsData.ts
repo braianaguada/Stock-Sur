@@ -46,7 +46,7 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customers")
-        .select("id, name, cuit")
+        .select("id, name, cuit, phone")
         .eq("company_id", currentCompanyId!)
         .eq("is_occasional", false)
         .order("name");

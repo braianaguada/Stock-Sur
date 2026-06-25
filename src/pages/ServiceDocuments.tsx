@@ -1,7 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Eye, ImagePlus, Link2, Mail, MessageCircle, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { FilterBar, PageHeader } from "@/components/ui/page";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { formatIsoDate, formatMoney } from "@/lib/formatters";
 import { openPrintWindow } from "@/lib/print";
+import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "@/lib/pdf-download";
 import { serviceDb } from "@/features/services/db";
 import { ServiceQuoteAiAssistantDialog } from "@/features/services/components/ServiceQuoteAiAssistantDialog";
 import { ServiceDocumentPreviewDialog } from "@/features/services/components/ServiceDocumentPreviewDialog";
@@ -35,6 +37,7 @@ import type { ServiceDocument, ServiceDocumentAttachment, ServiceDocumentAttachm
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
 const ATTACHMENT_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const SERVICE_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 
 const SERVICE_STATUS_BADGE_CLASS: Record<ServiceDocumentStatus, string> = {
   DRAFT: "border-slate-500/30 bg-slate-500/10 text-slate-300",
@@ -66,8 +69,11 @@ export default function ServiceDocumentsPage() {
   const [shareSubject, setShareSubject] = useState("");
   const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
   const [shareLinkLoading, setShareLinkLoading] = useState(false);
+  const [downloadingDocumentId, setDownloadingDocumentId] = useState<string | null>(null);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const [pendingAiSuggestionId, setPendingAiSuggestionId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof SERVICE_PAGE_SIZE_OPTIONS)[number]>(10);
 
   const { customers, documents, selectedDocument, selectedLines, selectedAttachments, selectedEvents, eventUserNamesById, isLoading } = useServiceDocuments({
     companyId: currentCompany?.id ?? null,
@@ -81,6 +87,16 @@ export default function ServiceDocumentsPage() {
     if (form.pricing_mode === "GLOBAL_TOTAL") return Number(form.global_total || 0);
     return lines.reduce((sum, line) => sum + calculateServiceLineTotal(line), 0);
   }, [form.global_total, form.pricing_mode, lines]);
+  const totalPages = Math.max(1, Math.ceil(documents.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pagedDocuments = useMemo(
+    () => documents.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [documents, pageSize, safePage],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearch, status, customerFilter, pageSize]);
 
   useEffect(() => {
     if (!selectedDocument || !editingDocumentId) return;
@@ -230,6 +246,51 @@ export default function ServiceDocumentsPage() {
     win.document.write(buildServiceDocumentPrintHtml({ document, lines: documentLines, attachments: documentAttachments, companySettings: settings }));
     win.document.close();
     win.focus();
+  };
+
+  const downloadServicePdf = async (document: ServiceDocument) => {
+    const fileName = `Presupuesto-Servicio-SERV-${String(document.number).padStart(6, "0")}.pdf`;
+    let target;
+    try {
+      target = await choosePdfSaveTarget(fileName);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast({ title: "No se pudo seleccionar el archivo", description: getErrorMessage(error), variant: "destructive" });
+      return;
+    }
+
+    setDownloadingDocumentId(document.id);
+    try {
+      const [{ data: lineRows, error: linesError }, { data: attachmentRows, error: attachmentsError }] = await Promise.all([
+        serviceDb.from("service_document_lines").select("id, document_id, description, quantity, unit, unit_price, line_total, sort_order").eq("document_id", document.id).order("sort_order"),
+        serviceDb.from("service_document_attachments").select("*").eq("service_document_id", document.id).eq("include_in_print", true).order("sort_order"),
+      ]);
+      if (linesError) throw linesError;
+      if (attachmentsError) throw attachmentsError;
+      const documentAttachments = await Promise.all(((attachmentRows ?? []) as ServiceDocumentAttachment[]).map(async (attachment) => {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data } = await supabase.storage.from(attachment.storage_bucket).createSignedUrl(attachment.storage_path, 60 * 30);
+        return { ...attachment, signed_url: data?.signedUrl ?? null };
+      }));
+      const html = buildServiceDocumentPrintHtml({
+        document,
+        lines: (lineRows ?? []) as ServiceDocumentLine[],
+        attachments: documentAttachments,
+        companySettings: settings,
+      });
+      await savePrintHtmlAsPdf({
+        html,
+        fileName,
+        proof: { mode: "authenticated", kind: "service", documentId: document.id },
+        target,
+      });
+      toast({ title: "PDF guardado" });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast({ title: "No se pudo descargar el PDF", description: getErrorMessage(error), variant: "destructive" });
+    } finally {
+      setDownloadingDocumentId(null);
+    }
   };
 
   const triggerTransition = (document: ServiceDocument, targetStatus: ServiceDocumentStatus) => {
@@ -566,8 +627,8 @@ export default function ServiceDocumentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {documents.map((document) => (
-                  <TableRow key={document.id}>
+                {pagedDocuments.map((document) => (
+                  <TableRow key={document.id} className="h-14">
                     <TableCell className="font-medium">{SERVICE_DOCUMENT_PREFIX}-{String(document.number).padStart(6, "0")}</TableCell>
                     <TableCell>{document.customers?.name ?? "Sin cliente"}</TableCell>
                     <TableCell>{formatIsoDate(document.issue_date)}</TableCell>
@@ -609,6 +670,11 @@ export default function ServiceDocumentsPage() {
                           <Link2 className="h-4 w-4" />
                         </Button>
                         {canPrintServiceDocuments ? (
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-indigo-500 hover:text-indigo-400" title="Guardar PDF" onClick={() => void downloadServicePdf(document)} disabled={downloadingDocumentId === document.id}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        {canPrintServiceDocuments ? (
                           <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-amber-500 hover:text-amber-400" title="Imprimir" onClick={() => void openServicePrint(document)}>
                             <Printer className="h-4 w-4" />
                           </Button>
@@ -622,10 +688,29 @@ export default function ServiceDocumentsPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+                {Array.from({ length: Math.max(0, pageSize - pagedDocuments.length) }, (_, index) => (
+                  <TableRow key={`empty-${index}`} className="h-14" aria-hidden="true">
+                    <TableCell colSpan={6} />
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
         </section>
+        {documents.length > 0 ? (
+          <DataTablePagination
+            page={safePage}
+            totalPages={totalPages}
+            totalItems={documents.length}
+            rangeStart={(safePage - 1) * pageSize + 1}
+            rangeEnd={Math.min(safePage * pageSize, documents.length)}
+            pageSize={pageSize}
+            pageSizeOptions={SERVICE_PAGE_SIZE_OPTIONS}
+            onPageChange={setPage}
+            onPageSizeChange={(value) => setPageSize(value as (typeof SERVICE_PAGE_SIZE_OPTIONS)[number])}
+            itemLabel="presupuestos"
+          />
+        ) : null}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>

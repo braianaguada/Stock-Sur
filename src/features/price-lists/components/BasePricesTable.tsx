@@ -1,13 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
-import { Package, PackageX, TrendingDown, TrendingUp } from "lucide-react";
+import { Package, PackageX, Pencil, TrendingDown, TrendingUp } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { BasePriceRow } from "@/features/price-lists/types";
-import { formatDateTime, formatMoney, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
+import { formatTimestampDate } from "@/lib/formatters";
+import { formatMoney, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
 
 type BasePricesTableProps = {
   rows: BasePriceRow[];
@@ -19,67 +23,6 @@ type BasePricesTableProps = {
   renderUserName: (userId: string | null) => string;
   onSaveDraftValue: (itemId: string, nextBaseCost: number) => void;
 };
-
-function BaseCostInputCell(props: {
-  savedValue: number;
-  isSaving: boolean;
-  onCommit: (nextBaseCost: number) => void;
-}) {
-  const { savedValue, isSaving, onCommit } = props;
-  const [isFocused, setIsFocused] = useState(false);
-  const [localValue, setLocalValue] = useState(() => String(savedValue));
-
-  useEffect(() => {
-    if (!isFocused) {
-      setLocalValue(String(savedValue));
-    }
-  }, [savedValue, isFocused]);
-
-  const commitValue = () => {
-    const nextBaseCost = parseNonNegative(localValue, savedValue);
-    if (nextBaseCost === savedValue) {
-      setLocalValue(String(savedValue));
-      return;
-    }
-
-    onCommit(nextBaseCost);
-  };
-
-  return (
-    <div className="text-right">
-      <Input
-        className="ml-auto h-8 w-24 rounded-2xl px-3 text-right font-mono"
-        type="number"
-        min={0}
-        step="any"
-        value={localValue}
-        disabled={isSaving && !isFocused}
-        onFocus={() => setIsFocused(true)}
-        onChange={(event) => {
-          const nextValue = sanitizeNonNegativeDraft(event.target.value);
-          setLocalValue(nextValue);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            commitValue();
-            event.currentTarget.blur();
-          }
-
-          if (event.key === "Escape") {
-            event.preventDefault();
-            setLocalValue(String(savedValue));
-            event.currentTarget.blur();
-          }
-        }}
-        onBlur={() => {
-          setIsFocused(false);
-          commitValue();
-        }}
-      />
-    </div>
-  );
-}
 
 function StockBadge({ total }: { total: number | undefined }) {
   if (total === undefined) {
@@ -124,6 +67,22 @@ export function BasePricesTable({
   onSaveDraftValue,
 }: BasePricesTableProps) {
   const showAttributesInline = columnVisibility.attributes === false;
+  const [editingRow, setEditingRow] = useState<BasePriceRow | null>(null);
+  const [baseCostDraft, setBaseCostDraft] = useState("");
+
+  const openBaseCostDialog = (row: BasePriceRow) => {
+    setEditingRow(row);
+    setBaseCostDraft(String(row.base_cost));
+  };
+
+  const saveBaseCost = () => {
+    if (!editingRow) return;
+    onSaveDraftValue(
+      editingRow.item_id,
+      parseNonNegative(baseCostDraft, editingRow.base_cost),
+    );
+    setEditingRow(null);
+  };
 
   const columns = useMemo<ColumnDef<BasePriceRow, unknown>[]>(() => [
     {
@@ -146,7 +105,7 @@ export function BasePricesTable({
         </div>
       ),
       meta: {
-        className: "w-[280px]",
+        className: "w-[340px]",
       },
     },
     {
@@ -202,12 +161,24 @@ export function BasePricesTable({
       accessorKey: "base_cost",
       header: () => <div className="text-right">Costo base</div>,
       cell: ({ row }) => (
-        <BaseCostInputCell
-          savedValue={row.original.base_cost}
-          isSaving={isSaving}
-          onCommit={(nextBaseCost) => onSaveDraftValue(row.original.item_id, nextBaseCost)}
-        />
+        <div className="flex items-center justify-end gap-2">
+          <span className="font-mono text-sm">${formatMoney(row.original.base_cost)}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            title="Cambiar costo base"
+            onClick={() => openBaseCostDialog(row.original)}
+            disabled={isSaving}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        </div>
       ),
+      meta: {
+        className: "w-[150px]",
+      },
     },
     {
       accessorKey: "cost_variation_pct",
@@ -227,32 +198,72 @@ export function BasePricesTable({
           </div>
         );
       },
+      meta: {
+        className: "w-[100px]",
+      },
     },
     {
       accessorKey: "updated_at",
       header: () => "Última actualización",
-      cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDateTime(row.original.updated_at)}</span>,
+      cell: ({ row }) => <span className="whitespace-nowrap text-sm text-muted-foreground">{formatTimestampDate(row.original.updated_at)}</span>,
+      meta: {
+        className: "w-[150px]",
+      },
     },
     {
       accessorKey: "updated_by",
       header: () => "Usuario",
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{renderUserName(row.original.updated_by)}</span>,
     },
-  ], [isSaving, onSaveDraftValue, renderUserName, showAttributesInline, stockByItemId]);
+  ], [isSaving, renderUserName, showAttributesInline, stockByItemId]);
 
   return (
-    <div className="overflow-x-auto">
-      <DataTable
-        columns={columns}
-        data={rows}
-        emptyMessage="No hay productos para mostrar."
-        className="table-fixed min-w-[1700px]"
-        columnVisibility={columnVisibility}
-        getRowId={(row) => row.item_id}
-        rowClassName={showAttributesInline ? "h-14" : "h-12"}
-        cellClassName={showAttributesInline ? "h-14 py-1.5" : "h-12 py-1"}
-        reserveEmptyRows={pageSize}
-      />
-    </div>
+    <>
+      <div className="overflow-x-auto">
+        <DataTable
+          columns={columns}
+          data={rows}
+          emptyMessage="No hay productos para mostrar."
+          className="table-fixed min-w-[1780px]"
+          columnVisibility={columnVisibility}
+          getRowId={(row) => row.item_id}
+          rowClassName={showAttributesInline ? "h-14" : "h-12"}
+          cellClassName={showAttributesInline ? "h-14 py-1.5" : "h-12 py-1"}
+          reserveEmptyRows={pageSize}
+        />
+      </div>
+      <Dialog open={Boolean(editingRow)} onOpenChange={(open) => { if (!open) setEditingRow(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cambiar costo base</DialogTitle>
+            <DialogDescription>
+              {editingRow ? `${editingRow.sku} · ${editingRow.name}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="base-cost-draft">Nuevo costo</Label>
+            <Input
+              id="base-cost-draft"
+              type="number"
+              min={0}
+              step="any"
+              value={baseCostDraft}
+              onChange={(event) => setBaseCostDraft(sanitizeNonNegativeDraft(event.target.value))}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  saveBaseCost();
+                }
+              }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setEditingRow(null)}>Cancelar</Button>
+            <Button type="button" onClick={saveBaseCost} disabled={isSaving || baseCostDraft === ""}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

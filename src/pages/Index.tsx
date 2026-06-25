@@ -132,9 +132,9 @@ export default function Dashboard() {
             <div className="min-w-0 flex-1">
               <p className="font-semibold">Lectura ejecutiva con IA</p>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {aiSummary.data ?? "Analiza tendencias, riesgos y oportunidades usando solamente los datos calculados del dashboard."}
+                {aiSummary.data?.summary ?? "Analiza tendencias, riesgos y oportunidades usando solamente los datos calculados del dashboard."}
               </p>
-              {aiSummary.error ? <p className="mt-2 text-xs text-red-600">No se pudo generar el resumen IA.</p> : null}
+              {aiSummary.data?.fallback ? <p className="mt-2 text-xs text-amber-600">Se uso la lectura automatica local porque el proveedor de IA no estaba disponible.</p> : null}
             </div>
             <Button
               type="button"

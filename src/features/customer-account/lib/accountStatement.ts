@@ -16,6 +16,7 @@ export type AccountStatementSource = {
   customer_id: string | null;
   customer_name: string | null;
   customer_is_occasional?: boolean | null;
+  customer_account_due_days?: number | null;
   entry_type: AccountEntryType;
   origin_type: AccountOriginType;
   origin_id: string;
@@ -95,13 +96,13 @@ export function formatDocumentReference(document: AccountStatementSource["docume
 }
 
 function resolveReference(entry: AccountStatementSource): string {
+  const documentReference = formatDocumentReference(entry.document);
+  if (documentReference) return documentReference;
   const metadataReference =
     getMetadataText(entry.metadata, "reference_number") ??
     getMetadataText(entry.metadata, "reference") ??
     getMetadataText(entry.metadata, "receipt_reference");
   if (metadataReference) return metadataReference;
-  const documentReference = formatDocumentReference(entry.document);
-  if (documentReference) return documentReference;
   if (entry.cashSale?.receipt_reference?.trim()) return entry.cashSale.receipt_reference.trim();
   return entry.origin_type === "MANUAL" ? "Cobro manual" : entry.origin_id;
 }
@@ -110,7 +111,10 @@ function resolveDueDate(entry: AccountStatementSource, defaultDebitDays = 30): s
   if (entry.entry_type !== "DEBIT") return null;
   const explicitDueDate = getMetadataText(entry.metadata, "due_date");
   if (explicitDueDate) return asDateOnly(explicitDueDate);
-  const paymentTermDays = getMetadataNumber(entry.metadata, "payment_term_days") ?? defaultDebitDays;
+  const paymentTermDays =
+    getMetadataNumber(entry.metadata, "payment_term_days")
+    ?? entry.customer_account_due_days
+    ?? defaultDebitDays;
   return addDays(entry.document?.issue_date ?? entry.business_date, paymentTermDays);
 }
 

@@ -512,13 +512,11 @@ export function usePriceListsData({
       priceListId,
       enabled,
       price,
-      note,
     }: {
       itemId: string;
       priceListId: string;
       enabled: boolean;
       price: number | null;
-      note: string;
     }) => {
       if (!currentCompany) throw new Error("Selecciona una empresa activa");
       if (enabled && (price === null || !Number.isFinite(price) || price < 0)) {
@@ -530,7 +528,7 @@ export function usePriceListsData({
         .update({
           final_price_override: enabled ? price : null,
           manual_price_enabled: enabled,
-          manual_price_note: note.trim() || null,
+          manual_price_note: null,
           manual_price_updated_at: new Date().toISOString(),
           manual_price_updated_by: user?.id ?? null,
         })

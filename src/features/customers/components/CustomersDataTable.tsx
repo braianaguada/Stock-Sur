@@ -44,6 +44,14 @@ export function CustomersDataTable({
       cell: ({ row }) => row.original.phone ?? "-",
     },
     {
+      accessorKey: "account_due_days",
+      header: () => "Vencimiento",
+      cell: ({ row }) => `${row.original.account_due_days ?? 30} días`,
+      meta: {
+        className: "w-[120px]",
+      },
+    },
+    {
       accessorKey: "is_occasional",
       header: () => "Tipo",
       cell: ({ row }) => (

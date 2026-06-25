@@ -17,6 +17,7 @@ const EMPTY_FORM: CustomerFormState = {
   email: "",
   phone: "",
   is_occasional: false,
+  account_due_days: "30",
   fiscal_tax_id: "",
   fiscal_legal_name: "",
   fiscal_tax_condition: "",
@@ -155,6 +156,7 @@ export function useCustomersPage({
         email: form.email.trim() || null,
         phone: form.phone.trim() || null,
         is_occasional: false,
+        account_due_days: Math.max(0, Math.min(3650, Math.trunc(Number(form.account_due_days) || 0))),
         created_by: userId ?? null,
       };
 
@@ -271,6 +273,7 @@ export function useCustomersPage({
       email: customer.email ?? "",
       phone: customer.phone ?? "",
       is_occasional: customer.is_occasional,
+      account_due_days: String(customer.account_due_days ?? 30),
       fiscal_tax_id: customer.fiscal_profile?.tax_id ?? customer.cuit ?? "",
       fiscal_legal_name: customer.fiscal_profile?.legal_name ?? "",
       fiscal_tax_condition: customer.fiscal_profile?.tax_condition ?? "",
