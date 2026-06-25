@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { Copy, Package, PackageX, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Copy, Package, PackageX, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
@@ -97,30 +97,26 @@ function formatMargin(value: number | null | undefined) {
   return `${value.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%`;
 }
 
-function operationalBadges(meta: ItemOperationalMeta | undefined, demand?: string | null) {
+function operationalAlerts(meta: ItemOperationalMeta | undefined, demand?: string | null) {
   const stock = meta?.stock;
   const baseCost = meta?.base_cost;
   const mainPrice = meta?.main_price;
-  const badges: Array<{ label: string; className: string }> = [];
+  const alerts: string[] = [];
 
   if (baseCost === null || baseCost === undefined || baseCost <= 0) {
-    badges.push({ label: "Sin costo", className: "border-orange-500/40 bg-orange-500/10 text-orange-700" });
+    alerts.push("Sin costo");
   }
   if (mainPrice === null || mainPrice === undefined || mainPrice <= 0) {
-    badges.push({ label: "Sin precio", className: "border-violet-500/40 bg-violet-500/10 text-violet-700" });
+    alerts.push("Sin precio");
   }
   if (stock === null || stock === undefined || stock <= 0) {
-    badges.push({ label: "Sin stock", className: "border-rose-500/40 bg-rose-500/10 text-rose-700" });
+    alerts.push("Sin stock");
   } else {
     const isLow = (demand === "HIGH" && stock < 15) || (demand === "MEDIUM" && stock < 5) || stock < 2;
-    if (isLow) badges.push({ label: "Stock bajo", className: "border-amber-500/40 bg-amber-500/10 text-amber-700" });
+    if (isLow) alerts.push("Stock bajo");
   }
 
-  if (badges.length === 0) {
-    badges.push({ label: "OK", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700" });
-  }
-
-  return badges;
+  return alerts;
 }
 
 function ItemsDataTableComponent({
@@ -269,19 +265,42 @@ function ItemsDataTableComponent({
       header: () => "Estado operativo",
       cell: ({ row }) => {
         const meta = operationalMetaByItemId.get(row.original.id);
+        const alerts = operationalAlerts(meta, row.original.demand_profile);
+        if (alerts.length === 0) {
+          return (
+            <Badge
+              variant="outline"
+              className="h-5 gap-1 border-emerald-500/40 bg-emerald-500/8 px-1.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"
+            >
+              <Check className="h-2.5 w-2.5" />
+              OK
+            </Badge>
+          );
+        }
+
+        const label = alerts.length === 1 ? alerts[0] : `${alerts.length} alertas`;
         return (
-          <div className="flex flex-wrap gap-1">
-            {operationalBadges(meta, row.original.demand_profile).map((badge) => (
-              <Badge key={badge.label} variant="outline" className={`h-6 px-2 text-xs font-medium ${badge.className}`}>
-                {badge.label}
-              </Badge>
-            ))}
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Badge
+                  variant="outline"
+                  className="h-5 cursor-default gap-1 border-amber-500/40 bg-amber-500/8 px-1.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
+                >
+                  <AlertTriangle className="h-2.5 w-2.5" />
+                  {label}
+                </Badge>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {alerts.join(" · ")}
+            </TooltipContent>
+          </Tooltip>
         );
       },
       meta: {
         className: "w-[170px]",
-        cellClassName: "py-2",
+        cellClassName: "py-1.5",
       },
     },
     {

@@ -70,4 +70,18 @@ describe("ItemsDataTable", () => {
     expect(meta.main_price_original).toBe(1256.35);
     expect(meta.main_price).toBe(1500);
   });
+
+  it("renders multiple operational issues as one compact badge", () => {
+    renderTable({
+      ...meta,
+      stock: 0,
+      base_cost: 0,
+      main_price: 0,
+    });
+
+    expect(screen.getByText("3 alertas")).toBeInTheDocument();
+    expect(screen.queryByText("Sin costo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sin precio")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sin stock")).not.toBeInTheDocument();
+  });
 });
