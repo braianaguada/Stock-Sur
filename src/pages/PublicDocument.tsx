@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Download } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,13 +6,11 @@ import { DEFAULT_COMPANY_SETTINGS } from "@/contexts/company-brand-context";
 import { usePublicDocument } from "@/features/documents/hooks/usePublicDocument";
 import { buildDocumentPrintHtml } from "@/features/documents/print";
 import { formatNumber } from "@/features/documents/utils";
-import { sanitizePdfFileName } from "@/features/services/share";
-import { downloadHtmlAsPdf } from "@/lib/download-html-pdf";
+import { openPrintWindow, withPrintDialogOnLoad } from "@/lib/print";
 
 export default function PublicDocumentPage() {
   const { token } = useParams();
   const query = usePublicDocument(token ?? null);
-  const [downloading, setDownloading] = useState(false);
   const payload = query.data;
 
   useEffect(() => {
@@ -35,22 +33,15 @@ export default function PublicDocumentPage() {
     companySettings: { ...DEFAULT_COMPANY_SETTINGS, ...payload.company },
   });
   const label = payload.document.doc_type === "PRESUPUESTO" ? "Presupuesto" : "Remito";
-  const fileName = `${label}-${formatNumber(payload.document.document_number, payload.document.point_of_sale)}-${sanitizePdfFileName(payload.document.customer_name ?? "cliente")}`;
+  const documentNumber = formatNumber(payload.document.document_number, payload.document.point_of_sale);
 
   return (
     <main className="min-h-screen bg-slate-200">
       <div className="sticky top-0 z-20 border-b bg-white/95 px-4 py-3 shadow-sm backdrop-blur print:hidden">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-slate-950">{label}</p>
-          <Button disabled={downloading} onClick={async () => {
-            setDownloading(true);
-            try {
-              await downloadHtmlAsPdf(html, fileName);
-            } finally {
-              setDownloading(false);
-            }
-          }}>
-            <Download className="mr-2 h-4 w-4" /> {downloading ? "Descargando..." : "Descargar PDF"}
+          <p className="text-sm font-semibold text-slate-950">{label} {documentNumber}</p>
+          <Button onClick={() => openPrintWindow(withPrintDialogOnLoad(html))}>
+            <Download className="mr-2 h-4 w-4" /> Guardar PDF
           </Button>
         </div>
       </div>

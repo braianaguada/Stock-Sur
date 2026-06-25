@@ -38,7 +38,6 @@
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "html2pdf.js": "^0.14.0",
     "lucide-react": "^0.462.0",
     "pdfjs-dist": "^4.10.38",
     "pg": "^8.20.0",

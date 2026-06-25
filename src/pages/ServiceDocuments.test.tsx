@@ -101,12 +101,13 @@ describe("ServiceDocumentsPage", () => {
   it("shows preview and print actions and opens preview dialog", async () => {
     const write = vi.fn();
     const focus = vi.fn();
-    vi.stubGlobal("open", vi.fn(() => ({ document: { open: vi.fn(), write, close: vi.fn() }, focus })));
+    vi.stubGlobal("open", vi.fn(() => ({ document: { open: vi.fn(), write, close: vi.fn() }, focus, close: vi.fn() })));
 
     render(<ServiceDocumentsPage />);
 
     expect(screen.getByText("Documentos")).toBeInTheDocument();
     expect(screen.getByTitle("Vista previa")).toBeInTheDocument();
+    expect(screen.getByTitle("Guardar PDF")).toBeInTheDocument();
     expect(screen.getByTitle("Imprimir")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle("Vista previa"));
@@ -115,6 +116,11 @@ describe("ServiceDocumentsPage", () => {
 
     fireEvent.click(screen.getByText("Abrir impresión"));
     await waitFor(() => expect(window.open).toHaveBeenCalled());
+
+    write.mockClear();
+    fireEvent.click(screen.getByTitle("Guardar PDF"));
+    await waitFor(() => expect(write).toHaveBeenCalledWith(expect.stringContaining("window.print()")));
+    expect(write).toHaveBeenCalledWith(expect.stringContaining("Presupuesto de servicio"));
   });
 
   it("opens the AI assistant and renders a generated price preview", async () => {

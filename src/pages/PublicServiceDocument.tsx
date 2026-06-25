@@ -1,17 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Download } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_COMPANY_SETTINGS } from "@/contexts/company-brand-context";
 import { buildServiceDocumentPrintHtml } from "@/features/services/print";
-import { sanitizePdfFileName } from "@/features/services/share";
 import { usePublicServiceDocument } from "@/features/services/hooks/usePublicServiceDocument";
-import { downloadHtmlAsPdf } from "@/lib/download-html-pdf";
+import { openPrintWindow, withPrintDialogOnLoad } from "@/lib/print";
 
 export default function PublicServiceDocumentPage() {
   const { token } = useParams();
   const query = usePublicServiceDocument(token ?? null);
-  const [downloading, setDownloading] = useState(false);
   const payload = query.data;
 
   useEffect(() => {
@@ -29,7 +27,6 @@ export default function PublicServiceDocumentPage() {
   if (payload.status === "revoked") return <PublicMessage title="Este presupuesto ya no esta disponible" />;
   if (payload.status === "expired") return <PublicMessage title="Este link expiro" />;
 
-  const fileName = `Presupuesto-Servicio-SERV-${String(payload.document.number).padStart(6, "0")}-${sanitizePdfFileName(payload.document.customers?.name ?? "cliente")}`;
   const html = buildServiceDocumentPrintHtml({
     document: payload.document,
     lines: payload.lines,
@@ -43,20 +40,12 @@ export default function PublicServiceDocumentPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-slate-950">Presupuesto de servicio</p>
-            <p className="text-xs text-slate-500">Descargá el archivo PDF directamente.</p>
+            <p className="text-xs text-slate-500">Abrí la impresión y elegí Guardar como PDF.</p>
           </div>
           <Button
-            disabled={downloading}
-            onClick={async () => {
-              setDownloading(true);
-              try {
-                await downloadHtmlAsPdf(html, fileName);
-              } finally {
-                setDownloading(false);
-              }
-            }}
+            onClick={() => openPrintWindow(withPrintDialogOnLoad(html))}
           >
-            <Download className="mr-2 h-4 w-4" /> {downloading ? "Descargando..." : "Descargar PDF"}
+            <Download className="mr-2 h-4 w-4" /> Guardar PDF
           </Button>
         </div>
       </div>

@@ -18,8 +18,7 @@ import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { formatIsoDate, formatMoney } from "@/lib/formatters";
-import { openPrintWindow } from "@/lib/print";
-import { downloadHtmlAsPdf } from "@/lib/download-html-pdf";
+import { openPrintWindow, withPrintDialogOnLoad } from "@/lib/print";
 import { serviceDb } from "@/features/services/db";
 import { ServiceQuoteAiAssistantDialog } from "@/features/services/components/ServiceQuoteAiAssistantDialog";
 import { ServiceDocumentPreviewDialog } from "@/features/services/components/ServiceDocumentPreviewDialog";
@@ -249,6 +248,14 @@ export default function ServiceDocumentsPage() {
   };
 
   const downloadServicePdf = async (document: ServiceDocument) => {
+    const win = openPrintWindow(`<!doctype html><html><head><title>Preparando PDF...</title><style>
+      html,body{margin:0;padding:0;background:#fff}
+      body{font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#334155}
+      </style></head><body>Preparando documento para guardar como PDF...</body></html>`);
+    if (!win) {
+      toast({ title: "No se pudo abrir el documento", description: "Habilitá las ventanas emergentes para imprimir o guardar el PDF.", variant: "destructive" });
+      return;
+    }
     setDownloadingDocumentId(document.id);
     try {
       const [{ data: lineRows, error: linesError }, { data: attachmentRows, error: attachmentsError }] = await Promise.all([
@@ -268,9 +275,12 @@ export default function ServiceDocumentsPage() {
         attachments: documentAttachments,
         companySettings: settings,
       });
-      const fileName = `Presupuesto-Servicio-SERV-${String(document.number).padStart(6, "0")}`;
-      await downloadHtmlAsPdf(html, fileName);
+      win.document.open();
+      win.document.write(withPrintDialogOnLoad(html));
+      win.document.close();
+      win.focus();
     } catch (error) {
+      win.close();
       toast({ title: "No se pudo descargar el PDF", description: getErrorMessage(error), variant: "destructive" });
     } finally {
       setDownloadingDocumentId(null);
@@ -654,7 +664,7 @@ export default function ServiceDocumentsPage() {
                           <Link2 className="h-4 w-4" />
                         </Button>
                         {canPrintServiceDocuments ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-indigo-500 hover:text-indigo-400" title="Descargar PDF" onClick={() => void downloadServicePdf(document)} disabled={downloadingDocumentId === document.id}>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-indigo-500 hover:text-indigo-400" title="Guardar PDF" onClick={() => void downloadServicePdf(document)} disabled={downloadingDocumentId === document.id}>
                             <Download className="h-4 w-4" />
                           </Button>
                         ) : null}
