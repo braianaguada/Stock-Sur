@@ -101,7 +101,7 @@ export default function CustomersPage() {
 
         <DataCard>
           <CustomersDataTable
-            customers={pagination.items}
+            customers={pagination.pagedItems}
             isLoading={isLoading}
             onViewAccount={setAccountCustomer}
             onEdit={openEdit}
