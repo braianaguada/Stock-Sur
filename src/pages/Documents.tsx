@@ -47,6 +47,7 @@ import type {
 import { formatNumber } from "@/features/documents/utils";
 import { buildComboLines } from "@/features/combos/lib/buildComboLines";
 import { roundPrice } from "@/features/pricing/rounding";
+import { buildWhatsAppUrl } from "@/features/services/share";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 
@@ -595,6 +596,18 @@ export default function DocumentsPage() {
             if (!canPrintDocument(roles)) return;
             void printDocument(document);
           }}
+          onShare={(document) => {
+            const customer = customers.find((entry) => entry.id === document.customer_id);
+            const label = document.doc_type === "PRESUPUESTO" ? "presupuesto" : "remito";
+            const message = [
+              `Hola, te compartimos el ${label} N° ${formatNumber(document.document_number, document.point_of_sale)}.`,
+              "",
+              `Total: $${Number(document.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}`,
+              "",
+              "Podés solicitar la copia en PDF por este mismo medio.",
+            ].join("\n");
+            window.open(buildWhatsAppUrl({ phone: customer?.phone ?? "", message }), "_blank", "noopener,noreferrer");
+          }}
           onEditDraft={openEditDialog}
           onTransition={(documentId, targetStatus) => {
             const status = targetStatus as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO";
@@ -626,8 +639,7 @@ export default function DocumentsPage() {
             if (!confirmed) return;
             duplicateDocumentMutation.mutate(documentId, {
               onSuccess: (newDocumentId) => {
-                setSelectedDocId(newDocumentId);
-                setDetailOpen(true);
+                void openEditDialog(newDocumentId);
               },
             });
           }}
@@ -746,8 +758,8 @@ export default function DocumentsPage() {
               if (!confirmed) return;
               duplicateDocumentMutation.mutate(document.id, {
                 onSuccess: (newDocumentId) => {
-                  setSelectedDocId(newDocumentId);
-                  setDetailOpen(true);
+                  setDetailOpen(false);
+                  void openEditDialog(newDocumentId);
                 },
               });
             }}

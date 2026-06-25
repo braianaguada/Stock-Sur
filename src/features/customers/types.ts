@@ -6,6 +6,7 @@ export interface Customer {
   email: string | null;
   phone: string | null;
   is_occasional: boolean;
+  account_due_days: number;
   fiscal_profile?: CustomerFiscalProfile | null;
 }
 

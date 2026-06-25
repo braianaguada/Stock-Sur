@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
@@ -51,6 +52,8 @@ function formatCoverage(value: number | null, unit: "m" | "d") {
 }
 
 export default function StockPage() {
+  const [searchParams] = useSearchParams();
+  const linkedItemHandled = useRef(false);
   const [tab, setTab] = useState("summary");
   const [alertsPage, setAlertsPage] = useState(1);
   const [stockPage, setStockPage] = useState(1);
@@ -191,6 +194,30 @@ export default function StockPage() {
         return left.item_name.localeCompare(right.item_name);
       });
   }, [stockRows, healthFilter, demandFilter]);
+
+  useEffect(() => {
+    const itemId = searchParams.get("itemId");
+    if (!itemId || linkedItemHandled.current) return;
+    const item = stockRows.find((row) => row.item_id === itemId);
+    if (!item) return;
+
+    linkedItemHandled.current = true;
+    setTab(searchParams.get("tab") === "summary" ? "summary" : "current");
+    setSearch(item.item_sku);
+    if (searchParams.get("newMovement") === "1") {
+      openCreateMovement({
+        id: item.item_id,
+        name: item.item_name,
+        sku: item.item_sku,
+        unit: item.item_unit,
+        supplier: item.item_supplier,
+        brand: item.item_brand,
+        model: item.item_model,
+        attributes: item.item_attributes,
+        category: item.item_category,
+      });
+    }
+  }, [openCreateMovement, searchParams, setSearch, stockRows]);
   const stockPagination = usePaginationSlice({
     items: sortedStockRows,
     page: stockPage,

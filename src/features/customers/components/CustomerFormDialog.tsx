@@ -13,6 +13,7 @@ export type CustomerFormState = {
   email: string;
   phone: string;
   is_occasional: boolean;
+  account_due_days: string;
   fiscal_tax_id: string;
   fiscal_legal_name: string;
   fiscal_tax_condition: string;
@@ -166,6 +167,20 @@ export function CustomerFormDialog({
                 onChange={(event) => onFormChange({ ...form, email: event.target.value })}
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Días de vencimiento de cuenta corriente</Label>
+            <Input
+              type="number"
+              min={0}
+              max={3650}
+              step={1}
+              value={form.account_due_days}
+              onChange={(event) => onFormChange({ ...form, account_due_days: event.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Se aplica a los nuevos vencimientos del estado de cuenta de este cliente.
+            </p>
           </div>
           <p className="text-xs text-muted-foreground">Cliente ocasional no aplica: los clientes creados aqui son registrados.</p>
         </div>

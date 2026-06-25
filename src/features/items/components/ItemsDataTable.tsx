@@ -1,8 +1,8 @@
 import { memo, useMemo } from "react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { Boxes, Copy, Package, PackageX, Pencil, RotateCcw, Tags, Trash2 } from "lucide-react";
+import { Copy, Package, PackageX, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
-import { RowActionButton, RowActionLink, RowActions } from "@/components/common/RowActions";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
 import { Badge } from "@/components/ui/badge";
@@ -437,12 +437,6 @@ function ItemsDataTableComponent({
           <RowActionButton label="Copiar SKU" onClick={() => onCopySku(row.original)}>
             <Copy className="h-3.5 w-3.5" />
           </RowActionButton>
-          <RowActionLink label="Abrir stock" to={`/stock?itemId=${encodeURIComponent(row.original.id)}`}>
-            <Boxes className="h-3.5 w-3.5" />
-          </RowActionLink>
-          <RowActionLink label="Abrir precios" to={`/price-lists?itemId=${encodeURIComponent(row.original.id)}`}>
-            <Tags className="h-3.5 w-3.5" />
-          </RowActionLink>
           <RowActionButton label="Editar" tone="edit" onClick={() => onEdit(row.original)}>
             <Pencil className="h-3.5 w-3.5" />
           </RowActionButton>
@@ -472,7 +466,7 @@ function ItemsDataTableComponent({
       isLoading={isLoading}
       loadingMessage="Cargando..."
       emptyMessage="No se encontraron ítems"
-      className="table-fixed min-w-[2020px]"
+      className="table-fixed min-w-[1320px]"
       sorting={sorting}
       columnVisibility={columnVisibility}
       rowClassName="h-9"

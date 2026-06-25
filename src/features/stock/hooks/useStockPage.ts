@@ -113,11 +113,11 @@ export function useStockPage() {
     clearSessionDraft(NEW_STOCK_MOVEMENT_DRAFT_KEY);
   }, []);
 
-  const openCreateMovement = useCallback(() => {
+  const openCreateMovement = useCallback((item?: SearchableItem) => {
     setDialogOpen(true);
-    setForm(DEFAULT_STOCK_MOVEMENT_FORM);
-    setItemSearch("");
-    setSelectedItem(null);
+    setForm({ ...DEFAULT_STOCK_MOVEMENT_FORM, item_id: item?.id ?? "" });
+    setItemSearch(item ? `${item.sku} - ${item.name}` : "");
+    setSelectedItem(normalizeItem(item));
   }, []);
 
   const { data: recentItems = [] } = useQuery({

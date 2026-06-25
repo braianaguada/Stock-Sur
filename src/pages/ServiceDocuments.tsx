@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Eye, ImagePlus, Link2, Mail, MessageCircle, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { FilterBar, PageHeader } from "@/components/ui/page";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +36,7 @@ import type { ServiceDocument, ServiceDocumentAttachment, ServiceDocumentAttachm
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
 const ATTACHMENT_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const SERVICE_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 
 const SERVICE_STATUS_BADGE_CLASS: Record<ServiceDocumentStatus, string> = {
   DRAFT: "border-slate-500/30 bg-slate-500/10 text-slate-300",
@@ -68,6 +70,8 @@ export default function ServiceDocumentsPage() {
   const [shareLinkLoading, setShareLinkLoading] = useState(false);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const [pendingAiSuggestionId, setPendingAiSuggestionId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof SERVICE_PAGE_SIZE_OPTIONS)[number]>(10);
 
   const { customers, documents, selectedDocument, selectedLines, selectedAttachments, selectedEvents, eventUserNamesById, isLoading } = useServiceDocuments({
     companyId: currentCompany?.id ?? null,
@@ -81,6 +85,16 @@ export default function ServiceDocumentsPage() {
     if (form.pricing_mode === "GLOBAL_TOTAL") return Number(form.global_total || 0);
     return lines.reduce((sum, line) => sum + calculateServiceLineTotal(line), 0);
   }, [form.global_total, form.pricing_mode, lines]);
+  const totalPages = Math.max(1, Math.ceil(documents.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pagedDocuments = useMemo(
+    () => documents.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [documents, pageSize, safePage],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearch, status, customerFilter, pageSize]);
 
   useEffect(() => {
     if (!selectedDocument || !editingDocumentId) return;
@@ -566,7 +580,7 @@ export default function ServiceDocumentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {documents.map((document) => (
+                {pagedDocuments.map((document) => (
                   <TableRow key={document.id}>
                     <TableCell className="font-medium">{SERVICE_DOCUMENT_PREFIX}-{String(document.number).padStart(6, "0")}</TableCell>
                     <TableCell>{document.customers?.name ?? "Sin cliente"}</TableCell>
@@ -626,6 +640,20 @@ export default function ServiceDocumentsPage() {
             </Table>
           )}
         </section>
+        {documents.length > 0 ? (
+          <DataTablePagination
+            page={safePage}
+            totalPages={totalPages}
+            totalItems={documents.length}
+            rangeStart={(safePage - 1) * pageSize + 1}
+            rangeEnd={Math.min(safePage * pageSize, documents.length)}
+            pageSize={pageSize}
+            pageSizeOptions={SERVICE_PAGE_SIZE_OPTIONS}
+            onPageChange={setPage}
+            onPageSizeChange={(value) => setPageSize(value as (typeof SERVICE_PAGE_SIZE_OPTIONS)[number])}
+            itemLabel="presupuestos"
+          />
+        ) : null}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>

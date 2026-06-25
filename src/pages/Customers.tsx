@@ -14,11 +14,17 @@ import { CustomersDataTable } from "@/features/customers/components/CustomersDat
 import type { Customer } from "@/features/customers/types";
 import { useCustomersPage } from "@/features/customers/hooks/useCustomersPage";
 import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
+import { usePaginationSlice } from "@/hooks/use-pagination-slice";
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
 export default function CustomersPage() {
   const { currentCompany, user } = useAuth();
   const { toast } = useToast();
   const [accountCustomer, setAccountCustomer] = useState<Customer | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const {
     customerToDelete,
     customers,
@@ -41,6 +47,7 @@ export default function CustomersPage() {
     userId: user?.id,
     toast,
   });
+  const pagination = usePaginationSlice({ items: customers, page, pageSize });
 
   return (
     <AppLayout>
@@ -94,13 +101,28 @@ export default function CustomersPage() {
 
         <DataCard>
           <CustomersDataTable
-            customers={customers}
+            customers={pagination.items}
             isLoading={isLoading}
             onViewAccount={setAccountCustomer}
             onEdit={openEdit}
             onDelete={setCustomerToDelete}
           />
         </DataCard>
+        <DataTablePagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          rangeStart={pagination.rangeStart}
+          rangeEnd={pagination.rangeEnd}
+          pageSize={pageSize}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          onPageChange={setPage}
+          onPageSizeChange={(value) => {
+            setPage(1);
+            setPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number]);
+          }}
+          itemLabel="clientes"
+        />
       </div>
 
       <CustomerFormDialog

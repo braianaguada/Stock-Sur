@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { queryKeys } from "@/lib/query-keys";
@@ -176,7 +175,7 @@ export default function CombosPage() {
         companyId: currentCompany.id,
         comboId: form.id,
         name: form.name,
-        description: form.description,
+        description: "",
         isActive: form.is_active,
         lines: normalizedLines,
       });
@@ -292,7 +291,7 @@ export default function CombosPage() {
                       return [item?.name ?? "", item?.sku ?? "", line.notes ?? ""].join(" ");
                     })
                     .join(" ");
-                  return [combo.name, combo.description ?? "", lineText].join(" ").toLowerCase().includes(search.trim().toLowerCase());
+                  return [combo.name, lineText].join(" ").toLowerCase().includes(search.trim().toLowerCase());
                 })
                 .map(({ combo, lines }) => (
                   <button
@@ -304,8 +303,8 @@ export default function CombosPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="font-medium">{combo.name}</div>
-                        <div className="text-sm text-muted-foreground line-clamp-2">
-                          {combo.description ?? "Sin descripcion"}
+                        <div className="text-sm text-muted-foreground">
+                          {lines.length} producto{lines.length === 1 ? "" : "s"}
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
@@ -391,14 +390,6 @@ export default function CombosPage() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Descripción</Label>
-            <Textarea value={form.description} onChange={(event) => {
-              setIsDirty(true);
-              setForm((previous) => ({ ...previous, description: event.target.value }));
-            }} placeholder="Opcional" />
           </div>
 
           <div className="space-y-3 rounded-xl border bg-muted/10 p-3">

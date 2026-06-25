@@ -16,13 +16,14 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
-import { PackageX, Plus, Search } from "lucide-react";
+import { Boxes, CircleDollarSign, PackageX, Plus, Search } from "lucide-react";
 import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { invalidateItemQueries, invalidateStockQueries } from "@/lib/invalidate";
@@ -70,13 +71,13 @@ const DEFAULT_ITEM_COLUMN_VISIBILITY: VisibilityState = {
   main_price: true,
   margin_pct: true,
   operational_status: true,
-  supplier: true,
+  supplier: false,
   brand: true,
-  model: true,
+  model: false,
   attributes: false,
-  category: true,
+  category: false,
   unit: true,
-  demand_profile: true,
+  demand_profile: false,
   is_active: true,
   actions: true,
   select: true,
@@ -183,6 +184,7 @@ export default function ItemsPage() {
   const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "no_stock">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [createdItem, setCreatedItem] = useState<Item | null>(null);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
   const [aliasToDelete, setAliasToDelete] = useState<ItemAlias | null>(null);
   const [page, setPage] = useState(1);
@@ -623,6 +625,7 @@ export default function ItemsPage() {
       }
     },
     onSuccess: async (savedItem) => {
+      const wasCreating = !editingItem;
       if (currentCompany) {
         const currentCatalogKey = queryKeys.items.catalog(currentCompany.id, categoryFilter, statusFilter);
         qc.setQueryData<Item[]>(currentCatalogKey, (current = []) => {
@@ -647,6 +650,7 @@ export default function ItemsPage() {
       setEditingItem(null);
       setNewAlias("");
       setIsSupplierCode(false);
+      if (wasCreating) setCreatedItem(savedItem);
       toast({ title: editingItem ? "Ítem actualizado" : "Ítem creado" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -1111,6 +1115,34 @@ export default function ItemsPage() {
         onAddAlias={addAlias}
         onDeleteAlias={setAliasToDelete}
       />
+
+      <Dialog open={Boolean(createdItem)} onOpenChange={(open) => !open && setCreatedItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Completar alta del producto</DialogTitle>
+            <DialogDescription>
+              {createdItem?.name} ya fue creado. Podés continuar con su costo base y stock inicial.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button asChild variant="outline" className="h-auto justify-start gap-3 py-4">
+              <Link to={`/price-lists?tab=base&itemId=${encodeURIComponent(createdItem?.id ?? "")}`} onClick={() => setCreatedItem(null)}>
+                <CircleDollarSign className="h-5 w-5" />
+                Asignar costo base
+              </Link>
+            </Button>
+            <Button asChild className="h-auto justify-start gap-3 py-4">
+              <Link to={`/stock?tab=current&itemId=${encodeURIComponent(createdItem?.id ?? "")}&newMovement=1`} onClick={() => setCreatedItem(null)}>
+                <Boxes className="h-5 w-5" />
+                Cargar stock inicial
+              </Link>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setCreatedItem(null)}>Completar después</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDeleteDialog
         open={!!itemToDelete}

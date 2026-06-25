@@ -184,8 +184,15 @@ export default function PriceListsPage() {
   }, [tabFromQuery]);
 
   useEffect(() => {
-    if (itemIdFromQuery) setModuleTab("lists");
-  }, [itemIdFromQuery]);
+    if (!itemIdFromQuery) return;
+    setModuleTab(tabFromQuery === "base" ? "base" : "lists");
+  }, [itemIdFromQuery, tabFromQuery]);
+
+  useEffect(() => {
+    if (!itemIdFromQuery || tabFromQuery !== "base") return;
+    const selectedBaseRow = baseRows.find((row) => row.item_id === itemIdFromQuery);
+    if (selectedBaseRow) setBaseSearch(selectedBaseRow.sku);
+  }, [baseRows, itemIdFromQuery, tabFromQuery]);
 
   useEffect(() => {
     if (!storageKey || typeof window === "undefined") return;
@@ -540,7 +547,7 @@ export default function PriceListsPage() {
               </DataCard>
             ) : null}
 
-            <DataCard className="space-y-4">
+            <DataCard className="space-y-4 p-4 sm:p-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h3 className="text-base font-semibold">Listas configuradas</h3>
