@@ -24,7 +24,10 @@ describe("PDF download", () => {
     const handle = { createWritable: vi.fn().mockResolvedValue({ write, close }) };
     const picker = vi.fn().mockResolvedValue(handle);
     (window as Window & { showSaveFilePicker?: typeof picker }).showSaveFilePicker = picker;
-    const fetchMock = vi.fn().mockResolvedValue(new Response(new Blob(["pdf"], { type: "application/pdf" }), { status: 200 }));
+    const fetchMock = vi.fn().mockResolvedValue(new Response("pdf", {
+      status: 200,
+      headers: { "content-type": "application/pdf" },
+    }));
     vi.stubGlobal("fetch", fetchMock);
 
     const target = await choosePdfSaveTarget("Presupuesto 12");
@@ -40,7 +43,11 @@ describe("PDF download", () => {
       method: "POST",
       body: expect.stringContaining('"mode":"public"'),
     }));
-    expect(write).toHaveBeenCalledWith(expect.any(Blob));
+    const writtenFile = write.mock.calls[0]?.[0] as Blob;
+    expect(writtenFile).toEqual(expect.objectContaining({
+      size: 3,
+      type: "application/pdf",
+    }));
     expect(close).toHaveBeenCalled();
   });
 
