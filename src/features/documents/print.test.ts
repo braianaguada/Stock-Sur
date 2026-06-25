@@ -50,6 +50,17 @@ const line: Pick<
 };
 
 describe("buildDocumentPrintHtml", () => {
+  it("destaca visualmente las notas para impresión", () => {
+    const html = buildDocumentPrintHtml({
+      document: { ...document, notes: "Entregar únicamente por la mañana" },
+      lines: [],
+      companySettings: DEFAULT_COMPANY_SETTINGS,
+    });
+    expect(html).toContain("Entregar únicamente por la mañana");
+    expect(html).toContain(".notes{min-height:17mm;border:2px solid var(--accent)");
+    expect(html).toContain("font-size:10px;font-weight:700");
+  });
+
   it("builds a compact fixed A4 print layout with document data", () => {
     const html = buildDocumentPrintHtml({
       document,

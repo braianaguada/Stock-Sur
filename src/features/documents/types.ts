@@ -117,6 +117,17 @@ export interface DocEventRow {
   created_by: string | null;
 }
 
+export interface DocumentShareLink {
+  id: string;
+  company_id: string;
+  document_id: string;
+  token: string;
+  enabled: boolean;
+  expires_at: string | null;
+  created_at: string;
+  last_accessed_at: string | null;
+}
+
 export interface PriceListRow {
   id: string;
   name: string;

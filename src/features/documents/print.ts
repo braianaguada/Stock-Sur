@@ -143,9 +143,9 @@ export function buildDocumentPrintHtml({
     .meta-line{display:grid;grid-template-columns:22mm minmax(0,1fr);gap:2mm;align-items:baseline;padding:.5mm 0}
     .meta-line span{font-size:7.3px}
     .meta-line strong{font-size:8.7px;font-weight:650;overflow-wrap:anywhere}
-    .notes{min-height:15mm;border:1px dashed #c8d1df;border-radius:6px;padding:2.8mm;background:#fbfcfe}
-    .notes strong{display:block;margin-bottom:1.5mm;color:#475569;font-size:7.5px;letter-spacing:.16em;text-transform:uppercase}
-    .notes pre{margin:0;color:#334155;font-family:inherit;font-size:8.3px;line-height:1.35;white-space:pre-wrap}
+    .notes{min-height:17mm;border:2px solid var(--accent);border-radius:7px;padding:3.2mm 3.5mm;background:var(--accent-soft);box-shadow:inset 4px 0 0 var(--accent)}
+    .notes strong{display:block;margin-bottom:1.8mm;color:var(--accent-ink);font-size:8.5px;font-weight:950;letter-spacing:.14em;text-transform:uppercase}
+    .notes pre{margin:0;color:#0f172a;font-family:inherit;font-size:10px;font-weight:700;line-height:1.45;white-space:pre-wrap}
     .service-notes{margin-top:3.6mm}
     .lines-section{margin-top:4.5mm}
     .section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:4mm;margin-bottom:1.8mm}

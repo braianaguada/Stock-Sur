@@ -1,15 +1,17 @@
-import { useEffect } from "react";
-import { Printer } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_COMPANY_SETTINGS } from "@/contexts/company-brand-context";
 import { buildServiceDocumentPrintHtml } from "@/features/services/print";
 import { sanitizePdfFileName } from "@/features/services/share";
 import { usePublicServiceDocument } from "@/features/services/hooks/usePublicServiceDocument";
+import { downloadHtmlAsPdf } from "@/lib/download-html-pdf";
 
 export default function PublicServiceDocumentPage() {
   const { token } = useParams();
   const query = usePublicServiceDocument(token ?? null);
+  const [downloading, setDownloading] = useState(false);
   const payload = query.data;
 
   useEffect(() => {
@@ -41,15 +43,20 @@ export default function PublicServiceDocumentPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-slate-950">Presupuesto de servicio</p>
-            <p className="text-xs text-slate-500">Usa imprimir para descargar o guardar como PDF.</p>
+            <p className="text-xs text-slate-500">Descargá el archivo PDF directamente.</p>
           </div>
           <Button
-            onClick={() => {
-              document.title = `${fileName}.pdf`;
-              window.print();
+            disabled={downloading}
+            onClick={async () => {
+              setDownloading(true);
+              try {
+                await downloadHtmlAsPdf(html, fileName);
+              } finally {
+                setDownloading(false);
+              }
             }}
           >
-            <Printer className="mr-2 h-4 w-4" /> Descargar PDF
+            <Download className="mr-2 h-4 w-4" /> {downloading ? "Descargando..." : "Descargar PDF"}
           </Button>
         </div>
       </div>
