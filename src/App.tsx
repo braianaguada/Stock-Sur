@@ -37,6 +37,7 @@ const ServiceDocumentsPage = lazy(() => import("./pages/ServiceDocuments"));
 const ServiceJobsPage = lazy(() => import("./pages/ServiceJobs"));
 const PrintServiceDocumentPage = lazy(() => import("./pages/PrintServiceDocument"));
 const PublicServiceDocumentPage = lazy(() => import("./pages/PublicServiceDocument"));
+const PublicDocumentPage = lazy(() => import("./pages/PublicDocument"));
 const CustomersPage = lazy(() => import("./pages/Customers"));
 const OccasionalCustomerPage = lazy(() => import("./pages/OccasionalCustomer"));
 const CustomerAccountPage = lazy(() => import("./pages/CustomerAccount"));
@@ -98,6 +99,7 @@ const App = () => (
                 <Routes>
                   <Route path="/auth" element={<AuthRedirect />} />
                   <Route path="/public/service-document/:token" element={<PublicServiceDocumentPage />} />
+                  <Route path="/public/document/:token" element={<PublicDocumentPage />} />
                   <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                   <Route path="/items" element={<ProtectedRoute><ItemsPage /></ProtectedRoute>} />
                   <Route path="/combos" element={<ProtectedRoute><CombosPage /></ProtectedRoute>} />

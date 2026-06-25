@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Eye, ImagePlus, Link2, Mail, MessageCircle, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { formatIsoDate, formatMoney } from "@/lib/formatters";
 import { openPrintWindow } from "@/lib/print";
+import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "@/lib/pdf-download";
 import { serviceDb } from "@/features/services/db";
 import { ServiceQuoteAiAssistantDialog } from "@/features/services/components/ServiceQuoteAiAssistantDialog";
 import { ServiceDocumentPreviewDialog } from "@/features/services/components/ServiceDocumentPreviewDialog";
@@ -68,6 +69,7 @@ export default function ServiceDocumentsPage() {
   const [shareSubject, setShareSubject] = useState("");
   const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
   const [shareLinkLoading, setShareLinkLoading] = useState(false);
+  const [downloadingDocumentId, setDownloadingDocumentId] = useState<string | null>(null);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const [pendingAiSuggestionId, setPendingAiSuggestionId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -244,6 +246,51 @@ export default function ServiceDocumentsPage() {
     win.document.write(buildServiceDocumentPrintHtml({ document, lines: documentLines, attachments: documentAttachments, companySettings: settings }));
     win.document.close();
     win.focus();
+  };
+
+  const downloadServicePdf = async (document: ServiceDocument) => {
+    const fileName = `Presupuesto-Servicio-SERV-${String(document.number).padStart(6, "0")}.pdf`;
+    let target;
+    try {
+      target = await choosePdfSaveTarget(fileName);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast({ title: "No se pudo seleccionar el archivo", description: getErrorMessage(error), variant: "destructive" });
+      return;
+    }
+
+    setDownloadingDocumentId(document.id);
+    try {
+      const [{ data: lineRows, error: linesError }, { data: attachmentRows, error: attachmentsError }] = await Promise.all([
+        serviceDb.from("service_document_lines").select("id, document_id, description, quantity, unit, unit_price, line_total, sort_order").eq("document_id", document.id).order("sort_order"),
+        serviceDb.from("service_document_attachments").select("*").eq("service_document_id", document.id).eq("include_in_print", true).order("sort_order"),
+      ]);
+      if (linesError) throw linesError;
+      if (attachmentsError) throw attachmentsError;
+      const documentAttachments = await Promise.all(((attachmentRows ?? []) as ServiceDocumentAttachment[]).map(async (attachment) => {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data } = await supabase.storage.from(attachment.storage_bucket).createSignedUrl(attachment.storage_path, 60 * 30);
+        return { ...attachment, signed_url: data?.signedUrl ?? null };
+      }));
+      const html = buildServiceDocumentPrintHtml({
+        document,
+        lines: (lineRows ?? []) as ServiceDocumentLine[],
+        attachments: documentAttachments,
+        companySettings: settings,
+      });
+      await savePrintHtmlAsPdf({
+        html,
+        fileName,
+        proof: { mode: "authenticated", kind: "service", documentId: document.id },
+        target,
+      });
+      toast({ title: "PDF guardado" });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast({ title: "No se pudo descargar el PDF", description: getErrorMessage(error), variant: "destructive" });
+    } finally {
+      setDownloadingDocumentId(null);
+    }
   };
 
   const triggerTransition = (document: ServiceDocument, targetStatus: ServiceDocumentStatus) => {
@@ -622,6 +669,11 @@ export default function ServiceDocumentsPage() {
                         <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-500 hover:text-emerald-400" title="Compartir" onClick={() => void openShare(document)}>
                           <Link2 className="h-4 w-4" />
                         </Button>
+                        {canPrintServiceDocuments ? (
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-indigo-500 hover:text-indigo-400" title="Guardar PDF" onClick={() => void downloadServicePdf(document)} disabled={downloadingDocumentId === document.id}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        ) : null}
                         {canPrintServiceDocuments ? (
                           <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-amber-500 hover:text-amber-400" title="Imprimir" onClick={() => void openServicePrint(document)}>
                             <Printer className="h-4 w-4" />

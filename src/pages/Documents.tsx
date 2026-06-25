@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
@@ -24,7 +25,7 @@ import {
   canTransitionDocumentTo,
 } from "@/lib/permissions";
 import { openPrintWindow } from "@/lib/print";
-import { Plus, Search } from "lucide-react";
+import { Copy, Link2, MessageCircle, Plus, Search, Unlink } from "lucide-react";
 import { FilterBar, PageHeader } from "@/components/ui/page";
 import { EMPTY_LINE } from "@/features/documents/constants";
 import { DocumentsDataTable } from "@/features/documents/components/DocumentsDataTable";
@@ -35,6 +36,7 @@ import { buildDocumentLineFromItem } from "@/features/documents/lib/buildDocumen
 import { mergeComboDocumentLines } from "@/features/documents/lib/mergeComboDocumentLines";
 import { DUPLICATE_DOCUMENT_CONFIRMATION } from "@/features/documents/lib/duplicate";
 import { buildDocumentPrintHtml } from "@/features/documents/print";
+import { buildDocumentShareMessage, buildPublicDocumentUrl } from "@/features/documents/share";
 import type {
   CustomerKind,
   DocLineRow,
@@ -42,6 +44,7 @@ import type {
   DocStatus,
   DocType,
   DocumentFormState,
+  DocumentShareLink,
   InternalRemitoType,
   LineDraft,
   PriceListItemRow,
@@ -119,6 +122,9 @@ export default function DocumentsPage() {
   const [shareDocument, setShareDocument] = useState<DocRow | null>(null);
   const [shareCustomerId, setShareCustomerId] = useState("");
   const [sharePhone, setSharePhone] = useState("");
+  const [shareLink, setShareLink] = useState<DocumentShareLink | null>(null);
+  const [shareMessageText, setShareMessageText] = useState("");
+  const [shareLinkLoading, setShareLinkLoading] = useState(false);
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [documentsPage, setDocumentsPage] = useState(1);
   const [documentsPageSize, setDocumentsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
@@ -205,18 +211,6 @@ export default function DocumentsPage() {
   const selectedServiceOption = selectedDocument?.service_id
     ? serviceOptionsById.get(selectedDocument.service_id) ?? null
     : null;
-  const shareMessage = useMemo(() => {
-    if (!shareDocument) return "";
-    const label = shareDocument.doc_type === "PRESUPUESTO" ? "presupuesto" : "remito";
-    return [
-      `Hola, te compartimos el ${label} N° ${formatNumber(shareDocument.document_number, shareDocument.point_of_sale)}.`,
-      "",
-      `Total: $${Number(shareDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}`,
-      "",
-      "Podés solicitar la copia en PDF por este mismo medio.",
-    ].join("\n");
-  }, [shareDocument]);
-
   useEffect(() => {
     if (!linkedDocumentId) return;
     setSelectedDocId(linkedDocumentId);
@@ -503,6 +497,79 @@ export default function DocumentsPage() {
     }
   };
 
+  const openDocumentShare = async (document: DocRow) => {
+    if (document.doc_type === "REMITO_DEVOLUCION") {
+      toast({ title: "Documento no compartible", description: "Los links públicos están disponibles para presupuestos y remitos." });
+      return;
+    }
+    setShareDocument(document);
+    setShareCustomerId(document.customer_id ?? "");
+    setSharePhone(customers.find((customer) => customer.id === document.customer_id)?.phone ?? "");
+    setShareLink(null);
+    setShareMessageText("");
+    setShareLinkLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("document_share_links")
+        .select("*")
+        .eq("document_id", document.id)
+        .eq("enabled", true)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      const activeLink = ((data ?? []) as unknown as DocumentShareLink[])[0] ?? null;
+      setShareLink(activeLink);
+      if (activeLink) setShareMessageText(buildDocumentShareMessage(document, buildPublicDocumentUrl(activeLink.token)));
+    } catch (error) {
+      toast({ title: "No se pudo consultar el link", description: getErrorMessage(error), variant: "destructive" });
+    } finally {
+      setShareLinkLoading(false);
+    }
+  };
+
+  const ensureDocumentShareLink = async () => {
+    if (!shareDocument) return null;
+    if (shareLink?.enabled) return shareLink;
+    setShareLinkLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("create_document_share_link", {
+        p_document_id: shareDocument.id,
+        p_expires_at: null,
+      });
+      if (error) throw error;
+      const link = data as unknown as DocumentShareLink;
+      setShareLink(link);
+      setShareMessageText(buildDocumentShareMessage(shareDocument, buildPublicDocumentUrl(link.token)));
+      return link;
+    } catch (error) {
+      toast({ title: "No se pudo generar el link", description: getErrorMessage(error), variant: "destructive" });
+      return null;
+    } finally {
+      setShareLinkLoading(false);
+    }
+  };
+
+  const revokeDocumentShareLink = async () => {
+    if (!shareLink) return;
+    const { error } = await supabase.rpc("revoke_document_share_link", { p_token: shareLink.token });
+    if (error) {
+      toast({ title: "No se pudo revocar", description: getErrorMessage(error), variant: "destructive" });
+      return;
+    }
+    setShareLink({ ...shareLink, enabled: false });
+    setShareMessageText("");
+    toast({ title: "Link revocado" });
+  };
+
+  const getDocumentShareMessage = async () => {
+    if (!shareDocument) return null;
+    const link = await ensureDocumentShareLink();
+    if (!link?.enabled) return null;
+    const message = buildDocumentShareMessage(shareDocument, buildPublicDocumentUrl(link.token));
+    setShareMessageText(message);
+    return message;
+  };
+
   return (
     <AppLayout>
       <div className="page-shell">
@@ -612,11 +679,7 @@ export default function DocumentsPage() {
             if (!canPrintDocument(roles)) return;
             void printDocument(document);
           }}
-          onShare={(document) => {
-            setShareDocument(document);
-            setShareCustomerId("");
-            setSharePhone("");
-          }}
+          onShare={(document) => void openDocumentShare(document)}
           onEditDraft={openEditDialog}
           onTransition={(documentId, targetStatus) => {
             const status = targetStatus as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO";
@@ -784,14 +847,40 @@ export default function DocumentsPage() {
           if (!open) {
             setShareDocument(null);
             setShareCustomerId("");
+            setShareLink(null);
+            setShareMessageText("");
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Compartir por WhatsApp</DialogTitle>
+            <DialogTitle>Compartir documento</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <section className="rounded-lg border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">Link público seguro</p>
+                  <p className="text-xs text-muted-foreground">{shareLink?.enabled ? "Activo" : shareLink ? "Revocado" : "No generado"}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={() => void ensureDocumentShareLink()} disabled={shareLinkLoading}>
+                    <Link2 className="mr-2 h-4 w-4" /> {shareLinkLoading ? "Generando..." : "Generar link"}
+                  </Button>
+                  <Button type="button" variant="outline" disabled={!shareLink?.enabled} onClick={() => {
+                    if (!shareLink) return;
+                    void navigator.clipboard.writeText(buildPublicDocumentUrl(shareLink.token));
+                    toast({ title: "Link copiado" });
+                  }}>
+                    <Copy className="mr-2 h-4 w-4" /> Copiar
+                  </Button>
+                  <Button type="button" variant="outline" disabled={!shareLink?.enabled} onClick={() => void revokeDocumentShareLink()}>
+                    <Unlink className="mr-2 h-4 w-4" /> Revocar
+                  </Button>
+                </div>
+              </div>
+              {shareLink?.enabled ? <Input className="mt-3" readOnly value={buildPublicDocumentUrl(shareLink.token)} /> : null}
+            </section>
             <div className="space-y-2">
               <Label>Contacto guardado</Label>
               <Select
@@ -825,6 +914,15 @@ export default function DocumentsPage() {
               />
               <p className="text-xs text-muted-foreground">Podés elegir un contacto o escribir el número manualmente.</p>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="document-share-message">Mensaje</Label>
+              <Textarea
+                id="document-share-message"
+                rows={6}
+                value={shareMessageText}
+                onChange={(event) => setShareMessageText(event.target.value)}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -833,20 +931,21 @@ export default function DocumentsPage() {
               onClick={() => {
                 setShareDocument(null);
                 setShareCustomerId("");
+                setShareLink(null);
               }}
             >
               Cancelar
             </Button>
             <Button
               type="button"
-              disabled={!sharePhone.trim()}
-              onClick={() => {
-                window.open(buildWhatsAppUrl({ phone: sharePhone, message: shareMessage }), "_blank", "noopener,noreferrer");
-                setShareDocument(null);
-                setShareCustomerId("");
+              disabled={shareLinkLoading}
+              onClick={async () => {
+                const message = shareMessageText || await getDocumentShareMessage();
+                if (!message) return;
+                window.open(buildWhatsAppUrl({ phone: sharePhone, message }), "_blank", "noopener,noreferrer");
               }}
             >
-              Abrir WhatsApp
+              <MessageCircle className="mr-2 h-4 w-4" /> Abrir WhatsApp
             </Button>
           </DialogFooter>
         </DialogContent>
