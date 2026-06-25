@@ -44,7 +44,6 @@ function renderTable(operationalMeta = meta) {
           sortDirection="asc"
           stockByItemId={new Map([["item-1", 10]])}
           operationalMetaByItemId={new Map([["item-1", operationalMeta]])}
-          priceRoundingConfig={{ enabled: true, increment: 500 }}
           onSort={vi.fn()}
           onSelectionChange={vi.fn()}
           onEdit={vi.fn()}
@@ -58,12 +57,11 @@ function renderTable(operationalMeta = meta) {
 }
 
 describe("ItemsDataTable", () => {
-  it("uses the same rounded operational price criterion for the main price", () => {
+  it("does not render the removed main price column", () => {
     renderTable();
 
-    expect(screen.getByText("$ 1.500")).toBeInTheDocument();
-    expect(screen.getByLabelText("Redondeado desde $ 1.256")).toBeInTheDocument();
-    expect(screen.getByText("Original $ 1.256")).toBeInTheDocument();
+    expect(screen.queryByText("Precio principal")).not.toBeInTheDocument();
+    expect(screen.queryByText("$ 1.500")).not.toBeInTheDocument();
   });
 
   it("does not mutate the operational metadata source while rendering", () => {

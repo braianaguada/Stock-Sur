@@ -151,6 +151,7 @@ vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
   return {
     ...actual,
+    useNavigate: () => vi.fn(),
     useSearchParams: () => [new URLSearchParams("tab=lists&itemId=item-1"), setSearchParams],
   };
 });

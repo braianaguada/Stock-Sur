@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { BasePriceRow } from "@/features/price-lists/types";
-import { formatIsoDate } from "@/lib/formatters";
+import { formatTimestampDate } from "@/lib/formatters";
 import { formatMoney, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
 
 type BasePricesTableProps = {
@@ -105,7 +105,7 @@ export function BasePricesTable({
         </div>
       ),
       meta: {
-        className: "w-[280px]",
+        className: "w-[340px]",
       },
     },
     {
@@ -199,15 +199,15 @@ export function BasePricesTable({
         );
       },
       meta: {
-        className: "w-[110px]",
+        className: "w-[100px]",
       },
     },
     {
       accessorKey: "updated_at",
       header: () => "Última actualización",
-      cell: ({ row }) => <span className="whitespace-nowrap text-sm text-muted-foreground">{formatIsoDate(row.original.updated_at)}</span>,
+      cell: ({ row }) => <span className="whitespace-nowrap text-sm text-muted-foreground">{formatTimestampDate(row.original.updated_at)}</span>,
       meta: {
-        className: "w-[130px]",
+        className: "w-[150px]",
       },
     },
     {
@@ -224,7 +224,7 @@ export function BasePricesTable({
           columns={columns}
           data={rows}
           emptyMessage="No hay productos para mostrar."
-          className="table-fixed min-w-[1580px]"
+          className="table-fixed min-w-[1780px]"
           columnVisibility={columnVisibility}
           getRowId={(row) => row.item_id}
           rowClassName={showAttributesInline ? "h-14" : "h-12"}

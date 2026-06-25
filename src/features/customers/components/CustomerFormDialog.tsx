@@ -264,17 +264,17 @@ export function CustomerFormDialog({
                 </p>
               ) : null}
               {technicalState ? <p className="break-words text-muted-foreground">Estado tecnico QA: {technicalState}</p> : null}
-              {diagnostics.availableTaxDescriptions.length > 0 ? (
+              {(diagnostics.availableTaxDescriptions ?? []).length > 0 ? (
                 <p className="break-words text-muted-foreground">
-                  Impuestos detectados: {diagnostics.availableTaxDescriptions.join(", ")}
+                  Impuestos detectados: {(diagnostics.availableTaxDescriptions ?? []).join(", ")}
                 </p>
               ) : null}
             </div>
           ) : null}
 
-          {!invoiceAReadiness.allowed && invoiceAReadiness.reasons.length > 0 ? (
+          {!invoiceAReadiness.allowed && (invoiceAReadiness.reasons ?? []).length > 0 ? (
             <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-              {invoiceAReadiness.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+              {(invoiceAReadiness.reasons ?? []).map((reason) => <li key={reason}>{reason}</li>)}
             </ul>
           ) : null}
 

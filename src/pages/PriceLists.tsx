@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchAllPages } from "@/lib/supabase-pagination";
@@ -88,6 +88,7 @@ const pricingChipClass = {
 export default function PriceListsPage() {
   const { currentCompany, user } = useAuth();
   const { settings: companySettings } = useCompanyBrand();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const storageKey = currentCompany ? `${PRICE_LISTS_UI_STATE_KEY}:${currentCompany.id}` : null;
   const baseColumnsStorageKey = `${PRICE_BASE_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
@@ -117,6 +118,7 @@ export default function PriceListsPage() {
   const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "no_stock">("all");
   const itemIdFromQuery = searchParams.get("itemId");
   const tabFromQuery = searchParams.get("tab");
+  const isProductSetup = searchParams.get("setup") === "1" && Boolean(itemIdFromQuery);
   const priceRoundingConfig = useMemo(
     () => ({
       enabled: companySettings.price_rounding_enabled,
@@ -344,9 +346,18 @@ export default function PriceListsPage() {
 
   const handleSaveBaseCost = useCallback(
     (itemId: string, nextBaseCost: number) => {
-      updateBaseCostMutation.mutate({ itemId, baseCost: nextBaseCost });
+      updateBaseCostMutation.mutate(
+        { itemId, baseCost: nextBaseCost },
+        {
+          onSuccess: () => {
+            if (isProductSetup) {
+              navigate(`/stock?tab=current&itemId=${encodeURIComponent(itemId)}&newMovement=1&setup=1`);
+            }
+          },
+        },
+      );
     },
-    [updateBaseCostMutation],
+    [isProductSetup, navigate, updateBaseCostMutation],
   );
 
   const toggleBaseColumnVisibility = useCallback(
@@ -423,6 +434,15 @@ export default function PriceListsPage() {
 
         <Tabs value={moduleTab} onValueChange={setModuleTab}>
           <TabsContent value="base" className="space-y-5 pt-1">
+            {isProductSetup ? (
+              <DataCard className="flex flex-col gap-3 border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">Paso 1 de 2: asignar costo base</p>
+                  <p className="text-sm text-muted-foreground">Al guardar el costo se abrirá automáticamente la carga de stock inicial.</p>
+                </div>
+                <Badge variant="secondary">Alta guiada</Badge>
+              </DataCard>
+            ) : null}
             <Collapsible open={baseColumnsOpen} onOpenChange={setBaseColumnsOpen}>
               <FilterBar>
                 <div className="relative max-w-sm min-w-[260px] flex-1">
@@ -682,7 +702,6 @@ export default function PriceListsPage() {
             priceListId: selectedListId,
             enabled: values.enabled,
             price: values.price,
-            note: values.note,
           });
         }}
         isSavingProductOverride={updateProductOverrideMutation.isPending}

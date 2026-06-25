@@ -68,7 +68,6 @@ const DEFAULT_ITEM_COLUMN_VISIBILITY: VisibilityState = {
   name: true,
   stock: true,
   base_cost: true,
-  main_price: true,
   margin_pct: true,
   operational_status: true,
   supplier: false,
@@ -87,7 +86,6 @@ const ITEM_COLUMN_OPTIONS: Array<{ id: keyof typeof DEFAULT_ITEM_COLUMN_VISIBILI
   { id: "name", label: "Nombre" },
   { id: "stock", label: "Stock" },
   { id: "base_cost", label: "Costo base" },
-  { id: "main_price", label: "Precio principal" },
   { id: "margin_pct", label: "Margen" },
   { id: "operational_status", label: "Estado operativo" },
   { id: "supplier", label: "Proveedor" },
@@ -1070,7 +1068,6 @@ export default function ItemsPage() {
             sortDirection={sortDirection}
             stockByItemId={stockByItemId}
             operationalMetaByItemId={operationalMetaByItemId}
-            priceRoundingConfig={priceRoundingConfig}
             onSort={toggleSort}
             onSelectionChange={setSelectedItemIds}
             onEdit={openEdit}
@@ -1126,15 +1123,15 @@ export default function ItemsPage() {
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             <Button asChild variant="outline" className="h-auto justify-start gap-3 py-4">
-              <Link to={`/price-lists?tab=base&itemId=${encodeURIComponent(createdItem?.id ?? "")}`} onClick={() => setCreatedItem(null)}>
+              <Link to={`/price-lists?tab=base&itemId=${encodeURIComponent(createdItem?.id ?? "")}&setup=1`} onClick={() => setCreatedItem(null)}>
                 <CircleDollarSign className="h-5 w-5" />
-                Asignar costo base
+                Comenzar: costo y stock
               </Link>
             </Button>
-            <Button asChild className="h-auto justify-start gap-3 py-4">
-              <Link to={`/stock?tab=current&itemId=${encodeURIComponent(createdItem?.id ?? "")}&newMovement=1`} onClick={() => setCreatedItem(null)}>
+            <Button asChild variant="ghost" className="h-auto justify-start gap-3 py-4">
+              <Link to={`/stock?tab=current&itemId=${encodeURIComponent(createdItem?.id ?? "")}&newMovement=1&setup=1`} onClick={() => setCreatedItem(null)}>
                 <Boxes className="h-5 w-5" />
-                Cargar stock inicial
+                Ir directo al stock
               </Link>
             </Button>
           </div>

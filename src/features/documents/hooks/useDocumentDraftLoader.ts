@@ -14,7 +14,16 @@ type LoadedDocumentDraft = {
 
 export function useDocumentDraftLoader({ documentsById }: UseDocumentDraftLoaderParams) {
   return useCallback(async (docId: string): Promise<LoadedDocumentDraft> => {
-    const target = documentsById.get(docId);
+    let target = documentsById.get(docId);
+    if (!target) {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("id", docId)
+        .maybeSingle();
+      if (error) throw error;
+      target = data as DocRow | null | undefined;
+    }
     if (!target || target.status !== "BORRADOR") {
       throw new Error("El borrador que intentas editar ya no esta disponible. Recarga Documentos e intenta de nuevo");
     }

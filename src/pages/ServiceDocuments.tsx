@@ -581,7 +581,7 @@ export default function ServiceDocumentsPage() {
               </TableHeader>
               <TableBody>
                 {pagedDocuments.map((document) => (
-                  <TableRow key={document.id}>
+                  <TableRow key={document.id} className="h-14">
                     <TableCell className="font-medium">{SERVICE_DOCUMENT_PREFIX}-{String(document.number).padStart(6, "0")}</TableCell>
                     <TableCell>{document.customers?.name ?? "Sin cliente"}</TableCell>
                     <TableCell>{formatIsoDate(document.issue_date)}</TableCell>
@@ -634,6 +634,11 @@ export default function ServiceDocumentsPage() {
                         ) : null}
                       </div>
                     </TableCell>
+                  </TableRow>
+                ))}
+                {Array.from({ length: Math.max(0, pageSize - pagedDocuments.length) }, (_, index) => (
+                  <TableRow key={`empty-${index}`} className="h-14" aria-hidden="true">
+                    <TableCell colSpan={6} />
                   </TableRow>
                 ))}
               </TableBody>

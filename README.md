@@ -775,6 +775,7 @@ Migrations are stored in:
 - Product creation now offers direct follow-up actions for base cost and initial stock.
 - Documents support a global manual discount and direct WhatsApp sharing.
 - Main operational tables use the shared shadcn table and pagination patterns where applicable.
+- Product setup guides cost and stock entry; product, base-price, service, customer and document workflows include the latest table and navigation fixes.
 
 Step 1 - deploy to staging:
 

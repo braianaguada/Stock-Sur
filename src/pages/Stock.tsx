@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
@@ -53,6 +53,8 @@ function formatCoverage(value: number | null, unit: "m" | "d") {
 
 export default function StockPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const setupItemId = searchParams.get("setup") === "1" ? searchParams.get("itemId") : null;
   const linkedItemHandled = useRef(false);
   const [tab, setTab] = useState("summary");
   const [alertsPage, setAlertsPage] = useState(1);
@@ -252,6 +254,17 @@ export default function StockPage() {
             </Button>
           )}
         />
+        {setupItemId ? (
+          <DataCard className="flex flex-col gap-3 border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium">Paso 2 de 2: cargar stock inicial</p>
+              <p className="text-sm text-muted-foreground">Guardá el movimiento y después finalizá el alta del producto.</p>
+            </div>
+            <Button type="button" variant="outline" onClick={() => navigate("/items")}>
+              Finalizar alta
+            </Button>
+          </DataCard>
+        ) : null}
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsContent value="summary" className="space-y-6 pt-1">
