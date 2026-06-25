@@ -9,7 +9,7 @@ const TABLE_BADGE_TONE_CLASS: Record<TableBadgeTone, string> = {
   primary: "border-primary/20 bg-primary/10 text-primary",
   info: "border-info/20 bg-info/10 text-info",
   success: "border-success/20 bg-success/10 text-success",
-  warning: "border-warning/25 bg-warning/10 text-warning-foreground",
+  warning: "border-warning/40 bg-warning/15 text-warning",
   danger: "border-destructive/20 bg-destructive/10 text-destructive",
 };
 

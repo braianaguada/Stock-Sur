@@ -8,4 +8,12 @@ describe("TableBadge", () => {
     const badge = screen.getByText("Activo");
     expect(badge).toHaveClass("h-5", "px-1.5", "text-[10px]", "bg-success/10");
   });
+
+  it("uses a readable warning color over the translucent warning background", () => {
+    render(<TableBadge tone="warning">3 alertas</TableBadge>);
+
+    const badge = screen.getByText("3 alertas");
+    expect(badge).toHaveClass("bg-warning/15", "text-warning");
+    expect(badge).not.toHaveClass("text-warning-foreground");
+  });
 });
