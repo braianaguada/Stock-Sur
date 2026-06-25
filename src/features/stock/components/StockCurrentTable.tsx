@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
-import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
+import { buildItemDisplayName } from "@/lib/item-display";
 import { cn } from "@/lib/utils";
 import type { DemandProfile, StockHealth, StockRow } from "@/features/stock/types";
 
@@ -75,17 +75,9 @@ export function StockCurrentTable({
       header: () => "Nombre",
       cell: ({ row }) => (
         <div className="min-w-0">
-          <span className="block truncate text-sm font-semibold">
+          <span className="block truncate text-sm font-medium">
             {buildItemDisplayName({
               name: row.original.item_name,
-              brand: row.original.item_brand,
-              model: row.original.item_model,
-              attributes: row.original.item_attributes,
-            })}
-          </span>
-          <span className="block truncate text-xs text-muted-foreground">
-            {buildItemDisplayMeta({
-              sku: row.original.item_sku,
               brand: row.original.item_brand,
               model: row.original.item_model,
               attributes: row.original.item_attributes,
@@ -94,7 +86,7 @@ export function StockCurrentTable({
         </div>
       ),
       meta: {
-        className: "w-[360px]",
+        className: "w-[300px]",
       },
     },
     {
@@ -109,17 +101,17 @@ export function StockCurrentTable({
       id: "health",
       header: () => "Estado",
       cell: ({ row }) => (
-        <div className="flex flex-col gap-1.5">
-          <Badge variant="outline" className={cn("w-fit px-2 py-0.5 text-[10px] font-medium", healthClass[row.original.health])}>
+        <div className="flex flex-wrap gap-1">
+          <Badge variant="outline" className={cn("w-fit px-2 py-0 text-[10px] font-medium", healthClass[row.original.health])}>
             {healthLabel[row.original.health]}
           </Badge>
-          <Badge variant="outline" className={cn("w-fit px-2 py-0.5 text-[10px]", demandProfileClass[row.original.demand_profile])}>
+          <Badge variant="outline" className={cn("w-fit px-2 py-0 text-[10px]", demandProfileClass[row.original.demand_profile])}>
             {demandProfileLabel[row.original.demand_profile]}
           </Badge>
         </div>
       ),
       meta: {
-        className: "w-[160px]",
+        className: "w-[180px]",
       },
     },
     {
@@ -157,8 +149,8 @@ export function StockCurrentTable({
       loadingMessage="Cargando..."
       emptyMessage="No hay stock para mostrar"
       className="table-fixed"
-      rowClassName="h-12"
-      cellClassName="h-12 py-0"
+      rowClassName="h-10"
+      cellClassName="h-10 py-1"
       reserveEmptyRows={pageSize}
     />
   );

@@ -6,7 +6,9 @@ import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +49,7 @@ import type {
 import { formatNumber } from "@/features/documents/utils";
 import { buildComboLines } from "@/features/combos/lib/buildComboLines";
 import { roundPrice } from "@/features/pricing/rounding";
+import { buildWhatsAppUrl } from "@/features/services/share";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 
@@ -113,6 +116,9 @@ export default function DocumentsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [shareDocument, setShareDocument] = useState<DocRow | null>(null);
+  const [shareCustomerId, setShareCustomerId] = useState("");
+  const [sharePhone, setSharePhone] = useState("");
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [documentsPage, setDocumentsPage] = useState(1);
   const [documentsPageSize, setDocumentsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
@@ -199,6 +205,17 @@ export default function DocumentsPage() {
   const selectedServiceOption = selectedDocument?.service_id
     ? serviceOptionsById.get(selectedDocument.service_id) ?? null
     : null;
+  const shareMessage = useMemo(() => {
+    if (!shareDocument) return "";
+    const label = shareDocument.doc_type === "PRESUPUESTO" ? "presupuesto" : "remito";
+    return [
+      `Hola, te compartimos el ${label} N° ${formatNumber(shareDocument.document_number, shareDocument.point_of_sale)}.`,
+      "",
+      `Total: $${Number(shareDocument.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}`,
+      "",
+      "Podés solicitar la copia en PDF por este mismo medio.",
+    ].join("\n");
+  }, [shareDocument]);
 
   useEffect(() => {
     if (!linkedDocumentId) return;
@@ -595,6 +612,11 @@ export default function DocumentsPage() {
             if (!canPrintDocument(roles)) return;
             void printDocument(document);
           }}
+          onShare={(document) => {
+            setShareDocument(document);
+            setShareCustomerId("");
+            setSharePhone("");
+          }}
           onEditDraft={openEditDialog}
           onTransition={(documentId, targetStatus) => {
             const status = targetStatus as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO";
@@ -626,8 +648,7 @@ export default function DocumentsPage() {
             if (!confirmed) return;
             duplicateDocumentMutation.mutate(documentId, {
               onSuccess: (newDocumentId) => {
-                setSelectedDocId(newDocumentId);
-                setDetailOpen(true);
+                void openEditDialog(newDocumentId);
               },
             });
           }}
@@ -746,8 +767,8 @@ export default function DocumentsPage() {
               if (!confirmed) return;
               duplicateDocumentMutation.mutate(document.id, {
                 onSuccess: (newDocumentId) => {
-                  setSelectedDocId(newDocumentId);
-                  setDetailOpen(true);
+                  setDetailOpen(false);
+                  void openEditDialog(newDocumentId);
                 },
               });
             }}
@@ -756,6 +777,80 @@ export default function DocumentsPage() {
           />
         </Suspense>
       ) : null}
+
+      <Dialog
+        open={Boolean(shareDocument)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShareDocument(null);
+            setShareCustomerId("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Compartir por WhatsApp</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Contacto guardado</Label>
+              <Select
+                value={shareCustomerId}
+                onValueChange={(customerId) => {
+                  setShareCustomerId(customerId);
+                  const customer = customers.find((entry) => entry.id === customerId);
+                  setSharePhone(customer?.phone ?? "");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegir cliente o contacto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}{customer.phone ? ` · ${customer.phone}` : " · sin teléfono"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="document-share-phone">Número de WhatsApp</Label>
+              <Input
+                id="document-share-phone"
+                inputMode="tel"
+                placeholder="Ej. 5491123456789"
+                value={sharePhone}
+                onChange={(event) => setSharePhone(event.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Podés elegir un contacto o escribir el número manualmente.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShareDocument(null);
+                setShareCustomerId("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={!sharePhone.trim()}
+              onClick={() => {
+                window.open(buildWhatsAppUrl({ phone: sharePhone, message: shareMessage }), "_blank", "noopener,noreferrer");
+                setShareDocument(null);
+                setShareCustomerId("");
+              }}
+            >
+              Abrir WhatsApp
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

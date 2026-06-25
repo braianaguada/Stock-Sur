@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CalendarClock, CircleDollarSign, Search, WalletCards } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,9 @@ import { formatBusinessDate, todayBusinessDateInputValue } from "@/lib/formatter
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
+import { usePaginationSlice } from "@/hooks/use-pagination-slice";
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" });
 const statusLabels: Record<AccountStatementStatus, string> = {
@@ -46,6 +50,8 @@ export default function CustomerAccountPage() {
   const [to, setTo] = useState(todayDate());
   const [status, setStatus] = useState<AccountStatementStatus | "all">("all");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(25);
 
   const filters = useMemo(() => ({
     customerId: customerId === "all" ? null : customerId,
@@ -71,6 +77,7 @@ export default function CustomerAccountPage() {
     },
   });
   const rows = statementQuery.data?.rows ?? [];
+  const pagination = usePaginationSlice({ items: rows, page, pageSize });
   const summary = statementQuery.data?.summary ?? { balance: 0, overdueDebt: 0, notDueDebt: 0, periodPayments: 0, movementsCount: 0 };
   const customers = customersQuery.data ?? [];
 
@@ -78,6 +85,10 @@ export default function CustomerAccountPage() {
     const nextCustomerId = customerIdFromAccountParams(params);
     setCustomerId((currentCustomerId) => (currentCustomerId === nextCustomerId ? currentCustomerId : nextCustomerId));
   }, [params]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [customerId, from, pageSize, search, status, to]);
 
   const handleCustomerChange = (value: string) => {
     setCustomerId(value);
@@ -162,7 +173,7 @@ export default function CustomerAccountPage() {
                     </TableCell>
                   </TableRow>
                 ) : null}
-                {rows.map((row) => (
+                {pagination.pagedItems.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>{formatBusinessDate(row.business_date)}</TableCell>
                     <TableCell>{row.due_date ? formatBusinessDate(row.due_date) : "Sin vencimiento"}</TableCell>
@@ -188,6 +199,18 @@ export default function CustomerAccountPage() {
             </Table>
           </div>
         </DataCard>
+        <DataTablePagination
+          page={pagination.safePage}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          rangeStart={pagination.rangeStart}
+          rangeEnd={pagination.rangeEnd}
+          pageSize={pageSize}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          onPageChange={setPage}
+          onPageSizeChange={(value) => setPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
+          itemLabel="movimientos"
+        />
       </div>
     </AppLayout>
   );

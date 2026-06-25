@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Percent, Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Button } from "@/components/ui/button";
@@ -108,6 +108,7 @@ export function DocumentsEditorDialog({
   const [comboQuantities, setComboQuantities] = useState<Record<string, string>>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [globalDiscount, setGlobalDiscount] = useState("");
   const deferredItemSearch = useDeferredValue(itemSearch);
   const isReturn = documentForm.doc_type === "REMITO_DEVOLUCION";
   const isInternal = documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO";
@@ -169,6 +170,21 @@ export function DocumentsEditorDialog({
     const quantity = Number(comboQuantities[comboId] ?? 1);
     onAddCombo(comboId, quantity);
     setItemSearch("");
+  };
+
+  const applyGlobalDiscount = () => {
+    const discount = Number(globalDiscount);
+    if (!Number.isFinite(discount) || discount <= 0 || discount >= 100) return;
+    const multiplier = 1 - discount / 100;
+    setLines((previousLines) =>
+      previousLines.map((line) => ({
+        ...line,
+        pricing_mode: "MANUAL_PRICE",
+        unit_price: Math.round(line.unit_price * multiplier * 100) / 100,
+        manual_margin_pct: null,
+        price_overridden_at: new Date().toISOString(),
+      })),
+    );
   };
 
   useEffect(() => {
@@ -652,6 +668,43 @@ export function DocumentsEditorDialog({
           </div>
 
           <div className="space-y-2">
+            {lines.length > 0 ? (
+              <div className="flex flex-col gap-2 rounded-lg border border-border/70 bg-muted/20 p-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium">Descuento general</p>
+                  <p className="text-xs text-muted-foreground">
+                    Aplica el porcentaje sobre el precio actual de todas las líneas.
+                  </p>
+                </div>
+                <div className="flex items-end gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="document-global-discount" className="text-xs">Porcentaje</Label>
+                    <div className="relative">
+                      <Input
+                        id="document-global-discount"
+                        className="w-28 pr-8"
+                        type="number"
+                        min={0}
+                        max={99.99}
+                        step="0.01"
+                        value={globalDiscount}
+                        onChange={(event) => setGlobalDiscount(event.target.value)}
+                        placeholder="10"
+                      />
+                      <Percent className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={applyGlobalDiscount}
+                    disabled={!Number.isFinite(Number(globalDiscount)) || Number(globalDiscount) <= 0 || Number(globalDiscount) >= 100}
+                  >
+                    Aplicar
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             {lines.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-sm text-muted-foreground bg-muted/10">
                 <Search className="h-8 w-8 mb-3 text-muted-foreground/30" />

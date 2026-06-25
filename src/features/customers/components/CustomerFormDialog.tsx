@@ -13,6 +13,7 @@ export type CustomerFormState = {
   email: string;
   phone: string;
   is_occasional: boolean;
+  account_due_days: string;
   fiscal_tax_id: string;
   fiscal_legal_name: string;
   fiscal_tax_condition: string;
@@ -167,6 +168,20 @@ export function CustomerFormDialog({
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label>Días de vencimiento de cuenta corriente</Label>
+            <Input
+              type="number"
+              min={0}
+              max={3650}
+              step={1}
+              value={form.account_due_days}
+              onChange={(event) => onFormChange({ ...form, account_due_days: event.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Se aplica a los nuevos vencimientos del estado de cuenta de este cliente.
+            </p>
+          </div>
           <p className="text-xs text-muted-foreground">Cliente ocasional no aplica: los clientes creados aqui son registrados.</p>
         </div>
 
@@ -249,17 +264,17 @@ export function CustomerFormDialog({
                 </p>
               ) : null}
               {technicalState ? <p className="break-words text-muted-foreground">Estado tecnico QA: {technicalState}</p> : null}
-              {diagnostics.availableTaxDescriptions.length > 0 ? (
+              {(diagnostics.availableTaxDescriptions ?? []).length > 0 ? (
                 <p className="break-words text-muted-foreground">
-                  Impuestos detectados: {diagnostics.availableTaxDescriptions.join(", ")}
+                  Impuestos detectados: {(diagnostics.availableTaxDescriptions ?? []).join(", ")}
                 </p>
               ) : null}
             </div>
           ) : null}
 
-          {!invoiceAReadiness.allowed && invoiceAReadiness.reasons.length > 0 ? (
+          {!invoiceAReadiness.allowed && (invoiceAReadiness.reasons ?? []).length > 0 ? (
             <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-              {invoiceAReadiness.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+              {(invoiceAReadiness.reasons ?? []).map((reason) => <li key={reason}>{reason}</li>)}
             </ul>
           ) : null}
 

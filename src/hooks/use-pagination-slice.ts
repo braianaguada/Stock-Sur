@@ -22,6 +22,7 @@ export function usePaginationSlice<TItem>({
     return {
       page: safePage,
       totalPages,
+      totalItems: items.length,
       pagedItems,
       rangeStart,
       rangeEnd,

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Check, Copy, Eye, FileText, Loader2, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
+import { Ban, Check, Copy, Eye, FileText, Loader2, MessageCircle, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ interface DocumentsDataTableProps {
   technicianNamesById?: Map<string, string>;
   onOpenDetail: (documentId: string) => void;
   onPrint: (document: DocRow) => void;
+  onShare: (document: DocRow) => void;
   onEditDraft: (documentId: string) => void;
   onTransition: (documentId: string, status: DocStatus) => void;
   onIssueRemito: (documentId: string) => void;
@@ -39,6 +40,7 @@ export function DocumentsDataTable({
   technicianNamesById = new Map(),
   onOpenDetail,
   onPrint,
+  onShare,
   onEditDraft,
   onTransition,
   onIssueRemito,
@@ -156,6 +158,9 @@ export function DocumentsDataTable({
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-violet-500 hover:text-violet-400" onClick={() => onPrint(doc)} title="Imprimir / PDF" disabled={!canPrintDocument}>
               <Printer className="h-4 w-4" />
             </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-500 hover:text-emerald-400" onClick={() => onShare(doc)} title="Compartir por WhatsApp">
+              <MessageCircle className="h-4 w-4" />
+            </Button>
             {doc.status === "BORRADOR" && canEditDocumentDraft ? (
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-amber-500 hover:text-amber-400" onClick={() => onEditDraft(doc.id)} title="Editar borrador">
                 <Pencil className="h-4 w-4" />
@@ -246,6 +251,7 @@ export function DocumentsDataTable({
     onIssueRemito,
     onOpenDetail,
     onPrint,
+    onShare,
     onTransition,
     onCloneAsRemito,
     onDuplicateDocument,

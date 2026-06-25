@@ -1,16 +1,14 @@
 import { memo, useMemo } from "react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { Boxes, Copy, Package, PackageX, Pencil, RotateCcw, Tags, Trash2 } from "lucide-react";
+import { Copy, Package, PackageX, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
-import { RowActionButton, RowActionLink, RowActions } from "@/components/common/RowActions";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Item, ItemOperationalMeta } from "@/features/items/types";
-import { OperationalPriceDisplay } from "@/features/pricing/OperationalPriceDisplay";
-import type { PriceRoundingConfig } from "@/features/pricing/rounding";
 
 export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "attributes" | "category" | "is_active" | "created_at" | "stock";
 export type SortDirection = "asc" | "desc";
@@ -26,7 +24,6 @@ type ItemsDataTableProps = {
   /** Map of item_id → total stock quantity (from stock-current query) */
   stockByItemId: Map<string, number>;
   operationalMetaByItemId: Map<string, ItemOperationalMeta>;
-  priceRoundingConfig?: PriceRoundingConfig | null;
   onSort: (field: ItemSortField) => void;
   onSelectionChange: (next: string[]) => void;
   onEdit: (item: Item) => void;
@@ -50,7 +47,7 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
 function stockChip(total: number | undefined, demand?: string | null) {
   if (total === undefined) {
     return (
-      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-border/50 text-muted-foreground font-normal">
+      <Badge variant="outline" className="h-6 gap-1.5 px-2 text-xs font-normal text-muted-foreground">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
         S/D
       </Badge>
@@ -59,8 +56,8 @@ function stockChip(total: number | undefined, demand?: string | null) {
   
   if (total <= 0) {
     return (
-      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-rose-500/30 bg-rose-500/8 text-rose-600 dark:text-rose-400 font-bold">
-        <PackageX className="h-2.5 w-2.5" /> Sin stock
+      <Badge variant="outline" className="h-6 gap-1.5 border-destructive/30 bg-destructive/10 px-2 text-xs font-medium text-destructive">
+        <PackageX className="h-3 w-3" /> Sin stock
       </Badge>
     );
   }
@@ -72,16 +69,16 @@ function stockChip(total: number | undefined, demand?: string | null) {
 
   if (isCritical) {
     return (
-      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+      <Badge variant="outline" className="h-6 gap-1.5 border-warning/30 bg-warning/10 px-2 text-xs font-medium text-warning-foreground">
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning" />
         {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })} (Bajo)
       </Badge>
     );
   }
 
   return (
-    <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400 font-medium">
-      <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
+    <Badge variant="outline" className="h-6 gap-1.5 border-success/30 bg-success/10 px-2 text-xs font-medium text-success">
+      <Package className="h-3 w-3" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
     </Badge>
   );
 }
@@ -136,7 +133,6 @@ function ItemsDataTableComponent({
   sortDirection,
   stockByItemId,
   operationalMetaByItemId,
-  priceRoundingConfig,
   onSort,
   onSelectionChange,
   onEdit,
@@ -257,31 +253,6 @@ function ItemsDataTableComponent({
       },
     },
     {
-      id: "main_price",
-      header: () => "Precio principal",
-      cell: ({ row }) => {
-        const meta = operationalMetaByItemId.get(row.original.id);
-        return (
-          <div className="min-w-0 text-right">
-            <OperationalPriceDisplay
-              value={meta?.main_price_original ?? meta?.main_price}
-              config={priceRoundingConfig}
-              formatValue={formatMoney}
-              valueClassName="text-xs font-semibold"
-              originalClassName="max-w-[120px]"
-            />
-            {meta?.main_price_list_name ? (
-              <span className="block truncate text-[10px] text-muted-foreground">{meta.main_price_list_name}</span>
-            ) : null}
-          </div>
-        );
-      },
-      meta: {
-        className: "w-[140px]",
-        cellClassName: "py-1.5",
-      },
-    },
-    {
       id: "margin_pct",
       header: () => "Margen",
       cell: ({ row }) => {
@@ -301,7 +272,7 @@ function ItemsDataTableComponent({
         return (
           <div className="flex flex-wrap gap-1">
             {operationalBadges(meta, row.original.demand_profile).map((badge) => (
-              <Badge key={badge.label} variant="outline" className={`h-5 px-1.5 text-[10px] ${badge.className}`}>
+              <Badge key={badge.label} variant="outline" className={`h-6 px-2 text-xs font-medium ${badge.className}`}>
                 {badge.label}
               </Badge>
             ))}
@@ -309,8 +280,8 @@ function ItemsDataTableComponent({
         );
       },
       meta: {
-        className: "w-[190px]",
-        cellClassName: "py-1.5",
+        className: "w-[170px]",
+        cellClassName: "py-2",
       },
     },
     {
@@ -437,12 +408,6 @@ function ItemsDataTableComponent({
           <RowActionButton label="Copiar SKU" onClick={() => onCopySku(row.original)}>
             <Copy className="h-3.5 w-3.5" />
           </RowActionButton>
-          <RowActionLink label="Abrir stock" to={`/stock?itemId=${encodeURIComponent(row.original.id)}`}>
-            <Boxes className="h-3.5 w-3.5" />
-          </RowActionLink>
-          <RowActionLink label="Abrir precios" to={`/price-lists?itemId=${encodeURIComponent(row.original.id)}`}>
-            <Tags className="h-3.5 w-3.5" />
-          </RowActionLink>
           <RowActionButton label="Editar" tone="edit" onClick={() => onEdit(row.original)}>
             <Pencil className="h-3.5 w-3.5" />
           </RowActionButton>
@@ -462,7 +427,7 @@ function ItemsDataTableComponent({
         cellClassName: "py-1.5",
       },
     },
-  ], [allVisibleSelected, items, onCopySku, onDelete, onEdit, onRestore, onSelectionChange, onSort, operationalMetaByItemId, priceRoundingConfig, selectedItemIds, sortBy, sortDirection, stockByItemId]);
+  ], [allVisibleSelected, items, onCopySku, onDelete, onEdit, onRestore, onSelectionChange, onSort, operationalMetaByItemId, selectedItemIds, sortBy, sortDirection, stockByItemId]);
 
   return (
     <div className="overflow-x-auto">
@@ -472,11 +437,11 @@ function ItemsDataTableComponent({
       isLoading={isLoading}
       loadingMessage="Cargando..."
       emptyMessage="No se encontraron ítems"
-      className="table-fixed min-w-[2020px]"
+      className="table-fixed min-w-[1180px]"
       sorting={sorting}
       columnVisibility={columnVisibility}
-      rowClassName="h-9"
-      cellClassName="h-9 py-0"
+      rowClassName="h-12"
+      cellClassName="h-12 py-1.5"
       reserveEmptyRows={pageSize}
       />
     </div>
@@ -493,5 +458,4 @@ export const ItemsDataTable = memo(ItemsDataTableComponent, (prev, next) => (
   && prev.sortDirection === next.sortDirection
   && prev.stockByItemId === next.stockByItemId
   && prev.operationalMetaByItemId === next.operationalMetaByItemId
-  && prev.priceRoundingConfig === next.priceRoundingConfig
 ));

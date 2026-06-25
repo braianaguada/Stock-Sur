@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { UsersAccessTable } from "@/features/users/components/UsersAccessTable";
 import { UsersOverviewHeader } from "@/features/users/components/UsersOverviewHeader";
 import { CreateCompanyDialog } from "@/features/users/components/CreateCompanyDialog";
+import { CompaniesManagementCard } from "@/features/users/components/CompaniesManagementCard";
 import { useUsersAccessManagement } from "@/features/users/hooks/useUsersAccessManagement";
 import { createCompany } from "@/features/users/mutations";
 import { getErrorMessage } from "@/lib/errors";
@@ -150,6 +151,7 @@ export default function UsersPage() {
             setImpersonationDialogUser(user);
           }}
         />
+        <CompaniesManagementCard />
       </div>
 
       {selectedUser ? (

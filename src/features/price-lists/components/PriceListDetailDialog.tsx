@@ -47,7 +47,7 @@ type PriceListDetailDialogProps = {
   onConfigDraftChange: (updater: (prev: PriceListFormState | null) => PriceListFormState | null) => void;
   onSaveConfig: () => void;
   onRecalculate: () => void;
-  onUpdateProductOverride: (itemId: string, values: { enabled: boolean; price: number | null; note: string }) => void;
+  onUpdateProductOverride: (itemId: string, values: { enabled: boolean; price: number | null }) => void;
   isSavingProductOverride: boolean;
   onDelete: () => void;
 };
@@ -103,7 +103,6 @@ export function PriceListDetailDialog({
   const [overrideRow, setOverrideRow] = useState<PriceListProductRow | null>(null);
   const [overrideEnabled, setOverrideEnabled] = useState(false);
   const [overridePrice, setOverridePrice] = useState("");
-  const [overrideNote, setOverrideNote] = useState("");
 
   const scrollActiveTabToTop = useCallback(() => {
     if (detailTab === "config") {
@@ -129,7 +128,6 @@ export function PriceListDetailDialog({
     setOverrideRow(row);
     setOverrideEnabled(row.manual_price_enabled);
     setOverridePrice(row.final_price_override !== null ? String(row.final_price_override) : "");
-    setOverrideNote(row.manual_price_note ?? "");
   };
 
   const saveOverride = () => {
@@ -141,7 +139,6 @@ export function PriceListDetailDialog({
     onUpdateProductOverride(overrideRow.item_id, {
       enabled: overrideEnabled,
       price: overrideEnabled ? parsedPrice : null,
-      note: overrideNote,
     });
     setOverrideRow(null);
   };
@@ -383,10 +380,6 @@ export function PriceListDetailDialog({
                 {overrideEnabled && (overridePrice.trim() === "" || Number(overridePrice) < 0) ? (
                   <p className="text-xs text-destructive">El precio debe ser mayor o igual a 0.</p>
                 ) : null}
-              </div>
-              <div className="space-y-2">
-                <Label>Nota</Label>
-                <Textarea value={overrideNote} onChange={(event) => setOverrideNote(event.target.value)} />
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setOverrideRow(null)}>

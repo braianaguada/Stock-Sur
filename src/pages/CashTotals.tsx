@@ -27,10 +27,10 @@ const periodLabels: Record<CashTotalsPeriod, string> = {
 
 function SummaryCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
-    <Card className="border-border/65 bg-gradient-to-br from-card via-card to-primary/5 shadow-sm">
+    <Card className="min-w-0 overflow-hidden border-primary/15 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/.14),transparent_55%)] shadow-sm">
       <CardHeader className="pb-3">
         <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl tracking-tight">{currency.format(value)}</CardTitle>
+        <CardTitle className="min-w-0 break-words text-xl tracking-tight sm:text-2xl">{currency.format(value)}</CardTitle>
         {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
       </CardHeader>
     </Card>
@@ -188,7 +188,7 @@ export default function CashTotalsPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
           <SummaryCard label="Total vendido" value={report.summary.grossSalesTotal} hint={`${report.summary.salesCount} movimientos`} />
           <SummaryCard label="Efectivo bruto" value={report.summary.cashTotal} hint="Remito + facturable" />
           <SummaryCard label="Devoluciones" value={-report.summary.returnsTotal} hint="Servicios / remito" />
