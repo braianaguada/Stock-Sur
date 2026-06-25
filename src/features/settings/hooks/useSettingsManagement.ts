@@ -4,6 +4,7 @@ import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
 import { canManageCompanySettings } from "@/lib/permissions";
+import { getVersionedPublicUrl, validateCompanyLogo } from "../logo";
 import {
   buildCompanyThemePayload,
   getThemePreviewState,
@@ -112,7 +113,7 @@ export function useSettingsManagement({
         if (uploadError) throw uploadError;
 
         const { data } = supabase.storage.from("branding-assets").getPublicUrl(filePath);
-        logoUrl = data.publicUrl;
+        logoUrl = getVersionedPublicUrl(data.publicUrl, Date.now());
       }
 
       const payload = {
@@ -166,6 +167,12 @@ export function useSettingsManagement({
   const onLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    const validationError = validateCompanyLogo(file);
+    if (validationError) {
+      event.target.value = "";
+      toast({ title: "Logo no válido", description: validationError, variant: "destructive" });
+      return;
+    }
     setLogoFile(file);
     const preview = URL.createObjectURL(file);
     setLogoPreview(preview);

@@ -49,6 +49,7 @@ Rendiciones queda preparado como modulo generico por empresa, disponible para cu
 ## Configuracion por empresa
 
 - `supabase/migrations/20260624183000_restore_global_admin_company_permissions.sql` alinea RLS con la UI y restaura permisos efectivos de administradores globales sobre empresas activas. Esto permite guardar tema y configuracion sin ampliar acceso a empresas inactivas.
+- El reemplazo del logo agrega una version a la URL publica para evitar que navegador o CDN sigan mostrando la imagen anterior. La carga valida que sea una imagen de hasta 5 MB.
 
 ## Desarrollo local
 
