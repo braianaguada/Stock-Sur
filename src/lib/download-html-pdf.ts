@@ -3,12 +3,21 @@ export async function downloadHtmlAsPdf(html: string, fileName: string) {
   const parsed = parser.parseFromString(html, "text/html");
   parsed.querySelectorAll(".print-action").forEach((element) => element.remove());
 
+  const existingCanvasContainers = new Set(document.querySelectorAll(".html2canvas-container"));
   const container = document.createElement("div");
+  const printStyle = parsed.head.querySelector("style")?.cloneNode(true) as HTMLStyleElement | null;
+  if (printStyle) printStyle.dataset.pdfPrintStyle = "true";
+  container.setAttribute("aria-hidden", "true");
   container.style.position = "fixed";
   container.style.left = "-100000px";
   container.style.top = "0";
   container.style.width = "210mm";
-  container.innerHTML = `${parsed.head.querySelector("style")?.outerHTML ?? ""}${parsed.body.innerHTML}`;
+  container.style.background = "#ffffff";
+  container.style.color = "#0f172a";
+  if (printStyle) container.appendChild(printStyle);
+  const content = document.createElement("div");
+  content.innerHTML = parsed.body.innerHTML;
+  container.appendChild(content);
   document.body.appendChild(container);
 
   try {
@@ -26,7 +35,15 @@ export async function downloadHtmlAsPdf(html: string, fileName: string) {
         margin: 0,
         filename: fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`,
         image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          onclone: (clonedDocument: Document) => {
+            clonedDocument.querySelectorAll('link[rel="stylesheet"], style:not([data-pdf-print-style="true"])')
+              .forEach((element) => element.remove());
+          },
+        },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         pagebreak: { mode: ["css", "legacy"] },
       })
@@ -34,5 +51,8 @@ export async function downloadHtmlAsPdf(html: string, fileName: string) {
       .save();
   } finally {
     container.remove();
+    document.querySelectorAll(".html2canvas-container").forEach((element) => {
+      if (!existingCanvasContainers.has(element)) element.remove();
+    });
   }
 }
