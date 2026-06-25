@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { AmountDisplay, CompactBadge, MetricCard, MetricGrid, MetricHeroCard, OperationalTableShell, SectionCard } from "@/components/common/VisualSystem";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { TableBadge } from "@/components/common/TableBadge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -244,9 +245,9 @@ export default function TechniciansPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <CompactBadge tone={technician.is_active === false ? "muted" : "success"}>
+                          <TableBadge tone={technician.is_active === false ? "neutral" : "success"}>
                             {technician.is_active === false ? "Inactivo" : "Activo"}
-                          </CompactBadge>
+                          </TableBadge>
                         </TableCell>
                         <TableCell>{technician.phone ?? "Sin telefono"}</TableCell>
                         <TableCell className="max-w-md truncate text-muted-foreground">{technician.notes ?? "-"}</TableCell>
@@ -400,8 +401,8 @@ export default function TechniciansPage() {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <span>{summary.technicianName}</span>
-                            {summary.technicianIsActive === false ? <CompactBadge tone="muted">Inactivo</CompactBadge> : null}
-                            {summary.technicianMissing ? <CompactBadge tone="warning">Referencia huerfana</CompactBadge> : null}
+                            {summary.technicianIsActive === false ? <TableBadge tone="neutral">Inactivo</TableBadge> : null}
+                            {summary.technicianMissing ? <TableBadge tone="warning">Referencia huerfana</TableBadge> : null}
                           </div>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{summary.remitos}</TableCell>
@@ -454,8 +455,8 @@ export default function TechniciansPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span>{movement.technicianName}</span>
-                            {movement.technicianIsActive === false ? <CompactBadge tone="muted">Inactivo</CompactBadge> : null}
-                            {movement.technicianMissing ? <CompactBadge tone="warning">Referencia huerfana</CompactBadge> : null}
+                            {movement.technicianIsActive === false ? <TableBadge tone="neutral">Inactivo</TableBadge> : null}
+                            {movement.technicianMissing ? <TableBadge tone="warning">Referencia huerfana</TableBadge> : null}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -463,7 +464,7 @@ export default function TechniciansPage() {
                           {movement.externalInvoiceNumber ? <div className="text-xs text-muted-foreground">Factura externa {movement.externalInvoiceNumber}</div> : null}
                         </TableCell>
                         <TableCell>
-                          <CompactBadge tone={movement.documentType === "REMITO" ? "info" : "success"}>{movement.movementType === "Entrega" ? "Entrega" : "Devolucion"}</CompactBadge>
+                          <TableBadge tone={movement.documentType === "REMITO" ? "info" : "success"}>{movement.movementType === "Entrega" ? "Entrega" : "Devolucion"}</TableBadge>
                         </TableCell>
                         <TableCell>{movement.customerName}</TableCell>
                         <TableCell>

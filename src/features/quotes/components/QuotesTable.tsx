@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, FileDown, Trash2 } from "lucide-react";
+import { TableBadge, type TableBadgeTone } from "@/components/common/TableBadge";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { QUOTE_STATUS_LABELS, QUOTE_STATUS_VARIANTS } from "@/features/quotes/constants";
+import { QUOTE_STATUS_LABELS } from "@/features/quotes/constants";
 import { businessDateFromTimestamp } from "@/lib/formatters";
 import type { QuoteListRow } from "@/features/quotes/types";
 
@@ -14,6 +14,13 @@ type QuotesTableProps = {
   onView: (quote: QuoteListRow) => void;
   onExport: (quote: QuoteListRow) => void;
   onDelete: (quote: QuoteListRow) => void;
+};
+
+const QUOTE_STATUS_TONE: Record<string, TableBadgeTone> = {
+  DRAFT: "neutral",
+  SENT: "info",
+  ACCEPTED: "success",
+  REJECTED: "danger",
 };
 
 export function QuotesTable({
@@ -40,9 +47,9 @@ export function QuotesTable({
       accessorKey: "status",
       header: () => "Estado",
       cell: ({ row }) => (
-        <Badge variant={QUOTE_STATUS_VARIANTS[row.original.status] ?? "secondary"}>
+        <TableBadge tone={QUOTE_STATUS_TONE[row.original.status] ?? "neutral"}>
           {QUOTE_STATUS_LABELS[row.original.status] ?? row.original.status}
-        </Badge>
+        </TableBadge>
       ),
     },
     {

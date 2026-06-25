@@ -3,13 +3,13 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, FileText, NotebookText, ReceiptText } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
+import { TableBadge, type TableBadgeTone } from "@/components/common/TableBadge";
 import { AmountDisplay, CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatTime } from "@/lib/formatters";
-import { PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LABEL } from "../constants";
-import type { CashMovementRow, SituationFilter } from "../types";
+import { PAYMENT_LABEL, RECEIPT_LABEL, STATUS_LABEL } from "../constants";
+import type { CashMovementRow, SaleStatus, SituationFilter } from "../types";
 import { getClosureSituationWithClosure } from "../utils";
 import { canShowCreateBillingDraftAction } from "@/features/billing/lib/draft";
 
@@ -37,6 +37,13 @@ type CashSalesTabProps = {
   pageSize: number;
   pageSizeOptions: readonly number[];
   onPageSizeChange: (pageSize: number) => void;
+};
+
+const SALE_STATUS_TONE: Record<SaleStatus, TableBadgeTone> = {
+  REGISTRADA: "neutral",
+  PENDIENTE_COMPROBANTE: "warning",
+  COMPROBANTADA: "success",
+  ANULADA: "danger",
 };
 
 export function CashSalesTab({
@@ -105,9 +112,9 @@ export function CashSalesTab({
       cell: ({ row }) => (
         <div className="min-w-0 text-sm">
           <p className="truncate">{RECEIPT_LABEL[row.original.receipt_kind]}</p>
-          <Badge variant="outline" className={`${STATUS_CLASS[row.original.status]} mt-1 max-w-full`}>
+          <TableBadge tone={SALE_STATUS_TONE[row.original.status]} className="mt-1">
             {STATUS_LABEL[row.original.status]}
-          </Badge>
+          </TableBadge>
           {row.original.receipt_reference ? <p className="truncate font-mono text-xs text-muted-foreground">{row.original.receipt_reference}</p> : null}
         </div>
       ),
@@ -119,9 +126,9 @@ export function CashSalesTab({
       cell: ({ row }) => {
         const closureSituation = getClosureSituationWithClosure(row.original, effectiveClosure);
         return (
-          <Badge variant="outline" className={closureSituation.className}>
+          <TableBadge tone={closureSituation.tone}>
             {closureSituation.label}
-          </Badge>
+          </TableBadge>
         );
       },
       meta: { className: "w-[150px]", cellClassName: "py-2.5" },

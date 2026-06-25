@@ -3,9 +3,9 @@ import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { AlertTriangle, Check, Copy, Package, PackageX, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { TableBadge, type TableBadgeTone } from "@/components/common/TableBadge";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Item, ItemOperationalMeta } from "@/features/items/types";
@@ -47,18 +47,18 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
 function stockChip(total: number | undefined, demand?: string | null) {
   if (total === undefined) {
     return (
-      <Badge variant="outline" className="h-6 gap-1.5 px-2 text-xs font-normal text-muted-foreground">
+      <TableBadge>
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
         S/D
-      </Badge>
+      </TableBadge>
     );
   }
   
   if (total <= 0) {
     return (
-      <Badge variant="outline" className="h-6 gap-1.5 border-destructive/30 bg-destructive/10 px-2 text-xs font-medium text-destructive">
+      <TableBadge tone="danger">
         <PackageX className="h-3 w-3" /> Sin stock
-      </Badge>
+      </TableBadge>
     );
   }
 
@@ -69,19 +69,25 @@ function stockChip(total: number | undefined, demand?: string | null) {
 
   if (isCritical) {
     return (
-      <Badge variant="outline" className="h-6 gap-1.5 border-warning/30 bg-warning/10 px-2 text-xs font-medium text-warning-foreground">
+      <TableBadge tone="warning">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning" />
         {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })} (Bajo)
-      </Badge>
+      </TableBadge>
     );
   }
 
   return (
-    <Badge variant="outline" className="h-6 gap-1.5 border-success/30 bg-success/10 px-2 text-xs font-medium text-success">
+    <TableBadge tone="success">
       <Package className="h-3 w-3" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
-    </Badge>
+    </TableBadge>
   );
 }
+
+const DEMAND_BADGE_TONE: Record<NonNullable<Item["demand_profile"]>, TableBadgeTone> = {
+  HIGH: "primary",
+  MEDIUM: "info",
+  LOW: "neutral",
+};
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "-";
@@ -268,13 +274,10 @@ function ItemsDataTableComponent({
         const alerts = operationalAlerts(meta, row.original.demand_profile);
         if (alerts.length === 0) {
           return (
-            <Badge
-              variant="outline"
-              className="h-5 gap-1 border-emerald-500/40 bg-emerald-500/8 px-1.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"
-            >
+            <TableBadge tone="success">
               <Check className="h-2.5 w-2.5" />
               OK
-            </Badge>
+            </TableBadge>
           );
         }
 
@@ -283,13 +286,10 @@ function ItemsDataTableComponent({
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="inline-flex">
-                <Badge
-                  variant="outline"
-                  className="h-5 cursor-default gap-1 border-amber-500/40 bg-amber-500/8 px-1.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
-                >
+                <TableBadge tone="warning" className="cursor-default">
                   <AlertTriangle className="h-2.5 w-2.5" />
                   {label}
-                </Badge>
+                </TableBadge>
               </span>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">
@@ -391,9 +391,9 @@ function ItemsDataTableComponent({
       accessorKey: "demand_profile",
       header: () => "Demanda",
       cell: ({ row }) => (
-        <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+        <TableBadge tone={DEMAND_BADGE_TONE[row.original.demand_profile]}>
           {row.original.demand_profile === "HIGH" ? "Alta" : row.original.demand_profile === "MEDIUM" ? "Media" : "Baja"}
-        </Badge>
+        </TableBadge>
       ),
       meta: {
         className: "w-[100px]",
@@ -410,9 +410,9 @@ function ItemsDataTableComponent({
         />
       ),
       cell: ({ row }) => (
-        <Badge variant={row.original.is_active ? "default" : "secondary"} className="h-5 px-1.5 text-[10px]">
+        <TableBadge tone={row.original.is_active ? "success" : "neutral"}>
           {row.original.is_active ? "Activo" : "Inactivo"}
-        </Badge>
+        </TableBadge>
       ),
       meta: {
         className: "w-[96px]",

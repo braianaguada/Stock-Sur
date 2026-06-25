@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Link, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { DataTable } from "@/components/data-table/DataTable";
+import { TableBadge, type TableBadgeTone } from "@/components/common/TableBadge";
 import { AmountDisplay } from "@/components/common/VisualSystem";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,14 +57,14 @@ const CLOSURE_STATUS_LABEL: Record<OccasionalClosureStatus, string> = {
   WITHOUT_CASH_SALE: "Sin venta de caja",
 };
 
-const FISCAL_BADGE_CLASS: Record<OccasionalFiscalStatus, string> = {
-  PENDING_INVOICE_B: "border-amber-200 bg-amber-50 text-amber-700",
-  DRAFT_BILLING: "border-sky-200 bg-sky-50 text-sky-700",
-  INVOICE_B_AUTHORIZED: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  CREDIT_NOTE_B_AUTHORIZED: "border-violet-200 bg-violet-50 text-violet-700",
-  REJECTED_BILLING: "border-rose-200 bg-rose-50 text-rose-700",
-  CANCELLED: "border-slate-200 bg-slate-50 text-slate-600",
-  UNKNOWN: "border-slate-200 bg-slate-50 text-slate-600",
+const FISCAL_BADGE_TONE: Record<OccasionalFiscalStatus, TableBadgeTone> = {
+  PENDING_INVOICE_B: "warning",
+  DRAFT_BILLING: "info",
+  INVOICE_B_AUTHORIZED: "success",
+  CREDIT_NOTE_B_AUTHORIZED: "primary",
+  REJECTED_BILLING: "danger",
+  CANCELLED: "neutral",
+  UNKNOWN: "neutral",
 };
 
 const PAYMENT_FILTERS: Array<PaymentMethod | "ALL"> = [
@@ -160,9 +161,9 @@ export default function OccasionalCustomerPage() {
       header: () => "Fiscal B",
       cell: ({ row }) => (
         <div className="space-y-1">
-          <Badge variant="outline" className={FISCAL_BADGE_CLASS[row.original.fiscalStatus]}>
+          <TableBadge tone={FISCAL_BADGE_TONE[row.original.fiscalStatus]}>
             {FISCAL_STATUS_LABEL[row.original.fiscalStatus]}
-          </Badge>
+          </TableBadge>
           {row.original.invoiceB?.voucher_full_number ? <p className="font-mono text-xs text-muted-foreground">{row.original.invoiceB.voucher_full_number}</p> : null}
           {row.original.creditNoteB?.voucher_full_number ? <p className="font-mono text-xs text-muted-foreground">NC {row.original.creditNoteB.voucher_full_number}</p> : null}
         </div>

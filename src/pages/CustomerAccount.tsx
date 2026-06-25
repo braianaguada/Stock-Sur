@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CalendarClock, CircleDollarSign, Search, WalletCards } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { TableBadge, type TableBadgeTone } from "@/components/common/TableBadge";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,12 +30,12 @@ const statusLabels: Record<AccountStatementStatus, string> = {
   payment: "Pago",
 };
 
-const statusVariant: Record<AccountStatementStatus, "default" | "secondary" | "destructive" | "outline"> = {
-  pending: "secondary",
-  partial: "default",
-  paid: "outline",
-  overdue: "destructive",
-  payment: "outline",
+const statusTone: Record<AccountStatementStatus, TableBadgeTone> = {
+  pending: "warning",
+  partial: "info",
+  paid: "success",
+  overdue: "danger",
+  payment: "primary",
 };
 
 function todayDate() {
@@ -191,7 +191,7 @@ export default function CustomerAccountPage() {
                     <TableCell className="text-right">{row.credit > 0 ? money.format(row.credit) : "-"}</TableCell>
                     <TableCell className="text-right font-medium">{money.format(row.running_balance)}</TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant[row.status]}>{statusLabels[row.status]}</Badge>
+                      <TableBadge tone={statusTone[row.status]}>{statusLabels[row.status]}</TableBadge>
                     </TableCell>
                   </TableRow>
                 ))}

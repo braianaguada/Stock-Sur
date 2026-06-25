@@ -8,6 +8,7 @@ import type { VisibilityState } from "@tanstack/react-table";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { TableBadge } from "@/components/common/TableBadge";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -600,9 +601,9 @@ export default function PriceListsPage() {
                             <CardTitle className="text-base">{priceList.name}</CardTitle>
                             <p className="text-sm text-muted-foreground">{priceList.description || "Sin descripción"}</p>
                           </div>
-                          <Badge variant={priceList.status === "UPDATED" ? "default" : "secondary"}>
+                          <TableBadge tone={priceList.status === "UPDATED" ? "success" : "warning"}>
                             {PRICE_LIST_STATUS_LABEL[priceList.status]}
-                          </Badge>
+                          </TableBadge>
                         </div>
                         <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/45 p-3">
                           {renderPricingSummary(priceList)}

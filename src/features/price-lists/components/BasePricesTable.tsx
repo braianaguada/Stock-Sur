@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
 import { Package, PackageX, Pencil, TrendingDown, TrendingUp } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
+import { TableBadge } from "@/components/common/TableBadge";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -27,19 +27,21 @@ type BasePricesTableProps = {
 function StockBadge({ total }: { total: number | undefined }) {
   if (total === undefined) {
     return (
-      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-border/50 text-muted-foreground">
+      <TableBadge>
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
         S/D
-      </Badge>
+      </TableBadge>
     );
   }
   if (total <= 0) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant="outline" className="h-5 cursor-default gap-1 px-1.5 text-[10px] border-destructive/40 bg-destructive/8 text-destructive">
-            <PackageX className="h-2.5 w-2.5" /> Sin stock
-          </Badge>
+          <span className="inline-flex">
+            <TableBadge tone="danger" className="cursor-default">
+              <PackageX className="h-2.5 w-2.5" /> Sin stock
+            </TableBadge>
+          </span>
         </TooltipTrigger>
         <TooltipContent side="top" className="text-xs">Stock actual: 0</TooltipContent>
       </Tooltip>
@@ -48,9 +50,11 @@ function StockBadge({ total }: { total: number | undefined }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Badge variant="outline" className="h-5 cursor-default gap-1 px-1.5 text-[10px] border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400">
-          <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
-        </Badge>
+        <span className="inline-flex">
+          <TableBadge tone="success" className="cursor-default">
+            <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
+          </TableBadge>
+        </span>
       </TooltipTrigger>
       <TooltipContent side="top" className="text-xs">Stock actual: {total}</TooltipContent>
     </Tooltip>

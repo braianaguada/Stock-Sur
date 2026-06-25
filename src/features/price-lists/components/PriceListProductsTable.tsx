@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
 import { Pencil, Package, PackageX } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
+import { TableBadge } from "@/components/common/TableBadge";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PriceListProductRow } from "@/features/price-lists/types";
@@ -24,19 +24,21 @@ type PriceListProductsTableProps = {
 function StockBadge({ total }: { total: number | undefined }) {
   if (total === undefined) {
     return (
-      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-border/50 text-muted-foreground font-normal">
+      <TableBadge>
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
         S/D
-      </Badge>
+      </TableBadge>
     );
   }
   if (total <= 0) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant="outline" className="h-5 cursor-default gap-1 px-1.5 text-[10px] border-destructive/40 bg-destructive/8 text-destructive font-medium">
-            <PackageX className="h-2.5 w-2.5" /> Sin stock
-          </Badge>
+          <span className="inline-flex">
+            <TableBadge tone="danger" className="cursor-default">
+              <PackageX className="h-2.5 w-2.5" /> Sin stock
+            </TableBadge>
+          </span>
         </TooltipTrigger>
         <TooltipContent side="top" className="text-xs">Stock actual: 0</TooltipContent>
       </Tooltip>
@@ -45,9 +47,11 @@ function StockBadge({ total }: { total: number | undefined }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Badge variant="outline" className="h-5 cursor-default gap-1 px-1.5 text-[10px] border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400 font-medium">
-          <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
-        </Badge>
+        <span className="inline-flex">
+          <TableBadge tone="success" className="cursor-default">
+            <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
+          </TableBadge>
+        </span>
       </TooltipTrigger>
       <TooltipContent side="top" className="text-xs">Stock actual: {total}</TooltipContent>
     </Tooltip>
@@ -138,15 +142,12 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, 
           config: priceRoundingConfig,
         });
         return (
-          <Badge
-            variant="outline"
-            className={operationalPrice.source === "PRODUCT_OVERRIDE"
-              ? "px-2.5 py-0.5 text-[10px] border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/20 dark:bg-violet-500/10 dark:text-violet-200"
-              : "px-2.5 py-0.5 text-[10px] border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/20 dark:bg-slate-500/10 dark:text-slate-200"}
+          <TableBadge
+            tone={operationalPrice.source === "PRODUCT_OVERRIDE" ? "primary" : "neutral"}
             title={operationalPrice.source === "PRODUCT_OVERRIDE" ? "Usa precio personalizado para esta lista" : "Usa precio calculado por formula"}
           >
             {operationalPrice.source === "PRODUCT_OVERRIDE" ? "Personalizado" : "Formula"}
-          </Badge>
+          </TableBadge>
         );
       },
       meta: {
@@ -193,14 +194,9 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, 
       accessorKey: "needs_recalculation",
       header: () => "Estado",
       cell: ({ row }) => (
-        <Badge
-          variant="outline"
-          className={row.original.needs_recalculation
-            ? "px-2.5 py-0.5 text-[10px] border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200"
-            : "px-2.5 py-0.5 text-[10px] border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200"}
-        >
+        <TableBadge tone={row.original.needs_recalculation ? "warning" : "success"}>
           {row.original.needs_recalculation ? "Pendiente" : "Actualizado"}
-        </Badge>
+        </TableBadge>
       ),
       meta: {
         className: "w-[110px]",

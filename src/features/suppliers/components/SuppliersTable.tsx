@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, RotateCcw, Trash2, Upload } from "lucide-react";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { TableBadge } from "@/components/common/TableBadge";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import { normalizeWhatsappNumber } from "@/lib/whatsapp";
 import type { Supplier } from "@/features/suppliers/types";
 
@@ -42,9 +42,9 @@ export function SuppliersTable(props: {
       accessorKey: "is_active",
       header: () => "Estado",
       cell: ({ row }) => (
-        <Badge variant={row.original.is_active ? "default" : "secondary"}>
+        <TableBadge tone={row.original.is_active ? "success" : "neutral"}>
           {row.original.is_active ? "Activo" : "Inactivo"}
-        </Badge>
+        </TableBadge>
       ),
     },
     {

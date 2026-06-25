@@ -110,12 +110,6 @@ export default function StockPage() {
     RED: "Rojo",
     GRAY: "Sin datos",
   };
-  const healthClass: Record<StockHealth, string> = {
-    GREEN: "bg-emerald-600 text-white border-emerald-700",
-    YELLOW: "bg-amber-500 text-black border-amber-600",
-    RED: "bg-red-600 text-white border-red-700",
-    GRAY: "bg-slate-600 text-white border-slate-700",
-  };
   const alertToneLabel: Record<StockHealth, string> = {
     GREEN: "OK",
     YELLOW: "Atencion",
@@ -150,11 +144,6 @@ export default function StockPage() {
     LOW: "Rotacion baja",
     MEDIUM: "Rotacion media",
     HIGH: "Rotacion alta",
-  };
-  const demandProfileClass: Record<DemandProfile, string> = {
-    LOW: "border-border/70 bg-muted text-foreground",
-    MEDIUM: "border-info/16 bg-info/10 text-info",
-    HIGH: "border-primary/16 bg-primary/10 text-primary",
   };
 
   const alerts = useMemo(() => buildStockInsights(stockRows), [stockRows]);
@@ -414,9 +403,7 @@ export default function StockPage() {
                 formatCoverage={formatCoverage}
                 formatQuantity={formatQuantity}
                 healthLabel={healthLabel}
-                healthClass={healthClass}
                 demandProfileLabel={demandProfileLabel}
-                demandProfileClass={demandProfileClass}
               />
             </DataCard>
             <DataTablePagination

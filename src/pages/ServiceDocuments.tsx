@@ -2,9 +2,9 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { TableBadge, type TableBadgeTone } from "@/components/common/TableBadge";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { FilterBar, PageHeader } from "@/components/ui/page";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -39,12 +39,12 @@ const ATTACHMENT_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const SERVICE_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 
-const SERVICE_STATUS_BADGE_CLASS: Record<ServiceDocumentStatus, string> = {
-  DRAFT: "border-slate-500/30 bg-slate-500/10 text-slate-300",
-  SENT: "border-sky-500/30 bg-sky-500/10 text-sky-300",
-  APPROVED: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-  REJECTED: "border-rose-500/30 bg-rose-500/10 text-rose-300",
-  CANCELLED: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+const SERVICE_STATUS_BADGE_TONE: Record<ServiceDocumentStatus, TableBadgeTone> = {
+  DRAFT: "neutral",
+  SENT: "info",
+  APPROVED: "success",
+  REJECTED: "danger",
+  CANCELLED: "warning",
 };
 
 export default function ServiceDocumentsPage() {
@@ -633,7 +633,7 @@ export default function ServiceDocumentsPage() {
                     <TableCell>{document.customers?.name ?? "Sin cliente"}</TableCell>
                     <TableCell>{formatIsoDate(document.issue_date)}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={SERVICE_STATUS_BADGE_CLASS[document.status]}>{SERVICE_STATUS_LABEL[document.status]}</Badge>
+                      <TableBadge tone={SERVICE_STATUS_BADGE_TONE[document.status]}>{SERVICE_STATUS_LABEL[document.status]}</TableBadge>
                     </TableCell>
                     <TableCell className="text-right">{formatMoney(document.total ?? 0, document.currency)}</TableCell>
                     <TableCell className="w-[320px] min-w-[320px] whitespace-nowrap text-right">

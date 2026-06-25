@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Building2, Eye, LogIn, Mail, Pencil, User2 } from "lucide-react";
+import { TableBadge } from "@/components/common/TableBadge";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getErrorMessage } from "@/lib/errors";
 import type { UserAccessRow, UserCompanyAccess } from "@/features/users/types";
@@ -27,7 +27,7 @@ export function UsersAccessTable(props: {
           <div className="flex items-center gap-2 font-medium">
             <User2 className="h-4 w-4 text-muted-foreground" />
             {row.original.full_name?.trim() || "Sin nombre cargado"}
-            {(row.original.companies?.length ?? 0) === 0 ? <Badge variant="outline">Sin empresa</Badge> : null}
+            {(row.original.companies?.length ?? 0) === 0 ? <TableBadge tone="warning">Sin empresa</TableBadge> : null}
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Mail className="h-4 w-4" />
@@ -46,9 +46,9 @@ export function UsersAccessTable(props: {
         <div className="flex flex-wrap gap-2">
           {row.original.global_roles?.length ? (
             row.original.global_roles.map((role) => (
-              <Badge key={role} variant={role === "superadmin" ? "default" : "secondary"}>
+              <TableBadge key={role} tone={role === "superadmin" ? "primary" : "neutral"}>
                 {role}
-              </Badge>
+              </TableBadge>
             ))
           ) : (
             <span className="text-sm text-muted-foreground">Sin roles globales</span>
@@ -78,9 +78,9 @@ export function UsersAccessTable(props: {
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="truncate font-semibold text-foreground">{company.companyName}</p>
-                        <Badge variant={company.status === "ACTIVE" ? "outline" : "destructive"}>
+                        <TableBadge tone={company.status === "ACTIVE" ? "success" : "danger"}>
                           {company.status === "ACTIVE" ? "Activa" : "Inactiva"}
-                        </Badge>
+                        </TableBadge>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
                         <span>{company.companySlug}</span>
@@ -102,9 +102,9 @@ export function UsersAccessTable(props: {
                 <div className="mt-3 flex flex-wrap gap-2">
                   {company.roles?.length ? (
                     company.roles.map((role) => (
-                      <Badge key={`${company.companyUserId}-${role}`} variant="secondary">
+                      <TableBadge key={`${company.companyUserId}-${role}`}>
                         {role}
-                      </Badge>
+                      </TableBadge>
                     ))
                   ) : (
                     <span className="text-xs text-muted-foreground">Sin rol base</span>

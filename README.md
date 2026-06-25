@@ -359,7 +359,8 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - no se agregaron nuevos modulos, reglas de negocio, escrituras automaticas ni cambios grandes de UX
 - QA visual y consistencia de UI:
   - se revisaron las pantallas principales de operacion: inicio, productos, combos, stock, proveedores, listas de precios, documentos, caja, totales, clientes, cuenta corriente, tecnicos y trabajos/servicios
-  - se compacto el badge base para evitar filas infladas por estados dentro de tablas y mejorar contraste/lectura en modo claro y oscuro
+  - los badges dentro de tablas comparten ahora un componente compacto y tonos semanticos consistentes para estados neutrales, informativos, exitosos, de advertencia y de error
+  - se evita que estados apilados inflen las filas y se mantiene el mismo lenguaje visual en productos, stock, precios, documentos, clientes, proveedores, caja, servicios, facturacion, usuarios y tecnicos
   - se agregaron helpers compartidos para acciones de fila y estados vacios de tabla, aplicados en productos, clientes, proveedores, tecnicos y trabajos/servicios
   - las acciones de tabla quedan con tamano, radio, tooltip/aria-label y tonos visuales consistentes para ver, editar, reactivar/desactivar, eliminar y desvincular
 - Validaciones ejecutadas para archivo de trabajos:

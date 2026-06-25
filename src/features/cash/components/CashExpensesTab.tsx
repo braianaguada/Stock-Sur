@@ -1,5 +1,5 @@
 import { Ban, ReceiptText } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { TableBadge } from "@/components/common/TableBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AmountDisplay, CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
@@ -240,13 +240,13 @@ export function CashExpensesTab({
                           <div className="max-w-[220px]">
                             <p className="truncate font-medium">{expense.description}</p>
                             {expense.notes ? <p className="truncate text-xs text-muted-foreground">{expense.notes}</p> : null}
-                            {cancelled ? <Badge variant="outline" className="mt-1 border-rose-200 bg-rose-50 text-rose-700">Anulado</Badge> : null}
+                            {cancelled ? <TableBadge tone="danger" className="mt-1">Anulado</TableBadge> : null}
                           </div>
                         </td>
                         <td className="px-3 py-3">
-                          <CompactBadge tone={expense.expense_kind === "CAJA" ? "danger" : "muted"}>
+                          <TableBadge tone={expense.expense_kind === "CAJA" ? "danger" : "neutral"}>
                             {CASH_EXPENSE_KIND_LABEL[expense.expense_kind]}
-                          </CompactBadge>
+                          </TableBadge>
                         </td>
                         <td className="px-3 py-3">
                           {expense.has_receipt ? (

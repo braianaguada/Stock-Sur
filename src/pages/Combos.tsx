@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Search, Plus, Power, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
+import { TableBadge } from "@/components/common/TableBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -308,7 +309,7 @@ export default function CombosPage() {
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <Badge variant={combo.is_active ? "default" : "secondary"}>{combo.is_active ? "Activo" : "Inactivo"}</Badge>
+                        <TableBadge tone={combo.is_active ? "success" : "neutral"}>{combo.is_active ? "Activo" : "Inactivo"}</TableBadge>
                         <Button
                           type="button"
                           variant="ghost"

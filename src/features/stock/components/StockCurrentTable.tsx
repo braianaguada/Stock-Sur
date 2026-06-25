@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { TableBadge, type TableBadgeTone } from "@/components/common/TableBadge";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import { buildItemDisplayName } from "@/lib/item-display";
 import { cn } from "@/lib/utils";
 import type { DemandProfile, StockHealth, StockRow } from "@/features/stock/types";
@@ -13,9 +13,20 @@ type StockCurrentTableProps = {
   formatCoverage: (value: number | null, unit: "m" | "d") => string;
   formatQuantity: (value: number, unit: string | null) => string;
   healthLabel: Record<StockHealth, string>;
-  healthClass: Record<StockHealth, string>;
   demandProfileLabel: Record<DemandProfile, string>;
-  demandProfileClass: Record<DemandProfile, string>;
+};
+
+const HEALTH_BADGE_TONE: Record<StockHealth, TableBadgeTone> = {
+  GREEN: "success",
+  YELLOW: "warning",
+  RED: "danger",
+  GRAY: "neutral",
+};
+
+const DEMAND_BADGE_TONE: Record<DemandProfile, TableBadgeTone> = {
+  LOW: "neutral",
+  MEDIUM: "info",
+  HIGH: "primary",
 };
 
 function CoverageBar({ row, formatCoverage }: { row: StockRow; formatCoverage: (value: number | null, unit: "m" | "d") => string }) {
@@ -57,9 +68,7 @@ export function StockCurrentTable({
   formatCoverage,
   formatQuantity,
   healthLabel,
-  healthClass,
   demandProfileLabel,
-  demandProfileClass,
 }: StockCurrentTableProps) {
   const columns = useMemo<ColumnDef<StockRow, unknown>[]>(() => [
     {
@@ -102,12 +111,12 @@ export function StockCurrentTable({
       header: () => "Estado",
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1">
-          <Badge variant="outline" className={cn("w-fit px-2 py-0 text-[10px] font-medium", healthClass[row.original.health])}>
+          <TableBadge tone={HEALTH_BADGE_TONE[row.original.health]}>
             {healthLabel[row.original.health]}
-          </Badge>
-          <Badge variant="outline" className={cn("w-fit px-2 py-0 text-[10px]", demandProfileClass[row.original.demand_profile])}>
+          </TableBadge>
+          <TableBadge tone={DEMAND_BADGE_TONE[row.original.demand_profile]}>
             {demandProfileLabel[row.original.demand_profile]}
-          </Badge>
+          </TableBadge>
         </div>
       ),
       meta: {
@@ -139,7 +148,7 @@ export function StockCurrentTable({
         className: "w-[90px]",
       },
     },
-  ], [demandProfileClass, demandProfileLabel, formatCoverage, formatQuantity, healthClass, healthLabel]);
+  ], [demandProfileLabel, formatCoverage, formatQuantity, healthLabel]);
 
   return (
     <DataTable

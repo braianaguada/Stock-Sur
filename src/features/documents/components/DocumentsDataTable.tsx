@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, Check, Copy, Eye, FileText, Loader2, MessageCircle, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
+import { TableBadge, type TableBadgeTone } from "@/components/common/TableBadge";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DOC_LABEL, DOC_TYPE_CLASS, INTERNAL_REMITO_LABEL, STATUS_CLASS, STATUS_LABEL, STATUS_VARIANT } from "@/features/documents/constants";
+import { DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "@/features/documents/constants";
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
-import type { DocRow, DocStatus } from "@/features/documents/types";
+import type { DocRow, DocStatus, DocType } from "@/features/documents/types";
 import { formatNumber, resolveDocumentRecipient } from "@/features/documents/utils";
 import { formatIsoDate } from "@/lib/formatters";
 
@@ -32,6 +32,21 @@ interface DocumentsDataTableProps {
   canDuplicateDocument: boolean;
   canTransitionDocumentTo: (status: DocStatus) => boolean;
 }
+
+const DOCUMENT_TYPE_TONE: Record<DocType, TableBadgeTone> = {
+  PRESUPUESTO: "info",
+  REMITO: "success",
+  REMITO_DEVOLUCION: "warning",
+};
+
+const DOCUMENT_STATUS_TONE: Record<DocStatus, TableBadgeTone> = {
+  BORRADOR: "neutral",
+  ENVIADO: "info",
+  APROBADO: "success",
+  RECHAZADO: "danger",
+  EMITIDO: "primary",
+  ANULADO: "danger",
+};
 
 export function DocumentsDataTable({
   documents,
@@ -60,9 +75,9 @@ export function DocumentsDataTable({
       accessorKey: "doc_type",
       header: () => "Tipo",
       cell: ({ row }) => (
-        <Badge variant="outline" className={DOC_TYPE_CLASS[row.original.doc_type]}>
+        <TableBadge tone={DOCUMENT_TYPE_TONE[row.original.doc_type]}>
           {row.original.doc_type === "REMITO_DEVOLUCION" ? "Devolucion" : DOC_LABEL[row.original.doc_type]}
-        </Badge>
+        </TableBadge>
       ),
       meta: {
         className: "w-[120px]",
@@ -109,9 +124,9 @@ export function DocumentsDataTable({
       header: () => "Estado",
       cell: ({ row }) => (
         <div className="space-y-1">
-          <Badge variant={STATUS_VARIANT[row.original.status]} className={STATUS_CLASS[row.original.status]}>
+          <TableBadge tone={DOCUMENT_STATUS_TONE[row.original.status]}>
             {STATUS_LABEL[row.original.status]}
-          </Badge>
+          </TableBadge>
           {row.original.doc_type === "REMITO" && row.original.external_invoice_status === "ACTIVE" ? (
             <p className="truncate font-mono text-[11px] text-muted-foreground">
               Factura: {row.original.external_invoice_number}

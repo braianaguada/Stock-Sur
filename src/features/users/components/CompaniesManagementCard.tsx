@@ -3,8 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Power, RotateCcw } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { TableBadge } from "@/components/common/TableBadge";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -83,7 +83,7 @@ export function CompaniesManagementCard() {
     {
       accessorKey: "status",
       header: () => "Estado",
-      cell: ({ row }) => <Badge variant={row.original.status === "ACTIVE" ? "outline" : "secondary"}>{row.original.status === "ACTIVE" ? "Activa" : "Inactiva"}</Badge>,
+      cell: ({ row }) => <TableBadge tone={row.original.status === "ACTIVE" ? "success" : "neutral"}>{row.original.status === "ACTIVE" ? "Activa" : "Inactiva"}</TableBadge>,
       meta: { className: "w-[120px]" },
     },
     {

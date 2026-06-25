@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VisibilityState } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
+import { TableBadge } from "@/components/common/TableBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -167,14 +167,9 @@ export function PriceListDetailDialog({
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/42 px-4 py-3 text-sm">
                   <div className="flex flex-wrap items-center gap-1.5">
                     {renderPricingSummary(selectedList)}
-                    <Badge
-                      variant="outline"
-                      className={selectedList.status === "UPDATED"
-                        ? "px-2.5 py-0.5 text-[10px] border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200"
-                        : "px-2.5 py-0.5 text-[10px] border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200"}
-                    >
+                    <TableBadge tone={selectedList.status === "UPDATED" ? "success" : "warning"}>
                       {PRICE_LIST_STATUS_LABEL[selectedList.status]}
-                    </Badge>
+                    </TableBadge>
                   </div>
                   <div className="text-muted-foreground">
                     Ultimo recalculo: {formatDateTime(selectedList.last_recalculated_at)} - {renderUserName(selectedList.last_recalculated_by)}

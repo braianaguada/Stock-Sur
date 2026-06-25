@@ -103,14 +103,14 @@ export function getClosureSituationWithClosure(
   if (sale.status === "ANULADA") {
     return {
       label: "Anulada",
-      className: "border-rose-200 bg-rose-50 text-rose-700",
+      tone: "danger" as const,
     };
   }
 
   if (sale.closure_id) {
     return {
       label: "En caja cerrada",
-      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      tone: "success" as const,
     };
   }
 
@@ -118,24 +118,24 @@ export function getClosureSituationWithClosure(
     return new Date(sale.sold_at) <= new Date(closure.closed_at)
       ? {
           label: "En caja cerrada",
-          className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+          tone: "success" as const,
         }
       : {
           label: "Venta post cierre",
-          className: "border-violet-200 bg-violet-50 text-violet-700",
+          tone: "primary" as const,
         };
   }
 
   if (closure?.status === "CERRADO") {
     return {
       label: "Venta post cierre",
-      className: "border-violet-200 bg-violet-50 text-violet-700",
+      tone: "primary" as const,
     };
   }
 
   return {
     label: "Pendiente de cierre",
-    className: "border-sky-200 bg-sky-50 text-sky-700",
+    tone: "info" as const,
   };
 }
 

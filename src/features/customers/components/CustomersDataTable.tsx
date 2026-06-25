@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { TableBadge } from "@/components/common/TableBadge";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import type { Customer } from "@/features/customers/types";
 import { canUseCustomerForInvoiceA } from "@/features/customers/fiscal";
 
@@ -55,9 +55,9 @@ export function CustomersDataTable({
       accessorKey: "is_occasional",
       header: () => "Tipo",
       cell: ({ row }) => (
-        <Badge variant={row.original.is_occasional ? "secondary" : "default"}>
+        <TableBadge tone={row.original.is_occasional ? "neutral" : "primary"}>
           {row.original.is_occasional ? "Sistema legacy" : "Registrado"}
-        </Badge>
+        </TableBadge>
       ),
     },
     {
@@ -66,9 +66,9 @@ export function CustomersDataTable({
       cell: ({ row }) => {
         const readiness = canUseCustomerForInvoiceA(row.original, row.original.fiscal_profile);
         return (
-          <Badge variant={readiness.allowed ? "default" : "secondary"}>
+          <TableBadge tone={readiness.allowed ? "success" : "warning"}>
             {readiness.allowed ? "Listo" : row.original.fiscal_profile?.validation_status ?? "Pendiente"}
-          </Badge>
+          </TableBadge>
         );
       },
     },

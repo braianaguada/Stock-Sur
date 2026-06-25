@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { TableBadge, type TableBadgeTone } from "@/components/common/TableBadge";
 import { AmountDisplay } from "@/components/common/VisualSystem";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,16 @@ const STATUS_LABEL: Record<BillingDocumentRow["fiscal_status"], string> = {
   AUTHORIZED: "Autorizado",
   REJECTED: "Rechazado",
   CANCELLED_INTERNAL: "Cancelado interno",
+};
+
+const STATUS_TONE: Record<BillingDocumentRow["fiscal_status"], TableBadgeTone> = {
+  DRAFT: "neutral",
+  BLOCKED: "danger",
+  READY_TO_AUTHORIZE: "info",
+  AUTHORIZING: "warning",
+  AUTHORIZED: "success",
+  REJECTED: "danger",
+  CANCELLED_INTERNAL: "neutral",
 };
 
 function formatRemitoReference(remito?: { point_of_sale: number; document_number: number | null } | null) {
@@ -338,7 +349,7 @@ export default function BillingPage() {
                               <tr key={document.id} className="border-b last:border-b-0">
                                 <td className="px-3 py-2">{formatDateTime(document.created_at)}</td>
                                 <td className="px-3 py-2">{getBillingDocumentTypeLabel(document)}</td>
-                                <td className="px-3 py-2"><Badge variant="outline">{STATUS_LABEL[document.fiscal_status]}</Badge></td>
+                                <td className="px-3 py-2"><TableBadge tone={STATUS_TONE[document.fiscal_status]}>{STATUS_LABEL[document.fiscal_status]}</TableBadge></td>
                                 <td className="px-3 py-2">{getBillingDocumentOriginLabel(document)}</td>
                                 <td className="px-3 py-2 font-mono text-xs">{formatRemitoReference(remito)}</td>
                                 <td className="px-3 py-2">{document.receiver_name}</td>

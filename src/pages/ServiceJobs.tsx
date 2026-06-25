@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { TableBadge, type TableBadgeTone } from "@/components/common/TableBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -65,14 +66,14 @@ function formatMoney(value: number | string | null | undefined) {
 }
 
 function JobStatusBadge({ status }: { status: ServiceJobListItem["status"] }) {
-  const className = {
-    OPEN: "border-sky-500/30 bg-sky-500/10 text-sky-400",
-    IN_PROGRESS: "border-amber-500/30 bg-amber-500/10 text-amber-400",
-    ON_HOLD: "border-slate-500/30 bg-slate-500/10 text-slate-400",
-    DONE: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-    CANCELLED: "border-rose-500/30 bg-rose-500/10 text-rose-400",
-  }[status];
-  return <Badge variant="outline" className={className}>{JOB_STATUS_LABEL[status]}</Badge>;
+  const tones: Record<ServiceJobListItem["status"], TableBadgeTone> = {
+    OPEN: "info",
+    IN_PROGRESS: "warning",
+    ON_HOLD: "neutral",
+    DONE: "success",
+    CANCELLED: "danger",
+  };
+  return <TableBadge tone={tones[status]}>{JOB_STATUS_LABEL[status]}</TableBadge>;
 }
 
 export default function ServiceJobsPage() {
@@ -333,7 +334,7 @@ export default function ServiceJobsPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="font-medium">{job.title}</div>
-                          {job.archived_at ? <Badge variant="secondary">Archivado</Badge> : null}
+                          {job.archived_at ? <TableBadge>Archivado</TableBadge> : null}
                         </div>
                         <div className="text-xs text-muted-foreground">Abierto {formatDateTime(job.opened_at)}</div>
                       </TableCell>
