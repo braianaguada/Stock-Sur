@@ -14,11 +14,6 @@ export function withPrintFavicon(html: string) {
   return html.replace("</head>", `${PRINT_FAVICON_TAG}</head>`);
 }
 
-export function withPrintDialogOnLoad(html: string) {
-  const script = "<script>window.addEventListener('load',function(){window.setTimeout(function(){window.print()},250)},{once:true})</script>";
-  return html.includes("</body>") ? html.replace("</body>", `${script}</body>`) : `${html}${script}`;
-}
-
 export function escapeHtml(value: unknown) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => HTML_ESCAPE_MAP[char] ?? char);
 }

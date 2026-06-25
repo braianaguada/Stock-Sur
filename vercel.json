@@ -1,4 +1,10 @@
 {
+  "functions": {
+    "api/render-pdf.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",

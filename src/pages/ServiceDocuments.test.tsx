@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 const supabaseInvokeMock = vi.hoisted(() => vi.fn());
+const choosePdfSaveTargetMock = vi.hoisted(() => vi.fn());
+const savePrintHtmlAsPdfMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/AppLayout", () => ({ AppLayout: ({ children }: { children: ReactNode }) => <>{children}</> }));
 vi.mock("@/components/common/CompanyAccessNotice", () => ({ CompanyAccessNotice: ({ description }: { description: string }) => <div>{description}</div> }));
@@ -21,6 +23,10 @@ vi.mock("@/contexts/company-brand-context", () => ({
   useCompanyBrand: () => ({ settings: {} }),
 }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
+vi.mock("@/lib/pdf-download", () => ({
+  choosePdfSaveTarget: choosePdfSaveTargetMock,
+  savePrintHtmlAsPdf: savePrintHtmlAsPdfMock,
+}));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     functions: {
@@ -96,12 +102,17 @@ describe("ServiceDocumentsPage", () => {
     cleanup();
     vi.restoreAllMocks();
     supabaseInvokeMock.mockReset();
+    choosePdfSaveTargetMock.mockReset();
+    savePrintHtmlAsPdfMock.mockReset();
   });
 
   it("shows preview and print actions and opens preview dialog", async () => {
     const write = vi.fn();
     const focus = vi.fn();
     vi.stubGlobal("open", vi.fn(() => ({ document: { open: vi.fn(), write, close: vi.fn() }, focus, close: vi.fn() })));
+    const target = { fileName: "Presupuesto-Servicio-SERV-000012.pdf", handle: null };
+    choosePdfSaveTargetMock.mockResolvedValue(target);
+    savePrintHtmlAsPdfMock.mockResolvedValue(undefined);
 
     render(<ServiceDocumentsPage />);
 
@@ -117,10 +128,13 @@ describe("ServiceDocumentsPage", () => {
     fireEvent.click(screen.getByText("Abrir impresión"));
     await waitFor(() => expect(window.open).toHaveBeenCalled());
 
-    write.mockClear();
     fireEvent.click(screen.getByTitle("Guardar PDF"));
-    await waitFor(() => expect(write).toHaveBeenCalledWith(expect.stringContaining("window.print()")));
-    expect(write).toHaveBeenCalledWith(expect.stringContaining("Presupuesto de servicio"));
+    await waitFor(() => expect(savePrintHtmlAsPdfMock).toHaveBeenCalledWith(expect.objectContaining({
+      html: expect.stringContaining("Presupuesto de servicio"),
+      fileName: "Presupuesto-Servicio-SERV-000012.pdf",
+      proof: { mode: "authenticated", kind: "service", documentId: "doc-1" },
+      target,
+    })));
   });
 
   it("opens the AI assistant and renders a generated price preview", async () => {

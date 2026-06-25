@@ -178,7 +178,7 @@ Los presupuestos de servicio soportan adjuntos, moneda y links publicos sin mezc
 - **Cotizacion BNA**: la UI intenta obtener cotizacion de Banco Nacion desde una capa aislada. Si falla, permite cargar cotizacion manual y guarda `source = MANUAL`.
 - **Modo de precio**: `DETAILED` mantiene precios por linea. `GLOBAL_TOTAL` permite lineas descriptivas sin precio unitario y muestra solo el precio final global en UI comercial, impresion y vista publica.
 - **Links publicos**: se generan tokens largos no predecibles en `service_document_share_links`. El link no expone ids internos, es revocable y puede expirar. La vista publica es de solo lectura y no requiere login.
-- **PDF**: los presupuestos de servicio reutilizan exactamente la vista de impresion desde el listado y desde el link publico. El boton abre el dialogo nativo para imprimir o elegir `Guardar como PDF`, sin reconstruir el documento con un conversor visual.
+- **PDF**: los presupuestos de servicio reutilizan exactamente el HTML de impresion desde el listado y desde el link publico. Un endpoint autenticado lo renderiza con Chromium y el boton abre directamente el selector de ubicacion para guardar el `.pdf` en navegadores compatibles; si el navegador no soporta ese selector, inicia una descarga normal.
 - **WhatsApp/email**: fase 1 comparte el link publico por `wa.me` o `mailto`. No adjunta PDF automaticamente, no usa proveedor de email y no usa WhatsApp Business API.
 
 Limitaciones actuales: el envio real de email con adjunto, historial de envios y WhatsApp Business API quedan fuera de esta fase.

@@ -1,16 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_COMPANY_SETTINGS } from "@/contexts/company-brand-context";
 import { buildServiceDocumentPrintHtml } from "@/features/services/print";
 import { usePublicServiceDocument } from "@/features/services/hooks/usePublicServiceDocument";
-import { openPrintWindow, withPrintDialogOnLoad } from "@/lib/print";
+import { savePrintHtmlAsPdf } from "@/lib/pdf-download";
 
 export default function PublicServiceDocumentPage() {
   const { token } = useParams();
   const query = usePublicServiceDocument(token ?? null);
   const payload = query.data;
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     const meta = document.createElement("meta");
@@ -33,6 +35,23 @@ export default function PublicServiceDocumentPage() {
     attachments: payload.attachments,
     companySettings: { ...DEFAULT_COMPANY_SETTINGS, ...payload.company },
   });
+  const savePdf = async () => {
+    setSaveError(null);
+    setIsSaving(true);
+    try {
+      await savePrintHtmlAsPdf({
+        html,
+        fileName: `Presupuesto-Servicio-SERV-${String(payload.document.number).padStart(6, "0")}.pdf`,
+        proof: { mode: "public", kind: "service", token: token ?? "" },
+      });
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        setSaveError(error instanceof Error ? error.message : "No se pudo guardar el PDF.");
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-slate-200">
@@ -40,14 +59,16 @@ export default function PublicServiceDocumentPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-slate-950">Presupuesto de servicio</p>
-            <p className="text-xs text-slate-500">Abrí la impresión y elegí Guardar como PDF.</p>
+            <p className="text-xs text-slate-500">Elegí dónde guardar el archivo PDF.</p>
           </div>
           <Button
-            onClick={() => openPrintWindow(withPrintDialogOnLoad(html))}
+            onClick={() => void savePdf()}
+            disabled={isSaving}
           >
-            <Download className="mr-2 h-4 w-4" /> Guardar PDF
+            <Download className="mr-2 h-4 w-4" /> {isSaving ? "Generando..." : "Guardar PDF"}
           </Button>
         </div>
+        {saveError && <p className="mx-auto mt-2 max-w-5xl text-sm text-red-700">{saveError}</p>}
       </div>
       <div dangerouslySetInnerHTML={{ __html: html }} />
     </main>

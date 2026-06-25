@@ -18,7 +18,8 @@ import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { formatIsoDate, formatMoney } from "@/lib/formatters";
-import { openPrintWindow, withPrintDialogOnLoad } from "@/lib/print";
+import { openPrintWindow } from "@/lib/print";
+import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "@/lib/pdf-download";
 import { serviceDb } from "@/features/services/db";
 import { ServiceQuoteAiAssistantDialog } from "@/features/services/components/ServiceQuoteAiAssistantDialog";
 import { ServiceDocumentPreviewDialog } from "@/features/services/components/ServiceDocumentPreviewDialog";
@@ -248,14 +249,16 @@ export default function ServiceDocumentsPage() {
   };
 
   const downloadServicePdf = async (document: ServiceDocument) => {
-    const win = openPrintWindow(`<!doctype html><html><head><title>Preparando PDF...</title><style>
-      html,body{margin:0;padding:0;background:#fff}
-      body{font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#334155}
-      </style></head><body>Preparando documento para guardar como PDF...</body></html>`);
-    if (!win) {
-      toast({ title: "No se pudo abrir el documento", description: "Habilitá las ventanas emergentes para imprimir o guardar el PDF.", variant: "destructive" });
+    const fileName = `Presupuesto-Servicio-SERV-${String(document.number).padStart(6, "0")}.pdf`;
+    let target;
+    try {
+      target = await choosePdfSaveTarget(fileName);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast({ title: "No se pudo seleccionar el archivo", description: getErrorMessage(error), variant: "destructive" });
       return;
     }
+
     setDownloadingDocumentId(document.id);
     try {
       const [{ data: lineRows, error: linesError }, { data: attachmentRows, error: attachmentsError }] = await Promise.all([
@@ -275,12 +278,15 @@ export default function ServiceDocumentsPage() {
         attachments: documentAttachments,
         companySettings: settings,
       });
-      win.document.open();
-      win.document.write(withPrintDialogOnLoad(html));
-      win.document.close();
-      win.focus();
+      await savePrintHtmlAsPdf({
+        html,
+        fileName,
+        proof: { mode: "authenticated", kind: "service", documentId: document.id },
+        target,
+      });
+      toast({ title: "PDF guardado" });
     } catch (error) {
-      win.close();
+      if (error instanceof DOMException && error.name === "AbortError") return;
       toast({ title: "No se pudo descargar el PDF", description: getErrorMessage(error), variant: "destructive" });
     } finally {
       setDownloadingDocumentId(null);
