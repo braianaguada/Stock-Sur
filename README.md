@@ -190,6 +190,14 @@ Limitaciones actuales: el envio real de email con adjunto, historial de envios y
 - Las notas de presupuestos y remitos tienen mayor contraste, borde y tipografia en la vista de impresion.
 - Migracion: `20260625150000_document_public_share_links.sql`.
 
+## Documentos y estado de cuenta
+
+La vista previa y la impresion de documentos comerciales y presupuestos de servicio amplian el area util del logo de empresa para mejorar legibilidad sin cambiar movimientos de stock, caja, cuenta corriente ni facturacion.
+
+Los links publicos de presupuestos/remitos comerciales dependen de las migraciones existentes `20260625150000_document_public_share_links.sql` y `20260625190000_fix_document_share_token_generation.sql`. La carga de clientes con dias de vencimiento depende de `20260625120000_customer_account_due_days.sql`.
+
+Estado de cuenta lee `account_due_days` del cliente para calcular vencimientos cuando el asiento no trae `payment_term_days` explicito, y su cache de React Query queda segmentada por filtros para evitar resultados reutilizados entre busquedas.
+
 ## Estado actual de staging
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.

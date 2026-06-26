@@ -1,3 +1,4 @@
+import type { AccountStatementFilters } from "@/features/customer-account/lib/accountStatement";
 import type { DocStatus, DocType } from "@/features/documents/types";
 
 export const queryKeys = {
@@ -16,7 +17,16 @@ export const queryKeys = {
       ["customer-account-summary", companyId ?? "no-company", customerId ?? "no-customer"] as const,
     accountEntries: (companyId: string | null, customerId: string | null) =>
       ["customer-account-entries", companyId ?? "no-company", customerId ?? "no-customer"] as const,
-    accountStatement: (companyId: string | null) => ["customer-account-statement", companyId ?? "no-company"] as const,
+    accountStatement: (companyId: string | null, filters: AccountStatementFilters = {}) =>
+      [
+        "customer-account-statement",
+        companyId ?? "no-company",
+        filters.customerId ?? "all",
+        filters.from ?? "",
+        filters.to ?? "",
+        filters.status ?? "all",
+        filters.search ?? "",
+      ] as const,
   },
   items: {
     catalog: (
