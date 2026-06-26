@@ -8,7 +8,6 @@ import { invalidateStockQueries } from "@/lib/invalidate";
 import { businessDateFromTimestamp } from "@/lib/formatters";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchAllPages } from "@/lib/supabase-pagination";
-import { buildItemDisplayName } from "@/lib/item-display";
 import { matchesNaturalItemSearch } from "@/features/items/search";
 import type {
   DemandProfile,
@@ -37,13 +36,14 @@ type StockMovementDraft = {
   selectedItem: SearchableItem | null;
 };
 
-function sanitizeItemSearch(value: string | null | undefined) {
+export function sanitizeStockMovementItemSearch(value: string | null | undefined) {
   const trimmed = value?.trim();
-  if (!trimmed || trimmed === "undefined - undefined") return "";
+  if (!trimmed || trimmed === "undefined - undefined" || trimmed === "Item sin nombre") return "";
 
   return trimmed
     .replace(/^undefined\s*-\s*/i, "")
     .replace(/\s*-\s*undefined$/i, "")
+    .replace(/^Item sin nombre\s*-\s*/i, "")
     .trim();
 }
 
@@ -57,7 +57,7 @@ function readStoredDraft() {
     const draft = JSON.parse(raw) as StockMovementDraft;
     return {
       ...draft,
-      itemSearch: sanitizeItemSearch(draft.itemSearch),
+      itemSearch: sanitizeStockMovementItemSearch(draft.itemSearch),
     };
   } catch {
     sessionStorage.removeItem(NEW_STOCK_MOVEMENT_DRAFT_KEY);
@@ -79,15 +79,6 @@ function normalizeItem(item: SearchableItem | null | undefined) {
         category: item.category ?? null,
       }
     : null;
-}
-
-function buildStockItemSearchText(item: SearchableItem) {
-  return buildItemDisplayName({
-    name: item.name,
-    brand: item.brand,
-    model: item.model,
-    attributes: item.attributes,
-  });
 }
 
 function normalizeMovementForm(form: Partial<StockMovementForm> | null | undefined): StockMovementForm {
@@ -140,7 +131,7 @@ export function useStockPage() {
   const openCreateMovement = useCallback((item?: SearchableItem) => {
     setDialogOpen(true);
     setForm({ ...DEFAULT_STOCK_MOVEMENT_FORM, item_id: item?.id ?? "" });
-    setItemSearch(item ? buildStockItemSearchText(item) : "");
+    setItemSearch("");
     setSelectedItem(normalizeItem(item));
   }, []);
 
