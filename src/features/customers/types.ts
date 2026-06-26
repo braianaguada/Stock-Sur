@@ -5,6 +5,7 @@ export interface Customer {
   cuit: string | null;
   email: string | null;
   phone: string | null;
+  account_due_days?: number | null;
   is_occasional: boolean;
   fiscal_profile?: CustomerFiscalProfile | null;
 }

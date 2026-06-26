@@ -178,6 +178,8 @@ Presupuestos y remitos comerciales incorporan links publicos revocables mediante
 
 La vista previa y la impresion de documentos comerciales y de servicio amplian el area util del logo de empresa para mejorar legibilidad sin cambiar movimientos de stock, caja, cuenta corriente ni facturacion. Migracion: `supabase/migrations/20260626120000_document_share_links.sql`.
 
+Clientes incorpora `account_due_days` en `customers` con default 30 y rango 0-365 para que los nuevos clientes puedan guardar dias de vencimiento de cuenta corriente. Migracion: `supabase/migrations/20260626130000_customer_account_due_days.sql`.
+
 ## Estado actual de staging
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.

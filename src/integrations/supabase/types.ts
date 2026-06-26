@@ -757,6 +757,7 @@ export type Database = {
       }
       customers: {
         Row: {
+          account_due_days: number
           company_id: string
           created_at: string
           created_by: string | null
@@ -768,6 +769,7 @@ export type Database = {
           phone: string | null
         }
         Insert: {
+          account_due_days?: number
           company_id: string
           created_at?: string
           created_by?: string | null
@@ -779,6 +781,7 @@ export type Database = {
           phone?: string | null
         }
         Update: {
+          account_due_days?: number
           company_id?: string
           created_at?: string
           created_by?: string | null
