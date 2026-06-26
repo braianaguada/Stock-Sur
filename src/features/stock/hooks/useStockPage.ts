@@ -8,6 +8,7 @@ import { invalidateStockQueries } from "@/lib/invalidate";
 import { businessDateFromTimestamp } from "@/lib/formatters";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchAllPages } from "@/lib/supabase-pagination";
+import { buildItemDisplayName } from "@/lib/item-display";
 import { matchesNaturalItemSearch } from "@/features/items/search";
 import type {
   DemandProfile,
@@ -36,6 +37,16 @@ type StockMovementDraft = {
   selectedItem: SearchableItem | null;
 };
 
+function sanitizeItemSearch(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed === "undefined - undefined") return "";
+
+  return trimmed
+    .replace(/^undefined\s*-\s*/i, "")
+    .replace(/\s*-\s*undefined$/i, "")
+    .trim();
+}
+
 function readStoredDraft() {
   if (typeof window === "undefined") return null;
 
@@ -43,7 +54,11 @@ function readStoredDraft() {
   if (!raw) return null;
 
   try {
-    return JSON.parse(raw) as StockMovementDraft;
+    const draft = JSON.parse(raw) as StockMovementDraft;
+    return {
+      ...draft,
+      itemSearch: sanitizeItemSearch(draft.itemSearch),
+    };
   } catch {
     sessionStorage.removeItem(NEW_STOCK_MOVEMENT_DRAFT_KEY);
     return null;
@@ -64,6 +79,15 @@ function normalizeItem(item: SearchableItem | null | undefined) {
         category: item.category ?? null,
       }
     : null;
+}
+
+function buildStockItemSearchText(item: SearchableItem) {
+  return buildItemDisplayName({
+    name: item.name,
+    brand: item.brand,
+    model: item.model,
+    attributes: item.attributes,
+  });
 }
 
 function normalizeMovementForm(form: Partial<StockMovementForm> | null | undefined): StockMovementForm {
@@ -116,7 +140,7 @@ export function useStockPage() {
   const openCreateMovement = useCallback((item?: SearchableItem) => {
     setDialogOpen(true);
     setForm({ ...DEFAULT_STOCK_MOVEMENT_FORM, item_id: item?.id ?? "" });
-    setItemSearch(item ? `${item.sku} - ${item.name}` : "");
+    setItemSearch(item ? buildStockItemSearchText(item) : "");
     setSelectedItem(normalizeItem(item));
   }, []);
 

@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EntityDialog } from "@/components/common/EntityDialog";
-import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
+import { buildItemDisplayName } from "@/lib/item-display";
 import { cn } from "@/lib/utils";
 import { Loader2, Package } from "lucide-react";
 import type { MovementType, SearchableItem, StockMovementForm } from "@/features/stock/types";
