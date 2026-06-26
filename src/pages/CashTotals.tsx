@@ -16,6 +16,7 @@ import { todayDateInputValue } from "@/features/cash/utils";
 import { getErrorMessage } from "@/lib/errors";
 import { currency, formatBusinessDate } from "@/lib/formatters";
 import { queryKeys } from "@/lib/query-keys";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
 const periodLabels: Record<CashTotalsPeriod, string> = {
@@ -25,12 +26,26 @@ const periodLabels: Record<CashTotalsPeriod, string> = {
   range: "Rango",
 };
 
-function SummaryCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
+type SummaryTone = "sales" | "cash" | "returns" | "expense" | "net" | "account" | "totalExpense";
+
+const summaryToneClasses: Record<SummaryTone, string> = {
+  sales: "border-primary/25 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/.14),transparent_58%)]",
+  cash: "border-emerald-500/25 bg-[radial-gradient(circle_at_top_right,rgb(16_185_129/.15),transparent_58%)]",
+  returns: "border-rose-500/25 bg-[radial-gradient(circle_at_top_right,rgb(244_63_94/.13),transparent_58%)]",
+  expense: "border-amber-500/25 bg-[radial-gradient(circle_at_top_right,rgb(245_158_11/.15),transparent_58%)]",
+  net: "border-blue-500/25 bg-[radial-gradient(circle_at_top_right,rgb(59_130_246/.14),transparent_58%)]",
+  account: "border-violet-500/25 bg-[radial-gradient(circle_at_top_right,rgb(139_92_246/.14),transparent_58%)]",
+  totalExpense: "border-orange-500/25 bg-[radial-gradient(circle_at_top_right,rgb(249_115_22/.14),transparent_58%)]",
+};
+
+function SummaryCard({ label, value, hint, tone = "expense" }: { label: string; value: number; hint?: string; tone?: SummaryTone }) {
   return (
-    <Card className="min-w-0 overflow-hidden border-primary/15 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/.14),transparent_55%)] shadow-sm">
-      <CardHeader className="pb-3">
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="min-w-0 break-words text-xl tracking-tight sm:text-2xl">{currency.format(value)}</CardTitle>
+    <Card className={cn("min-w-0 overflow-hidden shadow-sm", summaryToneClasses[tone])}>
+      <CardHeader className="space-y-2 p-5">
+        <CardDescription className="text-xs font-medium">{label}</CardDescription>
+        <CardTitle className="min-w-0 text-[clamp(1.15rem,1.5vw,1.55rem)] leading-tight tracking-tight tabular-nums">
+          {currency.format(value)}
+        </CardTitle>
         {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
       </CardHeader>
     </Card>
@@ -188,14 +203,14 @@ export default function CashTotalsPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
-          <SummaryCard label="Total vendido" value={report.summary.grossSalesTotal} hint={`${report.summary.salesCount} movimientos`} />
-          <SummaryCard label="Efectivo bruto" value={report.summary.cashTotal} hint="Remito + facturable" />
-          <SummaryCard label="Devoluciones" value={-report.summary.returnsTotal} hint="Servicios / remito" />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          <SummaryCard label="Total vendido" value={report.summary.grossSalesTotal} hint={`${report.summary.salesCount} movimientos`} tone="sales" />
+          <SummaryCard label="Efectivo bruto" value={report.summary.cashTotal} hint="Remito + facturable" tone="cash" />
+          <SummaryCard label="Devoluciones" value={-report.summary.returnsTotal} hint="Servicios / remito" tone="returns" />
           <SummaryCard label="Gastos efectivo" value={report.summary.expensesCashTotal} hint="Resta caja física" />
-          <SummaryCard label="Efectivo neto" value={report.summary.netCashTotal} hint="Efectivo menos gastos" />
-          <SummaryCard label="Cuenta corriente" value={report.summary.accountCurrentTotal} hint="Separado del efectivo" />
-          <SummaryCard label="Gastos totales" value={report.summary.expensesTotal} hint="Efectivo + no efectivo" />
+          <SummaryCard label="Efectivo neto" value={report.summary.netCashTotal} hint="Efectivo menos gastos" tone="net" />
+          <SummaryCard label="Cuenta corriente" value={report.summary.accountCurrentTotal} hint="Separado del efectivo" tone="account" />
+          <SummaryCard label="Gastos totales" value={report.summary.expensesTotal} hint="Efectivo + no efectivo" tone="totalExpense" />
         </div>
 
         <Card className="shadow-sm">

@@ -23,6 +23,17 @@ export type DashboardMonthlyCash = {
   count: number;
 };
 
+export type DashboardMonthlyProfit = {
+  month: string;
+  grossRevenue: number;
+  netRevenue: number;
+  tax: number;
+  productCost: number;
+  grossProfit: number;
+  profitMarginPct: number;
+  count: number;
+};
+
 export type DashboardPaymentMethod = {
   method: string;
   total: number;
@@ -69,6 +80,11 @@ export type DashboardInsights = {
     cashNetMonth: number;
     averageTicket: number;
     salesGrowthPct: number;
+    salesNetMonth: number;
+    taxMonth: number;
+    productCostMonth: number;
+    grossProfitMonth: number;
+    profitMarginPct: number;
     slowStockValue: number;
     slowStockItems: number;
   };
@@ -77,6 +93,7 @@ export type DashboardInsights = {
   categoryValues: DashboardCategoryPoint[];
   topItemsByValue: DashboardTopItem[];
   monthlyCash: DashboardMonthlyCash[];
+  monthlyProfit: DashboardMonthlyProfit[];
   paymentMethods: DashboardPaymentMethod[];
   slowStock: DashboardStockActivity[];
   stockVelocity: DashboardStockActivity[];
@@ -98,6 +115,11 @@ export const EMPTY_DASHBOARD: DashboardInsights = {
     cashNetMonth: 0,
     averageTicket: 0,
     salesGrowthPct: 0,
+    salesNetMonth: 0,
+    taxMonth: 0,
+    productCostMonth: 0,
+    grossProfitMonth: 0,
+    profitMarginPct: 0,
     slowStockValue: 0,
     slowStockItems: 0,
   },
@@ -106,6 +128,7 @@ export const EMPTY_DASHBOARD: DashboardInsights = {
   categoryValues: [],
   topItemsByValue: [],
   monthlyCash: [],
+  monthlyProfit: [],
   paymentMethods: [],
   slowStock: [],
   stockVelocity: [],
@@ -146,6 +169,11 @@ export function normalizeDashboardInsights(value: unknown): DashboardInsights {
       cashNetMonth: numberValue(metrics.cashNetMonth),
       averageTicket: numberValue(metrics.averageTicket),
       salesGrowthPct: numberValue(metrics.salesGrowthPct),
+      salesNetMonth: numberValue(metrics.salesNetMonth),
+      taxMonth: numberValue(metrics.taxMonth),
+      productCostMonth: numberValue(metrics.productCostMonth),
+      grossProfitMonth: numberValue(metrics.grossProfitMonth),
+      profitMarginPct: numberValue(metrics.profitMarginPct),
       slowStockValue: numberValue(metrics.slowStockValue),
       slowStockItems: numberValue(metrics.slowStockItems),
     },
@@ -197,6 +225,19 @@ export function normalizeDashboardInsights(value: unknown): DashboardInsights {
         count: numberValue(point.count),
       };
     }),
+    monthlyProfit: arrayValue(source.monthlyProfit).map((entry) => {
+      const point = recordValue(entry);
+      return {
+        month: String(point.month ?? ""),
+        grossRevenue: numberValue(point.grossRevenue),
+        netRevenue: numberValue(point.netRevenue),
+        tax: numberValue(point.tax),
+        productCost: numberValue(point.productCost),
+        grossProfit: numberValue(point.grossProfit),
+        profitMarginPct: numberValue(point.profitMarginPct),
+        count: numberValue(point.count),
+      };
+    }),
     paymentMethods: arrayValue(source.paymentMethods).map((entry) => {
       const point = recordValue(entry);
       return {
@@ -233,10 +274,16 @@ export function mergeDashboardInsights(base: DashboardInsights, businessValue: u
       cashNetMonth: business.metrics.cashNetMonth,
       averageTicket: business.metrics.averageTicket,
       salesGrowthPct: business.metrics.salesGrowthPct,
+      salesNetMonth: business.metrics.salesNetMonth,
+      taxMonth: business.metrics.taxMonth,
+      productCostMonth: business.metrics.productCostMonth,
+      grossProfitMonth: business.metrics.grossProfitMonth,
+      profitMarginPct: business.metrics.profitMarginPct,
       slowStockValue: business.metrics.slowStockValue,
       slowStockItems: business.metrics.slowStockItems,
     },
     monthlyCash: business.monthlyCash,
+    monthlyProfit: business.monthlyProfit,
     paymentMethods: business.paymentMethods,
     slowStock: business.slowStock,
     stockVelocity: business.stockVelocity,

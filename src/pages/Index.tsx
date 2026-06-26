@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   ArrowRight,
+  BadgeDollarSign,
   Boxes,
   BrainCircuit,
   CircleDollarSign,
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils";
 
 const currencyFormatter = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const numberFormatter = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
+const percentFormatter = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 });
 const monthFormatter = new Intl.DateTimeFormat("es-AR", { month: "short" });
 
 const paymentLabels: Record<string, string> = {
@@ -55,6 +57,10 @@ function formatCurrency(value: number) {
 
 function formatNumber(value: number) {
   return numberFormatter.format(value || 0);
+}
+
+function formatPercent(value: number) {
+  return `${percentFormatter.format(value || 0)}%`;
 }
 
 function formatMonth(value: string) {
@@ -83,7 +89,7 @@ export default function Dashboard() {
   const { dashboard, isFetching, error } = useDashboardStats({ companyId: currentCompany?.id });
   const aiSummary = useDashboardAiSummary();
   const actions = dashboard.actions.filter((action) => action.count > 0);
-  const monthlyCash = dashboard.monthlyCash.map((point) => ({ ...point, label: formatMonth(point.month) }));
+  const monthlyProfit = dashboard.monthlyProfit.map((point) => ({ ...point, label: formatMonth(point.month) }));
   const maxPayment = dashboard.paymentMethods[0]?.total ?? 1;
   const growth = dashboard.metrics.salesGrowthPct;
 
@@ -117,9 +123,10 @@ export default function Dashboard() {
           </Card>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Capital en mercaderia" value={formatCurrency(dashboard.metrics.inventoryValue)} icon={<Wallet className="h-5 w-5" />} hint={`${formatNumber(dashboard.metrics.inventoryUnits)} unidades valorizadas.`} tone="info" />
           <StatCard label="Ventas del mes" value={formatCurrency(dashboard.metrics.salesMonth)} icon={<ReceiptText className="h-5 w-5" />} hint={`Ticket promedio: ${formatCurrency(dashboard.metrics.averageTicket)}.`} tone="success" />
+          <StatCard label="Ganancia bruta real" value={formatCurrency(dashboard.metrics.grossProfitMonth)} icon={<BadgeDollarSign className="h-5 w-5" />} hint={`Neta ${formatCurrency(dashboard.metrics.salesNetMonth)} - costos ${formatCurrency(dashboard.metrics.productCostMonth)} - impuestos ${formatCurrency(dashboard.metrics.taxMonth)}. Margen ${formatPercent(dashboard.metrics.profitMarginPct)}.`} tone={dashboard.metrics.grossProfitMonth >= 0 ? "success" : "warning"} />
           <StatCard label="Resultado de caja" value={formatCurrency(dashboard.metrics.cashNetMonth)} icon={<CircleDollarSign className="h-5 w-5" />} hint={`${formatCurrency(dashboard.metrics.expensesMonth)} en gastos del mes.`} tone={dashboard.metrics.cashNetMonth >= 0 ? "success" : "warning"} />
           <StatCard label="Variacion mensual" value={`${growth > 0 ? "+" : ""}${growth}%`} icon={growth >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />} hint="Mes a la fecha contra el mismo tramo anterior." tone={growth >= 0 ? "success" : "warning"} />
           <StatCard label="Saldo por cobrar" value={formatCurrency(dashboard.metrics.accountsReceivable)} icon={<CircleDollarSign className="h-5 w-5" />} hint="Suma de deudas positivas por cliente." tone={dashboard.metrics.accountsReceivable > 0 ? "warning" : "default"} />
@@ -150,20 +157,22 @@ export default function Dashboard() {
         <div className="grid gap-4 xl:grid-cols-[1.35fr_.65fr]">
           <Card className="surface-card overflow-hidden">
             <CardHeader className="border-b border-border/60 pb-5">
-              <CardTitle>Ventas, gastos y resultado mensual</CardTitle>
-              <p className="text-sm text-muted-foreground">Evolucion de caja de los ultimos seis meses.</p>
+              <CardTitle>Ganancia real por mes</CardTitle>
+              <p className="text-sm text-muted-foreground">Venta neta, impuestos, costo de productos y ganancia bruta sobre remitos emitidos.</p>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyCash}>
+                  <BarChart data={monthlyProfit}>
                     <CartesianGrid stroke="hsl(var(--border) / 0.5)" vertical={false} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} />
                     <YAxis tickFormatter={(value) => formatNumber(Number(value))} tickLine={false} axisLine={false} width={75} />
                     <Tooltip content={<CashTooltip />} />
                     <Legend />
-                    <Bar dataKey="sales" name="Ventas" radius={[8, 8, 0, 0]} fill="hsl(var(--primary))" />
-                    <Bar dataKey="expenses" name="Gastos" radius={[8, 8, 0, 0]} fill="hsl(var(--destructive) / .65)" />
+                    <Bar dataKey="netRevenue" name="Venta neta" radius={[8, 8, 0, 0]} fill="hsl(var(--primary))" />
+                    <Bar dataKey="tax" name="Impuestos" radius={[8, 8, 0, 0]} fill="#f59e0b" />
+                    <Bar dataKey="productCost" name="Costo productos" radius={[8, 8, 0, 0]} fill="#8b5cf6" />
+                    <Bar dataKey="grossProfit" name="Ganancia bruta" radius={[8, 8, 0, 0]} fill="#059669" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

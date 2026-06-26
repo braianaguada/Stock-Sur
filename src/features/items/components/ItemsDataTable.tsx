@@ -47,7 +47,7 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
 function stockChip(total: number | undefined, demand?: string | null) {
   if (total === undefined) {
     return (
-      <Badge variant="outline" className="h-6 gap-1.5 px-2 text-xs font-normal text-muted-foreground">
+      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] font-normal leading-none text-muted-foreground">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
         S/D
       </Badge>
@@ -56,8 +56,8 @@ function stockChip(total: number | undefined, demand?: string | null) {
   
   if (total <= 0) {
     return (
-      <Badge variant="outline" className="h-6 gap-1.5 border-destructive/30 bg-destructive/10 px-2 text-xs font-medium text-destructive">
-        <PackageX className="h-3 w-3" /> Sin stock
+      <Badge variant="outline" className="h-5 gap-1 border-destructive/30 bg-destructive/10 px-1.5 text-[10px] font-medium leading-none text-destructive">
+        <PackageX className="h-2.5 w-2.5" /> Sin stock
       </Badge>
     );
   }
@@ -69,7 +69,7 @@ function stockChip(total: number | undefined, demand?: string | null) {
 
   if (isCritical) {
     return (
-      <Badge variant="outline" className="h-6 gap-1.5 border-warning/30 bg-warning/10 px-2 text-xs font-medium text-warning-foreground">
+      <Badge variant="outline" className="h-5 gap-1 border-warning/30 bg-warning/10 px-1.5 text-[10px] font-medium leading-none text-warning-foreground">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning" />
         {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })} (Bajo)
       </Badge>
@@ -77,8 +77,8 @@ function stockChip(total: number | undefined, demand?: string | null) {
   }
 
   return (
-    <Badge variant="outline" className="h-6 gap-1.5 border-success/30 bg-success/10 px-2 text-xs font-medium text-success">
-      <Package className="h-3 w-3" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
+    <Badge variant="outline" className="h-5 gap-1 border-success/30 bg-success/10 px-1.5 text-[10px] font-medium leading-none text-success">
+      <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
     </Badge>
   );
 }
@@ -270,9 +270,9 @@ function ItemsDataTableComponent({
       cell: ({ row }) => {
         const meta = operationalMetaByItemId.get(row.original.id);
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-0.5">
             {operationalBadges(meta, row.original.demand_profile).map((badge) => (
-              <Badge key={badge.label} variant="outline" className={`h-6 px-2 text-xs font-medium ${badge.className}`}>
+              <Badge key={badge.label} variant="outline" className={`h-5 whitespace-nowrap px-1.5 text-[10px] font-medium leading-none ${badge.className}`}>
                 {badge.label}
               </Badge>
             ))}
@@ -280,8 +280,8 @@ function ItemsDataTableComponent({
         );
       },
       meta: {
-        className: "w-[170px]",
-        cellClassName: "py-2",
+        className: "w-[150px]",
+        cellClassName: "py-1",
       },
     },
     {
@@ -440,8 +440,8 @@ function ItemsDataTableComponent({
       className="table-fixed min-w-[1180px]"
       sorting={sorting}
       columnVisibility={columnVisibility}
-      rowClassName="h-12"
-      cellClassName="h-12 py-1.5"
+      rowClassName="h-11"
+      cellClassName="h-11 py-1"
       reserveEmptyRows={pageSize}
       />
     </div>
