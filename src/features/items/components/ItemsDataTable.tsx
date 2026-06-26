@@ -97,30 +97,43 @@ function formatMargin(value: number | null | undefined) {
   return `${value.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%`;
 }
 
-function operationalBadges(meta: ItemOperationalMeta | undefined, demand?: string | null) {
+function operationalStatus(meta: ItemOperationalMeta | undefined, demand?: string | null) {
   const stock = meta?.stock;
   const baseCost = meta?.base_cost;
   const mainPrice = meta?.main_price;
-  const badges: Array<{ label: string; className: string }> = [];
+  const issues: string[] = [];
 
   if (baseCost === null || baseCost === undefined || baseCost <= 0) {
-    badges.push({ label: "Sin costo", className: "border-orange-500/40 bg-orange-500/10 text-orange-700" });
+    issues.push("costo");
   }
   if (mainPrice === null || mainPrice === undefined || mainPrice <= 0) {
-    badges.push({ label: "Sin precio", className: "border-violet-500/40 bg-violet-500/10 text-violet-700" });
+    issues.push("precio");
   }
   if (stock === null || stock === undefined || stock <= 0) {
-    badges.push({ label: "Sin stock", className: "border-rose-500/40 bg-rose-500/10 text-rose-700" });
+    issues.push("stock");
   } else {
     const isLow = (demand === "HIGH" && stock < 15) || (demand === "MEDIUM" && stock < 5) || stock < 2;
-    if (isLow) badges.push({ label: "Stock bajo", className: "border-amber-500/40 bg-amber-500/10 text-amber-700" });
+    if (isLow) issues.push("stock bajo");
   }
 
-  if (badges.length === 0) {
-    badges.push({ label: "OK", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700" });
+  if (issues.length === 0) {
+    return {
+      label: "OK",
+      detail: "Sin alertas operativas",
+      className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700",
+    };
   }
 
-  return badges;
+  const label = issues.length === 1 ? issues[0] : `${issues.length} alertas`;
+  const hasBlockingIssue = issues.some((issue) => issue !== "stock bajo");
+
+  return {
+    label,
+    detail: issues.map((issue) => (issue === "stock bajo" ? "Stock bajo" : `Sin ${issue}`)).join(", "),
+    className: hasBlockingIssue
+      ? "border-rose-500/35 bg-rose-500/10 text-rose-700"
+      : "border-amber-500/40 bg-amber-500/10 text-amber-700",
+  };
 }
 
 function ItemsDataTableComponent({
@@ -269,18 +282,24 @@ function ItemsDataTableComponent({
       header: () => "Estado operativo",
       cell: ({ row }) => {
         const meta = operationalMetaByItemId.get(row.original.id);
+        const status = operationalStatus(meta, row.original.demand_profile);
         return (
-          <div className="flex flex-wrap gap-0.5">
-            {operationalBadges(meta, row.original.demand_profile).map((badge) => (
-              <Badge key={badge.label} variant="outline" className={`h-5 whitespace-nowrap px-1.5 text-[10px] font-medium leading-none ${badge.className}`}>
-                {badge.label}
-              </Badge>
-            ))}
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex max-w-[94px]">
+                <Badge variant="outline" className={`h-5 max-w-full justify-center truncate px-1.5 text-[10px] font-medium leading-none ${status.className}`}>
+                  {status.label}
+                </Badge>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-56">
+              <p>{status.detail}</p>
+            </TooltipContent>
+          </Tooltip>
         );
       },
       meta: {
-        className: "w-[150px]",
+        className: "w-[112px]",
         cellClassName: "py-1",
       },
     },

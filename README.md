@@ -8,7 +8,7 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 
 - El dashboard conserva la evolucion mensual de caja y suma una vista de rentabilidad real: venta neta menos impuestos y costo snapshot de productos, excluyendo remitos internos y considerando devoluciones como negativo.
 - Los historiales de documentos y presupuestos de servicio incluyen `companyId` en sus query keys de perfiles y la migracion habilita a superadmin a leer nombres de perfiles para auditoria.
-- UI ajustada: filas de productos mas compactas cuando hay varios badges, descuento general de documentos con menor altura y tarjetas de Totales con color y numeros responsivos.
+- UI ajustada: filas de productos con un unico indicador operativo compacto y detalle en tooltip, descuento general de documentos con menor altura y tarjetas de Totales con color y numeros responsivos.
 - Migracion: `supabase/migrations/20260626120000_dashboard_profit_and_profile_names.sql`.
 
 ## Selector de empresa activa
