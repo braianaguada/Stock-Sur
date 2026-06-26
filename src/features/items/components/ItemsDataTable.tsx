@@ -56,7 +56,7 @@ function stockChip(total: number | undefined, demand?: string | null) {
   
   if (total <= 0) {
     return (
-      <Badge variant="outline" className="h-5 gap-1 border-destructive/30 bg-destructive/10 px-1.5 text-[10px] font-medium leading-none text-destructive">
+      <Badge variant="outline" className="h-5 gap-1 border-destructive/40 bg-destructive/10 px-1.5 text-[10px] font-medium leading-none text-destructive dark:text-red-300">
         <PackageX className="h-2.5 w-2.5" /> Sin stock
       </Badge>
     );
@@ -69,7 +69,7 @@ function stockChip(total: number | undefined, demand?: string | null) {
 
   if (isCritical) {
     return (
-      <Badge variant="outline" className="h-5 gap-1 border-warning/30 bg-warning/10 px-1.5 text-[10px] font-medium leading-none text-warning-foreground">
+      <Badge variant="outline" className="h-5 gap-1 border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] font-medium leading-none text-amber-700 dark:text-amber-300">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning" />
         {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })} (Bajo)
       </Badge>
@@ -77,7 +77,7 @@ function stockChip(total: number | undefined, demand?: string | null) {
   }
 
   return (
-    <Badge variant="outline" className="h-5 gap-1 border-success/30 bg-success/10 px-1.5 text-[10px] font-medium leading-none text-success">
+    <Badge variant="outline" className="h-5 gap-1 border-emerald-500/40 bg-emerald-500/10 px-1.5 text-[10px] font-medium leading-none text-emerald-700 dark:text-emerald-300">
       <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
     </Badge>
   );
@@ -120,7 +120,7 @@ function operationalStatus(meta: ItemOperationalMeta | undefined, demand?: strin
     return {
       label: "OK",
       detail: "Sin alertas operativas",
-      className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700",
+      className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
     };
   }
 
@@ -131,8 +131,8 @@ function operationalStatus(meta: ItemOperationalMeta | undefined, demand?: strin
     label,
     detail: issues.map((issue) => (issue === "stock bajo" ? "Stock bajo" : `Sin ${issue}`)).join(", "),
     className: hasBlockingIssue
-      ? "border-rose-500/35 bg-rose-500/10 text-rose-700"
-      : "border-amber-500/40 bg-amber-500/10 text-amber-700",
+      ? "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300"
+      : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
   };
 }
 
