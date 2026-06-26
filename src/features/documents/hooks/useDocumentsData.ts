@@ -309,8 +309,8 @@ export function useDocumentsData({
   }, [selectedEvents]);
 
   const { data: eventProfiles = [] } = useQuery({
-    queryKey: ["documents", "event-profiles", eventUserIds],
-    enabled: eventUserIds.length > 0,
+    queryKey: ["documents", "event-profiles", currentCompanyId, eventUserIds],
+    enabled: Boolean(currentCompanyId && eventUserIds.length > 0),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")

@@ -669,20 +669,20 @@ export function DocumentsEditorDialog({
 
           <div className="space-y-2">
             {lines.length > 0 ? (
-              <div className="flex flex-col gap-2 rounded-lg border border-border/70 bg-muted/20 p-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-sm font-medium">Descuento general</p>
+              <div className="flex flex-col gap-2 rounded-lg border border-border/70 bg-background/80 px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-5">Descuento general</p>
                   <p className="text-xs text-muted-foreground">
                     Aplica el porcentaje sobre el precio actual de todas las líneas.
                   </p>
                 </div>
-                <div className="flex items-end gap-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="document-global-discount" className="text-xs">Porcentaje</Label>
+                <div className="flex shrink-0 items-center gap-2">
+                  <div>
+                    <Label htmlFor="document-global-discount" className="sr-only">Porcentaje</Label>
                     <div className="relative">
                       <Input
                         id="document-global-discount"
-                        className="w-28 pr-8"
+                        className="h-9 w-24 pr-8 text-right"
                         type="number"
                         min={0}
                         max={99.99}
@@ -691,12 +691,13 @@ export function DocumentsEditorDialog({
                         onChange={(event) => setGlobalDiscount(event.target.value)}
                         placeholder="10"
                       />
-                      <Percent className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Percent className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     </div>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
+                    className="h-9 px-3"
                     onClick={applyGlobalDiscount}
                     disabled={!Number.isFinite(Number(globalDiscount)) || Number(globalDiscount) <= 0 || Number(globalDiscount) >= 100}
                   >

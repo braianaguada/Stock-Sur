@@ -4,6 +4,14 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Dashboard, documentos y totales
+
+- El dashboard conserva la evolucion mensual de caja y suma una vista de rentabilidad real: venta neta menos impuestos y costo snapshot de productos, excluyendo remitos internos y considerando devoluciones como negativo.
+- Los historiales de documentos y presupuestos de servicio incluyen `companyId` en sus query keys de perfiles y la migracion habilita a superadmin a leer nombres de perfiles para auditoria.
+- UI ajustada: filas de productos con un unico indicador operativo compacto y detalle en tooltip, descuento general de documentos con menor altura y tarjetas de Totales con color y numeros responsivos.
+- Stock evita mostrar busquedas heredadas como `undefined - undefined` al abrir un nuevo movimiento desde un item sin SKU/nombre completo y normaliza visualmente cantidades con ruido decimal de coma flotante.
+- Migracion: `supabase/migrations/20260626120000_dashboard_profit_and_profile_names.sql`.
+
 ## Selector de empresa activa
 
 - La empresa activa se resuelve desde empresas activas disponibles para el usuario: membresias activas para usuarios normales y empresas activas operables para superadmin.
@@ -189,6 +197,14 @@ Limitaciones actuales: el envio real de email con adjunto, historial de envios y
 - El payload publico expone solamente los datos impresos; no publica IDs internos, costos ni metadatos operativos.
 - Las notas de presupuestos y remitos tienen mayor contraste, borde y tipografia en la vista de impresion.
 - Migracion: `20260625150000_document_public_share_links.sql`.
+
+## Documentos y estado de cuenta
+
+La vista previa y la impresion de documentos comerciales y presupuestos de servicio amplian el area util del logo de empresa para mejorar legibilidad sin cambiar movimientos de stock, caja, cuenta corriente ni facturacion.
+
+Los links publicos de presupuestos/remitos comerciales dependen de las migraciones existentes `20260625150000_document_public_share_links.sql` y `20260625190000_fix_document_share_token_generation.sql`. La carga de clientes con dias de vencimiento depende de `20260625120000_customer_account_due_days.sql`.
+
+Estado de cuenta lee `account_due_days` del cliente para calcular vencimientos cuando el asiento no trae `payment_term_days` explicito, y su cache de React Query queda segmentada por filtros para evitar resultados reutilizados entre busquedas.
 
 ## Estado actual de staging
 

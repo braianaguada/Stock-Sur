@@ -44,6 +44,19 @@ describe("account statement", () => {
     expect(rows[0].status).toBe("overdue");
   });
 
+  it("uses customer account due days when the entry has no explicit payment term", () => {
+    const { rows } = buildAccountStatement([entry({ customer_account_due_days: 10 })], {}, "2026-04-05");
+    expect(rows[0].due_date).toBe("2026-04-11");
+    expect(rows[0].status).toBe("pending");
+  });
+
+  it("keeps explicit payment terms over customer account due days", () => {
+    const { rows } = buildAccountStatement([
+      entry({ customer_account_due_days: 10, metadata: { payment_term_days: 5 } }),
+    ], {}, "2026-04-05");
+    expect(rows[0].due_date).toBe("2026-04-06");
+  });
+
   it("shows a credit as payment", () => {
     const { rows, summary } = buildAccountStatement([
       entry({

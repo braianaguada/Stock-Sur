@@ -24,4 +24,23 @@ describe("item display helpers", () => {
       }),
     ).toBe("VAL-01 | Ramos | X200 | 1/2 inox");
   });
+  it("uses a safe fallback when the item has no display fields", () => {
+    expect(
+      buildItemDisplayName({
+        name: undefined,
+        brand: undefined,
+        model: undefined,
+        attributes: undefined,
+      }),
+    ).toBe("Item sin nombre");
+    expect(
+      buildItemDisplayMeta({
+        name: undefined,
+        sku: undefined,
+        brand: undefined,
+        model: undefined,
+        attributes: undefined,
+      }),
+    ).toBe("");
+  });
 });
