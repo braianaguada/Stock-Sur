@@ -10,7 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EntityDialog } from "@/components/common/EntityDialog";
-import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
+import { buildItemDisplayName } from "@/lib/item-display";
+import { formatStockQuantity } from "@/lib/stock-quantity";
 import { cn } from "@/lib/utils";
 import { Loader2, Package } from "lucide-react";
 import type { MovementType, SearchableItem, StockMovementForm } from "@/features/stock/types";
@@ -115,7 +116,7 @@ export function StockMovementDialog({
                       tone === "success" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
                     )}
                   >
-                      {itemStock}
+                      {formatStockQuantity(itemStock, item.unit)}
                     </Badge>
                   </button>
                 );
@@ -147,7 +148,7 @@ export function StockMovementDialog({
                   )}
                 >
                   <Package className="h-4 w-4" />
-                  {selectedStock}
+                  {formatStockQuantity(selectedStock, selectedItem.unit)}
                 </Badge>
               </div>
             </div>

@@ -26,23 +26,10 @@ import { StockMovementDialog } from "@/features/stock/components/StockMovementDi
 import { StockMovementsTable } from "@/features/stock/components/StockMovementsTable";
 import { useStockPage } from "@/features/stock/hooks/useStockPage";
 import { buildStockInsights, countStockInsightTones, getStockInsightKindLabel } from "@/features/stock/insights";
+import { formatStockQuantity } from "@/lib/stock-quantity";
 import type { DemandProfile, MovementType, StockHealth } from "@/features/stock/types";
 
-const INTEGER_ONLY_UNITS = new Set(["un"]);
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
-
-function formatQuantity(value: number, unit: string | null) {
-  if (!Number.isFinite(value)) return "-";
-  if (unit && INTEGER_ONLY_UNITS.has(unit)) {
-    return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 }).format(Math.round(value));
-  }
-
-  const rounded = Number(value.toFixed(3));
-  return new Intl.NumberFormat("es-AR", {
-    minimumFractionDigits: Number.isInteger(rounded) ? 0 : 1,
-    maximumFractionDigits: 3,
-  }).format(rounded);
-}
 
 function formatCoverage(value: number | null, unit: "m" | "d") {
   if (value === null || !Number.isFinite(value)) return "Sin consumo";
@@ -412,7 +399,7 @@ export default function StockPage() {
                 isLoading={loadingStock}
                 pageSize={stockPageSize}
                 formatCoverage={formatCoverage}
-                formatQuantity={formatQuantity}
+                formatQuantity={formatStockQuantity}
                 healthLabel={healthLabel}
                 healthClass={healthClass}
                 demandProfileLabel={demandProfileLabel}
@@ -455,7 +442,7 @@ export default function StockPage() {
                 movements={movementsPagination.pagedItems}
                 isLoading={loadingMovements}
                 pageSize={movementsPageSize}
-                formatQuantity={formatQuantity}
+                formatQuantity={formatStockQuantity}
                 typeIcon={typeIcon}
                 typeLabel={typeLabel}
               />

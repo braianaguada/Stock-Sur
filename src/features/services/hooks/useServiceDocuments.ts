@@ -143,8 +143,8 @@ export function useServiceDocuments(params: {
   }, [eventsQuery.data]);
 
   const eventProfilesQuery = useQuery({
-    queryKey: ["service-document-event-profiles", eventUserIds],
-    enabled: eventUserIds.length > 0,
+    queryKey: ["service-document-event-profiles", companyId, eventUserIds],
+    enabled: Boolean(companyId && eventUserIds.length > 0),
     queryFn: async () => {
       const { data, error } = await serviceDb
         .from("profiles")

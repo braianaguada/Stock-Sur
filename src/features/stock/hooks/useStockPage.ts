@@ -36,6 +36,17 @@ type StockMovementDraft = {
   selectedItem: SearchableItem | null;
 };
 
+export function sanitizeStockMovementItemSearch(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed === "undefined - undefined" || trimmed === "Item sin nombre") return "";
+
+  return trimmed
+    .replace(/^undefined\s*-\s*/i, "")
+    .replace(/\s*-\s*undefined$/i, "")
+    .replace(/^Item sin nombre\s*-\s*/i, "")
+    .trim();
+}
+
 function readStoredDraft() {
   if (typeof window === "undefined") return null;
 
@@ -43,7 +54,11 @@ function readStoredDraft() {
   if (!raw) return null;
 
   try {
-    return JSON.parse(raw) as StockMovementDraft;
+    const draft = JSON.parse(raw) as StockMovementDraft;
+    return {
+      ...draft,
+      itemSearch: sanitizeStockMovementItemSearch(draft.itemSearch),
+    };
   } catch {
     sessionStorage.removeItem(NEW_STOCK_MOVEMENT_DRAFT_KEY);
     return null;
@@ -116,7 +131,7 @@ export function useStockPage() {
   const openCreateMovement = useCallback((item?: SearchableItem) => {
     setDialogOpen(true);
     setForm({ ...DEFAULT_STOCK_MOVEMENT_FORM, item_id: item?.id ?? "" });
-    setItemSearch(item ? `${item.sku} - ${item.name}` : "");
+    setItemSearch("");
     setSelectedItem(normalizeItem(item));
   }, []);
 

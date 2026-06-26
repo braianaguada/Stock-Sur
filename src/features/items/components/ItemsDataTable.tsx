@@ -47,7 +47,7 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
 function stockChip(total: number | undefined, demand?: string | null) {
   if (total === undefined) {
     return (
-      <Badge variant="outline" className="h-6 gap-1.5 px-2 text-xs font-normal text-muted-foreground">
+      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] font-normal leading-none text-muted-foreground">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
         S/D
       </Badge>
@@ -56,8 +56,8 @@ function stockChip(total: number | undefined, demand?: string | null) {
   
   if (total <= 0) {
     return (
-      <Badge variant="outline" className="h-6 gap-1.5 border-destructive/30 bg-destructive/10 px-2 text-xs font-medium text-destructive">
-        <PackageX className="h-3 w-3" /> Sin stock
+      <Badge variant="outline" className="h-5 gap-1 border-destructive/40 bg-destructive/10 px-1.5 text-[10px] font-medium leading-none text-destructive dark:text-red-300">
+        <PackageX className="h-2.5 w-2.5" /> Sin stock
       </Badge>
     );
   }
@@ -69,7 +69,7 @@ function stockChip(total: number | undefined, demand?: string | null) {
 
   if (isCritical) {
     return (
-      <Badge variant="outline" className="h-6 gap-1.5 border-warning/30 bg-warning/10 px-2 text-xs font-medium text-warning-foreground">
+      <Badge variant="outline" className="h-5 gap-1 border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] font-medium leading-none text-amber-700 dark:text-amber-300">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning" />
         {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })} (Bajo)
       </Badge>
@@ -77,8 +77,8 @@ function stockChip(total: number | undefined, demand?: string | null) {
   }
 
   return (
-    <Badge variant="outline" className="h-6 gap-1.5 border-success/30 bg-success/10 px-2 text-xs font-medium text-success">
-      <Package className="h-3 w-3" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
+    <Badge variant="outline" className="h-5 gap-1 border-emerald-500/40 bg-emerald-500/10 px-1.5 text-[10px] font-medium leading-none text-emerald-700 dark:text-emerald-300">
+      <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
     </Badge>
   );
 }
@@ -97,30 +97,43 @@ function formatMargin(value: number | null | undefined) {
   return `${value.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%`;
 }
 
-function operationalBadges(meta: ItemOperationalMeta | undefined, demand?: string | null) {
+function operationalStatus(meta: ItemOperationalMeta | undefined, demand?: string | null) {
   const stock = meta?.stock;
   const baseCost = meta?.base_cost;
   const mainPrice = meta?.main_price;
-  const badges: Array<{ label: string; className: string }> = [];
+  const issues: string[] = [];
 
   if (baseCost === null || baseCost === undefined || baseCost <= 0) {
-    badges.push({ label: "Sin costo", className: "border-orange-500/40 bg-orange-500/10 text-orange-700" });
+    issues.push("costo");
   }
   if (mainPrice === null || mainPrice === undefined || mainPrice <= 0) {
-    badges.push({ label: "Sin precio", className: "border-violet-500/40 bg-violet-500/10 text-violet-700" });
+    issues.push("precio");
   }
   if (stock === null || stock === undefined || stock <= 0) {
-    badges.push({ label: "Sin stock", className: "border-rose-500/40 bg-rose-500/10 text-rose-700" });
+    issues.push("stock");
   } else {
     const isLow = (demand === "HIGH" && stock < 15) || (demand === "MEDIUM" && stock < 5) || stock < 2;
-    if (isLow) badges.push({ label: "Stock bajo", className: "border-amber-500/40 bg-amber-500/10 text-amber-700" });
+    if (isLow) issues.push("stock bajo");
   }
 
-  if (badges.length === 0) {
-    badges.push({ label: "OK", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700" });
+  if (issues.length === 0) {
+    return {
+      label: "OK",
+      detail: "Sin alertas operativas",
+      className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    };
   }
 
-  return badges;
+  const label = issues.length === 1 ? issues[0] : `${issues.length} alertas`;
+  const hasBlockingIssue = issues.some((issue) => issue !== "stock bajo");
+
+  return {
+    label,
+    detail: issues.map((issue) => (issue === "stock bajo" ? "Stock bajo" : `Sin ${issue}`)).join(", "),
+    className: hasBlockingIssue
+      ? "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300"
+      : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  };
 }
 
 function ItemsDataTableComponent({
@@ -269,19 +282,25 @@ function ItemsDataTableComponent({
       header: () => "Estado operativo",
       cell: ({ row }) => {
         const meta = operationalMetaByItemId.get(row.original.id);
+        const status = operationalStatus(meta, row.original.demand_profile);
         return (
-          <div className="flex flex-wrap gap-1">
-            {operationalBadges(meta, row.original.demand_profile).map((badge) => (
-              <Badge key={badge.label} variant="outline" className={`h-6 px-2 text-xs font-medium ${badge.className}`}>
-                {badge.label}
-              </Badge>
-            ))}
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex max-w-[94px]">
+                <Badge variant="outline" className={`h-5 max-w-full justify-center truncate px-1.5 text-[10px] font-medium leading-none ${status.className}`}>
+                  {status.label}
+                </Badge>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-56">
+              <p>{status.detail}</p>
+            </TooltipContent>
+          </Tooltip>
         );
       },
       meta: {
-        className: "w-[170px]",
-        cellClassName: "py-2",
+        className: "w-[112px]",
+        cellClassName: "py-1",
       },
     },
     {
@@ -440,8 +459,8 @@ function ItemsDataTableComponent({
       className="table-fixed min-w-[1180px]"
       sorting={sorting}
       columnVisibility={columnVisibility}
-      rowClassName="h-12"
-      cellClassName="h-12 py-1.5"
+      rowClassName="h-11"
+      cellClassName="h-11 py-1"
       reserveEmptyRows={pageSize}
       />
     </div>
