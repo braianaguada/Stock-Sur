@@ -169,9 +169,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
 
                   <header className="grid gap-5 border-b border-slate-200 p-5 xl:grid-cols-[minmax(0,1fr)_280px]">
                     <div className="flex min-w-0 items-center gap-5">
-                      <div className="flex h-24 w-36 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex h-24 w-44 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-2">
                         {companySettings.logo_url ? (
-                          <img src={companySettings.logo_url} alt={companySettings.app_name} className="max-h-20 w-auto max-w-full object-contain" />
+                          <img src={companySettings.logo_url} alt={companySettings.app_name} className="max-h-full w-auto max-w-full object-contain" />
                         ) : (
                           <span className="text-3xl font-black text-slate-900">{companySettings.app_name.slice(0, 2).toUpperCase()}</span>
                         )}

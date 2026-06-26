@@ -59,7 +59,7 @@ function normalizeEntry(entry: RawAccountEntry): AccountStatementSource {
 
 export function useCustomerAccountStatement(companyId: string | null | undefined, filters: AccountStatementFilters) {
   return useQuery({
-    queryKey: queryKeys.customers.accountStatement(companyId ?? null),
+    queryKey: queryKeys.customers.accountStatement(companyId ?? null, filters),
     enabled: Boolean(companyId),
     queryFn: async () => {
       const { data, error } = await supabase

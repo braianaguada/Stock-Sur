@@ -78,8 +78,8 @@ describe("buildDocumentPrintHtml", () => {
     expect(html).toContain("@page{size:A4 portrait;margin:0}");
     expect(html).toContain(".sheet{width:210mm;min-height:297mm");
     expect(html).toContain(".content{display:flex;min-height:calc(297mm - 4px);flex:1;flex-direction:column;padding:10mm 11mm 8.5mm}");
-    expect(html).toContain(".brand{display:grid;grid-template-columns:55mm minmax(0,1fr)");
-    expect(html).toContain(".brand-logo{max-width:51mm;max-height:37mm");
+    expect(html).toContain(".brand{display:grid;grid-template-columns:61mm minmax(0,1fr)");
+    expect(html).toContain(".brand-logo{width:100%;height:100%");
     expect(html).toContain("table-layout:fixed");
     expect(html).toContain("height:5.5mm");
     expect(html).toContain(".density-compact");
