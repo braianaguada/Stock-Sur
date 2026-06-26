@@ -114,9 +114,9 @@ export function buildServiceDocumentPrintHtml({
     .top-rule{height:4px;background:linear-gradient(90deg,#0f172a 0%,var(--accent) 100%)}
     .content{display:flex;min-height:calc(297mm - 4px);flex:1;flex-direction:column;padding:10mm 11mm 8.5mm}
     .header{display:grid;grid-template-columns:minmax(0,1fr) 64mm;gap:7mm;align-items:start;border-bottom:1px solid #d9e0ea;padding-bottom:4mm}
-    .brand{display:grid;grid-template-columns:55mm minmax(0,1fr);gap:5mm;align-items:center;min-width:0}
-    .brand-mark{display:grid;place-items:center;min-height:38mm;padding:1.2mm;border-right:1px solid #e3e8f0}
-    .brand-logo{max-width:51mm;max-height:37mm;object-fit:contain}
+    .brand{display:grid;grid-template-columns:62mm minmax(0,1fr);gap:5mm;align-items:center;min-width:0}
+    .brand-mark{display:grid;place-items:center;min-height:44mm;padding:.8mm;border-right:1px solid #e3e8f0}
+    .brand-logo{max-width:60mm;max-height:43mm;object-fit:contain}
     .brand-fallback{width:32mm;height:32mm;display:grid;place-items:center}
     .brand-fallback img{width:100%;height:100%;object-fit:contain}
     .brand-title{margin:0;color:#0f172a;font-size:17.5px;font-weight:850;line-height:1.08}

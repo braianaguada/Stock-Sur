@@ -145,9 +145,9 @@ export function ServiceDocumentPreviewDialog({
 
                 <div className="grid gap-5 border-b border-slate-200 px-6 py-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(310px,.8fr)]">
                   <div className="flex min-w-0 items-center gap-5">
-                    <div className="flex h-24 w-40 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex h-28 w-44 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
                       {settings.logo_url ? (
-                        <img src={settings.logo_url} alt={brandName} className="max-h-full max-w-full object-contain" />
+                        <img src={settings.logo_url} alt={brandName} className="max-h-24 max-w-full object-contain" />
                       ) : (
                         <span className="text-2xl font-black tracking-tight text-slate-400">{brandName.slice(0, 2).toUpperCase()}</span>
                       )}

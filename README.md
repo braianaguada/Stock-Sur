@@ -172,6 +172,12 @@ Los presupuestos de servicio soportan adjuntos, moneda y links publicos sin mezc
 
 Limitaciones actuales: el cliente descarga o guarda el PDF desde la vista publica; el envio real de email con adjunto, historial de envios y WhatsApp Business API quedan fuera de esta fase.
 
+## Documentos comerciales compartibles
+
+Presupuestos y remitos comerciales incorporan links publicos revocables mediante `document_share_links` y RPCs `create_document_share_link`, `revoke_document_share_link` y `get_public_document_payload`, aisladas por empresa y permisos de impresion. `REMITO_DEVOLUCION` no se comparte por este flujo.
+
+La vista previa y la impresion de documentos comerciales y de servicio amplian el area util del logo de empresa para mejorar legibilidad sin cambiar movimientos de stock, caja, cuenta corriente ni facturacion. Migracion: `supabase/migrations/20260626120000_document_share_links.sql`.
+
 ## Estado actual de staging
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
