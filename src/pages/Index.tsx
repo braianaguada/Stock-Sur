@@ -15,7 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Badge } from "@/components/ui/badge";
@@ -83,12 +83,31 @@ function CashTooltip(props: { active?: boolean; payload?: Array<{ name?: string;
   );
 }
 
+function ProfitTooltip(props: { active?: boolean; payload?: Array<{ dataKey?: string; name?: string; value?: number }> }) {
+  if (!props.active || !props.payload?.length) return null;
+  return (
+    <div className="rounded-xl border border-border/70 bg-card/95 px-3 py-2 shadow-sm backdrop-blur">
+      {props.payload.map((entry) => {
+        const value = Number(entry.value ?? 0);
+        const formattedValue = entry.dataKey === "profitMarginPct" ? formatPercent(value) : formatCurrency(value);
+
+        return (
+          <p key={entry.name} className="text-xs text-muted-foreground">
+            {entry.name}: <strong className="text-foreground">{formattedValue}</strong>
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { settings } = useCompanyBrand();
   const { currentCompany } = useAuth();
   const { dashboard, isFetching, error } = useDashboardStats({ companyId: currentCompany?.id });
   const aiSummary = useDashboardAiSummary();
   const actions = dashboard.actions.filter((action) => action.count > 0);
+  const monthlyCash = dashboard.monthlyCash.map((point) => ({ ...point, label: formatMonth(point.month) }));
   const monthlyProfit = dashboard.monthlyProfit.map((point) => ({ ...point, label: formatMonth(point.month) }));
   const maxPayment = dashboard.paymentMethods[0]?.total ?? 1;
   const growth = dashboard.metrics.salesGrowthPct;
@@ -157,22 +176,21 @@ export default function Dashboard() {
         <div className="grid gap-4 xl:grid-cols-[1.35fr_.65fr]">
           <Card className="surface-card overflow-hidden">
             <CardHeader className="border-b border-border/60 pb-5">
-              <CardTitle>Ganancia real por mes</CardTitle>
-              <p className="text-sm text-muted-foreground">Venta neta, impuestos, costo de productos y ganancia bruta sobre remitos emitidos.</p>
+              <CardTitle>Ventas, gastos y resultado mensual</CardTitle>
+              <p className="text-sm text-muted-foreground">Evolucion de caja de los ultimos seis meses.</p>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyProfit}>
+                  <BarChart data={monthlyCash}>
                     <CartesianGrid stroke="hsl(var(--border) / 0.5)" vertical={false} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} />
                     <YAxis tickFormatter={(value) => formatNumber(Number(value))} tickLine={false} axisLine={false} width={75} />
                     <Tooltip content={<CashTooltip />} />
                     <Legend />
-                    <Bar dataKey="netRevenue" name="Venta neta" radius={[8, 8, 0, 0]} fill="hsl(var(--primary))" />
-                    <Bar dataKey="tax" name="Impuestos" radius={[8, 8, 0, 0]} fill="#f59e0b" />
-                    <Bar dataKey="productCost" name="Costo productos" radius={[8, 8, 0, 0]} fill="#8b5cf6" />
-                    <Bar dataKey="grossProfit" name="Ganancia bruta" radius={[8, 8, 0, 0]} fill="#059669" />
+                    <Bar dataKey="sales" name="Ventas" radius={[8, 8, 0, 0]} fill="hsl(var(--primary))" />
+                    <Bar dataKey="expenses" name="Gastos" radius={[8, 8, 0, 0]} fill="hsl(var(--destructive) / .65)" />
+                    <Bar dataKey="net" name="Resultado" radius={[8, 8, 0, 0]} fill="#059669" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -198,6 +216,30 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="surface-card overflow-hidden">
+          <CardHeader className="border-b border-border/60 pb-5">
+            <CardTitle>Rentabilidad de ventas emitidas</CardTitle>
+            <p className="text-sm text-muted-foreground">Venta neta y ganancia bruta con margen real, descontando impuestos y costo de productos.</p>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={monthlyProfit}>
+                  <CartesianGrid stroke="hsl(var(--border) / 0.5)" vertical={false} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                  <YAxis yAxisId="money" tickFormatter={(value) => formatNumber(Number(value))} tickLine={false} axisLine={false} width={75} />
+                  <YAxis yAxisId="margin" orientation="right" tickFormatter={(value) => formatPercent(Number(value))} tickLine={false} axisLine={false} width={56} />
+                  <Tooltip content={<ProfitTooltip />} />
+                  <Legend />
+                  <Area yAxisId="money" type="monotone" dataKey="netRevenue" name="Venta neta" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / .16)" strokeWidth={2} />
+                  <Area yAxisId="money" type="monotone" dataKey="grossProfit" name="Ganancia bruta" stroke="#059669" fill="#05966922" strokeWidth={2} />
+                  <Line yAxisId="margin" type="monotone" dataKey="profitMarginPct" name="Margen" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 xl:grid-cols-3">
           <Card className="surface-card-muted">
