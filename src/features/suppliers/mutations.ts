@@ -3,13 +3,18 @@ import { deleteByStrategy } from "@/lib/deleteStrategy";
 import type { SupplierFormState } from "@/features/suppliers/types";
 
 function buildSupplierPayload(form: SupplierFormState) {
+  const taxId = form.tax_id.replace(/\D/g, "");
   return {
-    name: form.name,
-    contact_name: form.contact_name || null,
-    email: form.email || null,
-    whatsapp: form.whatsapp || null,
-    phone: form.whatsapp || null,
-    notes: form.notes || null,
+    name: form.name.trim(),
+    legal_name: form.legal_name.trim() || null,
+    tax_id: taxId || null,
+    contact_name: form.contact_name.trim() || null,
+    email: form.email.trim() || null,
+    phone: form.phone.trim() || null,
+    whatsapp: form.whatsapp.trim() || null,
+    address: form.address.trim() || null,
+    default_currency: form.default_currency || null,
+    notes: form.notes.trim() || null,
   };
 }
 

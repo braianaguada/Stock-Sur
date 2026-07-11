@@ -1,5 +1,42 @@
 import { describe, expect, it } from "vitest";
-import { buildSupplierOrderMessage } from "@/features/suppliers/state";
+import {
+  buildSupplierFormState,
+  buildSupplierOrderMessage,
+  createEmptySupplierForm,
+} from "@/features/suppliers/state";
+
+describe("supplier form state", () => {
+  it("keeps phone and WhatsApp as independent values", () => {
+    const form = buildSupplierFormState({
+      id: "supplier-1",
+      name: "PM Materiales",
+      legal_name: "PM Materiales SA",
+      tax_id: "30712345678",
+      contact_name: "Ana",
+      email: "pm@example.com",
+      phone: "2994000000",
+      whatsapp: "2994111111",
+      address: "Ruta 22",
+      default_currency: "ARS",
+      notes: null,
+      is_active: true,
+    });
+
+    expect(form.phone).toBe("2994000000");
+    expect(form.whatsapp).toBe("2994111111");
+    expect(form.default_currency).toBe("ARS");
+  });
+
+  it("starts optional procurement fields empty", () => {
+    expect(createEmptySupplierForm()).toMatchObject({
+      legal_name: "",
+      tax_id: "",
+      phone: "",
+      address: "",
+      default_currency: "",
+    });
+  });
+});
 
 describe("buildSupplierOrderMessage", () => {
   it("includes currency and unit cost for each line", () => {
@@ -11,6 +48,10 @@ describe("buildSupplierOrderMessage", () => {
         email: "pm@example.com",
         phone: null,
         whatsapp: null,
+        legal_name: null,
+        tax_id: null,
+        address: null,
+        default_currency: null,
         notes: null,
         is_active: true,
       },

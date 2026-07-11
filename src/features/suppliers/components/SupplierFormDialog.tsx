@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SupplierFormState } from "@/features/suppliers/types";
 
 export function SupplierFormDialog(props: {
@@ -51,6 +52,20 @@ export function SupplierFormDialog(props: {
             />
           </div>
           <div className="space-y-2">
+            <Label>Razón social</Label>
+            <Input value={form.legal_name} onChange={(event) => onFormChange({ ...form, legal_name: event.target.value })} />
+          </div>
+          <div className="space-y-2">
+            <Label>CUIT</Label>
+            <Input
+              inputMode="numeric"
+              value={form.tax_id}
+              onChange={(event) => onFormChange({ ...form, tax_id: event.target.value })}
+              placeholder="11 dígitos, sin guiones"
+              pattern="[0-9\- ]{11,13}"
+            />
+          </div>
+          <div className="space-y-2">
             <Label>WhatsApp (opcional)</Label>
             <Input
               value={form.whatsapp}
@@ -73,12 +88,43 @@ export function SupplierFormDialog(props: {
                 />
               </div>
               <div className="space-y-2">
+                <Label>Teléfono</Label>
+                <Input
+                  value={form.phone}
+                  onChange={(event) => onFormChange({ ...form, phone: event.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>Email</Label>
                 <Input
                   type="email"
                   value={form.email}
                   onChange={(event) => onFormChange({ ...form, email: event.target.value })}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Dirección</Label>
+                <Input
+                  value={form.address}
+                  onChange={(event) => onFormChange({ ...form, address: event.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Moneda habitual</Label>
+                <Select
+                  value={form.default_currency || "NONE"}
+                  onValueChange={(value) => onFormChange({
+                    ...form,
+                    default_currency: value === "NONE" ? "" : value as "ARS" | "USD",
+                  })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">Sin preferencia</SelectItem>
+                    <SelectItem value="ARS">ARS</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Notas</Label>

@@ -12,15 +12,24 @@ export interface Supplier {
   email: string | null;
   phone: string | null;
   whatsapp: string | null;
+  legal_name: string | null;
+  tax_id: string | null;
+  address: string | null;
+  default_currency: "ARS" | "USD" | null;
   notes: string | null;
   is_active: boolean;
 }
 
 export interface SupplierFormState {
   name: string;
+  legal_name: string;
+  tax_id: string;
   contact_name: string;
   email: string;
+  phone: string;
   whatsapp: string;
+  address: string;
+  default_currency: "" | "ARS" | "USD";
   notes: string;
 }
 

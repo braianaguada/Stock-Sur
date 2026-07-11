@@ -21,7 +21,9 @@ export async function fetchSuppliers(params: {
   if (!params.search) return rows;
   return rows.filter((supplier) =>
     searchIncludes(
-      [supplier.name, supplier.contact_name, supplier.email, supplier.whatsapp].filter(Boolean).join(" "),
+      [supplier.name, supplier.legal_name, supplier.tax_id, supplier.contact_name, supplier.email, supplier.phone, supplier.whatsapp]
+        .filter(Boolean)
+        .join(" "),
       params.search,
     ),
   );
