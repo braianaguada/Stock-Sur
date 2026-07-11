@@ -2126,37 +2126,49 @@ export type Database = {
       }
       supplier_catalog_versions: {
         Row: {
+          accepted_row_count: number | null
           catalog_id: string
           company_id: string
           created_at: string
           created_by: string | null
           id: string
           imported_at: string
+          list_date: string | null
           note: string | null
+          currency: string | null
+          rejected_row_count: number | null
           supplier_document_id: string
           supplier_id: string
           title: string | null
         }
         Insert: {
+          accepted_row_count?: number | null
           catalog_id: string
           company_id: string
           created_at?: string
           created_by?: string | null
           id?: string
           imported_at?: string
+          list_date?: string | null
           note?: string | null
+          currency?: string | null
+          rejected_row_count?: number | null
           supplier_document_id: string
           supplier_id: string
           title?: string | null
         }
         Update: {
+          accepted_row_count?: number | null
           catalog_id?: string
           company_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
           imported_at?: string
+          list_date?: string | null
           note?: string | null
+          currency?: string | null
+          rejected_row_count?: number | null
           supplier_document_id?: string
           supplier_id?: string
           title?: string | null
@@ -2197,28 +2209,46 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          currency: string | null
           id: string
+          list_date: string | null
           notes: string | null
+          status: string
           supplier_id: string
           title: string
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
         }
         Insert: {
           company_id: string
           created_at?: string
           created_by?: string | null
+          currency?: string | null
           id?: string
+          list_date?: string | null
           notes?: string | null
+          status?: string
           supplier_id: string
           title: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
         }
         Update: {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          currency?: string | null
           id?: string
+          list_date?: string | null
           notes?: string | null
+          status?: string
           supplier_id?: string
           title?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
         }
         Relationships: [
           {
@@ -2341,6 +2371,7 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          address: string | null
           company_id: string
           contact_name: string | null
           created_at: string
@@ -2348,12 +2379,16 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          default_currency: string | null
+          legal_name: string | null
           name: string
           notes: string | null
           phone: string | null
+          tax_id: string | null
           whatsapp: string | null
         }
         Insert: {
+          address?: string | null
           company_id: string
           contact_name?: string | null
           created_at?: string
@@ -2361,12 +2396,16 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          default_currency?: string | null
+          legal_name?: string | null
           name: string
           notes?: string | null
           phone?: string | null
+          tax_id?: string | null
           whatsapp?: string | null
         }
         Update: {
+          address?: string | null
           company_id?: string
           contact_name?: string | null
           created_at?: string
@@ -2374,9 +2413,12 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          default_currency?: string | null
+          legal_name?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
+          tax_id?: string | null
           whatsapp?: string | null
         }
         Relationships: [

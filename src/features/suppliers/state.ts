@@ -10,15 +10,31 @@ import type {
 import { formatSupplierDate } from "@/features/suppliers/utils";
 
 export function createEmptySupplierForm(): SupplierFormState {
-  return { name: "", contact_name: "", email: "", whatsapp: "", notes: "" };
+  return {
+    name: "",
+    legal_name: "",
+    tax_id: "",
+    contact_name: "",
+    email: "",
+    phone: "",
+    whatsapp: "",
+    address: "",
+    default_currency: "",
+    notes: "",
+  };
 }
 
 export function buildSupplierFormState(supplier: Supplier): SupplierFormState {
   return {
     name: supplier.name,
+    legal_name: supplier.legal_name ?? "",
+    tax_id: supplier.tax_id ?? "",
     contact_name: supplier.contact_name ?? "",
     email: supplier.email ?? "",
-    whatsapp: supplier.whatsapp ?? supplier.phone ?? "",
+    phone: supplier.phone ?? "",
+    whatsapp: supplier.whatsapp ?? "",
+    address: supplier.address ?? "",
+    default_currency: supplier.default_currency ?? "",
     notes: supplier.notes ?? "",
   };
 }
