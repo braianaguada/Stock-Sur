@@ -208,6 +208,13 @@ Estado de cuenta lee `account_due_days` del cliente para calcular vencimientos c
 
 ## Estado actual de staging
 
+### Base de abastecimiento: proveedores y listas
+
+- Proveedores incorpora razon social, CUIT normalizado, telefono y WhatsApp independientes, direccion y moneda habitual opcional.
+- Las listas de proveedor conservan versiones historicas y ahora admiten moneda declarada, fecha de lista, vigencia y estado activa/archivada sin inferir moneda para datos existentes.
+- `price_lists` sigue siendo el dominio de precios internos de venta; abastecimiento reutiliza `supplier_catalogs`, `supplier_catalog_versions` y `supplier_catalog_lines`.
+- La migracion `20260711120000_procurement_supplier_list_foundation.sql` es aditiva y no integra compras con stock, Caja ni cuenta corriente.
+
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
 Al 2026-05-11, los cambios principales incorporados en `staging` son:
 
