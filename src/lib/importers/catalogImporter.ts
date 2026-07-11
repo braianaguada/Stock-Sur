@@ -42,6 +42,8 @@ export interface CatalogImportLine {
   package_quantity?: number | null;
   content_value?: number | null;
   content_unit?: ContentUnit | null;
+  reference_unit_price?: number | null;
+  reference_price_basis?: string | null;
   semantic_detection?: SemanticDetection;
   row_index: number;
   source_page?: number;
@@ -86,6 +88,9 @@ export interface ColumnDetectionResult {
   priceColumn: string;
   supplierCodeColumn: string | null;
   currencyColumn: string | null;
+  presentationColumn: string | null;
+  contentValueColumn: string | null;
+  referencePriceColumn: string | null;
   confidence: number;
   scores: ColumnHeuristicScore[];
 }
@@ -95,6 +100,9 @@ export interface MappingSelectionCore {
   priceColumn: string;
   currencyColumn: string | null;
   supplierCodeColumn: string | null;
+  presentationColumn?: string | null;
+  contentValueColumn?: string | null;
+  referencePriceColumn?: string | null;
 }
 
 export interface PdfMappingSelectionCore {
@@ -369,6 +377,8 @@ export function detectColumnsHeuristic(headers: string[], rows: string[][]): Col
     let priceScore = 0;
     if (DESCRIPTION_KEYWORDS.some((keyword) => headerLower.includes(keyword))) descriptionScore += 3.5;
     if (PRICE_KEYWORDS.some((keyword) => headerLower.includes(keyword))) priceScore += 3.5;
+    if (/envase|total|final/.test(headerLower)) priceScore += 1.75;
+    if (/(?:\bx\b|por)\s*kgs?/.test(normalizeSemanticLabel(header))) priceScore -= 1.25;
     if (CURRENCY_KEYWORDS.some((keyword) => headerLower.includes(keyword))) priceScore += 0.5;
     const numericRatio = numericCount / total;
     const longTextRatio = longTextCount / total;
@@ -409,6 +419,9 @@ export function detectColumnsHeuristic(headers: string[], rows: string[][]): Col
     priceColumn: bestPrice.key,
     supplierCodeColumn,
     currencyColumn,
+    presentationColumn: scores.find((entry) => /presentacion|formato|envase|contenido neto/.test(normalizeSemanticLabel(entry.key)))?.key ?? null,
+    contentValueColumn: scores.find((entry) => /^(peso|pesos|kg|kgs|kilos|volumen|contenido|cantidad neta)$/.test(normalizeSemanticLabel(entry.key)))?.key ?? null,
+    referencePriceColumn: scores.find((entry) => /(?:\bx\b|por)\s*kgs?/.test(normalizeSemanticLabel(entry.key)))?.key ?? null,
     confidence,
     scores,
   };
@@ -432,6 +445,17 @@ export async function parseXlsxToRows(file: File): Promise<ParsedSheetData> {
     while (out.length < maxColumns) out.push("");
     return out;
   });
+  const bestHeaderIndex = findBestHeaderRow(paddedRows);
+  if (bestHeaderIndex !== null) {
+    const headers = sanitizeHeaderRow(paddedRows[bestHeaderIndex]);
+    const rows = paddedRows
+      .slice(bestHeaderIndex + 1)
+      .filter((row) => row.some((cell) => cell.trim().length > 0))
+      .filter((row) => !isSectionLikeRow(row));
+    if (rows.length > 0) {
+      return { sheetName: firstSheetName, headers, rows, previewRows: rows.slice(0, 20), hasHeaderRow: true, detectedBlocks: 1 };
+    }
+  }
   const blocks = detectBlocks(paddedRows);
   const flattenedDataRows: string[][] = [];
   let selectedHeaders: string[] = [];
@@ -681,6 +705,28 @@ export function normalizePdfRowsToLines({
   return lines;
 }
 
+function findBestHeaderRow(rows: string[][]): number | null {
+  let bestIndex: number | null = null;
+  let bestScore = 10;
+  rows.forEach((row, index) => {
+    if (!looksLikeHeaderRow(row)) return;
+    const normalized = row.map(normalizeSemanticLabel);
+    const populated = normalized.filter(Boolean).length;
+    const keywordHits = normalized.filter((cell) =>
+      /producto|articulo|descripcion|precio|costo|importe|envase|presentacion|peso|kgs?|moneda|currency|codigo|sku/.test(cell),
+    ).length;
+    const followingDensity = rows.slice(index + 1, index + 9).filter((candidate) =>
+      candidate.filter((cell) => cell.trim()).length >= Math.max(2, populated - 2),
+    ).length;
+    const score = keywordHits * 5 + populated + followingDensity * 0.75;
+    if (score > bestScore) {
+      bestIndex = index;
+      bestScore = score;
+    }
+  });
+  return bestIndex;
+}
+
 interface SemanticColumnIndexes {
   product: number | null;
   description: number | null;
@@ -720,7 +766,7 @@ function detectSemanticColumns(headers: string[], mappedDescriptionIndex: number
     description: description === mappedDescriptionIndex ? null : description,
     presentation: findSemanticColumn(headers, [/presentacion/, /formato/, /envase/, /contenido neto/]),
     packageQuantity: findSemanticColumn(headers, [/unidades por (caja|bulto|pack)/, /cantidad por (caja|bulto|pack)/, /^(uxb|u x b|pack|unidades)$/]),
-    contentValue: findSemanticColumn(headers, [/^(peso|volumen|contenido|cantidad neta)$/]),
+    contentValue: findSemanticColumn(headers, [/^(peso|pesos|kg|kgs|kilos|volumen|contenido|cantidad neta)$/]),
     contentUnit: findSemanticColumn(headers, [/^(unidad medida|unidad de medida|uom|um|medida)$/]),
   };
 }
@@ -735,7 +781,7 @@ function normalizeContentUnit(value: string): ContentUnit | null {
   const aliases: Record<string, ContentUnit> = {
     unidad: "UNIT", unidades: "UNIT", un: "UNIT", u: "UNIT",
     mg: "MG", gr: "G", gramo: "G", gramos: "G", g: "G",
-    kg: "KG", kilo: "KG", kilos: "KG", kilogramo: "KG", kilogramos: "KG",
+    kg: "KG", kgs: "KG", kilo: "KG", kilos: "KG", kilogramo: "KG", kilogramos: "KG",
     ml: "ML", cc: "CC", l: "L", lt: "L", lts: "L", litro: "L", litros: "L",
     m: "M", metro: "M", metros: "M", m2: "M2", m3: "M3",
   };
@@ -800,7 +846,9 @@ function extractRowSemantics({
   const explicitPresentation = cell(columns.presentation);
   const explicitPackageQuantity = parsePositiveNumber(cell(columns.packageQuantity));
   const explicitContentValue = parsePositiveNumber(cell(columns.contentValue));
-  const explicitContentUnit = normalizeContentUnit(cell(columns.contentUnit));
+  const explicitContentUnit = normalizeContentUnit(cell(columns.contentUnit)) ?? (columns.contentValue === null
+    ? null
+    : normalizeSemanticLabel(headers[columns.contentValue] ?? "").split(" ").map(normalizeContentUnit).find(Boolean) ?? null);
   const explicitParsed = parsePresentationText(explicitPresentation);
   const productParsed = parsePresentationText(`${productName} ${additionalDescription}`);
   const headerParsed = columns.presentation === null
@@ -859,6 +907,9 @@ export function normalizeRowsToLines({
   const codeIndex = mapping.supplierCodeColumn ? headerIndexMap.get(mapping.supplierCodeColumn) : undefined;
   const currencyIndex = mapping.currencyColumn ? headerIndexMap.get(mapping.currencyColumn) : undefined;
   const semanticColumns = detectSemanticColumns(headers, descriptionIndex);
+  if (mapping.presentationColumn) semanticColumns.presentation = headerIndexMap.get(mapping.presentationColumn) ?? semanticColumns.presentation;
+  if (mapping.contentValueColumn) semanticColumns.contentValue = headerIndexMap.get(mapping.contentValueColumn) ?? semanticColumns.contentValue;
+  const referencePriceIndex = mapping.referencePriceColumn ? headerIndexMap.get(mapping.referencePriceColumn) : undefined;
   if (descriptionIndex === undefined || priceIndex === undefined) throw new Error("Mapeo invalido: faltan columnas requeridas");
   const diagnostics: NormalizeDiagnostics = {
     totalRows: 0,
@@ -909,6 +960,10 @@ export function normalizeRowsToLines({
       rawDescription,
       columns: semanticColumns,
     });
+    if (semantics.presentation_raw && semantics.content_value !== null && semantics.content_unit && !parsePresentationText(semantics.presentation_raw)) {
+      semantics.presentation_raw = `${semantics.presentation_raw} · ${semantics.content_value} ${semantics.content_unit.toLowerCase()}`;
+    }
+    const referenceUnitPrice = referencePriceIndex === undefined ? null : parseFlexibleNumber(String(row[referencePriceIndex] ?? ""));
     lines.push({
       supplier_code: supplierCode || null,
       raw_description: rawDescription,
@@ -917,6 +972,8 @@ export function normalizeRowsToLines({
       currency: currencyDetection.currency,
       currency_detection: currencyDetection,
       ...semantics,
+      reference_unit_price: referenceUnitPrice,
+      reference_price_basis: referenceUnitPrice === null ? null : mapping.referencePriceColumn ?? null,
       row_index: rowIndex + 1,
     });
     diagnostics.keptRows += 1;

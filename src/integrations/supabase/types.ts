@@ -2078,6 +2078,8 @@ export type Database = {
           presentation_raw: string | null
           product_name: string | null
           raw_description: string
+          reference_price_basis: string | null
+          reference_unit_price: number | null
           row_index: number | null
           semantic_detection: Json
           supplier_catalog_version_id: string
@@ -2100,6 +2102,8 @@ export type Database = {
           presentation_raw?: string | null
           product_name?: string | null
           raw_description: string
+          reference_price_basis?: string | null
+          reference_unit_price?: number | null
           row_index?: number | null
           semantic_detection?: Json
           supplier_catalog_version_id: string
@@ -2122,6 +2126,8 @@ export type Database = {
           presentation_raw?: string | null
           product_name?: string | null
           raw_description?: string
+          reference_price_basis?: string | null
+          reference_unit_price?: number | null
           row_index?: number | null
           semantic_detection?: Json
           supplier_catalog_version_id?: string

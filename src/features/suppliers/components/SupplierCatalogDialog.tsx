@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { SupplierCatalogLinesTable } from "@/features/suppliers/components/SupplierCatalogLinesTable";
 import { SupplierOrderTable } from "@/features/suppliers/components/SupplierOrderTable";
+import { PurchaseOrderConfirmation } from "@/features/purchase-orders/PurchaseOrderConfirmation";
+import { PurchaseOrderHistory } from "@/features/purchase-orders/PurchaseOrderHistory";
+import type { SupplierPurchaseOrder } from "@/features/purchase-orders/types";
 import type {
   CatalogLine,
   NormalizeDiagnostics,
@@ -60,6 +63,11 @@ type SupplierCatalogDialogProps = {
   onCopyOrderMessage: () => void;
   onOpenEmail: () => void;
   onOpenWhatsApp: () => void;
+  purchaseOrders: SupplierPurchaseOrder[];
+  isPurchaseOrdersLoading: boolean;
+  isCreatingPurchaseOrder: boolean;
+  lastPurchaseOrder: SupplierPurchaseOrder | null;
+  onCreatePurchaseOrder: () => void;
 };
 
 const NAV_ITEMS = [
@@ -123,6 +131,11 @@ export function SupplierCatalogDialog({
   onCopyOrderMessage,
   onOpenEmail,
   onOpenWhatsApp,
+  purchaseOrders,
+  isPurchaseOrdersLoading,
+  isCreatingPurchaseOrder,
+  lastPurchaseOrder,
+  onCreatePurchaseOrder,
 }: SupplierCatalogDialogProps) {
   return (
     <EntityDialog
@@ -421,6 +434,7 @@ export function SupplierCatalogDialog({
                   <CardDescription>Selecciona productos, cantidades y genera el mensaje.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
+                  {lastPurchaseOrder ? <PurchaseOrderConfirmation order={lastPurchaseOrder} /> : null}
                   <div className="min-h-[240px] overflow-auto rounded-xl border">
                     <SupplierOrderTable
                       rows={orderLines}
@@ -460,6 +474,9 @@ export function SupplierCatalogDialog({
                   ) : null}
 
                   <div className="grid gap-2">
+                    <Button onClick={onCreatePurchaseOrder} disabled={isCreatingPurchaseOrder || !activeVersionId}>
+                      {isCreatingPurchaseOrder ? "Generando orden..." : "Generar orden de compra"}
+                    </Button>
                     <Button variant="outline" onClick={onCopyOrderMessage}>
                       <Copy className="mr-2 h-4 w-4" />
                       Copiar mensaje
@@ -475,6 +492,18 @@ export function SupplierCatalogDialog({
                   </div>
                 </CardContent>
               </Card> : null}
+              {orderLines.length === 0 && (lastPurchaseOrder || purchaseOrders.length > 0) ? (
+                <Card className="min-h-[20rem]">
+                  <CardHeader>
+                    <CardTitle className="text-base">Órdenes de compra</CardTitle>
+                    <CardDescription>Órdenes confirmadas para este proveedor.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {lastPurchaseOrder ? <PurchaseOrderConfirmation order={lastPurchaseOrder} /> : null}
+                    <PurchaseOrderHistory orders={purchaseOrders} isLoading={isPurchaseOrdersLoading} />
+                  </CardContent>
+                </Card>
+              ) : null}
             </div>
           ) : null}
         </section>

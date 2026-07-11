@@ -64,6 +64,8 @@ export interface CatalogLine {
   package_quantity?: number | null;
   content_value?: number | null;
   content_unit?: ContentUnit | null;
+  reference_unit_price?: number | null;
+  reference_price_basis?: string | null;
   semantic_detection?: SemanticDetection;
 }
 
@@ -80,6 +82,8 @@ export interface ExtractionReviewLine {
   package_quantity?: number | null;
   content_value?: number | null;
   content_unit?: ContentUnit | null;
+  reference_unit_price?: number | null;
+  reference_price_basis?: string | null;
   semantic_detection?: SemanticDetection;
   row_index: number;
   source_page?: number;
@@ -113,6 +117,9 @@ export interface ImportMappingStored {
   priceColumn: string;
   currencyColumn?: string | null;
   supplierCodeColumn?: string | null;
+  presentationColumn?: string | null;
+  contentValueColumn?: string | null;
+  referencePriceColumn?: string | null;
 }
 
 export interface PdfImportMappingStored {

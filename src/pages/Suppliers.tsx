@@ -1,5 +1,5 @@
-import { Suspense, lazy } from "react";
-import { Plus, Search } from "lucide-react";
+import { Suspense, lazy, useState } from "react";
+import { Plus, Search, Scale } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FilterBar, PageHeader } from "@/components/ui/page";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SuppliersTable } from "@/features/suppliers/components/SuppliersTable";
@@ -32,6 +33,11 @@ const SupplierExtractionReviewDialog = lazy(async () => {
   return { default: module.SupplierExtractionReviewDialog };
 });
 
+const SupplierComparison = lazy(async () => {
+  const module = await import("@/features/suppliers/components/SupplierComparison");
+  return { default: module.SupplierComparison };
+});
+
 const ColumnMappingModal = lazy(async () => {
   const module = await import("@/features/suppliers/components/ColumnMappingModal");
   return { default: module.ColumnMappingModal };
@@ -53,6 +59,8 @@ function SupplierDialogLoader() {
 export default function SuppliersPage() {
   const { currentCompany } = useAuth();
   const { toast } = useToast();
+  const [comparisonOpen, setComparisonOpen] = useState(false);
+  const [comparisonSelection, setComparisonSelection] = useState<string[]>([]);
   const {
     activeCatalogLines,
     activeVersion,
@@ -104,6 +112,11 @@ export default function SuppliersPage() {
     openEdit,
     orderLines,
     orderTotalsByCurrency,
+    purchaseOrders,
+    isPurchaseOrdersLoading,
+    isCreatingPurchaseOrder,
+    lastPurchaseOrder,
+    onCreatePurchaseOrder,
     pdfMappingHeaders,
     pdfMappingOpen,
     pdfMappingRows,
@@ -153,7 +166,14 @@ export default function SuppliersPage() {
           eyebrow="Compras y catalogos"
           title="Proveedores"
           description="Gestion de proveedores, versiones de catalogos e importaciones. Se mejora jerarquia visual sin tocar el flujo de carga ni el matching."
-          actions={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo proveedor</Button>}
+          actions={(
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setComparisonOpen(true)} disabled={!currentCompany}>
+                <Scale className="mr-2 h-4 w-4" /> Comparar listas
+              </Button>
+              <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo proveedor</Button>
+            </div>
+          )}
         />
 
         <FilterBar>
@@ -243,6 +263,11 @@ export default function SuppliersPage() {
             onCopyOrderMessage={onCopyOrderMessage}
             onOpenEmail={onOpenEmail}
             onOpenWhatsApp={onOpenWhatsApp}
+            purchaseOrders={purchaseOrders}
+            isPurchaseOrdersLoading={isPurchaseOrdersLoading}
+            isCreatingPurchaseOrder={isCreatingPurchaseOrder}
+            lastPurchaseOrder={lastPurchaseOrder}
+            onCreatePurchaseOrder={onCreatePurchaseOrder}
           />
         </Suspense>
       ) : null}
@@ -254,6 +279,7 @@ export default function SuppliersPage() {
             onOpenChange={setExtractionReviewOpen}
             fileName={selectedFile?.name ?? null}
             lines={extractionReviewLines}
+            diagnostics={lastDiagnostics}
             isImporting={extractionImportPending}
             onLineChange={onExtractionReviewLineChange}
             onRemoveLine={onRemoveExtractionReviewLine}
@@ -329,6 +355,25 @@ export default function SuppliersPage() {
           />
         </Suspense>
       ) : null}
+
+      <Dialog open={comparisonOpen} onOpenChange={setComparisonOpen}>
+        <DialogContent className="h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-6xl overflow-y-auto sm:h-[calc(100dvh-2rem)]">
+          <DialogHeader>
+            <DialogTitle>Comparación de proveedores</DialogTitle>
+            <DialogDescription>Elegí listas, compará ofertas equivalentes y conservá siempre la moneda original.</DialogDescription>
+          </DialogHeader>
+          <Suspense fallback={<SupplierDialogLoader />}>
+            <SupplierComparison
+              companyId={currentCompany?.id ?? null}
+              selectedOfferIds={comparisonSelection}
+              onSelectOffer={(offer) => {
+                setComparisonSelection((current) => current.includes(offer.id) ? current : [...current, offer.id]);
+                toast({ title: `${offer.description} seleccionado`, description: `${offer.supplierName} · ${offer.currency} ${offer.cost.toLocaleString("es-AR")}` });
+              }}
+            />
+          </Suspense>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

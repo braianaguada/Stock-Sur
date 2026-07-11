@@ -839,6 +839,10 @@ Production migration history note:
 - La descripción original se conserva como evidencia; los campos detectados incluyen confianza y advertencias para evitar completar datos ambiguos por adivinación.
 - El catálogo usa navegación horizontal, precios no truncables y una bandeja de pedido que aparece al seleccionar productos.
 - Migración de staging: `20260711173000_supplier_catalog_line_semantics.sql` (aditiva, compatible con líneas históricas y sin cambios en producción).
+- La importación de Excel abre siempre una revisión estructural: marca columnas usadas/omitidas y, para listas como Frigerar, compone `Envase + Kgs`, usa `$ x Envase` como costo y conserva `$ x Kg` como referencia.
+- El comparador selecciona versiones de múltiples proveedores, agrupa solo matches confirmados o descripciones normalizadas idénticas y no mezcla rankings ARS/USD sin un tipo de cambio manual.
+- El pedido del proveedor puede confirmarse como orden de compra persistida. La creación es atómica, valida empresa/proveedor/versión y guarda snapshots de producto, presentación, moneda y precios.
+- Migración nueva: `20260711210000_supplier_purchase_orders.sql` (campos de precio de referencia, órdenes, renglones, RLS y RPC; aplicar únicamente en staging).
 - Validación pendiente fuera de automatización: importaciones con archivos reales y QA autenticada con datos de dos empresas.
 
 This repository uses a simple linear flow to avoid branch drift:

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as XLSX from "xlsx";
 import {
   detectColumnsHeuristic,
   detectOfferCurrency,
@@ -7,10 +8,61 @@ import {
   normalizePdfRowsToLines,
   normalizeRowsToLines,
   parseFlexibleNumber,
+  parseXlsxToRows,
   shouldRetryPdfWithOcr,
 } from "@/lib/importers/catalogImporter";
 
 describe("supplier importer heuristics", () => {
+  it("finds the real header after a preamble and preserves package and reference price data", async () => {
+    const worksheet = XLSX.utils.aoa_to_sheet([
+      ["SILVANA FRIGERAR"],
+      ["Teléfono 11 5555 5555"],
+      ["Precios más IVA"],
+      [],
+      ["", "PRESENTACION"],
+      ["PRODUCTO", "Envase", "Kgs", "$ x Kg", "$ x Envase"],
+      ["FREON R134A", "Gfa", 3, 12000, 36000],
+      ["FREON R404A", "Tambor", 10.9, 15000, 163500],
+      ["PRODUCTO SIN PRECIO", "Gfa", 1, "", ""],
+    ]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Hoja1");
+    const bytes = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const file = {
+      name: "frigerar.xlsx",
+      arrayBuffer: async () => bytes,
+    } as File;
+
+    const parsed = await parseXlsxToRows(file);
+    expect(parsed.headers).toEqual(["PRODUCTO", "Envase", "Kgs", "$ x Kg", "$ x Envase"]);
+
+    const detected = detectColumnsHeuristic(parsed.headers, parsed.rows);
+    expect(detected).toMatchObject({
+      descriptionColumn: "PRODUCTO",
+      priceColumn: "$ x Envase",
+      presentationColumn: "Envase",
+      contentValueColumn: "Kgs",
+      referencePriceColumn: "$ x Kg",
+    });
+
+    const { lines, diagnostics } = normalizeRowsToLines({
+      headers: parsed.headers,
+      rows: parsed.rows,
+      mapping: detected,
+    });
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatchObject({
+      product_name: "FREON R134A",
+      presentation_raw: "Gfa · 3 kg",
+      content_value: 3,
+      content_unit: "KG",
+      cost: 36000,
+      reference_unit_price: 12000,
+      reference_price_basis: "$ x Kg",
+    });
+    expect(diagnostics.dropped_invalidPrice).toBe(1);
+  });
+
   it("detects description and price columns on common headers", () => {
     const headers = ["Codigo", "Descripcion", "Precio Lista"];
     const rows = [
