@@ -1,9 +1,11 @@
 import type {
   CatalogImportLine,
+  ContentUnit,
   CurrencyDetection,
   NormalizeDiagnostics,
   ParsePdfProgress,
   ParsedSheetData,
+  SemanticDetection,
 } from "@/lib/importers/catalogImporter";
 
 export interface Supplier {
@@ -56,6 +58,13 @@ export interface CatalogLine {
   raw_description: string;
   cost: number;
   currency: "ARS" | "USD";
+  product_name?: string | null;
+  additional_description?: string | null;
+  presentation_raw?: string | null;
+  package_quantity?: number | null;
+  content_value?: number | null;
+  content_unit?: ContentUnit | null;
+  semantic_detection?: SemanticDetection;
 }
 
 export interface ExtractionReviewLine {
@@ -65,6 +74,13 @@ export interface ExtractionReviewLine {
   cost: number;
   currency: "ARS" | "USD";
   currency_detection?: CurrencyDetection;
+  product_name?: string | null;
+  additional_description?: string | null;
+  presentation_raw?: string | null;
+  package_quantity?: number | null;
+  content_value?: number | null;
+  content_unit?: ContentUnit | null;
+  semantic_detection?: SemanticDetection;
   row_index: number;
   source_page?: number;
   confidence?: number;
@@ -80,6 +96,13 @@ export interface SupplierCatalogLinePayload {
   normalized_description: string | null;
   cost: number;
   currency: "ARS" | "USD";
+  product_name?: string | null;
+  additional_description?: string | null;
+  presentation_raw?: string | null;
+  package_quantity?: number | null;
+  content_value?: number | null;
+  content_unit?: ContentUnit | null;
+  semantic_detection?: SemanticDetection;
   row_index: number;
   matched_item_id: string | null;
   match_status: "MATCHED" | "PENDING" | "NEW";

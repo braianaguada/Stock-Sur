@@ -832,6 +832,15 @@ Production migration history note:
 
 ## Git workflow
 
+## Proveedores: importación semántica y catálogo operativo
+
+- Las ofertas conservan moneda por fila y las listas pueden ser ARS, USD o mixtas.
+- Excel/CSV detecta localmente nombre, descripción adicional, presentación, unidades por envase, contenido y unidad desde columnas o texto del producto. El preview permite revisar moneda y presentación antes de confirmar.
+- La descripción original se conserva como evidencia; los campos detectados incluyen confianza y advertencias para evitar completar datos ambiguos por adivinación.
+- El catálogo usa navegación horizontal, precios no truncables y una bandeja de pedido que aparece al seleccionar productos.
+- Migración de staging: `20260711173000_supplier_catalog_line_semantics.sql` (aditiva, compatible con líneas históricas y sin cambios en producción).
+- Validación pendiente fuera de automatización: importaciones con archivos reales y QA autenticada con datos de dos empresas.
+
 This repository uses a simple linear flow to avoid branch drift:
 
 - `main`: production only

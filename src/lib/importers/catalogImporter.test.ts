@@ -56,6 +56,98 @@ describe("supplier importer heuristics", () => {
     expect(diagnostics.sampleDropped.length).toBeGreaterThan(0);
   });
 
+  it("extracts product, additional description and presentation from explicit columns", () => {
+    const { lines } = normalizeRowsToLines({
+      headers: ["SKU", "Producto", "Descripción", "Presentación", "Precio"],
+      rows: [["A-1", "Aceite de oliva", "Extra virgen", "Caja 6 x 2 L", "12500"]],
+      mapping: {
+        descriptionColumn: "Producto",
+        priceColumn: "Precio",
+        supplierCodeColumn: "SKU",
+        currencyColumn: null,
+      },
+    });
+
+    expect(lines[0]).toMatchObject({
+      product_name: "Aceite de oliva",
+      additional_description: "Extra virgen",
+      presentation_raw: "Caja 6 x 2 L",
+      package_quantity: 6,
+      content_value: 2,
+      content_unit: "L",
+      semantic_detection: { source: "EXPLICIT_COLUMN", confidence: 1 },
+    });
+  });
+
+  it("extracts weight or volume from product text without confusing model numbers", () => {
+    const { lines } = normalizeRowsToLines({
+      headers: ["Producto", "Precio"],
+      rows: [
+        ["Leche entera pack 12 x 750 ml", "1500"],
+        ["Taladro modelo X12", "25000"],
+      ],
+      mapping: {
+        descriptionColumn: "Producto",
+        priceColumn: "Precio",
+        supplierCodeColumn: null,
+        currencyColumn: null,
+      },
+    });
+
+    expect(lines[0]).toMatchObject({ package_quantity: 12, content_value: 750, content_unit: "ML" });
+    expect(lines[0].semantic_detection?.source).toBe("PRODUCT_TEXT");
+    expect(lines[1]).toMatchObject({ package_quantity: null, content_value: null, content_unit: null });
+    expect(lines[1].semantic_detection?.source).toBe("NOT_DETECTED");
+  });
+
+  it("uses separate quantity, content and unit columns with deterministic precedence", () => {
+    const { lines } = normalizeRowsToLines({
+      headers: ["Artículo", "Unidades por caja", "Contenido", "Unidad de medida", "Precio"],
+      rows: [["Limpiador concentrado 750 ml", "8", "1,5", "litros", "9000"]],
+      mapping: {
+        descriptionColumn: "Artículo",
+        priceColumn: "Precio",
+        supplierCodeColumn: null,
+        currencyColumn: null,
+      },
+    });
+
+    expect(lines[0]).toMatchObject({ package_quantity: 8, content_value: 1.5, content_unit: "L" });
+    expect(lines[0].semantic_detection?.source).toBe("EXPLICIT_COLUMN");
+  });
+
+  it("can use an inequívocal presentation encoded in an active column header", () => {
+    const { lines } = normalizeRowsToLines({
+      headers: ["Producto", "Botella 500 ml", "Precio"],
+      rows: [["Agua mineral", "Sí", "800"]],
+      mapping: {
+        descriptionColumn: "Producto",
+        priceColumn: "Precio",
+        supplierCodeColumn: null,
+        currencyColumn: null,
+      },
+    });
+
+    expect(lines[0]).toMatchObject({ content_value: 500, content_unit: "ML" });
+    expect(lines[0].semantic_detection?.source).toBe("HEADER_CONTEXT");
+  });
+
+  it("combines a numeric cell with its unit-bearing header", () => {
+    const { lines } = normalizeRowsToLines({
+      headers: ["Producto", "Peso kg", "Precio"],
+      rows: [["Harina industrial", "25", "18000"]],
+      mapping: {
+        descriptionColumn: "Producto",
+        priceColumn: "Precio",
+        supplierCodeColumn: null,
+        currencyColumn: null,
+      },
+    });
+
+    expect(lines[0]).toMatchObject({ content_value: 25, content_unit: "KG" });
+    expect(lines[0].semantic_detection?.source).toBe("HEADER_CONTEXT");
+  });
+
   it("parses flexible numbers", () => {
     expect(parseFlexibleNumber("$ 2.345,50")).toBeCloseTo(2345.5, 2);
     expect(parseFlexibleNumber("USD 1,200.75")).toBeCloseTo(1200.75, 2);

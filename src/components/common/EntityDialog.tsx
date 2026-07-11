@@ -17,6 +17,8 @@ type EntityDialogProps = {
   children: ReactNode;
   footer?: ReactNode;
   contentClassName?: string;
+  headerClassName?: string;
+  bodyClassName?: string;
 };
 
 export function EntityDialog({
@@ -27,15 +29,17 @@ export function EntityDialog({
   children,
   footer,
   contentClassName,
+  headerClassName,
+  bodyClassName,
 }: EntityDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn("w-[min(92vw,46rem)] max-w-[46rem] max-h-[88vh] overflow-y-auto", contentClassName)}>
-        <DialogHeader>
+        <DialogHeader className={headerClassName}>
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
-        {children}
+        {bodyClassName ? <div className={bodyClassName}>{children}</div> : children}
         {footer ? <DialogFooter>{footer}</DialogFooter> : null}
       </DialogContent>
     </Dialog>

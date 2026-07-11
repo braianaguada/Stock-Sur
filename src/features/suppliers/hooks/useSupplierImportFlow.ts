@@ -509,6 +509,13 @@ export function useSupplierImportFlow(params: {
           row_index: line.row_index,
           source_page: line.source_page,
           confidence: line.confidence,
+          product_name: line.product_name,
+          additional_description: line.additional_description,
+          presentation_raw: line.presentation_raw,
+          package_quantity: line.package_quantity,
+          content_value: line.content_value,
+          content_unit: line.content_unit,
+          semantic_detection: line.semantic_detection,
         }),
       );
 
