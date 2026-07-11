@@ -132,11 +132,11 @@ export function SupplierCatalogDialog({
       onOpenChange={onOpenChange}
       title={selectedSupplier?.name ? `Proveedor: ${selectedSupplier.name}` : "Proveedor"}
       description="Workspace de carga, consolidacion y pedido."
-      contentClassName="h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-[1500px] overflow-hidden p-0"
+      contentClassName="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[1500px] overflow-y-auto p-0 lg:h-[calc(100dvh-2rem)] lg:overflow-hidden"
     >
-      <div className="grid h-full min-h-0 lg:grid-cols-[290px_minmax(0,1fr)]">
-        <aside className="border-r bg-muted/30">
-          <div className="flex h-full min-h-0 flex-col gap-4 p-4">
+      <div className="grid min-h-0 lg:h-full lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[290px_minmax(0,1fr)]">
+        <aside className="border-b bg-muted/30 lg:border-b-0 lg:border-r">
+          <div className="flex min-h-0 flex-col gap-4 p-4 lg:h-full">
             <Card className="border-none bg-background shadow-sm">
               <CardHeader className="gap-3">
                 <div className="flex items-start justify-between gap-3">
@@ -159,7 +159,7 @@ export function SupplierCatalogDialog({
               </CardHeader>
             </Card>
 
-            <div className="grid gap-2">
+            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
               {NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const active = catalogUiTab === item.key;
@@ -189,7 +189,7 @@ export function SupplierCatalogDialog({
               })}
             </div>
 
-            <Card className="border-none bg-background shadow-sm">
+            <Card className="hidden border-none bg-background shadow-sm lg:block">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Resumen</CardTitle>
               </CardHeader>
@@ -220,9 +220,9 @@ export function SupplierCatalogDialog({
           </div>
         </aside>
 
-        <section className="min-h-0 overflow-hidden bg-background">
+        <section className="min-h-0 bg-background lg:overflow-hidden">
           {catalogUiTab === "carga" ? (
-            <div className="grid h-full min-h-0 gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="grid min-h-0 gap-4 p-4 lg:h-full xl:grid-cols-[minmax(0,1fr)_320px]">
               <Card className="min-h-0">
                 <CardHeader>
                   <CardTitle className="text-base">Nueva fuente del proveedor</CardTitle>
@@ -416,7 +416,7 @@ export function SupplierCatalogDialog({
           ) : null}
 
           {catalogUiTab === "catalogo" ? (
-            <div className="grid h-full min-h-0 gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="grid min-h-0 gap-4 p-4 lg:h-full xl:grid-cols-[minmax(0,1fr)_360px]">
               <Card className="min-h-0 flex flex-col">
                 <CardHeader className="gap-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">

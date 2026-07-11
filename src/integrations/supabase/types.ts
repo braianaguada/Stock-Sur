@@ -1626,6 +1626,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          currency_detection_source: string | null
+          currency_raw: string | null
           id: string
           item_id: string | null
           match_status: Database["public"]["Enums"]["match_status"]
@@ -1639,6 +1641,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          currency_detection_source?: string | null
+          currency_raw?: string | null
           id?: string
           item_id?: string | null
           match_status?: Database["public"]["Enums"]["match_status"]
@@ -1652,6 +1656,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          currency_detection_source?: string | null
+          currency_raw?: string | null
           id?: string
           item_id?: string | null
           match_status?: Database["public"]["Enums"]["match_status"]

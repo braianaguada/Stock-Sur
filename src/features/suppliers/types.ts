@@ -1,5 +1,6 @@
 import type {
   CatalogImportLine,
+  CurrencyDetection,
   NormalizeDiagnostics,
   ParsePdfProgress,
   ParsedSheetData,
@@ -29,7 +30,6 @@ export interface SupplierFormState {
   phone: string;
   whatsapp: string;
   address: string;
-  default_currency: "" | "ARS" | "USD";
   notes: string;
 }
 
@@ -55,7 +55,7 @@ export interface CatalogLine {
   supplier_code: string | null;
   raw_description: string;
   cost: number;
-  currency: string;
+  currency: "ARS" | "USD";
 }
 
 export interface ExtractionReviewLine {
@@ -63,7 +63,8 @@ export interface ExtractionReviewLine {
   supplier_code: string | null;
   raw_description: string;
   cost: number;
-  currency: string;
+  currency: "ARS" | "USD";
+  currency_detection?: CurrencyDetection;
   row_index: number;
   source_page?: number;
   confidence?: number;
@@ -78,7 +79,7 @@ export interface SupplierCatalogLinePayload {
   raw_description: string;
   normalized_description: string | null;
   cost: number;
-  currency: string;
+  currency: "ARS" | "USD";
   row_index: number;
   matched_item_id: string | null;
   match_status: "MATCHED" | "PENDING" | "NEW";

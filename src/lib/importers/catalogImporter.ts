@@ -7,13 +7,25 @@ type MergeRange = {
 };
 
 export type MatchStatus = "MATCHED" | "PENDING" | "NEW";
+export type SupportedCurrency = "ARS" | "USD";
+export type CurrencyDetectionSource = "PRICE_CELL" | "CURRENCY_COLUMN" | "PRICE_HEADER" | "MANUAL" | "DEFAULT_ARS";
+export type CurrencyDetectionStatus = "DETECTED" | "DEFAULTED" | "AMBIGUOUS" | "UNSUPPORTED";
+
+export interface CurrencyDetection {
+  currency: SupportedCurrency;
+  source: CurrencyDetectionSource;
+  status: CurrencyDetectionStatus;
+  rawEvidence: string | null;
+  conflictingEvidence?: string | null;
+}
 
 export interface CatalogImportLine {
   supplier_code: string | null;
   raw_description: string;
   normalized_description: string | null;
   cost: number;
-  currency: string;
+  currency: SupportedCurrency;
+  currency_detection?: CurrencyDetection;
   row_index: number;
   source_page?: number;
   confidence?: number;
@@ -436,10 +448,42 @@ export async function parseXlsxToRows(file: File): Promise<ParsedSheetData> {
   };
 }
 
-function detectCurrency(rawValue: string, fallback: "ARS" | "USD"): string {
-  if (/u\$s|us\$|usd/i.test(rawValue)) return "USD";
-  if (/ars|\$/i.test(rawValue)) return "ARS";
-  return fallback;
+function normalizeCurrencyEvidence(rawValue: string): SupportedCurrency | "UNSUPPORTED" | null {
+  const value = rawValue.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  if (!value) return null;
+  if (/\b(?:usd|u\s*d|dolar(?:es)?|us\s*dollar(?:s)?)\b|u\s*\$\s*s|us\s*\$/i.test(value)) return "USD";
+  if (/\bars\b|(?:^|\s)\$(?=\s|\d|$)|\bpesos?\b/i.test(value)) return "ARS";
+  if (/\b(?:eur|euro(?:s)?|brl|real(?:es)?|gbp|libra(?:s)?)\b/i.test(value)) return "UNSUPPORTED";
+  return null;
+}
+
+export function detectOfferCurrency(input: {
+  priceCell: string;
+  currencyCell?: string | null;
+  priceHeader?: string | null;
+  manualCurrency?: SupportedCurrency | null;
+}): CurrencyDetection {
+  const candidates = [
+    { source: "PRICE_CELL" as const, raw: input.priceCell, detected: normalizeCurrencyEvidence(input.priceCell) },
+    { source: "CURRENCY_COLUMN" as const, raw: input.currencyCell ?? "", detected: normalizeCurrencyEvidence(input.currencyCell ?? "") },
+    { source: "PRICE_HEADER" as const, raw: input.priceHeader ?? "", detected: normalizeCurrencyEvidence(input.priceHeader ?? "") },
+  ].filter((candidate) => candidate.detected !== null);
+  const unsupported = candidates.find((candidate) => candidate.detected === "UNSUPPORTED");
+  if (unsupported) {
+    return { currency: input.manualCurrency ?? "ARS", source: input.manualCurrency ? "MANUAL" : "DEFAULT_ARS", status: "UNSUPPORTED", rawEvidence: unsupported.raw };
+  }
+  const explicit = candidates as Array<{ source: "PRICE_CELL" | "CURRENCY_COLUMN" | "PRICE_HEADER"; raw: string; detected: SupportedCurrency }>;
+  if (explicit.length > 1 && explicit.some((candidate) => candidate.detected !== explicit[0].detected)) {
+    return { currency: explicit[0].detected, source: explicit[0].source, status: "AMBIGUOUS", rawEvidence: explicit[0].raw, conflictingEvidence: explicit.slice(1).map((candidate) => candidate.raw).join(" | ") };
+  }
+  if (explicit[0]) return { currency: explicit[0].detected, source: explicit[0].source, status: "DETECTED", rawEvidence: explicit[0].raw };
+  if (input.manualCurrency) return { currency: input.manualCurrency, source: "MANUAL", status: "DETECTED", rawEvidence: input.manualCurrency };
+  return { currency: "ARS", source: "DEFAULT_ARS", status: "DEFAULTED", rawEvidence: null };
+}
+
+function detectCurrency(rawValue: string, fallback: SupportedCurrency): SupportedCurrency {
+  const detection = detectOfferCurrency({ priceCell: rawValue, manualCurrency: fallback });
+  return detection.status === "UNSUPPORTED" ? fallback : detection.currency;
 }
 
 function isLikelySupplierCodeValue(value: string): boolean {
@@ -673,13 +717,18 @@ export function normalizeRowsToLines({
     }
     const supplierCode = codeIndex !== undefined ? String(row[codeIndex] ?? "").trim() : "";
     const rawCurrency = currencyIndex !== undefined ? String(row[currencyIndex] ?? "").trim() : "";
-    const currency = (rawCurrency ? rawCurrency.toUpperCase() : detectCurrency(`${rawPrice} ${rawDescription}`, "ARS")) || "ARS";
+    const currencyDetection = detectOfferCurrency({
+      priceCell: rawPrice,
+      currencyCell: rawCurrency,
+      priceHeader: mapping.priceColumn,
+    });
     lines.push({
       supplier_code: supplierCode || null,
       raw_description: rawDescription,
       normalized_description: rawDescription.toLowerCase(),
       cost: parsedPrice,
-      currency,
+      currency: currencyDetection.currency,
+      currency_detection: currencyDetection,
       row_index: rowIndex + 1,
     });
     diagnostics.keptRows += 1;

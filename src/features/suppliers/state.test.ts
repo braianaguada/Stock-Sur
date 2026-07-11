@@ -24,7 +24,7 @@ describe("supplier form state", () => {
 
     expect(form.phone).toBe("2994000000");
     expect(form.whatsapp).toBe("2994111111");
-    expect(form.default_currency).toBe("ARS");
+    expect(form).not.toHaveProperty("default_currency");
   });
 
   it("starts optional procurement fields empty", () => {
@@ -33,7 +33,6 @@ describe("supplier form state", () => {
       tax_id: "",
       phone: "",
       address: "",
-      default_currency: "",
     });
   });
 });

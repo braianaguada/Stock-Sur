@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   detectColumnsHeuristic,
+  detectOfferCurrency,
   detectPdfColumnsHeuristic,
   extractPdfCatalogCandidates,
   normalizePdfRowsToLines,
@@ -297,5 +298,36 @@ describe("supplier importer heuristics", () => {
     expect(lines[1].cost).toBeCloseTo(18, 2);
     expect(lines[2].supplier_code).toBe("HY03BW");
     expect(lines[2].currency).toBe("USD");
+  });
+});
+
+describe("supplier offer currency detection", () => {
+  it.each([
+    ["$ 125.000", "ARS"],
+    ["USD 125", "USD"],
+    ["U$S 125,50", "USD"],
+    ["US$ 55", "USD"],
+    ["DÓLAR 80", "USD"],
+    ["125000", "ARS"],
+  ] as const)("detects %s as %s", (priceCell, currency) => {
+    expect(detectOfferCurrency({ priceCell }).currency).toBe(currency);
+  });
+
+  it("uses the mapped row currency before the price header", () => {
+    expect(detectOfferCurrency({ priceCell: "100", currencyCell: "USD", priceHeader: "PRECIO $" })).toMatchObject({
+      currency: "USD",
+      source: "CURRENCY_COLUMN",
+      status: "AMBIGUOUS",
+    });
+  });
+
+  it("uses an unequivocal price header and defaults ambiguous PRICE to ARS", () => {
+    expect(detectOfferCurrency({ priceCell: "100", priceHeader: "PRECIO USD" })).toMatchObject({ currency: "USD", source: "PRICE_HEADER" });
+    expect(detectOfferCurrency({ priceCell: "100", priceHeader: "PRICE" })).toMatchObject({ currency: "ARS", status: "DEFAULTED" });
+  });
+
+  it("flags conflicts and unsupported currencies for manual review", () => {
+    expect(detectOfferCurrency({ priceCell: "USD 100", currencyCell: "ARS" }).status).toBe("AMBIGUOUS");
+    expect(detectOfferCurrency({ priceCell: "EUR 100" }).status).toBe("UNSUPPORTED");
   });
 });

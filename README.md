@@ -210,10 +210,12 @@ Estado de cuenta lee `account_due_days` del cliente para calcular vencimientos c
 
 ### Base de abastecimiento: proveedores y listas
 
-- Proveedores incorpora razon social, CUIT normalizado, telefono y WhatsApp independientes, direccion y moneda habitual opcional.
-- Las listas de proveedor conservan versiones historicas y ahora admiten moneda declarada, fecha de lista, vigencia y estado activa/archivada sin inferir moneda para datos existentes.
+- Proveedores incorpora razon social, CUIT normalizado, telefono y WhatsApp independientes y direccion. La moneda no se solicita ni se clasifica por proveedor.
+- Cada oferta importada conserva su propia moneda (`ARS` o `USD`), por lo que una lista puede ser ARS, USD o mixta. La deteccion prioriza celda de precio, columna de moneda y encabezado; los conflictos requieren revision y, sin evidencia, se usa ARS.
+- El preview permite corregir moneda por fila. Catalogo y bandeja de seleccion usan layouts adaptables sin megatablas horizontales.
 - `price_lists` sigue siendo el dominio de precios internos de venta; abastecimiento reutiliza `supplier_catalogs`, `supplier_catalog_versions` y `supplier_catalog_lines`.
-- La migracion `20260711120000_procurement_supplier_list_foundation.sql` es aditiva y no integra compras con stock, Caja ni cuenta corriente.
+- Las migraciones `20260711120000_procurement_supplier_list_foundation.sql` y `20260711150000_supplier_offer_currency_per_line.sql` son aditivas. La segunda canoniza y valida moneda por linea, preserva los campos legacy y no los usa como fallback operativo.
+- Esta base todavia no incluye comparacion entre proveedores, conversion por tipo de cambio ni ordenes de compra persistidas; tampoco genera movimientos de stock, Caja o cuenta corriente.
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
 Al 2026-05-11, los cambios principales incorporados en `staging` son:

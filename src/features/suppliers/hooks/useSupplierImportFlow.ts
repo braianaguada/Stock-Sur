@@ -7,6 +7,7 @@ import type {
   ParsedSheetData,
 } from "@/features/suppliers/types";
 import { getErrorMessage } from "@/lib/errors";
+import { queryKeys } from "@/lib/query-keys";
 import {
   loadStoredSupplierImportMapping,
   saveStoredSupplierImportMapping,
@@ -537,9 +538,9 @@ export function useSupplierImportFlow(params: {
       };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["supplier-catalogs", selectedSupplier?.id] });
-      queryClient.invalidateQueries({ queryKey: ["supplier-catalog-versions", selectedSupplier?.id] });
-      queryClient.invalidateQueries({ queryKey: ["supplier-catalog-lines"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.catalogs(currentCompanyId, selectedSupplier?.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.catalogVersions(currentCompanyId, selectedSupplier?.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.catalogLines(currentCompanyId, null, "").slice(0, 2) });
       setDocumentTitle("");
       setDocumentNotes("");
       setSelectedCatalogId("new");
