@@ -53,8 +53,8 @@ export function StockMovementDialog({
   onItemSearchChange,
   onSelectedItemChange,
 }: StockMovementDialogProps) {
-  const selectedStock = selectedItem ? (stockByItemId.get(selectedItem.id) ?? 0) : 0;
-  const selectedTone = stockTone(selectedStock);
+  const selectedStock = selectedItem ? stockByItemId.get(selectedItem.id) : undefined;
+  const selectedTone = selectedStock === undefined ? null : stockTone(selectedStock);
 
   return (
     <EntityDialog open={open} onOpenChange={onOpenChange} title="Nuevo movimiento">
@@ -68,6 +68,7 @@ export function StockMovementDialog({
         <div className="space-y-2">
           <Label>Buscar ítem</Label>
           <Input
+            autoFocus
             value={itemSearch}
             onChange={(event) => onItemSearchChange(event.target.value)}
             placeholder="Buscar por nombre, SKU, marca, modelo o atributos..."
@@ -81,8 +82,8 @@ export function StockMovementDialog({
               <p className="px-3 py-2 text-sm text-muted-foreground">No hay ítems para mostrar.</p>
             ) : (
               availableItems.map((item) => {
-                const itemStock = stockByItemId.get(item.id) ?? 0;
-                const tone = stockTone(itemStock);
+                const itemStock = stockByItemId.get(item.id);
+                const tone = itemStock === undefined ? null : stockTone(itemStock);
 
                 return (
                   <button
@@ -116,7 +117,7 @@ export function StockMovementDialog({
                       tone === "success" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
                     )}
                   >
-                      {formatStockQuantity(itemStock, item.unit)}
+                      {itemStock === undefined ? "Stock no disponible" : formatStockQuantity(itemStock, item.unit)}
                     </Badge>
                   </button>
                 );
@@ -148,7 +149,9 @@ export function StockMovementDialog({
                   )}
                 >
                   <Package className="h-4 w-4" />
-                  {formatStockQuantity(selectedStock, selectedItem.unit)}
+                  {selectedStock === undefined
+                    ? "Stock no disponible"
+                    : formatStockQuantity(selectedStock, selectedItem.unit)}
                 </Badge>
               </div>
             </div>

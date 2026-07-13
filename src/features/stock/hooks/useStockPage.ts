@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,10 +47,19 @@ export function sanitizeStockMovementItemSearch(value: string | null | undefined
     .trim();
 }
 
-function readStoredDraft() {
+export function getStockMovementDraftKey(userId?: string | null, companyId?: string | null) {
+  return userId && companyId ? `${NEW_STOCK_MOVEMENT_DRAFT_KEY}:${userId}:${companyId}` : null;
+}
+
+export function buildStockByItemId(rows: Pick<StockRow, "item_id" | "total">[]) {
+  return new Map(rows.map((row) => [row.item_id, row.total]));
+}
+
+function readStoredDraft(storageKey: string | null) {
+  if (!storageKey) return null;
   if (typeof window === "undefined") return null;
 
-  const raw = sessionStorage.getItem(NEW_STOCK_MOVEMENT_DRAFT_KEY);
+  const raw = sessionStorage.getItem(storageKey);
   if (!raw) return null;
 
   try {
@@ -60,7 +69,7 @@ function readStoredDraft() {
       itemSearch: sanitizeStockMovementItemSearch(draft.itemSearch),
     };
   } catch {
-    sessionStorage.removeItem(NEW_STOCK_MOVEMENT_DRAFT_KEY);
+    sessionStorage.removeItem(storageKey);
     return null;
   }
 }
@@ -90,7 +99,6 @@ function normalizeMovementForm(form: Partial<StockMovementForm> | null | undefin
 }
 
 export function useStockPage() {
-  const initialDraft = useMemo(() => readStoredDraft(), []);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user, currentCompany } = useAuth();
@@ -98,13 +106,33 @@ export function useStockPage() {
   const deferredSearch = useDeferredValue(search);
   const [movementSearch, setMovementSearch] = useState("");
   const deferredMovementSearch = useDeferredValue(movementSearch);
-  const [dialogOpen, setDialogOpen] = useState(initialDraft?.open === true);
-  const [form, setForm] = useState<StockMovementForm>(normalizeMovementForm(initialDraft?.form));
-  const [itemSearch, setItemSearch] = useState(initialDraft?.itemSearch ?? "");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState<StockMovementForm>(DEFAULT_STOCK_MOVEMENT_FORM);
+  const [itemSearch, setItemSearch] = useState("");
   const deferredItemSearch = useDeferredValue(itemSearch);
-  const [selectedItem, setSelectedItem] = useState<SearchableItem | null>(
-    normalizeItem(initialDraft?.selectedItem),
+  const [selectedItem, setSelectedItem] = useState<SearchableItem | null>(null);
+  const [hydratedDraftKey, setHydratedDraftKey] = useState<string | null>(null);
+  const draftStorageKey = useMemo(
+    () => getStockMovementDraftKey(user?.id, currentCompany?.id),
+    [currentCompany?.id, user?.id],
   );
+
+  useEffect(() => {
+    setHydratedDraftKey(null);
+    setDialogOpen(false);
+    setForm(DEFAULT_STOCK_MOVEMENT_FORM);
+    setItemSearch("");
+    setSelectedItem(null);
+
+    const draft = readStoredDraft(draftStorageKey);
+    if (draft) {
+      setDialogOpen(draft.open === true);
+      setForm(normalizeMovementForm(draft.form));
+      setItemSearch(draft.itemSearch);
+      setSelectedItem(normalizeItem(draft.selectedItem));
+    }
+    setHydratedDraftKey(draftStorageKey);
+  }, [draftStorageKey]);
 
   const draftValue = useMemo<StockMovementDraft>(() => ({
     open: dialogOpen,
@@ -114,8 +142,8 @@ export function useStockPage() {
   }), [dialogOpen, form, itemSearch, selectedItem]);
 
   useSessionDraft({
-    enabled: dialogOpen,
-    storageKey: NEW_STOCK_MOVEMENT_DRAFT_KEY,
+    enabled: dialogOpen && hydratedDraftKey === draftStorageKey,
+    storageKey: draftStorageKey,
     value: draftValue,
     read: () => {},
   });
@@ -125,49 +153,16 @@ export function useStockPage() {
     setForm(DEFAULT_STOCK_MOVEMENT_FORM);
     setItemSearch("");
     setSelectedItem(null);
-    clearSessionDraft(NEW_STOCK_MOVEMENT_DRAFT_KEY);
-  }, []);
+    clearSessionDraft(draftStorageKey);
+  }, [draftStorageKey]);
 
   const openCreateMovement = useCallback((item?: SearchableItem) => {
+    clearSessionDraft(draftStorageKey);
     setDialogOpen(true);
     setForm({ ...DEFAULT_STOCK_MOVEMENT_FORM, item_id: item?.id ?? "" });
     setItemSearch("");
     setSelectedItem(normalizeItem(item));
-  }, []);
-
-  const { data: recentItems = [] } = useQuery({
-    queryKey: queryKeys.stock.recentItems(currentCompany?.id ?? null, user?.id),
-    enabled: Boolean(currentCompany && user),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stock_movements")
-        .select("item_id, created_at, items(id, name, sku, unit, supplier, brand, model, attributes, category, is_active)")
-        .eq("company_id", currentCompany!.id)
-        .eq("created_by", user!.id)
-        .order("created_at", { ascending: false })
-        .limit(30);
-      if (error) throw error;
-
-      const deduped = new Map<string, SearchableItem>();
-      for (const row of data ?? []) {
-        const item = Array.isArray(row.items) ? row.items[0] : row.items;
-        if (!item || item.is_active === false || deduped.has(row.item_id)) continue;
-        deduped.set(row.item_id, {
-          id: item.id,
-          name: item.name,
-          sku: item.sku,
-          unit: item.unit,
-          supplier: item.supplier,
-          brand: item.brand,
-          model: item.model,
-          attributes: item.attributes,
-          category: item.category,
-        });
-      }
-
-      return Array.from(deduped.values()).slice(0, 8);
-    },
-  });
+  }, [draftStorageKey]);
 
   const { data: searchedItems = [], isFetching: searchingItems } = useQuery({
     queryKey: queryKeys.stock.itemSearch(currentCompany?.id ?? null, deferredItemSearch),
@@ -181,33 +176,18 @@ export function useStockPage() {
       });
       if (error) throw error;
 
-      const remoteResults = (data ?? []) as SearchableItem[];
-      if (remoteResults.length > 0) return remoteResults;
-
-      return recentItems.filter((item) => matchesNaturalItemSearch(item, searchTerm));
+      return (data ?? []) as SearchableItem[];
     },
   });
 
   const availableItems = useMemo(() => {
-    const map = new Map<string, SearchableItem>();
-    const hasSearch = deferredItemSearch.trim().length > 0;
-
-    if (hasSearch) {
-      for (const item of searchedItems) map.set(item.id, item);
-      for (const item of recentItems) {
-        if (!map.has(item.id)) map.set(item.id, item);
-      }
-    } else {
-      for (const item of recentItems) map.set(item.id, item);
-    }
-
-    if (selectedItem) map.set(selectedItem.id, selectedItem);
-    return Array.from(map.values());
-  }, [deferredItemSearch, recentItems, searchedItems, selectedItem]);
+    if (!deferredItemSearch.trim()) return [];
+    return searchedItems;
+  }, [deferredItemSearch, searchedItems]);
 
   const itemsById = useMemo(
-    () => new Map(availableItems.map((item) => [item.id, item])),
-    [availableItems],
+    () => new Map([...availableItems, ...(selectedItem ? [selectedItem] : [])].map((item) => [item.id, item])),
+    [availableItems, selectedItem],
   );
 
   const { data: allStockRows = [], isLoading: loadingStock } = useQuery({
@@ -490,8 +470,8 @@ export function useStockPage() {
   });
 
   const stockByItemId = useMemo(
-    () => new Map(stockRows.map((row) => [row.item_id, row.total])),
-    [stockRows],
+    () => buildStockByItemId(allStockRows),
+    [allStockRows],
   );
 
   const filteredMovements = useMemo(() => {
@@ -588,6 +568,7 @@ export function useStockPage() {
     stockByItemId,
     selectedItem,
     searchingItems,
+    allStockRows,
     stockRows,
     loadingStock,
     movements,
