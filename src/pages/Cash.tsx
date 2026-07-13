@@ -355,7 +355,7 @@ export default function CashPage() {
     pageSize: salesPageSize,
   });
 
-  const canCreateSale = canCreateCashSale(roles);
+  const canCreateSale = canCreateCashSale(roles, { companyRoleCodes, companyPermissionCodes });
   const canCreateExpense = canCreateCashExpense(roles);
   const canCloseCashAction = canCloseCash(roles);
   const canCreateBillingDraft = canCreateBilling(roles, { companyRoleCodes, companyPermissionCodes });

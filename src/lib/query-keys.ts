@@ -110,6 +110,10 @@ export const queryKeys = {
       ["document-lines", companyId ?? "no-company", documentId] as const,
     events: (companyId: string | null, documentId: string | null) =>
       ["document-events", companyId ?? "no-company", documentId] as const,
+    cashUsage: (companyId: string | null) =>
+      ["documents", "cash-usage", companyId ?? "no-company"] as const,
+    cashClosure: (companyId: string | null, businessDate: string | null) =>
+      ["documents", "cash-closure", companyId ?? "no-company", businessDate ?? "no-date"] as const,
   },
   combos: {
     list: (companyId: string | null) => ["product-combos", companyId ?? "no-company"] as const,

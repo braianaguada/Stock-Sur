@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Check, Copy, Eye, FileText, Loader2, MessageCircle, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
+import { Ban, Banknote, Check, Copy, Eye, FileText, Loader2, MessageCircle, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,12 +24,15 @@ interface DocumentsDataTableProps {
   onCloneAsRemito: (documentId: string) => void;
   onDuplicateDocument: (documentId: string) => void;
   onGenerateReturn: (documentId: string) => void;
+  onRegisterInCash: (document: DocRow) => void;
+  cashRegisteredDocumentIds: Set<string>;
   isIssuingDocument: boolean;
   canPrintDocument: boolean;
   canEditDocumentDraft: boolean;
   canIssueRemito: boolean;
   canCloneBudgetToRemito: boolean;
   canDuplicateDocument: boolean;
+  canRegisterInCash: boolean;
   canTransitionDocumentTo: (status: DocStatus) => boolean;
 }
 
@@ -47,12 +50,15 @@ export function DocumentsDataTable({
   onCloneAsRemito,
   onDuplicateDocument,
   onGenerateReturn,
+  onRegisterInCash,
+  cashRegisteredDocumentIds,
   isIssuingDocument,
   canPrintDocument,
   canEditDocumentDraft,
   canIssueRemito,
   canCloneBudgetToRemito,
   canDuplicateDocument,
+  canRegisterInCash,
   canTransitionDocumentTo,
 }: DocumentsDataTableProps) {
   const columns = useMemo<ColumnDef<DocRow, unknown>[]>(() => [
@@ -217,6 +223,16 @@ export function DocumentsDataTable({
             ) : null}
             {doc.doc_type === "REMITO" && doc.status === "EMITIDO" ? (
               <>
+                {cashRegisteredDocumentIds.has(doc.id) ? (
+                  <Badge variant="secondary" className="whitespace-nowrap border-emerald-200 bg-emerald-50 text-emerald-700">
+                    Registrado en Caja
+                  </Badge>
+                ) : canRegisterInCash ? (
+                  <Button variant="outline" size="sm" className="h-8 whitespace-nowrap border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={() => onRegisterInCash(doc)}>
+                    <Banknote className="mr-1.5 h-4 w-4" />
+                    Registrar en Caja
+                  </Button>
+                ) : null}
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onGenerateReturn(doc.id)} title="Generar devolución">
                   <RotateCcw className="h-4 w-4" />
                 </Button>
@@ -234,7 +250,7 @@ export function DocumentsDataTable({
         );
       },
       meta: {
-        className: "w-[360px] min-w-[360px] text-right",
+        className: "w-[520px] min-w-[520px] text-right",
         cellClassName: "py-2.5 whitespace-nowrap",
       },
     },
@@ -243,10 +259,13 @@ export function DocumentsDataTable({
     canEditDocumentDraft,
     canIssueRemito,
     canDuplicateDocument,
+    canRegisterInCash,
+    cashRegisteredDocumentIds,
     isIssuingDocument,
     canPrintDocument,
     canTransitionDocumentTo,
     onGenerateReturn,
+    onRegisterInCash,
     onEditDraft,
     onIssueRemito,
     onOpenDetail,
