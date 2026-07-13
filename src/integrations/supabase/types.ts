@@ -2484,6 +2484,14 @@ export type Database = {
           unit: string
         }[]
       }
+      update_item_base_cost: {
+        Args: {
+          p_base_cost: number
+          p_company_id: string
+          p_item_id: string
+        }
+        Returns: Database["public"]["Tables"]["item_pricing_base"]["Row"]
+      }
       attach_cash_sale_receipt: {
         Args: {
           p_document_id?: string

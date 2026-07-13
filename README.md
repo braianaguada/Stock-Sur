@@ -808,6 +808,13 @@ Migrations are stored in:
 - Main operational tables use the shared shadcn table and pagination patterns where applicable.
 - Product setup guides cost and stock entry; product, base-price, service, customer and document workflows include the latest table and navigation fixes.
 
+### Item onboarding reliability (2026-07-13)
+
+- Item creation now invalidates the item, pricing and stock catalogs so the new record is immediately available in both setup steps.
+- The base-cost setup deep link takes precedence over saved UI state, and cost plus history are persisted atomically by `update_item_base_cost`.
+- Stock movement search only displays matching results, reads stock from the complete company catalog and scopes drafts by user and company.
+- Migration: `20260713120000_atomic_item_base_cost_update.sql`. Apply and validate it in staging only before QA.
+
 Step 1 - deploy to staging:
 
 ```sh

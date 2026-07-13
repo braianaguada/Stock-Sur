@@ -42,7 +42,7 @@ export default function StockPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const setupItemId = searchParams.get("setup") === "1" ? searchParams.get("itemId") : null;
-  const linkedItemHandled = useRef(false);
+  const linkedItemHandled = useRef<string | null>(null);
   const [tab, setTab] = useState("summary");
   const [alertsPage, setAlertsPage] = useState(1);
   const [stockPage, setStockPage] = useState(1);
@@ -62,6 +62,7 @@ export default function StockPage() {
     stockByItemId,
     selectedItem,
     searchingItems,
+    allStockRows,
     stockRows,
     loadingStock,
     movements,
@@ -186,11 +187,16 @@ export default function StockPage() {
 
   useEffect(() => {
     const itemId = searchParams.get("itemId");
-    if (!itemId || linkedItemHandled.current) return;
-    const item = stockRows.find((row) => row.item_id === itemId);
+    if (!itemId) {
+      linkedItemHandled.current = null;
+      return;
+    }
+    const navigationKey = `${currentCompany?.id ?? "no-company"}:${searchParams.toString()}`;
+    if (linkedItemHandled.current === navigationKey) return;
+    const item = allStockRows.find((row) => row.item_id === itemId);
     if (!item) return;
 
-    linkedItemHandled.current = true;
+    linkedItemHandled.current = navigationKey;
     setTab(searchParams.get("tab") === "summary" ? "summary" : "current");
     setSearch(item.item_sku);
     if (searchParams.get("newMovement") === "1") {
@@ -206,7 +212,7 @@ export default function StockPage() {
         category: item.item_category,
       });
     }
-  }, [openCreateMovement, searchParams, setSearch, stockRows]);
+  }, [allStockRows, currentCompany?.id, openCreateMovement, searchParams, setSearch]);
   const stockPagination = usePaginationSlice({
     items: sortedStockRows,
     page: stockPage,

@@ -26,7 +26,7 @@ import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { Boxes, CircleDollarSign, PackageX, Plus, Search } from "lucide-react";
 import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
-import { invalidateItemQueries, invalidateStockQueries } from "@/lib/invalidate";
+import { invalidateItemQueries, invalidatePricingQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchAllPages } from "@/lib/supabase-pagination";
 import { getItemSearchTokens, rankNaturalItemSearch, type ItemSearchAliasRecord } from "@/features/items/search";
@@ -192,6 +192,7 @@ export default function ItemsPage() {
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(DEFAULT_ITEM_COLUMN_VISIBILITY);
   const [columnsHydrated, setColumnsHydrated] = useState(false);
+  const [draftHydratedKey, setDraftHydratedKey] = useState<string | null>(null);
   const [form, setForm] = useState({
     sku: "",
     name: "",
@@ -211,6 +212,9 @@ export default function ItemsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const aliasQueryKey = queryKeys.items.aliases(currentCompany?.id ?? null, editingItem?.id);
+  const newItemDraftStorageKey = currentCompany && user
+    ? `${NEW_ITEM_DRAFT_KEY}:${user.id}:${currentCompany.id}`
+    : null;
   const itemTableColumnsStorageKey = `${ITEM_TABLE_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
   const priceRoundingConfig = useMemo(() => ({
     enabled: companySettings.price_rounding_enabled,
@@ -222,26 +226,31 @@ export default function ItemsPage() {
   }, [trimmedSearch, categoryFilter, statusFilter, pageSize, sortBy, sortDirection]);
 
   useEffect(() => {
-    if (!currentCompany || editingItem) return;
-    const raw = sessionStorage.getItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
-    if (!raw) return;
-    try {
-      const draft = JSON.parse(raw) as { open?: boolean; form?: typeof form };
-      if (draft.form) setForm(draft.form);
-      if (draft.open) setDialogOpen(true);
-    } catch {
-      sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
+    setDraftHydratedKey(null);
+    setDialogOpen(false);
+    setEditingItem(null);
+    if (!newItemDraftStorageKey) return;
+    const raw = sessionStorage.getItem(newItemDraftStorageKey);
+    if (raw) {
+      try {
+        const draft = JSON.parse(raw) as { open?: boolean; form?: typeof form };
+        if (draft.form) setForm(draft.form);
+        if (draft.open) setDialogOpen(true);
+      } catch {
+        sessionStorage.removeItem(newItemDraftStorageKey);
+      }
     }
-  }, [currentCompany, editingItem]);
+    setDraftHydratedKey(newItemDraftStorageKey);
+  }, [newItemDraftStorageKey]);
 
   useEffect(() => {
-    if (!currentCompany || editingItem) return;
+    if (!newItemDraftStorageKey || draftHydratedKey !== newItemDraftStorageKey || editingItem) return;
     if (!dialogOpen) return;
     sessionStorage.setItem(
-      `${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`,
+      newItemDraftStorageKey,
       JSON.stringify({ open: true, form }),
     );
-  }, [currentCompany, dialogOpen, editingItem, form]);
+  }, [dialogOpen, draftHydratedKey, editingItem, form, newItemDraftStorageKey]);
 
   useEffect(() => {
     setColumnsHydrated(false);
@@ -640,9 +649,9 @@ export default function ItemsPage() {
         });
       }
 
-      await Promise.all([invalidateItemQueries(qc), invalidateStockQueries(qc)]);
-      if (currentCompany && !editingItem) {
-        sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
+      await Promise.all([invalidateItemQueries(qc), invalidateStockQueries(qc), invalidatePricingQueries(qc)]);
+      if (newItemDraftStorageKey && !editingItem) {
+        sessionStorage.removeItem(newItemDraftStorageKey);
       }
       setDialogOpen(false);
       setEditingItem(null);
@@ -658,13 +667,18 @@ export default function ItemsPage() {
     mutationFn: async (id: string) => {
       if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       await deleteByStrategy({ table: "items", id, eq: { company_id: currentCompany.id } });
-      const { error } = await supabase.from("price_list_items").update({ is_active: false }).eq("item_id", id);
+      const { error } = await supabase
+        .from("price_list_items")
+        .update({ is_active: false })
+        .eq("company_id", currentCompany.id)
+        .eq("item_id", id);
       if (error) throw error;
     },
     onSuccess: async () => {
       await Promise.all([
         invalidateItemQueries(qc),
         invalidateStockQueries(qc),
+        invalidatePricingQueries(qc),
       ]);
       toast({ title: "Ítem desactivado" });
     },
@@ -807,8 +821,8 @@ export default function ItemsPage() {
   });
 
   const openCreate = () => {
-    if (currentCompany) {
-      sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
+    if (newItemDraftStorageKey) {
+      sessionStorage.removeItem(newItemDraftStorageKey);
     }
     setEditingItem(null);
     setNewAlias("");
@@ -829,8 +843,8 @@ export default function ItemsPage() {
   };
 
   const openEdit = (item: Item) => {
-    if (currentCompany) {
-      sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
+    if (newItemDraftStorageKey) {
+      sessionStorage.removeItem(newItemDraftStorageKey);
     }
     setEditingItem(item);
     setNewAlias("");
@@ -1100,8 +1114,8 @@ export default function ItemsPage() {
         isSaving={saveMutation.isPending}
         onOpenChange={(open) => {
           setDialogOpen(open);
-          if (!open && currentCompany && !editingItem) {
-            sessionStorage.removeItem(`${NEW_ITEM_DRAFT_KEY}:${currentCompany.id}`);
+          if (!open && newItemDraftStorageKey && !editingItem) {
+            sessionStorage.removeItem(newItemDraftStorageKey);
           }
         }}
         onSubmit={() => saveMutation.mutate()}

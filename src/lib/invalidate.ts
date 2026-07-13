@@ -47,6 +47,7 @@ export async function invalidateStockQueries(queryClient: QueryClient) {
 
 export async function invalidatePricingQueries(queryClient: QueryClient) {
   await Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.pricing.catalogItemsAll() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.pricing.baseAll() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.pricing.baseHistoryAll() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.pricing.listCountsAll() }),
