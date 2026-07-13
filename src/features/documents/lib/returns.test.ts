@@ -149,7 +149,7 @@ describe("remito return logic", () => {
     });
   });
 
-  it("keeps the internal remito type when creating a return from an internal remito", () => {
+  it("normalizes remito-only recipient fields when creating a return from an internal remito", () => {
     const payload = buildReturnDraftPayload({
       originDocument: {
         ...originDocument,
@@ -162,10 +162,27 @@ describe("remito return logic", () => {
 
     expect(payload.document).toMatchObject({
       doc_type: "REMITO_DEVOLUCION",
-      customer_kind: "INTERNO",
-      internal_remito_type: "CUENTA_CORRIENTE",
+      customer_id: null,
+      customer_name: null,
+      customer_tax_condition: null,
+      customer_tax_id: null,
+      customer_kind: "GENERAL",
+      internal_remito_type: null,
+      payment_terms: null,
       technician_id: "tech-1",
+      origin_document_id: "remito-1",
+      source_document_id: "remito-1",
+      source_document_type: "REMITO",
+      source_document_number_snapshot: "0007-00000107",
     });
+    expect(payload.lines).toEqual([
+      expect.objectContaining({
+        document_id: "",
+        item_id: "item-1",
+        quantity: 10,
+        line_total: 0,
+      }),
+    ]);
   });
 
   it("calculates availability per item from original and previous return lines", () => {
