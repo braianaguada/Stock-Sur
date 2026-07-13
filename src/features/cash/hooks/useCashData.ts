@@ -57,16 +57,11 @@ export function useCashData({
     queryKey: queryKeys.cash.sales(currentCompanyId, businessDate),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
-      const [startOfDay, endOfDay] = [
-        `${businessDate}T00:00:00-03:00`,
-        `${businessDate}T23:59:59.999-03:00`,
-      ];
       const { data, error } = await supabase
         .from("cash_sales")
         .select("id, business_date, sold_at, amount_total, payment_method, receipt_kind, status, document_id, closure_id, receipt_reference, customer_name_snapshot, notes")
         .eq("company_id", currentCompanyId!)
-        .gte("sold_at", startOfDay)
-        .lte("sold_at", endOfDay)
+        .eq("business_date", businessDate)
         .order("sold_at", { ascending: false })
         .limit(1000);
 

@@ -2886,6 +2886,40 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      register_cash_sale_from_remito: {
+        Args: {
+          p_company_id: string
+          p_document_id: string
+          p_payment_method: Database["public"]["Enums"]["cash_payment_method"]
+        }
+        Returns: {
+          amount_total: number
+          business_date: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          closure_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name_snapshot: string | null
+          document_id: string | null
+          id: string
+          notes: string | null
+          payment_method: Database["public"]["Enums"]["cash_payment_method"]
+          receipt_kind: Database["public"]["Enums"]["cash_receipt_kind"]
+          receipt_reference: string | null
+          sold_at: string
+          status: Database["public"]["Enums"]["cash_sale_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_sales"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       register_cash_adjustment_from_return: {
         Args: {
           p_business_date?: string
