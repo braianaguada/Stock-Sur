@@ -21,9 +21,10 @@ describe("register remito in cash database contract", () => {
     expect(migration).toContain("null,\n    v_actor");
   });
 
-  it("is idempotent and prevents concurrent active receipt duplicates", () => {
-    expect(migration).toContain("cash_sales_unique_active_receipt_reference_idx");
+  it("is idempotent under concurrent requests without rewriting historical sales", () => {
+    expect(migration).toContain("where id = p_document_id\n    and company_id = p_company_id\n  for update");
     expect(migration).toContain("cs.document_id = v_doc.id");
+    expect(migration).toContain("btrim(cs.receipt_reference) = v_reference");
     expect(migration).toContain("return v_existing");
   });
 

@@ -1,23 +1,3 @@
-do $$
-begin
-  if exists (
-    select 1
-    from public.cash_sales
-    where status <> 'ANULADA'
-      and nullif(btrim(coalesce(receipt_reference, '')), '') is not null
-    group by company_id, btrim(receipt_reference)
-    having count(*) > 1
-  ) then
-    raise exception 'No se puede asegurar unicidad: existen comprobantes activos duplicados en caja';
-  end if;
-end;
-$$;
-
-create unique index if not exists cash_sales_unique_active_receipt_reference_idx
-  on public.cash_sales(company_id, btrim(receipt_reference))
-  where status <> 'ANULADA'
-    and nullif(btrim(coalesce(receipt_reference, '')), '') is not null;
-
 create or replace function public.sync_cash_sale_customer_account_debit()
 returns trigger
 language plpgsql
