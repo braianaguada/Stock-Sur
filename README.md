@@ -169,6 +169,8 @@ No se crean movimientos de stock, documentos, ventas de caja, gastos, entradas d
 
 `REMITO_DEVOLUCION` funciona como documento espejo del `REMITO` original: guarda `origin_document_id`, no modifica el remito de origen, emite movimientos de stock `IN` y se anula con la reversa de stock correspondiente.
 
+- Al generarlo desde un remito interno, el borrador conserva tecnico, origen, trazabilidad y cantidades, pero normaliza los campos exclusivos del remito (`customer_kind`, `internal_remito_type` y datos comerciales) para respetar las validaciones de destinatario de la devolucion. No requiere migracion y no emite stock hasta la emision del documento.
+
 - En Caja se registra como **Devolucion / Remito devolucion** con medio fijo `SERVICIOS_REMITO`, importe operativo negativo y tabla `cash_adjustments`. No se guarda en `cash_sales`, no se registra como gasto y no modifica caja ni cierre original.
 - En Cuenta Corriente genera `CREDIT` solo si el remito original era elegible para `DEBIT`: cliente registrado no ocasional, `customer_id` valido y `payment_terms = CUENTA_CORRIENTE`. Clientes ocasionales o sin cliente no generan cuenta corriente. Al anular una devolucion emitida se registra la reversa correspondiente.
 - En Tecnicos / Control de materiales resta cantidades, valor comercial, costo estimado y margen estimado. Es control operativo de materiales; no crea cuenta monetaria del tecnico.

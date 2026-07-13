@@ -169,19 +169,21 @@ export function buildReturnDraftPayload({
     throw new Error("La devolucion debe estar asociada a un tecnico");
   }
 
+  const isInternalOrigin = originDocument.customer_kind === "INTERNO";
+
   return {
     document: {
       doc_type: "REMITO_DEVOLUCION",
       status: "BORRADOR",
       point_of_sale: originDocument.point_of_sale,
-      customer_id: originDocument.customer_id,
+      customer_id: isInternalOrigin ? null : originDocument.customer_id,
       technician_id: originDocument.technician_id,
-      customer_name: originDocument.customer_name,
-      customer_tax_condition: originDocument.customer_tax_condition,
-      customer_tax_id: originDocument.customer_tax_id,
-      customer_kind: originDocument.customer_kind,
-      internal_remito_type: originDocument.internal_remito_type,
-      payment_terms: originDocument.payment_terms,
+      customer_name: isInternalOrigin ? null : originDocument.customer_name,
+      customer_tax_condition: isInternalOrigin ? null : originDocument.customer_tax_condition,
+      customer_tax_id: isInternalOrigin ? null : originDocument.customer_tax_id,
+      customer_kind: isInternalOrigin ? "GENERAL" : originDocument.customer_kind,
+      internal_remito_type: null,
+      payment_terms: isInternalOrigin ? null : originDocument.payment_terms,
       delivery_address: originDocument.delivery_address,
       salesperson: originDocument.salesperson,
       price_list_id: originDocument.price_list_id,
