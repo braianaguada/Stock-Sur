@@ -404,30 +404,12 @@ export function usePriceListsData({
     mutationFn: async ({ baseCost, itemId }: { baseCost: number; itemId: string }) => {
       if (!currentCompany) throw new Error("Seleccioná una empresa activa");
       const normalizedBaseCost = Math.max(0, baseCost);
-      const previousBaseCost = basePricingByItemId.get(itemId)?.base_cost ?? 0;
 
-      if (previousBaseCost !== normalizedBaseCost) {
-        const { error: historyError } = await supabase
-          .from("item_pricing_base_history")
-          .insert({
-            company_id: currentCompany.id,
-            item_id: itemId,
-            previous_base_cost: previousBaseCost,
-            new_base_cost: normalizedBaseCost,
-            changed_by: user?.id ?? null,
-          });
-        if (historyError) throw historyError;
-      }
-
-      const { error } = await supabase
-        .from("item_pricing_base")
-        .upsert({
-          company_id: currentCompany.id,
-          item_id: itemId,
-          base_cost: normalizedBaseCost,
-          updated_at: new Date().toISOString(),
-          updated_by: user?.id ?? null,
-        });
+      const { error } = await supabase.rpc("update_item_base_cost", {
+        p_company_id: currentCompany.id,
+        p_item_id: itemId,
+        p_base_cost: normalizedBaseCost,
+      });
       if (error) throw error;
     },
     onSuccess: async () => invalidatePricingQueries(queryClient),

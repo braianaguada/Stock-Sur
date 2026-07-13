@@ -164,6 +164,7 @@ export const queryKeys = {
   },
   pricing: {
     catalogItems: (companyId: string | null) => ["pricing-catalog-items", companyId ?? "no-company"] as const,
+    catalogItemsAll: () => ["pricing-catalog-items"] as const,
     base: (companyId: string | null) => ["pricing-base", companyId ?? "no-company"] as const,
     baseAll: () => ["pricing-base"] as const,
     baseHistory: (companyId: string | null) => ["pricing-base-history", companyId ?? "no-company"] as const,

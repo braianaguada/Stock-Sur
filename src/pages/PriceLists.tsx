@@ -31,6 +31,7 @@ import { PriceListCreateDialog } from "@/features/price-lists/components/PriceLi
 import { PriceListDetailDialog } from "@/features/price-lists/components/PriceListDetailDialog";
 import { DEFAULT_PRICE_LIST_FORM, PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
 import { resolveConsultListIdForQuery } from "@/features/price-lists/lib/consultation";
+import { resolvePriceListsNavigation, type PersistedPriceListsNavigation } from "@/features/price-lists/lib/navigation";
 import type { PriceListFormState } from "@/features/price-lists/types";
 import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
 import { formatDateTime } from "@/features/price-lists/utils";
@@ -90,7 +91,9 @@ export default function PriceListsPage() {
   const { settings: companySettings } = useCompanyBrand();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const storageKey = currentCompany ? `${PRICE_LISTS_UI_STATE_KEY}:${currentCompany.id}` : null;
+  const storageKey = currentCompany && user
+    ? `${PRICE_LISTS_UI_STATE_KEY}:${user.id}:${currentCompany.id}`
+    : null;
   const baseColumnsStorageKey = `${PRICE_BASE_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
   const detailColumnsStorageKey = `${PRICE_DETAIL_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
 
@@ -113,6 +116,7 @@ export default function PriceListsPage() {
   const [detailColumnVisibility, setDetailColumnVisibility] = useState<VisibilityState>(DEFAULT_DETAIL_COLUMN_VISIBILITY);
   const [baseColumnsHydrated, setBaseColumnsHydrated] = useState(false);
   const [detailColumnsHydrated, setDetailColumnsHydrated] = useState(false);
+  const [uiStateHydratedKey, setUiStateHydratedKey] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState<PriceListFormState>(DEFAULT_PRICE_LIST_FORM);
   const [configDraft, setConfigDraft] = useState<PriceListFormState | null>(null);
   const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "no_stock">("all");
@@ -182,45 +186,37 @@ export default function PriceListsPage() {
   });
 
   useEffect(() => {
-    if (tabFromQuery === "lists") setModuleTab("lists");
-  }, [tabFromQuery]);
-
-  useEffect(() => {
-    if (!itemIdFromQuery) return;
-    setModuleTab(tabFromQuery === "base" ? "base" : "lists");
-  }, [itemIdFromQuery, tabFromQuery]);
-
-  useEffect(() => {
-    if (!itemIdFromQuery || tabFromQuery !== "base") return;
-    const selectedBaseRow = baseRows.find((row) => row.item_id === itemIdFromQuery);
-    if (selectedBaseRow) setBaseSearch(selectedBaseRow.sku);
-  }, [baseRows, itemIdFromQuery, tabFromQuery]);
-
-  useEffect(() => {
+    setUiStateHydratedKey(null);
     if (!storageKey || typeof window === "undefined") return;
 
     const rawState = sessionStorage.getItem(storageKey);
-    if (!rawState) return;
+    let persistedState: PersistedPriceListsNavigation = {};
 
-    try {
-      const persistedState = JSON.parse(rawState) as {
-        baseSearch?: string;
-        listSearch?: string;
-        moduleTab?: string;
-      };
-
-      setBaseSearch(persistedState.baseSearch ?? "");
-      setListSearch(persistedState.listSearch ?? "");
-      setModuleTab(
-        itemIdFromQuery || tabFromQuery === "lists" || persistedState.moduleTab === "lists" ? "lists" : "base",
-      );
-    } catch {
-      sessionStorage.removeItem(storageKey);
+    if (rawState) {
+      try {
+        persistedState = JSON.parse(rawState) as PersistedPriceListsNavigation;
+      } catch {
+        sessionStorage.removeItem(storageKey);
+      }
     }
-  }, [itemIdFromQuery, storageKey, tabFromQuery]);
+
+    const resolved = resolvePriceListsNavigation({
+      itemId: itemIdFromQuery,
+      tab: tabFromQuery,
+      persisted: persistedState,
+    });
+    const selectedSku = itemIdFromQuery && tabFromQuery === "base"
+      ? baseRows.find((row) => row.item_id === itemIdFromQuery)?.sku
+      : null;
+
+    setBaseSearch(selectedSku ?? resolved.baseSearch);
+    setListSearch(resolved.listSearch);
+    setModuleTab(resolved.moduleTab);
+    setUiStateHydratedKey(storageKey);
+  }, [baseRows, itemIdFromQuery, storageKey, tabFromQuery]);
 
   useEffect(() => {
-    if (!storageKey || typeof window === "undefined") return;
+    if (!storageKey || uiStateHydratedKey !== storageKey || typeof window === "undefined") return;
 
     sessionStorage.setItem(
       storageKey,
@@ -230,7 +226,7 @@ export default function PriceListsPage() {
         listSearch,
       }),
     );
-  }, [baseSearch, listSearch, moduleTab, storageKey]);
+  }, [baseSearch, listSearch, moduleTab, storageKey, uiStateHydratedKey]);
 
   useEffect(() => {
     setBaseColumnsHydrated(false);
