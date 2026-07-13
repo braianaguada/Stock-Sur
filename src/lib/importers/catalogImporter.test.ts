@@ -1,15 +1,68 @@
 import { describe, expect, it } from "vitest";
+import * as XLSX from "xlsx";
 import {
   detectColumnsHeuristic,
+  detectOfferCurrency,
   detectPdfColumnsHeuristic,
   extractPdfCatalogCandidates,
   normalizePdfRowsToLines,
   normalizeRowsToLines,
   parseFlexibleNumber,
+  parseXlsxToRows,
   shouldRetryPdfWithOcr,
 } from "@/lib/importers/catalogImporter";
 
 describe("supplier importer heuristics", () => {
+  it("finds the real header after a preamble and preserves package and reference price data", async () => {
+    const worksheet = XLSX.utils.aoa_to_sheet([
+      ["SILVANA FRIGERAR"],
+      ["Teléfono 11 5555 5555"],
+      ["Precios más IVA"],
+      [],
+      ["", "PRESENTACION"],
+      ["PRODUCTO", "Envase", "Kgs", "$ x Kg", "$ x Envase"],
+      ["FREON R134A", "Gfa", 3, 12000, 36000],
+      ["FREON R404A", "Tambor", 10.9, 15000, 163500],
+      ["PRODUCTO SIN PRECIO", "Gfa", 1, "", ""],
+    ]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Hoja1");
+    const bytes = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const file = {
+      name: "frigerar.xlsx",
+      arrayBuffer: async () => bytes,
+    } as File;
+
+    const parsed = await parseXlsxToRows(file);
+    expect(parsed.headers).toEqual(["PRODUCTO", "Envase", "Kgs", "$ x Kg", "$ x Envase"]);
+
+    const detected = detectColumnsHeuristic(parsed.headers, parsed.rows);
+    expect(detected).toMatchObject({
+      descriptionColumn: "PRODUCTO",
+      priceColumn: "$ x Envase",
+      presentationColumn: "Envase",
+      contentValueColumn: "Kgs",
+      referencePriceColumn: "$ x Kg",
+    });
+
+    const { lines, diagnostics } = normalizeRowsToLines({
+      headers: parsed.headers,
+      rows: parsed.rows,
+      mapping: detected,
+    });
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatchObject({
+      product_name: "FREON R134A",
+      presentation_raw: "Gfa · 3 kg",
+      content_value: 3,
+      content_unit: "KG",
+      cost: 36000,
+      reference_unit_price: 12000,
+      reference_price_basis: "$ x Kg",
+    });
+    expect(diagnostics.dropped_invalidPrice).toBe(1);
+  });
+
   it("detects description and price columns on common headers", () => {
     const headers = ["Codigo", "Descripcion", "Precio Lista"];
     const rows = [
@@ -53,6 +106,98 @@ describe("supplier importer heuristics", () => {
     expect(diagnostics.dropped_invalidPrice).toBe(1);
     expect(diagnostics.dropped_priceLE0).toBe(1);
     expect(diagnostics.sampleDropped.length).toBeGreaterThan(0);
+  });
+
+  it("extracts product, additional description and presentation from explicit columns", () => {
+    const { lines } = normalizeRowsToLines({
+      headers: ["SKU", "Producto", "Descripción", "Presentación", "Precio"],
+      rows: [["A-1", "Aceite de oliva", "Extra virgen", "Caja 6 x 2 L", "12500"]],
+      mapping: {
+        descriptionColumn: "Producto",
+        priceColumn: "Precio",
+        supplierCodeColumn: "SKU",
+        currencyColumn: null,
+      },
+    });
+
+    expect(lines[0]).toMatchObject({
+      product_name: "Aceite de oliva",
+      additional_description: "Extra virgen",
+      presentation_raw: "Caja 6 x 2 L",
+      package_quantity: 6,
+      content_value: 2,
+      content_unit: "L",
+      semantic_detection: { source: "EXPLICIT_COLUMN", confidence: 1 },
+    });
+  });
+
+  it("extracts weight or volume from product text without confusing model numbers", () => {
+    const { lines } = normalizeRowsToLines({
+      headers: ["Producto", "Precio"],
+      rows: [
+        ["Leche entera pack 12 x 750 ml", "1500"],
+        ["Taladro modelo X12", "25000"],
+      ],
+      mapping: {
+        descriptionColumn: "Producto",
+        priceColumn: "Precio",
+        supplierCodeColumn: null,
+        currencyColumn: null,
+      },
+    });
+
+    expect(lines[0]).toMatchObject({ package_quantity: 12, content_value: 750, content_unit: "ML" });
+    expect(lines[0].semantic_detection?.source).toBe("PRODUCT_TEXT");
+    expect(lines[1]).toMatchObject({ package_quantity: null, content_value: null, content_unit: null });
+    expect(lines[1].semantic_detection?.source).toBe("NOT_DETECTED");
+  });
+
+  it("uses separate quantity, content and unit columns with deterministic precedence", () => {
+    const { lines } = normalizeRowsToLines({
+      headers: ["Artículo", "Unidades por caja", "Contenido", "Unidad de medida", "Precio"],
+      rows: [["Limpiador concentrado 750 ml", "8", "1,5", "litros", "9000"]],
+      mapping: {
+        descriptionColumn: "Artículo",
+        priceColumn: "Precio",
+        supplierCodeColumn: null,
+        currencyColumn: null,
+      },
+    });
+
+    expect(lines[0]).toMatchObject({ package_quantity: 8, content_value: 1.5, content_unit: "L" });
+    expect(lines[0].semantic_detection?.source).toBe("EXPLICIT_COLUMN");
+  });
+
+  it("can use an inequívocal presentation encoded in an active column header", () => {
+    const { lines } = normalizeRowsToLines({
+      headers: ["Producto", "Botella 500 ml", "Precio"],
+      rows: [["Agua mineral", "Sí", "800"]],
+      mapping: {
+        descriptionColumn: "Producto",
+        priceColumn: "Precio",
+        supplierCodeColumn: null,
+        currencyColumn: null,
+      },
+    });
+
+    expect(lines[0]).toMatchObject({ content_value: 500, content_unit: "ML" });
+    expect(lines[0].semantic_detection?.source).toBe("HEADER_CONTEXT");
+  });
+
+  it("combines a numeric cell with its unit-bearing header", () => {
+    const { lines } = normalizeRowsToLines({
+      headers: ["Producto", "Peso kg", "Precio"],
+      rows: [["Harina industrial", "25", "18000"]],
+      mapping: {
+        descriptionColumn: "Producto",
+        priceColumn: "Precio",
+        supplierCodeColumn: null,
+        currencyColumn: null,
+      },
+    });
+
+    expect(lines[0]).toMatchObject({ content_value: 25, content_unit: "KG" });
+    expect(lines[0].semantic_detection?.source).toBe("HEADER_CONTEXT");
   });
 
   it("parses flexible numbers", () => {
@@ -297,5 +442,36 @@ describe("supplier importer heuristics", () => {
     expect(lines[1].cost).toBeCloseTo(18, 2);
     expect(lines[2].supplier_code).toBe("HY03BW");
     expect(lines[2].currency).toBe("USD");
+  });
+});
+
+describe("supplier offer currency detection", () => {
+  it.each([
+    ["$ 125.000", "ARS"],
+    ["USD 125", "USD"],
+    ["U$S 125,50", "USD"],
+    ["US$ 55", "USD"],
+    ["DÓLAR 80", "USD"],
+    ["125000", "ARS"],
+  ] as const)("detects %s as %s", (priceCell, currency) => {
+    expect(detectOfferCurrency({ priceCell }).currency).toBe(currency);
+  });
+
+  it("uses the mapped row currency before the price header", () => {
+    expect(detectOfferCurrency({ priceCell: "100", currencyCell: "USD", priceHeader: "PRECIO $" })).toMatchObject({
+      currency: "USD",
+      source: "CURRENCY_COLUMN",
+      status: "AMBIGUOUS",
+    });
+  });
+
+  it("uses an unequivocal price header and defaults ambiguous PRICE to ARS", () => {
+    expect(detectOfferCurrency({ priceCell: "100", priceHeader: "PRECIO USD" })).toMatchObject({ currency: "USD", source: "PRICE_HEADER" });
+    expect(detectOfferCurrency({ priceCell: "100", priceHeader: "PRICE" })).toMatchObject({ currency: "ARS", status: "DEFAULTED" });
+  });
+
+  it("flags conflicts and unsupported currencies for manual review", () => {
+    expect(detectOfferCurrency({ priceCell: "USD 100", currencyCell: "ARS" }).status).toBe("AMBIGUOUS");
+    expect(detectOfferCurrency({ priceCell: "EUR 100" }).status).toBe("UNSUPPORTED");
   });
 });

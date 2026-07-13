@@ -1,8 +1,11 @@
 import type {
   CatalogImportLine,
+  ContentUnit,
+  CurrencyDetection,
   NormalizeDiagnostics,
   ParsePdfProgress,
   ParsedSheetData,
+  SemanticDetection,
 } from "@/lib/importers/catalogImporter";
 
 export interface Supplier {
@@ -29,7 +32,6 @@ export interface SupplierFormState {
   phone: string;
   whatsapp: string;
   address: string;
-  default_currency: "" | "ARS" | "USD";
   notes: string;
 }
 
@@ -55,7 +57,16 @@ export interface CatalogLine {
   supplier_code: string | null;
   raw_description: string;
   cost: number;
-  currency: string;
+  currency: "ARS" | "USD";
+  product_name?: string | null;
+  additional_description?: string | null;
+  presentation_raw?: string | null;
+  package_quantity?: number | null;
+  content_value?: number | null;
+  content_unit?: ContentUnit | null;
+  reference_unit_price?: number | null;
+  reference_price_basis?: string | null;
+  semantic_detection?: SemanticDetection;
 }
 
 export interface ExtractionReviewLine {
@@ -63,7 +74,17 @@ export interface ExtractionReviewLine {
   supplier_code: string | null;
   raw_description: string;
   cost: number;
-  currency: string;
+  currency: "ARS" | "USD";
+  currency_detection?: CurrencyDetection;
+  product_name?: string | null;
+  additional_description?: string | null;
+  presentation_raw?: string | null;
+  package_quantity?: number | null;
+  content_value?: number | null;
+  content_unit?: ContentUnit | null;
+  reference_unit_price?: number | null;
+  reference_price_basis?: string | null;
+  semantic_detection?: SemanticDetection;
   row_index: number;
   source_page?: number;
   confidence?: number;
@@ -78,7 +99,14 @@ export interface SupplierCatalogLinePayload {
   raw_description: string;
   normalized_description: string | null;
   cost: number;
-  currency: string;
+  currency: "ARS" | "USD";
+  product_name?: string | null;
+  additional_description?: string | null;
+  presentation_raw?: string | null;
+  package_quantity?: number | null;
+  content_value?: number | null;
+  content_unit?: ContentUnit | null;
+  semantic_detection?: SemanticDetection;
   row_index: number;
   matched_item_id: string | null;
   match_status: "MATCHED" | "PENDING" | "NEW";
@@ -89,6 +117,9 @@ export interface ImportMappingStored {
   priceColumn: string;
   currencyColumn?: string | null;
   supplierCodeColumn?: string | null;
+  presentationColumn?: string | null;
+  contentValueColumn?: string | null;
+  referencePriceColumn?: string | null;
 }
 
 export interface PdfImportMappingStored {

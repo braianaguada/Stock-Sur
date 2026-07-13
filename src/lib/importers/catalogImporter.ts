@@ -7,13 +7,44 @@ type MergeRange = {
 };
 
 export type MatchStatus = "MATCHED" | "PENDING" | "NEW";
+export type SupportedCurrency = "ARS" | "USD";
+export type CurrencyDetectionSource = "PRICE_CELL" | "CURRENCY_COLUMN" | "PRICE_HEADER" | "MANUAL" | "DEFAULT_ARS";
+export type CurrencyDetectionStatus = "DETECTED" | "DEFAULTED" | "AMBIGUOUS" | "UNSUPPORTED";
+
+export interface CurrencyDetection {
+  currency: SupportedCurrency;
+  source: CurrencyDetectionSource;
+  status: CurrencyDetectionStatus;
+  rawEvidence: string | null;
+  conflictingEvidence?: string | null;
+}
+
+export type SemanticDetectionSource = "EXPLICIT_COLUMN" | "PRODUCT_TEXT" | "HEADER_CONTEXT" | "NOT_DETECTED";
+export type ContentUnit = "UNIT" | "MG" | "G" | "KG" | "ML" | "CC" | "L" | "M" | "M2" | "M3";
+
+export interface SemanticDetection {
+  source: SemanticDetectionSource;
+  confidence: number;
+  evidence: string[];
+  warnings: string[];
+}
 
 export interface CatalogImportLine {
   supplier_code: string | null;
   raw_description: string;
   normalized_description: string | null;
   cost: number;
-  currency: string;
+  currency: SupportedCurrency;
+  currency_detection?: CurrencyDetection;
+  product_name?: string | null;
+  additional_description?: string | null;
+  presentation_raw?: string | null;
+  package_quantity?: number | null;
+  content_value?: number | null;
+  content_unit?: ContentUnit | null;
+  reference_unit_price?: number | null;
+  reference_price_basis?: string | null;
+  semantic_detection?: SemanticDetection;
   row_index: number;
   source_page?: number;
   confidence?: number;
@@ -57,6 +88,9 @@ export interface ColumnDetectionResult {
   priceColumn: string;
   supplierCodeColumn: string | null;
   currencyColumn: string | null;
+  presentationColumn: string | null;
+  contentValueColumn: string | null;
+  referencePriceColumn: string | null;
   confidence: number;
   scores: ColumnHeuristicScore[];
 }
@@ -66,6 +100,9 @@ export interface MappingSelectionCore {
   priceColumn: string;
   currencyColumn: string | null;
   supplierCodeColumn: string | null;
+  presentationColumn?: string | null;
+  contentValueColumn?: string | null;
+  referencePriceColumn?: string | null;
 }
 
 export interface PdfMappingSelectionCore {
@@ -340,6 +377,8 @@ export function detectColumnsHeuristic(headers: string[], rows: string[][]): Col
     let priceScore = 0;
     if (DESCRIPTION_KEYWORDS.some((keyword) => headerLower.includes(keyword))) descriptionScore += 3.5;
     if (PRICE_KEYWORDS.some((keyword) => headerLower.includes(keyword))) priceScore += 3.5;
+    if (/envase|total|final/.test(headerLower)) priceScore += 1.75;
+    if (/(?:\bx\b|por)\s*kgs?/.test(normalizeSemanticLabel(header))) priceScore -= 1.25;
     if (CURRENCY_KEYWORDS.some((keyword) => headerLower.includes(keyword))) priceScore += 0.5;
     const numericRatio = numericCount / total;
     const longTextRatio = longTextCount / total;
@@ -380,6 +419,9 @@ export function detectColumnsHeuristic(headers: string[], rows: string[][]): Col
     priceColumn: bestPrice.key,
     supplierCodeColumn,
     currencyColumn,
+    presentationColumn: scores.find((entry) => /presentacion|formato|envase|contenido neto/.test(normalizeSemanticLabel(entry.key)))?.key ?? null,
+    contentValueColumn: scores.find((entry) => /^(peso|pesos|kg|kgs|kilos|volumen|contenido|cantidad neta)$/.test(normalizeSemanticLabel(entry.key)))?.key ?? null,
+    referencePriceColumn: scores.find((entry) => /(?:\bx\b|por)\s*kgs?/.test(normalizeSemanticLabel(entry.key)))?.key ?? null,
     confidence,
     scores,
   };
@@ -403,6 +445,17 @@ export async function parseXlsxToRows(file: File): Promise<ParsedSheetData> {
     while (out.length < maxColumns) out.push("");
     return out;
   });
+  const bestHeaderIndex = findBestHeaderRow(paddedRows);
+  if (bestHeaderIndex !== null) {
+    const headers = sanitizeHeaderRow(paddedRows[bestHeaderIndex]);
+    const rows = paddedRows
+      .slice(bestHeaderIndex + 1)
+      .filter((row) => row.some((cell) => cell.trim().length > 0))
+      .filter((row) => !isSectionLikeRow(row));
+    if (rows.length > 0) {
+      return { sheetName: firstSheetName, headers, rows, previewRows: rows.slice(0, 20), hasHeaderRow: true, detectedBlocks: 1 };
+    }
+  }
   const blocks = detectBlocks(paddedRows);
   const flattenedDataRows: string[][] = [];
   let selectedHeaders: string[] = [];
@@ -436,10 +489,42 @@ export async function parseXlsxToRows(file: File): Promise<ParsedSheetData> {
   };
 }
 
-function detectCurrency(rawValue: string, fallback: "ARS" | "USD"): string {
-  if (/u\$s|us\$|usd/i.test(rawValue)) return "USD";
-  if (/ars|\$/i.test(rawValue)) return "ARS";
-  return fallback;
+function normalizeCurrencyEvidence(rawValue: string): SupportedCurrency | "UNSUPPORTED" | null {
+  const value = rawValue.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  if (!value) return null;
+  if (/\b(?:usd|u\s*d|dolar(?:es)?|us\s*dollar(?:s)?)\b|u\s*\$\s*s|us\s*\$/i.test(value)) return "USD";
+  if (/\bars\b|(?:^|\s)\$(?=\s|\d|$)|\bpesos?\b/i.test(value)) return "ARS";
+  if (/\b(?:eur|euro(?:s)?|brl|real(?:es)?|gbp|libra(?:s)?)\b/i.test(value)) return "UNSUPPORTED";
+  return null;
+}
+
+export function detectOfferCurrency(input: {
+  priceCell: string;
+  currencyCell?: string | null;
+  priceHeader?: string | null;
+  manualCurrency?: SupportedCurrency | null;
+}): CurrencyDetection {
+  const candidates = [
+    { source: "PRICE_CELL" as const, raw: input.priceCell, detected: normalizeCurrencyEvidence(input.priceCell) },
+    { source: "CURRENCY_COLUMN" as const, raw: input.currencyCell ?? "", detected: normalizeCurrencyEvidence(input.currencyCell ?? "") },
+    { source: "PRICE_HEADER" as const, raw: input.priceHeader ?? "", detected: normalizeCurrencyEvidence(input.priceHeader ?? "") },
+  ].filter((candidate) => candidate.detected !== null);
+  const unsupported = candidates.find((candidate) => candidate.detected === "UNSUPPORTED");
+  if (unsupported) {
+    return { currency: input.manualCurrency ?? "ARS", source: input.manualCurrency ? "MANUAL" : "DEFAULT_ARS", status: "UNSUPPORTED", rawEvidence: unsupported.raw };
+  }
+  const explicit = candidates as Array<{ source: "PRICE_CELL" | "CURRENCY_COLUMN" | "PRICE_HEADER"; raw: string; detected: SupportedCurrency }>;
+  if (explicit.length > 1 && explicit.some((candidate) => candidate.detected !== explicit[0].detected)) {
+    return { currency: explicit[0].detected, source: explicit[0].source, status: "AMBIGUOUS", rawEvidence: explicit[0].raw, conflictingEvidence: explicit.slice(1).map((candidate) => candidate.raw).join(" | ") };
+  }
+  if (explicit[0]) return { currency: explicit[0].detected, source: explicit[0].source, status: "DETECTED", rawEvidence: explicit[0].raw };
+  if (input.manualCurrency) return { currency: input.manualCurrency, source: "MANUAL", status: "DETECTED", rawEvidence: input.manualCurrency };
+  return { currency: "ARS", source: "DEFAULT_ARS", status: "DEFAULTED", rawEvidence: null };
+}
+
+function detectCurrency(rawValue: string, fallback: SupportedCurrency): SupportedCurrency {
+  const detection = detectOfferCurrency({ priceCell: rawValue, manualCurrency: fallback });
+  return detection.status === "UNSUPPORTED" ? fallback : detection.currency;
 }
 
 function isLikelySupplierCodeValue(value: string): boolean {
@@ -620,6 +705,193 @@ export function normalizePdfRowsToLines({
   return lines;
 }
 
+function findBestHeaderRow(rows: string[][]): number | null {
+  let bestIndex: number | null = null;
+  let bestScore = 10;
+  rows.forEach((row, index) => {
+    if (!looksLikeHeaderRow(row)) return;
+    const normalized = row.map(normalizeSemanticLabel);
+    const populated = normalized.filter(Boolean).length;
+    const keywordHits = normalized.filter((cell) =>
+      /producto|articulo|descripcion|precio|costo|importe|envase|presentacion|peso|kgs?|moneda|currency|codigo|sku/.test(cell),
+    ).length;
+    const followingDensity = rows.slice(index + 1, index + 9).filter((candidate) =>
+      candidate.filter((cell) => cell.trim()).length >= Math.max(2, populated - 2),
+    ).length;
+    const score = keywordHits * 5 + populated + followingDensity * 0.75;
+    if (score > bestScore) {
+      bestIndex = index;
+      bestScore = score;
+    }
+  });
+  return bestIndex;
+}
+
+interface SemanticColumnIndexes {
+  product: number | null;
+  description: number | null;
+  presentation: number | null;
+  packageQuantity: number | null;
+  contentValue: number | null;
+  contentUnit: number | null;
+}
+
+function normalizeSemanticLabel(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function findSemanticColumn(headers: string[], patterns: RegExp[], excluded: number[] = []) {
+  const index = headers.findIndex((header, headerIndex) => {
+    if (excluded.includes(headerIndex)) return false;
+    const normalized = normalizeSemanticLabel(header);
+    return patterns.some((pattern) => pattern.test(normalized));
+  });
+  return index >= 0 ? index : null;
+}
+
+function detectSemanticColumns(headers: string[], mappedDescriptionIndex: number): SemanticColumnIndexes {
+  const product = findSemanticColumn(headers, [/^(producto|articulo|item|nombre producto|denominacion)$/]);
+  const description = findSemanticColumn(
+    headers,
+    [/^(descripcion|detalle|descripcion adicional|observaciones?)$/],
+    product === null ? [] : [product],
+  );
+  return {
+    product: product ?? mappedDescriptionIndex,
+    description: description === mappedDescriptionIndex ? null : description,
+    presentation: findSemanticColumn(headers, [/presentacion/, /formato/, /envase/, /contenido neto/]),
+    packageQuantity: findSemanticColumn(headers, [/unidades por (caja|bulto|pack)/, /cantidad por (caja|bulto|pack)/, /^(uxb|u x b|pack|unidades)$/]),
+    contentValue: findSemanticColumn(headers, [/^(peso|pesos|kg|kgs|kilos|volumen|contenido|cantidad neta)$/]),
+    contentUnit: findSemanticColumn(headers, [/^(unidad medida|unidad de medida|uom|um|medida)$/]),
+  };
+}
+
+function parsePositiveNumber(value: string) {
+  const parsed = parseFlexibleNumber(value);
+  return parsed !== null && parsed > 0 ? parsed : null;
+}
+
+function normalizeContentUnit(value: string): ContentUnit | null {
+  const normalized = normalizeSemanticLabel(value).replace(/\s/g, "");
+  const aliases: Record<string, ContentUnit> = {
+    unidad: "UNIT", unidades: "UNIT", un: "UNIT", u: "UNIT",
+    mg: "MG", gr: "G", gramo: "G", gramos: "G", g: "G",
+    kg: "KG", kgs: "KG", kilo: "KG", kilos: "KG", kilogramo: "KG", kilogramos: "KG",
+    ml: "ML", cc: "CC", l: "L", lt: "L", lts: "L", litro: "L", litros: "L",
+    m: "M", metro: "M", metros: "M", m2: "M2", m3: "M3",
+  };
+  return aliases[normalized] ?? null;
+}
+
+interface ParsedPresentation {
+  raw: string;
+  packageQuantity: number | null;
+  contentValue: number | null;
+  contentUnit: ContentUnit | null;
+}
+
+function parsePresentationText(value: string): ParsedPresentation | null {
+  const text = value.replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  const unitPattern = "mg|g|gr(?:amos?)?|kg|kilos?|ml|cc|l|lt|lts|litros?|m2|m3|m";
+  const packaged = text.match(new RegExp(`(?:pack|caja|bulto|display)?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:u(?:nidades?)?\\s*)?[x×]\\s*(\\d+(?:[.,]\\d+)?)\\s*(${unitPattern})\\b`, "i"));
+  if (packaged) {
+    return {
+      raw: packaged[0],
+      packageQuantity: parsePositiveNumber(packaged[1]),
+      contentValue: parsePositiveNumber(packaged[2]),
+      contentUnit: normalizeContentUnit(packaged[3]),
+    };
+  }
+  const content = text.match(new RegExp(`\\b(\\d+(?:[.,]\\d+)?)\\s*(${unitPattern})\\b`, "i"));
+  if (!content) return null;
+  const packageMatch = text.match(/\b(?:pack|caja|bulto|display)\s*(?:de\s*)?(\d+)\b/i);
+  return {
+    raw: [packageMatch?.[0], content[0]].filter(Boolean).join(" · "),
+    packageQuantity: packageMatch ? parsePositiveNumber(packageMatch[1]) : null,
+    contentValue: parsePositiveNumber(content[1]),
+    contentUnit: normalizeContentUnit(content[2]),
+  };
+}
+
+function parseUnitBearingHeader(header: string, cellValue: string): ParsedPresentation | null {
+  const contentValue = parsePositiveNumber(cellValue);
+  if (contentValue === null) return null;
+  const contentUnit = normalizeSemanticLabel(header)
+    .split(" ")
+    .map(normalizeContentUnit)
+    .find((unit) => unit !== null) ?? null;
+  return contentUnit ? { raw: `${cellValue} ${contentUnit}`, packageQuantity: null, contentValue, contentUnit } : null;
+}
+
+function extractRowSemantics({
+  headers,
+  row,
+  rawDescription,
+  columns,
+}: {
+  headers: string[];
+  row: string[];
+  rawDescription: string;
+  columns: SemanticColumnIndexes;
+}): Pick<CatalogImportLine, "product_name" | "additional_description" | "presentation_raw" | "package_quantity" | "content_value" | "content_unit" | "semantic_detection"> {
+  const cell = (index: number | null) => index === null ? "" : String(row[index] ?? "").replace(/\s+/g, " ").trim();
+  const productName = cell(columns.product) || rawDescription;
+  const additionalDescription = cell(columns.description);
+  const explicitPresentation = cell(columns.presentation);
+  const explicitPackageQuantity = parsePositiveNumber(cell(columns.packageQuantity));
+  const explicitContentValue = parsePositiveNumber(cell(columns.contentValue));
+  const explicitContentUnit = normalizeContentUnit(cell(columns.contentUnit)) ?? (columns.contentValue === null
+    ? null
+    : normalizeSemanticLabel(headers[columns.contentValue] ?? "").split(" ").map(normalizeContentUnit).find(Boolean) ?? null);
+  const explicitParsed = parsePresentationText(explicitPresentation);
+  const productParsed = parsePresentationText(`${productName} ${additionalDescription}`);
+  const headerParsed = columns.presentation === null
+    ? headers
+        .map((header, index) => row[index]
+          ? parsePresentationText(`${String(row[index]).trim()} ${header}`) ?? parseUnitBearingHeader(header, String(row[index]).trim())
+          : null)
+        .find((candidate) => candidate !== null) ?? null
+    : null;
+  const parsed = explicitParsed ?? productParsed ?? headerParsed;
+  const presentationRaw = explicitPresentation || parsed?.raw || null;
+  const packageQuantity = explicitPackageQuantity ?? parsed?.packageQuantity ?? null;
+  const contentValue = explicitContentValue ?? parsed?.contentValue ?? null;
+  const contentUnit = explicitContentUnit ?? parsed?.contentUnit ?? null;
+  const hasExplicit = Boolean(explicitPresentation || explicitPackageQuantity || explicitContentValue || explicitContentUnit);
+  const source: SemanticDetectionSource = hasExplicit
+    ? "EXPLICIT_COLUMN"
+    : productParsed
+      ? "PRODUCT_TEXT"
+      : headerParsed
+        ? "HEADER_CONTEXT"
+        : "NOT_DETECTED";
+  const warnings: string[] = [];
+  if (contentValue !== null && contentUnit === null) warnings.push("Contenido sin unidad reconocida");
+  if (explicitParsed && productParsed && (explicitParsed.contentValue !== productParsed.contentValue || explicitParsed.contentUnit !== productParsed.contentUnit)) {
+    warnings.push("La presentación explícita difiere de la descripción del producto");
+  }
+  return {
+    product_name: productName,
+    additional_description: additionalDescription || null,
+    presentation_raw: presentationRaw,
+    package_quantity: packageQuantity,
+    content_value: contentValue,
+    content_unit: contentUnit,
+    semantic_detection: {
+      source,
+      confidence: source === "EXPLICIT_COLUMN" ? 1 : source === "PRODUCT_TEXT" ? 0.85 : source === "HEADER_CONTEXT" ? 0.65 : 0,
+      evidence: [explicitPresentation, parsed?.raw].filter((value): value is string => Boolean(value)),
+      warnings,
+    },
+  };
+}
+
 export function normalizeRowsToLines({
   headers,
   rows,
@@ -634,6 +906,10 @@ export function normalizeRowsToLines({
   const priceIndex = headerIndexMap.get(mapping.priceColumn);
   const codeIndex = mapping.supplierCodeColumn ? headerIndexMap.get(mapping.supplierCodeColumn) : undefined;
   const currencyIndex = mapping.currencyColumn ? headerIndexMap.get(mapping.currencyColumn) : undefined;
+  const semanticColumns = detectSemanticColumns(headers, descriptionIndex);
+  if (mapping.presentationColumn) semanticColumns.presentation = headerIndexMap.get(mapping.presentationColumn) ?? semanticColumns.presentation;
+  if (mapping.contentValueColumn) semanticColumns.contentValue = headerIndexMap.get(mapping.contentValueColumn) ?? semanticColumns.contentValue;
+  const referencePriceIndex = mapping.referencePriceColumn ? headerIndexMap.get(mapping.referencePriceColumn) : undefined;
   if (descriptionIndex === undefined || priceIndex === undefined) throw new Error("Mapeo invalido: faltan columnas requeridas");
   const diagnostics: NormalizeDiagnostics = {
     totalRows: 0,
@@ -673,13 +949,31 @@ export function normalizeRowsToLines({
     }
     const supplierCode = codeIndex !== undefined ? String(row[codeIndex] ?? "").trim() : "";
     const rawCurrency = currencyIndex !== undefined ? String(row[currencyIndex] ?? "").trim() : "";
-    const currency = (rawCurrency ? rawCurrency.toUpperCase() : detectCurrency(`${rawPrice} ${rawDescription}`, "ARS")) || "ARS";
+    const currencyDetection = detectOfferCurrency({
+      priceCell: rawPrice,
+      currencyCell: rawCurrency,
+      priceHeader: mapping.priceColumn,
+    });
+    const semantics = extractRowSemantics({
+      headers,
+      row,
+      rawDescription,
+      columns: semanticColumns,
+    });
+    if (semantics.presentation_raw && semantics.content_value !== null && semantics.content_unit && !parsePresentationText(semantics.presentation_raw)) {
+      semantics.presentation_raw = `${semantics.presentation_raw} · ${semantics.content_value} ${semantics.content_unit.toLowerCase()}`;
+    }
+    const referenceUnitPrice = referencePriceIndex === undefined ? null : parseFlexibleNumber(String(row[referencePriceIndex] ?? ""));
     lines.push({
       supplier_code: supplierCode || null,
       raw_description: rawDescription,
       normalized_description: rawDescription.toLowerCase(),
       cost: parsedPrice,
-      currency,
+      currency: currencyDetection.currency,
+      currency_detection: currencyDetection,
+      ...semantics,
+      reference_unit_price: referenceUnitPrice,
+      reference_price_basis: referenceUnitPrice === null ? null : mapping.referencePriceColumn ?? null,
       row_index: rowIndex + 1,
     });
     diagnostics.keptRows += 1;

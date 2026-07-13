@@ -1626,6 +1626,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          currency_detection_source: string | null
+          currency_raw: string | null
           id: string
           item_id: string | null
           match_status: Database["public"]["Enums"]["match_status"]
@@ -1639,6 +1641,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          currency_detection_source?: string | null
+          currency_raw?: string | null
           id?: string
           item_id?: string | null
           match_status?: Database["public"]["Enums"]["match_status"]
@@ -1652,6 +1656,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          currency_detection_source?: string | null
+          currency_raw?: string | null
           id?: string
           item_id?: string | null
           match_status?: Database["public"]["Enums"]["match_status"]
@@ -2056,8 +2062,11 @@ export type Database = {
       }
       supplier_catalog_lines: {
         Row: {
+          additional_description: string | null
           company_id: string
           cost: number
+          content_unit: string | null
+          content_value: number | null
           created_at: string
           created_by: string | null
           currency: string
@@ -2065,14 +2074,23 @@ export type Database = {
           match_status: Database["public"]["Enums"]["match_status"]
           matched_item_id: string | null
           normalized_description: string | null
+          package_quantity: number | null
+          presentation_raw: string | null
+          product_name: string | null
           raw_description: string
+          reference_price_basis: string | null
+          reference_unit_price: number | null
           row_index: number | null
+          semantic_detection: Json
           supplier_catalog_version_id: string
           supplier_code: string | null
         }
         Insert: {
+          additional_description?: string | null
           company_id: string
           cost: number
+          content_unit?: string | null
+          content_value?: number | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -2080,14 +2098,23 @@ export type Database = {
           match_status?: Database["public"]["Enums"]["match_status"]
           matched_item_id?: string | null
           normalized_description?: string | null
+          package_quantity?: number | null
+          presentation_raw?: string | null
+          product_name?: string | null
           raw_description: string
+          reference_price_basis?: string | null
+          reference_unit_price?: number | null
           row_index?: number | null
+          semantic_detection?: Json
           supplier_catalog_version_id: string
           supplier_code?: string | null
         }
         Update: {
+          additional_description?: string | null
           company_id?: string
           cost?: number
+          content_unit?: string | null
+          content_value?: number | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -2095,8 +2122,14 @@ export type Database = {
           match_status?: Database["public"]["Enums"]["match_status"]
           matched_item_id?: string | null
           normalized_description?: string | null
+          package_quantity?: number | null
+          presentation_raw?: string | null
+          product_name?: string | null
           raw_description?: string
+          reference_price_basis?: string | null
+          reference_unit_price?: number | null
           row_index?: number | null
+          semantic_detection?: Json
           supplier_catalog_version_id?: string
           supplier_code?: string | null
         }

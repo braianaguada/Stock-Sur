@@ -212,10 +212,12 @@ Estado de cuenta lee `account_due_days` del cliente para calcular vencimientos c
 
 ### Base de abastecimiento: proveedores y listas
 
-- Proveedores incorpora razon social, CUIT normalizado, telefono y WhatsApp independientes, direccion y moneda habitual opcional.
-- Las listas de proveedor conservan versiones historicas y ahora admiten moneda declarada, fecha de lista, vigencia y estado activa/archivada sin inferir moneda para datos existentes.
+- Proveedores incorpora razon social, CUIT normalizado, telefono y WhatsApp independientes y direccion. La moneda no se solicita ni se clasifica por proveedor.
+- Cada oferta importada conserva su propia moneda (`ARS` o `USD`), por lo que una lista puede ser ARS, USD o mixta. La deteccion prioriza celda de precio, columna de moneda y encabezado; los conflictos requieren revision y, sin evidencia, se usa ARS.
+- El preview permite corregir moneda por fila. Catalogo y bandeja de seleccion usan layouts adaptables sin megatablas horizontales.
 - `price_lists` sigue siendo el dominio de precios internos de venta; abastecimiento reutiliza `supplier_catalogs`, `supplier_catalog_versions` y `supplier_catalog_lines`.
-- La migracion `20260711120000_procurement_supplier_list_foundation.sql` es aditiva y no integra compras con stock, Caja ni cuenta corriente.
+- Las migraciones `20260711120000_procurement_supplier_list_foundation.sql` y `20260711150000_supplier_offer_currency_per_line.sql` son aditivas. La segunda canoniza y valida moneda por linea, preserva los campos legacy y no los usa como fallback operativo.
+- Esta base todavia no incluye comparacion entre proveedores, conversion por tipo de cambio ni ordenes de compra persistidas; tampoco genera movimientos de stock, Caja o cuenta corriente.
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
 Al 2026-05-11, los cambios principales incorporados en `staging` son:
@@ -838,6 +840,19 @@ Production migration history note:
 - Do not recreate `20260514213000` as a new migration; future schema changes should use a new timestamped migration file.
 
 ## Git workflow
+
+## Proveedores: importación semántica y catálogo operativo
+
+- Las ofertas conservan moneda por fila y las listas pueden ser ARS, USD o mixtas.
+- Excel/CSV detecta localmente nombre, descripción adicional, presentación, unidades por envase, contenido y unidad desde columnas o texto del producto. El preview permite revisar moneda y presentación antes de confirmar.
+- La descripción original se conserva como evidencia; los campos detectados incluyen confianza y advertencias para evitar completar datos ambiguos por adivinación.
+- El catálogo usa navegación horizontal, precios no truncables y una bandeja de pedido que aparece al seleccionar productos.
+- Migración de staging: `20260711173000_supplier_catalog_line_semantics.sql` (aditiva, compatible con líneas históricas y sin cambios en producción).
+- La importación de Excel abre siempre una revisión estructural: marca columnas usadas/omitidas y, para listas como Frigerar, compone `Envase + Kgs`, usa `$ x Envase` como costo y conserva `$ x Kg` como referencia.
+- El comparador selecciona versiones de múltiples proveedores, agrupa solo matches confirmados o descripciones normalizadas idénticas y no mezcla rankings ARS/USD sin un tipo de cambio manual.
+- El pedido del proveedor puede confirmarse como orden de compra persistida. La creación es atómica, valida empresa/proveedor/versión y guarda snapshots de producto, presentación, moneda y precios.
+- Migración nueva: `20260711210000_supplier_purchase_orders.sql` (campos de precio de referencia, órdenes, renglones, RLS y RPC; aplicar únicamente en staging).
+- Validación pendiente fuera de automatización: importaciones con archivos reales y QA autenticada con datos de dos empresas.
 
 This repository uses a simple linear flow to avoid branch drift:
 

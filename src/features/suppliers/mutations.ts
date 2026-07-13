@@ -13,7 +13,6 @@ function buildSupplierPayload(form: SupplierFormState) {
     phone: form.phone.trim() || null,
     whatsapp: form.whatsapp.trim() || null,
     address: form.address.trim() || null,
-    default_currency: form.default_currency || null,
     notes: form.notes.trim() || null,
   };
 }
