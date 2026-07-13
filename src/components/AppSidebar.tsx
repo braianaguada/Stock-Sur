@@ -18,6 +18,7 @@ const navItems = [
   { title: "Combos", url: "/combos" },
   { title: "Stock", url: "/stock" },
   { title: "Proveedores", url: "/suppliers" },
+  { title: "Ordenes de compra", url: "/purchase-orders" },
   { title: "Precios", url: "/price-lists" },
   { title: "Documentos", url: "/documents" },
   { title: "Servicios", url: "/services/documents" },

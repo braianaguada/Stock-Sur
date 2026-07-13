@@ -56,6 +56,8 @@ type SupplierCatalogDialogProps = {
   lineQuantities: Record<string, number>;
   onLineQuantityChange: (lineId: string, value: string) => void;
   onAddToOrder: (line: CatalogLine) => void;
+  onViewPurchaseOrder: (orderId: string) => void;
+  onGoToPurchaseOrders: () => void;
   orderLines: OrderLine[];
   orderTotalsByCurrency: Record<string, number>;
   onOrderQuantityChange: (lineId: string, value: string) => void;
@@ -124,6 +126,8 @@ export function SupplierCatalogDialog({
   lineQuantities,
   onLineQuantityChange,
   onAddToOrder,
+  onViewPurchaseOrder,
+  onGoToPurchaseOrders,
   orderLines,
   orderTotalsByCurrency,
   onOrderQuantityChange,
@@ -496,11 +500,21 @@ export function SupplierCatalogDialog({
                 <Card className="min-h-[20rem]">
                   <CardHeader>
                     <CardTitle className="text-base">Órdenes de compra</CardTitle>
-                    <CardDescription>Órdenes confirmadas para este proveedor.</CardDescription>
+                    <CardDescription>Órdenes generadas para este proveedor.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {lastPurchaseOrder ? <PurchaseOrderConfirmation order={lastPurchaseOrder} /> : null}
-                    <PurchaseOrderHistory orders={purchaseOrders} isLoading={isPurchaseOrdersLoading} />
+                    {lastPurchaseOrder ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" onClick={() => onViewPurchaseOrder(lastPurchaseOrder.id)}>Ver orden generada</Button>
+                        <Button size="sm" variant="outline" onClick={onGoToPurchaseOrders}>Ir a órdenes de compra</Button>
+                      </div>
+                    ) : null}
+                    <PurchaseOrderHistory
+                      orders={purchaseOrders}
+                      isLoading={isPurchaseOrdersLoading}
+                      onOpen={(order) => onViewPurchaseOrder(order.id)}
+                    />
                   </CardContent>
                 </Card>
               ) : null}
