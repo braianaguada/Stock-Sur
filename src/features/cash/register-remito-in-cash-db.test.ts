@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 const migration = readFileSync(
   "supabase/migrations/20260713200000_register_remito_in_cash.sql",
   "utf8",
-);
+).replace(/\r\n/g, "\n");
 
 describe("register remito in cash database contract", () => {
   it("enforces company permission and locks the remito in the active company", () => {
