@@ -44,18 +44,22 @@ function renderTable(documents: DocRow[], overrides: Partial<ComponentProps<type
     pageSize: 10,
     onOpenDetail: vi.fn(),
     onPrint: vi.fn(),
+    onShare: vi.fn(),
     onEditDraft: vi.fn(),
     onTransition: vi.fn(),
     onIssueRemito: vi.fn(),
     onCloneAsRemito: vi.fn(),
     onDuplicateDocument: vi.fn(),
     onGenerateReturn: vi.fn(),
+    onRegisterInCash: vi.fn(),
+    cashRegisteredDocumentIds: new Set(),
     isIssuingDocument: false,
     canPrintDocument: true,
     canEditDocumentDraft: true,
     canIssueRemito: true,
     canCloneBudgetToRemito: true,
     canDuplicateDocument: true,
+    canRegisterInCash: true,
     canTransitionDocumentTo: () => true,
     ...overrides,
   };
@@ -93,5 +97,36 @@ describe("DocumentsDataTable duplicate action", () => {
     });
 
     expect(screen.getByTitle("Duplicar")).toBeDisabled();
+  });
+});
+
+describe("DocumentsDataTable cash registration", () => {
+  const emittedRemito: DocRow = {
+    ...baseDocument,
+    id: "remito-emitted-1",
+    doc_type: "REMITO",
+    status: "EMITIDO",
+    document_number: 15,
+  };
+
+  it("offers Registrar en Caja for an emitted remito and calls the handler", () => {
+    const props = renderTable([emittedRemito]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Registrar en Caja" }));
+
+    expect(props.onRegisterInCash).toHaveBeenCalledWith(emittedRemito);
+  });
+
+  it("shows the registered state and prevents another registration", () => {
+    renderTable([emittedRemito], { cashRegisteredDocumentIds: new Set([emittedRemito.id]) });
+
+    expect(screen.getByText("Registrado en Caja")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
+  });
+
+  it("hides the action without cash.create permission", () => {
+    renderTable([emittedRemito], { canRegisterInCash: false });
+
+    expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
   });
 });

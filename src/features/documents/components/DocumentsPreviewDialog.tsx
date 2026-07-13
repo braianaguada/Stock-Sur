@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import {
   ArrowRightCircle,
   ArrowRightLeft,
+  Banknote,
   CheckCircle2,
   Clock,
   Copy,
@@ -43,6 +44,9 @@ interface DocumentsPreviewDialogProps {
   onDuplicateDocument: (document: DocRow) => void;
   isDuplicatingDocument: boolean;
   canDuplicateDocument: boolean;
+  canRegisterInCash: boolean;
+  isRegisteredInCash: boolean;
+  onRegisterInCash: (document: DocRow) => void;
   serviceLinkLabel?: string | null;
   onOpenService?: () => void;
 }
@@ -134,6 +138,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     onDuplicateDocument,
     isDuplicatingDocument,
     canDuplicateDocument,
+    canRegisterInCash,
+    isRegisteredInCash,
+    onRegisterInCash,
     serviceLinkLabel,
     onOpenService,
   } = props;
@@ -466,6 +473,23 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
         ) : null}
 
         <div className="flex shrink-0 justify-end gap-2 border-t border-slate-300/70 bg-white px-5 py-4">
+          {selectedDocument?.doc_type === "REMITO" && selectedDocument.status === "EMITIDO" ? (
+            isRegisteredInCash ? (
+              <Badge variant="secondary" className="self-center border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">
+                Registrado en Caja
+              </Badge>
+            ) : canRegisterInCash ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                onClick={() => onRegisterInCash(selectedDocument)}
+              >
+                <Banknote className="h-4 w-4" />
+                Registrar en Caja
+              </Button>
+            ) : null
+          ) : null}
           <Button
             type="button"
             variant="outline"

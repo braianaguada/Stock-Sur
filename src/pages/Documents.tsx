@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,17 +19,22 @@ import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { getErrorMessage } from "@/lib/errors";
 import {
   canCloneBudgetToRemito,
+  canCreateCashSale,
   canCreateDocumentDraft,
   canEditDocumentDraft,
   canIssueRemito,
   canPrintDocument,
   canTransitionDocumentTo,
 } from "@/lib/permissions";
+import { queryKeys } from "@/lib/query-keys";
 import { openPrintWindow } from "@/lib/print";
 import { Copy, Link2, MessageCircle, Plus, Search, Unlink } from "lucide-react";
 import { FilterBar, PageHeader } from "@/components/ui/page";
 import { EMPTY_LINE } from "@/features/documents/constants";
 import { DocumentsDataTable } from "@/features/documents/components/DocumentsDataTable";
+import { RegisterDocumentInCashDialog } from "@/features/documents/components/RegisterDocumentInCashDialog";
+import { registerCashSaleFromRemito } from "@/features/cash/api/registerCashSaleFromRemito";
+import type { PaymentMethod } from "@/features/cash/types";
 import { useDocumentsData } from "@/features/documents/hooks/useDocumentsData";
 import { useDocumentDraftLoader } from "@/features/documents/hooks/useDocumentDraftLoader";
 import { useDocumentsMutations } from "@/features/documents/hooks/useDocumentsMutations";
@@ -97,8 +103,9 @@ function buildEmptyDocumentForm(defaultPointOfSale: number, defaultCustomerId = 
 }
 
 export default function DocumentsPage() {
-  const { user, roles, currentCompany } = useAuth();
+  const { user, roles, currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { settings: companySettings } = useCompanyBrand();
@@ -119,6 +126,8 @@ export default function DocumentsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [cashDocument, setCashDocument] = useState<DocRow | null>(null);
+  const [registerCashOpen, setRegisterCashOpen] = useState(false);
   const [shareDocument, setShareDocument] = useState<DocRow | null>(null);
   const [shareCustomerId, setShareCustomerId] = useState("");
   const [sharePhone, setSharePhone] = useState("");
@@ -149,6 +158,8 @@ export default function DocumentsPage() {
     selectedEvents,
     eventUserNamesById,
     selectedDocumentCashUsage,
+    cashRegisteredDocumentIds,
+    selectedDocumentClosureClosed,
     selectedDocument,
     sourceDocumentLabel,
     combos,
@@ -316,6 +327,48 @@ export default function DocumentsPage() {
     setDialogOpen,
     toast,
   });
+
+  const canRegisterInCash = canCreateCashSale(roles, {
+    companyRoleCodes,
+    companyPermissionCodes,
+  });
+
+  const registerCashMutation = useMutation({
+    mutationFn: ({ document, paymentMethod }: { document: DocRow; paymentMethod: PaymentMethod }) => {
+      if (!currentCompany?.id) throw new Error("Selecciona una empresa activa antes de registrar en Caja.");
+      return registerCashSaleFromRemito({
+        companyId: currentCompany.id,
+        documentId: document.id,
+        paymentMethod,
+      });
+    },
+    onSuccess: async (_sale, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.documents.cashUsage(currentCompany?.id ?? null) }),
+        queryClient.invalidateQueries({ queryKey: ["cash-sales", currentCompany?.id ?? "no-company"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.customers.accountSummary(currentCompany?.id ?? null, variables.document.customer_id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.customers.accountEntries(currentCompany?.id ?? null, variables.document.customer_id) }),
+      ]);
+      setRegisterCashOpen(false);
+      setCashDocument(null);
+      toast({
+        title: "Registrado en Caja",
+        description: selectedDocumentClosureClosed
+          ? "El movimiento quedó posterior al cierre existente, sin reabrirlo."
+          : "El movimiento quedó asociado al remito.",
+      });
+    },
+    onError: (error) => {
+      toast({ title: "No se pudo registrar en Caja", description: getErrorMessage(error), variant: "destructive" });
+    },
+  });
+
+  const openRegisterInCash = (document: DocRow) => {
+    if (!canRegisterInCash) return;
+    setSelectedDocId(document.id);
+    setCashDocument(document);
+    setRegisterCashOpen(true);
+  };
 
   const isBlankLine = (line: LineDraft) =>
     line.item_id === null
@@ -720,12 +773,15 @@ export default function DocumentsPage() {
             if (!confirmed) return;
             cloneAsReturnMutation.mutate(documentId);
           }}
+          onRegisterInCash={openRegisterInCash}
+          cashRegisteredDocumentIds={cashRegisteredDocumentIds}
           isIssuingDocument={issueMutation.isPending}
           canPrintDocument={canPrintDocument(roles)}
           canEditDocumentDraft={canEditDocumentDraft(roles)}
           canIssueRemito={canIssueRemito(roles)}
           canCloneBudgetToRemito={canCloneBudgetToRemito(roles)}
           canDuplicateDocument={canCreateDocumentDraft(roles)}
+          canRegisterInCash={canRegisterInCash}
           canTransitionDocumentTo={(status) =>
             status === "EMITIDO"
               ? false
@@ -837,9 +893,30 @@ export default function DocumentsPage() {
             }}
             isDuplicatingDocument={duplicateDocumentMutation.isPending}
             canDuplicateDocument={canCreateDocumentDraft(roles)}
+            canRegisterInCash={canRegisterInCash}
+            isRegisteredInCash={Boolean(selectedDocument && cashRegisteredDocumentIds.has(selectedDocument.id))}
+            onRegisterInCash={(document) => {
+              setDetailOpen(false);
+              openRegisterInCash(document);
+            }}
           />
         </Suspense>
       ) : null}
+
+      <RegisterDocumentInCashDialog
+        document={cashDocument}
+        open={registerCashOpen}
+        isSubmitting={registerCashMutation.isPending}
+        isClosedBusinessDate={Boolean(cashDocument?.id === selectedDocId && selectedDocumentClosureClosed)}
+        onOpenChange={(open) => {
+          setRegisterCashOpen(open);
+          if (!open) setCashDocument(null);
+        }}
+        onConfirm={(paymentMethod) => {
+          if (!cashDocument) return;
+          registerCashMutation.mutate({ document: cashDocument, paymentMethod });
+        }}
+      />
 
       <Dialog
         open={Boolean(shareDocument)}

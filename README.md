@@ -4,6 +4,13 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Registro de remitos en Caja
+
+- Los remitos emitidos pueden registrarse en Caja desde la tabla o la vista previa, eligiendo unicamente el medio de pago; importe, cliente, fecha operativa y referencia se toman del documento.
+- La operacion se valida en DB por empresa activa y permiso `cash.create`, es idempotente y bloquea duplicados activos por referencia. Si existe una factura externa activa se registra esa referencia; en caso contrario se usa el numero de remito.
+- Los movimientos con fecha de un cierre ya cerrado quedan posteriores al cierre (`closure_id` nulo) y no lo reabren. Cuenta corriente evita duplicar el debito documental existente.
+- Migracion: `supabase/migrations/20260713200000_register_remito_in_cash.sql`.
+
 ## Dashboard, documentos y totales
 
 - El dashboard conserva la evolucion mensual de caja y suma una vista de rentabilidad real: venta neta menos impuestos y costo snapshot de productos, excluyendo remitos internos y considerando devoluciones como negativo.

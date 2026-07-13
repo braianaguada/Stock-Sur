@@ -326,39 +326,53 @@ export function useDocumentsData({
     [eventProfiles],
   );
 
-  const { data: selectedDocumentCashUsage = false } = useQuery({
-    queryKey: ["documents", "cash-usage", selectedDocId],
-    enabled: Boolean(selectedDocument?.doc_type === "REMITO" && selectedDocId && currentCompanyId),
+  const { data: cashUsages = [] } = useQuery({
+    queryKey: queryKeys.documents.cashUsage(currentCompanyId),
+    enabled: Boolean(currentCompanyId),
     queryFn: async () => {
-      if (!selectedDocument || !currentCompanyId) return false;
+      const { data, error } = await supabase
+        .from("cash_sales")
+        .select("document_id, receipt_kind, receipt_reference")
+        .eq("company_id", currentCompanyId!)
+        .neq("status", "ANULADA")
+        .limit(2000);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
-      const invoiceNumber = selectedDocument.external_invoice_number?.trim() ?? "";
-      const queries = [
-        supabase
-          .from("cash_sales")
-          .select("id", { count: "exact", head: true })
-          .eq("company_id", currentCompanyId)
-          .neq("status", "ANULADA")
-          .eq("document_id", selectedDocument.id),
-      ];
-
-      if (invoiceNumber) {
-        queries.push(
-          supabase
-            .from("cash_sales")
-            .select("id", { count: "exact", head: true })
-            .eq("company_id", currentCompanyId)
-            .neq("status", "ANULADA")
-            .eq("receipt_kind", "FACTURA")
-            .eq("receipt_reference", invoiceNumber),
-        );
+  const cashRegisteredDocumentIds = useMemo(() => {
+    const directIds = new Set(cashUsages.flatMap((usage) => usage.document_id ? [usage.document_id] : []));
+    const invoiceReferences = new Set(
+      cashUsages
+        .filter((usage) => usage.receipt_kind === "FACTURA")
+        .flatMap((usage) => usage.receipt_reference?.trim() ? [usage.receipt_reference.trim()] : []),
+    );
+    for (const document of documents) {
+      if (document.external_invoice_number && invoiceReferences.has(document.external_invoice_number.trim())) {
+        directIds.add(document.id);
       }
+    }
+    if (selectedDocument?.external_invoice_number && invoiceReferences.has(selectedDocument.external_invoice_number.trim())) {
+      directIds.add(selectedDocument.id);
+    }
+    return directIds;
+  }, [cashUsages, documents, selectedDocument]);
 
-      const results = await Promise.all(queries);
-      return results.some((result) => {
-        if (result.error) throw result.error;
-        return (result.count ?? 0) > 0;
-      });
+  const selectedDocumentCashUsage = Boolean(selectedDocId && cashRegisteredDocumentIds.has(selectedDocId));
+  const selectedBusinessDate = selectedDocument?.issue_date ?? null;
+  const { data: selectedDocumentClosureClosed = false } = useQuery({
+    queryKey: queryKeys.documents.cashClosure(currentCompanyId, selectedBusinessDate),
+    enabled: Boolean(currentCompanyId && selectedDocument?.doc_type === "REMITO" && selectedBusinessDate),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_closures")
+        .select("status")
+        .eq("company_id", currentCompanyId!)
+        .eq("business_date", selectedBusinessDate!)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.status === "CERRADO";
     },
   });
 
@@ -405,6 +419,8 @@ export function useDocumentsData({
     selectedEvents,
     eventUserNamesById,
     selectedDocumentCashUsage,
+    cashRegisteredDocumentIds,
+    selectedDocumentClosureClosed,
     selectedDocument,
     sourceDocument,
     sourceDocumentLabel,

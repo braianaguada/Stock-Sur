@@ -60,8 +60,8 @@ export function canManageUsers(roles: AppRole[]) {
   return isSuperAdmin(roles);
 }
 
-export function canCreateCashSale(roles: AppRole[]) {
-  return hasAnyRole(roles);
+export function canCreateCashSale(roles: AppRole[], context?: CompanyAccessContext) {
+  return hasCompanyPermission(roles, context, "cash.create");
 }
 
 export function canAttachCashReceipt(roles: AppRole[]) {
