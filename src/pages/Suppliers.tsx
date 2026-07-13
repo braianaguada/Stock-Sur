@@ -278,6 +278,7 @@ export default function SuppliersPage() {
             open={extractionReviewOpen}
             onOpenChange={setExtractionReviewOpen}
             fileName={selectedFile?.name ?? null}
+            file={selectedFile}
             lines={extractionReviewLines}
             diagnostics={lastDiagnostics}
             isImporting={extractionImportPending}

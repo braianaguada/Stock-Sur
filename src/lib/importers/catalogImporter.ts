@@ -28,6 +28,7 @@ export interface SemanticDetection {
   evidence: string[];
   warnings: string[];
 }
+export type TaxTreatment = "INCLUDED" | "EXCLUDED" | "UNKNOWN";
 
 export interface CatalogImportLine {
   supplier_code: string | null;
@@ -45,6 +46,7 @@ export interface CatalogImportLine {
   reference_unit_price?: number | null;
   reference_price_basis?: string | null;
   semantic_detection?: SemanticDetection;
+  tax_treatment: TaxTreatment;
   row_index: number;
   source_page?: number;
   confidence?: number;
@@ -109,6 +111,7 @@ export interface PdfMappingSelectionCore {
   descriptionColumn: string;
   priceColumn: string;
   codeColumn: string | null;
+  taxColumn: string | null;
   preferPriceAtEnd: boolean;
   filterRowsWithoutPrice: boolean;
 }
@@ -215,6 +218,37 @@ const DESCRIPTION_KEYWORDS = [
 const PRICE_KEYWORDS = ["precio", "costo", "cost", "importe", "lista", "price", "unitario", "pvp", "$", "ars", "usd"];
 const CURRENCY_KEYWORDS = ["moneda", "currency", "curr", "divisa"];
 const CODE_KEYWORDS = ["codigo", "código", "cod", "sku", "ean", "upc", "ref", "referencia"];
+
+const TAX_INCLUDED_PATTERNS = [
+  /\biva\s+(?:incluido|incluida|inc\.?)(?:\b|$)/i,
+  /\bc\s*\/\s*iva\b/i,
+  /\bcon\s+iva\b/i,
+  /\bprecio\s+final\b/i,
+];
+const TAX_EXCLUDED_PATTERNS = [
+  /\bmas\s+iva\b/i,
+  /\bs\s*\/\s*iva\b/i,
+  /\bsin\s+iva\b/i,
+  /\biva\s+(?:no\s+incluido|no\s+incluida|excluido|excluida)\b/i,
+  /\bprecio\s+neto\b/i,
+];
+
+export function inferTaxTreatment(...values: Array<string | null | undefined>): TaxTreatment {
+  const text = values
+    .filter(Boolean)
+    .join(" ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  const included = TAX_INCLUDED_PATTERNS.some((pattern) => pattern.test(text));
+  const excluded = TAX_EXCLUDED_PATTERNS.some((pattern) => pattern.test(text));
+  if (included === excluded) return "UNKNOWN";
+  return included ? "INCLUDED" : "EXCLUDED";
+}
+
+function inferUnambiguousTaxTreatment(values: string[]): TaxTreatment {
+  const treatments = new Set(values.map((value) => inferTaxTreatment(value)).filter((value) => value !== "UNKNOWN"));
+  return treatments.size === 1 ? [...treatments][0] : "UNKNOWN";
+}
 
 
 const PDF_IGNORE_PATTERNS = [
@@ -676,9 +710,15 @@ export function normalizePdfRowsToLines({
   const descriptionIndex = headerIndexMap.get(mapping.descriptionColumn);
   const priceIndex = headerIndexMap.get(mapping.priceColumn);
   const codeIndex = mapping.codeColumn ? headerIndexMap.get(mapping.codeColumn) : undefined;
+  const taxIndex = mapping.taxColumn ? headerIndexMap.get(mapping.taxColumn) : undefined;
   if (descriptionIndex === undefined) throw new Error("Mapeo PDF invalido");
 
   const preferPrice = mapping.preferPriceAtEnd ? "last" : "first";
+  const globalTaxTreatment = inferUnambiguousTaxTreatment(
+    rows
+      .filter((row) => !pickPdfPriceCell(row, priceIndex, preferPrice))
+      .map((row) => row.join(" ")),
+  );
   const lines: CatalogImportLine[] = [];
   rows.forEach((row, index) => {
     const pickedPrice = pickPdfPriceCell(row, priceIndex, preferPrice);
@@ -693,12 +733,23 @@ export function normalizePdfRowsToLines({
     const inferredCode = row.map((cell) => String(cell ?? "").trim()).find((cell) => isLikelySupplierCodeValue(cell)) ?? "";
     const supplierCode = explicitCode || inferredCode || null;
     const currency = detectCurrency(`${pickedPrice.raw} ${rawDescription}`, defaultCurrency);
+    const rowTaxTreatment = inferTaxTreatment(row.join(" "));
+    const columnTaxTreatment = taxIndex !== undefined ? inferTaxTreatment(row[taxIndex]) : "UNKNOWN";
+    const headerTaxTreatment = inferTaxTreatment(mapping.priceColumn, mapping.taxColumn);
+    const taxTreatment = rowTaxTreatment !== "UNKNOWN"
+      ? rowTaxTreatment
+      : columnTaxTreatment !== "UNKNOWN"
+        ? columnTaxTreatment
+        : headerTaxTreatment !== "UNKNOWN"
+          ? headerTaxTreatment
+          : globalTaxTreatment;
     lines.push({
       supplier_code: supplierCode,
       raw_description: rawDescription,
       normalized_description: rawDescription.toLowerCase(),
       cost: pickedPrice.value,
       currency,
+      tax_treatment: taxTreatment,
       row_index: index + 1,
     });
   });
@@ -974,6 +1025,7 @@ export function normalizeRowsToLines({
       ...semantics,
       reference_unit_price: referenceUnitPrice,
       reference_price_basis: referenceUnitPrice === null ? null : mapping.referencePriceColumn ?? null,
+      tax_treatment: inferTaxTreatment(rowValues.join(" "), mapping.priceColumn),
       row_index: rowIndex + 1,
     });
     diagnostics.keptRows += 1;
@@ -1153,7 +1205,10 @@ function splitPdfLeadingCode(line: string) {
   };
 }
 
-function finalizePendingPdfProduct(pending: PendingPdfProduct | null): CatalogImportLine | null {
+function finalizePendingPdfProduct(
+  pending: PendingPdfProduct | null,
+  fallbackTaxTreatment: TaxTreatment,
+): CatalogImportLine | null {
   if (!pending || !pending.priceValue || pending.priceValue <= 0) return null;
   const rawDescription = pending.descriptionParts.join(" ").replace(/\s+/g, " ").trim();
   if (!rawDescription || rawDescription.length < 3) return null;
@@ -1165,6 +1220,9 @@ function finalizePendingPdfProduct(pending: PendingPdfProduct | null): CatalogIm
     normalized_description: rawDescription.toLowerCase(),
     cost: pending.priceValue,
     currency: pending.currency,
+    tax_treatment: inferTaxTreatment(rawDescription) !== "UNKNOWN"
+      ? inferTaxTreatment(rawDescription)
+      : fallbackTaxTreatment,
     row_index: pending.rowIndex,
     source_page: pending.sourcePage,
     confidence: Math.max(0.1, Math.min(0.99, pending.confidence)),
@@ -1178,11 +1236,14 @@ export function extractPdfCatalogCandidates(
   context: PdfLineContext,
 ) {
   const lines: CatalogImportLine[] = [];
+  const globalTaxTreatment = inferUnambiguousTaxTreatment(
+    sourceLines.filter((line) => !extractPdfPriceToken(line, preferPrice)),
+  );
   let pendingProduct: PendingPdfProduct | null = null;
   let pendingHeaderPrice: PendingPdfHeaderPrice | null = null;
 
   const flushPendingProduct = () => {
-    const finalized = finalizePendingPdfProduct(pendingProduct);
+    const finalized = finalizePendingPdfProduct(pendingProduct, globalTaxTreatment);
     if (finalized) lines.push(finalized);
     pendingProduct = null;
   };
@@ -1229,6 +1290,7 @@ export function extractPdfCatalogCandidates(
         normalized_description: description.toLowerCase(),
         cost: priceToken.value,
         currency,
+        tax_treatment: inferTaxTreatment(line) !== "UNKNOWN" ? inferTaxTreatment(line) : globalTaxTreatment,
         row_index: rowIndex,
         source_page: context.pageNumber,
         confidence: Math.max(0.1, Math.min(0.99, 0.78 + (context.pageHasCatalogSignals ? 0.08 : 0))),
@@ -1357,6 +1419,7 @@ function extractPdfLineCandidate(
     normalized_description: description.toLowerCase(),
     cost: pickedPrice.value,
     currency,
+    tax_treatment: inferTaxTreatment(candidateString),
     row_index: rowIndex,
     source_page: context.pageNumber,
     confidence: Math.max(0.1, Math.min(0.99, confidence)),

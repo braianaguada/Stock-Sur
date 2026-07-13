@@ -10,6 +10,7 @@ export interface PdfMappingSelection {
   descriptionColumn: string;
   priceColumn: string;
   codeColumn: string | null;
+  taxColumn: string | null;
   preferPriceAtEnd: boolean;
   filterRowsWithoutPrice: boolean;
   remember: boolean;
@@ -39,6 +40,7 @@ export function PdfMappingModal({
   const [descriptionColumn, setDescriptionColumn] = useState(suggested.descriptionColumn);
   const [priceColumn, setPriceColumn] = useState(suggested.priceColumn);
   const [codeColumn, setCodeColumn] = useState(suggested.codeColumn ?? NONE);
+  const [taxColumn, setTaxColumn] = useState(suggested.taxColumn ?? NONE);
   const [preferPriceAtEnd, setPreferPriceAtEnd] = useState(suggested.preferPriceAtEnd);
   const [filterRowsWithoutPrice, setFilterRowsWithoutPrice] = useState(suggested.filterRowsWithoutPrice);
   const [remember, setRemember] = useState(true);
@@ -48,6 +50,7 @@ export function PdfMappingModal({
     setDescriptionColumn(suggested.descriptionColumn);
     setPriceColumn(suggested.priceColumn);
     setCodeColumn(suggested.codeColumn ?? NONE);
+    setTaxColumn(suggested.taxColumn ?? NONE);
     setPreferPriceAtEnd(suggested.preferPriceAtEnd);
     setFilterRowsWithoutPrice(suggested.filterRowsWithoutPrice);
     setRemember(true);
@@ -68,6 +71,7 @@ export function PdfMappingModal({
               descriptionColumn,
               priceColumn,
               codeColumn: codeColumn === NONE ? null : codeColumn,
+              taxColumn: taxColumn === NONE ? null : taxColumn,
               preferPriceAtEnd,
               filterRowsWithoutPrice,
               remember,
@@ -79,7 +83,7 @@ export function PdfMappingModal({
         </>
       )}
     >
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="space-y-2">
           <Label>Descripción *</Label>
           <Select value={descriptionColumn} onValueChange={setDescriptionColumn}>
@@ -101,6 +105,16 @@ export function PdfMappingModal({
         <div className="space-y-2">
           <Label>Código (opcional)</Label>
           <Select value={codeColumn} onValueChange={setCodeColumn}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Sin columna</SelectItem>
+              {headers.map((header) => <SelectItem key={header} value={header}>{header}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>IVA / impuesto (opcional)</Label>
+          <Select value={taxColumn} onValueChange={setTaxColumn}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value={NONE}>Sin columna</SelectItem>

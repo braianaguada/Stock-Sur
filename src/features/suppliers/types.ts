@@ -7,6 +7,7 @@ import type {
   ParsedSheetData,
   SemanticDetection,
 } from "@/lib/importers/catalogImporter";
+import type { TaxTreatment } from "@/lib/importers/catalogImporter";
 
 export interface Supplier {
   id: string;
@@ -67,6 +68,7 @@ export interface CatalogLine {
   reference_unit_price?: number | null;
   reference_price_basis?: string | null;
   semantic_detection?: SemanticDetection;
+  tax_treatment: TaxTreatment;
 }
 
 export interface ExtractionReviewLine {
@@ -85,6 +87,7 @@ export interface ExtractionReviewLine {
   reference_unit_price?: number | null;
   reference_price_basis?: string | null;
   semantic_detection?: SemanticDetection;
+  tax_treatment: TaxTreatment;
   row_index: number;
   source_page?: number;
   confidence?: number;
@@ -107,6 +110,7 @@ export interface SupplierCatalogLinePayload {
   content_value?: number | null;
   content_unit?: ContentUnit | null;
   semantic_detection?: SemanticDetection;
+  tax_treatment: TaxTreatment;
   row_index: number;
   matched_item_id: string | null;
   match_status: "MATCHED" | "PENDING" | "NEW";
@@ -126,6 +130,7 @@ export interface PdfImportMappingStored {
   descriptionColumn: string;
   priceColumn: string;
   codeColumn?: string | null;
+  taxColumn?: string | null;
   preferPriceAtEnd?: boolean;
   filterRowsWithoutPrice?: boolean;
 }

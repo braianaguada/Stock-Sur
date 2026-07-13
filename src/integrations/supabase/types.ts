@@ -2084,6 +2084,7 @@ export type Database = {
           semantic_detection: Json
           supplier_catalog_version_id: string
           supplier_code: string | null
+          tax_treatment: string
         }
         Insert: {
           additional_description?: string | null
@@ -2108,6 +2109,7 @@ export type Database = {
           semantic_detection?: Json
           supplier_catalog_version_id: string
           supplier_code?: string | null
+          tax_treatment?: string
         }
         Update: {
           additional_description?: string | null
@@ -2132,6 +2134,7 @@ export type Database = {
           semantic_detection?: Json
           supplier_catalog_version_id?: string
           supplier_code?: string | null
+          tax_treatment?: string
         }
         Relationships: [
           {
