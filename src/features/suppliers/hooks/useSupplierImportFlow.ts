@@ -7,15 +7,13 @@ import type {
   ParsedSheetData,
 } from "@/features/suppliers/types";
 import { getErrorMessage } from "@/lib/errors";
+import { queryKeys } from "@/lib/query-keys";
 import {
   loadStoredSupplierImportMapping,
   saveStoredSupplierImportMapping,
   toSupplierCatalogRpcLinePayload,
 } from "@/features/suppliers/importPersistence";
 import { logSupplierImportError } from "@/features/suppliers/logging";
-import {
-  LOW_CONFIDENCE_THRESHOLD,
-} from "@/features/suppliers/constants";
 import type {
   MappingColumnOption,
   MappingPreviewRow,
@@ -249,45 +247,36 @@ export function useSupplierImportFlow(params: {
           priceColumn: stored?.priceColumn ?? detected.priceColumn,
           currencyColumn: stored?.currencyColumn ?? detected.currencyColumn,
           supplierCodeColumn: stored?.supplierCodeColumn ?? detected.supplierCodeColumn,
+          presentationColumn: stored?.presentationColumn ?? detected.presentationColumn,
+          contentValueColumn: stored?.contentValueColumn ?? detected.contentValueColumn,
+          referencePriceColumn: stored?.referencePriceColumn ?? detected.referencePriceColumn,
         };
 
-        let normalized = normalizeRowsToLines({
+        const mapping = await requestXlsxMapping({
+          headers: parsedSheet.headers,
+          previewRows: parsedSheet.previewRows,
+          suggested,
+          confidence: detected.confidence,
+        });
+        if (!mapping) throw new Error("Importacion cancelada por el usuario");
+
+        const normalized = normalizeRowsToLines({
           headers: parsedSheet.headers,
           rows: parsedSheet.rows,
-          mapping: suggested,
+          mapping,
         });
         diagnostics = normalized.diagnostics;
 
-        const missingDescriptionRatio =
-          diagnostics.totalRows > 0 ? diagnostics.dropped_missingDesc / diagnostics.totalRows : 0;
-        const needsManualMapping =
-          detected.confidence < LOW_CONFIDENCE_THRESHOLD ||
-          diagnostics.keptRows < 10 ||
-          missingDescriptionRatio > 0.5;
-
-        if (needsManualMapping) {
-          const mapping = await requestXlsxMapping({
-            headers: parsedSheet.headers,
-            previewRows: parsedSheet.previewRows,
-            suggested,
-            confidence: detected.confidence,
-          });
-          if (!mapping) throw new Error("Importacion cancelada por el usuario");
-
-          normalized = normalizeRowsToLines({
-            headers: parsedSheet.headers,
-            rows: parsedSheet.rows,
-            mapping,
-          });
-          diagnostics = normalized.diagnostics;
-
-          if (mapping.remember) {
+        if (mapping.remember) {
             try {
               await saveStoredSupplierImportMapping(currentCompanyId, selectedSupplier.id, "xlsx", {
                 descriptionColumn: mapping.descriptionColumn,
                 priceColumn: mapping.priceColumn,
                 currencyColumn: mapping.currencyColumn,
                 supplierCodeColumn: mapping.supplierCodeColumn,
+                presentationColumn: mapping.presentationColumn,
+                contentValueColumn: mapping.contentValueColumn,
+                referencePriceColumn: mapping.referencePriceColumn,
               } satisfies ImportMappingStored);
             } catch (error) {
               logSupplierImportError("save_mapping", error, {
@@ -295,7 +284,6 @@ export function useSupplierImportFlow(params: {
                 fileType: "xlsx",
               });
             }
-          }
         }
 
         lines = normalized.lines.map((line, index) => ({
@@ -307,6 +295,16 @@ export function useSupplierImportFlow(params: {
           row_index: line.row_index,
           source_page: line.source_page,
           confidence: line.confidence,
+          currency_detection: line.currency_detection,
+          product_name: line.product_name,
+          additional_description: line.additional_description,
+          presentation_raw: line.presentation_raw,
+          package_quantity: line.package_quantity,
+          content_value: line.content_value,
+          content_unit: line.content_unit,
+          semantic_detection: line.semantic_detection,
+          reference_unit_price: line.reference_unit_price,
+          reference_price_basis: line.reference_price_basis,
         }));
       } else if (isPdf) {
         const {
@@ -508,6 +506,13 @@ export function useSupplierImportFlow(params: {
           row_index: line.row_index,
           source_page: line.source_page,
           confidence: line.confidence,
+          product_name: line.product_name,
+          additional_description: line.additional_description,
+          presentation_raw: line.presentation_raw,
+          package_quantity: line.package_quantity,
+          content_value: line.content_value,
+          content_unit: line.content_unit,
+          semantic_detection: line.semantic_detection,
         }),
       );
 
@@ -537,9 +542,9 @@ export function useSupplierImportFlow(params: {
       };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["supplier-catalogs", selectedSupplier?.id] });
-      queryClient.invalidateQueries({ queryKey: ["supplier-catalog-versions", selectedSupplier?.id] });
-      queryClient.invalidateQueries({ queryKey: ["supplier-catalog-lines"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.catalogs(currentCompanyId, selectedSupplier?.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.catalogVersions(currentCompanyId, selectedSupplier?.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.catalogLines(currentCompanyId, null, "").slice(0, 2) });
       setDocumentTitle("");
       setDocumentNotes("");
       setSelectedCatalogId("new");

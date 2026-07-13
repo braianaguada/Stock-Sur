@@ -10,6 +10,11 @@ import type {
 import type { PdfMappingSelection } from "@/features/suppliers/components/PdfMappingModal";
 import { useSupplierImportFlow } from "@/features/suppliers/hooks/useSupplierImportFlow";
 import { useSupplierOrderActions } from "@/features/suppliers/hooks/useSupplierOrderActions";
+import {
+  useCreateSupplierPurchaseOrder,
+  useSupplierPurchaseOrders,
+} from "@/features/purchase-orders/hooks";
+import type { SupplierPurchaseOrder } from "@/features/purchase-orders/types";
 import { deleteSupplier, restoreSupplier, saveSupplier } from "@/features/suppliers/mutations";
 import {
   fetchSupplierCatalogLines,
@@ -94,6 +99,7 @@ export function useSuppliersPage({
   const [pdfProgress, setPdfProgress] = useState<ParsePdfProgress | null>(null);
   const [extractionReviewOpen, setExtractionReviewOpen] = useState(false);
   const [extractionReviewLines, setExtractionReviewLines] = useState<ExtractionReviewLine[]>([]);
+  const [lastPurchaseOrder, setLastPurchaseOrder] = useState<SupplierPurchaseOrder | null>(null);
 
   const xlsxMappingResolverRef = useRef<((value: MappingSelection | null) => void) | null>(null);
   const pdfMappingResolverRef = useRef<((value: PdfMappingSelection | null) => void) | null>(null);
@@ -134,6 +140,11 @@ export function useSuppliersPage({
       search: trimmedDeferredCatalogSearch,
     }),
   });
+  const purchaseOrdersQuery = useSupplierPurchaseOrders(
+    selectedSupplier ? companyId ?? null : null,
+    selectedSupplier?.id,
+  );
+  const createPurchaseOrderMutation = useCreateSupplierPurchaseOrder();
 
   const suppliers = suppliersQuery.data ?? EMPTY_SUPPLIERS;
   const catalogs = catalogsQuery.data ?? EMPTY_CATALOGS;
@@ -300,6 +311,7 @@ export function useSuppliersPage({
     setCatalogUiTab(nextState.catalogUiTab);
     setExtractionReviewOpen(false);
     setExtractionReviewLines([]);
+    setLastPurchaseOrder(null);
   };
 
   const openCreate = () => {
@@ -342,6 +354,28 @@ export function useSuppliersPage({
 
   const onRemoveExtractionReviewLine = (lineId: string) => {
     setExtractionReviewLines((previousLines) => previousLines.filter((line) => line.id !== lineId));
+  };
+
+  const onCreatePurchaseOrder = () => {
+    if (!companyId || !selectedSupplier || !activeVersionId || orderLines.length === 0) return;
+    createPurchaseOrderMutation.mutate({
+      companyId,
+      supplierId: selectedSupplier.id,
+      catalogVersionId: activeVersionId,
+      lines: orderLines.map((line) => ({ catalogLineId: line.id, quantity: line.quantity })),
+    }, {
+      onSuccess: (order) => {
+        setLastPurchaseOrder(order);
+        setOrderItems({});
+        setLineQuantities({});
+        toast({ title: `Orden #${order.order_number} generada` });
+      },
+      onError: (error: unknown) => toast({
+        title: "No se pudo generar la orden",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+      }),
+    });
   };
 
   return {
@@ -392,6 +426,11 @@ export function useSuppliersPage({
     openEdit,
     orderLines,
     orderTotalsByCurrency,
+    purchaseOrders: purchaseOrdersQuery.data ?? [],
+    isPurchaseOrdersLoading: purchaseOrdersQuery.isLoading,
+    isCreatingPurchaseOrder: createPurchaseOrderMutation.isPending,
+    lastPurchaseOrder,
+    onCreatePurchaseOrder,
     pdfMappingHeaders,
     pdfMappingOpen,
     pdfMappingRows,

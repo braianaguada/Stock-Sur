@@ -19,7 +19,6 @@ export function createEmptySupplierForm(): SupplierFormState {
     phone: "",
     whatsapp: "",
     address: "",
-    default_currency: "",
     notes: "",
   };
 }
@@ -34,7 +33,6 @@ export function buildSupplierFormState(supplier: Supplier): SupplierFormState {
     phone: supplier.phone ?? "",
     whatsapp: supplier.whatsapp ?? "",
     address: supplier.address ?? "",
-    default_currency: supplier.default_currency ?? "",
     notes: supplier.notes ?? "",
   };
 }

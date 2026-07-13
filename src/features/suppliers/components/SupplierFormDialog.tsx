@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SupplierFormState } from "@/features/suppliers/types";
 
 export function SupplierFormDialog(props: {
@@ -108,23 +107,6 @@ export function SupplierFormDialog(props: {
                   value={form.address}
                   onChange={(event) => onFormChange({ ...form, address: event.target.value })}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Moneda habitual</Label>
-                <Select
-                  value={form.default_currency || "NONE"}
-                  onValueChange={(value) => onFormChange({
-                    ...form,
-                    default_currency: value === "NONE" ? "" : value as "ARS" | "USD",
-                  })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="NONE">Sin preferencia</SelectItem>
-                    <SelectItem value="ARS">ARS</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Notas</Label>

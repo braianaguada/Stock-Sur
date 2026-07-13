@@ -1,4 +1,4 @@
-import { Copy, FileStack, History, Inbox, Mail, MessageCircle, Search, Upload, Wallet } from "lucide-react";
+import { Copy, FileStack, History, Mail, MessageCircle, Search, Upload } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { SupplierCatalogLinesTable } from "@/features/suppliers/components/SupplierCatalogLinesTable";
 import { SupplierOrderTable } from "@/features/suppliers/components/SupplierOrderTable";
+import { PurchaseOrderConfirmation } from "@/features/purchase-orders/PurchaseOrderConfirmation";
+import { PurchaseOrderHistory } from "@/features/purchase-orders/PurchaseOrderHistory";
+import type { SupplierPurchaseOrder } from "@/features/purchase-orders/types";
 import type {
   CatalogLine,
   NormalizeDiagnostics,
@@ -60,6 +63,11 @@ type SupplierCatalogDialogProps = {
   onCopyOrderMessage: () => void;
   onOpenEmail: () => void;
   onOpenWhatsApp: () => void;
+  purchaseOrders: SupplierPurchaseOrder[];
+  isPurchaseOrdersLoading: boolean;
+  isCreatingPurchaseOrder: boolean;
+  lastPurchaseOrder: SupplierPurchaseOrder | null;
+  onCreatePurchaseOrder: () => void;
 };
 
 const NAV_ITEMS = [
@@ -123,43 +131,26 @@ export function SupplierCatalogDialog({
   onCopyOrderMessage,
   onOpenEmail,
   onOpenWhatsApp,
+  purchaseOrders,
+  isPurchaseOrdersLoading,
+  isCreatingPurchaseOrder,
+  lastPurchaseOrder,
+  onCreatePurchaseOrder,
 }: SupplierCatalogDialogProps) {
-  const totalVersions = Object.values(versionsByCatalog).reduce((acc, versions) => acc + versions.length, 0);
-
   return (
     <EntityDialog
       open={open}
       onOpenChange={onOpenChange}
       title={selectedSupplier?.name ? `Proveedor: ${selectedSupplier.name}` : "Proveedor"}
       description="Workspace de carga, consolidacion y pedido."
-      contentClassName="h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-[1500px] overflow-hidden p-0"
+      contentClassName="grid h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[1500px] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-2rem)]"
+      headerClassName="border-b px-5 py-4 pr-12 text-left"
+      bodyClassName="min-h-0 overflow-hidden"
     >
-      <div className="grid h-full min-h-0 lg:grid-cols-[290px_minmax(0,1fr)]">
-        <aside className="border-r bg-muted/30">
-          <div className="flex h-full min-h-0 flex-col gap-4 p-4">
-            <Card className="border-none bg-background shadow-sm">
-              <CardHeader className="gap-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-base">{selectedSupplier?.name ?? "Proveedor"}</CardTitle>
-                    <CardDescription>Gestiona fuentes, catalogo consolidado y pedido.</CardDescription>
-                  </div>
-                  <Badge variant="secondary">Compras</Badge>
-                </div>
-                <div className="grid gap-2 text-xs text-muted-foreground">
-                  <div>
-                    <span className="font-medium text-foreground">WhatsApp:</span>{" "}
-                    {selectedSupplier?.whatsapp ?? "No configurado"}
-                  </div>
-                  <div>
-                    <span className="font-medium text-foreground">Email:</span>{" "}
-                    {selectedSupplier?.email ?? "No configurado"}
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-
-            <div className="grid gap-2">
+      <div className="flex h-full min-h-0 flex-col bg-muted/10">
+        <div className="shrink-0 border-b bg-background">
+          <div className="flex min-w-0 items-center px-3 py-2 sm:px-5">
+            <nav className="flex min-w-0 gap-1 overflow-x-auto" aria-label="Secciones del proveedor">
               {NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const active = catalogUiTab === item.key;
@@ -169,60 +160,32 @@ export function SupplierCatalogDialog({
                     type="button"
                     onClick={() => onCatalogUiTabChange(item.key)}
                     className={cn(
-                      "rounded-xl border p-3 text-left transition-colors",
+                      "flex min-w-max items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors",
                       active
-                        ? "border-primary bg-primary/8 text-primary"
-                        : "border-border bg-background hover:border-primary/40 hover:bg-background",
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
-                    <div className="flex items-start gap-3">
-                      <span className={cn("rounded-lg border p-2", active ? "border-primary/30 bg-primary/10" : "bg-muted")}>
+                    <div className="flex items-center gap-2">
+                      <span className="shrink-0">
                         <Icon className="h-4 w-4" />
                       </span>
-                      <div className="min-w-0">
+                      <div className="flex items-baseline gap-2">
                         <div className="font-medium">{item.label}</div>
-                        <div className="mt-1 text-xs text-muted-foreground">{item.helper}</div>
+                        <div className="hidden text-xs opacity-70 lg:block">{item.helper}</div>
                       </div>
                     </div>
                   </button>
                 );
               })}
-            </div>
+            </nav>
 
-            <Card className="border-none bg-background shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Resumen</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3 text-sm">
-                <div className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Inbox className="h-4 w-4" />
-                    Fuentes cargadas
-                  </div>
-                  <span className="font-semibold">{catalogs.length}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <History className="h-4 w-4" />
-                    Versiones
-                  </div>
-                  <span className="font-semibold">{totalVersions}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Wallet className="h-4 w-4" />
-                    En pedido
-                  </div>
-                  <span className="font-semibold">{orderLines.length}</span>
-                </div>
-              </CardContent>
-            </Card>
           </div>
-        </aside>
+        </div>
 
-        <section className="min-h-0 overflow-hidden bg-background">
+        <section className="min-h-0 flex-1 overflow-hidden bg-background">
           {catalogUiTab === "carga" ? (
-            <div className="grid h-full min-h-0 gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="grid h-full min-h-0 gap-4 overflow-y-auto p-4 xl:grid-cols-[minmax(0,1fr)_320px]">
               <Card className="min-h-0">
                 <CardHeader>
                   <CardTitle className="text-base">Nueva fuente del proveedor</CardTitle>
@@ -416,8 +379,13 @@ export function SupplierCatalogDialog({
           ) : null}
 
           {catalogUiTab === "catalogo" ? (
-            <div className="grid h-full min-h-0 gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <Card className="min-h-0 flex flex-col">
+            <div
+              className={cn(
+                "grid h-full min-h-0 gap-3 overflow-y-auto p-3 sm:p-4 xl:overflow-hidden",
+                orderLines.length > 0 && "xl:grid-cols-[minmax(0,1fr)_360px]",
+              )}
+            >
+              <Card className="min-h-[24rem] flex flex-col xl:min-h-0">
                 <CardHeader className="gap-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -428,9 +396,12 @@ export function SupplierCatalogDialog({
                           : "Selecciona una version desde la seccion Versiones."}
                       </CardDescription>
                     </div>
-                    {activeVersion ? (
-                      <Badge variant="secondary">{formatSupplierDate(activeVersion.imported_at)}</Badge>
-                    ) : null}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {orderLines.length > 0 ? <Badge variant="outline">{orderLines.length} en el pedido</Badge> : null}
+                      {activeVersion ? (
+                        <Badge variant="secondary">{formatSupplierDate(activeVersion.imported_at)}</Badge>
+                      ) : null}
+                    </div>
                   </div>
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -457,12 +428,13 @@ export function SupplierCatalogDialog({
                 </CardContent>
               </Card>
 
-              <Card className="min-h-0 flex flex-col">
+              {orderLines.length > 0 ? <Card className="min-h-[24rem] flex flex-col xl:min-h-0">
                 <CardHeader>
                   <CardTitle className="text-base">Pedido al proveedor</CardTitle>
                   <CardDescription>Selecciona productos, cantidades y genera el mensaje.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
+                  {lastPurchaseOrder ? <PurchaseOrderConfirmation order={lastPurchaseOrder} /> : null}
                   <div className="min-h-[240px] overflow-auto rounded-xl border">
                     <SupplierOrderTable
                       rows={orderLines}
@@ -502,6 +474,9 @@ export function SupplierCatalogDialog({
                   ) : null}
 
                   <div className="grid gap-2">
+                    <Button onClick={onCreatePurchaseOrder} disabled={isCreatingPurchaseOrder || !activeVersionId}>
+                      {isCreatingPurchaseOrder ? "Generando orden..." : "Generar orden de compra"}
+                    </Button>
                     <Button variant="outline" onClick={onCopyOrderMessage}>
                       <Copy className="mr-2 h-4 w-4" />
                       Copiar mensaje
@@ -516,7 +491,19 @@ export function SupplierCatalogDialog({
                     </Button>
                   </div>
                 </CardContent>
-              </Card>
+              </Card> : null}
+              {orderLines.length === 0 && (lastPurchaseOrder || purchaseOrders.length > 0) ? (
+                <Card className="min-h-[20rem]">
+                  <CardHeader>
+                    <CardTitle className="text-base">Órdenes de compra</CardTitle>
+                    <CardDescription>Órdenes confirmadas para este proveedor.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {lastPurchaseOrder ? <PurchaseOrderConfirmation order={lastPurchaseOrder} /> : null}
+                    <PurchaseOrderHistory orders={purchaseOrders} isLoading={isPurchaseOrdersLoading} />
+                  </CardContent>
+                </Card>
+              ) : null}
             </div>
           ) : null}
         </section>
