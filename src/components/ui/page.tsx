@@ -43,17 +43,21 @@ export function PageHeader(props: {
           {meta ? <div className="flex flex-wrap items-center gap-2">{meta}</div> : null}
           {tabs && tabs.length > 0 && activeTab ? (
             <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-              <TabsList className="w-auto justify-start">
-                {tabs.map((tab) => (
-                  <TabsTrigger key={tab.value} value={tab.value}>
-                    {tab.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+              <div data-testid="page-header-tabs" className="max-w-full overflow-x-auto pb-1 [scrollbar-width:thin]">
+                <TabsList className="w-max min-w-full justify-start sm:min-w-0">
+                  {tabs.map((tab) => (
+                    <TabsTrigger key={tab.value} value={tab.value}>
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
             </Tabs>
           ) : null}
         </div>
-        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-3 lg:justify-end">{actions}</div> : null}
+        {actions ? (
+          <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto lg:shrink-0 lg:justify-end">{actions}</div>
+        ) : null}
       </div>
     </section>
   );
