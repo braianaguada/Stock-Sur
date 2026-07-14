@@ -1,3 +1,5 @@
+import type { TaxTreatment } from "@/lib/importers/catalogImporter";
+
 export type ComparisonCurrency = "ARS" | "USD";
 
 export interface SupplierComparisonOffer {
@@ -12,6 +14,7 @@ export interface SupplierComparisonOffer {
   matchedItemId: string | null;
   cost: number;
   currency: ComparisonCurrency;
+  taxTreatment: TaxTreatment;
 }
 
 export type ComparisonMatchKind = "MATCHED_ITEM" | "NORMALIZED_EXACT";
@@ -29,6 +32,14 @@ export interface SupplierComparisonGroup {
   title: string;
   matchKind: ComparisonMatchKind;
   offers: RankedComparisonOffer[];
+  taxComparable: boolean;
+}
+
+export interface SupplierComparisonTrayGroup {
+  supplierId: string;
+  supplierName: string;
+  offers: SupplierComparisonOffer[];
+  totals: Partial<Record<ComparisonCurrency, number>>;
 }
 
 export function normalizeComparisonDescription(value: string) {
@@ -39,6 +50,28 @@ export function normalizeComparisonDescription(value: string) {
     .replace(/[^A-Z0-9]+/g, " ")
     .trim()
     .replace(/\s+/g, " ");
+}
+
+export function normalizeComparisonSearch(value: string) {
+  return normalizeComparisonDescription(value).slice(0, 120);
+}
+
+export function groupComparisonSelectionBySupplier(
+  offers: SupplierComparisonOffer[],
+): SupplierComparisonTrayGroup[] {
+  const groups = new Map<string, SupplierComparisonTrayGroup>();
+  for (const offer of offers) {
+    const current = groups.get(offer.supplierId) ?? {
+      supplierId: offer.supplierId,
+      supplierName: offer.supplierName,
+      offers: [],
+      totals: {},
+    };
+    current.offers.push(offer);
+    current.totals[offer.currency] = (current.totals[offer.currency] ?? 0) + offer.cost;
+    groups.set(offer.supplierId, current);
+  }
+  return [...groups.values()].sort((a, b) => a.supplierName.localeCompare(b.supplierName, "es-AR"));
 }
 
 function rankOffers(offers: SupplierComparisonOffer[], usdToArs: number | null) {
@@ -99,6 +132,14 @@ export function buildSupplierComparisonGroups(
   }
 
   return [...groups.entries()]
-    .map(([id, group]) => ({ ...group, id, offers: rankOffers(group.offers, usdToArs) }))
+    .map(([id, group]) => {
+      const taxTreatments = new Set(group.offers.map((offer) => offer.taxTreatment));
+      return {
+        ...group,
+        id,
+        offers: rankOffers(group.offers, usdToArs),
+        taxComparable: taxTreatments.size === 1 && !taxTreatments.has("UNKNOWN"),
+      };
+    })
     .sort((a, b) => a.title.localeCompare(b.title, "es-AR"));
 }

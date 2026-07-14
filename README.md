@@ -4,6 +4,13 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Comparador de proveedores search-first
+
+- El comparador consulta en servidor únicamente las listas seleccionadas, la empresa activa y el texto ingresado; no descarga catálogos completos y limita cada búsqueda a 300 ofertas.
+- La bandeja conserva productos entre búsquedas, los agrupa por proveedor y totaliza ARS y USD por separado. Se limpia automáticamente al cambiar de empresa.
+- Cada oferta informa su tratamiento de IVA. Si falta o difiere entre ofertas equivalentes, la UI evita declarar un mejor precio y exige revisar la comparación fiscal.
+- Migración: `supabase/migrations/20260714120000_supplier_comparison_search_indexes.sql` agrega índices trigram para descripción, código y nombre de producto. No crea órdenes ni movimientos de stock, caja o cuenta corriente.
+
 ## Registro de remitos en Caja
 
 - Los remitos emitidos pueden registrarse en Caja desde la tabla o la vista previa, eligiendo unicamente el medio de pago; importe, cliente, fecha operativa y referencia se toman del documento.
