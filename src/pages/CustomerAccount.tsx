@@ -3,12 +3,13 @@ import { Link, useSearchParams } from "react-router-dom";
 import { CalendarClock, CircleDollarSign, Search, WalletCards } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
+import { AmountDisplay, MetricCard, MetricGrid, MetricHeroCard, OperationalTableShell } from "@/components/common/VisualSystem";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DataCard, FilterBar, PageHeader, StatCard } from "@/components/ui/page";
+import { FilterBar, PageHeader } from "@/components/ui/page";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCustomerAccountStatement } from "@/features/customer-account/hooks/useCustomerAccountStatement";
 import type { AccountStatementStatus } from "@/features/customer-account/lib/accountStatement";
@@ -21,7 +22,6 @@ import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
-const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" });
 const statusLabels: Record<AccountStatementStatus, string> = {
   pending: "Pendiente",
   partial: "Parcial",
@@ -141,16 +141,45 @@ export default function CustomerAccountPage() {
           </div>
         </FilterBar>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Saldo total" value={money.format(summary.balance)} icon={<WalletCards className="h-5 w-5" />} />
-          <StatCard label="Deuda vencida" value={money.format(summary.overdueDebt)} tone="danger" icon={<CalendarClock className="h-5 w-5" />} />
-          <StatCard label="Deuda no vencida" value={money.format(summary.notDueDebt)} tone="warning" icon={<CalendarClock className="h-5 w-5" />} />
-          <StatCard label="Pagos del periodo" value={money.format(summary.periodPayments)} tone="success" icon={<CircleDollarSign className="h-5 w-5" />} />
-        </div>
+        <MetricHeroCard
+          label="Saldo total"
+          value={summary.balance}
+          helper="Balance acumulado de la cuenta según los movimientos registrados."
+          breakdown={<span>{summary.movementsCount} movimientos en el período</span>}
+          icon={<WalletCards className="h-6 w-6" />}
+        />
 
-        <DataCard>
-          <div className="overflow-auto">
-            <Table>
+        <MetricGrid className="xl:grid-cols-3">
+          <MetricCard
+            label="Deuda vencida"
+            value={summary.overdueDebt}
+            helper="Importes cuyo vencimiento estimado ya pasó."
+            tone="danger"
+            icon={<CalendarClock className="h-5 w-5" />}
+          />
+          <MetricCard
+            label="Deuda no vencida"
+            value={summary.notDueDebt}
+            helper="Importes pendientes dentro del plazo estimado."
+            tone="warning"
+            icon={<CalendarClock className="h-5 w-5" />}
+          />
+          <MetricCard
+            label="Pagos del período"
+            value={summary.periodPayments}
+            helper="Créditos registrados dentro del rango filtrado."
+            tone="success"
+            icon={<CircleDollarSign className="h-5 w-5" />}
+          />
+        </MetricGrid>
+
+        <OperationalTableShell
+          title="Movimientos de cuenta"
+          description="Débitos, créditos y saldo acumulado según los filtros aplicados."
+          count={summary.movementsCount}
+        >
+          <div className="overflow-x-auto">
+            <Table className="min-w-[1180px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Fecha</TableHead>
@@ -158,15 +187,29 @@ export default function CustomerAccountPage() {
                   <TableHead>Cliente</TableHead>
                   <TableHead>Origen</TableHead>
                   <TableHead>Remito / factura / referencia</TableHead>
-                  <TableHead>Descripcion</TableHead>
-                  <TableHead className="text-right">Debito</TableHead>
-                  <TableHead className="text-right">Credito</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead className="text-right">Débito</TableHead>
+                  <TableHead className="text-right">Crédito</TableHead>
                   <TableHead className="text-right">Saldo</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {!statementQuery.isLoading && rows.length === 0 ? (
+                {statementQuery.isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="py-12 text-center text-muted-foreground">
+                      Cargando movimientos...
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+                {statementQuery.isError ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="py-12 text-center text-destructive">
+                      No se pudieron cargar los movimientos. Intentá nuevamente.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+                {!statementQuery.isLoading && !statementQuery.isError && rows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="py-12 text-center text-muted-foreground">
                       No hay movimientos para mostrar con los filtros actuales.
@@ -187,9 +230,15 @@ export default function CustomerAccountPage() {
                       ) : row.reference}
                     </TableCell>
                     <TableCell className="max-w-[260px] truncate">{row.description ?? "-"}</TableCell>
-                    <TableCell className="text-right">{row.debit > 0 ? money.format(row.debit) : "-"}</TableCell>
-                    <TableCell className="text-right">{row.credit > 0 ? money.format(row.credit) : "-"}</TableCell>
-                    <TableCell className="text-right font-medium">{money.format(row.running_balance)}</TableCell>
+                    <TableCell className="text-right">
+                      {row.debit > 0 ? <AmountDisplay value={row.debit} size="sm" /> : "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {row.credit > 0 ? <AmountDisplay value={row.credit} size="sm" className="text-success" /> : "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <AmountDisplay value={row.running_balance} size="sm" />
+                    </TableCell>
                     <TableCell>
                       <Badge variant={statusVariant[row.status]}>{statusLabels[row.status]}</Badge>
                     </TableCell>
@@ -198,7 +247,7 @@ export default function CustomerAccountPage() {
               </TableBody>
             </Table>
           </div>
-        </DataCard>
+        </OperationalTableShell>
         <DataTablePagination
           page={pagination.safePage}
           totalPages={pagination.totalPages}
