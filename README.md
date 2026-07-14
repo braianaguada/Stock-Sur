@@ -120,6 +120,7 @@ This project is built with:
 ## Documentacion de UI
 
 - [Sistema visual inicial](docs/UI_SYSTEM.md): auditoria visual, navegacion, componentes base y piloto de Caja.
+- Estado de cuenta prioriza el saldo acumulado, separa deuda vencida/no vencida y pagos, y presenta los movimientos en una tabla operativa con conteo y estados explicitos de carga, vacio y error. No cambia calculos ni consultas.
 - Fix de documentos: los combos se expanden a productos reales usando el mismo detalle de linea que la carga manual, conservando cantidades acumuladas y precios manuales existentes.
 - Destinatarios de presupuestos y remitos: seleccion simplificada entre cliente ocasional y registrado; Persona/Empresa queda pendiente de un campo confiable en `customers`.
 
