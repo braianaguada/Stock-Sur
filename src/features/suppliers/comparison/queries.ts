@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { SupplierComparisonOffer } from "@/features/suppliers/comparison/domain";
+import { normalizeComparisonSearch, type SupplierComparisonOffer } from "@/features/suppliers/comparison/domain";
+import type { TaxTreatment } from "@/lib/importers/catalogImporter";
 
 export interface SupplierComparisonVersionOption {
   id: string;
@@ -38,28 +39,35 @@ export async function fetchSupplierComparisonVersions(companyId: string): Promis
 export async function fetchSupplierComparisonOffers(
   companyId: string,
   selectedVersions: SupplierComparisonVersionOption[],
+  search: string,
 ): Promise<SupplierComparisonOffer[]> {
-  if (selectedVersions.length === 0) return [];
+  const normalizedSearch = normalizeComparisonSearch(search);
+  if (selectedVersions.length === 0 || normalizedSearch.length < 2) return [];
   const versionById = new Map(selectedVersions.map((version) => [version.id, version]));
   const versionIds = selectedVersions.map((version) => version.id);
-  const pageSize = 1000;
   const rows: Array<{
     id: string; supplier_catalog_version_id: string; supplier_code: string | null; raw_description: string;
-    normalized_description: string | null; matched_item_id: string | null; cost: number; currency: string;
+    normalized_description: string | null; product_name: string | null; matched_item_id: string | null;
+    cost: number; currency: string; tax_treatment: string;
   }> = [];
-
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from("supplier_catalog_lines")
-      .select("id, supplier_catalog_version_id, supplier_code, raw_description, normalized_description, matched_item_id, cost, currency")
-      .eq("company_id", companyId)
-      .in("supplier_catalog_version_id", versionIds)
-      .order("row_index", { ascending: true, nullsFirst: false })
-      .range(from, from + pageSize - 1);
-    if (error) throw error;
-    rows.push(...(data ?? []));
-    if ((data ?? []).length < pageSize) break;
-  }
+  const terms = normalizedSearch.split(" ").filter((term) => term.length >= 2).slice(0, 6);
+  const patterns = [...new Set([normalizedSearch, ...terms])];
+  const orFilter = patterns.flatMap((term) => [
+    `raw_description.ilike.%${term}%`,
+    `normalized_description.ilike.%${term}%`,
+    `supplier_code.ilike.%${term}%`,
+    `product_name.ilike.%${term}%`,
+  ]).join(",");
+  const { data, error } = await supabase
+    .from("supplier_catalog_lines")
+    .select("id, supplier_catalog_version_id, supplier_code, raw_description, normalized_description, product_name, matched_item_id, cost, currency, tax_treatment")
+    .eq("company_id", companyId)
+    .in("supplier_catalog_version_id", versionIds)
+    .or(orFilter)
+    .order("row_index", { ascending: true, nullsFirst: false })
+    .limit(300);
+  if (error) throw error;
+  rows.push(...(data ?? []));
 
   return rows.flatMap((row) => {
     const version = versionById.get(row.supplier_catalog_version_id);
@@ -76,6 +84,9 @@ export async function fetchSupplierComparisonOffers(
       matchedItemId: row.matched_item_id,
       cost: Number(row.cost),
       currency: row.currency,
+      taxTreatment: (["INCLUDED", "EXCLUDED", "UNKNOWN"].includes(row.tax_treatment)
+        ? row.tax_treatment
+        : "UNKNOWN") as TaxTreatment,
     } satisfies SupplierComparisonOffer];
   });
 }

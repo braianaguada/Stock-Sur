@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildSupplierComparisonGroups, normalizeComparisonDescription, type SupplierComparisonOffer } from "@/features/suppliers/comparison/domain";
+import { buildSupplierComparisonGroups, groupComparisonSelectionBySupplier, normalizeComparisonDescription, normalizeComparisonSearch, type SupplierComparisonOffer } from "@/features/suppliers/comparison/domain";
 
 const offer = (overrides: Partial<SupplierComparisonOffer> & Pick<SupplierComparisonOffer, "id" | "cost" | "currency">): SupplierComparisonOffer => ({
   versionId: "version-1", supplierId: "supplier-1", supplierName: "Proveedor", listName: "Lista",
   description: "Compresor Embraco 1/3 R134", normalizedDescription: null, supplierCode: null, matchedItemId: null,
+  taxTreatment: "INCLUDED",
   ...overrides,
 });
 
@@ -51,5 +52,33 @@ describe("supplier comparison domain", () => {
     expect(usd?.rank).toBe(1);
     expect(usd?.referenceRank).toBe(1);
     expect(group.offers.find((row) => row.id === "ars")?.referenceDifferencePercent).toBeCloseTo(7.1428, 3);
+  });
+
+  it("normaliza la búsqueda antes de enviarla al filtro de base", () => {
+    expect(normalizeComparisonSearch("  Caño 1/2, frío  ")).toBe("CANO 1 2 FRIO");
+    expect(normalizeComparisonSearch("a")).toBe("A");
+  });
+
+  it("agrupa la bandeja por proveedor y totaliza cada moneda sin convertir", () => {
+    const groups = groupComparisonSelectionBySupplier([
+      offer({ id: "a", supplierId: "supplier-a", supplierName: "Proveedor A", cost: 100, currency: "ARS" }),
+      offer({ id: "b", supplierId: "supplier-a", supplierName: "Proveedor A", cost: 25, currency: "ARS" }),
+      offer({ id: "c", supplierId: "supplier-b", supplierName: "Proveedor B", cost: 2, currency: "USD" }),
+    ]);
+    expect(groups).toHaveLength(2);
+    expect(groups[0].totals).toEqual({ ARS: 125 });
+    expect(groups[1].totals).toEqual({ USD: 2 });
+  });
+
+  it("no considera fiscalmente comparables ofertas con IVA desconocido o diferente", () => {
+    const [unknown] = buildSupplierComparisonGroups([
+      offer({ id: "a", cost: 100, currency: "ARS", taxTreatment: "UNKNOWN" }),
+    ]);
+    const [mixed] = buildSupplierComparisonGroups([
+      offer({ id: "a", cost: 100, currency: "ARS", taxTreatment: "INCLUDED" }),
+      offer({ id: "b", cost: 90, currency: "ARS", taxTreatment: "EXCLUDED" }),
+    ]);
+    expect(unknown.taxComparable).toBe(false);
+    expect(mixed.taxComparable).toBe(false);
   });
 });

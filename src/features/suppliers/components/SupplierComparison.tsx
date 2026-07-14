@@ -1,32 +1,36 @@
-import { useMemo, useState } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronUp, Search } from "lucide-react";
+import { useDeferredValue, useMemo, useState } from "react";
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Search, ShoppingCart, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SupplierOfferPrice } from "@/features/suppliers/components/SupplierOfferPrice";
-import type { RankedComparisonOffer, SupplierComparisonGroup, SupplierComparisonOffer } from "@/features/suppliers/comparison/domain";
+import { groupComparisonSelectionBySupplier, normalizeComparisonSearch, type RankedComparisonOffer, type SupplierComparisonGroup, type SupplierComparisonOffer } from "@/features/suppliers/comparison/domain";
 import { useSupplierComparison } from "@/features/suppliers/comparison/useSupplierComparison";
-import { searchIncludes } from "@/lib/search";
 
 export function SupplierComparison({
   companyId,
   onSelectOffer,
-  selectedOfferIds = [],
+  onRemoveOffer,
+  onClearSelection,
+  selectedOffers = [],
 }: {
   companyId: string | null;
   onSelectOffer: (offer: SupplierComparisonOffer) => void;
-  selectedOfferIds?: string[];
+  onRemoveOffer: (offerId: string) => void;
+  onClearSelection: () => void;
+  selectedOffers?: SupplierComparisonOffer[];
 }) {
   const [versionIds, setVersionIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [fxInput, setFxInput] = useState("");
   const parsedFx = Number(fxInput.replace(",", "."));
   const usdToArs = Number.isFinite(parsedFx) && parsedFx > 0 ? parsedFx : null;
-  const { versionsQuery, offersQuery, groups } = useSupplierComparison(companyId, versionIds, usdToArs);
-  const selectedIds = useMemo(() => new Set(selectedOfferIds), [selectedOfferIds]);
-  const filteredGroups = useMemo(() => groups.filter((group) => searchIncludes(group.title, search)), [groups, search]);
+  const deferredSearch = useDeferredValue(search);
+  const searchReady = normalizeComparisonSearch(deferredSearch).length >= 2;
+  const { versionsQuery, offersQuery, groups } = useSupplierComparison(companyId, versionIds, deferredSearch, usdToArs);
+  const selectedIds = useMemo(() => new Set(selectedOffers.map((offer) => offer.id)), [selectedOffers]);
 
   const toggleVersion = (versionId: string, checked: boolean) => {
     setVersionIds((current) => checked ? [...current, versionId] : current.filter((id) => id !== versionId));
@@ -73,7 +77,7 @@ export function SupplierComparison({
             <Label htmlFor="supplier-comparison-search">Buscar producto</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <Input id="supplier-comparison-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Descripción del producto" className="pl-9" />
+              <Input id="supplier-comparison-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar producto en las listas seleccionadas..." className="pl-9" />
             </div>
           </div>
           <div className="space-y-1.5">
@@ -84,21 +88,68 @@ export function SupplierComparison({
         </div>
       ) : null}
 
-      {offersQuery.isLoading ? <div className="rounded-xl border p-10 text-center text-sm text-muted-foreground">Comparando ofertas…</div> : null}
+      {selectedOffers.length > 0 ? <ComparisonTray offers={selectedOffers} onRemove={onRemoveOffer} onClear={onClearSelection} /> : null}
+      {versionIds.length > 0 && !searchReady ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Escribí al menos 2 caracteres para buscar solo dentro de las listas seleccionadas.</div> : null}
+      {offersQuery.isLoading && searchReady ? <div className="rounded-xl border p-10 text-center text-sm text-muted-foreground">Buscando ofertas…</div> : null}
       {offersQuery.isError ? <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">No pudimos cargar las ofertas seleccionadas.</div> : null}
-      {!offersQuery.isLoading && versionIds.length > 0 && filteredGroups.length === 0 ? (
+      {!offersQuery.isLoading && searchReady && groups.length === 0 ? (
         <div className="rounded-xl border border-dashed p-10 text-center">
           <p className="font-medium">No encontramos coincidencias</p>
           <p className="mt-1 text-sm text-muted-foreground">Probá otra búsqueda o seleccioná otras listas. No unimos descripciones parecidas automáticamente.</p>
         </div>
       ) : null}
       <div className="space-y-3">
-        {filteredGroups.map((group) => (
+        {groups.map((group) => (
           <ComparisonGroup key={group.id} group={group} hasFx={usdToArs !== null} selectedIds={selectedIds} onSelectOffer={onSelectOffer} />
         ))}
       </div>
     </section>
   );
+}
+
+function ComparisonTray({ offers, onRemove, onClear }: {
+  offers: SupplierComparisonOffer[];
+  onRemove: (offerId: string) => void;
+  onClear: () => void;
+}) {
+  const groups = useMemo(() => groupComparisonSelectionBySupplier(offers), [offers]);
+  return (
+    <section className="rounded-xl border border-primary/30 bg-primary/5 p-4" aria-labelledby="comparison-tray-title">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 id="comparison-tray-title" className="flex items-center gap-2 font-semibold"><ShoppingCart className="size-4" />Bandeja de compra</h3>
+          <p className="mt-1 text-xs text-muted-foreground">La selección se conserva mientras seguís buscando y se agrupa por proveedor.</p>
+        </div>
+        <Button type="button" variant="ghost" size="sm" onClick={onClear}>Vaciar bandeja</Button>
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {groups.map((group) => (
+          <article key={group.supplierId} className="min-w-0 rounded-lg border bg-background p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div><h4 className="font-medium">{group.supplierName}</h4><p className="text-xs text-muted-foreground">{group.offers.length} {group.offers.length === 1 ? "producto" : "productos"}</p></div>
+              <div className="text-right text-xs font-medium tabular-nums">
+                {(["ARS", "USD"] as const).map((currency) => group.totals[currency] !== undefined ? <div key={currency}>{currency} {group.totals[currency]!.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div> : null)}
+              </div>
+            </div>
+            <div className="mt-3 divide-y">
+              {group.offers.map((offer) => (
+                <div key={offer.id} className="flex items-start gap-2 py-2 text-xs">
+                  <span className="min-w-0 flex-1"><span className="block break-words">{offer.description}</span><span className="text-muted-foreground">{taxTreatmentLabel(offer.taxTreatment)} · {offer.currency} {offer.cost.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
+                  <Button type="button" variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => onRemove(offer.id)} aria-label={`Quitar ${offer.description}`}><X className="size-4" /></Button>
+                </div>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function taxTreatmentLabel(treatment: SupplierComparisonOffer["taxTreatment"]) {
+  if (treatment === "INCLUDED") return "IVA incluido";
+  if (treatment === "EXCLUDED") return "Más IVA";
+  return "IVA no informado";
 }
 
 function ComparisonGroup({ group, hasFx, selectedIds, onSelectOffer }: {
@@ -128,10 +179,16 @@ function ComparisonGroup({ group, hasFx, selectedIds, onSelectOffer }: {
             ARS y USD se ordenan por separado. Falta tipo de cambio para compararlas.
           </p>
         ) : null}
+        {!group.taxComparable ? (
+          <p className="mt-3 flex items-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-300">
+            <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
+            Comparación fiscal pendiente: las ofertas tienen distinto tratamiento de IVA o no lo informan.
+          </p>
+        ) : null}
       </header>
       <div className="divide-y" role="list" aria-label={`Ofertas para ${group.title}`}>
         {visibleOffers.map((offer) => (
-          <ComparisonOfferRow key={offer.id} offer={offer} hasFx={hasFx} selected={selectedIds.has(offer.id)} onSelect={() => onSelectOffer(offer)} />
+          <ComparisonOfferRow key={offer.id} offer={offer} hasFx={hasFx} taxComparable={group.taxComparable} selected={selectedIds.has(offer.id)} onSelect={() => onSelectOffer(offer)} />
         ))}
       </div>
       {group.offers.length > 5 ? (
@@ -144,20 +201,21 @@ function ComparisonGroup({ group, hasFx, selectedIds, onSelectOffer }: {
   );
 }
 
-function ComparisonOfferRow({ offer, hasFx, selected, onSelect }: { offer: RankedComparisonOffer; hasFx: boolean; selected: boolean; onSelect: () => void }) {
+function ComparisonOfferRow({ offer, hasFx, taxComparable, selected, onSelect }: { offer: RankedComparisonOffer; hasFx: boolean; taxComparable: boolean; selected: boolean; onSelect: () => void }) {
   return (
     <div className="grid gap-3 px-4 py-3 sm:px-5 md:grid-cols-[minmax(12rem,1fr)_minmax(9rem,auto)_minmax(9rem,auto)_auto] md:items-center" role="listitem">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium" title={offer.supplierName}>{offer.supplierName}</p>
         <p className="truncate text-xs text-muted-foreground" title={offer.listName}>{offer.listName}{offer.supplierCode ? ` · Cód. ${offer.supplierCode}` : ""}</p>
         <p className="mt-1 line-clamp-2 text-xs text-muted-foreground" title={offer.description}>{offer.description}</p>
+        <p className="mt-1 text-xs font-medium text-muted-foreground">{taxTreatmentLabel(offer.taxTreatment)}</p>
       </div>
       <div className="md:text-right">
         <SupplierOfferPrice value={offer.cost} currency={offer.currency} />
         {hasFx && offer.currency === "USD" && offer.arsReference !== null ? <p className="mt-0.5 whitespace-nowrap text-xs tabular-nums text-muted-foreground">Ref. ARS {offer.arsReference.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p> : null}
       </div>
       <div className="text-xs md:text-right">
-        {hasFx && offer.referenceRank !== null ? (
+        {!taxComparable ? <span className="font-medium text-amber-700 dark:text-amber-300">Revisar IVA antes de comparar</span> : hasFx && offer.referenceRank !== null ? (
           offer.referenceRank === 1
             ? <span className="font-medium text-emerald-700 dark:text-emerald-300">Mejor precio convertido</span>
             : <span className="tabular-nums text-muted-foreground">+{(offer.referenceDifferencePercent ?? 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% convertido</span>
