@@ -29,6 +29,7 @@ const ItemsPage = lazy(() => import("./pages/Items"));
 const CombosPage = lazy(() => import("./pages/Combos"));
 const StockPage = lazy(() => import("./pages/Stock"));
 const SuppliersPage = lazy(() => import("./pages/Suppliers"));
+const PurchaseOrdersPage = lazy(() => import("./pages/PurchaseOrders"));
 const PriceListsPage = lazy(() => import("./pages/PriceLists"));
 const ImportsPage = lazy(() => import("./pages/Imports"));
 const QuotesPage = lazy(() => import("./pages/Quotes"));
@@ -105,6 +106,7 @@ const App = () => (
                   <Route path="/combos" element={<ProtectedRoute><CombosPage /></ProtectedRoute>} />
                   <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
                   <Route path="/suppliers" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
+                  <Route path="/purchase-orders" element={<ProtectedRoute><PurchaseOrdersPage /></ProtectedRoute>} />
                   <Route path="/price-lists" element={<ProtectedRoute><PriceListsPage /></ProtectedRoute>} />
                   <Route path="/imports" element={<ProtectedRoute><ImportsPage /></ProtectedRoute>} />
                   <Route path="/quotes" element={<ProtectedRoute><QuotesPage /></ProtectedRoute>} />

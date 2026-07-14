@@ -1,4 +1,5 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
+import { useNavigate } from "react-router-dom";
 import { buildMailtoLink } from "@/lib/email";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 import {
@@ -32,6 +33,7 @@ export function useSupplierOrderActions(params: {
     setLineQuantities,
     toast,
   } = params;
+  const navigate = useNavigate();
 
   const orderLines = useMemo(() => Object.values(orderItems), [orderItems]);
   const orderTotalsByCurrency = useMemo(
@@ -126,6 +128,8 @@ export function useSupplierOrderActions(params: {
     addToOrder,
     copyOrderMessage,
     emailLink,
+    goToPurchaseOrder: (orderId: string) => navigate(`/purchase-orders?order=${orderId}`),
+    goToPurchaseOrders: () => navigate("/purchase-orders"),
     openWhatsApp,
     openEmail,
     orderLines,

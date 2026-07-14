@@ -46,3 +46,25 @@ export interface CreateSupplierPurchaseOrderInput {
   lines: Array<{ catalogLineId: string; quantity: number }>;
   notes?: string | null;
 }
+
+export interface UpdateSupplierPurchaseOrderDraftInput {
+  companyId: string;
+  orderId: string;
+  notes?: string | null;
+  lines: Array<{ lineId: string; quantity: number }>;
+}
+
+export const PURCHASE_ORDER_STATUS_LABELS: Record<PurchaseOrderStatus, string> = {
+  DRAFT: "Borrador",
+  SENT: "Enviada",
+  CANCELLED: "Cancelada",
+};
+
+export function purchaseOrderActions(status: PurchaseOrderStatus) {
+  return {
+    canEdit: status === "DRAFT",
+    canDelete: status === "DRAFT",
+    canSend: status === "DRAFT",
+    canCancel: status === "DRAFT" || status === "SENT",
+  };
+}
