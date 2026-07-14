@@ -2,21 +2,21 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { AmountDisplay, MetricCard, MetricGrid, MetricHeroCard, OperationalTableShell } from "@/components/common/VisualSystem";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PageHeader } from "@/components/ui/page";
+import { FilterBar, PageHeader } from "@/components/ui/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildCashTotalsReport, getCashTotalsRange, type CashDailyTotal, type CashTotalsPeriod } from "@/features/cash/lib/cashTotals";
 import type { CashAdjustmentRow, CashExpenseRow, CashSaleRow } from "@/features/cash/types";
 import { todayDateInputValue } from "@/features/cash/utils";
 import { getErrorMessage } from "@/lib/errors";
-import { currency, formatBusinessDate } from "@/lib/formatters";
+import { formatBusinessDate } from "@/lib/formatters";
 import { queryKeys } from "@/lib/query-keys";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
 const periodLabels: Record<CashTotalsPeriod, string> = {
@@ -25,32 +25,6 @@ const periodLabels: Record<CashTotalsPeriod, string> = {
   month: "Mes",
   range: "Rango",
 };
-
-type SummaryTone = "sales" | "cash" | "returns" | "expense" | "net" | "account" | "totalExpense";
-
-const summaryToneClasses: Record<SummaryTone, string> = {
-  sales: "border-primary/25 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/.14),transparent_58%)]",
-  cash: "border-emerald-500/25 bg-[radial-gradient(circle_at_top_right,rgb(16_185_129/.15),transparent_58%)]",
-  returns: "border-rose-500/25 bg-[radial-gradient(circle_at_top_right,rgb(244_63_94/.13),transparent_58%)]",
-  expense: "border-amber-500/25 bg-[radial-gradient(circle_at_top_right,rgb(245_158_11/.15),transparent_58%)]",
-  net: "border-blue-500/25 bg-[radial-gradient(circle_at_top_right,rgb(59_130_246/.14),transparent_58%)]",
-  account: "border-violet-500/25 bg-[radial-gradient(circle_at_top_right,rgb(139_92_246/.14),transparent_58%)]",
-  totalExpense: "border-orange-500/25 bg-[radial-gradient(circle_at_top_right,rgb(249_115_22/.14),transparent_58%)]",
-};
-
-function SummaryCard({ label, value, hint, tone = "expense" }: { label: string; value: number; hint?: string; tone?: SummaryTone }) {
-  return (
-    <Card className={cn("min-w-0 overflow-hidden shadow-sm", summaryToneClasses[tone])}>
-      <CardHeader className="space-y-2 p-5">
-        <CardDescription className="text-xs font-medium">{label}</CardDescription>
-        <CardTitle className="min-w-0 text-[clamp(1.15rem,1.5vw,1.55rem)] leading-tight tracking-tight tabular-nums">
-          {currency.format(value)}
-        </CardTitle>
-        {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-      </CardHeader>
-    </Card>
-  );
-}
 
 function amountClass(value: number) {
   if (value < 0) return "text-rose-700";
@@ -124,8 +98,8 @@ export default function CashTotalsPage() {
     setCustomTo(today);
   };
 
-  const renderAmount = (value: number, className = "") => (
-    <span className={`font-semibold tabular-nums ${className}`}>{currency.format(value)}</span>
+  const renderAmount = (value: number, className?: string) => (
+    <AmountDisplay value={value} size="sm" className={className} />
   );
 
   return (
@@ -141,12 +115,7 @@ export default function CashTotalsPage() {
           subtitle="Resumen diario, semanal, mensual o por rango para reemplazar el control manual en Excel."
         />
 
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Filtros</CardTitle>
-            <CardDescription>El reporte usa ventas y gastos de caja por fecha operativa.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-[180px_180px_1fr_auto] md:items-end">
+        <FilterBar className="grid gap-4 md:grid-cols-[180px_180px_1fr_auto] md:items-end">
             <div className="space-y-2">
               <Label>Período</Label>
               <Select value={period} onValueChange={(value) => setPeriod(value as CashTotalsPeriod)}>
@@ -194,8 +163,7 @@ export default function CashTotalsPage() {
             <Button type="button" variant="outline" onClick={resetFilters}>
               Limpiar
             </Button>
-          </CardContent>
-        </Card>
+        </FilterBar>
 
         {reportQuery.error ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
@@ -203,30 +171,32 @@ export default function CashTotalsPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          <SummaryCard label="Total vendido" value={report.summary.grossSalesTotal} hint={`${report.summary.salesCount} movimientos`} tone="sales" />
-          <SummaryCard label="Efectivo bruto" value={report.summary.cashTotal} hint="Remito + facturable" tone="cash" />
-          <SummaryCard label="Devoluciones" value={-report.summary.returnsTotal} hint="Servicios / remito" tone="returns" />
-          <SummaryCard label="Gastos efectivo" value={report.summary.expensesCashTotal} hint="Resta caja física" />
-          <SummaryCard label="Efectivo neto" value={report.summary.netCashTotal} hint="Efectivo menos gastos" tone="net" />
-          <SummaryCard label="Cuenta corriente" value={report.summary.accountCurrentTotal} hint="Separado del efectivo" tone="account" />
-          <SummaryCard label="Gastos totales" value={report.summary.expensesTotal} hint="Efectivo + no efectivo" tone="totalExpense" />
-        </div>
-
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
-              <CardTitle>Totales agrupados por día</CardTitle>
-              <CardDescription>
-                Rango consultado: {formatBusinessDate(range.from)} a {formatBusinessDate(range.to)}.
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{reportQuery.isFetching ? "Actualizando" : "Actualizado"}</Badge>
+        <MetricHeroCard
+          label="Total vendido"
+          value={report.summary.grossSalesTotal}
+          helper={`${report.summary.salesCount} movimientos entre ${formatBusinessDate(range.from)} y ${formatBusinessDate(range.to)}`}
+          breakdown={
+            <div className="flex flex-wrap gap-2 lg:justify-end">
               <Badge variant="outline">{report.days.length} día{report.days.length === 1 ? "" : "s"}</Badge>
+              <Badge variant="outline">{reportQuery.isFetching ? "Actualizando" : "Actualizado"}</Badge>
             </div>
-          </CardHeader>
-          <CardContent>
+          }
+        />
+
+        <MetricGrid className="xl:grid-cols-3">
+          <MetricCard label="Efectivo neto" value={report.summary.netCashTotal} helper="Efectivo menos gastos de caja" tone="success" />
+          <MetricCard label="Efectivo bruto" value={report.summary.cashTotal} helper="Remito + facturable" tone="info" />
+          <MetricCard label="Cuenta corriente" value={report.summary.accountCurrentTotal} helper="Separado del efectivo" tone="muted" />
+          <MetricCard label="Gastos efectivo" value={report.summary.expensesCashTotal} helper="Resta caja física" tone="warning" />
+          <MetricCard label="Gastos totales" value={report.summary.expensesTotal} helper="Efectivo + no efectivo" tone="danger" />
+          <MetricCard label="Devoluciones" value={-report.summary.returnsTotal} helper="Servicios / remito" tone="danger" />
+        </MetricGrid>
+
+        <OperationalTableShell
+          title="Totales agrupados por día"
+          description={`Rango consultado: ${formatBusinessDate(range.from)} a ${formatBusinessDate(range.to)}.`}
+          count={report.days.length}
+        >
             {reportQuery.isLoading ? (
               <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
                 Cargando totales...
@@ -272,15 +242,14 @@ export default function CashTotalsPage() {
                         <td className="px-3 py-3 text-right">{renderAmount(day.expensesCashTotal, "text-rose-700")}</td>
                         <td className="px-3 py-3 text-right">{renderAmount(day.expensesNonCashTotal, "text-rose-700")}</td>
                         <td className="px-3 py-3 text-right">{renderAmount(day.grossSalesTotal)}</td>
-                        <td className={`px-3 py-3 text-right ${amountClass(day.netCashTotal)}`}>{renderAmount(day.netCashTotal)}</td>
+                        <td className="px-3 py-3 text-right">{renderAmount(day.netCashTotal, amountClass(day.netCashTotal))}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </OperationalTableShell>
 
         {selectedDay ? (
           <Card className="shadow-sm">
@@ -290,19 +259,12 @@ export default function CashTotalsPage() {
                 Último día con datos: {formatBusinessDate(selectedDay.businessDate)}. El desglose transaccional queda para una fase posterior.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-3 text-sm md:grid-cols-3">
-              <div className="rounded-xl border border-border/60 p-4">
-                <p className="text-muted-foreground">Efectivo remito</p>
-                <p className="mt-1 text-lg font-semibold">{currency.format(selectedDay.cashRemitoTotal)}</p>
-              </div>
-              <div className="rounded-xl border border-border/60 p-4">
-                <p className="text-muted-foreground">Efectivo facturable</p>
-                <p className="mt-1 text-lg font-semibold">{currency.format(selectedDay.cashFacturableTotal)}</p>
-              </div>
-              <div className="rounded-xl border border-border/60 p-4">
-                <p className="text-muted-foreground">Neto total del día</p>
-                <p className="mt-1 text-lg font-semibold">{currency.format(selectedDay.netTotal)}</p>
-              </div>
+            <CardContent>
+              <MetricGrid className="md:grid-cols-3 xl:grid-cols-3">
+                <MetricCard label="Efectivo remito" value={selectedDay.cashRemitoTotal} />
+                <MetricCard label="Efectivo facturable" value={selectedDay.cashFacturableTotal} />
+                <MetricCard label="Neto total del día" value={selectedDay.netTotal} tone="success" />
+              </MetricGrid>
             </CardContent>
           </Card>
         ) : null}

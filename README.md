@@ -871,6 +871,12 @@ Production migration history note:
 - Las tabs de `PageHeader` pueden desplazarse horizontalmente y las acciones del encabezado ocupan el ancho disponible en mobile.
 - No se modificaron reglas de negocio, permisos, rutas ni datos.
 
+## Jerarquía visual de Totales de Caja
+
+- `Totales` presenta el total vendido como métrica principal y ordena efectivo, gastos, cuenta corriente y devoluciones como métricas secundarias.
+- El desglose diario reutiliza el contenedor operativo y el formato monetario compartidos por el sistema visual.
+- Los filtros mantienen los mismos períodos y las consultas continúan aisladas por empresa; no cambiaron cálculos ni fuentes de datos.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
