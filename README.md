@@ -224,7 +224,10 @@ Estado de cuenta lee `account_due_days` del cliente para calcular vencimientos c
 - El preview permite corregir moneda por fila. Catalogo y bandeja de seleccion usan layouts adaptables sin megatablas horizontales.
 - `price_lists` sigue siendo el dominio de precios internos de venta; abastecimiento reutiliza `supplier_catalogs`, `supplier_catalog_versions` y `supplier_catalog_lines`.
 - Las migraciones `20260711120000_procurement_supplier_list_foundation.sql` y `20260711150000_supplier_offer_currency_per_line.sql` son aditivas. La segunda canoniza y valida moneda por linea, preserva los campos legacy y no los usa como fallback operativo.
-- Esta base todavia no incluye comparacion entre proveedores, conversion por tipo de cambio ni ordenes de compra persistidas; tampoco genera movimientos de stock, Caja o cuenta corriente.
+- La importacion PDF permite revisar el documento real junto a las lineas detectadas, navegar paginas y zoom, y confirmar por linea si el costo incluye IVA, no lo incluye o no fue informado.
+- El tratamiento de IVA se conserva en `supplier_catalog_lines.tax_treatment`; las leyendas ambiguas quedan como `UNKNOWN` para evitar recalculos implicitos.
+- La migracion `20260713220000_supplier_catalog_line_tax_treatment.sql` agrega el dato impositivo y lo valida dentro del RPC de importacion, manteniendo los controles de empresa y permisos existentes.
+- Abastecimiento incluye comparacion de ofertas y ordenes de compra persistidas. La confirmacion de una orden no genera por si sola movimientos de stock, Caja ni cuenta corriente.
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
 Al 2026-05-11, los cambios principales incorporados en `staging` son:

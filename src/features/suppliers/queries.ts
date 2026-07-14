@@ -96,7 +96,7 @@ export async function fetchSupplierCatalogLines(params: {
 }) {
   const query = supabase
     .from("supplier_catalog_lines")
-    .select("id, supplier_code, raw_description, product_name, additional_description, presentation_raw, package_quantity, content_value, content_unit, semantic_detection, cost, currency")
+    .select("id, supplier_code, raw_description, product_name, additional_description, presentation_raw, package_quantity, content_value, content_unit, semantic_detection, cost, currency, tax_treatment")
     .eq("company_id", params.companyId)
     .eq("supplier_catalog_version_id", params.versionId)
     .order("row_index", { ascending: true, nullsFirst: false })

@@ -5,6 +5,7 @@ import {
   detectOfferCurrency,
   detectPdfColumnsHeuristic,
   extractPdfCatalogCandidates,
+  inferTaxTreatment,
   normalizePdfRowsToLines,
   normalizeRowsToLines,
   parseFlexibleNumber,
@@ -226,6 +227,7 @@ describe("supplier importer heuristics", () => {
         descriptionColumn: detected.descriptionColumn,
         priceColumn: detected.priceColumn,
         codeColumn: detected.codeColumn,
+        taxColumn: null,
         preferPriceAtEnd: true,
         filterRowsWithoutPrice: true,
       },
@@ -255,6 +257,7 @@ describe("supplier importer heuristics", () => {
         descriptionColumn: "col_2",
         priceColumn: "col_4",
         codeColumn: "col_1",
+        taxColumn: null,
         preferPriceAtEnd: true,
         filterRowsWithoutPrice: true,
       },
@@ -264,6 +267,35 @@ describe("supplier importer heuristics", () => {
     expect(lines).toHaveLength(1);
     expect(lines[0].supplier_code).toBe("SL12WF");
     expect(lines[0].raw_description).toContain("Aplique cerrado blanco 12w");
+  });
+
+  it("detects included, excluded and ambiguous IVA without guessing", () => {
+    expect(inferTaxTreatment("Precio final con IVA incluido")).toBe("INCLUDED");
+    expect(inferTaxTreatment("Precio neto + más IVA")).toBe("EXCLUDED");
+    expect(inferTaxTreatment("Consultar condiciones comerciales")).toBe("UNKNOWN");
+    expect(inferTaxTreatment("IVA incluido", "sin IVA")).toBe("UNKNOWN");
+  });
+
+  it("applies explicit row IVA before a global PDF legend", () => {
+    const lines = normalizePdfRowsToLines({
+      headers: ["Producto", "Precio", "IVA"],
+      rows: [
+        ["Precios con IVA incluido", "", ""],
+        ["Cable HDMI", "$ 1.000", ""],
+        ["Adaptador", "$ 2.000", "sin IVA"],
+      ],
+      mapping: {
+        descriptionColumn: "Producto",
+        priceColumn: "Precio",
+        codeColumn: null,
+        taxColumn: "IVA",
+        preferPriceAtEnd: true,
+        filterRowsWithoutPrice: true,
+      },
+      defaultCurrency: "ARS",
+    });
+
+    expect(lines.map((line) => line.tax_treatment)).toEqual(["INCLUDED", "EXCLUDED"]);
   });
 
   it("retries OCR when text extraction quality is poor even if the PDF has enough text", () => {

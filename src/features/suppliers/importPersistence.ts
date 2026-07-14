@@ -69,6 +69,7 @@ export function toSupplierCatalogRpcLinePayload(line: CatalogImportLine): Suppli
     semantic_detection: line.semantic_detection ?? {},
     cost: line.cost,
     currency: line.currency || "ARS",
+    tax_treatment: line.tax_treatment || "UNKNOWN",
     row_index: line.row_index,
     matched_item_id: null,
     match_status: "PENDING",
