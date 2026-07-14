@@ -85,6 +85,8 @@ export default function SuppliersPage() {
     extractionReviewLines,
     extractionReviewOpen,
     form,
+    goToPurchaseOrder,
+    goToPurchaseOrders,
     isCatalogLoading,
     isHistoryLoading,
     isLoading,
@@ -256,6 +258,8 @@ export default function SuppliersPage() {
             lineQuantities={lineQuantities}
             onLineQuantityChange={onUpdateLineQuantity}
             onAddToOrder={addToOrder}
+            onViewPurchaseOrder={goToPurchaseOrder}
+            onGoToPurchaseOrders={goToPurchaseOrders}
             orderLines={orderLines}
             orderTotalsByCurrency={orderTotalsByCurrency}
             onOrderQuantityChange={onUpdateOrderQuantity}

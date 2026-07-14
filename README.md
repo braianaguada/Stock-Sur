@@ -810,6 +810,14 @@ La pantalla operativa `/billing` queda separada de la configuracion fiscal:
 
 ## Database migrations
 
+### Órdenes de compra (2026-07-14)
+
+- Los pedidos armados desde catálogos de proveedores viven en el módulo independiente `/purchase-orders`, sin reemplazar ni eliminar la lista fuente.
+- La pantalla permite consultar y filtrar órdenes, editar cantidades y notas de borradores, marcarlos como enviados o cancelar borradores y órdenes enviadas.
+- Solo los borradores se eliminan. Las órdenes enviadas se conservan o cancelan para mantener trazabilidad.
+- La migración `20260714100000_supplier_purchase_orders_workflow.sql` extiende las tablas seguras existentes con RPC atómicas, empresa activa y permiso `suppliers.edit`; no duplica el modelo de datos.
+- Estas operaciones no generan stock, caja, cuenta corriente ni facturación. La migración se aplica únicamente en staging y no modifica producción.
+
 Migrations are stored in:
 
 `supabase/migrations`
