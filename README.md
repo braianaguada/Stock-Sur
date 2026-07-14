@@ -885,6 +885,13 @@ Production migration history note:
 - El desglose diario reutiliza el contenedor operativo y el formato monetario compartidos por el sistema visual.
 - Los filtros mantienen los mismos períodos y las consultas continúan aisladas por empresa; no cambiaron cálculos ni fuentes de datos.
 
+## Experiencia operativa de documentos de servicio
+
+- La lista de presupuestos reutiliza el contenedor visual operativo, muestra estados legibles en temas claro y oscuro y reduce el ancho reservado a acciones.
+- Vista previa permanece como acción principal; edición, estados, duplicado, compartir, PDF e impresión se agrupan en un selector con rótulos claros.
+- Los cambios de estado, duplicados y la incorporación de líneas sugeridas por IA usan confirmaciones internas con contexto, sin diálogos nativos del navegador.
+- No se modificaron reglas de negocio, permisos, consultas, impresión ni aislamiento por empresa.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
