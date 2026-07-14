@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Plus, Search, Scale } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SuppliersTable } from "@/features/suppliers/components/SuppliersTable";
 import { useSuppliersPage } from "@/features/suppliers/hooks/useSuppliersPage";
+import type { SupplierComparisonOffer } from "@/features/suppliers/comparison/domain";
 
 const SupplierFormDialog = lazy(async () => {
   const module = await import("@/features/suppliers/components/SupplierFormDialog");
@@ -60,7 +61,10 @@ export default function SuppliersPage() {
   const { currentCompany } = useAuth();
   const { toast } = useToast();
   const [comparisonOpen, setComparisonOpen] = useState(false);
-  const [comparisonSelection, setComparisonSelection] = useState<string[]>([]);
+  const [comparisonSelection, setComparisonSelection] = useState<SupplierComparisonOffer[]>([]);
+  useEffect(() => {
+    setComparisonSelection([]);
+  }, [currentCompany?.id]);
   const {
     activeCatalogLines,
     activeVersion,
@@ -370,9 +374,11 @@ export default function SuppliersPage() {
           <Suspense fallback={<SupplierDialogLoader />}>
             <SupplierComparison
               companyId={currentCompany?.id ?? null}
-              selectedOfferIds={comparisonSelection}
+              selectedOffers={comparisonSelection}
+              onRemoveOffer={(offerId) => setComparisonSelection((current) => current.filter((offer) => offer.id !== offerId))}
+              onClearSelection={() => setComparisonSelection([])}
               onSelectOffer={(offer) => {
-                setComparisonSelection((current) => current.includes(offer.id) ? current : [...current, offer.id]);
+                setComparisonSelection((current) => current.some((selected) => selected.id === offer.id) ? current : [...current, offer]);
                 toast({ title: `${offer.description} seleccionado`, description: `${offer.supplierName} · ${offer.currency} ${offer.cost.toLocaleString("es-AR")}` });
               }}
             />
