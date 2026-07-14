@@ -93,6 +93,7 @@ export function useSuppliersPage({
     descriptionColumn: "col_1",
     priceColumn: "col_2",
     codeColumn: null,
+    taxColumn: null,
     preferPriceAtEnd: true,
     filterRowsWithoutPrice: true,
   });

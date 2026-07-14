@@ -1,4 +1,4 @@
-import type { CatalogImportLine, ParsePdfResult } from "@/lib/importers/catalogImporter";
+import { inferTaxTreatment, type CatalogImportLine, type ParsePdfResult } from "@/lib/importers/catalogImporter";
 
 type SupplierPdfAiRow = {
   supplier_code?: string | null;
@@ -63,6 +63,7 @@ function normalizeAiRows(rows: SupplierPdfAiRow[]): CatalogImportLine[] {
         normalized_description: rawDescription.toLowerCase(),
         cost,
         currency: currency === "USD" ? "USD" : "ARS",
+        tax_treatment: inferTaxTreatment(rawDescription),
         row_index: index + 1,
         source_page: sourcePage,
         confidence,
