@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   ArrowRightCircle,
   ArrowRightLeft,
@@ -17,8 +17,18 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { CompanySettings } from "@/contexts/company-brand-context";
+import { DocumentConfirmationDialog } from "./DocumentConfirmationDialog";
 import { CUSTOMER_KIND_LABEL, DOC_LABEL, DOC_TYPE_CLASS, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "@/features/documents/constants";
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
@@ -144,24 +154,26 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     serviceLinkLabel,
     onOpenService,
   } = props;
+  const [externalInvoiceDialogOpen, setExternalInvoiceDialogOpen] = useState(false);
+  const [externalInvoiceNumber, setExternalInvoiceNumber] = useState("");
+  const [clearExternalInvoiceOpen, setClearExternalInvoiceOpen] = useState(false);
 
   const handleSetExternalInvoice = () => {
     if (!selectedDocument) return;
-    const currentValue = selectedDocument.external_invoice_number ?? "";
-    const nextValue = window.prompt("Numero de factura externa", currentValue)?.trim();
-    if (!nextValue) return;
-    onSetExternalInvoice(selectedDocument.id, nextValue);
+    setExternalInvoiceNumber(selectedDocument.external_invoice_number ?? "");
+    setExternalInvoiceDialogOpen(true);
   };
 
   const handleClearExternalInvoice = () => {
     if (!selectedDocument) return;
-    if (!window.confirm("Quieres quitar la factura externa asociada?")) return;
+    setClearExternalInvoiceOpen(false);
     onClearExternalInvoice(selectedDocument.id);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(94vh,960px)] max-w-[min(98vw,1560px)] flex-col overflow-hidden border-slate-200 bg-slate-200/95 p-0 shadow-2xl backdrop-blur-xl [&>button]:right-5 [&>button]:top-5 [&>button]:z-20 [&>button]:flex [&>button]:h-9 [&>button]:w-9 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-slate-300 [&>button]:bg-white [&>button]:text-slate-700 [&>button]:opacity-100 [&>button]:shadow-sm [&>button]:transition [&>button]:hover:border-slate-400 [&>button]:hover:bg-slate-100 [&>button]:hover:text-slate-950 [&>button]:focus:ring-slate-400 [&>button]:focus:ring-offset-slate-200 [&>button_svg]:h-4 [&>button_svg]:w-4">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex h-[min(94vh,960px)] max-w-[min(98vw,1560px)] flex-col overflow-hidden border-slate-200 bg-slate-200/95 p-0 shadow-2xl backdrop-blur-xl [&>button]:right-5 [&>button]:top-5 [&>button]:z-20 [&>button]:flex [&>button]:h-9 [&>button]:w-9 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-slate-300 [&>button]:bg-white [&>button]:text-slate-700 [&>button]:opacity-100 [&>button]:shadow-sm [&>button]:transition [&>button]:hover:border-slate-400 [&>button]:hover:bg-slate-100 [&>button]:hover:text-slate-950 [&>button]:focus:ring-slate-400 [&>button]:focus:ring-offset-slate-200 [&>button_svg]:h-4 [&>button_svg]:w-4">
         <DialogHeader className="shrink-0 border-b border-slate-300/70 bg-white px-6 py-4">
           <DialogTitle className="text-lg font-semibold tracking-tight text-slate-950">Vista previa del documento</DialogTitle>
           <DialogDescription>Revision comercial, productos y trazabilidad.</DialogDescription>
@@ -272,7 +284,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                               size="sm"
                               variant="outline"
                               className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800"
-                              onClick={handleClearExternalInvoice}
+                              onClick={() => setClearExternalInvoiceOpen(true)}
                               disabled={isUpdatingExternalInvoice}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -522,7 +534,62 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
             </Button>
           ) : null}
         </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={externalInvoiceDialogOpen} onOpenChange={setExternalInvoiceDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <form
+            className="space-y-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!selectedDocument || !externalInvoiceNumber.trim()) return;
+              onSetExternalInvoice(selectedDocument.id, externalInvoiceNumber.trim());
+              setExternalInvoiceDialogOpen(false);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>
+                {selectedDocument?.external_invoice_number
+                  ? "Editar factura externa"
+                  : "Registrar factura externa"}
+              </DialogTitle>
+              <DialogDescription>
+                Esta referencia identifica el comprobante asociado al remito y se mostrara en su trazabilidad.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="external-invoice-number">Numero de factura</Label>
+              <Input
+                id="external-invoice-number"
+                autoFocus
+                placeholder="Ej. 0001-00001234"
+                value={externalInvoiceNumber}
+                onChange={(event) => setExternalInvoiceNumber(event.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setExternalInvoiceDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={!externalInvoiceNumber.trim() || isUpdatingExternalInvoice}>
+                {isUpdatingExternalInvoice ? "Guardando..." : "Guardar referencia"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <DocumentConfirmationDialog
+        open={clearExternalInvoiceOpen}
+        title="Quitar factura externa"
+        description="El remito quedara sin la referencia de factura asociada. La accion se registrara en su historial."
+        confirmLabel="Quitar referencia"
+        tone="danger"
+        isPending={isUpdatingExternalInvoice}
+        onOpenChange={setClearExternalInvoiceOpen}
+        onConfirm={handleClearExternalInvoice}
+      />
+    </>
   );
 }

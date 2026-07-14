@@ -32,6 +32,10 @@ import { Copy, Link2, MessageCircle, Plus, Search, Unlink } from "lucide-react";
 import { FilterBar, PageHeader } from "@/components/ui/page";
 import { EMPTY_LINE } from "@/features/documents/constants";
 import { DocumentsDataTable } from "@/features/documents/components/DocumentsDataTable";
+import {
+  DocumentConfirmationDialog,
+  type DocumentConfirmationTone,
+} from "@/features/documents/components/DocumentConfirmationDialog";
 import { RegisterDocumentInCashDialog } from "@/features/documents/components/RegisterDocumentInCashDialog";
 import { registerCashSaleFromRemito } from "@/features/cash/api/registerCashSaleFromRemito";
 import type { PaymentMethod } from "@/features/cash/types";
@@ -61,6 +65,20 @@ import { roundPrice } from "@/features/pricing/rounding";
 import { buildWhatsAppUrl } from "@/features/services/share";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
+
+type PendingDocumentAction =
+  | { kind: "change-price-list"; priceListId: string }
+  | { kind: "annul"; documentId: string }
+  | { kind: "issue"; documentId: string; isReturn: boolean }
+  | { kind: "duplicate"; documentId: string; closePreview: boolean }
+  | { kind: "generate-return"; documentId: string };
+
+interface DocumentConfirmationCopy {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  tone: DocumentConfirmationTone;
+}
 
 const DocumentsEditorDialog = lazy(async () => {
   const module = await import("@/features/documents/components/DocumentsEditorDialog");
@@ -128,6 +146,7 @@ export default function DocumentsPage() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [cashDocument, setCashDocument] = useState<DocRow | null>(null);
   const [registerCashOpen, setRegisterCashOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingDocumentAction | null>(null);
   const [shareDocument, setShareDocument] = useState<DocRow | null>(null);
   const [shareCustomerId, setShareCustomerId] = useState("");
   const [sharePhone, setSharePhone] = useState("");
@@ -480,14 +499,94 @@ export default function DocumentsPage() {
     );
 
     if (hasLoadedLines) {
-      const confirmed = window.confirm(
-        "Cambiar la lista va a eliminar todas las lineas cargadas para evitar mezclar productos y precios. Queres continuar?",
-      );
-      if (!confirmed) return;
+      setPendingAction({ kind: "change-price-list", priceListId });
+      return;
     }
 
     setDraftForm((previousForm) => ({ ...previousForm, price_list_id: priceListId }));
     setLines([]);
+  };
+
+  const confirmationCopy: DocumentConfirmationCopy | null = pendingAction
+    ? (() => {
+        switch (pendingAction.kind) {
+          case "change-price-list":
+            return {
+              title: "Cambiar lista de precios",
+              description:
+                "Se eliminaran todas las lineas cargadas para evitar mezclar productos y precios de listas diferentes.",
+              confirmLabel: "Cambiar lista",
+              tone: "warning",
+            };
+          case "annul":
+            return {
+              title: "Anular documento",
+              description: "El documento quedara anulado y esta accion no se puede deshacer.",
+              confirmLabel: "Anular documento",
+              tone: "danger",
+            };
+          case "issue":
+            return pendingAction.isReturn
+              ? {
+                  title: "Emitir devolucion",
+                  description: "Se registrara el ingreso de stock por las cantidades cargadas.",
+                  confirmLabel: "Emitir devolucion",
+                  tone: "warning",
+                }
+              : {
+                  title: "Emitir remito",
+                  description:
+                    "Se registrara la salida de stock. Verifica cliente, productos y cantidades antes de continuar.",
+                  confirmLabel: "Emitir remito",
+                  tone: "warning",
+                };
+          case "duplicate":
+            return {
+              title: "Duplicar documento",
+              description: DUPLICATE_DOCUMENT_CONFIRMATION,
+              confirmLabel: "Crear borrador",
+              tone: "info",
+            };
+          case "generate-return":
+            return {
+              title: "Generar devolucion",
+              description:
+                "Se creara un borrador de devolucion vinculado a este remito. Podras revisarlo antes de emitirlo.",
+              confirmLabel: "Generar devolucion",
+              tone: "warning",
+            };
+        }
+      })()
+    : null;
+
+  const confirmPendingAction = () => {
+    if (!pendingAction) return;
+    const action = pendingAction;
+    setPendingAction(null);
+
+    switch (action.kind) {
+      case "change-price-list":
+        setDraftForm((previousForm) => ({ ...previousForm, price_list_id: action.priceListId }));
+        setLines([]);
+        break;
+      case "annul":
+        transitionMutation.mutate({ documentId: action.documentId, targetStatus: "ANULADO" });
+        break;
+      case "issue":
+        issueMutation.mutate(action.documentId);
+        break;
+      case "duplicate":
+        duplicateDocumentMutation.mutate(action.documentId, {
+          onSuccess: (newDocumentId) => {
+            if (action.closePreview) setDetailOpen(false);
+            void openEditDialog(newDocumentId);
+          },
+        });
+        break;
+      case "generate-return":
+        cloneAsReturnMutation.mutate(action.documentId);
+        break;
+    }
   };
 
   const removeLine = (index: number) => {
@@ -738,21 +837,19 @@ export default function DocumentsPage() {
             const status = targetStatus as "ENVIADO" | "APROBADO" | "RECHAZADO" | "ANULADO";
             if (!canTransitionDocumentTo(roles, status)) return;
             if (status === "ANULADO") {
-              const confirmed = window.confirm("Vas a anular este documento. Esta accion no se puede deshacer.");
-              if (!confirmed) return;
+              setPendingAction({ kind: "annul", documentId });
+              return;
             }
             transitionMutation.mutate({ documentId, targetStatus: status });
           }}
           onIssueRemito={(documentId) => {
             if (!canIssueRemito(roles)) return;
             const document = documentsById.get(documentId);
-            const confirmed = window.confirm(
-              document?.doc_type === "REMITO_DEVOLUCION"
-                ? "Vas a emitir esta devolucion. Se registrara ingreso de stock por las cantidades cargadas."
-                : "Vas a emitir este remito. Verificá stock, cliente y líneas antes de continuar.",
-            );
-            if (!confirmed) return;
-            issueMutation.mutate(documentId);
+            setPendingAction({
+              kind: "issue",
+              documentId,
+              isReturn: document?.doc_type === "REMITO_DEVOLUCION",
+            });
           }}
           onCloneAsRemito={(documentId) => {
             if (!canCloneBudgetToRemito(roles)) return;
@@ -760,18 +857,10 @@ export default function DocumentsPage() {
           }}
           onDuplicateDocument={(documentId) => {
             if (!canCreateDocumentDraft(roles)) return;
-            const confirmed = window.confirm(DUPLICATE_DOCUMENT_CONFIRMATION);
-            if (!confirmed) return;
-            duplicateDocumentMutation.mutate(documentId, {
-              onSuccess: (newDocumentId) => {
-                void openEditDialog(newDocumentId);
-              },
-            });
+            setPendingAction({ kind: "duplicate", documentId, closePreview: false });
           }}
           onGenerateReturn={(documentId) => {
-            const confirmed = window.confirm("Vas a generar una devolucion desde este remito. Confirmá que corresponde.");
-            if (!confirmed) return;
-            cloneAsReturnMutation.mutate(documentId);
+            setPendingAction({ kind: "generate-return", documentId });
           }}
           onRegisterInCash={openRegisterInCash}
           cashRegisteredDocumentIds={cashRegisteredDocumentIds}
@@ -882,14 +971,7 @@ export default function DocumentsPage() {
             }}
           onDuplicateDocument={(document) => {
               if (!canCreateDocumentDraft(roles)) return;
-              const confirmed = window.confirm(DUPLICATE_DOCUMENT_CONFIRMATION);
-              if (!confirmed) return;
-              duplicateDocumentMutation.mutate(document.id, {
-                onSuccess: (newDocumentId) => {
-                  setDetailOpen(false);
-                  void openEditDialog(newDocumentId);
-                },
-              });
+              setPendingAction({ kind: "duplicate", documentId: document.id, closePreview: true });
             }}
             isDuplicatingDocument={duplicateDocumentMutation.isPending}
             canDuplicateDocument={canCreateDocumentDraft(roles)}
@@ -916,6 +998,18 @@ export default function DocumentsPage() {
           if (!cashDocument) return;
           registerCashMutation.mutate({ document: cashDocument, paymentMethod });
         }}
+      />
+
+      <DocumentConfirmationDialog
+        open={Boolean(pendingAction && confirmationCopy)}
+        title={confirmationCopy?.title ?? "Confirmar accion"}
+        description={confirmationCopy?.description ?? "Revisa la accion antes de continuar."}
+        confirmLabel={confirmationCopy?.confirmLabel ?? "Confirmar"}
+        tone={confirmationCopy?.tone}
+        onOpenChange={(open) => {
+          if (!open) setPendingAction(null);
+        }}
+        onConfirm={confirmPendingAction}
       />
 
       <Dialog
