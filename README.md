@@ -4,6 +4,13 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Confirmaciones operativas de Documentos
+
+- Emision, devolucion, anulacion, duplicado y cambio de lista usan dialogos consistentes que explican el efecto antes de ejecutar la accion.
+- La emision distingue visualmente y por texto los movimientos de stock `OUT` e `IN`; las acciones destructivas tienen una jerarquia de peligro diferenciada.
+- La factura externa se carga en un formulario identificado dentro de la aplicacion y quitar su referencia requiere confirmacion explicita.
+- No se modificaron permisos, mutations, esquema de base de datos ni la logica existente de stock, caja o cuenta corriente.
+
 ## Comparador de proveedores search-first
 
 - El comparador consulta en servidor únicamente las listas seleccionadas, la empresa activa y el texto ingresado; no descarga catálogos completos y limita cada búsqueda a 300 ofertas.
