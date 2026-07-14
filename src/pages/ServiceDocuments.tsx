@@ -1,11 +1,13 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { FilterBar, PageHeader } from "@/components/ui/page";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -39,13 +41,25 @@ const ATTACHMENT_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const SERVICE_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 
-const SERVICE_STATUS_BADGE_CLASS: Record<ServiceDocumentStatus, string> = {
-  DRAFT: "border-slate-500/30 bg-slate-500/10 text-slate-300",
-  SENT: "border-sky-500/30 bg-sky-500/10 text-sky-300",
-  APPROVED: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-  REJECTED: "border-rose-500/30 bg-rose-500/10 text-rose-300",
-  CANCELLED: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+const SERVICE_STATUS_TONE: Record<ServiceDocumentStatus, "muted" | "info" | "success" | "danger" | "warning"> = {
+  DRAFT: "muted",
+  SENT: "info",
+  APPROVED: "success",
+  REJECTED: "danger",
+  CANCELLED: "warning",
 };
+
+type AiSuggestionApplyParams = {
+  suggestion: ServiceQuoteAiSuggestion;
+  suggestionId: string | null;
+  mode: ServiceQuoteAiApplyMode;
+  customerId: string;
+};
+
+type PendingConfirmation =
+  | { kind: "transition"; document: ServiceDocument; targetStatus: ServiceDocumentStatus }
+  | { kind: "duplicate"; document: ServiceDocument }
+  | { kind: "append-ai"; params: AiSuggestionApplyParams };
 
 export default function ServiceDocumentsPage() {
   const { currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
@@ -72,6 +86,8 @@ export default function ServiceDocumentsPage() {
   const [downloadingDocumentId, setDownloadingDocumentId] = useState<string | null>(null);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const [pendingAiSuggestionId, setPendingAiSuggestionId] = useState<string | null>(null);
+  const [actionDocument, setActionDocument] = useState<ServiceDocument | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof SERVICE_PAGE_SIZE_OPTIONS)[number]>(10);
 
@@ -217,8 +233,6 @@ export default function ServiceDocumentsPage() {
   const canCancelServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.cancel");
   const canPrintServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.print");
 
-  const confirmAction = (message: string) => window.confirm(message);
-
   const openServicePrint = async (document: ServiceDocument) => {
     const win = openPrintWindow(`<!doctype html><html><head><title>Imprimiendo...</title><style>
       html,body{margin:0;padding:0;background:#fff}
@@ -294,15 +308,8 @@ export default function ServiceDocumentsPage() {
   };
 
   const triggerTransition = (document: ServiceDocument, targetStatus: ServiceDocumentStatus) => {
-    const labels: Record<ServiceDocumentStatus, string> = {
-      DRAFT: "Borrador",
-      SENT: "Enviado",
-      APPROVED: "Aprobado",
-      REJECTED: "Rechazado",
-      CANCELLED: "Anulado",
-    };
-    if (!confirmAction(`Cambiar el documento ${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")} a ${labels[targetStatus]}?`)) return;
-    transitionMutation.mutate({ documentId: document.id, targetStatus });
+    setActionDocument(null);
+    setPendingConfirmation({ kind: "transition", document, targetStatus });
   };
 
   const triggerDuplicate = (document: ServiceDocument) => {
@@ -310,8 +317,8 @@ export default function ServiceDocumentsPage() {
       toast({ title: "No se puede duplicar", description: "Los documentos anulados no se pueden duplicar.", variant: "destructive" });
       return;
     }
-    if (!confirmAction(`Duplicar el documento ${SERVICE_DOCUMENT_PREFIX}-${String(document.number).padStart(6, "0")} ?`)) return;
-    duplicateMutation.mutate(document.id);
+    setActionDocument(null);
+    setPendingConfirmation({ kind: "duplicate", document });
   };
 
   const updateLine = (index: number, patch: Partial<ServiceDocumentLine>) => {
@@ -328,22 +335,13 @@ export default function ServiceDocumentsPage() {
     setLines((previous) => previous.filter((_, lineIndex) => lineIndex !== index));
   };
 
-  const applyAiSuggestion = (params: {
-    suggestion: ServiceQuoteAiSuggestion;
-    suggestionId: string | null;
-    mode: ServiceQuoteAiApplyMode;
-    customerId: string;
-  }) => {
-    const hasExistingLines = lines.some((line) => line.description.trim());
-    const shouldAppend = editingDocumentId && hasExistingLines && params.mode !== "price"
-      ? confirmAction("Este presupuesto ya tiene lineas. Queres agregar las lineas sugeridas sin reemplazar las existentes?")
-      : true;
+  const applyConfirmedAiSuggestion = (params: AiSuggestionApplyParams, appendLines: boolean) => {
     const result = applyAiSuggestionToServiceDraft({
       form: { ...form, customer_id: params.customerId || form.customer_id },
       lines,
       suggestion: params.suggestion,
       mode: params.mode,
-      appendLines: shouldAppend,
+      appendLines,
     });
     setForm(result.form);
     setLines(result.lines);
@@ -354,6 +352,54 @@ export default function ServiceDocumentsPage() {
       description: "Revisala y guardala como presupuesto de servicio en borrador.",
     });
   };
+
+  const applyAiSuggestion = (params: AiSuggestionApplyParams) => {
+    const hasExistingLines = lines.some((line) => line.description.trim());
+    if (editingDocumentId && hasExistingLines && params.mode !== "price") {
+      setPendingConfirmation({ kind: "append-ai", params });
+      return;
+    }
+    applyConfirmedAiSuggestion(params, true);
+  };
+
+  const confirmPendingAction = () => {
+    if (!pendingConfirmation) return;
+    if (pendingConfirmation.kind === "transition") {
+      transitionMutation.mutate({
+        documentId: pendingConfirmation.document.id,
+        targetStatus: pendingConfirmation.targetStatus,
+      });
+    } else if (pendingConfirmation.kind === "duplicate") {
+      duplicateMutation.mutate(pendingConfirmation.document.id);
+    } else {
+      applyConfirmedAiSuggestion(pendingConfirmation.params, true);
+    }
+    setPendingConfirmation(null);
+  };
+
+  const confirmationContent = (() => {
+    if (!pendingConfirmation) return null;
+    if (pendingConfirmation.kind === "append-ai") {
+      return {
+        title: "Agregar propuesta al presupuesto",
+        description: "El presupuesto ya tiene lineas. Las sugerencias de IA se agregaran sin reemplazar el trabajo cargado.",
+        confirmLabel: "Agregar lineas",
+      };
+    }
+    const documentNumber = `${SERVICE_DOCUMENT_PREFIX}-${String(pendingConfirmation.document.number).padStart(6, "0")}`;
+    if (pendingConfirmation.kind === "duplicate") {
+      return {
+        title: "Duplicar presupuesto",
+        description: `Se creara un nuevo borrador a partir de ${documentNumber}. El original no se modificara.`,
+        confirmLabel: "Duplicar",
+      };
+    }
+    return {
+      title: `${SERVICE_STATUS_LABEL[pendingConfirmation.targetStatus]} presupuesto`,
+      description: `El documento ${documentNumber} cambiara de estado a ${SERVICE_STATUS_LABEL[pendingConfirmation.targetStatus].toLowerCase()}.`,
+      confirmLabel: SERVICE_STATUS_LABEL[pendingConfirmation.targetStatus],
+    };
+  })();
 
   const fetchExchangeRate = async () => {
     setExchangeRateLoading(true);
@@ -587,7 +633,11 @@ export default function ServiceDocumentsPage() {
           </div>
         </FilterBar>
 
-        <section className="data-panel overflow-x-auto">
+        <OperationalTableShell
+          title="Presupuestos de servicio"
+          description="Seguimiento comercial, vista previa y acciones sobre cada presupuesto."
+          count={documents.length}
+        >
           {isLoading ? (
             <div className="grid gap-3 p-6">
               <div className="h-4 w-40 animate-pulse rounded bg-muted" />
@@ -615,7 +665,8 @@ export default function ServiceDocumentsPage() {
               </CardContent>
             </Card>
           ) : (
-            <Table>
+            <div className="overflow-x-auto">
+            <Table className="min-w-[820px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Numero</TableHead>
@@ -623,7 +674,7 @@ export default function ServiceDocumentsPage() {
                   <TableHead>Fecha</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="w-[320px] min-w-[320px] text-right">Acciones</TableHead>
+                  <TableHead className="w-24 text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -633,58 +684,18 @@ export default function ServiceDocumentsPage() {
                     <TableCell>{document.customers?.name ?? "Sin cliente"}</TableCell>
                     <TableCell>{formatIsoDate(document.issue_date)}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={SERVICE_STATUS_BADGE_CLASS[document.status]}>{SERVICE_STATUS_LABEL[document.status]}</Badge>
+                      <CompactBadge tone={SERVICE_STATUS_TONE[document.status]}>{SERVICE_STATUS_LABEL[document.status]}</CompactBadge>
                     </TableCell>
-                    <TableCell className="text-right">{formatMoney(document.total ?? 0, document.currency)}</TableCell>
-                    <TableCell className="w-[320px] min-w-[320px] whitespace-nowrap text-right">
-                      <div className="flex flex-nowrap justify-end gap-1">
-                        {canManageServiceDocuments && canTransitionServiceDocument(document, "SENT") ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" title="Enviar" onClick={() => triggerTransition(document, "SENT")} disabled={transitionMutation.isPending}>
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        ) : null}
-                        {canApproveServiceDocuments && canTransitionServiceDocument(document, "APPROVED") ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-500 hover:text-emerald-400" title="Aprobar" onClick={() => triggerTransition(document, "APPROVED")} disabled={transitionMutation.isPending}>
-                            <Check className="h-4 w-4" />
-                          </Button>
-                        ) : null}
-                        {canApproveServiceDocuments && canTransitionServiceDocument(document, "REJECTED") ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-400" title="Rechazar" onClick={() => triggerTransition(document, "REJECTED")} disabled={transitionMutation.isPending}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        ) : null}
-                        {canCancelServiceDocuments && canTransitionServiceDocument(document, "CANCELLED") ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-amber-500 hover:text-amber-400" title="Anular" onClick={() => triggerTransition(document, "CANCELLED")} disabled={transitionMutation.isPending}>
-                            <Ban className="h-4 w-4" />
-                          </Button>
-                        ) : null}
-                        {canManageServiceDocuments && document.status !== "CANCELLED" ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-violet-500 hover:text-violet-400" title="Duplicar" onClick={() => triggerDuplicate(document)} disabled={duplicateMutation.isPending}>
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        ) : null}
-                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-sky-500 hover:text-sky-400" title="Vista previa" onClick={() => openPreview(document)}>
+                    <TableCell className="whitespace-nowrap text-right font-semibold tabular-nums">{formatMoney(document.total ?? 0, document.currency)}</TableCell>
+                    <TableCell className="text-right">
+                      <RowActions>
+                        <RowActionButton label="Vista previa" tone="view" onClick={() => openPreview(document)}>
                           <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-500 hover:text-emerald-400" title="Compartir" onClick={() => void openShare(document)}>
-                          <Link2 className="h-4 w-4" />
-                        </Button>
-                        {canPrintServiceDocuments ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-indigo-500 hover:text-indigo-400" title="Guardar PDF" onClick={() => void downloadServicePdf(document)} disabled={downloadingDocumentId === document.id}>
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        ) : null}
-                        {canPrintServiceDocuments ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-amber-500 hover:text-amber-400" title="Imprimir" onClick={() => void openServicePrint(document)}>
-                            <Printer className="h-4 w-4" />
-                          </Button>
-                        ) : null}
-                        {canEditServiceDocuments && document.status === "DRAFT" ? (
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-amber-500 hover:text-amber-400" title="Editar" onClick={() => openEdit(document)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        ) : null}
-                      </div>
+                        </RowActionButton>
+                        <RowActionButton label="Mas acciones" onClick={() => setActionDocument(document)}>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </RowActionButton>
+                      </RowActions>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -695,8 +706,9 @@ export default function ServiceDocumentsPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
-        </section>
+        </OperationalTableShell>
         {documents.length > 0 ? (
           <DataTablePagination
             page={safePage}
@@ -712,6 +724,84 @@ export default function ServiceDocumentsPage() {
           />
         ) : null}
       </div>
+
+      <Dialog open={Boolean(actionDocument)} onOpenChange={(open) => { if (!open) setActionDocument(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Acciones del presupuesto</DialogTitle>
+            <DialogDescription>
+              {actionDocument
+                ? `${SERVICE_DOCUMENT_PREFIX}-${String(actionDocument.number).padStart(6, "0")} · ${actionDocument.customers?.name ?? "Sin cliente"}`
+                : "Selecciona una accion."}
+            </DialogDescription>
+          </DialogHeader>
+          {actionDocument ? (
+            <div className="grid gap-1">
+              {canManageServiceDocuments && canTransitionServiceDocument(actionDocument, "SENT") ? (
+                <Button variant="ghost" className="justify-start" onClick={() => triggerTransition(actionDocument, "SENT")} disabled={transitionMutation.isPending}>
+                  <Send className="mr-2 h-4 w-4 text-info" /> Enviar al cliente
+                </Button>
+              ) : null}
+              {canApproveServiceDocuments && canTransitionServiceDocument(actionDocument, "APPROVED") ? (
+                <Button variant="ghost" className="justify-start" onClick={() => triggerTransition(actionDocument, "APPROVED")} disabled={transitionMutation.isPending}>
+                  <Check className="mr-2 h-4 w-4 text-success" /> Aprobar
+                </Button>
+              ) : null}
+              {canApproveServiceDocuments && canTransitionServiceDocument(actionDocument, "REJECTED") ? (
+                <Button variant="ghost" className="justify-start" onClick={() => triggerTransition(actionDocument, "REJECTED")} disabled={transitionMutation.isPending}>
+                  <X className="mr-2 h-4 w-4 text-destructive" /> Rechazar
+                </Button>
+              ) : null}
+              {canCancelServiceDocuments && canTransitionServiceDocument(actionDocument, "CANCELLED") ? (
+                <Button variant="ghost" className="justify-start" onClick={() => triggerTransition(actionDocument, "CANCELLED")} disabled={transitionMutation.isPending}>
+                  <Ban className="mr-2 h-4 w-4 text-warning" /> Anular
+                </Button>
+              ) : null}
+              {canEditServiceDocuments && actionDocument.status === "DRAFT" ? (
+                <Button variant="ghost" className="justify-start" onClick={() => { openEdit(actionDocument); setActionDocument(null); }}>
+                  <Pencil className="mr-2 h-4 w-4 text-warning" /> Editar
+                </Button>
+              ) : null}
+              {canManageServiceDocuments && actionDocument.status !== "CANCELLED" ? (
+                <Button variant="ghost" className="justify-start" onClick={() => triggerDuplicate(actionDocument)} disabled={duplicateMutation.isPending}>
+                  <Copy className="mr-2 h-4 w-4" /> Duplicar
+                </Button>
+              ) : null}
+              <Button variant="ghost" className="justify-start" onClick={() => { void openShare(actionDocument); setActionDocument(null); }}>
+                <Link2 className="mr-2 h-4 w-4 text-success" /> Compartir
+              </Button>
+              {canPrintServiceDocuments ? (
+                <Button title="Guardar PDF" variant="ghost" className="justify-start" onClick={() => { void downloadServicePdf(actionDocument); setActionDocument(null); }} disabled={downloadingDocumentId === actionDocument.id}>
+                  <Download className="mr-2 h-4 w-4 text-info" /> Guardar PDF
+                </Button>
+              ) : null}
+              {canPrintServiceDocuments ? (
+                <Button title="Imprimir" variant="ghost" className="justify-start" onClick={() => { void openServicePrint(actionDocument); setActionDocument(null); }}>
+                  <Printer className="mr-2 h-4 w-4 text-warning" /> Imprimir
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(pendingConfirmation)} onOpenChange={(open) => { if (!open) setPendingConfirmation(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmationContent?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmationContent?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmPendingAction}
+              disabled={transitionMutation.isPending || duplicateMutation.isPending}
+            >
+              {confirmationContent?.confirmLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
         <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto p-0">

@@ -106,7 +106,7 @@ describe("ServiceDocumentsPage", () => {
     savePrintHtmlAsPdfMock.mockReset();
   });
 
-  it("shows preview and print actions and opens preview dialog", async () => {
+  it("keeps preview primary and groups print actions in a labelled menu", async () => {
     const write = vi.fn();
     const focus = vi.fn();
     vi.stubGlobal("open", vi.fn(() => ({ document: { open: vi.fn(), write, close: vi.fn() }, focus, close: vi.fn() })));
@@ -118,8 +118,10 @@ describe("ServiceDocumentsPage", () => {
 
     expect(screen.getByText("Documentos")).toBeInTheDocument();
     expect(screen.getByTitle("Vista previa")).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle("Mas acciones"));
     expect(screen.getByTitle("Guardar PDF")).toBeInTheDocument();
     expect(screen.getByTitle("Imprimir")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
     fireEvent.click(screen.getByTitle("Vista previa"));
     expect(screen.getByText("Vista previa del presupuesto de servicio")).toBeInTheDocument();
@@ -128,6 +130,8 @@ describe("ServiceDocumentsPage", () => {
     fireEvent.click(screen.getByText("Abrir impresión"));
     await waitFor(() => expect(window.open).toHaveBeenCalled());
 
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByTitle("Mas acciones"));
     fireEvent.click(screen.getByTitle("Guardar PDF"));
     await waitFor(() => expect(savePrintHtmlAsPdfMock).toHaveBeenCalledWith(expect.objectContaining({
       html: expect.stringContaining("Presupuesto de servicio"),
@@ -135,6 +139,20 @@ describe("ServiceDocumentsPage", () => {
       proof: { mode: "authenticated", kind: "service", documentId: "doc-1" },
       target,
     })));
+  });
+
+  it("uses an in-app confirmation before changing document status", () => {
+    const nativeConfirm = vi.spyOn(window, "confirm");
+
+    render(<ServiceDocumentsPage />);
+
+    fireEvent.click(screen.getByTitle("Mas acciones"));
+    fireEvent.click(screen.getByRole("button", { name: "Enviar al cliente" }));
+
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(screen.getByText("Enviado presupuesto")).toBeInTheDocument();
+    expect(screen.getByText(/SERV-000012 cambiara de estado/i)).toBeInTheDocument();
+    expect(nativeConfirm).not.toHaveBeenCalled();
   });
 
   it("opens the AI assistant and renders a generated price preview", async () => {
