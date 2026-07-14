@@ -1,10 +1,21 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Search, Plus, Power, Trash2 } from "lucide-react";
+import { Boxes, Loader2, Search, Plus, Power, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
-import { Badge } from "@/components/ui/badge";
+import { CompactBadge, SectionCard } from "@/components/common/VisualSystem";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,6 +54,7 @@ export default function CombosPage() {
   const [formLoadedForComboId, setFormLoadedForComboId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [form, setForm] = useState<ComboFormState>(buildEmptyComboForm);
+  const [pendingSelection, setPendingSelection] = useState<string | "new" | null>(null);
 
   const { data: combos = [], isLoading: combosLoading } = useQuery({
     queryKey: queryKeys.combos.list(currentCompany?.id ?? null),
@@ -239,8 +251,7 @@ export default function CombosPage() {
     }));
   };
 
-  const selectNewCombo = () => {
-    if (isDirty && !window.confirm("Hay cambios sin guardar. Si continuas, se van a descartar.")) return;
+  const applyNewComboSelection = () => {
     setSelectedComboId(null);
     setFormMode("create");
     setFormLoadedForComboId(null);
@@ -248,86 +259,109 @@ export default function CombosPage() {
     setForm(buildEmptyComboForm());
   };
 
-  const selectExistingCombo = (comboId: string) => {
+  const applyExistingComboSelection = (comboId: string) => {
     if (selectedComboId === comboId && formMode === "edit") return;
-    if (isDirty && !window.confirm("Hay cambios sin guardar. Si continuas, se van a descartar.")) return;
     setFormMode("edit");
     setSelectedComboId(comboId);
     setFormLoadedForComboId(null);
     setIsDirty(false);
   };
 
+  const requestSelection = (selection: string | "new") => {
+    if (selection === "new" && formMode === "create" && !isDirty) return;
+    if (selection === selectedComboId && formMode === "edit") return;
+    if (isDirty) {
+      setPendingSelection(selection);
+      return;
+    }
+    if (selection === "new") applyNewComboSelection();
+    else applyExistingComboSelection(selection);
+  };
+
+  const confirmSelection = () => {
+    if (!pendingSelection) return;
+    if (pendingSelection === "new") applyNewComboSelection();
+    else applyExistingComboSelection(pendingSelection);
+    setPendingSelection(null);
+  };
+
+  const visibleComboSummaries = comboSummaries.filter(({ combo, lines: comboLines }) => {
+    if (!search.trim()) return true;
+    const lineText = comboLines
+      .map((line) => {
+        const item = itemsById.get(line.item_id);
+        return [item?.name ?? "", item?.sku ?? "", line.notes ?? ""].join(" ");
+      })
+      .join(" ");
+    return [combo.name, lineText].join(" ").toLowerCase().includes(search.trim().toLowerCase());
+  });
+
+  const activeComboCount = combos.filter((combo) => combo.is_active).length;
+
   return (
     <AppLayout title="Combos" description="Plantillas reutilizables que agrupan productos reales con cantidades configuradas.">
-      <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
-        <div className="rounded-xl border bg-card p-4 space-y-4">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar combos o productos" />
-          </div>
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
+        <SectionCard className="overflow-hidden xl:sticky xl:top-4">
+          <CardHeader className="space-y-4 border-b bg-muted/20">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Catálogo de combos</CardTitle>
+                <CardDescription>Seleccioná una plantilla para revisar sus productos.</CardDescription>
+              </div>
+              <CompactBadge tone="success">{activeComboCount} activos</CompactBadge>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar combo o producto" />
+            </div>
+            <Button type="button" className="w-full" onClick={() => requestSelection("new")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo combo
+            </Button>
+          </CardHeader>
 
-          <Button type="button" className="w-full" onClick={selectNewCombo}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo combo
-          </Button>
-
-          <div className="space-y-2">
+          <CardContent className="max-h-[calc(100vh-19rem)] space-y-2 overflow-y-auto p-3">
             {combosLoading || linesLoading ? (
               <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Cargando combos...
               </div>
-            ) : comboSummaries.length === 0 ? (
+            ) : combos.length === 0 ? (
               <div className="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                No hay combos todavía.
+                No hay combos todavía. Creá el primero para reutilizar grupos de productos.
+              </div>
+            ) : visibleComboSummaries.length === 0 ? (
+              <div className="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">
+                No encontramos combos ni productos que coincidan con la búsqueda.
               </div>
             ) : (
-              comboSummaries
-                .filter(({ combo, lines }) => {
-                  if (!search.trim()) return true;
-                  const lineText = lines
-                    .map((line) => {
-                      const item = itemsById.get(line.item_id);
-                      return [item?.name ?? "", item?.sku ?? "", line.notes ?? ""].join(" ");
-                    })
-                    .join(" ");
-                  return [combo.name, lineText].join(" ").toLowerCase().includes(search.trim().toLowerCase());
-                })
-                .map(({ combo, lines }) => (
-                  <button
-                    type="button"
+              visibleComboSummaries.map(({ combo, lines: comboLines }) => (
+                <div
                     key={combo.id}
-                    onClick={() => selectExistingCombo(combo.id)}
-                    className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${selectedComboId === combo.id ? "border-primary bg-primary/5" : "border-border/60 bg-background hover:border-border"}`}
+                    className={`rounded-lg border p-3 transition-colors ${selectedComboId === combo.id && formMode === "edit" ? "border-primary bg-primary/5 shadow-sm" : "border-border/60 bg-background hover:border-border"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-medium">{combo.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {lines.length} producto{lines.length === 1 ? "" : "s"}
-                        </div>
-                      </div>
+                      <button type="button" onClick={() => requestSelection(combo.id)} className="min-w-0 flex-1 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                        <span className="block truncate font-medium">{combo.name}</span>
+                        <span className="block text-sm text-muted-foreground">
+                          {comboLines.length} producto{comboLines.length === 1 ? "" : "s"}
+                        </span>
+                      </button>
                       <div className="flex flex-col items-end gap-2">
-                        <Badge variant={combo.is_active ? "default" : "secondary"}>{combo.is_active ? "Activo" : "Inactivo"}</Badge>
+                        <CompactBadge tone={combo.is_active ? "success" : "muted"}>{combo.is_active ? "Activo" : "Inactivo"}</CompactBadge>
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           className="h-7 px-2"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            toggleActiveMutation.mutate({ comboId: combo.id, nextValue: !combo.is_active });
-                          }}
+                          onClick={() => toggleActiveMutation.mutate({ comboId: combo.id, nextValue: !combo.is_active })}
                         >
                           {combo.is_active ? "Desactivar" : "Activar"}
                         </Button>
                       </div>
                     </div>
-                    <div className="mt-3 text-xs text-muted-foreground">
-                      {lines.length} productos
-                    </div>
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {lines.slice(0, 3).map((line) => {
+                      {comboLines.slice(0, 3).map((line) => {
                         const item = itemsById.get(line.item_id);
                         return (
                           <span key={line.id} className="rounded-full bg-muted px-2 py-1 text-[11px]">
@@ -335,25 +369,26 @@ export default function CombosPage() {
                           </span>
                         );
                       })}
-                      {lines.length > 3 ? <span className="rounded-full bg-muted px-2 py-1 text-[11px]">+{lines.length - 3}</span> : null}
+                      {comboLines.length > 3 ? <span className="rounded-full bg-muted px-2 py-1 text-[11px]">+{comboLines.length - 3}</span> : null}
                     </div>
-                  </button>
-                ))
+                </div>
+              ))
             )}
-          </div>
-        </div>
+          </CardContent>
+        </SectionCard>
 
-        <div className="rounded-xl border bg-card p-4 space-y-4">
-          <div className="flex items-start justify-between gap-3">
+        <SectionCard className="min-w-0 overflow-hidden">
+          <CardHeader className="flex flex-col gap-3 border-b bg-muted/20 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="text-lg font-semibold">{form.id ? "Editar combo" : "Nuevo combo"}</div>
-              <div className="text-sm text-muted-foreground">
-                {form.id ? "Modifica la cabecera y las líneas del combo." : "Crea una plantilla reutilizable con varios productos."}
-              </div>
+              <CardTitle>{form.id ? "Editar combo" : "Nuevo combo"}</CardTitle>
+              <CardDescription>
+                {form.id ? "Modificá la configuración y los productos del combo." : "Creá una plantilla reutilizable con varios productos."}
+              </CardDescription>
             </div>
             {form.id ? (
-              <div className="flex items-center gap-2">
-                <Badge variant={form.is_active ? "default" : "secondary"}>{form.is_active ? "Activo" : "Inactivo"}</Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                {isDirty ? <CompactBadge tone="warning">Cambios sin guardar</CompactBadge> : null}
+                <CompactBadge tone={form.is_active ? "success" : "muted"}>{form.is_active ? "Activo" : "Inactivo"}</CompactBadge>
                 <Button
                   type="button"
                   variant="outline"
@@ -367,9 +402,10 @@ export default function CombosPage() {
                 </Button>
               </div>
             ) : null}
-          </div>
+          </CardHeader>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <CardContent className="space-y-5 p-4 sm:p-6">
+            <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Nombre *</Label>
               <Input value={form.name} onChange={(event) => {
@@ -443,7 +479,8 @@ export default function CombosPage() {
               ) : null}
             </div>
 
-            <Table>
+              <div className="overflow-x-auto rounded-lg border bg-background">
+                <Table className="min-w-[640px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Producto</TableHead>
@@ -497,20 +534,37 @@ export default function CombosPage() {
                   );
                 })}
               </TableBody>
-            </Table>
-          </div>
+                </Table>
+              </div>
+            </div>
 
-          <div className="flex items-center justify-end gap-2">
-            <Button type="button" variant="outline" onClick={selectNewCombo}>
-              Limpiar
-            </Button>
-            <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.name.trim() || form.lines.length === 0}>
-              {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Guardar combo
-            </Button>
-          </div>
-        </div>
+            <div className="flex items-center justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => requestSelection("new")}>
+                Limpiar
+              </Button>
+              <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.name.trim() || form.lines.length === 0}>
+                {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Guardar combo
+              </Button>
+            </div>
+          </CardContent>
+        </SectionCard>
       </div>
+
+      <AlertDialog open={Boolean(pendingSelection)} onOpenChange={(open) => { if (!open) setPendingSelection(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Descartar cambios sin guardar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Los cambios realizados en este combo se perderán. Esta acción no modifica la versión guardada.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Seguir editando</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSelection}>Descartar cambios</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

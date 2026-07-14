@@ -167,4 +167,40 @@ describe("CombosPage", () => {
       expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["combos", "lines"] });
     });
   });
+
+  it("renders independent accessible controls for selecting and activating a combo", async () => {
+    const { container } = render(<CombosPage />);
+
+    await screen.findByRole("button", { name: /Combo demo/ });
+
+    expect(container.querySelector("button button")).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Desactivar" })).toHaveLength(2);
+  });
+
+  it("uses an in-app confirmation before discarding unsaved changes", async () => {
+    const nativeConfirm = vi.spyOn(window, "confirm");
+    render(<CombosPage />);
+
+    fireEvent.change(await screen.findByDisplayValue("2"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo combo" }));
+
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent("¿Descartar cambios sin guardar?");
+    expect(nativeConfirm).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Seguir editando" }));
+    expect(screen.getByDisplayValue("5")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo combo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Descartar cambios" }));
+
+    await waitFor(() => expect(screen.getByPlaceholderText("Kit aire acondicionado 1/4 - 1/2")).toHaveValue(""));
+
+    fireEvent.change(screen.getByPlaceholderText("Kit aire acondicionado 1/4 - 1/2"), { target: { value: "Combo local" } });
+    fireEvent.click(screen.getByRole("button", { name: "Limpiar" }));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent("Descartar cambios sin guardar");
+
+    fireEvent.click(screen.getByRole("button", { name: "Descartar cambios" }));
+    await waitFor(() => expect(screen.getByPlaceholderText("Kit aire acondicionado 1/4 - 1/2")).toHaveValue(""));
+    nativeConfirm.mockRestore();
+  });
 });

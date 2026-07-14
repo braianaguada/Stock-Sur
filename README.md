@@ -892,6 +892,14 @@ Production migration history note:
 - Los cambios de estado, duplicados y la incorporación de líneas sugeridas por IA usan confirmaciones internas con contexto, sin diálogos nativos del navegador.
 - No se modificaron reglas de negocio, permisos, consultas, impresión ni aislamiento por empresa.
 
+## Combos: workbench operativo
+
+- La pantalla usa una disposición maestro-detalle: listado y búsqueda a la izquierda, edición del combo a la derecha.
+- La selección, el estado activo y las acciones son controles independientes y accesibles.
+- Los cambios sin guardar se protegen con una confirmación dentro de la aplicación, tanto al cambiar de combo como al limpiar el formulario.
+- La tabla de productos conserva su legibilidad en pantallas angostas mediante desplazamiento horizontal contenido.
+- No requiere migraciones ni modifica la persistencia existente.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
