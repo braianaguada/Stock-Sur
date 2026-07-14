@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut, ShieldAlert } from "lucide-react";
@@ -36,6 +37,7 @@ const navItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const activeNavItemRef = useRef<HTMLAnchorElement>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -108,9 +110,13 @@ export function AppSidebar() {
 
   const userInitial = (user?.email?.[0] ?? currentCompany?.name?.[0] ?? "S").toUpperCase();
 
+  useEffect(() => {
+    activeNavItemRef.current?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [location.pathname]);
+
   return (
     <header className="sticky top-0 z-40 border-b border-border/55 bg-background/78 backdrop-blur-2xl">
-      <div className="mx-auto max-w-[1720px] px-5 lg:px-8">
+      <div className="mx-auto max-w-[1720px] px-4 sm:px-5 lg:px-8">
         <div className="flex flex-col gap-3 py-3">
           {isImpersonating ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
@@ -210,8 +216,11 @@ export function AppSidebar() {
             </div>
           </div>
 
-          <nav className="border-t border-border/40 pt-2">
-            <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-1.5 xl:justify-start">
+          <nav
+            aria-label="Navegación principal"
+            className="-mx-4 overflow-x-auto border-t border-border/40 px-4 pt-2 [scrollbar-width:thin] sm:-mx-5 sm:px-5 lg:-mx-8 lg:px-8"
+          >
+            <div className="flex w-max min-w-full flex-nowrap items-center justify-start gap-1">
               {visibleNavItems.map((item) => {
                 const isActive =
                   location.pathname === item.url ||
@@ -220,10 +229,11 @@ export function AppSidebar() {
                 return (
                   <Link
                     key={item.url}
+                    ref={isActive ? activeNavItemRef : undefined}
                     to={item.url}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "relative rounded-full px-3.5 py-2 text-[13px] font-medium text-muted-foreground transition-all duration-200 hover:bg-accent/35 hover:text-foreground",
+                      "relative inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-medium text-muted-foreground transition-all duration-200 hover:bg-accent/35 hover:text-foreground",
                       isActive && "text-foreground",
                     )}
                   >

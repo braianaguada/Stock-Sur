@@ -864,6 +864,13 @@ Production migration history note:
 - This version did not exist in local migrations or git and only blocked production pushes.
 - Do not recreate `20260514213000` as a new migration; future schema changes should use a new timestamped migration file.
 
+## Shell responsive y navegación operativa
+
+- El shell usa gutters de 16 px en mobile y recupera progresivamente el espaciado de escritorio.
+- La navegación principal conserva todas las rutas y permisos, pero en pantallas angostas se presenta como una única franja horizontal desplazable en lugar de crecer en múltiples filas.
+- Las tabs de `PageHeader` pueden desplazarse horizontalmente y las acciones del encabezado ocupan el ancho disponible en mobile.
+- No se modificaron reglas de negocio, permisos, rutas ni datos.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo

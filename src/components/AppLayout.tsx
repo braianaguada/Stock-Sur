@@ -11,10 +11,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell min-h-screen w-full bg-transparent">
       <AppSidebar />
-      <main className="overflow-auto">
+      <main className="min-w-0 overflow-x-clip">
         <div
           key={location.pathname}
-          className="route-transition mx-auto max-w-[1480px] px-6 py-8 lg:px-10 lg:py-10"
+          className="route-transition mx-auto max-w-[1480px] px-4 py-5 sm:px-6 sm:py-8 lg:px-10 lg:py-10"
         >
           {hasNoActiveCompanyAccess ? (
             <section className="mx-auto max-w-2xl rounded-3xl border border-destructive/20 bg-card p-8 text-center shadow-sm">
