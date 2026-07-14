@@ -84,6 +84,11 @@ describe("AppLayout", () => {
     expect(screen.getByRole("button", { name: /Cerrar sesi/ })).toBeInTheDocument();
     expect(screen.getByRole("combobox")).toBeInTheDocument();
     expect(screen.getByText("contenido demo")).toBeInTheDocument();
+
+    const navigation = screen.getByRole("navigation", { name: /Navegación principal/i });
+    expect(navigation).toHaveClass("overflow-x-auto");
+    expect(navigation.firstElementChild).toHaveClass("flex-nowrap", "w-max");
+    expect(screen.getByText("contenido demo").parentElement).toHaveClass("px-4", "sm:px-6");
   });
 
   it("updates the active navigation state for the current route", () => {

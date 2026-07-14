@@ -43,6 +43,22 @@ describe("visual system components", () => {
     expect(screen.getByRole("button", { name: "Nueva venta" })).toBeInTheDocument();
   });
 
+  it("keeps page header tabs in a responsive horizontal strip", () => {
+    render(
+      <PageHeader
+        title="Stock"
+        tabs={[
+          { label: "Existencias", value: "inventory" },
+          { label: "Movimientos", value: "movements" },
+        ]}
+        activeTab="inventory"
+      />,
+    );
+
+    expect(screen.getByTestId("page-header-tabs")).toHaveClass("overflow-x-auto", "max-w-full");
+    expect(screen.getByRole("tablist")).toHaveClass("w-max", "min-w-full");
+  });
+
   it("renders operational table shell metadata", () => {
     render(
       <OperationalTableShell title="Movimientos" description="Control diario" count={2}>
