@@ -91,4 +91,15 @@ describe("App route smoke test", () => {
     render(<App />);
     expect(await screen.findByText(expectedText)).toBeInTheDocument();
   });
+
+  it("keeps legacy catalog links working without losing their URL context", async () => {
+    window.history.pushState({}, "", "/legacy-catalog-import?source=bookmark#preview");
+
+    render(<App />);
+
+    expect(await screen.findByText("route:legacy-import")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/items/catalog/import-legacy");
+    expect(window.location.search).toBe("?source=bookmark");
+    expect(window.location.hash).toBe("#preview");
+  });
 });
