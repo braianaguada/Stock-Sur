@@ -4,6 +4,13 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Compatibilidad de rutas legacy
+
+- `/legacy-catalog-import` se conserva como alias protegido del importador actual en `/items/catalog/import-legacy` para no romper marcadores o accesos antiguos.
+- La redireccion preserva parametros de consulta y anclas; su contrato queda cubierto por `App.routes.smoke.test.tsx`.
+- `/pending` permanece retirado: el modulo fue eliminado deliberadamente y no se restauro codigo operativo obsoleto.
+- No hay migraciones ni cambios en importacion, permisos o datos.
+
 ## Catálogo responsive y operativo
 
 - Ítems usa tarjetas compactas en pantallas móviles para evitar la tabla horizontal, manteniendo la tabla configurable y densa en escritorio.

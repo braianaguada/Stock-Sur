@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CompanyBrandProvider } from "@/components/CompanyBrandProvider";
@@ -87,6 +87,17 @@ function AuthRedirect() {
   return <AuthPage />;
 }
 
+function LegacyCatalogImportRedirect() {
+  const { search, hash } = useLocation();
+
+  return (
+    <Navigate
+      to={{ pathname: "/items/catalog/import-legacy", search, hash }}
+      replace
+    />
+  );
+}
+
 const App = () => (
   <AppErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -126,7 +137,7 @@ const App = () => (
                   <Route path="/users" element={<ProtectedRoute requiresSuperadmin><UsersPage /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                   <Route path="/items/catalog/import-legacy" element={<ProtectedRoute><LegacyCatalogImportPage /></ProtectedRoute>} />
-                  <Route path="/legacy-catalog-import" element={<Navigate to="/items/catalog/import-legacy" replace />} />
+                  <Route path="/legacy-catalog-import" element={<ProtectedRoute><LegacyCatalogImportRedirect /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
