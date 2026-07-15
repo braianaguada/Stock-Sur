@@ -27,8 +27,8 @@ const iconToneClasses: Record<Tone, string> = {
 const amountSizeClasses = {
   sm: "text-sm",
   md: "text-base",
-  lg: "text-2xl",
-  hero: "text-4xl sm:text-5xl",
+  lg: "text-xl sm:text-2xl",
+  hero: "text-[clamp(1.75rem,7vw,3rem)]",
 } as const;
 
 type AmountDisplayProps = {
@@ -53,7 +53,7 @@ export function AmountDisplay({
     <span
       title={title ?? displayValue}
       className={cn(
-        "block min-w-0 max-w-full break-words font-semibold leading-tight tabular-nums tracking-normal text-foreground",
+        "block min-w-0 max-w-full overflow-x-auto whitespace-nowrap font-semibold leading-tight tabular-nums tracking-normal text-foreground [scrollbar-width:thin]",
         amountSizeClasses[size],
         className,
       )}
@@ -85,7 +85,7 @@ export function MetricCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden bg-gradient-to-br before:absolute before:inset-x-5 before:top-0 before:h-px shadow-[var(--shadow-xs)]",
+        "relative overflow-hidden border-border/70 bg-card shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5",
         toneClasses[tone],
         className,
       )}
@@ -100,7 +100,7 @@ export function MetricCard({
             {helper ? <p className="text-sm leading-5 text-muted-foreground">{helper}</p> : null}
           </div>
           {icon ? (
-            <div className={cn("shrink-0 rounded-2xl border p-3 shadow-[var(--shadow-xs)]", iconToneClasses[tone])}>
+            <div className={cn("shrink-0 rounded-lg border p-2.5", iconToneClasses[tone])}>
               {icon}
             </div>
           ) : null}
@@ -130,7 +130,7 @@ export function MetricHeroCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-card to-success/10 shadow-[var(--shadow-sm)] before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-primary/70",
+        "relative overflow-hidden border-border/70 bg-card shadow-none before:absolute before:inset-y-5 before:left-0 before:w-1 before:bg-primary",
         className,
       )}
     >
@@ -144,7 +144,7 @@ export function MetricHeroCard({
           <div className="flex shrink-0 items-center gap-4">
             {breakdown ? <div className="text-sm text-muted-foreground">{breakdown}</div> : null}
             {icon ? (
-              <div className="rounded-2xl border border-primary/18 bg-primary/10 p-4 text-primary shadow-[var(--shadow-xs)]">
+              <div className="rounded-lg border border-primary/18 bg-primary/10 p-3 text-primary">
                 {icon}
               </div>
             ) : null}
@@ -177,7 +177,7 @@ export function OperationalTableShell({
   className,
 }: OperationalTableShellProps) {
   return (
-    <Card className={cn("shadow-sm", className)}>
+    <Card className={cn("border-border/70 shadow-none", className)}>
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <CardTitle>{title}</CardTitle>
@@ -194,7 +194,7 @@ export function OperationalTableShell({
 }
 
 export function SectionCard({ children, className }: { children: ReactNode; className?: string }) {
-  return <Card className={cn("shadow-sm", className)}>{children}</Card>;
+  return <Card className={cn("border-border/70 shadow-none", className)}>{children}</Card>;
 }
 
 export function CompactBadge({

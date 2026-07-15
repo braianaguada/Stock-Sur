@@ -168,13 +168,14 @@ describe("CashPage visual architecture", () => {
   it("keeps Pendientes and Historial out of the primary tabs", () => {
     render(<CashPage />);
 
-    expect(screen.getByRole("tab", { name: "Hoy" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Movimientos" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Gastos" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Cierre" })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Pendientes" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Historial" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ver historial/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /revisar pendientes/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("tablist")).toHaveLength(1);
   });
 
   it("does not show the new sale form inside Gastos", async () => {

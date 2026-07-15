@@ -1,9 +1,11 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Banknote, Check, Copy, Eye, FileText, Loader2, MessageCircle, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
+import { Ban, Banknote, Check, Copy, Eye, FileText, Loader2, MessageCircle, MoreHorizontal, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DOC_LABEL, DOC_TYPE_CLASS, INTERNAL_REMITO_LABEL, STATUS_CLASS, STATUS_LABEL, STATUS_VARIANT } from "@/features/documents/constants";
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocRow, DocStatus } from "@/features/documents/types";
@@ -133,7 +135,7 @@ export function DocumentsDataTable({
       accessorKey: "total",
       header: () => <div className="text-right">Total</div>,
       cell: ({ row }) => (
-        <div className="text-right font-mono">
+        <div className="whitespace-nowrap text-right font-mono tabular-nums">
           ${Number(row.original.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
         </div>
       ),
@@ -157,52 +159,74 @@ export function DocumentsDataTable({
       cell: ({ row }) => {
         const doc = row.original;
         return (
-          <div className="flex flex-nowrap items-center justify-end gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-sky-500 hover:text-sky-400" onClick={() => onOpenDetail(doc.id)} title="Ver">
+          <RowActions>
+            <RowActionButton label="Ver detalle" tone="view" onClick={() => onOpenDetail(doc.id)}>
               <Eye className="h-4 w-4" />
+            </RowActionButton>
+            {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && cashRegisteredDocumentIds.has(doc.id) ? (
+              <Badge variant="secondary" className="whitespace-nowrap border-success/20 bg-success/10 text-success">
+                Registrado en Caja
+              </Badge>
+            ) : doc.doc_type === "REMITO" && doc.status === "EMITIDO" && canRegisterInCash ? (
+              <Button variant="outline" size="sm" className="h-10 whitespace-nowrap" onClick={() => onRegisterInCash(doc)}>
+                <Banknote className="mr-1.5 h-4 w-4" />
+                Registrar en Caja
+              </Button>
+            ) : null}
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" className="h-10 w-10 rounded-lg" aria-label="Más acciones" title="Más acciones">
+                <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Acciones del documento</DialogTitle>
+                  <DialogDescription>Elegí una acción para {doc.document_number ?? "este documento"}.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-2 sm:grid-cols-2 [&_button]:!h-10 [&_button]:!w-full [&_button]:!justify-start [&_button]:!rounded-lg [&_button_svg]:mr-2">
+            <Button variant="ghost" onClick={() => onPrint(doc)} disabled={!canPrintDocument}>
+              <Printer className="h-4 w-4" /><span>Imprimir / PDF</span>
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-violet-500 hover:text-violet-400" onClick={() => onPrint(doc)} title="Imprimir / PDF" disabled={!canPrintDocument}>
-              <Printer className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-500 hover:text-emerald-400" onClick={() => onShare(doc)} title="Compartir por WhatsApp">
-              <MessageCircle className="h-4 w-4" />
+            <Button variant="ghost" onClick={() => onShare(doc)}>
+              <MessageCircle className="h-4 w-4" /><span>Compartir</span>
             </Button>
             {doc.status === "BORRADOR" && canEditDocumentDraft ? (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-amber-500 hover:text-amber-400" onClick={() => onEditDraft(doc.id)} title="Editar borrador">
-                <Pencil className="h-4 w-4" />
+              <Button variant="ghost" onClick={() => onEditDraft(doc.id)}>
+                <Pencil className="h-4 w-4" /><span>Editar borrador</span>
               </Button>
             ) : null}
             {canDuplicateDocumentType(doc.doc_type) ? (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-indigo-500 hover:text-indigo-400" onClick={() => onDuplicateDocument(doc.id)} title="Duplicar" disabled={!canDuplicateDocument}>
-                <Copy className="h-4 w-4" />
+              <Button variant="ghost" onClick={() => onDuplicateDocument(doc.id)} disabled={!canDuplicateDocument}>
+                <Copy className="h-4 w-4" /><span>Duplicar</span>
               </Button>
             ) : null}
             {doc.doc_type === "PRESUPUESTO" && doc.status === "BORRADOR" ? (
               <>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onTransition(doc.id, "ENVIADO")} title="Marcar como enviado" disabled={!canTransitionDocumentTo("ENVIADO")}>
-                  <Send className="h-4 w-4" />
+                  <Send className="h-4 w-4" /><span>Marcar enviado</span>
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-500 hover:text-emerald-400" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
-                  <Check className="h-4 w-4" />
+                  <Check className="h-4 w-4" /><span>Aprobar</span>
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-400" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
-                  <X className="h-4 w-4" />
+                  <X className="h-4 w-4" /><span>Rechazar</span>
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
-                  <Ban className="h-4 w-4" />
+                  <Ban className="h-4 w-4" /><span>Anular</span>
                 </Button>
               </>
             ) : null}
             {doc.doc_type === "PRESUPUESTO" && doc.status === "ENVIADO" ? (
               <>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-500 hover:text-emerald-400" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
-                  <Check className="h-4 w-4" />
+                  <Check className="h-4 w-4" /><span>Aprobar</span>
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-rose-500 hover:text-rose-400" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
-                  <X className="h-4 w-4" />
+                  <X className="h-4 w-4" /><span>Rechazar</span>
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
-                  <Ban className="h-4 w-4" />
+                  <Ban className="h-4 w-4" /><span>Anular</span>
                 </Button>
               </>
             ) : null}
@@ -210,47 +234,41 @@ export function DocumentsDataTable({
               <>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onIssueRemito(doc.id)} title={doc.doc_type === "REMITO_DEVOLUCION" ? "Emitir devolucion" : "Emitir remito"} disabled={!canIssueRemito || isIssuingDocument}>
                   {isIssuingDocument ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  <span>{doc.doc_type === "REMITO_DEVOLUCION" ? "Emitir devolución" : "Emitir remito"}</span>
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular borrador" disabled={!canTransitionDocumentTo("ANULADO")}>
-                  <Ban className="h-4 w-4" />
+                  <Ban className="h-4 w-4" /><span>Anular borrador</span>
                 </Button>
               </>
             ) : null}
             {doc.doc_type === "PRESUPUESTO" && doc.status === "APROBADO" ? (
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-violet-500 hover:text-violet-400" onClick={() => onCloneAsRemito(doc.id)} title="Convertir a remito" disabled={!canCloneBudgetToRemito}>
-                <FileText className="h-4 w-4" />
+                <FileText className="h-4 w-4" /><span>Convertir a remito</span>
               </Button>
             ) : null}
             {doc.doc_type === "REMITO" && doc.status === "EMITIDO" ? (
               <>
-                {cashRegisteredDocumentIds.has(doc.id) ? (
-                  <Badge variant="secondary" className="whitespace-nowrap border-emerald-200 bg-emerald-50 text-emerald-700">
-                    Registrado en Caja
-                  </Badge>
-                ) : canRegisterInCash ? (
-                  <Button variant="outline" size="sm" className="h-8 whitespace-nowrap border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={() => onRegisterInCash(doc)}>
-                    <Banknote className="mr-1.5 h-4 w-4" />
-                    Registrar en Caja
-                  </Button>
-                ) : null}
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-cyan-500 hover:text-cyan-400" onClick={() => onGenerateReturn(doc.id)} title="Generar devolución">
-                  <RotateCcw className="h-4 w-4" />
+                  <RotateCcw className="h-4 w-4" /><span>Generar devolución</span>
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular remito" disabled={!canTransitionDocumentTo("ANULADO")}>
-                  <Ban className="h-4 w-4" />
+                  <Ban className="h-4 w-4" /><span>Anular remito</span>
                 </Button>
               </>
             ) : null}
             {doc.doc_type === "REMITO_DEVOLUCION" && doc.status === "EMITIDO" ? (
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-500 hover:text-zinc-400" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular devolucion" disabled={!canTransitionDocumentTo("ANULADO")}>
-                <Ban className="h-4 w-4" />
+                <Ban className="h-4 w-4" /><span>Anular devolución</span>
               </Button>
             ) : null}
-          </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </RowActions>
         );
       },
       meta: {
-        className: "w-[520px] min-w-[520px] text-right",
+        className: "w-[190px] min-w-[190px] text-right",
         cellClassName: "py-2.5 whitespace-nowrap",
       },
     },

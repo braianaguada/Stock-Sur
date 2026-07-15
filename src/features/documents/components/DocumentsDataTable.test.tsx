@@ -69,17 +69,27 @@ function renderTable(documents: DocRow[], overrides: Partial<ComponentProps<type
 }
 
 describe("DocumentsDataTable duplicate action", () => {
+  it("keeps one visible row action and groups secondary actions", () => {
+    renderTable([baseDocument]);
+
+    expect(screen.getByRole("button", { name: "Ver detalle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /acciones/i })).toBeInTheDocument();
+  });
+
   it("shows duplicate for PRESUPUESTO and REMITO and calls the handler", () => {
     const props = renderTable([
       { ...baseDocument, id: "budget-1", doc_type: "PRESUPUESTO" },
       { ...baseDocument, id: "remito-1", doc_type: "REMITO" },
     ]);
 
-    const duplicateButtons = screen.getAllByTitle("Duplicar");
-    expect(duplicateButtons).toHaveLength(2);
+    const actionButtons = screen.getAllByRole("button", { name: /acciones/i });
+    expect(actionButtons).toHaveLength(2);
 
-    fireEvent.click(duplicateButtons[0]);
-    fireEvent.click(duplicateButtons[1]);
+    fireEvent.click(actionButtons[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Duplicar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(actionButtons[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Duplicar" }));
 
     expect(props.onDuplicateDocument).toHaveBeenNthCalledWith(1, "budget-1");
     expect(props.onDuplicateDocument).toHaveBeenNthCalledWith(2, "remito-1");
@@ -88,7 +98,8 @@ describe("DocumentsDataTable duplicate action", () => {
   it("does not show duplicate for REMITO_DEVOLUCION", () => {
     renderTable([{ ...baseDocument, id: "return-1", doc_type: "REMITO_DEVOLUCION" }]);
 
-    expect(screen.queryByTitle("Duplicar")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /acciones/i }));
+    expect(screen.queryByRole("button", { name: "Duplicar" })).not.toBeInTheDocument();
   });
 
   it("disables duplicate while creation is not allowed", () => {
@@ -96,7 +107,8 @@ describe("DocumentsDataTable duplicate action", () => {
       canDuplicateDocument: false,
     });
 
-    expect(screen.getByTitle("Duplicar")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /acciones/i }));
+    expect(screen.getByRole("button", { name: "Duplicar" })).toBeDisabled();
   });
 });
 

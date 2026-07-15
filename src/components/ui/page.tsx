@@ -77,11 +77,11 @@ export function StatCard(props: {
 }) {
   const { label, value, icon, hint, tone = "default", className } = props;
   const toneClassName = {
-    default: "from-card via-card to-[hsl(var(--panel))]/40 before:bg-border/70",
-    success: "from-card via-card to-success/14 before:bg-success",
-    warning: "from-card via-card to-warning/20 before:bg-warning",
-    danger: "from-card via-card to-destructive/16 before:bg-destructive",
-    info: "from-card via-card to-info/14 before:bg-info",
+    default: "before:bg-border",
+    success: "before:bg-success",
+    warning: "before:bg-warning",
+    danger: "before:bg-destructive",
+    info: "before:bg-info",
   }[tone];
   const valueClassName = {
     default: "text-foreground",
@@ -91,7 +91,7 @@ export function StatCard(props: {
     info: "text-info",
   }[tone];
   const iconClassName = {
-    default: "border-border/60 bg-background/80 text-primary",
+    default: "border-border/60 bg-muted/40 text-primary",
     success: "border-success/18 bg-success/10 text-success",
     warning: "border-warning/18 bg-warning/12 text-warning",
     danger: "border-destructive/18 bg-destructive/12 text-destructive",
@@ -99,7 +99,7 @@ export function StatCard(props: {
   }[tone];
 
   return (
-    <Card className={cn("stat-tile relative overflow-hidden bg-gradient-to-br before:absolute before:inset-x-5 before:top-0 before:h-px", toneClassName, className)}>
+    <Card className={cn("stat-tile relative overflow-hidden border-border/70 bg-card shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5", toneClassName, className)}>
       <CardContent className="p-0">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
@@ -108,7 +108,7 @@ export function StatCard(props: {
             {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
           </div>
           {icon ? (
-            <div className={cn("rounded-2xl border p-3 shadow-[var(--shadow-xs)]", iconClassName)}>
+            <div className={cn("rounded-lg border p-2.5", iconClassName)}>
               {icon}
             </div>
           ) : null}

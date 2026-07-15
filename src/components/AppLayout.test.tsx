@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -75,25 +75,30 @@ describe("AppLayout", () => {
 
     expect(screen.getAllByText("Empresa Demo").length).toBeGreaterThan(0);
     expect(screen.getByText(/Gesti/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Items" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Tecnicos" })).toHaveAttribute("href", "/technicians");
-    expect(screen.getByRole("link", { name: "Rendiciones" })).toHaveAttribute("href", "/settlements");
-    expect(screen.getByRole("link", { name: /Configuraci/ })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Usuarios" })).not.toBeInTheDocument();
     expect(screen.getByText("admin@stocksur.test")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Cerrar sesi/ })).toBeInTheDocument();
     expect(screen.getByRole("combobox")).toBeInTheDocument();
     expect(screen.getByText("contenido demo")).toBeInTheDocument();
 
     const navigation = screen.getByRole("navigation", { name: /Navegación principal/i });
-    expect(navigation).toHaveClass("overflow-x-auto");
-    expect(navigation.firstElementChild).toHaveClass("flex-nowrap", "w-max");
+    expect(navigation).not.toHaveClass("overflow-x-auto");
     expect(screen.getByText("contenido demo").parentElement).toHaveClass("px-4", "sm:px-6");
+
+    fireEvent.click(screen.getByRole("button", { name: /Abrir módulos/i }));
+    expect(screen.getByRole("link", { name: "Items" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Tecnicos" })).toHaveAttribute("href", "/technicians");
+    expect(screen.getByRole("link", { name: "Rendiciones" })).toHaveAttribute("href", "/settlements");
+    expect(screen.getByRole("link", { name: /Configuraci/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Usuarios" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Comercial" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Inventario" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Finanzas" })).toBeInTheDocument();
   });
 
   it("updates the active navigation state for the current route", () => {
     renderLayout("/cash");
 
+    fireEvent.click(screen.getByRole("button", { name: /Módulo activo: Caja/i }));
     expect(screen.getByRole("link", { current: "page" })).toHaveAttribute("href", "/cash");
   });
 

@@ -1,11 +1,13 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, FileText, NotebookText, ReceiptText } from "lucide-react";
+import { Ban, FileText, MoreHorizontal, NotebookText, ReceiptText } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { AmountDisplay, CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatTime } from "@/lib/formatters";
 import { PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LABEL } from "../constants";
@@ -129,64 +131,84 @@ export function CashSalesTab({
     {
       id: "actions",
       header: () => <div className="text-right">Acciones</div>,
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => onOpenDetail(row.original)}>
+      cell: ({ row }) => {
+        const sale = row.original;
+        const canDraft = canShowCreateBillingDraftAction({
+          billingEnabled,
+          canCreate: canCreateBillingDraft,
+          sale,
+          billedSourceIds,
+        });
+        const canCancel = sale.movement_kind === "SALE" && sale.status !== "ANULADA";
+        return (
+        <RowActions>
+          <RowActionButton label="Ver detalle" tone="view" onClick={() => onOpenDetail(sale)}>
             <NotebookText className="h-4 w-4" />
-          </Button>
-          {canShowCreateBillingDraftAction({
-            billingEnabled,
-            canCreate: canCreateBillingDraft,
-            sale: row.original,
-            billedSourceIds,
-          }) ? (
+          </RowActionButton>
+          {canDraft || canCancel ? (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button type="button" size="icon" variant="ghost" className="h-10 w-10 rounded-lg" aria-label="Más acciones" title="Más acciones">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Acciones del movimiento</DialogTitle>
+                  <DialogDescription>Elegí una acción para esta venta.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-2 [&_button]:!h-10 [&_button]:!w-full [&_button]:!justify-start [&_button_svg]:mr-2">
+          {canDraft ? (
             <>
               <Button
                 type="button"
-                size="icon"
                 variant="ghost"
-                className="h-8 w-8"
                 aria-label="Crear borrador Factura B"
                 title="Crear borrador Factura B"
                 onClick={() => onCreateBillingDraft(row.original)}
                 disabled={createBillingDraftPending}
               >
                 <ReceiptText className="h-4 w-4" />
+                <span>Crear borrador Factura B</span>
               </Button>
               {(() => {
-                const readiness = getInvoiceAReadiness(row.original);
+                const readiness = getInvoiceAReadiness(sale);
                 return (
                   <Button
                     type="button"
-                    size="icon"
                     variant="ghost"
-                    className="h-8 w-8"
                     aria-label="Crear borrador Factura A"
                     title={readiness.allowed ? "Crear borrador Factura A" : `Factura A bloqueada: ${readiness.reasons[0] ?? "cliente no elegible"}`}
-                    onClick={() => onCreateInvoiceADraft(row.original)}
+                    onClick={() => onCreateInvoiceADraft(sale)}
                     disabled={createBillingDraftPending || !readiness.allowed}
                   >
                     <FileText className="h-4 w-4" />
+                    <span>Crear borrador Factura A</span>
                   </Button>
                 );
               })()}
             </>
           ) : null}
-          {row.original.movement_kind === "SALE" && row.original.status !== "ANULADA" ? (
+          {canCancel ? (
             <Button
               type="button"
-              size="icon"
               variant="ghost"
-              className="h-8 w-8 text-destructive"
-              onClick={() => onCancelSale(row.original.id)}
-              disabled={cancelPending || !canCancelSale(row.original)}
+              className="text-destructive"
+              onClick={() => onCancelSale(sale.id)}
+              disabled={cancelPending || !canCancelSale(sale)}
             >
               <Ban className="h-4 w-4" />
+              <span>Anular venta</span>
             </Button>
           ) : null}
-        </div>
-      ),
-      meta: { className: "w-[128px]", cellClassName: "py-2.5" },
+                </div>
+              </DialogContent>
+            </Dialog>
+          ) : null}
+        </RowActions>
+        );
+      },
+      meta: { className: "w-[96px]", cellClassName: "py-2.5" },
     },
   ], [
     billedSourceIds,

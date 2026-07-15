@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/ui/page";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -468,24 +469,13 @@ export default function CashPage() {
           <CompanyAccessNotice description="Necesitas una empresa activa para registrar ventas, asociar comprobantes y cerrar caja." />
         ) : null}
 
-        <section className="border-b border-border/70 pb-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="page-title">Caja</h1>
-                <span className="rounded-full border border-border/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                  Caja y cierre diario
-                </span>
-                <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${effectiveClosure?.status === "CERRADO" ? "border-success/20 bg-success/10 text-success" : "border-warning/20 bg-warning/10 text-warning"}`}>
-                  {effectiveClosure?.status === "CERRADO" ? "Cerrada" : "Abierta"}
-                </span>
-              </div>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Control diario de ventas, gastos y cierre.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        <PageHeader
+          eyebrow="Caja y cierre diario"
+          title="Caja"
+          description="Control diario de ventas, gastos y rendición."
+          meta={<span className={`rounded-md border px-2.5 py-1 text-xs font-medium ${effectiveClosure?.status === "CERRADO" ? "border-success/20 bg-success/10 text-success" : "border-warning/20 bg-warning/10 text-warning"}`}>{effectiveClosure?.status === "CERRADO" ? "Caja cerrada" : "Caja abierta"}</span>}
+          actions={(
+            <>
               <Button
                 onClick={() => {
                   setSecondaryView(null);
@@ -512,20 +502,9 @@ export default function CashPage() {
                   className="h-8 w-[145px] border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
                 />
               </div>
-            </div>
-          </div>
-
-          <Tabs value={tab} onValueChange={(value) => {
-            setSecondaryView(null);
-            setTab(value);
-          }} className="mt-4 w-full">
-            <TabsList className="w-auto justify-start">
-              <TabsTrigger value="day">Hoy</TabsTrigger>
-              <TabsTrigger value="expenses">Gastos</TabsTrigger>
-              <TabsTrigger value="closure">Cierre</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </section>
+            </>
+          )}
+        />
 
         {salesError || expensesError || remitosError ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
@@ -581,6 +560,11 @@ export default function CashPage() {
             }}
             className="space-y-4"
           >
+            <TabsList className="w-full justify-start overflow-x-auto sm:w-auto" aria-label="Secciones de caja">
+              <TabsTrigger value="day">Movimientos</TabsTrigger>
+              <TabsTrigger value="expenses">Gastos</TabsTrigger>
+              <TabsTrigger value="closure">Cierre</TabsTrigger>
+            </TabsList>
             <TabsContent value="day">
               <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
                 <CashSalesTab
@@ -671,14 +655,14 @@ export default function CashPage() {
                         <Select value={selectedRemitoId} onValueChange={setSelectedRemitoId}>
                           <SelectTrigger className="justify-start">
                             {selectedReceiptOption ? (
-                              <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_76px] items-center gap-2 text-left">
+                              <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_max-content] items-center gap-2 text-left">
                                 <span className="min-w-0 whitespace-nowrap font-medium text-left tabular-nums">
                                   {selectedReceiptOption.receiptLabel}
                                 </span>
                                 <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
                                   {selectedReceiptOption.customerLabel}
                                 </span>
-                                <span className="min-w-0 truncate text-left text-xs text-muted-foreground tabular-nums">
+                                <span className="whitespace-nowrap text-right text-xs text-muted-foreground tabular-nums">
                                   ${selectedReceiptOption.amount}
                                 </span>
                               </div>
@@ -725,14 +709,14 @@ export default function CashPage() {
                               const customerLabel = formatCashOptionCustomer(remito);
                               return (
                                 <SelectItem key={remito.id} value={remito.id}>
-                                  <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_76px] items-center gap-2 py-0.5 leading-tight text-left">
+                                  <div className="grid w-full grid-cols-[132px_minmax(0,1fr)_max-content] items-center gap-2 py-0.5 leading-tight text-left">
                                     <span className="min-w-0 whitespace-nowrap font-medium text-left tabular-nums">{receiptLabel}</span>
                                     <span className="min-w-0 truncate text-left text-xs text-muted-foreground">
                                       {receiptKind === "REMITO_DEVOLUCION" && remito.source_document_number_snapshot
                                         ? `${customerLabel} · Origen ${remito.source_document_number_snapshot}`
                                         : customerLabel}
                                     </span>
-                                    <span className="min-w-0 truncate text-left text-xs text-muted-foreground tabular-nums">
+                                    <span className="whitespace-nowrap text-right text-xs text-muted-foreground tabular-nums">
                                       ${amount}
                                     </span>
                                   </div>
