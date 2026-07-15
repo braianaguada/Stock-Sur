@@ -4,6 +4,13 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Banco de trabajo responsive para trabajos y servicios
+
+- La bandeja principal incorpora un selector movil sin tabla horizontal y una tabla de escritorio compacta orientada a la operacion.
+- Los filtros tienen nombres accesibles, un estado vacio especifico y una accion unica para restablecer la vista activa.
+- Los estados usan tonos semanticos compartidos y el detalle permanece disponible durante el recorrido en pantallas amplias.
+- No hay migraciones ni cambios en stock, caja, documentos o reglas de negocio. La regresion visual esta cubierta por `ServiceJobs.visual-architecture.test.tsx`.
+
 ## Confirmaciones operativas de Documentos
 
 - Emision, devolucion, anulacion, duplicado y cambio de lista usan dialogos consistentes que explican el efecto antes de ejecutar la accion.
