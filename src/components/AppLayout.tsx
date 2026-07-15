@@ -11,7 +11,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell min-h-screen w-full bg-transparent">
       <AppSidebar />
-      <main className="min-w-0 overflow-x-clip">
+      <main className="min-w-0">
         <div
           key={location.pathname}
           className="route-transition mx-auto max-w-[1480px] px-4 py-5 sm:px-6 sm:py-8 lg:px-10 lg:py-10"

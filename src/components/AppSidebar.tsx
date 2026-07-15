@@ -1,8 +1,16 @@
-import { useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LogOut, ShieldAlert } from "lucide-react";
+import { LayoutGrid, LogOut, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { StockSurMark } from "@/components/StockSurMark";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,9 +43,18 @@ const navItems = [
   { title: "Configuración", url: "/settings", requiresAdmin: true },
 ] as const;
 
+const navGroups = [
+  { title: "Comercial", urls: ["/documents", "/customers", "/customer-account", "/billing"] },
+  { title: "Inventario", urls: ["/items", "/combos", "/stock", "/price-lists"] },
+  { title: "Compras", urls: ["/suppliers", "/purchase-orders"] },
+  { title: "Servicios", urls: ["/services/documents", "/service-jobs", "/technicians"] },
+  { title: "Finanzas", urls: ["/cash", "/cash-totals", "/settlements"] },
+  { title: "Administración", urls: ["/users", "/settings"] },
+] as const;
+
 export function AppSidebar() {
   const location = useLocation();
-  const activeNavItemRef = useRef<HTMLAnchorElement>(null);
+  const [modulesOpen, setModulesOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -110,9 +127,9 @@ export function AppSidebar() {
 
   const userInitial = (user?.email?.[0] ?? currentCompany?.name?.[0] ?? "S").toUpperCase();
 
-  useEffect(() => {
-    activeNavItemRef.current?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-  }, [location.pathname]);
+  const isItemActive = (url: string) =>
+    location.pathname === url || (url !== "/" && location.pathname.startsWith(`${url}/`));
+  const activeItem = visibleNavItems.find((item) => isItemActive(item.url));
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/55 bg-background/78 backdrop-blur-2xl">
@@ -218,10 +235,10 @@ export function AppSidebar() {
 
           <nav
             aria-label="Navegación principal"
-            className="-mx-4 overflow-x-auto border-t border-border/40 px-4 pt-2 [scrollbar-width:thin] sm:-mx-5 sm:px-5 lg:-mx-8 lg:px-8"
+            className="border-t border-border/40 pt-2"
           >
-            <div className="flex w-max min-w-full flex-nowrap items-center justify-start gap-1">
-              {visibleNavItems.map((item) => {
+            <div className="flex min-w-0 items-center justify-start gap-1">
+              {visibleNavItems.filter((item) => item.url === "/").map((item) => {
                 const isActive =
                   location.pathname === item.url ||
                   (item.url !== "/" && location.pathname.startsWith(`${item.url}/`));
@@ -229,7 +246,6 @@ export function AppSidebar() {
                 return (
                   <Link
                     key={item.url}
-                    ref={isActive ? activeNavItemRef : undefined}
                     to={item.url}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
@@ -247,6 +263,71 @@ export function AppSidebar() {
                   </Link>
                 );
               })}
+              <Dialog open={modulesOpen} onOpenChange={setModulesOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className={cn(
+                      "min-h-10 min-w-0 justify-start gap-2 rounded-lg px-3 text-[13px] font-medium text-muted-foreground",
+                      activeItem?.url !== "/" && "bg-accent/55 text-foreground",
+                    )}
+                    aria-label={`Abrir módulos${activeItem?.url !== "/" ? `. Módulo activo: ${activeItem?.title}` : ""}`}
+                  >
+                    <LayoutGrid className="h-4 w-4 shrink-0" />
+                    <span>Módulos</span>
+                    {activeItem?.url !== "/" ? (
+                      <span className="max-w-[45vw] truncate border-l border-border pl-2 text-xs text-muted-foreground sm:max-w-none">
+                        {activeItem.title}
+                      </span>
+                    ) : null}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl rounded-xl p-5 sm:p-6">
+                  <DialogHeader>
+                    <DialogTitle>Módulos operativos</DialogTitle>
+                    <DialogDescription>Accesos agrupados según la tarea que necesitás realizar.</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {navGroups.map((group) => {
+                      const items = visibleNavItems.filter((item) =>
+                        (group.urls as readonly string[]).includes(item.url),
+                      );
+                      if (items.length === 0) return null;
+
+                      return (
+                        <section key={group.title} aria-labelledby={`nav-group-${group.title}`} className="space-y-2">
+                          <h3
+                            id={`nav-group-${group.title}`}
+                            className="border-b border-border pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+                          >
+                            {group.title}
+                          </h3>
+                          <div className="grid gap-1">
+                            {items.map((item) => {
+                              const isActive = isItemActive(item.url);
+                              return (
+                                <Link
+                                  key={item.url}
+                                  to={item.url}
+                                  aria-current={isActive ? "page" : undefined}
+                                  onClick={() => setModulesOpen(false)}
+                                  className={cn(
+                                    "flex min-h-10 items-center rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground",
+                                    isActive && "bg-primary/10 font-semibold text-foreground",
+                                  )}
+                                >
+                                  {item.title}
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      );
+                    })}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </nav>
         </div>

@@ -80,7 +80,7 @@ export function CashOverviewPanel({
   ];
 
   return (
-    <Card className="overflow-hidden border-primary/10 bg-card shadow-[var(--shadow-sm)]">
+    <Card className="overflow-hidden border-border/70 bg-card shadow-none">
       <CardContent className="p-0">
         <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5 p-5 lg:p-6">
@@ -97,14 +97,14 @@ export function CashOverviewPanel({
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-end">
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground">Total vendido del dia</p>
-                <AmountDisplay value={summary.total} size="hero" className="max-w-4xl text-5xl font-black text-foreground sm:text-6xl" />
+                <AmountDisplay value={summary.total} size="hero" className="max-w-4xl text-4xl font-bold text-foreground sm:text-5xl" />
               </div>
               <p className="text-sm leading-6 text-muted-foreground lg:text-right">
                 Venta bruta del dia. La rendicion se controla con efectivo a rendir y gastos en caja.
               </p>
             </div>
 
-            <div className="grid gap-4 rounded-2xl border border-border/55 bg-[hsl(var(--panel))]/36 p-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 rounded-lg border-y border-border/70 py-4 md:grid-cols-2 xl:grid-cols-4">
               <SummaryFact label="Efectivo a rendir" value={summary.efectivoNetoEsperado} tone="success" />
               <SummaryFact label="Gastos efectivo" value={summary.gastosEfectivo} tone="danger" />
               <SummaryFact label="Otros medios" value={digitalTotal} />

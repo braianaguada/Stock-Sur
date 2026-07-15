@@ -8,6 +8,9 @@ describe("visual system components", () => {
 
     const amount = screen.getByText("$ 123.456.789,99");
     expect(amount).toBeInTheDocument();
+    expect(amount).toHaveClass("whitespace-nowrap", "tabular-nums");
+    expect(amount).toHaveClass("overflow-x-auto");
+    expect(amount).not.toHaveClass("break-words");
     expect(amount.getAttribute("title")?.replace(/\u00a0/g, " ")).toBe("$ 123.456.789,99");
   });
 

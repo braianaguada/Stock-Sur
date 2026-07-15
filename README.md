@@ -929,6 +929,17 @@ Production migration history note:
 - El detalle concentra la lectura y las acciones del comprobante seleccionado; no se modificaron reglas fiscales, permisos, consultas ni aislamiento por empresa.
 - No requiere migraciones ni cambios de configuración.
 
+## Rediseño visual: piloto operativo
+
+- Se definió el North Star "mesa de operaciones de precisión" en `docs/visual-redesign-north-star.md`.
+- El piloto aplica superficies planas, jerarquía data-first, importes tabulares sin corte y acciones de fila compactas en Dashboard, Documentos y Caja.
+- La fundación de navegación mantiene Dashboard como acceso directo y reúne el resto de los módulos por dominio en un selector adaptable, sin carrusel horizontal.
+- Dashboard prioriza tres métricas decisivas y pendientes antes de los gráficos; Documentos agrupa acciones secundarias; Caja utiliza una sola navegación operativa.
+- No se modificaron reglas de negocio, consultas, permisos, multitenancy ni persistencia. No requiere migraciones.
+- La pantalla pública de autenticación fue revisada en 1920 px, 1366 px, móvil y zoom 125 %, sin overflow ni errores visuales; las rutas protegidas requieren una sesión QA de staging y su revisión visual autenticada sigue pendiente.
+- Los cinco hallazgos altos de la revisión del piloto se corrigieron: acciones de fila, truncado de importes, overflow global, targets táctiles y navegación horizontal.
+- La expansión se hará en PR separados: inventario, comercial, compras, servicios y administración.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo

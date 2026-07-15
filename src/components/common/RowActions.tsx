@@ -52,7 +52,7 @@ export function RowActionButton({
       type={type}
       variant="ghost"
       size="icon"
-      className={cn("h-8 w-8 shrink-0 rounded-full", toneClass[tone], className)}
+      className={cn("h-10 w-10 shrink-0 rounded-lg", toneClass[tone], className)}
       title={label}
       aria-label={label}
       {...props}
@@ -74,7 +74,7 @@ export function RowActionLink({ label, children, className, tone = "default", ..
       asChild
       variant="ghost"
       size="icon"
-      className={cn("h-8 w-8 shrink-0 rounded-full", toneClass[tone ?? "default"], className)}
+      className={cn("h-10 w-10 shrink-0 rounded-lg", toneClass[tone ?? "default"], className)}
       title={label}
       aria-label={label}
     >
