@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
-import { AmountDisplay } from "@/components/common/VisualSystem";
+import { AmountDisplay, CompactBadge, OperationalTableShell, SectionCard } from "@/components/common/VisualSystem";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FilterBar, PageHeader, StatCard } from "@/components/ui/page";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,7 @@ import {
   isRecentAuthorizingDocument,
 } from "@/features/billing/lib/authorization";
 import type { BillingDocumentRow } from "@/features/billing/types";
+import { CheckCircle2, Clock3, FileClock, FileText, ReceiptText, Search, TriangleAlert, X } from "lucide-react";
 
 const STATUS_LABEL: Record<BillingDocumentRow["fiscal_status"], string> = {
   DRAFT: "Borrador",
@@ -42,6 +44,19 @@ const STATUS_LABEL: Record<BillingDocumentRow["fiscal_status"], string> = {
   AUTHORIZED: "Autorizado",
   REJECTED: "Rechazado",
   CANCELLED_INTERNAL: "Cancelado interno",
+};
+
+const STATUS_TONE: Record<
+  BillingDocumentRow["fiscal_status"],
+  "default" | "success" | "warning" | "danger" | "info" | "muted"
+> = {
+  DRAFT: "muted",
+  BLOCKED: "danger",
+  READY_TO_AUTHORIZE: "info",
+  AUTHORIZING: "warning",
+  AUTHORIZED: "success",
+  REJECTED: "danger",
+  CANCELLED_INTERNAL: "muted",
 };
 
 function formatRemitoReference(remito?: { point_of_sale: number; document_number: number | null } | null) {
@@ -215,23 +230,19 @@ export default function BillingPage() {
 
         {currentCompany && hasBillingAccess ? (
           <>
-            <section className="border-b border-border/70 pb-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h1 className="page-title">Facturacion</h1>
-                    <Badge variant="outline">Homologacion / dev</Badge>
-                    <Badge variant="outline">Factura B</Badge>
-                    <Badge variant="outline">Factura A borrador</Badge>
-                    <Badge variant="outline">NC B total</Badge>
-                    <Badge variant="outline">Produccion no habilitada</Badge>
-                  </div>
-                  <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                    Operacion fiscal en homologacion: autorizar B/NC B, imprimir y revisar comprobantes. Factura A esta en preparacion y no emite comprobantes.
-                  </p>
-                </div>
-              </div>
-            </section>
+            <PageHeader
+              eyebrow="Operación fiscal"
+              title="Facturación"
+              subtitle="Revisá borradores, autorizá comprobantes habilitados y consultá el resultado fiscal desde un único espacio de trabajo."
+              meta={
+                <>
+                  <CompactBadge tone="info">Homologación / dev</CompactBadge>
+                  <CompactBadge>Factura B y NC B total</CompactBadge>
+                  <CompactBadge tone="warning">Factura A solo borrador</CompactBadge>
+                  <CompactBadge tone="danger">Producción no habilitada</CompactBadge>
+                </>
+              }
+            />
 
             {!settingsQuery.billingEnabled ? (
               <div className="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 md:flex-row md:items-center md:justify-between">
@@ -252,71 +263,141 @@ export default function BillingPage() {
               </div>
             ) : null}
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-              {[
-                ["Autorizados", summary.authorized],
-                ["Borradores", summary.drafts],
-                ["Rechazados", summary.rejected],
-                ["Notas de credito", summary.creditNotes],
-                ["Facturas A borrador", summary.invoiceADrafts],
-                ["Pendientes", summary.pending],
-              ].map(([label, value]) => (
-                <Card key={String(label)} className="border-primary/8 shadow-[var(--shadow-xs)]">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="mt-1 text-2xl font-semibold">{value}</p>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+              <StatCard label="Autorizados" value={summary.authorized} icon={<CheckCircle2 className="h-5 w-5" />} tone="success" />
+              <StatCard label="Pendientes" value={summary.pending} icon={<Clock3 className="h-5 w-5" />} tone="warning" />
+              <StatCard label="Borradores" value={summary.drafts} icon={<FileClock className="h-5 w-5" />} tone="info" />
+              <StatCard label="Rechazados" value={summary.rejected} icon={<TriangleAlert className="h-5 w-5" />} tone="danger" />
+              <StatCard label="Notas de crédito" value={summary.creditNotes} icon={<ReceiptText className="h-5 w-5" />} />
+              <StatCard label="Facturas A borrador" value={summary.invoiceADrafts} icon={<FileText className="h-5 w-5" />} />
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-              <Card className="border-primary/8 shadow-[var(--shadow-xs)]">
-                <CardHeader>
-                  <CardTitle>Comprobantes fiscales</CardTitle>
-                  <CardDescription>CAE y numero fiscal se completan al autorizar contra Afip SDK dev.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
-                    <input
-                      className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                      placeholder="Buscar por numero, CAE, remito o receptor"
-                    />
-                    <select
-                      className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={statusFilter}
-                      onChange={(event) => setStatusFilter(event.target.value as BillingDocumentRow["fiscal_status"] | "ALL")}
-                    >
-                      <option value="ALL">Todos los estados</option>
-                      {Object.entries(STATUS_LABEL).map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                    <select
-                      className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={typeFilter}
-                      onChange={(event) => setTypeFilter(event.target.value as BillingDocumentRow["invoice_type"] | "ALL")}
-                    >
-                      <option value="ALL">Todos los tipos</option>
-                      <option value="FACTURA_A">Factura A</option>
-                      <option value="FACTURA_B">Factura B</option>
-                      <option value="NOTA_CREDITO_B">Nota de Credito B</option>
-                    </select>
-                  </div>
-                  {documentsQuery.isLoading ? (
+              <OperationalTableShell
+                title="Comprobantes fiscales"
+                description="Seleccioná un comprobante para revisar sus datos y operar desde el panel de detalle."
+                count={filteredDocuments.length}
+              >
+                  <FilterBar className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_auto]">
+                    <label className="relative min-w-0">
+                      <span className="sr-only">Buscar comprobantes</span>
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        className="h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-9 text-sm"
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Número, CAE, remito o receptor"
+                      />
+                      {search ? (
+                        <button
+                          type="button"
+                          aria-label="Limpiar búsqueda"
+                          className="absolute right-2 top-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          onClick={() => setSearch("")}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                    </label>
+                    <label>
+                      <span className="sr-only">Filtrar por estado</span>
+                      <select
+                        className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={statusFilter}
+                        onChange={(event) => setStatusFilter(event.target.value as BillingDocumentRow["fiscal_status"] | "ALL")}
+                      >
+                        <option value="ALL">Todos los estados</option>
+                        {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span className="sr-only">Filtrar por tipo</span>
+                      <select
+                        className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={typeFilter}
+                        onChange={(event) => setTypeFilter(event.target.value as BillingDocumentRow["invoice_type"] | "ALL")}
+                      >
+                        <option value="ALL">Todos los tipos</option>
+                        <option value="FACTURA_A">Factura A</option>
+                        <option value="FACTURA_B">Factura B</option>
+                        <option value="NOTA_CREDITO_B">Nota de Crédito B</option>
+                      </select>
+                    </label>
+                    {search || statusFilter !== "ALL" || typeFilter !== "ALL" ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          setSearch("");
+                          setStatusFilter("ALL");
+                          setTypeFilter("ALL");
+                        }}
+                      >
+                        Limpiar filtros
+                      </Button>
+                    ) : null}
+                  </FilterBar>
+                  {documentsQuery.isError ? (
+                    <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/8 p-5 text-sm text-destructive">
+                      <p className="font-semibold">No se pudieron cargar los comprobantes.</p>
+                      <p className="mt-1">{getErrorMessage(documentsQuery.error)}</p>
+                      <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void documentsQuery.refetch()}>
+                        Reintentar
+                      </Button>
+                    </div>
+                  ) : documentsQuery.isLoading ? (
                     <p className="py-8 text-center text-sm text-muted-foreground">Cargando borradores...</p>
                   ) : filteredDocuments.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border/70 p-8 text-center">
-                      <p className="font-semibold text-foreground">Todavia no hay comprobantes fiscales</p>
+                      <p className="font-semibold text-foreground">
+                        {documents.length === 0 ? "Todavía no hay comprobantes fiscales" : "No hay comprobantes que coincidan"}
+                      </p>
                       <p className="mt-2 text-sm text-muted-foreground">
-                        Crea un borrador desde Caja sobre una venta con remito emitido.
+                        {documents.length === 0
+                          ? "Creá un borrador desde Caja sobre una venta con remito emitido."
+                          : "Ajustá la búsqueda o limpiá los filtros para volver a ver todos los comprobantes."}
                       </p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto rounded-xl border">
-                      <table className="w-full min-w-[860px] text-sm">
+                    <>
+                      <div className="grid gap-3 md:hidden">
+                        {filteredDocuments.map((document) => {
+                          const remito = document.source_remito_id ? remitosQuery.data?.get(document.source_remito_id) : null;
+                          const selected = selectedDocument?.id === document.id;
+                          return (
+                            <button
+                              key={document.id}
+                              type="button"
+                              aria-pressed={selected}
+                              className={`rounded-xl border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/5 shadow-sm" : "border-border/70 bg-card hover:border-primary/40"}`}
+                              onClick={() => setSelectedDocumentId(document.id)}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-foreground">{getBillingDocumentTypeLabel(document)}</p>
+                                  <p className="mt-1 truncate text-sm text-muted-foreground">{document.receiver_name}</p>
+                                </div>
+                                <CompactBadge tone={STATUS_TONE[document.fiscal_status]}>{STATUS_LABEL[document.fiscal_status]}</CompactBadge>
+                              </div>
+                              <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                                <div>
+                                  <span className="block">Remito</span>
+                                  <span className="mt-1 block font-mono text-foreground">{formatRemitoReference(remito)}</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="block">Total</span>
+                                  <AmountDisplay value={Number(document.total)} size="sm" className="mt-1" />
+                                </div>
+                              </div>
+                              <p className="mt-3 text-xs text-muted-foreground">{formatDateTime(document.created_at)}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="hidden overflow-x-auto rounded-xl border md:block">
+                        <table className="w-full min-w-[820px] text-sm">
                         <thead className="border-b bg-muted/45 text-xs text-muted-foreground">
                           <tr>
                             <th className="px-3 py-2 text-left">Fecha</th>
@@ -335,62 +416,28 @@ export default function BillingPage() {
                             const remito = document.source_remito_id ? remitosQuery.data?.get(document.source_remito_id) : null;
                             const selected = selectedDocument?.id === document.id;
                             return (
-                              <tr key={document.id} className="border-b last:border-b-0">
+                              <tr
+                                key={document.id}
+                                className={`border-b transition-colors last:border-b-0 ${selected ? "bg-primary/5" : "hover:bg-muted/30"}`}
+                              >
                                 <td className="px-3 py-2">{formatDateTime(document.created_at)}</td>
                                 <td className="px-3 py-2">{getBillingDocumentTypeLabel(document)}</td>
-                                <td className="px-3 py-2"><Badge variant="outline">{STATUS_LABEL[document.fiscal_status]}</Badge></td>
+                                <td className="px-3 py-2"><CompactBadge tone={STATUS_TONE[document.fiscal_status]}>{STATUS_LABEL[document.fiscal_status]}</CompactBadge></td>
                                 <td className="px-3 py-2">{getBillingDocumentOriginLabel(document)}</td>
                                 <td className="px-3 py-2 font-mono text-xs">{formatRemitoReference(remito)}</td>
                                 <td className="px-3 py-2">{document.receiver_name}</td>
                                 <td className="px-3 py-2 text-right"><AmountDisplay value={Number(document.total)} size="sm" /></td>
                                 <td className="px-3 py-2 text-muted-foreground">{document.cae ?? "-"}</td>
                                 <td className="px-3 py-2">
-                                  <div className="flex justify-end gap-2">
-                                    {canShowAuthorizeBillingDocumentAction(document, roles, billingAccessContext) ? (
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setAuthorizeDialogDocument(document)}
-                                        disabled={authorizationBusy}
-                                      >
-                                        Autorizar
-                                      </Button>
-                                    ) : null}
-                                    {canShowPrintBillingDocumentAction(document, roles, billingAccessContext) ? (
-                                      <Button type="button" variant="outline" size="sm" onClick={() => openPrint(document)}>
-                                        Imprimir
-                                      </Button>
-                                    ) : null}
-                                    {canShowResetStaleAuthorizationAction(document, roles, billingAccessContext) ? (
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setResetDialogDocument(document)}
-                                        disabled={resetPending}
-                                      >
-                                        Liberar
-                                      </Button>
-                                    ) : null}
-                                    {canShowCreateCreditNoteBAction(document, documents, roles, billingAccessContext) ? (
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setCreditNoteDialogDocument(document)}
-                                        disabled={creditNotePending}
-                                      >
-                                        Crear NC B
-                                      </Button>
-                                    ) : null}
+                                  <div className="flex justify-end">
                                     <Button
                                       type="button"
                                       variant={selected ? "secondary" : "ghost"}
                                       size="sm"
+                                      aria-pressed={selected}
                                       onClick={() => setSelectedDocumentId(document.id)}
                                     >
-                                      Ver detalle
+                                      {selected ? "Seleccionado" : "Ver detalle"}
                                     </Button>
                                   </div>
                                 </td>
@@ -398,15 +445,15 @@ export default function BillingPage() {
                             );
                           })}
                         </tbody>
-                      </table>
-                    </div>
+                        </table>
+                      </div>
+                    </>
                   )}
-                </CardContent>
-              </Card>
+              </OperationalTableShell>
 
-              <Card className="h-fit border-primary/8 shadow-[var(--shadow-xs)]">
+              <SectionCard className="h-fit xl:sticky xl:top-4">
                 <CardHeader>
-                  <CardTitle>Detalle</CardTitle>
+                  <CardTitle>{selectedDocument ? getBillingDocumentTypeLabel(selectedDocument) : "Detalle del comprobante"}</CardTitle>
                   <CardDescription>
                     {selectedDocument?.invoice_type === "FACTURA_A"
                       ? "Factura A en preparacion. No emite comprobantes."
@@ -423,7 +470,7 @@ export default function BillingPage() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between gap-4">
                           <span className="text-muted-foreground">Estado</span>
-                          <Badge variant="outline">{STATUS_LABEL[selectedDocument.fiscal_status]}</Badge>
+                          <CompactBadge tone={STATUS_TONE[selectedDocument.fiscal_status]}>{STATUS_LABEL[selectedDocument.fiscal_status]}</CompactBadge>
                         </div>
                         <div className="flex justify-between gap-4">
                           <span className="text-muted-foreground">Origen</span>
@@ -573,7 +620,7 @@ export default function BillingPage() {
                     </div>
                   )}
                 </CardContent>
-              </Card>
+              </SectionCard>
             </div>
           </>
         ) : null}

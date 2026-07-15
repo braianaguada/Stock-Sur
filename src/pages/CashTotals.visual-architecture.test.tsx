@@ -82,7 +82,7 @@ describe("CashTotalsPage visual architecture", () => {
     render(<CashTotalsPage />);
 
     expect(screen.getByRole("heading", { name: "Totales agrupados por día" })).toBeInTheDocument();
-    expect(screen.getByText("1 registros")).toBeInTheDocument();
+    expect(screen.getByText("1 registro")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Efectivo neto" })).toBeInTheDocument();
   });
 });

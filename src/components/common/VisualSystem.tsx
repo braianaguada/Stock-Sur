@@ -184,7 +184,7 @@ export function OperationalTableShell({
           {description ? <CardDescription>{description}</CardDescription> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {typeof count === "number" ? <CompactBadge>{count} registros</CompactBadge> : null}
+          {typeof count === "number" ? <CompactBadge>{count} {count === 1 ? "registro" : "registros"}</CompactBadge> : null}
           {actions}
         </div>
       </CardHeader>
