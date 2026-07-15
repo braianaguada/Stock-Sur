@@ -64,7 +64,7 @@ describe("CustomerAccountPage visual architecture", () => {
     render(<CustomerAccountPage />, { wrapper: MemoryRouter });
 
     expect(screen.getByRole("heading", { name: "Movimientos de cuenta" })).toBeInTheDocument();
-    expect(screen.getByText("1 registros")).toBeInTheDocument();
+    expect(screen.getByText("1 registro")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Débito" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Crédito" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Saldo" })).toBeInTheDocument();

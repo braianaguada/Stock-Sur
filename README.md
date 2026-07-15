@@ -900,6 +900,14 @@ Production migration history note:
 - La tabla de productos conserva su legibilidad en pantallas angostas mediante desplazamiento horizontal contenido.
 - No requiere migraciones ni modifica la persistencia existente.
 
+## Facturación: workbench operativo
+
+- La cabecera identifica de forma visible el ambiente de homologación, los comprobantes habilitados y el bloqueo de producción.
+- Los indicadores separan autorizados, pendientes, rechazados, notas de crédito y borradores de Factura A con estados visuales consistentes.
+- El listado incorpora búsqueda, filtros combinables, errores recuperables y una selección adaptada a móviles sin duplicar acciones fiscales críticas.
+- El detalle concentra la lectura y las acciones del comprobante seleccionado; no se modificaron reglas fiscales, permisos, consultas ni aislamiento por empresa.
+- No requiere migraciones ni cambios de configuración.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
