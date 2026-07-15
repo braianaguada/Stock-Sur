@@ -26,17 +26,17 @@ export const STATUS_VARIANT: Record<DocStatus, "secondary" | "default" | "destru
 
 export const STATUS_CLASS: Record<DocStatus, string> = {
   BORRADOR: "",
-  ENVIADO: "border-blue-200 bg-blue-50 text-blue-700",
-  APROBADO: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  ENVIADO: "border-info/20 bg-info/10 text-info",
+  APROBADO: "border-success/20 bg-success/10 text-success",
   RECHAZADO: "",
-  EMITIDO: "border-slate-200 bg-slate-900 text-white",
+  EMITIDO: "border-foreground/20 bg-foreground text-background",
   ANULADO: "",
 };
 
 export const DOC_TYPE_CLASS: Record<DocType, string> = {
-  PRESUPUESTO: "border-blue-200 bg-blue-50 text-blue-700",
-  REMITO: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  REMITO_DEVOLUCION: "border-amber-200 bg-amber-50 text-amber-700",
+  PRESUPUESTO: "border-[hsl(var(--domain-accent)/.22)] bg-[hsl(var(--domain-accent-soft))] text-[hsl(var(--domain-accent-strong))]",
+  REMITO: "border-[hsl(var(--domain-accent)/.22)] bg-[hsl(var(--domain-accent-soft))] text-[hsl(var(--domain-accent-strong))]",
+  REMITO_DEVOLUCION: "border-[hsl(var(--domain-accent)/.22)] bg-[hsl(var(--domain-accent-soft))] text-[hsl(var(--domain-accent-strong))]",
 };
 
 export const CUSTOMER_KIND_LABEL: Record<CustomerKind, string> = {
@@ -57,19 +57,19 @@ export const PRICING_MODE_LABEL: Record<LinePricingMode, string> = {
 };
 
 const HISTORY_TONE_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
-  neutral: "border-slate-200 bg-slate-50 text-slate-700",
-  info: "border-blue-200 bg-blue-50 text-blue-700",
-  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  warning: "border-amber-200 bg-amber-50 text-amber-700",
-  danger: "border-rose-200 bg-rose-50 text-rose-700",
+  neutral: "border-border bg-muted text-foreground",
+  info: "border-info/20 bg-info/10 text-info",
+  success: "border-success/20 bg-success/10 text-success",
+  warning: "border-warning/20 bg-warning/10 text-warning",
+  danger: "border-destructive/20 bg-destructive/10 text-destructive",
 };
 
 const HISTORY_DOT_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
-  neutral: "bg-slate-400 shadow-slate-200",
-  info: "bg-blue-500 shadow-blue-200",
-  success: "bg-emerald-500 shadow-emerald-200",
-  warning: "bg-amber-500 shadow-amber-200",
-  danger: "bg-rose-500 shadow-rose-200",
+  neutral: "bg-muted-foreground shadow-border",
+  info: "bg-info shadow-info/20",
+  success: "bg-success shadow-success/20",
+  warning: "bg-warning shadow-warning/20",
+  danger: "bg-destructive shadow-destructive/20",
 };
 
 export const EMPTY_LINE: LineDraft = {

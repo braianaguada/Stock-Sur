@@ -464,7 +464,7 @@ export default function CashPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <div className="page-shell domain-cash">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitas una empresa activa para registrar ventas, asociar comprobantes y cerrar caja." />
         ) : null}

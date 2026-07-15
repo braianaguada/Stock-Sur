@@ -32,7 +32,7 @@ export function PageHeader(props: {
   const resolvedSubtitle = subtitle ?? description;
 
   return (
-    <section className={cn("page-hero bg-transparent px-0 pb-5 pt-0 shadow-none", divider && "border-b border-border/70", className)}>
+    <section className={cn("page-hero shadow-none", divider && "border-b", className)}>
       <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-4">
           {eyebrow ? <div className="page-eyebrow">{eyebrow}</div> : null}
@@ -74,8 +74,9 @@ export function StatCard(props: {
   hint?: ReactNode;
   tone?: "default" | "success" | "warning" | "danger" | "info";
   className?: string;
+  featured?: boolean;
 }) {
-  const { label, value, icon, hint, tone = "default", className } = props;
+  const { label, value, icon, hint, tone = "default", featured = false, className } = props;
   const toneClassName = {
     default: "before:bg-border",
     success: "before:bg-success",
@@ -99,16 +100,16 @@ export function StatCard(props: {
   }[tone];
 
   return (
-    <Card className={cn("stat-tile relative overflow-hidden border-border/70 bg-card shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5", toneClassName, className)}>
+    <Card className={cn("stat-tile relative overflow-hidden border-border/70 bg-card shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5", toneClassName, featured && "stat-tile-featured before:bg-cyan-300", className)}>
       <CardContent className="p-0">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
-            <div className={cn("text-3xl font-extrabold tracking-tight", valueClassName)}>{value}</div>
-            {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
+            <p className={cn("text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground", featured && "text-indigo-100")}>{label}</p>
+            <div className={cn("text-3xl font-extrabold tracking-tight", valueClassName, featured && "text-white")}>{value}</div>
+            {hint ? <p className={cn("text-sm text-muted-foreground", featured && "text-indigo-100/85")}>{hint}</p> : null}
           </div>
           {icon ? (
-            <div className={cn("rounded-lg border p-2.5", iconClassName)}>
+            <div className={cn("rounded-lg border p-2.5", iconClassName, featured && "border-cyan-200/25 bg-cyan-300/15 text-cyan-100")}>
               {icon}
             </div>
           ) : null}

@@ -44,12 +44,12 @@ const navItems = [
 ] as const;
 
 const navGroups = [
-  { title: "Comercial", urls: ["/documents", "/customers", "/customer-account", "/billing"] },
-  { title: "Inventario", urls: ["/items", "/combos", "/stock", "/price-lists"] },
-  { title: "Compras", urls: ["/suppliers", "/purchase-orders"] },
-  { title: "Servicios", urls: ["/services/documents", "/service-jobs", "/technicians"] },
-  { title: "Finanzas", urls: ["/cash", "/cash-totals", "/settlements"] },
-  { title: "Administración", urls: ["/users", "/settings"] },
+  { title: "Comercial", domainClassName: "domain-commercial", urls: ["/documents", "/customers", "/customer-account", "/billing"] },
+  { title: "Inventario", domainClassName: "domain-inventory", urls: ["/items", "/combos", "/stock", "/price-lists"] },
+  { title: "Compras", domainClassName: "domain-purchases", urls: ["/suppliers", "/purchase-orders"] },
+  { title: "Servicios", domainClassName: "domain-services", urls: ["/services/documents", "/service-jobs", "/technicians"] },
+  { title: "Finanzas", domainClassName: "domain-cash", urls: ["/cash", "/cash-totals", "/settlements"] },
+  { title: "Administración", domainClassName: "domain-admin", urls: ["/users", "/settings"] },
 ] as const;
 
 export function AppSidebar() {
@@ -296,11 +296,12 @@ export function AppSidebar() {
                       if (items.length === 0) return null;
 
                       return (
-                        <section key={group.title} aria-labelledby={`nav-group-${group.title}`} className="space-y-2">
+                        <section key={group.title} aria-labelledby={`nav-group-${group.title}`} className={cn("space-y-2", group.domainClassName)}>
                           <h3
                             id={`nav-group-${group.title}`}
-                            className="border-b border-border pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+                            className="flex items-center gap-2 border-b border-[hsl(var(--domain-accent))]/20 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-foreground"
                           >
+                            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-[hsl(var(--domain-accent))]" />
                             {group.title}
                           </h3>
                           <div className="grid gap-1">
@@ -313,8 +314,8 @@ export function AppSidebar() {
                                   aria-current={isActive ? "page" : undefined}
                                   onClick={() => setModulesOpen(false)}
                                   className={cn(
-                                    "flex min-h-10 items-center rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground",
-                                    isActive && "bg-primary/10 font-semibold text-foreground",
+                                    "flex min-h-10 items-center rounded-lg border border-transparent px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-[hsl(var(--domain-accent))]/15 hover:bg-[hsl(var(--domain-accent))]/[.07] hover:text-foreground",
+                                    isActive && "domain-selection font-semibold text-foreground",
                                   )}
                                 >
                                   {item.title}
