@@ -41,6 +41,7 @@ import {
   type SortDirection,
 } from "@/features/items/components/ItemsDataTable";
 import { getOperationalPrice } from "@/features/pricing/operational-price";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const NEW_ITEM_DRAFT_KEY = "items:new-item-draft";
@@ -223,7 +224,7 @@ export default function ItemsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [trimmedSearch, categoryFilter, statusFilter, pageSize, sortBy, sortDirection]);
+  }, [trimmedSearch, categoryFilter, supplierFilter, statusFilter, stockFilter, pageSize, sortBy, sortDirection]);
 
   useEffect(() => {
     setDraftHydratedKey(null);
@@ -443,6 +444,20 @@ export default function ItemsPage() {
     });
     return stats;
   }, [itemsQuery.data, stockByItemId]);
+
+  const hasActiveFilters = search.trim().length > 0
+    || statusFilter !== "active"
+    || stockFilter !== "all"
+    || categoryFilter !== "all"
+    || supplierFilter !== "all";
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("active");
+    setStockFilter("all");
+    setCategoryFilter("all");
+    setSupplierFilter("all");
+  };
 
   const hasActiveSearch = deferredSearch.trim().length > 0;
   const aliasesSearchQuery = useQuery({
@@ -922,20 +937,30 @@ export default function ItemsPage() {
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Activos en Venta</span>
             <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{stockStats.active}</span>
           </div>
-          <div 
-            className="flex cursor-pointer flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 shadow-sm transition-all hover:bg-card hover:shadow-md"
+          <button
+            type="button"
+            className={cn(
+              "flex flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 text-left shadow-sm transition-all hover:bg-card hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              stockFilter === "in_stock" && "border-blue-500/50 bg-blue-500/10",
+            )}
             onClick={() => setStockFilter("in_stock")}
+            aria-pressed={stockFilter === "in_stock"}
           >
             <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Con Stock</span>
             <span className="text-xl font-black text-blue-600 dark:text-blue-400">{stockStats.inStock}</span>
-          </div>
-          <div 
-            className="flex cursor-pointer flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 shadow-sm transition-all hover:bg-card hover:shadow-md"
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "flex flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 text-left shadow-sm transition-all hover:bg-card hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              stockFilter === "no_stock" && "border-rose-500/50 bg-rose-500/10",
+            )}
             onClick={() => setStockFilter("no_stock")}
+            aria-pressed={stockFilter === "no_stock"}
           >
             <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Sin Stock</span>
             <span className="text-xl font-black text-rose-600 dark:text-rose-400">{stockStats.noStock}</span>
-          </div>
+          </button>
         </div>
 
         <Collapsible open={columnsOpen} onOpenChange={setColumnsOpen}>
@@ -943,6 +968,7 @@ export default function ItemsPage() {
             <div className="relative w-full md:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
+                aria-label="Buscar ítems"
                 placeholder="Buscar por SKU, nombre, marca, modelo, atributos, alias..."
                 className="pl-9"
                 value={search}
@@ -951,7 +977,7 @@ export default function ItemsPage() {
             </div>
             <div className="w-full md:w-44">
               <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "active" | "inactive" | "all")}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Filtrar por estado">
                   <SelectValue placeholder="Estado" />
                 </SelectTrigger>
                 <SelectContent>
@@ -963,7 +989,7 @@ export default function ItemsPage() {
             </div>
             <div className="w-full md:w-44">
               <Select value={stockFilter} onValueChange={(value) => setStockFilter(value as "all" | "in_stock" | "no_stock")}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Filtrar por stock">
                   <SelectValue placeholder="Stock" />
                 </SelectTrigger>
                 <SelectContent>
@@ -975,7 +1001,7 @@ export default function ItemsPage() {
             </div>
             <div className="w-full md:w-52">
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Filtrar por categoría">
                   <SelectValue placeholder="Categoría" />
                 </SelectTrigger>
                 <SelectContent>
@@ -989,7 +1015,7 @@ export default function ItemsPage() {
             {suppliers.length > 0 ? (
               <div className="w-full md:w-52">
                 <Select value={supplierFilter} onValueChange={setSupplierFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Filtrar por proveedor">
                     <SelectValue placeholder="Proveedor" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1000,6 +1026,11 @@ export default function ItemsPage() {
                   </SelectContent>
                 </Select>
               </div>
+            ) : null}
+            {hasActiveFilters ? (
+              <Button type="button" variant="ghost" onClick={clearFilters}>
+                Limpiar filtros
+              </Button>
             ) : null}
             {selectedItemIds.length > 0 ? (
               <div className="flex items-center gap-2 flex-wrap">

@@ -4,6 +4,13 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Catálogo responsive y operativo
+
+- Ítems usa tarjetas compactas en pantallas móviles para evitar la tabla horizontal, manteniendo la tabla configurable y densa en escritorio.
+- Cada tarjeta reúne stock, costo base, margen, estado operativo, selección y acciones sin alterar reglas comerciales.
+- Los filtros tienen nombres accesibles, pueden restablecerse en una sola acción y los indicadores de stock funcionan con teclado y muestran su selección.
+- No hay migraciones ni cambios en consultas, stock, precios o permisos. La regresión responsive está cubierta por `ItemsDataTable.test.tsx`.
+
 ## Banco de trabajo responsive para trabajos y servicios
 
 - La bandeja principal incorpora un selector movil sin tabla horizontal y una tabla de escritorio compacta orientada a la operacion.
