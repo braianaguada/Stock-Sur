@@ -5,9 +5,9 @@ import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -65,14 +65,15 @@ function formatMoney(value: number | string | null | undefined) {
 }
 
 function JobStatusBadge({ status }: { status: ServiceJobListItem["status"] }) {
-  const className = {
-    OPEN: "border-sky-500/30 bg-sky-500/10 text-sky-400",
-    IN_PROGRESS: "border-amber-500/30 bg-amber-500/10 text-amber-400",
-    ON_HOLD: "border-slate-500/30 bg-slate-500/10 text-slate-400",
-    DONE: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-    CANCELLED: "border-rose-500/30 bg-rose-500/10 text-rose-400",
-  }[status];
-  return <Badge variant="outline" className={className}>{JOB_STATUS_LABEL[status]}</Badge>;
+  const tone = {
+    OPEN: "info",
+    IN_PROGRESS: "warning",
+    ON_HOLD: "muted",
+    DONE: "success",
+    CANCELLED: "danger",
+  } as const satisfies Record<ServiceJobListItem["status"], "info" | "warning" | "muted" | "success" | "danger">;
+  const statusTone = tone[status];
+  return <CompactBadge tone={statusTone}>{JOB_STATUS_LABEL[status]}</CompactBadge>;
 }
 
 export default function ServiceJobsPage() {
@@ -164,6 +165,19 @@ export default function ServiceJobsPage() {
     : null;
   const selectedJobArchived = selectedJob ? isServiceJobArchived(selectedJob) : false;
   const selectedJobHasRegisteredCustomer = Boolean(selectedJobCustomer?.id);
+  const hasActiveFilters = Boolean(
+    search.trim() || status !== "ALL" || priority !== "ALL" || archivedFilter !== "active" || technicianId !== "ALL" || from || to,
+  );
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatus("ALL");
+    setPriority("ALL");
+    setArchivedFilter("active");
+    setTechnicianId("ALL");
+    setFrom("");
+    setTo("");
+  };
 
   const filteredLinkableRemitos = useMemo(() => {
     if (!linkingService || !selectedJob) return [];
@@ -257,10 +271,10 @@ export default function ServiceJobsPage() {
         <FilterBar>
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar por trabajo o cliente..." className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} />
+            <Input aria-label="Buscar trabajos" placeholder="Buscar por trabajo o cliente..." className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} />
           </div>
           <Select value={archivedFilter} onValueChange={(value) => setArchivedFilter(value as "active" | "archived" | "all")}>
-            <SelectTrigger className="w-full md:w-40"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Visibilidad" className="w-full md:w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="active">Activos</SelectItem>
               <SelectItem value="archived">Archivados</SelectItem>
@@ -268,62 +282,91 @@ export default function ServiceJobsPage() {
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-full md:w-48"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Estado" className="w-full md:w-48"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todos los estados</SelectItem>
               {SERVICE_JOB_STATUSES.map((value) => <SelectItem key={value} value={value}>{JOB_STATUS_LABEL[value]}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={technicianId} onValueChange={setTechnicianId}>
-            <SelectTrigger className="w-full md:w-56"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Técnico" className="w-full md:w-56"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todos los tecnicos</SelectItem>
               {technicians.map((technician) => <SelectItem key={technician.id} value={technician.id}>{technician.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={priority} onValueChange={setPriority}>
-            <SelectTrigger className="w-full md:w-44"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Prioridad" className="w-full md:w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todas las prioridades</SelectItem>
               {SERVICE_JOB_PRIORITIES.map((value) => <SelectItem key={value} value={value}>{PRIORITY_LABEL[value]}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Input className="w-full md:w-40" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
-          <Input className="w-full md:w-40" type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+          <Input aria-label="Desde" className="w-full md:w-40" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+          <Input aria-label="Hasta" className="w-full md:w-40" type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+          {hasActiveFilters ? <Button type="button" variant="ghost" onClick={clearFilters}>Limpiar filtros</Button> : null}
         </FilterBar>
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-          <section className="data-panel overflow-hidden">
+          <OperationalTableShell
+            title="Bandeja de trabajos"
+            description="Seleccioná un trabajo para consultar y operar sus servicios."
+            count={jobs.length}
+            className="min-w-0"
+          >
             {isLoading ? (
-              <div className="grid gap-3 p-6">
+              <div className="grid gap-3 py-2" aria-label="Cargando trabajos">
                 <div className="h-5 w-48 animate-pulse rounded bg-muted" />
                 <div className="h-24 animate-pulse rounded-lg border bg-muted/30" />
                 <div className="h-24 animate-pulse rounded-lg border bg-muted/30" />
               </div>
             ) : jobs.length === 0 ? (
-              <Card className="m-4 border-dashed bg-muted/15">
-                <CardContent className="flex items-center justify-between gap-3 p-6">
+              <div className="flex flex-col items-start justify-between gap-4 rounded-xl border border-dashed bg-muted/15 p-6 sm:flex-row sm:items-center">
                   <div>
-                    <h3 className="font-semibold">Todavia no hay trabajos</h3>
-                    <p className="text-sm text-muted-foreground">Crea el primer trabajo para empezar a cargar servicios internos.</p>
+                    <h3 className="font-semibold">{hasActiveFilters ? "No hay trabajos que coincidan" : "Todavía no hay trabajos"}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {hasActiveFilters ? "Probá con otros criterios o restablecé la vista activa." : "Creá el primer trabajo para empezar a cargar servicios internos."}
+                    </p>
                   </div>
-                  <Button onClick={openCreateJob}><Plus className="mr-2 h-4 w-4" /> Nuevo</Button>
-                </CardContent>
-              </Card>
+                  {hasActiveFilters ? <Button variant="outline" onClick={clearFilters}>Limpiar filtros</Button> : <Button onClick={openCreateJob}><Plus className="mr-2 h-4 w-4" /> Nuevo</Button>}
+              </div>
             ) : (
-              <div className="overflow-x-auto">
-              <Table className="min-w-[1120px]">
+              <>
+              <div className="grid gap-3 md:hidden" data-testid="service-job-mobile-list">
+                {jobs.map((job) => (
+                  <button
+                    key={job.id}
+                    type="button"
+                    aria-pressed={selectedJob?.id === job.id}
+                    onClick={() => setSelectedJobId(job.id)}
+                    className={cn("rounded-xl border p-4 text-left transition-colors", selectedJob?.id === job.id ? "border-primary/35 bg-primary/5" : "bg-card hover:bg-muted/30")}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{job.title}</p>
+                        <p className="truncate text-sm text-muted-foreground">{job.customers?.name ?? "Sin cliente"}</p>
+                      </div>
+                      <JobStatusBadge status={job.status} />
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <span>{job.serviceCount} servicios · {job.pendingServiceCount} pendientes</span>
+                      <span className="text-right">{job.remitoCount} remitos</span>
+                      <span>{PRIORITY_LABEL[job.priority ?? "NORMAL"]}</span>
+                      <span className="truncate text-right">{job.technicianNames.join(", ") || "Sin técnico"}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
+              <Table className="min-w-[840px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Trabajo</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead>Prioridad</TableHead>
-                    <TableHead>Servicios</TableHead>
-                    <TableHead>Remitos</TableHead>
-                    <TableHead>Costo est.</TableHead>
-                    <TableHead>Tecnicos</TableHead>
-                    <TableHead>Ultima actividad</TableHead>
+                    <TableHead>Operación</TableHead>
+                    <TableHead>Técnicos</TableHead>
+                    <TableHead>Última actividad</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -339,17 +382,11 @@ export default function ServiceJobsPage() {
                       </TableCell>
                       <TableCell>{job.customers?.name ?? "Sin cliente"}</TableCell>
                       <TableCell><JobStatusBadge status={job.status} /></TableCell>
-                      <TableCell>{PRIORITY_LABEL[job.priority ?? "NORMAL"]}</TableCell>
                       <TableCell>
-                        <div className="font-medium">{job.serviceCount}</div>
-                        <div className="text-xs text-muted-foreground">{job.doneServiceCount} hechos / {job.pendingServiceCount} pendientes</div>
+                        <div className="font-medium">{job.serviceCount} servicios · {job.remitoCount} remitos</div>
+                        <div className="text-xs text-muted-foreground">{job.pendingServiceCount} pendientes · {PRIORITY_LABEL[job.priority ?? "NORMAL"]} · {formatMoney(job.estimatedMaterialCost)}</div>
                       </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{job.remitoCount}</div>
-                        <div className="text-xs text-muted-foreground">{job.materialLineCount} lineas</div>
-                      </TableCell>
-                      <TableCell>{formatMoney(job.estimatedMaterialCost)}</TableCell>
-                      <TableCell className="max-w-48 truncate">{job.technicianNames.join(", ") || "Sin tecnico"}</TableCell>
+                      <TableCell className="max-w-48 truncate">{job.technicianNames.join(", ") || "Sin técnico"}</TableCell>
                       <TableCell>{formatDateTime(job.lastActivityAt ?? job.updated_at)}</TableCell>
                       <TableCell className="text-right">
                         <RowActions>
@@ -381,10 +418,11 @@ export default function ServiceJobsPage() {
                 </TableBody>
               </Table>
               </div>
+              </>
             )}
-          </section>
+          </OperationalTableShell>
 
-          <aside className="data-panel p-4">
+          <aside className="data-panel self-start p-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
             {selectedJob ? (
               <div className="grid gap-4">
                 <div className="flex items-start justify-between gap-3">
