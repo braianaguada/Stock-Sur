@@ -110,7 +110,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <div className="page-shell domain-core">
         {!currentCompany ? <CompanyAccessNotice description="Tu cuenta todavia no tiene una empresa activa." /> : null}
 
         <PageHeader
@@ -138,10 +138,10 @@ export default function Dashboard() {
           </Card>
         ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-3" data-testid="dashboard-primary-metrics">
-          <StatCard label="Ventas del mes" value={formatCurrency(dashboard.metrics.salesMonth)} icon={<ReceiptText className="h-5 w-5" />} hint={`Ticket promedio: ${formatCurrency(dashboard.metrics.averageTicket)}.`} tone="success" />
-          <StatCard label="Ganancia bruta real" value={formatCurrency(dashboard.metrics.grossProfitMonth)} icon={<BadgeDollarSign className="h-5 w-5" />} hint={`Neta ${formatCurrency(dashboard.metrics.salesNetMonth)} - costos ${formatCurrency(dashboard.metrics.productCostMonth)} - impuestos ${formatCurrency(dashboard.metrics.taxMonth)}. Margen ${formatPercent(dashboard.metrics.profitMarginPct)}.`} tone={dashboard.metrics.grossProfitMonth >= 0 ? "success" : "warning"} />
-          <StatCard label="Resultado de caja" value={formatCurrency(dashboard.metrics.cashNetMonth)} icon={<CircleDollarSign className="h-5 w-5" />} hint={`${formatCurrency(dashboard.metrics.expensesMonth)} en gastos del mes.`} tone={dashboard.metrics.cashNetMonth >= 0 ? "success" : "warning"} />
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-12" data-testid="dashboard-primary-metrics">
+          <StatCard className="xl:col-span-6" featured label="Ventas del mes" value={formatCurrency(dashboard.metrics.salesMonth)} icon={<ReceiptText className="h-5 w-5" />} hint={`Ticket promedio: ${formatCurrency(dashboard.metrics.averageTicket)}.`} />
+          <StatCard className="xl:col-span-3" label="Ganancia bruta real" value={formatCurrency(dashboard.metrics.grossProfitMonth)} icon={<BadgeDollarSign className="h-5 w-5" />} hint={`Neta ${formatCurrency(dashboard.metrics.salesNetMonth)} - costos ${formatCurrency(dashboard.metrics.productCostMonth)} - impuestos ${formatCurrency(dashboard.metrics.taxMonth)}. Margen ${formatPercent(dashboard.metrics.profitMarginPct)}.`} tone={dashboard.metrics.grossProfitMonth >= 0 ? "success" : "warning"} />
+          <StatCard className="xl:col-span-3" label="Resultado de caja" value={formatCurrency(dashboard.metrics.cashNetMonth)} icon={<CircleDollarSign className="h-5 w-5" />} hint={`${formatCurrency(dashboard.metrics.expensesMonth)} en gastos del mes.`} tone={dashboard.metrics.cashNetMonth >= 0 ? "success" : "warning"} />
         </div>
 
         <section className="grid gap-4 border-y border-border/70 py-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores de contexto">
@@ -192,17 +192,27 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground">Evolucion de caja de los ultimos seis meses.</p>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="h-[320px]">
+              <div
+                className="h-[320px]"
+                role="img"
+                aria-label="Grafico mensual de ventas, gastos y resultado. Las ventas son barras indigo, los gastos usan un patron rayado ambar y el resultado tiene contorno cyan."
+              >
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyCash}>
+                  <BarChart data={monthlyCash} accessibilityLayer>
+                    <defs>
+                      <pattern id="dashboard-expenses-pattern" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                        <rect width="8" height="8" fill="hsl(var(--warning) / .18)" />
+                        <line x1="0" y1="0" x2="0" y2="8" stroke="hsl(var(--warning))" strokeWidth="3" />
+                      </pattern>
+                    </defs>
                     <CartesianGrid stroke="hsl(var(--border) / 0.5)" vertical={false} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} />
                     <YAxis tickFormatter={(value) => formatNumber(Number(value))} tickLine={false} axisLine={false} width={75} />
                     <Tooltip content={<CashTooltip />} />
                     <Legend />
-                    <Bar dataKey="sales" name="Ventas" radius={[8, 8, 0, 0]} fill="hsl(var(--primary))" />
-                    <Bar dataKey="expenses" name="Gastos" radius={[8, 8, 0, 0]} fill="hsl(var(--destructive) / .65)" />
-                    <Bar dataKey="net" name="Resultado" radius={[8, 8, 0, 0]} fill="#059669" />
+                    <Bar dataKey="sales" name="Ventas" radius={[8, 8, 0, 0]} fill="hsl(var(--brand-indigo))" />
+                    <Bar dataKey="expenses" name="Gastos" radius={[8, 8, 0, 0]} fill="url(#dashboard-expenses-pattern)" stroke="hsl(var(--warning))" />
+                    <Bar dataKey="net" name="Resultado" radius={[8, 8, 0, 0]} fill="hsl(var(--brand-cyan) / .28)" stroke="hsl(var(--brand-cyan))" strokeWidth={2} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -221,7 +231,7 @@ export default function Dashboard() {
                     <span className="truncate font-medium">{paymentLabels[entry.method] ?? entry.method}</span>
                     <span className="shrink-0 font-semibold">{formatCurrency(entry.total)}</span>
                   </div>
-                  <div className="h-2.5 rounded-full bg-muted"><div className="h-2.5 rounded-full bg-primary" style={{ width: `${Math.max(6, (entry.total / maxPayment) * 100)}%` }} /></div>
+                  <div className="h-2.5 rounded-full bg-muted"><div className="h-2.5 rounded-full bg-[hsl(var(--brand-indigo))]" style={{ width: `${Math.max(6, (entry.total / maxPayment) * 100)}%` }} /></div>
                   <p className="text-xs text-muted-foreground">{formatNumber(entry.count)} operaciones</p>
                 </div>
               )) : <p className="py-12 text-center text-sm text-muted-foreground">Todavia no hay ventas registradas este mes.</p>}
@@ -235,18 +245,22 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground">Venta neta y ganancia bruta con margen real, descontando impuestos y costo de productos.</p>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="h-[300px]">
+            <div
+              className="h-[300px]"
+              role="img"
+              aria-label="Grafico de rentabilidad. La venta neta es un area indigo continua, la ganancia bruta es un area verde de trazo discontinuo y el margen es una linea ambar punteada."
+            >
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={monthlyProfit}>
+                <ComposedChart data={monthlyProfit} accessibilityLayer>
                   <CartesianGrid stroke="hsl(var(--border) / 0.5)" vertical={false} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} />
                   <YAxis yAxisId="money" tickFormatter={(value) => formatNumber(Number(value))} tickLine={false} axisLine={false} width={75} />
                   <YAxis yAxisId="margin" orientation="right" tickFormatter={(value) => formatPercent(Number(value))} tickLine={false} axisLine={false} width={56} />
                   <Tooltip content={<ProfitTooltip />} />
                   <Legend />
-                  <Area yAxisId="money" type="monotone" dataKey="netRevenue" name="Venta neta" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / .16)" strokeWidth={2} />
-                  <Area yAxisId="money" type="monotone" dataKey="grossProfit" name="Ganancia bruta" stroke="#059669" fill="#05966922" strokeWidth={2} />
-                  <Line yAxisId="margin" type="monotone" dataKey="profitMarginPct" name="Margen" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Area yAxisId="money" type="monotone" dataKey="netRevenue" name="Venta neta" stroke="hsl(var(--brand-indigo))" fill="hsl(var(--brand-indigo) / .16)" strokeWidth={2} />
+                  <Area yAxisId="money" type="monotone" dataKey="grossProfit" name="Ganancia bruta" stroke="hsl(var(--success))" fill="hsl(var(--success) / .13)" strokeWidth={2} strokeDasharray="3 3" />
+                  <Line yAxisId="margin" type="monotone" dataKey="profitMarginPct" name="Margen" stroke="hsl(var(--warning))" strokeWidth={2.5} strokeDasharray="6 4" dot={{ r: 3 }} activeDot={{ r: 5 }} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>

@@ -12,7 +12,7 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex min-h-11 items-center justify-center rounded-full border border-border/55 bg-[hsl(var(--panel))]/70 p-1 text-muted-foreground shadow-[var(--shadow-xs)] transition-[background-color,border-color,box-shadow] duration-200 ease-out motion-reduce:transition-none",
+      "inline-flex min-h-11 items-end justify-center gap-1 border-b border-border/70 bg-transparent px-1 text-muted-foreground",
       className,
     )}
     {...props}
@@ -27,7 +27,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-medium ring-offset-background transition-[background-color,color,box-shadow,transform] duration-200 ease-out hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-[var(--shadow-xs)] data-[state=active]:translate-y-[-1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--focus-ring))] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none",
+      "relative inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-xs)] px-3.5 py-2 text-sm font-medium ring-offset-background transition-colors duration-200 hover:bg-accent/60 hover:text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[hsl(var(--domain-accent))] after:opacity-0 data-[state=active]:bg-[hsl(var(--domain-accent))]/[.07] data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:after:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--focus-ring))] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none",
       className,
     )}
     {...props}

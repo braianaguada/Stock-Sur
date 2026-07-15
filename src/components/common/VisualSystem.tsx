@@ -85,7 +85,7 @@ export function MetricCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden border-border/70 bg-card shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5",
+        "relative overflow-hidden border-border/70 bg-gradient-to-br shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5",
         toneClasses[tone],
         className,
       )}

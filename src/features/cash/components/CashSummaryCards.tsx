@@ -15,7 +15,7 @@ function BreakdownRow({ label, value, icon }: { label: string; value: number; ic
   return (
     <div className="flex items-center justify-between gap-4 border-b border-border/45 py-3 last:border-b-0">
       <div className="flex min-w-0 items-center gap-2">
-        <span className="rounded-md bg-muted/55 p-1.5 text-muted-foreground">
+        <span className="domain-icon-tile rounded-md border p-1.5">
           {icon}
         </span>
         <span className="truncate text-sm font-medium text-muted-foreground">{label}</span>
@@ -80,13 +80,13 @@ export function CashOverviewPanel({
   ];
 
   return (
-    <Card className="overflow-hidden border-border/70 bg-card shadow-none">
+    <Card className="cash-signal-surface overflow-hidden shadow-none">
       <CardContent className="p-0">
         <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5 p-5 lg:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Resumen operativo</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--domain-accent-strong))]">Resumen operativo</p>
                 <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">Caja del dia</h2>
               </div>
               <CompactBadge tone={closureStatus === "CERRADO" ? "success" : "warning"}>
@@ -105,7 +105,7 @@ export function CashOverviewPanel({
             </div>
 
             <div className="grid gap-4 rounded-lg border-y border-border/70 py-4 md:grid-cols-2 xl:grid-cols-4">
-              <SummaryFact label="Efectivo a rendir" value={summary.efectivoNetoEsperado} tone="success" />
+              <SummaryFact label="Efectivo a rendir" value={summary.efectivoNetoEsperado} />
               <SummaryFact label="Gastos efectivo" value={summary.gastosEfectivo} tone="danger" />
               <SummaryFact label="Otros medios" value={digitalTotal} />
               <SummaryFact label="Cuenta corriente" value={summary.cuentaCorriente} />
@@ -132,7 +132,7 @@ export function CashOverviewPanel({
             ) : null}
           </div>
 
-          <div className="border-t border-border/60 bg-[hsl(var(--panel))]/28 p-5 xl:border-l xl:border-t-0">
+          <div className="border-t border-[hsl(var(--domain-accent))]/15 bg-[hsl(var(--domain-accent))]/[.045] p-5 xl:border-l xl:border-t-0">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-foreground">Composicion</p>

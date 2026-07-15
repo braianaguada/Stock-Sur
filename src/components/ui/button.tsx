@@ -5,14 +5,14 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[calc(var(--radius-sm)+2px)] text-sm font-semibold ring-offset-background transition-[background-color,color,border-color,box-shadow,transform,opacity] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--focus-ring))] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.985] active:translate-y-px motion-reduce:transition-none [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-sm)] text-sm font-semibold ring-offset-background transition-[background-color,color,border-color,box-shadow,opacity] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--focus-ring))] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-[var(--shadow-xs)] hover:-translate-y-0.5 hover:bg-primary/95 hover:shadow-[var(--shadow-sm)]",
-        destructive: "bg-destructive text-destructive-foreground shadow-[var(--shadow-xs)] hover:-translate-y-0.5 hover:bg-destructive/92 hover:shadow-[var(--shadow-sm)]",
-        outline: "border border-input/75 bg-background/78 text-foreground shadow-[var(--shadow-xs)] hover:-translate-y-0.5 hover:bg-accent/78 hover:text-accent-foreground hover:shadow-[var(--shadow-sm)]",
-        secondary: "border border-primary/10 bg-primary/8 text-primary hover:-translate-y-0.5 hover:bg-primary/12 hover:shadow-[var(--shadow-xs)]",
+        default: "bg-primary text-primary-foreground shadow-[var(--shadow-xs)] hover:bg-primary/90",
+        destructive: "bg-destructive text-destructive-foreground shadow-[var(--shadow-xs)] hover:bg-destructive/90",
+        outline: "border border-input/75 bg-background text-foreground shadow-[var(--shadow-xs)] hover:bg-accent/78 hover:text-accent-foreground",
+        secondary: "border border-primary/10 bg-primary/8 text-primary hover:bg-primary/12",
         ghost: "text-muted-foreground hover:bg-accent/72 hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },

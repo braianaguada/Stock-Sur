@@ -724,7 +724,7 @@ export default function DocumentsPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <div className="page-shell domain-commercial">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitas una empresa activa para crear documentos, emitir remitos y revisar su historial." />
         ) : null}
