@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -69,5 +69,19 @@ describe("ItemsDataTable", () => {
 
     expect(meta.main_price_original).toBe(1256.35);
     expect(meta.main_price).toBe(1500);
+  });
+
+  it("renders a compact mobile catalog card with operational data", () => {
+    renderTable();
+
+    const mobileList = screen.getByTestId("items-mobile-list");
+    const card = within(mobileList).getByTestId("item-mobile-card");
+
+    expect(within(card).getByText("Producto prueba")).toBeInTheDocument();
+    expect(within(card).getByText("SKU-1")).toBeInTheDocument();
+    expect(within(card).getByText("Costo base")).toBeInTheDocument();
+    expect(within(card).getByText("33,3%")).toBeInTheDocument();
+    expect(within(card).getByText("OK")).toHaveAttribute("title", "Sin alertas operativas");
+    expect(within(card).getByRole("checkbox", { name: "Seleccionar Producto prueba" })).toBeInTheDocument();
   });
 });

@@ -449,21 +449,113 @@ function ItemsDataTableComponent({
   ], [allVisibleSelected, items, onCopySku, onDelete, onEdit, onRestore, onSelectionChange, onSort, operationalMetaByItemId, selectedItemIds, sortBy, sortDirection, stockByItemId]);
 
   return (
-    <div className="overflow-x-auto">
-      <DataTable
-      columns={columns}
-      data={items}
-      isLoading={isLoading}
-      loadingMessage="Cargando..."
-      emptyMessage="No se encontraron ítems"
-      className="table-fixed min-w-[1180px]"
-      sorting={sorting}
-      columnVisibility={columnVisibility}
-      rowClassName="h-11"
-      cellClassName="h-11 py-1"
-      reserveEmptyRows={pageSize}
-      />
-    </div>
+    <>
+      <div data-testid="items-mobile-list" className="grid gap-3 lg:hidden">
+        {isLoading ? (
+          <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground" role="status">
+            Cargando ítems...
+          </div>
+        ) : items.length === 0 ? (
+          <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+            No se encontraron ítems
+          </div>
+        ) : items.map((item) => {
+          const meta = operationalMetaByItemId.get(item.id);
+          const status = operationalStatus(meta, item.demand_profile);
+          const isSelected = selectedItemIds.includes(item.id);
+
+          return (
+            <article key={item.id} data-testid="item-mobile-card" className="rounded-xl border bg-card p-3 shadow-sm">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={(checked) => onSelectionChange(
+                    checked === true
+                      ? (isSelected ? selectedItemIds : [...selectedItemIds, item.id])
+                      : selectedItemIds.filter((id) => id !== item.id),
+                  )}
+                  aria-label={`Seleccionar ${item.name}`}
+                  className="mt-1"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{item.name}</p>
+                      <p className="truncate font-mono text-[11px] text-muted-foreground">{item.sku}</p>
+                    </div>
+                    <Badge variant={item.is_active ? "default" : "secondary"} className="shrink-0 text-[10px]">
+                      {item.is_active ? "Activo" : "Inactivo"}
+                    </Badge>
+                  </div>
+                  {(item.brand || item.category) ? (
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      {[item.brand, item.category].filter(Boolean).join(" · ")}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/35 p-2 text-xs">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Stock</p>
+                  <div className="mt-1">{stockChip(stockByItemId.get(item.id), item.demand_profile)}</div>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Estado operativo</p>
+                  <Badge variant="outline" className={`mt-1 h-5 max-w-full truncate px-1.5 text-[10px] ${status.className}`} title={status.detail}>
+                    {status.label}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Costo base</p>
+                  <p className="mt-0.5 font-medium">{formatMoney(meta?.base_cost)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Margen</p>
+                  <p className="mt-0.5 font-medium">{formatMargin(meta?.margin_pct)}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 flex justify-end border-t pt-2">
+                <RowActions align="end">
+                  <RowActionButton label="Copiar SKU" onClick={() => onCopySku(item)}>
+                    <Copy className="h-3.5 w-3.5" />
+                  </RowActionButton>
+                  <RowActionButton label="Editar" tone="edit" onClick={() => onEdit(item)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </RowActionButton>
+                  {item.is_active ? (
+                    <RowActionButton label="Desactivar" tone="danger" onClick={() => onDelete(item)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </RowActionButton>
+                  ) : (
+                    <RowActionButton label="Reactivar" tone="success" onClick={() => onRestore(item.id)}>
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    </RowActionButton>
+                  )}
+                </RowActions>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="hidden overflow-x-auto lg:block">
+        <DataTable
+          columns={columns}
+          data={items}
+          isLoading={isLoading}
+          loadingMessage="Cargando..."
+          emptyMessage="No se encontraron ítems"
+          className="min-w-[1180px] table-fixed"
+          sorting={sorting}
+          columnVisibility={columnVisibility}
+          rowClassName="h-11"
+          cellClassName="h-11 py-1"
+          reserveEmptyRows={pageSize}
+        />
+      </div>
+    </>
   );
 }
 
