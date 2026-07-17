@@ -57,8 +57,6 @@
     --sidebar-accent-foreground: 213 21% 95%;
     --sidebar-border: 220 18% 20%;
     --sidebar-ring: 214 66% 36%;
-    --motion-fast: 150ms;
-    --motion-base: 180ms;
     --motion-slow: 220ms;
     --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
   }
@@ -251,10 +249,6 @@
     @apply overflow-hidden rounded-[calc(var(--radius)+0.35rem)] border border-border/55 shadow-[var(--shadow-xs)] backdrop-blur-sm;
     background-color: hsl(var(--card) / 0.88);
     border-top-color: hsl(var(--domain-accent) / 0.24);
-  }
-
-  .table-empty {
-    @apply py-10 text-center text-sm text-muted-foreground;
   }
 
   .stat-tile {

@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { appNavGroups, appNavItems } from "@/components/app-navigation";
 
 const baseCompany = { id: "company-1", name: "Empresa Demo", slug: "empresa-demo", status: "ACTIVE" };
 const secondCompany = { id: "company-2", name: "Empresa Asignada", slug: "empresa-asignada", status: "ACTIVE" };
@@ -126,5 +127,16 @@ describe("AppLayout", () => {
 
     expect(screen.getByText("Tu usuario no tiene acceso a ninguna empresa activa.")).toBeInTheDocument();
     expect(screen.queryByText("contenido demo")).not.toBeInTheDocument();
+  });
+});
+
+describe("AppSidebar navigation configuration", () => {
+  it("assigns every module to one declared group without duplicate routes", () => {
+    const groupIds = new Set(appNavGroups.map((group) => group.id));
+    const modules = appNavItems.filter((item) => item.url !== "/");
+
+    expect(new Set(appNavItems.map((item) => item.url)).size).toBe(appNavItems.length);
+    expect(modules.every((item) => item.group !== null && groupIds.has(item.group))).toBe(true);
+    expect(appNavGroups.every((group) => modules.some((item) => item.group === group.id))).toBe(true);
   });
 });

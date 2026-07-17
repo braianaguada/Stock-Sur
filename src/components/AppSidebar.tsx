@@ -20,37 +20,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { canManageUsers, canViewBilling, canViewSettings, canViewSettlements } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { billingFeatureEnabled } from "@/lib/features";
-
-const navItems = [
-  { title: "Dashboard", url: "/" },
-  { title: "Items", url: "/items" },
-  { title: "Combos", url: "/combos" },
-  { title: "Stock", url: "/stock" },
-  { title: "Proveedores", url: "/suppliers" },
-  { title: "Ordenes de compra", url: "/purchase-orders" },
-  { title: "Precios", url: "/price-lists" },
-  { title: "Documentos", url: "/documents" },
-  { title: "Servicios", url: "/services/documents" },
-  { title: "Trabajos", url: "/service-jobs" },
-  { title: "Tecnicos", url: "/technicians" },
-  { title: "Totales", url: "/cash-totals" },
-  { title: "Caja", url: "/cash" },
-  { title: "Rendiciones", url: "/settlements", requiresSettlements: true },
-  { title: "Facturacion", url: "/billing", requiresBilling: true },
-  { title: "Clientes", url: "/customers" },
-  { title: "Estado de cuenta", url: "/customer-account" },
-  { title: "Usuarios", url: "/users", requiresSuperadmin: true },
-  { title: "Configuración", url: "/settings", requiresAdmin: true },
-] as const;
-
-const navGroups = [
-  { title: "Comercial", domainClassName: "domain-commercial", urls: ["/documents", "/customers", "/customer-account", "/billing"] },
-  { title: "Inventario", domainClassName: "domain-inventory", urls: ["/items", "/combos", "/stock", "/price-lists"] },
-  { title: "Compras", domainClassName: "domain-purchases", urls: ["/suppliers", "/purchase-orders"] },
-  { title: "Servicios", domainClassName: "domain-services", urls: ["/services/documents", "/service-jobs", "/technicians"] },
-  { title: "Finanzas", domainClassName: "domain-cash", urls: ["/cash", "/cash-totals", "/settlements"] },
-  { title: "Administración", domainClassName: "domain-admin", urls: ["/users", "/settings"] },
-] as const;
+import { appNavGroups, appNavItems } from "@/components/app-navigation";
 
 export function AppSidebar() {
   const location = useLocation();
@@ -113,7 +83,7 @@ export function AppSidebar() {
     }
   };
 
-  const visibleNavItems = navItems.filter((item) => {
+  const visibleNavItems = appNavItems.filter((item) => {
     if (item.requiresSuperadmin) return canManageUsers(roles);
     if (item.requiresAdmin) return canViewSettings(roles, { companyRoleCodes, companyPermissionCodes });
     if (item.requiresBilling) {
@@ -289,10 +259,8 @@ export function AppSidebar() {
                     <DialogDescription>Accesos agrupados según la tarea que necesitás realizar.</DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    {navGroups.map((group) => {
-                      const items = visibleNavItems.filter((item) =>
-                        (group.urls as readonly string[]).includes(item.url),
-                      );
+                    {appNavGroups.map((group) => {
+                      const items = visibleNavItems.filter((item) => item.group === group.id);
                       if (items.length === 0) return null;
 
                       return (

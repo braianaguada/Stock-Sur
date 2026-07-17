@@ -76,6 +76,14 @@ No se aplican a todos los botones, cards o páginas. Una vista debe conservar un
 - Valores exactos permanecen disponibles mediante tooltip y capa accesible de teclado.
 - Comparaciones no dependen de distinguir rojo/verde.
 
+### Lenguaje visual aprobado para analítica
+
+- El dashboard puede alternar vistas de Stock, Ventas, Rentabilidad y Cuentas corrientes en un carrusel controlado por la persona usuaria.
+- Las visualizaciones principales usan superficies orgánicas, curvas topográficas o flujos tipo Sankey con profundidad 2.5D sutil; el relieve refuerza jerarquía y foco, pero nunca sustituye una escala, proporción o relación de datos.
+- Un flujo Sankey sólo se usa cuando el ancho de cada banda representa una magnitud y sus bifurcaciones conservan el total. Una superficie topográfica sólo se usa cuando contornos, zonas y marcadores tienen una leyenda y una métrica comprensible.
+- Cada vista incluye título, período, valor principal, comparación, leyenda y acceso al análisis detallado. El movimiento al alternar vistas dura como máximo 220 ms y respeta `prefers-reduced-motion`.
+- Se evita el 3D intenso, la perspectiva decorativa y cualquier forma que parezca un gráfico sin codificar datos verificables.
+
 ## Interacción y responsive
 
 - Una acción primaria visible por fila; acciones secundarias agrupadas y nombradas de forma accesible.
@@ -116,4 +124,6 @@ No cambia reglas de negocio, permisos, queries, RLS ni persistencia.
 
 ## Secuencia posterior
 
-Cada bloque se entrega en un PR independiente hacia `staging`: navegación global; inventario; comercial; compras; servicios; administración. Antes de promover cada bloque se revisan 1920 px, 1366 px, móvil y zoom 125 %, incluyendo teclado, foco, overflow, contraste e importes largos.
+Cada bloque se entrega en un PR independiente hacia `staging`: navegación global; migración compatible a tema claro/oscuro; inventario; comercial; compras; servicios; administración. Antes de promover cada bloque se revisan 1920 px, 1366 px, móvil y zoom 125 %, incluyendo teclado, foco, overflow, contraste e importes largos.
+
+La reducción de temas mantiene compatibilidad de lectura para empresas con presets históricos antes de retirar sus opciones de edición. La limpieza de componentes, helpers y código muerto se realiza por módulo, con evidencia de referencias y tests de regresión; no se automatiza el borrado a partir de Knip o depcheck sin revisar falsos positivos de rutas, funciones server y código generado.

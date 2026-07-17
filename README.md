@@ -939,7 +939,9 @@ Production migration history note:
 - No se modificaron reglas de negocio, consultas, permisos, multitenancy ni persistencia. No requiere migraciones.
 - La pantalla pública de autenticación fue revisada en 1920 px, 1366 px, móvil y zoom 125 %, sin overflow ni errores visuales; las rutas protegidas requieren una sesión QA de staging y su revisión visual autenticada sigue pendiente.
 - Los hallazgos altos de la revisión del piloto se corrigieron en código: acciones de fila, truncado de importes, overflow, targets táctiles, navegación, contraste semántico, codificación accesible de gráficos y separación entre dominio/estado/acción.
-- La expansión se hará en PR separados: inventario, comercial, compras, servicios y administración.
+- La dirección de analítica aprobada combina flujos proporcionales y superficies topográficas con profundidad 2.5D sutil, leyendas y magnitudes verificables; el dashboard podrá alternar Stock, Ventas, Rentabilidad y Cuentas corrientes sin usar formas meramente decorativas.
+- La base del piloto deriva los grupos de navegación desde una única configuración, comparte tonos entre indicadores y elimina exports y estilos sin consumidores comprobados.
+- La expansión se hará en PR separados: migración compatible a tema claro/oscuro, inventario, comercial, compras, servicios y administración. La poda transversal seguirá por módulos y con tests, sin borrar automáticamente los falsos positivos de Knip o depcheck.
 
 ## Git workflow
 

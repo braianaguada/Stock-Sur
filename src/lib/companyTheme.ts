@@ -5,7 +5,7 @@ type Hsl = { h: number; s: number; l: number };
 
 export type CompanyThemePresetId = "professional" | "industrial" | "premium-dark" | "minimal";
 
-export type ThemeOption = {
+type ThemeOption = {
   id: CompanyThemePresetId;
   name: string;
   description: string;

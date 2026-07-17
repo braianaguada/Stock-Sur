@@ -1,5 +1,4 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { Link, type LinkProps } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -58,27 +57,6 @@ export function RowActionButton({
       {...props}
     >
       {children}
-    </Button>
-  );
-}
-
-type RowActionLinkProps = LinkProps & {
-  label: string;
-  children: ReactNode;
-  tone?: RowActionButtonProps["tone"];
-};
-
-export function RowActionLink({ label, children, className, tone = "default", ...props }: RowActionLinkProps) {
-  return (
-    <Button
-      asChild
-      variant="ghost"
-      size="icon"
-      className={cn("h-10 w-10 shrink-0 rounded-lg", toneClass[tone ?? "default"], className)}
-      title={label}
-      aria-label={label}
-    >
-      <Link {...props}>{children}</Link>
     </Button>
   );
 }
