@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutGrid, LogOut, ShieldAlert } from "lucide-react";
+import { Boxes, CircleDollarSign, Home, LayoutGrid, LogOut, Search, Settings2, ShieldAlert, ShoppingCart, UsersRound, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,9 @@ import { appNavGroups, appNavItems } from "@/components/app-navigation";
 export function AppSidebar() {
   const location = useLocation();
   const [modulesOpen, setModulesOpen] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
+  const [moduleSearch, setModuleSearch] = useState("");
+  const moduleTriggerRef = useRef<HTMLButtonElement | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -100,9 +104,55 @@ export function AppSidebar() {
   const isItemActive = (url: string) =>
     location.pathname === url || (url !== "/" && location.pathname.startsWith(`${url}/`));
   const activeItem = visibleNavItems.find((item) => isItemActive(item.url));
+  const groupIcons = { commercial: UsersRound, inventory: Boxes, purchases: ShoppingCart, services: Wrench, cash: CircleDollarSign, admin: Settings2 } as const;
+  const visibleGroups = appNavGroups.filter((group) => visibleNavItems.some((item) => item.group === group.id));
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      const target = event.target;
+      const isEditable = target instanceof HTMLElement && (
+        target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+      );
+      if (isEditable) return;
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setActiveGroup(null);
+        setModulesOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
+
+  const openGroup = (group: string | null, trigger?: HTMLButtonElement) => {
+    moduleTriggerRef.current = trigger ?? null;
+    setActiveGroup(group);
+    setModuleSearch("");
+    setModulesOpen(true);
+  };
+
+  const normalizedModuleSearch = moduleSearch.trim().toLocaleLowerCase("es");
+  const hasModuleResults = visibleNavItems.some((item) => (
+    (!activeGroup || item.group === activeGroup)
+    && (!normalizedModuleSearch || item.title.toLocaleLowerCase("es").includes(normalizedModuleSearch))
+  ));
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/55 bg-background/78 backdrop-blur-2xl">
+    <>
+    <aside className="fixed inset-y-0 left-0 z-50 hidden w-24 flex-col items-center border-r border-border/55 bg-background/78 py-5 backdrop-blur-2xl lg:flex" aria-label="Accesos principales">
+      <StockSurMark className="h-10 w-10" />
+      <nav className="mt-8 flex w-full flex-col items-center gap-2">
+        <Link to="/" aria-label="Inicio" title="Inicio" aria-current={location.pathname === "/" ? "page" : undefined} className={cn("flex h-11 w-11 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground", location.pathname === "/" && "bg-primary/10 text-primary")}><Home className="h-5 w-5" /></Link>
+        {visibleGroups.map((group) => {
+          const Icon = groupIcons[group.id];
+          const groupActive = activeItem?.group === group.id;
+          return <button key={group.id} type="button" onClick={(event) => openGroup(group.id, event.currentTarget)} aria-label={group.title} title={group.title} className={cn("flex h-11 w-11 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground", groupActive && "bg-primary/10 text-primary")}><Icon className="h-5 w-5" /></button>;
+        })}
+      </nav>
+      <button type="button" onClick={(event) => openGroup(null, event.currentTarget)} className="mt-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-border/60 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Todos los módulos" title="Todos los módulos"><LayoutGrid className="h-5 w-5" /></button>
+    </aside>
+    <header className="sticky top-0 z-40 border-b border-border/55 bg-background/78 backdrop-blur-2xl lg:pl-24">
       <div className="mx-auto max-w-[1720px] px-4 sm:px-5 lg:px-8">
         <div className="flex flex-col gap-3 py-3">
           {isImpersonating ? (
@@ -205,7 +255,7 @@ export function AppSidebar() {
 
           <nav
             aria-label="Navegación principal"
-            className="border-t border-border/40 pt-2"
+            className="border-t border-border/40 pt-2 lg:hidden"
           >
             <div className="flex min-w-0 items-center justify-start gap-1">
               {visibleNavItems.filter((item) => item.url === "/").map((item) => {
@@ -233,11 +283,16 @@ export function AppSidebar() {
                   </Link>
                 );
               })}
-              <Dialog open={modulesOpen} onOpenChange={setModulesOpen}>
+              <Dialog open={modulesOpen} onOpenChange={(open) => { setModulesOpen(open); if (!open) setModuleSearch(""); }}>
                 <DialogTrigger asChild>
                   <Button
                     type="button"
                     variant="ghost"
+                    onClick={() => {
+                      moduleTriggerRef.current = null;
+                      setActiveGroup(null);
+                      setModuleSearch("");
+                    }}
                     className={cn(
                       "min-h-10 min-w-0 justify-start gap-2 rounded-lg px-3 text-[13px] font-medium text-muted-foreground",
                       activeItem?.url !== "/" && "bg-accent/55 text-foreground",
@@ -253,14 +308,38 @@ export function AppSidebar() {
                     ) : null}
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl rounded-xl p-5 sm:p-6">
+                <DialogContent
+                  className="max-w-4xl rounded-xl p-5 sm:p-6"
+                  onCloseAutoFocus={(event) => {
+                    const trigger = moduleTriggerRef.current;
+                    if (!trigger) return;
+                    event.preventDefault();
+                    moduleTriggerRef.current = null;
+                    trigger.focus();
+                  }}
+                >
                   <DialogHeader>
                     <DialogTitle>Módulos operativos</DialogTitle>
                     <DialogDescription>Accesos agrupados según la tarea que necesitás realizar.</DialogDescription>
                   </DialogHeader>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                    <Input value={moduleSearch} onChange={(event) => setModuleSearch(event.target.value)} className="h-11 rounded-xl pl-10" aria-label="Buscar módulos" placeholder="Buscar módulos (Ctrl + K)" />
+                  </div>
                   <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {!hasModuleResults ? (
+                      <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 px-5 text-center sm:col-span-2 lg:col-span-3">
+                        <p className="text-sm text-muted-foreground">No encontramos módulos con ese nombre.</p>
+                        {normalizedModuleSearch ? (
+                          <Button type="button" variant="outline" size="sm" onClick={() => setModuleSearch("")}>
+                            Limpiar búsqueda
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {appNavGroups.map((group) => {
-                      const items = visibleNavItems.filter((item) => item.group === group.id);
+                      if (activeGroup && activeGroup !== group.id) return null;
+                      const items = visibleNavItems.filter((item) => item.group === group.id && (!normalizedModuleSearch || item.title.toLocaleLowerCase("es").includes(normalizedModuleSearch)));
                       if (items.length === 0) return null;
 
                       return (
@@ -302,5 +381,6 @@ export function AppSidebar() {
         </div>
       </div>
     </header>
+    </>
   );
 }

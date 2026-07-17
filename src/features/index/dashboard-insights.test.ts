@@ -11,6 +11,19 @@ describe("dashboard insights", () => {
     expect(insights.actions).toEqual([]);
     expect(insights.monthlySales).toEqual([]);
     expect(insights.monthlyProfit).toEqual([]);
+    expect(insights.capabilities.stock).toBe(false);
+  });
+
+  it("honors explicit stock access and supports legacy stock-shaped responses", () => {
+    expect(normalizeDashboardInsights({
+      capabilities: { stock: false },
+      metrics: { inventoryValue: 12500 },
+    }).capabilities.stock).toBe(false);
+
+    expect(normalizeDashboardInsights({
+      metrics: { inventoryValue: 0 },
+      categoryValues: [],
+    }).capabilities.stock).toBe(true);
   });
 
   it("merges business metrics and charts into the operational dashboard", () => {

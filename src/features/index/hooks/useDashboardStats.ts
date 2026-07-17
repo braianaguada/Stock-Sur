@@ -29,5 +29,8 @@ export function useDashboardStats({ companyId }: UseDashboardStatsOptions) {
     isLoading: overviewQuery.isLoading,
     isFetching: overviewQuery.isFetching,
     error: overviewQuery.error,
+    hasData: overviewQuery.data !== undefined,
+    dataUpdatedAt: overviewQuery.dataUpdatedAt,
+    refetch: overviewQuery.refetch,
   };
 }
