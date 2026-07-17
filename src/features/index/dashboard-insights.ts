@@ -65,6 +65,9 @@ export type DashboardTopItem = {
 };
 
 export type DashboardInsights = {
+  capabilities: {
+    stock: boolean;
+  };
   metrics: {
     inventoryValue: number;
     inventoryUnits: number;
@@ -100,6 +103,9 @@ export type DashboardInsights = {
 };
 
 export const EMPTY_DASHBOARD: DashboardInsights = {
+  capabilities: {
+    stock: false,
+  },
   metrics: {
     inventoryValue: 0,
     inventoryUnits: 0,
@@ -152,8 +158,19 @@ function arrayValue(value: unknown): unknown[] {
 export function normalizeDashboardInsights(value: unknown): DashboardInsights {
   const source = recordValue(value);
   const metrics = recordValue(source.metrics);
+  const capabilities = recordValue(source.capabilities);
+  const hasLegacyStockPayload = "inventoryValue" in metrics
+    || "inventoryUnits" in metrics
+    || "activeItems" in metrics
+    || "categoryValues" in source
+    || "topItemsByValue" in source;
 
   return {
+    capabilities: {
+      // Legacy RPCs did not expose capabilities; only infer access when they actually
+      // returned stock fields, so an empty or malformed response remains fail-closed.
+      stock: source.capabilities === undefined ? hasLegacyStockPayload : capabilities.stock === true,
+    },
     metrics: {
       inventoryValue: numberValue(metrics.inventoryValue),
       inventoryUnits: numberValue(metrics.inventoryUnits),
@@ -268,6 +285,7 @@ export function mergeDashboardInsights(base: DashboardInsights, businessValue: u
   const business = normalizeDashboardInsights(businessValue);
   return {
     ...base,
+    capabilities: base.capabilities,
     metrics: {
       ...base.metrics,
       expensesMonth: business.metrics.expensesMonth,

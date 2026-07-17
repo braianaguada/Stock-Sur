@@ -1,17 +1,22 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
   const { companies, currentCompany, loading, user } = useAuth();
   const hasNoActiveCompanyAccess = Boolean(user) && !loading && companies.length === 0 && !currentCompany;
+
+  useEffect(() => {
+    mainRef.current?.focus({ preventScroll: true });
+  }, [location.pathname]);
 
   return (
     <div className="app-shell min-h-screen w-full bg-transparent">
       <AppSidebar />
-      <main className="min-w-0">
+      <main ref={mainRef} tabIndex={-1} className="min-w-0 outline-none lg:pl-24">
         <div
           key={location.pathname}
           className="route-transition mx-auto max-w-[1480px] px-4 py-5 sm:px-6 sm:py-8 lg:px-10 lg:py-10"
