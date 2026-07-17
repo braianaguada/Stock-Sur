@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  metricAccentToneClasses,
+  metricIconToneClasses,
+  metricValueToneClasses,
+  type MetricTone,
+} from "@/components/ui/metric-tone";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -72,44 +78,23 @@ export function StatCard(props: {
   value: ReactNode;
   icon?: ReactNode;
   hint?: ReactNode;
-  tone?: "default" | "success" | "warning" | "danger" | "info";
+  tone?: MetricTone;
   className?: string;
   featured?: boolean;
 }) {
   const { label, value, icon, hint, tone = "default", featured = false, className } = props;
-  const toneClassName = {
-    default: "before:bg-border",
-    success: "before:bg-success",
-    warning: "before:bg-warning",
-    danger: "before:bg-destructive",
-    info: "before:bg-info",
-  }[tone];
-  const valueClassName = {
-    default: "text-foreground",
-    success: "text-success",
-    warning: "text-warning",
-    danger: "text-destructive",
-    info: "text-info",
-  }[tone];
-  const iconClassName = {
-    default: "border-border/60 bg-muted/40 text-primary",
-    success: "border-success/18 bg-success/10 text-success",
-    warning: "border-warning/18 bg-warning/12 text-warning",
-    danger: "border-destructive/18 bg-destructive/12 text-destructive",
-    info: "border-info/18 bg-info/12 text-info",
-  }[tone];
 
   return (
-    <Card className={cn("stat-tile relative overflow-hidden border-border/70 bg-card shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5", toneClassName, featured && "stat-tile-featured before:bg-cyan-300", className)}>
+    <Card className={cn("stat-tile relative overflow-hidden border-border/70 bg-card shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5", metricAccentToneClasses[tone], featured && "stat-tile-featured before:bg-cyan-300", className)}>
       <CardContent className="p-0">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
             <p className={cn("text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground", featured && "text-indigo-100")}>{label}</p>
-            <div className={cn("text-3xl font-extrabold tracking-tight", valueClassName, featured && "text-white")}>{value}</div>
+            <div className={cn("text-3xl font-extrabold tracking-tight", metricValueToneClasses[tone], featured && "text-white")}>{value}</div>
             {hint ? <p className={cn("text-sm text-muted-foreground", featured && "text-indigo-100/85")}>{hint}</p> : null}
           </div>
           {icon ? (
-            <div className={cn("rounded-lg border p-2.5", iconClassName, featured && "border-cyan-200/25 bg-cyan-300/15 text-cyan-100")}>
+            <div className={cn("rounded-lg border p-2.5", metricIconToneClasses[tone], featured && "border-cyan-200/25 bg-cyan-300/15 text-cyan-100")}>
               {icon}
             </div>
           ) : null}

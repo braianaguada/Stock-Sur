@@ -1,28 +1,14 @@
 import type { ReactNode } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  metricAccentToneClasses,
+  metricIconToneClasses,
+  metricSurfaceToneClasses,
+  type MetricTone,
+} from "@/components/ui/metric-tone";
 import { currency } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-
-type Tone = "default" | "success" | "warning" | "danger" | "info" | "muted";
-
-const toneClasses: Record<Tone, string> = {
-  default: "from-card via-card to-[hsl(var(--panel))]/45 before:bg-border/70",
-  success: "from-card via-card to-success/12 before:bg-success/75",
-  warning: "from-card via-card to-warning/14 before:bg-warning/80",
-  danger: "from-card via-card to-destructive/12 before:bg-destructive/75",
-  info: "from-card via-card to-info/12 before:bg-info/75",
-  muted: "from-card via-card to-slate-500/10 before:bg-slate-500/65",
-};
-
-const iconToneClasses: Record<Tone, string> = {
-  default: "border-border/60 bg-background/80 text-primary",
-  success: "border-success/18 bg-success/10 text-success",
-  warning: "border-warning/18 bg-warning/12 text-warning",
-  danger: "border-destructive/18 bg-destructive/12 text-destructive",
-  info: "border-info/18 bg-info/12 text-info",
-  muted: "border-slate-500/18 bg-slate-500/10 text-slate-600",
-};
 
 const amountSizeClasses = {
   sm: "text-sm",
@@ -37,6 +23,7 @@ type AmountDisplayProps = {
   className?: string;
   title?: string;
   format?: "currency" | "plain";
+  allowHorizontalScroll?: boolean;
 };
 
 export function AmountDisplay({
@@ -45,6 +32,7 @@ export function AmountDisplay({
   className,
   title,
   format = "currency",
+  allowHorizontalScroll = false,
 }: AmountDisplayProps) {
   const displayValue =
     typeof value === "number" && format === "currency" ? currency.format(value) : String(value);
@@ -53,7 +41,8 @@ export function AmountDisplay({
     <span
       title={title ?? displayValue}
       className={cn(
-        "block min-w-0 max-w-full overflow-x-auto whitespace-nowrap font-semibold leading-tight tabular-nums tracking-normal text-foreground [scrollbar-width:thin]",
+        "block min-w-0 max-w-full whitespace-nowrap font-semibold leading-tight tabular-nums tracking-normal text-foreground",
+        allowHorizontalScroll && "overflow-x-auto [scrollbar-width:thin]",
         amountSizeClasses[size],
         className,
       )}
@@ -69,7 +58,7 @@ type MetricCardProps = {
   format?: AmountDisplayProps["format"];
   helper?: ReactNode;
   icon?: ReactNode;
-  tone?: Tone;
+  tone?: MetricTone;
   className?: string;
 };
 
@@ -86,7 +75,8 @@ export function MetricCard({
     <Card
       className={cn(
         "relative overflow-hidden border-border/70 bg-gradient-to-br shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5",
-        toneClasses[tone],
+        metricSurfaceToneClasses[tone],
+        metricAccentToneClasses[tone],
         className,
       )}
     >
@@ -100,7 +90,7 @@ export function MetricCard({
             {helper ? <p className="text-sm leading-5 text-muted-foreground">{helper}</p> : null}
           </div>
           {icon ? (
-            <div className={cn("shrink-0 rounded-lg border p-2.5", iconToneClasses[tone])}>
+            <div className={cn("shrink-0 rounded-lg border p-2.5", metricIconToneClasses[tone])}>
               {icon}
             </div>
           ) : null}
@@ -203,10 +193,10 @@ export function CompactBadge({
   className,
 }: {
   children: ReactNode;
-  tone?: Tone;
+  tone?: MetricTone;
   className?: string;
 }) {
-  const badgeToneClassName: Record<Tone, string> = {
+  const badgeToneClassName: Record<MetricTone, string> = {
     default: "",
     success: "border-success/18 bg-success/10 text-success",
     warning: "border-warning/18 bg-warning/12 text-warning",
