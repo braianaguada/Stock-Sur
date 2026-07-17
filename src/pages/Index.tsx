@@ -2,7 +2,6 @@ import {
   AlertTriangle,
   ArrowRight,
   BadgeDollarSign,
-  Boxes,
   BrainCircuit,
   CircleDollarSign,
   ClipboardCheck,
@@ -10,9 +9,6 @@ import {
   ReceiptText,
   RefreshCw,
   Sparkles,
-  TrendingDown,
-  TrendingUp,
-  Wallet,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -114,7 +110,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <div className="page-shell domain-core">
         {!currentCompany ? <CompanyAccessNotice description="Tu cuenta todavia no tiene una empresa activa." /> : null}
 
         <PageHeader
@@ -142,19 +138,35 @@ export default function Dashboard() {
           </Card>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Capital en mercaderia" value={formatCurrency(dashboard.metrics.inventoryValue)} icon={<Wallet className="h-5 w-5" />} hint={`${formatNumber(dashboard.metrics.inventoryUnits)} unidades valorizadas.`} tone="info" />
-          <StatCard label="Ventas del mes" value={formatCurrency(dashboard.metrics.salesMonth)} icon={<ReceiptText className="h-5 w-5" />} hint={`Ticket promedio: ${formatCurrency(dashboard.metrics.averageTicket)}.`} tone="success" />
-          <StatCard label="Ganancia bruta real" value={formatCurrency(dashboard.metrics.grossProfitMonth)} icon={<BadgeDollarSign className="h-5 w-5" />} hint={`Neta ${formatCurrency(dashboard.metrics.salesNetMonth)} - costos ${formatCurrency(dashboard.metrics.productCostMonth)} - impuestos ${formatCurrency(dashboard.metrics.taxMonth)}. Margen ${formatPercent(dashboard.metrics.profitMarginPct)}.`} tone={dashboard.metrics.grossProfitMonth >= 0 ? "success" : "warning"} />
-          <StatCard label="Resultado de caja" value={formatCurrency(dashboard.metrics.cashNetMonth)} icon={<CircleDollarSign className="h-5 w-5" />} hint={`${formatCurrency(dashboard.metrics.expensesMonth)} en gastos del mes.`} tone={dashboard.metrics.cashNetMonth >= 0 ? "success" : "warning"} />
-          <StatCard label="Variacion mensual" value={`${growth > 0 ? "+" : ""}${growth}%`} icon={growth >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />} hint="Mes a la fecha contra el mismo tramo anterior." tone={growth >= 0 ? "success" : "warning"} />
-          <StatCard label="Saldo por cobrar" value={formatCurrency(dashboard.metrics.accountsReceivable)} icon={<CircleDollarSign className="h-5 w-5" />} hint="Suma de deudas positivas por cliente." tone={dashboard.metrics.accountsReceivable > 0 ? "warning" : "default"} />
-          <StatCard label="Stock sin salida reciente" value={formatCurrency(dashboard.metrics.slowStockValue)} icon={<Boxes className="h-5 w-5" />} hint={`${formatNumber(dashboard.metrics.slowStockItems)} items sin salidas en 90 dias.`} tone={dashboard.metrics.slowStockItems > 0 ? "warning" : "default"} />
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-12" data-testid="dashboard-primary-metrics">
+          <StatCard className="xl:col-span-6" featured label="Ventas del mes" value={formatCurrency(dashboard.metrics.salesMonth)} icon={<ReceiptText className="h-5 w-5" />} hint={`Ticket promedio: ${formatCurrency(dashboard.metrics.averageTicket)}.`} />
+          <StatCard className="xl:col-span-3" label="Ganancia bruta real" value={formatCurrency(dashboard.metrics.grossProfitMonth)} icon={<BadgeDollarSign className="h-5 w-5" />} hint={`Neta ${formatCurrency(dashboard.metrics.salesNetMonth)} - costos ${formatCurrency(dashboard.metrics.productCostMonth)} - impuestos ${formatCurrency(dashboard.metrics.taxMonth)}. Margen ${formatPercent(dashboard.metrics.profitMarginPct)}.`} tone={dashboard.metrics.grossProfitMonth >= 0 ? "success" : "warning"} />
+          <StatCard className="xl:col-span-3" label="Resultado de caja" value={formatCurrency(dashboard.metrics.cashNetMonth)} icon={<CircleDollarSign className="h-5 w-5" />} hint={`${formatCurrency(dashboard.metrics.expensesMonth)} en gastos del mes.`} tone={dashboard.metrics.cashNetMonth >= 0 ? "success" : "warning"} />
         </div>
 
-        <Card className="overflow-hidden border-primary/20 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/.12),transparent_45%)]">
+        <section className="grid gap-4 border-y border-border/70 py-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores de contexto">
+          <div><p className="text-xs text-muted-foreground">Capital en mercaderia</p><p className="mt-1 whitespace-nowrap font-semibold tabular-nums">{formatCurrency(dashboard.metrics.inventoryValue)}</p></div>
+          <div><p className="text-xs text-muted-foreground">Variacion mensual</p><p className={cn("mt-1 font-semibold tabular-nums", growth < 0 && "text-destructive")}>{growth > 0 ? "+" : ""}{growth}%</p></div>
+          <div><p className="text-xs text-muted-foreground">Saldo por cobrar</p><p className="mt-1 whitespace-nowrap font-semibold tabular-nums">{formatCurrency(dashboard.metrics.accountsReceivable)}</p></div>
+          <div><p className="text-xs text-muted-foreground">Stock sin salida · {formatNumber(dashboard.metrics.slowStockItems)} items</p><p className="mt-1 whitespace-nowrap font-semibold tabular-nums">{formatCurrency(dashboard.metrics.slowStockValue)}</p></div>
+        </section>
+
+        <Card className="border-border/70 shadow-none">
+          <CardHeader><CardTitle>Pendientes operativos</CardTitle></CardHeader>
+          <CardContent className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {actions.length ? actions.map((action) => (
+              <Link key={action.key} to={action.href} className={cn("group flex min-h-14 items-center gap-3 rounded-lg border px-3 py-2", actionToneClasses[action.tone])}>
+                <strong className="text-lg tabular-nums text-foreground">{formatNumber(action.count)}</strong>
+                <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-foreground">{action.label}</p><p className="truncate text-xs text-muted-foreground">{action.detail}</p></div>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            )) : <div className="py-5 text-center md:col-span-2 xl:col-span-3"><ClipboardCheck className="mx-auto h-6 w-6 text-success" /><p className="mt-2 text-sm">No hay pendientes detectados.</p></div>}
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden border-primary/20 shadow-none">
           <CardContent className="flex flex-col gap-4 py-5 lg:flex-row lg:items-center">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><BrainCircuit className="h-5 w-5" /></div>
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><BrainCircuit className="h-5 w-5" /></div>
             <div className="min-w-0 flex-1">
               <p className="font-semibold">Lectura ejecutiva con IA</p>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -180,17 +192,27 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground">Evolucion de caja de los ultimos seis meses.</p>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="h-[320px]">
+              <div
+                className="h-[320px]"
+                role="img"
+                aria-label="Grafico mensual de ventas, gastos y resultado. Las ventas son barras indigo, los gastos usan un patron rayado ambar y el resultado tiene contorno cyan."
+              >
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyCash}>
+                  <BarChart data={monthlyCash} accessibilityLayer>
+                    <defs>
+                      <pattern id="dashboard-expenses-pattern" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                        <rect width="8" height="8" fill="hsl(var(--warning) / .18)" />
+                        <line x1="0" y1="0" x2="0" y2="8" stroke="hsl(var(--warning))" strokeWidth="3" />
+                      </pattern>
+                    </defs>
                     <CartesianGrid stroke="hsl(var(--border) / 0.5)" vertical={false} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} />
                     <YAxis tickFormatter={(value) => formatNumber(Number(value))} tickLine={false} axisLine={false} width={75} />
                     <Tooltip content={<CashTooltip />} />
                     <Legend />
-                    <Bar dataKey="sales" name="Ventas" radius={[8, 8, 0, 0]} fill="hsl(var(--primary))" />
-                    <Bar dataKey="expenses" name="Gastos" radius={[8, 8, 0, 0]} fill="hsl(var(--destructive) / .65)" />
-                    <Bar dataKey="net" name="Resultado" radius={[8, 8, 0, 0]} fill="#059669" />
+                    <Bar dataKey="sales" name="Ventas" radius={[8, 8, 0, 0]} fill="hsl(var(--brand-indigo))" />
+                    <Bar dataKey="expenses" name="Gastos" radius={[8, 8, 0, 0]} fill="url(#dashboard-expenses-pattern)" stroke="hsl(var(--warning))" />
+                    <Bar dataKey="net" name="Resultado" radius={[8, 8, 0, 0]} fill="hsl(var(--brand-cyan) / .28)" stroke="hsl(var(--brand-cyan))" strokeWidth={2} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -209,7 +231,7 @@ export default function Dashboard() {
                     <span className="truncate font-medium">{paymentLabels[entry.method] ?? entry.method}</span>
                     <span className="shrink-0 font-semibold">{formatCurrency(entry.total)}</span>
                   </div>
-                  <div className="h-2.5 rounded-full bg-muted"><div className="h-2.5 rounded-full bg-primary" style={{ width: `${Math.max(6, (entry.total / maxPayment) * 100)}%` }} /></div>
+                  <div className="h-2.5 rounded-full bg-muted"><div className="h-2.5 rounded-full bg-[hsl(var(--brand-indigo))]" style={{ width: `${Math.max(6, (entry.total / maxPayment) * 100)}%` }} /></div>
                   <p className="text-xs text-muted-foreground">{formatNumber(entry.count)} operaciones</p>
                 </div>
               )) : <p className="py-12 text-center text-sm text-muted-foreground">Todavia no hay ventas registradas este mes.</p>}
@@ -223,38 +245,29 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground">Venta neta y ganancia bruta con margen real, descontando impuestos y costo de productos.</p>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="h-[300px]">
+            <div
+              className="h-[300px]"
+              role="img"
+              aria-label="Grafico de rentabilidad. La venta neta es un area indigo continua, la ganancia bruta es un area verde de trazo discontinuo y el margen es una linea ambar punteada."
+            >
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={monthlyProfit}>
+                <ComposedChart data={monthlyProfit} accessibilityLayer>
                   <CartesianGrid stroke="hsl(var(--border) / 0.5)" vertical={false} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} />
                   <YAxis yAxisId="money" tickFormatter={(value) => formatNumber(Number(value))} tickLine={false} axisLine={false} width={75} />
                   <YAxis yAxisId="margin" orientation="right" tickFormatter={(value) => formatPercent(Number(value))} tickLine={false} axisLine={false} width={56} />
                   <Tooltip content={<ProfitTooltip />} />
                   <Legend />
-                  <Area yAxisId="money" type="monotone" dataKey="netRevenue" name="Venta neta" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / .16)" strokeWidth={2} />
-                  <Area yAxisId="money" type="monotone" dataKey="grossProfit" name="Ganancia bruta" stroke="#059669" fill="#05966922" strokeWidth={2} />
-                  <Line yAxisId="margin" type="monotone" dataKey="profitMarginPct" name="Margen" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Area yAxisId="money" type="monotone" dataKey="netRevenue" name="Venta neta" stroke="hsl(var(--brand-indigo))" fill="hsl(var(--brand-indigo) / .16)" strokeWidth={2} />
+                  <Area yAxisId="money" type="monotone" dataKey="grossProfit" name="Ganancia bruta" stroke="hsl(var(--success))" fill="hsl(var(--success) / .13)" strokeWidth={2} strokeDasharray="3 3" />
+                  <Line yAxisId="margin" type="monotone" dataKey="profitMarginPct" name="Margen" stroke="hsl(var(--warning))" strokeWidth={2.5} strokeDasharray="6 4" dot={{ r: 3 }} activeDot={{ r: 5 }} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 xl:grid-cols-3">
-          <Card className="surface-card-muted">
-            <CardHeader><CardTitle>Pendientes operativos</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              {actions.length ? actions.map((action) => (
-                <Link key={action.key} to={action.href} className={cn("group flex items-center gap-3 rounded-2xl border px-4 py-3", actionToneClasses[action.tone])}>
-                  <strong className="text-lg text-foreground">{formatNumber(action.count)}</strong>
-                  <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-foreground">{action.label}</p><p className="truncate text-xs text-muted-foreground">{action.detail}</p></div>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              )) : <div className="py-10 text-center"><ClipboardCheck className="mx-auto h-7 w-7 text-emerald-600" /><p className="mt-3 text-sm">No hay pendientes detectados.</p></div>}
-            </CardContent>
-          </Card>
-
+        <div className="grid gap-4 xl:grid-cols-2">
           <Card className="surface-card">
             <CardHeader><CardTitle>Mayor salida en 30 dias</CardTitle><p className="text-sm text-muted-foreground">Productos a vigilar para reposicion.</p></CardHeader>
             <CardContent className="divide-y divide-border/60">

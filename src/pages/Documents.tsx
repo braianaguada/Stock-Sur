@@ -724,7 +724,7 @@ export default function DocumentsPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <div className="page-shell domain-commercial">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitas una empresa activa para crear documentos, emitir remitos y revisar su historial." />
         ) : null}
@@ -732,7 +732,7 @@ export default function DocumentsPage() {
         <PageHeader
           eyebrow="Presupuestos y remitos"
           title="Documentos"
-          subtitle="Presupuestos y remitos con mejor jerarquia visual, manteniendo la misma logica de estados, impresion y transiciones."
+          subtitle="Crea, emite y da seguimiento a presupuestos, remitos y devoluciones."
           actions={(
             <Button onClick={openCreateDialog} disabled={!canCreateDocumentDraft(roles)}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo documento
@@ -742,8 +742,10 @@ export default function DocumentsPage() {
 
         <FilterBar>
           <div className="relative max-w-sm flex-1 min-w-[200px]">
+            <Label htmlFor="document-search" className="sr-only">Buscar documentos</Label>
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              id="document-search"
               placeholder="Buscar por cliente, CUIT, número o factura externa..."
               className="pl-9"
               value={search}
@@ -751,7 +753,8 @@ export default function DocumentsPage() {
             />
           </div>
 
-          <div className="w-full md:w-52">
+          <div className="w-full space-y-1 md:w-52">
+            <Label className="text-xs text-muted-foreground">Tipo</Label>
             <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as DocType | "ALL")}>
               <SelectTrigger>
                 <SelectValue />
@@ -765,7 +768,8 @@ export default function DocumentsPage() {
             </Select>
           </div>
 
-          <div className="w-full md:w-52">
+          <div className="w-full space-y-1 md:w-52">
+            <Label className="text-xs text-muted-foreground">Estado</Label>
             <Select
               value={statusFilter}
               onValueChange={(value) => setStatusFilter(value as DocStatus | "ALL")}
@@ -785,7 +789,8 @@ export default function DocumentsPage() {
             </Select>
           </div>
 
-          <div className="w-full md:w-56">
+          <div className="w-full space-y-1 md:w-56">
+            <Label className="text-xs text-muted-foreground">Cliente</Label>
             <Select value={customerFilter} onValueChange={setCustomerFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Cliente" />
@@ -801,7 +806,8 @@ export default function DocumentsPage() {
             </Select>
           </div>
 
-          <div className="w-full md:w-56">
+          <div className="w-full space-y-1 md:w-56">
+            <Label className="text-xs text-muted-foreground">Técnico</Label>
             <Select value={technicianFilter} onValueChange={setTechnicianFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Tecnico" />

@@ -929,6 +929,20 @@ Production migration history note:
 - El detalle concentra la lectura y las acciones del comprobante seleccionado; no se modificaron reglas fiscales, permisos, consultas ni aislamiento por empresa.
 - No requiere migraciones ni cambios de configuración.
 
+## Rediseño visual: piloto operativo
+
+- Se definió el North Star "mesa de operaciones digital moderna": precisa, enérgica, tecnológica, expresiva y operativa, en `docs/visual-redesign-north-star.md`.
+- La paleta separa identidad core, estados funcionales y acentos por dominio. Navegación, encabezados, selección, KPI prioritarios y gráficos reciben color dirigido; tablas y formularios base se mantienen deliberadamente calmos.
+- La fundación de navegación mantiene Dashboard como acceso directo y reúne el resto de los módulos por dominio en un selector adaptable, con firma cromática consistente y sin carrusel horizontal.
+- Dashboard incorpora composición asimétrica, KPI principal destacado y gráficos con patrones/trazos redundantes; Documentos usa firma violet sin mezclar tipo, estado y acción; Caja usa firma emerald sin convertir ingresos o egresos en estados semánticos.
+- Se limitaron los gradientes a las familias core, tech y domain wash; se eliminaron hover con desplazamiento, blur y elevación global de las superficies operativas.
+- No se modificaron reglas de negocio, consultas, permisos, multitenancy ni persistencia. No requiere migraciones.
+- La pantalla pública de autenticación fue revisada en 1920 px, 1366 px, móvil y zoom 125 %, sin overflow ni errores visuales; las rutas protegidas requieren una sesión QA de staging y su revisión visual autenticada sigue pendiente.
+- Los hallazgos altos de la revisión del piloto se corrigieron en código: acciones de fila, truncado de importes, overflow, targets táctiles, navegación, contraste semántico, codificación accesible de gráficos y separación entre dominio/estado/acción.
+- La dirección de analítica aprobada combina flujos proporcionales y superficies topográficas con profundidad 2.5D sutil, leyendas y magnitudes verificables; el dashboard podrá alternar Stock, Ventas, Rentabilidad y Cuentas corrientes sin usar formas meramente decorativas.
+- La base del piloto deriva los grupos de navegación desde una única configuración, comparte tonos entre indicadores y elimina exports y estilos sin consumidores comprobados.
+- La expansión se hará en PR separados: migración compatible a tema claro/oscuro, inventario, comercial, compras, servicios y administración. La poda transversal seguirá por módulos y con tests, sin borrar automáticamente los falsos positivos de Knip o depcheck.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
