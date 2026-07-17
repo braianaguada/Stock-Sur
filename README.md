@@ -931,6 +931,12 @@ Production migration history note:
 
 ## Rediseño visual: piloto operativo
 
+- Inicio implementa el primer corte definitivo del nuevo lenguaje visual: shell liviano con rail lateral, selector de módulos accesible, superficies translúcidas compatibles con tema claro/oscuro y un tablero responsive basado exclusivamente en datos reales de la empresa activa.
+- El panel analítico alterna Ventas, Stock y Rentabilidad con métricas y series verificables. Stock se oculta por completo cuando falta `stock.view`; la migración `20260717120000_dashboard_stock_permission_hardening.sql` refuerza ambos RPC del dashboard y expone la capacidad efectiva sin relajar RLS.
+- Atención operativa, destacados y estados de carga/error/vacío usan componentes focalizados; se eliminaron el gráfico mensual duplicado y la lógica monolítica anterior de `Index`.
+- El buscador de módulos soporta `Ctrl/Cmd + K`, resultados vacíos, retorno de foco y navegación móvil sin interceptar atajos dentro de campos editables.
+- El alcance de esta rama es Inicio y la fundación compartida del shell. La expansión al resto de las secciones, formularios, tablas y modales continuará por módulos en PR separados para mantener cambios revisables.
+
 - Se definió el North Star "mesa de operaciones digital moderna": precisa, enérgica, tecnológica, expresiva y operativa, en `docs/visual-redesign-north-star.md`.
 - La paleta separa identidad core, estados funcionales y acentos por dominio. Navegación, encabezados, selección, KPI prioritarios y gráficos reciben color dirigido; tablas y formularios base se mantienen deliberadamente calmos.
 - La fundación de navegación mantiene Dashboard como acceso directo y reúne el resto de los módulos por dominio en un selector adaptable, con firma cromática consistente y sin carrusel horizontal.
