@@ -81,7 +81,11 @@ describe("ItemsDataTable", () => {
     expect(within(card).getByText("SKU-1")).toBeInTheDocument();
     expect(within(card).getByText("Costo base")).toBeInTheDocument();
     expect(within(card).getByText("33,3%")).toBeInTheDocument();
-    expect(within(card).getByText("OK")).toHaveAttribute("title", "Sin alertas operativas");
+    expect(within(card).getByText("OK").closest("[title]"))
+      .toHaveAttribute("title", "Sin alertas operativas");
     expect(within(card).getByRole("checkbox", { name: "Seleccionar Producto prueba" })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Copiar SKU" })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Editar" })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Desactivar" })).toBeInTheDocument();
   });
 });

@@ -6,12 +6,14 @@ import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FilterBar, PageHeader } from "@/components/ui/page";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SuppliersTable } from "@/features/suppliers/components/SuppliersTable";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { useSuppliersPage } from "@/features/suppliers/hooks/useSuppliersPage";
+import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import type { SupplierComparisonOffer } from "@/features/suppliers/comparison/domain";
 
 const SupplierFormDialog = lazy(async () => {
@@ -61,6 +63,8 @@ export default function SuppliersPage() {
   const { currentCompany } = useAuth();
   const { toast } = useToast();
   const [comparisonOpen, setComparisonOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [comparisonSelection, setComparisonSelection] = useState<SupplierComparisonOffer[]>([]);
   useEffect(() => {
     setComparisonSelection([]);
@@ -160,10 +164,13 @@ export default function SuppliersPage() {
     companyId: currentCompany?.id,
     toast,
   });
+  const pagination = usePaginationSlice({ items: suppliers, page, pageSize });
+
+  useEffect(() => setPage(1), [search, statusFilter, currentCompany?.id]);
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitas una empresa activa para trabajar con proveedores, catalogos e importaciones." />
         ) : null}
@@ -171,7 +178,7 @@ export default function SuppliersPage() {
         <PageHeader
           eyebrow="Compras y catalogos"
           title="Proveedores"
-          description="Gestion de proveedores, versiones de catalogos e importaciones. Se mejora jerarquia visual sin tocar el flujo de carga ni el matching."
+          description="Administrá proveedores, consultá sus catálogos y prepará órdenes de compra."
           actions={(
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => setComparisonOpen(true)} disabled={!currentCompany}>
@@ -182,14 +189,14 @@ export default function SuppliersPage() {
           )}
         />
 
-        <FilterBar>
+        <FilterToolbar>
           <div className="relative w-full md:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input aria-label="Buscar proveedores" placeholder="Buscar por nombre, contacto o email" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="w-full md:w-56">
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "active" | "inactive" | "all")}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Filtrar proveedores por estado">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
@@ -199,17 +206,25 @@ export default function SuppliersPage() {
               </SelectContent>
             </Select>
           </div>
-        </FilterBar>
+        </FilterToolbar>
 
         <SuppliersTable
-          suppliers={suppliers}
+          suppliers={pagination.pagedItems}
           isLoading={isLoading}
           onOpenCatalog={openCatalog}
           onOpenEdit={openEdit}
           onDelete={setSupplierToDelete}
           onRestore={onRestoreSupplier}
         />
-      </div>
+        <DataTablePagination
+          {...pagination}
+          pageSize={pageSize}
+          pageSizeOptions={[20, 50, 100]}
+          onPageChange={setPage}
+          onPageSizeChange={(nextPageSize) => { setPageSize(nextPageSize); setPage(1); }}
+          itemLabel="proveedores"
+        />
+      </PageContainer>
 
       {dialogOpen ? (
         <Suspense fallback={<SupplierDialogLoader />}>

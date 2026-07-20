@@ -6,6 +6,10 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 
 ## Sistema visual transversal
 
+- La gobernanza del rediseño se centraliza en la [Constitución UI](docs/stock-sur-ui-constitution.md), la [arquitectura frontend](docs/frontend-architecture.md), el [catálogo de componentes](docs/component-catalog.md) y el [registro de deprecaciones](docs/deprecations.md).
+- El enforcement es incremental: conserva una línea base explícita de consumidores legacy y bloquea su crecimiento mientras cada rollout los elimina.
+- Este corte es exclusivamente documental y estructural: no modifica páginas, features, reglas de negocio, consultas, permisos ni base de datos.
+
 - La Constitucion UI de Stock Sur documenta tokens, arquetipos de pagina, contratos de componentes y criterios responsive y accesibles en `docs/stock-sur-ui-constitution.md`.
 - El shell alinea navegacion y contenido sobre un ancho operativo unico, incorpora acceso directo al contenido y reserva variantes para paginas estandar, espacios de trabajo y vistas analiticas.
 - Tablas, encabezados, filtros, badges, importes y dialogos cuentan con primitivas canonicas y aliases de compatibilidad para una adopcion gradual sin alterar flujos existentes.

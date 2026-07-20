@@ -199,6 +199,17 @@ Mantener compatibilidad responsive y evitar overflow horizontal.
 
 ## Implementación
 
+### Arquitectura visual
+
+Antes de crear o migrar UI, leer `docs/stock-sur-ui-constitution.md`, `docs/frontend-architecture.md`, `docs/component-catalog.md` y `docs/deprecations.md`.
+
+* elegir primero el arquetipo de página;
+* consumir primitives canónicas antes de crear wrappers locales;
+* no agregar consumidores de APIs deprecated ni ampliar su allowlist;
+* no usar `ui/Table` crudo para listas operativas ni `ui/Badge` crudo para estados de dominio;
+* documentar en el PR toda excepción para matrices editables, impresión o flujos transaccionales;
+* separar migraciones visuales de cambios en queries, mutations, permisos o reglas de negocio.
+
 Preferir:
 
 * funciones pequeñas;

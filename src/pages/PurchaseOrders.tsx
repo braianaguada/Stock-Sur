@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Eye, Search, ShoppingCart } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Eye, Search, Send, ShoppingCart, Trash2, XCircle } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { EntityDialog } from "@/components/common/EntityDialog";
-import { Badge } from "@/components/ui/badge";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { CountBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
+import { DataTable } from "@/components/data-table/DataTable";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FilterBar, PageHeader } from "@/components/ui/page";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   deleteSupplierPurchaseOrderDraft,
@@ -30,6 +34,7 @@ import {
   type SupplierPurchaseOrder,
 } from "@/features/purchase-orders/types";
 import { useToast } from "@/hooks/use-toast";
+import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 
 const money = (currency: string, value: number) =>
   `${currency} ${Number(value).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -44,6 +49,8 @@ export default function PurchaseOrders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<PurchaseOrderStatus | "ALL">("ALL");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [draftNotes, setDraftNotes] = useState("");
   const [draftQuantities, setDraftQuantities] = useState<Record<string, number>>({});
   const [confirmation, setConfirmation] = useState<PendingAction | null>(null);
@@ -74,6 +81,41 @@ export default function PurchaseOrders() {
     const needle = search.trim().toLocaleLowerCase("es");
     return !needle || `${order.order_number} ${order.supplier_name_snapshot}`.toLocaleLowerCase("es").includes(needle);
   }), [orders, search, status]);
+  const pagination = usePaginationSlice({ items: filtered, page, pageSize });
+
+  useEffect(() => setPage(1), [search, status, companyId]);
+
+  const columns = useMemo<ColumnDef<SupplierPurchaseOrder, unknown>[]>(() => [
+    { accessorKey: "order_number", header: () => "Orden", cell: ({ row }) => <PrimaryCell title={`OC #${row.original.order_number}`} metadata={row.original.supplier_name_snapshot} /> },
+    { accessorKey: "supplier_name_snapshot", header: () => "Proveedor", cell: ({ row }) => row.original.supplier_name_snapshot, meta: { className: "hidden md:table-cell", cellClassName: "hidden md:table-cell" } },
+    { accessorKey: "created_at", header: () => "Creada", cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString("es-AR"), meta: { className: "hidden lg:table-cell", cellClassName: "hidden lg:table-cell text-muted-foreground" } },
+    {
+      id: "total",
+      header: () => <span className="block text-right">Total</span>,
+      cell: ({ row }) => <div className="space-y-1">{Object.entries(row.original.totals_by_currency).map(([currency, total]) => <MoneyCell key={currency} value={money(currency, total ?? 0)} format="plain" />)}</div>,
+      meta: { className: "text-right", cellClassName: "text-right" },
+    },
+    {
+      accessorKey: "status",
+      header: () => "Estado",
+      cell: ({ row }) => <StatusBadge tone={row.original.status === "SENT" ? "success" : row.original.status === "CANCELLED" ? "muted" : "warning"}>{PURCHASE_ORDER_STATUS_LABELS[row.original.status]}</StatusBadge>,
+      meta: { className: "hidden sm:table-cell", cellClassName: "hidden sm:table-cell" },
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Acciones</span>,
+      cell: ({ row }) => {
+        const actions = purchaseOrderActions(row.original.status);
+        return <RowActions>
+          <RowActionButton label={`Ver orden #${row.original.order_number}`} tone="view" onClick={() => setSearchParams({ order: row.original.id })}><Eye className="h-4 w-4" /></RowActionButton>
+          {actions.canSend ? <RowActionButton label="Marcar enviada" tone="success" onClick={() => setConfirmation({ order: row.original, action: "SENT" })}><Send className="h-4 w-4" /></RowActionButton> : null}
+          {actions.canCancel ? <RowActionButton label="Cancelar orden" tone="warning" onClick={() => setConfirmation({ order: row.original, action: "CANCELLED" })}><XCircle className="h-4 w-4" /></RowActionButton> : null}
+          {actions.canDelete ? <RowActionButton label="Eliminar borrador" tone="danger" onClick={() => setConfirmation({ order: row.original, action: "DELETE" })}><Trash2 className="h-4 w-4" /></RowActionButton> : null}
+        </RowActions>;
+      },
+      meta: { className: "w-[180px] text-right", cellClassName: "text-right" },
+    },
+  ], [setSearchParams]);
 
   const refreshOrder = async (orderId?: string) => {
     await queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.list(companyId) });
@@ -117,7 +159,7 @@ export default function PurchaseOrders() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer className="page-shell">
         {!currentCompany ? <CompanyAccessNotice description="Necesitás una empresa activa para consultar órdenes de compra." /> : null}
         <PageHeader
           eyebrow="Compras"
@@ -125,54 +167,37 @@ export default function PurchaseOrders() {
           description="Documentos generados desde catálogos de proveedores. Los borradores se pueden editar o eliminar; las órdenes enviadas se conservan en el historial."
           actions={<Button variant="outline" onClick={() => navigate("/suppliers")}><ShoppingCart className="mr-2 h-4 w-4" /> Armar desde catálogos</Button>}
         />
-        <FilterBar>
+        <FilterToolbar>
           <div className="relative w-full md:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Buscar por número o proveedor" value={search} onChange={(event) => setSearch(event.target.value)} />
+            <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input aria-label="Buscar órdenes de compra" className="pl-9" placeholder="Buscar por número o proveedor" value={search} onChange={(event) => setSearch(event.target.value)} />
           </div>
           <Select value={status} onValueChange={(value) => setStatus(value as PurchaseOrderStatus | "ALL")}>
-            <SelectTrigger className="w-full md:w-52"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Filtrar órdenes por estado" className="w-full md:w-52"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todos los estados</SelectItem>
               {Object.entries(PURCHASE_ORDER_STATUS_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
             </SelectContent>
           </Select>
-        </FilterBar>
+        </FilterToolbar>
 
-        {ordersQuery.isLoading ? <Card><CardContent className="p-8 text-sm text-muted-foreground">Cargando órdenes...</CardContent></Card> : null}
         {ordersQuery.isError ? <Card className="border-destructive/40"><CardContent className="p-8 text-sm text-destructive">No se pudieron cargar las órdenes: {ordersQuery.error.message}</CardContent></Card> : null}
-        {!ordersQuery.isLoading && !ordersQuery.isError && filtered.length === 0 ? (
-          <Card><CardContent className="p-10 text-center text-sm text-muted-foreground">Todavía no hay órdenes para estos filtros.</CardContent></Card>
+        {!ordersQuery.isError ? (
+          <Card className="min-w-0 border-border/70 shadow-none">
+            <CardHeader className="flex flex-row items-start justify-between gap-3">
+              <div className="space-y-1">
+                <CardTitle>Historial de órdenes</CardTitle>
+                <CardDescription>Seguimiento operativo por proveedor y estado.</CardDescription>
+              </div>
+              <CountBadge>{filtered.length} {filtered.length === 1 ? "registro" : "registros"}</CountBadge>
+            </CardHeader>
+            <CardContent className="p-0">
+              <DataTable columns={columns} data={pagination.pagedItems} isLoading={ordersQuery.isLoading} loadingMessage="Cargando órdenes..." emptyMessage="No hay órdenes que coincidan con los filtros." />
+            </CardContent>
+          </Card>
         ) : null}
-        <div className="grid gap-3">
-          {filtered.map((order) => {
-            const actions = purchaseOrderActions(order.status);
-            return (
-              <Card key={order.id} className="overflow-hidden">
-                <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold">OC #{order.order_number}</span>
-                      <Badge variant={order.status === "CANCELLED" ? "outline" : "secondary"}>{PURCHASE_ORDER_STATUS_LABELS[order.status]}</Badge>
-                    </div>
-                    <div className="mt-1 font-medium">{order.supplier_name_snapshot}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">{new Date(order.created_at).toLocaleString("es-AR")}</div>
-                    <div className="mt-2 flex flex-wrap gap-3 text-sm">
-                      {Object.entries(order.totals_by_currency).map(([currency, total]) => <span key={currency} className="font-semibold">{money(currency, total ?? 0)}</span>)}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setSearchParams({ order: order.id })}><Eye className="mr-2 h-4 w-4" /> Ver orden</Button>
-                    {actions.canSend ? <Button size="sm" onClick={() => setConfirmation({ order, action: "SENT" })}>Marcar enviada</Button> : null}
-                    {actions.canCancel ? <Button variant="outline" size="sm" onClick={() => setConfirmation({ order, action: "CANCELLED" })}>Cancelar</Button> : null}
-                    {actions.canDelete ? <Button variant="destructive" size="sm" onClick={() => setConfirmation({ order, action: "DELETE" })}>Eliminar borrador</Button> : null}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
+        {!ordersQuery.isError ? <DataTablePagination {...pagination} pageSize={pageSize} pageSizeOptions={[20, 50, 100]} onPageChange={setPage} onPageSizeChange={(nextPageSize) => { setPageSize(nextPageSize); setPage(1); }} itemLabel="órdenes" /> : null}
+      </PageContainer>
 
       <EntityDialog
         open={Boolean(selected)}
@@ -182,7 +207,7 @@ export default function PurchaseOrders() {
         footer={selected?.status === "DRAFT" ? <Button disabled={!draftIsValid || saveMutation.isPending || linesQuery.isLoading} onClick={() => saveMutation.mutate()}>{saveMutation.isPending ? "Guardando..." : "Guardar cambios"}</Button> : undefined}
       >
         {selected ? <div className="grid gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-2"><Badge>{PURCHASE_ORDER_STATUS_LABELS[selected.status]}</Badge><span className="text-sm text-muted-foreground">{new Date(selected.created_at).toLocaleString("es-AR")}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2"><StatusBadge tone={selected.status === "SENT" ? "success" : selected.status === "CANCELLED" ? "muted" : "warning"}>{PURCHASE_ORDER_STATUS_LABELS[selected.status]}</StatusBadge><span className="text-sm text-muted-foreground">{new Date(selected.created_at).toLocaleString("es-AR")}</span></div>
           {selected.status === "DRAFT" ? <p className="text-sm text-muted-foreground">Podés ajustar cantidades y notas mientras la orden siga en borrador. Los precios conservan la lista que originó la orden.</p> : null}
           <Input value={draftNotes} disabled={selected.status !== "DRAFT"} placeholder="Notas de la orden" onChange={(event) => setDraftNotes(event.target.value)} />
           {linesQuery.isLoading ? <div className="py-6 text-sm text-muted-foreground">Cargando productos...</div> : null}
