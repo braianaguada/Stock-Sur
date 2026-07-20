@@ -1,14 +1,18 @@
 import { ExternalLink, Eye, PackageCheck, Pencil, Plus, Power, Printer, Search, Trash2, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import type { ColumnDef } from "@tanstack/react-table";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
-import { AmountDisplay, CompactBadge, MetricCard, MetricGrid, MetricHeroCard, OperationalTableShell, SectionCard } from "@/components/common/VisualSystem";
+import { AmountDisplay, CountBadge, InfoBadge, MetricCard, MetricGrid, MetricHeroCard, OperationalTableShell, PrimaryCell, SectionCard, StatusBadge } from "@/components/common/VisualSystem";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { DataTable } from "@/components/data-table/DataTable";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { FilterBar, PageHeader } from "@/components/ui/page";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +24,7 @@ import type { MaterialSummaryRow, TechnicianMaterialSummary } from "@/features/t
 import type { Technician } from "@/features/technicians/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatBusinessDate } from "@/lib/formatters";
+import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 
 const MAIN_TABS = [
   { label: "Tecnicos", value: "technicians" },
@@ -95,6 +100,8 @@ export default function TechniciansPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("technicians");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [technicianToDelete, setTechnicianToDelete] = useState<Technician | null>(null);
   const [selectedSummary, setSelectedSummary] = useState<TechnicianMaterialSummary | null>(null);
   const [detailTab, setDetailTab] = useState("documents");
@@ -118,6 +125,9 @@ export default function TechniciansPage() {
     openCreate,
     openEdit,
   } = useTechniciansPage({ companyId: currentCompany?.id, userId: user?.id, toast });
+  const pagination = usePaginationSlice({ items: technicians, page, pageSize });
+
+  useEffect(() => setPage(1), [search, statusFilter, currentCompany?.id]);
 
   const materialControl = useTechnicianMaterialControl({
     companyId: currentCompany?.id,
@@ -167,10 +177,55 @@ export default function TechniciansPage() {
   const handleDateToChange = (dateTo: string) => {
     setControlState((current) => ({ ...current, dateFrom: current.dateFrom && dateTo < current.dateFrom ? dateTo : current.dateFrom, dateTo }));
   };
+  const technicianColumns: ColumnDef<Technician, unknown>[] = [
+    {
+      accessorKey: "name",
+      header: "Tecnico",
+      cell: ({ row }) => (
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-muted/30 text-muted-foreground" aria-hidden="true">
+            <UserRound className="h-4 w-4" />
+          </span>
+          <PrimaryCell title={row.original.name} metadata="Tecnico propio" />
+        </div>
+      ),
+    },
+    {
+      accessorKey: "is_active",
+      header: "Estado",
+      cell: ({ row }) => (
+        <StatusBadge tone={row.original.is_active === false ? "muted" : "success"}>
+          {row.original.is_active === false ? "Inactivo" : "Activo"}
+        </StatusBadge>
+      ),
+    },
+    { accessorKey: "phone", header: "Telefono", cell: ({ row }) => row.original.phone ?? "Sin telefono" },
+    {
+      accessorKey: "notes",
+      header: "Notas",
+      cell: ({ row }) => <span className="block max-w-md truncate text-muted-foreground" title={row.original.notes ?? undefined}>{row.original.notes ?? "-"}</span>,
+    },
+    {
+      id: "actions",
+      header: () => <span className="block text-right">Acciones</span>,
+      meta: { cellClassName: "text-right" },
+      cell: ({ row }) => {
+        const technician = row.original;
+        return (
+          <RowActions>
+            <RowActionButton label={`Ver control de ${technician.name}`} tone="view" onClick={() => openControlForTechnician(technician)}><Eye className="h-4 w-4" /></RowActionButton>
+            <RowActionButton label={`Editar a ${technician.name}`} tone="edit" onClick={() => openEdit(technician)}><Pencil className="h-4 w-4" /></RowActionButton>
+            <RowActionButton label={technician.is_active === false ? `Activar a ${technician.name}` : `Marcar inactivo a ${technician.name}`} tone="muted" onClick={() => toggleActiveMutation.mutate({ id: technician.id, isActive: technician.is_active === false })}><Power className="h-4 w-4" /></RowActionButton>
+            <RowActionButton label={`Eliminar a ${technician.name}`} tone="danger" onClick={() => setTechnicianToDelete(technician)}><Trash2 className="h-4 w-4" /></RowActionButton>
+          </RowActions>
+        );
+      },
+    },
+  ];
 
   return (
     <AppLayout>
-      <div className={`page-shell ${printMode ? "technician-material-print-mode" : ""}`}>
+      <PageContainer archetype="workspace" className={`page-shell ${printMode ? "technician-material-print-mode" : ""}`}>
         <PageHeader
           eyebrow="Servicios"
           title="Tecnicos"
@@ -185,7 +240,7 @@ export default function TechniciansPage() {
               </Button>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                <CompactBadge tone="info">{RANGE_LABELS[controlState.range]}</CompactBadge>
+                <InfoBadge>{RANGE_LABELS[controlState.range]}</InfoBadge>
                 <Button variant="outline" onClick={printMovements}>
                   <Printer className="mr-2 h-4 w-4" /> Imprimir movimientos
                 </Button>
@@ -196,10 +251,10 @@ export default function TechniciansPage() {
 
         {activeTab === "technicians" ? (
           <div className="grid gap-4">
-            <FilterBar>
+            <FilterToolbar>
               <div className="relative w-full md:max-w-sm">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Buscar por nombre, telefono o nota..." />
+                <Input aria-label="Buscar tecnicos" value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Buscar por nombre, telefono o nota..." />
               </div>
               <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
                 <SelectTrigger aria-label="Estado" className="w-full md:w-44"><SelectValue /></SelectTrigger>
@@ -209,77 +264,30 @@ export default function TechniciansPage() {
                   <SelectItem value="all">Todos</SelectItem>
                 </SelectContent>
               </Select>
-            </FilterBar>
+            </FilterToolbar>
 
-            <OperationalTableShell
-              title="Tecnicos"
-              description="Listado y mantenimiento de tecnicos propios."
-              count={technicians.length}
-            >
-              <div className="overflow-x-auto">
-                <Table className="min-w-[880px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tecnico</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Telefono</TableHead>
-                      <TableHead>Notas</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? <EmptyTableRow colSpan={5}>Cargando tecnicos...</EmptyTableRow> : null}
-                    {!isLoading && technicians.length === 0 ? <EmptyTableRow colSpan={5}>No hay tecnicos cargados.</EmptyTableRow> : null}
-                    {technicians.map((technician) => (
-                      <TableRow key={technician.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full border bg-muted/30 text-muted-foreground">
-                              <UserRound className="h-4 w-4" />
-                            </span>
-                            <div>
-                              <div className="font-medium">{technician.name}</div>
-                              <div className="text-xs text-muted-foreground">Tecnico propio</div>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <CompactBadge tone={technician.is_active === false ? "muted" : "success"}>
-                            {technician.is_active === false ? "Inactivo" : "Activo"}
-                          </CompactBadge>
-                        </TableCell>
-                        <TableCell>{technician.phone ?? "Sin telefono"}</TableCell>
-                        <TableCell className="max-w-md truncate text-muted-foreground">{technician.notes ?? "-"}</TableCell>
-                        <TableCell className="text-right">
-                          <RowActions>
-                            <RowActionButton label="Ver control" tone="view" onClick={() => openControlForTechnician(technician)}>
-                              <Eye className="h-4 w-4" />
-                            </RowActionButton>
-                            <RowActionButton label="Editar" tone="edit" onClick={() => openEdit(technician)}>
-                              <Pencil className="h-4 w-4" />
-                            </RowActionButton>
-                            <RowActionButton
-                              label={technician.is_active === false ? "Activar" : "Marcar inactivo"}
-                              tone="muted"
-                              onClick={() => toggleActiveMutation.mutate({ id: technician.id, isActive: technician.is_active === false })}
-                            >
-                              <Power className="h-4 w-4" />
-                            </RowActionButton>
-                            <RowActionButton label="Eliminar" tone="danger" onClick={() => setTechnicianToDelete(technician)}>
-                              <Trash2 className="h-4 w-4" />
-                            </RowActionButton>
-                          </RowActions>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </OperationalTableShell>
+            <Card className="min-w-0 border-border/70 shadow-none">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div><CardTitle>Tecnicos</CardTitle><CardDescription>Listado y mantenimiento de tecnicos propios.</CardDescription></div>
+                <CountBadge>{technicians.length} {technicians.length === 1 ? "registro" : "registros"}</CountBadge>
+              </CardHeader>
+              <CardContent className="overflow-x-auto p-0" role="region" tabIndex={0} aria-label="Listado de tecnicos">
+                <DataTable
+                  className="min-w-[880px]"
+                  columns={technicianColumns}
+                  data={pagination.pagedItems}
+                  isLoading={isLoading}
+                  loadingMessage="Cargando tecnicos..."
+                  emptyMessage="No hay tecnicos cargados."
+                  getRowId={(technician) => technician.id}
+                />
+              </CardContent>
+            </Card>
+            <DataTablePagination {...pagination} pageSize={pageSize} pageSizeOptions={[20, 50, 100]} onPageChange={setPage} onPageSizeChange={(nextPageSize) => { setPageSize(nextPageSize); setPage(1); }} itemLabel="técnicos" />
           </div>
         ) : (
           <div className="grid gap-4">
-            <FilterBar>
+            <FilterToolbar>
               <Select value={controlState.technicianId} onValueChange={(technicianId) => setControlState((current) => ({ ...current, technicianId }))}>
                 <SelectTrigger aria-label="Tecnico" className="w-full md:w-56"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -348,7 +356,7 @@ export default function TechniciansPage() {
                   placeholder="Remito, factura externa, cliente, tecnico o material..."
                 />
               </div>
-            </FilterBar>
+            </FilterToolbar>
 
             <MetricHeroCard
               label="Margen bruto estimado"
@@ -400,8 +408,8 @@ export default function TechniciansPage() {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <span>{summary.technicianName}</span>
-                            {summary.technicianIsActive === false ? <CompactBadge tone="muted">Inactivo</CompactBadge> : null}
-                            {summary.technicianMissing ? <CompactBadge tone="warning">Referencia huerfana</CompactBadge> : null}
+                            {summary.technicianIsActive === false ? <StatusBadge tone="muted">Inactivo</StatusBadge> : null}
+                            {summary.technicianMissing ? <StatusBadge tone="warning">Referencia huerfana</StatusBadge> : null}
                           </div>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{summary.remitos}</TableCell>
@@ -454,8 +462,8 @@ export default function TechniciansPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span>{movement.technicianName}</span>
-                            {movement.technicianIsActive === false ? <CompactBadge tone="muted">Inactivo</CompactBadge> : null}
-                            {movement.technicianMissing ? <CompactBadge tone="warning">Referencia huerfana</CompactBadge> : null}
+                            {movement.technicianIsActive === false ? <StatusBadge tone="muted">Inactivo</StatusBadge> : null}
+                            {movement.technicianMissing ? <StatusBadge tone="warning">Referencia huerfana</StatusBadge> : null}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -463,7 +471,7 @@ export default function TechniciansPage() {
                           {movement.externalInvoiceNumber ? <div className="text-xs text-muted-foreground">Factura externa {movement.externalInvoiceNumber}</div> : null}
                         </TableCell>
                         <TableCell>
-                          <CompactBadge tone={movement.documentType === "REMITO" ? "info" : "success"}>{movement.movementType === "Entrega" ? "Entrega" : "Devolucion"}</CompactBadge>
+                          <StatusBadge tone={movement.documentType === "REMITO" ? "info" : "success"}>{movement.movementType === "Entrega" ? "Entrega" : "Devolucion"}</StatusBadge>
                         </TableCell>
                         <TableCell>{movement.customerName}</TableCell>
                         <TableCell>
@@ -565,7 +573,7 @@ export default function TechniciansPage() {
             </section>
           </div>
         )}
-      </div>
+      </PageContainer>
 
       <TechnicianFormDialog
         open={dialogOpen}

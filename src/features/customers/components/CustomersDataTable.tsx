@@ -3,7 +3,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
+import { PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import type { Customer } from "@/features/customers/types";
 import { canUseCustomerForInvoiceA } from "@/features/customers/fiscal";
 
@@ -26,7 +26,12 @@ export function CustomersDataTable({
     {
       accessorKey: "name",
       header: () => "Nombre",
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      cell: ({ row }) => (
+        <PrimaryCell
+          title={row.original.name}
+          metadata={row.original.email ?? row.original.phone ?? undefined}
+        />
+      ),
     },
     {
       accessorKey: "cuit",
@@ -55,9 +60,9 @@ export function CustomersDataTable({
       accessorKey: "is_occasional",
       header: () => "Tipo",
       cell: ({ row }) => (
-        <Badge variant={row.original.is_occasional ? "secondary" : "default"}>
+        <StatusBadge tone={row.original.is_occasional ? "muted" : "success"}>
           {row.original.is_occasional ? "Sistema legacy" : "Registrado"}
-        </Badge>
+        </StatusBadge>
       ),
     },
     {
@@ -66,9 +71,9 @@ export function CustomersDataTable({
       cell: ({ row }) => {
         const readiness = canUseCustomerForInvoiceA(row.original, row.original.fiscal_profile);
         return (
-          <Badge variant={readiness.allowed ? "default" : "secondary"}>
+          <StatusBadge tone={readiness.allowed ? "success" : "warning"}>
             {readiness.allowed ? "Listo" : row.original.fiscal_profile?.validation_status ?? "Pendiente"}
-          </Badge>
+          </StatusBadge>
         );
       },
     },

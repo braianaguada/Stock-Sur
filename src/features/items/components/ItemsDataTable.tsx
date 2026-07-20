@@ -5,9 +5,9 @@ import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import type { Item, ItemOperationalMeta } from "@/features/items/types";
 
 export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "attributes" | "category" | "is_active" | "created_at" | "stock";
@@ -47,18 +47,18 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
 function stockChip(total: number | undefined, demand?: string | null) {
   if (total === undefined) {
     return (
-      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] font-normal leading-none text-muted-foreground">
+      <StatusBadge tone="muted" className="gap-1">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
         S/D
-      </Badge>
+      </StatusBadge>
     );
   }
   
   if (total <= 0) {
     return (
-      <Badge variant="outline" className="h-5 gap-1 border-destructive/40 bg-destructive/10 px-1.5 text-[10px] font-medium leading-none text-destructive dark:text-red-300">
+      <StatusBadge tone="danger" className="gap-1">
         <PackageX className="h-2.5 w-2.5" /> Sin stock
-      </Badge>
+      </StatusBadge>
     );
   }
 
@@ -69,17 +69,17 @@ function stockChip(total: number | undefined, demand?: string | null) {
 
   if (isCritical) {
     return (
-      <Badge variant="outline" className="h-5 gap-1 border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] font-medium leading-none text-amber-700 dark:text-amber-300">
+      <StatusBadge tone="warning" className="gap-1">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning" />
         {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })} (Bajo)
-      </Badge>
+      </StatusBadge>
     );
   }
 
   return (
-    <Badge variant="outline" className="h-5 gap-1 border-emerald-500/40 bg-emerald-500/10 px-1.5 text-[10px] font-medium leading-none text-emerald-700 dark:text-emerald-300">
+    <StatusBadge tone="success" className="gap-1">
       <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
-    </Badge>
+    </StatusBadge>
   );
 }
 
@@ -120,7 +120,7 @@ function operationalStatus(meta: ItemOperationalMeta | undefined, demand?: strin
     return {
       label: "OK",
       detail: "Sin alertas operativas",
-      className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+      tone: "success" as const,
     };
   }
 
@@ -130,9 +130,7 @@ function operationalStatus(meta: ItemOperationalMeta | undefined, demand?: strin
   return {
     label,
     detail: issues.map((issue) => (issue === "stock bajo" ? "Stock bajo" : `Sin ${issue}`)).join(", "),
-    className: hasBlockingIssue
-      ? "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300"
-      : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    tone: hasBlockingIssue ? "danger" as const : "warning" as const,
   };
 }
 
@@ -211,15 +209,10 @@ function ItemsDataTableComponent({
         />
       ),
       cell: ({ row }) => (
-        <div className="min-w-0">
-          <OverflowTooltip text={row.original.name} className="block truncate text-sm font-medium" />
-          {row.original.attributes ? (
-            <OverflowTooltip
-              text={row.original.attributes}
-              className="mt-0.5 block truncate text-[11px] text-muted-foreground"
-            />
-          ) : null}
-        </div>
+        <PrimaryCell
+          title={<OverflowTooltip text={row.original.name} className="block truncate" />}
+          metadata={row.original.attributes ? <OverflowTooltip text={row.original.attributes} className="block truncate" /> : undefined}
+        />
       ),
       meta: {
         className: "w-[300px]",
@@ -258,7 +251,7 @@ function ItemsDataTableComponent({
       header: () => "Costo base",
       cell: ({ row }) => {
         const meta = operationalMetaByItemId.get(row.original.id);
-        return <span className="block text-right text-xs font-medium">{formatMoney(meta?.base_cost)}</span>;
+        return <MoneyCell value={formatMoney(meta?.base_cost)} format="plain" />;
       },
       meta: {
         className: "w-[120px]",
@@ -287,9 +280,9 @@ function ItemsDataTableComponent({
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="inline-flex max-w-[94px]">
-                <Badge variant="outline" className={`h-5 max-w-full justify-center truncate px-1.5 text-[10px] font-medium leading-none ${status.className}`}>
+                <StatusBadge tone={status.tone} className="max-w-full justify-center truncate">
                   {status.label}
-                </Badge>
+                </StatusBadge>
               </span>
             </TooltipTrigger>
             <TooltipContent side="left" className="max-w-56">
@@ -391,9 +384,9 @@ function ItemsDataTableComponent({
       accessorKey: "demand_profile",
       header: () => "Demanda",
       cell: ({ row }) => (
-        <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+        <StatusBadge tone={row.original.demand_profile === "HIGH" ? "warning" : "muted"}>
           {row.original.demand_profile === "HIGH" ? "Alta" : row.original.demand_profile === "MEDIUM" ? "Media" : "Baja"}
-        </Badge>
+        </StatusBadge>
       ),
       meta: {
         className: "w-[100px]",
@@ -410,9 +403,9 @@ function ItemsDataTableComponent({
         />
       ),
       cell: ({ row }) => (
-        <Badge variant={row.original.is_active ? "default" : "secondary"} className="h-5 px-1.5 text-[10px]">
+        <StatusBadge tone={row.original.is_active ? "success" : "muted"}>
           {row.original.is_active ? "Activo" : "Inactivo"}
-        </Badge>
+        </StatusBadge>
       ),
       meta: {
         className: "w-[96px]",
@@ -483,9 +476,9 @@ function ItemsDataTableComponent({
                       <p className="truncate text-sm font-semibold">{item.name}</p>
                       <p className="truncate font-mono text-[11px] text-muted-foreground">{item.sku}</p>
                     </div>
-                    <Badge variant={item.is_active ? "default" : "secondary"} className="shrink-0 text-[10px]">
+                    <StatusBadge tone={item.is_active ? "success" : "muted"} className="shrink-0">
                       {item.is_active ? "Activo" : "Inactivo"}
-                    </Badge>
+                    </StatusBadge>
                   </div>
                   {(item.brand || item.category) ? (
                     <p className="mt-1 truncate text-xs text-muted-foreground">
@@ -502,9 +495,11 @@ function ItemsDataTableComponent({
                 </div>
                 <div>
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Estado operativo</p>
-                  <Badge variant="outline" className={`mt-1 h-5 max-w-full truncate px-1.5 text-[10px] ${status.className}`} title={status.detail}>
-                    {status.label}
-                  </Badge>
+                  <span title={status.detail}>
+                    <StatusBadge tone={status.tone} className="mt-1 max-w-full truncate">
+                      {status.label}
+                    </StatusBadge>
+                  </span>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Costo base</p>
