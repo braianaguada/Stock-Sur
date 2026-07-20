@@ -190,7 +190,7 @@ export function OperationalTableShell({
   className,
 }: OperationalTableShellProps) {
   return (
-    <Card className={cn("border-border/70 shadow-none", className)}>
+    <Card className={cn("min-w-0 border-border/70 shadow-none", className)}>
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <CardTitle>{title}</CardTitle>

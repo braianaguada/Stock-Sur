@@ -81,7 +81,7 @@ describe("ServiceJobsPage visual architecture", () => {
     render(<MemoryRouter><ServiceJobsPage /></MemoryRouter>);
 
     expect(screen.getByRole("heading", { name: "Trabajos y servicios" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Bandeja de trabajos" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Bandeja de trabajos" }).closest("[class*='min-w-0']")).toBeInTheDocument();
     expect(screen.getByText("1 registro")).toBeInTheDocument();
     expect(screen.getByTestId("service-job-mobile-list")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Instalación sucursal norte.*Cliente Norte.*En curso/s })).toHaveAttribute("aria-pressed", "true");

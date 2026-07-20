@@ -9,6 +9,7 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 - La Constitucion UI de Stock Sur documenta tokens, arquetipos de pagina, contratos de componentes y criterios responsive y accesibles en `docs/stock-sur-ui-constitution.md`.
 - El shell alinea navegacion y contenido sobre un ancho operativo unico, incorpora acceso directo al contenido y reserva variantes para paginas estandar, espacios de trabajo y vistas analiticas.
 - Tablas, encabezados, filtros, badges, importes y dialogos cuentan con primitivas canonicas y aliases de compatibilidad para una adopcion gradual sin alterar flujos existentes.
+- Los paneles analiticos y contenedores operativos pueden contraerse dentro de grillas sin provocar overflow horizontal en mobile; la bandeja de trabajos conserva su selector responsive.
 - Este primer PR no agrega migraciones ni modifica reglas de negocio, permisos, consultas o aislamiento multitenant. La QA visual autenticada de los modulos queda como control obligatorio antes de declarar el rediseño completo apto.
 
 ## Compatibilidad de rutas legacy

@@ -307,7 +307,7 @@ export default function ServiceJobsPage() {
           {hasActiveFilters ? <Button type="button" variant="ghost" onClick={clearFilters}>Limpiar filtros</Button> : null}
         </FilterBar>
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+        <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
           <OperationalTableShell
             title="Bandeja de trabajos"
             description="Seleccioná un trabajo para consultar y operar sus servicios."
