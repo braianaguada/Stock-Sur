@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronUp, Search, ShoppingCart, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { CountBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -49,7 +49,7 @@ export function SupplierComparison({
             <h3 className="font-medium">Listas incluidas</h3>
             <p className="text-xs text-muted-foreground">Seleccioná al menos dos listas para una comparación útil.</p>
           </div>
-          {versionIds.length > 0 ? <Badge variant="secondary">{versionIds.length} seleccionadas</Badge> : null}
+          {versionIds.length > 0 ? <CountBadge>{versionIds.length} seleccionadas</CountBadge> : null}
         </div>
         {versionsQuery.isLoading ? <p className="mt-4 text-sm text-muted-foreground">Cargando listas…</p> : null}
         {versionsQuery.isError ? <p role="alert" className="mt-4 text-sm text-destructive">No pudimos cargar las listas. Volvé a intentar.</p> : null}
@@ -171,7 +171,7 @@ function ComparisonGroup({ group, hasFx, selectedIds, onSelectOffer }: {
               {group.matchKind === "MATCHED_ITEM" ? "Vínculo confirmado con el producto" : "Coincidencia exacta de descripción normalizada"}
             </p>
           </div>
-          <Badge variant="outline">{group.offers.length} {group.offers.length === 1 ? "oferta" : "ofertas"}</Badge>
+          <CountBadge>{group.offers.length} {group.offers.length === 1 ? "oferta" : "ofertas"}</CountBadge>
         </div>
         {currencies.size > 1 && !hasFx ? (
           <p className="mt-3 flex items-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-300">

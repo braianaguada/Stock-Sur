@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
+import { PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { formatDateTime } from "@/lib/formatters";
 import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type { Movement, MovementType } from "@/features/stock/types";
@@ -41,38 +42,31 @@ export function StockMovementsTable({
       accessorKey: "type",
       header: () => "Tipo",
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
+        <StatusBadge tone={row.original.type === "IN" ? "success" : "warning"} className="gap-2">
           {typeIcon(row.original.type)}
-          <span className="text-sm">{typeLabel[row.original.type]}</span>
-        </div>
+          {typeLabel[row.original.type]}
+        </StatusBadge>
       ),
     },
     {
       id: "item",
       header: () => "Item",
       cell: ({ row }) => (
-        <div className="min-w-0">
-          <span className="block truncate font-medium">
-            {row.original.items
+        <PrimaryCell title={row.original.items
               ? buildItemDisplayName({
                   name: row.original.items.name,
                   brand: row.original.items.brand,
                   model: row.original.items.model,
                   attributes: row.original.items.attributes,
                 })
-              : "-"}
-          </span>
-          <span className="block truncate text-xs text-muted-foreground">
-            {row.original.items
+              : "-"} metadata={row.original.items
               ? buildItemDisplayMeta({
                   sku: row.original.items.sku,
                   brand: row.original.items.brand,
                   model: row.original.items.model,
                   attributes: row.original.items.attributes,
                 })
-              : ""}
-          </span>
-        </div>
+              : ""} />
       ),
     },
     {
@@ -97,6 +91,7 @@ export function StockMovementsTable({
       data={movements}
       isLoading={isLoading}
       emptyMessage="No hay movimientos para mostrar"
+      density="compact"
       reserveEmptyRows={pageSize}
     />
   );

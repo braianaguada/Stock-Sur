@@ -5,7 +5,6 @@ import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -17,9 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowDownCircle, ArrowUpCircle, Loader2, Plus, Search, Settings2, Sparkles } from "lucide-react";
-import { DataCard, PageHeader, StatCard } from "@/components/ui/page";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
+import { MetricCard, MetricGrid, StatusBadge } from "@/components/common/VisualSystem";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
-import { cn } from "@/lib/utils";
 import { fetchStockAiSummary, type StockAiSummaryResult } from "@/features/stock/aiAlerts";
 import { StockCurrentTable } from "@/features/stock/components/StockCurrentTable";
 import { StockMovementDialog } from "@/features/stock/components/StockMovementDialog";
@@ -98,51 +97,17 @@ export default function StockPage() {
     RED: "Rojo",
     GRAY: "Sin datos",
   };
-  const healthClass: Record<StockHealth, string> = {
-    GREEN: "bg-emerald-600 text-white border-emerald-700",
-    YELLOW: "bg-amber-500 text-black border-amber-600",
-    RED: "bg-red-600 text-white border-red-700",
-    GRAY: "bg-slate-600 text-white border-slate-700",
-  };
-  const alertToneLabel: Record<StockHealth, string> = {
-    GREEN: "OK",
-    YELLOW: "Atencion",
-    RED: "Critico",
-    GRAY: "Info",
-  };
-  const alertRowClass: Record<StockHealth, string> = {
-    GREEN: "border-success/18 bg-success/10 text-foreground",
-    YELLOW: "border-warning/18 bg-warning/10 text-foreground",
-    RED: "border-destructive/18 bg-destructive/10 text-foreground",
-    GRAY: "border-border/70 bg-[hsl(var(--panel))]/66 text-foreground",
-  };
-  const alertBadgeClass: Record<StockHealth, string> = {
-    GREEN: "border-success/18 bg-success text-success-foreground",
-    YELLOW: "border-warning/18 bg-warning text-warning-foreground",
-    RED: "border-destructive/18 bg-destructive text-destructive-foreground",
-    GRAY: "border-border/70 bg-muted text-foreground",
-  };
   const insightToneClass = {
     RED: "border-destructive/18 bg-destructive/10 text-foreground",
     YELLOW: "border-warning/18 bg-warning/10 text-foreground",
     BLUE: "border-info/18 bg-info/10 text-foreground",
     GRAY: "border-border/70 bg-[hsl(var(--panel))]/66 text-foreground",
   } as const;
-  const insightBadgeClass = {
-    RED: "border-destructive/18 bg-destructive text-destructive-foreground",
-    YELLOW: "border-warning/18 bg-warning text-warning-foreground",
-    BLUE: "border-info/18 bg-info text-info-foreground",
-    GRAY: "border-border/70 bg-muted text-foreground",
-  } as const;
+  const insightBadgeTone = { RED: "danger", YELLOW: "warning", BLUE: "info", GRAY: "muted" } as const;
   const demandProfileLabel: Record<DemandProfile, string> = {
     LOW: "Rotacion baja",
     MEDIUM: "Rotacion media",
     HIGH: "Rotacion alta",
-  };
-  const demandProfileClass: Record<DemandProfile, string> = {
-    LOW: "border-border/70 bg-muted text-foreground",
-    MEDIUM: "border-info/16 bg-info/10 text-info",
-    HIGH: "border-primary/16 bg-primary/10 text-primary",
   };
 
   const alerts = useMemo(() => buildStockInsights(stockRows), [stockRows]);
@@ -226,7 +191,7 @@ export default function StockPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer archetype="workspace" className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitas una empresa activa para ver existencias y registrar movimientos de stock." />
         ) : null}
@@ -241,6 +206,7 @@ export default function StockPage() {
           ]}
           activeTab={tab}
           onTabChange={setTab}
+          variant="workspace"
           actions={(
             <Button onClick={openCreateMovement}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo movimiento
@@ -248,7 +214,7 @@ export default function StockPage() {
           )}
         />
         {setupItemId ? (
-          <DataCard className="flex flex-col gap-3 border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <Card className="flex flex-col gap-3 border-primary/25 bg-primary/5 p-4 shadow-none sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-medium">Paso 2 de 2: cargar stock inicial</p>
               <p className="text-sm text-muted-foreground">Guardá el movimiento y después finalizá el alta del producto.</p>
@@ -256,31 +222,28 @@ export default function StockPage() {
             <Button type="button" variant="outline" onClick={() => navigate("/items")}>
               Finalizar alta
             </Button>
-          </DataCard>
+          </Card>
         ) : null}
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsContent value="summary" className="space-y-6 pt-1">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <StatCard
+            <MetricGrid className="xl:grid-cols-3">
+              <MetricCard
                 label="Riesgo critico"
                 value={insightCounts.RED}
                 tone="danger"
-                className="bg-[radial-gradient(circle_at_bottom_right,rgba(248,113,113,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(248,113,113,0.55)]"
               />
-              <StatCard
+              <MetricCard
                 label="Atencion"
                 value={insightCounts.YELLOW}
                 tone="warning"
-                className="shadow-[0_24px_50px_-28px_rgba(250,204,21,0.42)]"
               />
-              <StatCard
+              <MetricCard
                 label="Oportunidades"
                 value={insightCounts.BLUE}
                 tone="success"
-                className="bg-[radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.22),transparent_58%)] shadow-[0_24px_50px_-28px_rgba(16,185,129,0.55)]"
               />
-            </div>
+            </MetricGrid>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">
@@ -333,9 +296,9 @@ export default function StockPage() {
                             Sugerencia: {alert.suggestedAction}
                           </p>
                         </div>
-                        <Badge variant="outline" className={cn("shrink-0", insightBadgeClass[alert.tone])}>
+                        <StatusBadge tone={insightBadgeTone[alert.tone]} className="shrink-0">
                           {getStockInsightKindLabel(alert.kind)}
-                        </Badge>
+                        </StatusBadge>
                       </div>
                     ))}
                   </div>
@@ -362,7 +325,7 @@ export default function StockPage() {
           </TabsContent>
 
           <TabsContent value="current" className="space-y-5 pt-1">
-            <div className="flex flex-wrap gap-3">
+            <FilterToolbar>
               <div className="relative max-w-sm flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -398,8 +361,8 @@ export default function StockPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <DataCard>
+            </FilterToolbar>
+            <Card className="min-w-0 border-border/70 p-4 shadow-none">
               <StockCurrentTable
                 rows={stockPagination.pagedItems}
                 isLoading={loadingStock}
@@ -407,11 +370,9 @@ export default function StockPage() {
                 formatCoverage={formatCoverage}
                 formatQuantity={formatStockQuantity}
                 healthLabel={healthLabel}
-                healthClass={healthClass}
                 demandProfileLabel={demandProfileLabel}
-                demandProfileClass={demandProfileClass}
               />
-            </DataCard>
+            </Card>
             <DataTablePagination
               page={stockPagination.page}
               totalPages={stockPagination.totalPages}
@@ -430,7 +391,7 @@ export default function StockPage() {
           </TabsContent>
 
           <TabsContent value="movements" className="space-y-5 pt-1">
-            <div className="relative max-w-sm flex-1 min-w-[200px]">
+            <FilterToolbar><div className="relative max-w-sm flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 aria-label="Buscar movimiento"
@@ -442,8 +403,8 @@ export default function StockPage() {
                   setMovementsPage(1);
                 }}
               />
-            </div>
-            <DataCard>
+            </div></FilterToolbar>
+            <Card className="min-w-0 border-border/70 p-4 shadow-none">
               <StockMovementsTable
                 movements={movementsPagination.pagedItems}
                 isLoading={loadingMovements}
@@ -452,7 +413,7 @@ export default function StockPage() {
                 typeIcon={typeIcon}
                 typeLabel={typeLabel}
               />
-            </DataCard>
+            </Card>
             <DataTablePagination
               page={movementsPagination.page}
               totalPages={movementsPagination.totalPages}
@@ -470,7 +431,7 @@ export default function StockPage() {
             />
           </TabsContent>
         </Tabs>
-      </div>
+      </PageContainer>
 
       <StockMovementDialog
         open={dialogOpen}

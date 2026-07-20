@@ -9,7 +9,6 @@ import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,7 +34,8 @@ import { resolvePriceListsNavigation, type PersistedPriceListsNavigation } from 
 import type { PriceListFormState } from "@/features/price-lists/types";
 import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
 import { formatDateTime } from "@/features/price-lists/utils";
-import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
+import { CategoryBadge, InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const PRICE_LISTS_UI_STATE_KEY = "price-lists:ui-state";
@@ -79,12 +79,6 @@ const BASE_COLUMN_OPTIONS: Array<{ id: keyof typeof DEFAULT_BASE_COLUMN_VISIBILI
   { id: "updated_at", label: "Última actualización" },
   { id: "updated_by", label: "Usuario" },
 ];
-
-const pricingChipClass = {
-  flete: "border-blue-200/80 bg-blue-50/90 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200",
-  margen: "border-emerald-200/80 bg-emerald-50/90 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200",
-  iva: "border-amber-200/80 bg-amber-50/90 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100",
-} as const;
 
 export default function PriceListsPage() {
   const { currentCompany, user } = useAuth();
@@ -379,15 +373,15 @@ export default function PriceListsPage() {
     impuesto_pct: number | null;
   }) => (
     <div className="flex flex-wrap gap-1.5">
-      <Badge variant="outline" className={`px-2.5 py-0.5 text-[10px] ${pricingChipClass.flete}`}>
+      <CategoryBadge>
         Flete {values.flete_pct ?? 0}%
-      </Badge>
-      <Badge variant="outline" className={`px-2.5 py-0.5 text-[10px] ${pricingChipClass.margen}`}>
+      </CategoryBadge>
+      <CategoryBadge>
         Margen {values.utilidad_pct ?? 0}%
-      </Badge>
-      <Badge variant="outline" className={`px-2.5 py-0.5 text-[10px] ${pricingChipClass.iva}`}>
+      </CategoryBadge>
+      <CategoryBadge>
         IVA {values.impuesto_pct ?? 0}%
-      </Badge>
+      </CategoryBadge>
     </div>
   );
 
@@ -399,12 +393,13 @@ export default function PriceListsPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer archetype="workspace">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitas una empresa activa para gestionar precios base y listas." />
         ) : null}
 
         <PageHeader
+          variant="workspace"
           eyebrow="Pricing operativo"
           title="Precios"
           subtitle="Gestiona costos base y listas de precios derivadas con una lectura mas clara, manteniendo intactos calculos, recalculos e historial."
@@ -431,16 +426,16 @@ export default function PriceListsPage() {
         <Tabs value={moduleTab} onValueChange={setModuleTab}>
           <TabsContent value="base" className="space-y-5 pt-1">
             {isProductSetup ? (
-              <DataCard className="flex flex-col gap-3 border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <Card className="flex flex-col gap-3 border-primary/25 bg-primary/5 p-4 shadow-none sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-medium">Paso 1 de 2: asignar costo base</p>
                   <p className="text-sm text-muted-foreground">Al guardar el costo se abrirá automáticamente la carga de stock inicial.</p>
                 </div>
-                <Badge variant="secondary">Alta guiada</Badge>
-              </DataCard>
+                <InfoBadge>Alta guiada</InfoBadge>
+              </Card>
             ) : null}
             <Collapsible open={baseColumnsOpen} onOpenChange={setBaseColumnsOpen}>
-              <FilterBar>
+              <FilterToolbar>
                 <div className="relative max-w-sm min-w-[260px] flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -476,9 +471,9 @@ export default function PriceListsPage() {
                     Columnas
                   </Button>
                 </CollapsibleTrigger>
-              </FilterBar>
+              </FilterToolbar>
               <CollapsibleContent>
-                <DataCard className="mt-3 space-y-3 p-4">
+                <Card className="mt-3 space-y-3 p-4 shadow-none">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold">Columnas visibles</h3>
@@ -504,10 +499,10 @@ export default function PriceListsPage() {
                       </label>
                     ))}
                   </div>
-                </DataCard>
+                </Card>
               </CollapsibleContent>
             </Collapsible>
-            <DataCard>
+            <Card className="shadow-none">
               <BasePricesTable
                 rows={pagedBaseRows.filter((row) => {
                   if (stockFilter === "all") return true;
@@ -521,7 +516,7 @@ export default function PriceListsPage() {
                 renderUserName={renderUserName}
                 onSaveDraftValue={handleSaveBaseCost}
               />
-            </DataCard>
+            </Card>
             <DataTablePagination
               page={basePagination.page}
               totalPages={basePagination.totalPages}
@@ -538,10 +533,10 @@ export default function PriceListsPage() {
 
           <TabsContent value="lists" className="space-y-5 pt-1">
             {itemIdFromQuery ? (
-              <DataCard className="flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <Card className="flex flex-col gap-3 border-primary/20 bg-primary/5 p-4 text-sm shadow-none sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary">itemId activo</Badge>
+                    <InfoBadge>itemId activo</InfoBadge>
                     <span className="font-medium">Navegación desde Productos</span>
                   </div>
                   <p className="text-muted-foreground">
@@ -560,10 +555,10 @@ export default function PriceListsPage() {
                     <X className="mr-2 h-4 w-4" /> Limpiar filtro
                   </Button>
                 </div>
-              </DataCard>
+              </Card>
             ) : null}
 
-            <DataCard className="space-y-4 p-4 sm:p-5">
+            <Card className="space-y-4 p-4 shadow-none sm:p-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h3 className="text-base font-semibold">Listas configuradas</h3>
@@ -596,9 +591,9 @@ export default function PriceListsPage() {
                             <CardTitle className="text-base">{priceList.name}</CardTitle>
                             <p className="text-sm text-muted-foreground">{priceList.description || "Sin descripción"}</p>
                           </div>
-                          <Badge variant={priceList.status === "UPDATED" ? "default" : "secondary"}>
+                          <StatusBadge tone={priceList.status === "UPDATED" ? "success" : "warning"}>
                             {PRICE_LIST_STATUS_LABEL[priceList.status]}
-                          </Badge>
+                          </StatusBadge>
                         </div>
                         <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/45 p-3">
                           {renderPricingSummary(priceList)}
@@ -631,10 +626,10 @@ export default function PriceListsPage() {
                   ))
                 )}
               </div>
-            </DataCard>
+            </Card>
           </TabsContent>
         </Tabs>
-      </div>
+      </PageContainer>
 
       <PriceListCreateDialog
         open={createDialogOpen}

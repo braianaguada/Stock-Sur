@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -108,17 +108,9 @@ export function StockMovementDialog({
                         })}
                       </span>
                     </span>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                      "shrink-0 rounded-full px-3 py-1 text-xs font-semibold tabular-nums",
-                      tone === "destructive" && "border-red-500/30 bg-red-500/10 text-red-400",
-                      tone === "warning" && "border-amber-500/30 bg-amber-500/10 text-amber-400",
-                      tone === "success" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-                    )}
-                  >
+                    <StatusBadge tone={tone ?? "neutral"} className="shrink-0 tabular-nums">
                       {itemStock === undefined ? "Stock no disponible" : formatStockQuantity(itemStock, item.unit)}
-                    </Badge>
+                    </StatusBadge>
                   </button>
                 );
               })
@@ -139,20 +131,12 @@ export function StockMovementDialog({
                     })}
                   </p>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tabular-nums",
-                    selectedTone === "destructive" && "border-red-500/30 bg-red-500/10 text-red-400",
-                    selectedTone === "warning" && "border-amber-500/30 bg-amber-500/10 text-amber-400",
-                    selectedTone === "success" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-                  )}
-                >
+                <StatusBadge tone={selectedTone ?? "neutral"} className="flex items-center gap-1.5 tabular-nums">
                   <Package className="h-4 w-4" />
                   {selectedStock === undefined
                     ? "Stock no disponible"
                     : formatStockQuantity(selectedStock, selectedItem.unit)}
-                </Badge>
+                </StatusBadge>
               </div>
             </div>
           ) : null}
