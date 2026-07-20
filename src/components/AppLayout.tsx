@@ -15,11 +15,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-shell min-h-screen w-full bg-transparent">
+      <a
+        href="#contenido-principal"
+        className="fixed left-4 top-3 z-[100] -translate-y-20 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg transition-transform focus:translate-y-0"
+      >
+        Saltar al contenido principal
+      </a>
       <AppSidebar />
-      <main ref={mainRef} tabIndex={-1} className="min-w-0 outline-none lg:pl-24">
+      <main id="contenido-principal" ref={mainRef} tabIndex={-1} className="min-w-0 outline-none lg:pl-24">
         <div
           key={location.pathname}
-          className="route-transition mx-auto max-w-[1480px] px-4 py-5 sm:px-6 sm:py-8 lg:px-10 lg:py-10"
+          className="route-transition mx-auto max-w-[var(--content-max)] px-4 py-5 sm:px-6 sm:py-8 lg:px-8 lg:py-10"
         >
           {hasNoActiveCompanyAccess ? (
             <section className="mx-auto max-w-2xl rounded-3xl border border-destructive/20 bg-card p-8 text-center shadow-sm">

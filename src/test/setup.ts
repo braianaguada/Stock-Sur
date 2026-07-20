@@ -1,4 +1,12 @@
 import "@testing-library/jest-dom";
+import { beforeEach, vi } from "vitest";
+
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.reject(new Error("Unexpected network request in unit test"))),
+  );
+});
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,

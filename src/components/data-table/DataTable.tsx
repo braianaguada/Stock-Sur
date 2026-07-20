@@ -32,6 +32,8 @@ type DataTableProps<TData> = {
   rowClassName?: string;
   cellClassName?: string;
   reserveEmptyRows?: number;
+  density?: "comfortable" | "compact";
+  stickyHeader?: boolean;
 };
 
 export function DataTable<TData>({
@@ -48,6 +50,8 @@ export function DataTable<TData>({
   rowClassName,
   cellClassName,
   reserveEmptyRows = 0,
+  density = "comfortable",
+  stickyHeader = false,
 }: DataTableProps<TData>) {
   const table = useReactTable({
     data,
@@ -75,8 +79,15 @@ export function DataTable<TData>({
       : 0;
 
   return (
-    <Table className={className}>
-      <TableHeader>
+    <Table
+      data-density={density}
+      className={cn(
+        density === "compact" && "[&_th]:h-10 [&_th]:px-3 [&_td]:h-[var(--table-row-compact)] [&_td]:px-3 [&_td]:py-2",
+        density === "comfortable" && "[&_td]:min-h-[var(--table-row-comfortable)]",
+        className,
+      )}
+    >
+      <TableHeader className={cn(stickyHeader && "sticky top-0 z-10 bg-background/95 backdrop-blur")}>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
