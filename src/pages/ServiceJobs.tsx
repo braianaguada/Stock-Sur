@@ -339,7 +339,7 @@ export default function ServiceJobsPage() {
                     type="button"
                     aria-pressed={selectedJob?.id === job.id}
                     onClick={() => setSelectedJobId(job.id)}
-                    className={cn("rounded-xl border p-4 text-left transition-colors", selectedJob?.id === job.id ? "border-primary/35 bg-primary/5" : "bg-card hover:bg-muted/30")}
+                    className={cn("min-w-0 w-full rounded-xl border p-4 text-left transition-colors", selectedJob?.id === job.id ? "border-primary/35 bg-primary/5" : "bg-card hover:bg-muted/30")}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
