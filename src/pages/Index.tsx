@@ -70,8 +70,8 @@ export default function Dashboard() {
             {isLoading ? <DashboardLoading /> : error && !hasData ? null : (
               <>
                 <div className="grid gap-5 xl:grid-cols-12">
-                  <div className="xl:col-span-8"><DashboardHero key={currentCompany.id} dashboard={dashboard} /></div>
-                  <div className="xl:col-span-4"><OperationalAttention actions={dashboard.actions} /></div>
+                  <div className="min-w-0 xl:col-span-8"><DashboardHero key={currentCompany.id} dashboard={dashboard} /></div>
+                  <div className="min-w-0 xl:col-span-4"><OperationalAttention actions={dashboard.actions} /></div>
                 </div>
                 <DashboardHighlights dashboard={dashboard} />
                 <DashboardAiInsight key={currentCompany.id} companyName={settings.app_name} dashboard={dashboard} />

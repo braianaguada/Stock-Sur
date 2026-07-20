@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { AmountDisplay, MetricCard, MetricHeroCard, OperationalTableShell } from "./VisualSystem";
-import { PageHeader, StatCard } from "@/components/ui/page";
+import { AmountDisplay, CategoryBadge, MetricCard, MetricHeroCard, MoneyCell, OperationalTableShell } from "./VisualSystem";
+import { PageContainer, PageHeader, StatCard } from "@/components/ui/page";
 
 describe("visual system components", () => {
   it("renders full currency values with a title", () => {
@@ -91,6 +91,19 @@ describe("visual system components", () => {
     expect(screen.getByRole("tablist")).toHaveClass("w-max", "min-w-full");
   });
 
+  it("exposes page archetypes without changing the default contract", () => {
+    const { container } = render(
+      <PageContainer archetype="workspace">
+        <PageHeader title="Documentos" variant="workspace" />
+      </PageContainer>,
+    );
+
+    expect(container.firstElementChild).toHaveClass("max-w-[var(--content-max)]");
+    expect(container.firstElementChild).not.toHaveClass("px-4", "sm:px-6", "lg:px-8");
+    expect(screen.getByRole("heading", { name: "Documentos" }).closest("section"))
+      .toHaveAttribute("data-variant", "workspace");
+  });
+
   it("renders operational table shell metadata", () => {
     render(
       <OperationalTableShell title="Movimientos" description="Control diario" count={2}>
@@ -102,5 +115,17 @@ describe("visual system components", () => {
     expect(screen.getByText("Control diario")).toBeInTheDocument();
     expect(screen.getByText("2 registros")).toBeInTheDocument();
     expect(screen.getByText("Tabla")).toBeInTheDocument();
+  });
+
+  it("keeps domain categories separate from functional status and aligns money", () => {
+    render(
+      <div>
+        <CategoryBadge>Remito</CategoryBadge>
+        <MoneyCell value={1250.5} />
+      </div>,
+    );
+
+    expect(screen.getByText("Remito")).toHaveClass("border-primary/15", "bg-primary/8");
+    expect(screen.getByText("$ 1.250,50")).toHaveClass("text-right", "tabular-nums");
   });
 });
