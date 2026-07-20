@@ -2,6 +2,8 @@
 
 Fuente de verdad normativa del producto. Toda excepción requiere una razón de UX documentada; `className` no es una variante.
 
+Documentos operativos complementarios: [arquitectura frontend](frontend-architecture.md), [catálogo de componentes](component-catalog.md) y [deprecaciones](deprecations.md). Si existe una contradicción, prevalece esta constitución.
+
 ## Inventario y diagnóstico
 
 Rutas auditadas por familia: shell (`AppLayout`, `AppSidebar`, navegación, empresa, usuario), Inicio, Ítems, Combos, Stock y movimientos, Precios, Documentos, Presupuestos, Remitos, Caja y Totales, Clientes y cuenta corriente, Facturación, Proveedores, Catálogos, Importaciones, Órdenes, Servicios, Técnicos, Rendiciones, Usuarios, Configuración, autenticación, páginas públicas e impresión. También se revisaron dialogs, confirmaciones, estados de datos, paginación y acciones por fila.
@@ -176,6 +178,10 @@ Los símbolos de compatibilidad están marcados `@deprecated`. Cada PR de migrac
 ### DO NOT USE
 
 Las pantallas nuevas no deben importar `FilterBar`, `StatCard`, `DataCard`, `MetricHeroCard`, `SectionCard`, `OperationalTableShell` ni `CompactBadge`; tampoco `ui/Table` crudo para listas operativas, `ui/Badge` crudo para estados de dominio, ni clases `.surface-card`, `.filter-strip`, `.data-panel`, `.stat-tile` o `.status-chip` directamente desde rutas. Excepciones de tabla editable, impresión o flujo transaccional requieren justificación en el PR.
+
+## Enforcement incremental
+
+La gobernanza se aplica sin una migración masiva: los consumidores legacy auditados permanecen en una allowlist verificable, pero no pueden crecer. Cada PR de rollout reduce esa línea base, actualiza el catálogo cuando cambia una API y justifica toda excepción. Los tests estructurales complementan —no reemplazan— revisión de código, QA visual autenticada y pruebas de interacción.
 
 ## Roadmap
 

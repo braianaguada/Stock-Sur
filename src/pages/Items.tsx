@@ -32,7 +32,8 @@ import { fetchAllPages } from "@/lib/supabase-pagination";
 import { getItemSearchTokens, rankNaturalItemSearch, type ItemSearchAliasRecord } from "@/features/items/search";
 import { type Item, type ItemAlias, type ItemOperationalMeta } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
-import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
+import { Card } from "@/components/ui/card";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { ItemFormDialog } from "@/features/items/components/ItemFormDialog";
 import {
@@ -907,7 +908,7 @@ export default function ItemsPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer archetype="workspace" className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitás una empresa activa para gestionar artículos, alias y catálogos de stock." />
         ) : null}
@@ -964,7 +965,7 @@ export default function ItemsPage() {
         </div>
 
         <Collapsible open={columnsOpen} onOpenChange={setColumnsOpen}>
-          <FilterBar>
+          <FilterToolbar>
             <div className="relative w-full md:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -1070,9 +1071,9 @@ export default function ItemsPage() {
                 Columnas
               </Button>
             </CollapsibleTrigger>
-          </FilterBar>
+          </FilterToolbar>
           <CollapsibleContent>
-            <DataCard className="mt-3 space-y-3 p-4">
+            <Card className="mt-3 space-y-3 border-border/70 p-4 shadow-none">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-semibold">Columnas visibles</h3>
@@ -1098,11 +1099,11 @@ export default function ItemsPage() {
                   </label>
                 ))}
               </div>
-            </DataCard>
+            </Card>
           </CollapsibleContent>
         </Collapsible>
 
-        <DataCard>
+        <Card className="min-w-0 overflow-hidden border-border/70 shadow-none">
           <ItemsDataTable
             items={visibleItems}
             isLoading={isLoading}
@@ -1120,7 +1121,7 @@ export default function ItemsPage() {
             onRestore={(itemId) => restoreMutation.mutate(itemId)}
             onCopySku={copySku}
           />
-        </DataCard>
+        </Card>
         <DataTablePagination
           page={page}
           totalPages={visibleTotalPages}
@@ -1133,7 +1134,7 @@ export default function ItemsPage() {
           onPageSizeChange={(value) => setPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
           itemLabel="ítems"
         />
-      </div>
+      </PageContainer>
 
       <ItemFormDialog
         open={dialogOpen}

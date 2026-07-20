@@ -3,8 +3,8 @@ import { Plus, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +13,8 @@ import { CustomerFormDialog } from "@/features/customers/components/CustomerForm
 import { CustomersDataTable } from "@/features/customers/components/CustomersDataTable";
 import type { Customer } from "@/features/customers/types";
 import { useCustomersPage } from "@/features/customers/hooks/useCustomersPage";
-import { DataCard, FilterBar, PageHeader } from "@/components/ui/page";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
+import { InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 
@@ -51,7 +52,7 @@ export default function CustomersPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer className="page-shell">
         {!currentCompany ? (
           <div className="surface-card-muted max-w-2xl px-5 py-4 text-sm text-foreground">
             Selecciona una empresa para gestionar sus clientes.
@@ -69,7 +70,7 @@ export default function CustomersPage() {
           )}
         />
 
-        <FilterBar>
+        <FilterToolbar>
           <div className="relative max-w-sm flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -79,17 +80,17 @@ export default function CustomersPage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-        </FilterBar>
+        </FilterToolbar>
 
         <div className="rounded-lg border border-border bg-card px-4 py-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold">Cliente ocasional / Consumidor Final</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">Sistema</Badge>
-                <Badge variant="secondary">No editable</Badge>
-                <Badge variant="outline">Operaciones sin cliente registrado</Badge>
-                <Badge variant="outline">customer_id = null</Badge>
+                <StatusBadge tone="muted">Sistema</StatusBadge>
+                <StatusBadge tone="muted">No editable</StatusBadge>
+                <InfoBadge>Operaciones sin cliente registrado</InfoBadge>
+                <StatusBadge>customer_id = null</StatusBadge>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">No aplica Factura A ni cuenta corriente.</p>
             </div>
@@ -99,7 +100,7 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        <DataCard>
+        <Card className="min-w-0 overflow-hidden border-border/70 shadow-none">
           <CustomersDataTable
             customers={pagination.pagedItems}
             isLoading={isLoading}
@@ -107,7 +108,7 @@ export default function CustomersPage() {
             onEdit={openEdit}
             onDelete={setCustomerToDelete}
           />
-        </DataCard>
+        </Card>
         <DataTablePagination
           page={pagination.page}
           totalPages={pagination.totalPages}
@@ -123,7 +124,7 @@ export default function CustomersPage() {
           }}
           itemLabel="clientes"
         />
-      </div>
+      </PageContainer>
 
       <CustomerFormDialog
         open={dialogOpen}
