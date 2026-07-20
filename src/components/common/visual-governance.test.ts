@@ -20,7 +20,6 @@ const deprecatedConsumers: Record<string, readonly string[]> = {
   MetricHeroCard: [
     "src/components/common/VisualSystem.test.tsx",
     "src/pages/CashTotals.tsx",
-    "src/pages/CustomerAccount.tsx",
     "src/pages/Technicians.tsx",
   ],
   OperationalTableShell: [
@@ -29,7 +28,6 @@ const deprecatedConsumers: Record<string, readonly string[]> = {
     "src/features/cash/components/CashSalesTab.tsx",
     "src/pages/Billing.tsx",
     "src/pages/CashTotals.tsx",
-    "src/pages/CustomerAccount.tsx",
     "src/pages/ServiceDocuments.tsx",
     "src/pages/ServiceJobs.tsx",
     "src/pages/Technicians.tsx",
@@ -83,5 +81,27 @@ describe("visual governance", () => {
     expect(catalog).toContain("`DataTable`");
     expect(deprecations).toContain("`MetricHeroCard`");
     expect(deprecations).toContain("allowlist");
+  });
+
+  it("keeps tabbed workspaces on canonical primitives", () => {
+    const workspaceFiles = [
+      "src/pages/Stock.tsx",
+      "src/pages/PriceLists.tsx",
+      "src/pages/CustomerAccount.tsx",
+      "src/features/stock/components/StockCurrentTable.tsx",
+      "src/features/stock/components/StockMovementsTable.tsx",
+      "src/features/price-lists/components/BasePricesTable.tsx",
+      "src/features/price-lists/components/PriceListProductsTable.tsx",
+      "src/features/suppliers/components/SupplierCatalogDialog.tsx",
+      "src/features/suppliers/components/SupplierCatalogLinesTable.tsx",
+    ];
+
+    for (const file of workspaceFiles) {
+      const source = readFileSync(resolve(root, file), "utf8");
+      expect(source, `${file} must not import deprecated visual primitives`).not.toMatch(
+        /\b(?:DataCard|FilterBar|StatCard|MetricHeroCard|OperationalTableShell)\b/,
+      );
+      expect(source, `${file} must not import raw badges`).not.toContain('from "@/components/ui/badge"');
+    }
   });
 });

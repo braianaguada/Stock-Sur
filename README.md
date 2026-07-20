@@ -961,6 +961,14 @@ Production migration history note:
 - La base del piloto deriva los grupos de navegación desde una única configuración, comparte tonos entre indicadores y elimina exports y estilos sin consumidores comprobados.
 - La expansión se hará en PR separados: migración compatible a tema claro/oscuro, inventario, comercial, compras, servicios y administración. La poda transversal seguirá por módulos y con tests, sin borrar automáticamente los falsos positivos de Knip o depcheck.
 
+## Espacios de trabajo con pestañas
+
+- Stock unifica Resumen, Stock y Movimientos bajo una misma cabecera de espacio de trabajo, con filtros, métricas, tablas, estados y paginación canónicos.
+- Precios base y Listas comparten la misma navegación y densidad operativa; sus productos usan celdas primarias, importes, badges y acciones de fila del sistema visual.
+- Cuenta corriente adopta el mismo contenedor, métricas y tabla compacta sin modificar saldos, consultas ni permisos.
+- El detalle de catálogos de proveedores reutiliza pestañas, filtros, tabla, estados y acciones canónicas, incluida la comparación de ofertas.
+- No se modificaron reglas de negocio, query keys, aislamiento por `company_id`, persistencia ni base de datos. No requiere migraciones.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo

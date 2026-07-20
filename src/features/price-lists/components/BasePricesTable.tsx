@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
-import { Package, PackageX, Pencil, TrendingDown, TrendingUp } from "lucide-react";
+import { Pencil, TrendingDown, TrendingUp } from "lucide-react";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -26,20 +27,13 @@ type BasePricesTableProps = {
 
 function StockBadge({ total }: { total: number | undefined }) {
   if (total === undefined) {
-    return (
-      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-border/50 text-muted-foreground">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-        S/D
-      </Badge>
-    );
+    return <StatusBadge tone="muted">S/D</StatusBadge>;
   }
   if (total <= 0) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant="outline" className="h-5 cursor-default gap-1 px-1.5 text-[10px] border-destructive/40 bg-destructive/8 text-destructive">
-            <PackageX className="h-2.5 w-2.5" /> Sin stock
-          </Badge>
+          <StatusBadge tone="danger">Sin stock</StatusBadge>
         </TooltipTrigger>
         <TooltipContent side="top" className="text-xs">Stock actual: 0</TooltipContent>
       </Tooltip>
@@ -48,9 +42,7 @@ function StockBadge({ total }: { total: number | undefined }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Badge variant="outline" className="h-5 cursor-default gap-1 px-1.5 text-[10px] border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400">
-          <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
-        </Badge>
+        <StatusBadge tone="success">{total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}</StatusBadge>
       </TooltipTrigger>
       <TooltipContent side="top" className="text-xs">Stock actual: {total}</TooltipContent>
     </Tooltip>
@@ -97,12 +89,7 @@ export function BasePricesTable({
       accessorKey: "name",
       header: () => "Nombre",
       cell: ({ row }) => (
-        <div className="min-w-0">
-          <OverflowTooltip text={row.original.name} className="block truncate text-sm font-medium leading-5" />
-          {showAttributesInline && row.original.attributes ? (
-            <OverflowTooltip text={row.original.attributes} className="block truncate text-[11px] leading-4 text-muted-foreground" />
-          ) : null}
-        </div>
+        <PrimaryCell title={row.original.name} metadata={showAttributesInline ? row.original.attributes : undefined} />
       ),
       meta: {
         className: "w-[340px]",
@@ -152,29 +139,26 @@ export function BasePricesTable({
       accessorKey: "previous_base_cost",
       header: () => <div className="text-right">Costo anterior</div>,
       cell: ({ row }) => (
-        <div className="text-right text-sm text-muted-foreground">
-          {row.original.previous_base_cost !== null ? `$${formatMoney(row.original.previous_base_cost)}` : "-"}
-        </div>
+        row.original.previous_base_cost !== null
+          ? <MoneyCell value={row.original.previous_base_cost} className="text-muted-foreground" />
+          : <div className="text-right text-muted-foreground">-</div>
       ),
     },
     {
       accessorKey: "base_cost",
       header: () => <div className="text-right">Costo base</div>,
       cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-2">
-          <span className="font-mono text-sm">${formatMoney(row.original.base_cost)}</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            title="Cambiar costo base"
+        <RowActions>
+          <MoneyCell value={row.original.base_cost} />
+          <RowActionButton
+            label="Cambiar costo base"
+            tone="edit"
             onClick={() => openBaseCostDialog(row.original)}
             disabled={isSaving}
           >
             <Pencil className="h-4 w-4" />
-          </Button>
-        </div>
+          </RowActionButton>
+        </RowActions>
       ),
       meta: {
         className: "w-[150px]",
@@ -219,19 +203,16 @@ export function BasePricesTable({
 
   return (
     <>
-      <div className="overflow-x-auto">
-        <DataTable
+      <DataTable
           columns={columns}
           data={rows}
           emptyMessage="No hay productos para mostrar."
           className="table-fixed min-w-[1780px]"
           columnVisibility={columnVisibility}
           getRowId={(row) => row.item_id}
-          rowClassName={showAttributesInline ? "h-14" : "h-12"}
-          cellClassName={showAttributesInline ? "h-14 py-1.5" : "h-12 py-1"}
+          density="compact"
           reserveEmptyRows={pageSize}
-        />
-      </div>
+      />
       <Dialog open={Boolean(editingRow)} onOpenChange={(open) => { if (!open) setEditingRow(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

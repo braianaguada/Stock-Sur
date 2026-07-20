@@ -1,9 +1,10 @@
-import { Copy, FileStack, History, Mail, MessageCircle, Search, Upload } from "lucide-react";
+import { Copy, Mail, MessageCircle, Search, Upload } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
-import { Badge } from "@/components/ui/badge";
+import { CountBadge, InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { FilterToolbar, PageTabs } from "@/components/ui/page";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -76,20 +77,14 @@ const NAV_ITEMS = [
   {
     key: "carga" as const,
     label: "Fuentes",
-    helper: "Subi archivos PDF, Excel o CSV al proveedor.",
-    icon: Upload,
   },
   {
     key: "historial" as const,
     label: "Versiones",
-    helper: "Elegí la fuente o versión que vas a usar.",
-    icon: History,
   },
   {
     key: "catalogo" as const,
     label: "Catalogo y pedido",
-    helper: "Buscá productos y armá el pedido al proveedor.",
-    icon: FileStack,
   },
 ];
 
@@ -153,37 +148,12 @@ export function SupplierCatalogDialog({
     >
       <div className="flex h-full min-h-0 flex-col bg-muted/10">
         <div className="shrink-0 border-b bg-background">
-          <div className="flex min-w-0 items-center px-3 py-2 sm:px-5">
-            <nav className="flex min-w-0 gap-1 overflow-x-auto" aria-label="Secciones del proveedor">
-              {NAV_ITEMS.map((item) => {
-                const Icon = item.icon;
-                const active = catalogUiTab === item.key;
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => onCatalogUiTabChange(item.key)}
-                    className={cn(
-                      "flex min-w-max items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors",
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="shrink-0">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <div className="flex items-baseline gap-2">
-                        <div className="font-medium">{item.label}</div>
-                        <div className="hidden text-xs opacity-70 lg:block">{item.helper}</div>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </nav>
-
+          <div className="px-3 py-2 sm:px-5">
+            <PageTabs
+              tabs={NAV_ITEMS.map((item) => ({ label: item.label, value: item.key }))}
+              value={catalogUiTab}
+              onValueChange={(value) => onCatalogUiTabChange(value as SupplierCatalogDialogProps["catalogUiTab"])}
+            />
           </div>
         </div>
 
@@ -264,9 +234,9 @@ export function SupplierCatalogDialog({
                       {isUploading ? "Procesando fuente..." : "Procesar listado"}
                     </Button>
                     {pdfProgress ? (
-                      <Badge variant="secondary" className="px-3 py-1 text-xs">
+                      <InfoBadge>
                         {pdfProgress.message}
-                      </Badge>
+                      </InfoBadge>
                     ) : null}
                   </div>
                 </CardContent>
@@ -333,7 +303,7 @@ export function SupplierCatalogDialog({
                                 Creado {formatSupplierDate(catalog.created_at)}
                               </div>
                             </div>
-                            <Badge variant="outline">{(versionsByCatalog[catalog.id] ?? []).length} versiones</Badge>
+                            <CountBadge>{(versionsByCatalog[catalog.id] ?? []).length} versiones</CountBadge>
                           </div>
 
                           <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -363,7 +333,7 @@ export function SupplierCatalogDialog({
                                         {formatSupplierDate(version.imported_at)}
                                       </div>
                                     </div>
-                                    {activeVersionId === version.id ? <Badge>Activa</Badge> : null}
+                                    {activeVersionId === version.id ? <StatusBadge tone="success">Activa</StatusBadge> : null}
                                   </div>
                                   <div className="mt-3 grid gap-1 text-xs text-muted-foreground">
                                     <div>Archivo: {version.file_name}</div>
@@ -401,13 +371,13 @@ export function SupplierCatalogDialog({
                       </CardDescription>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      {orderLines.length > 0 ? <Badge variant="outline">{orderLines.length} en el pedido</Badge> : null}
+                      {orderLines.length > 0 ? <CountBadge>{orderLines.length} en el pedido</CountBadge> : null}
                       {activeVersion ? (
-                        <Badge variant="secondary">{formatSupplierDate(activeVersion.imported_at)}</Badge>
+                        <InfoBadge>{formatSupplierDate(activeVersion.imported_at)}</InfoBadge>
                       ) : null}
                     </div>
                   </div>
-                  <div className="relative">
+                  <FilterToolbar className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       placeholder="Buscar por descripcion o codigo"
@@ -416,7 +386,7 @@ export function SupplierCatalogDialog({
                       disabled={!activeVersionId}
                       className="pl-9"
                     />
-                  </div>
+                  </FilterToolbar>
                 </CardHeader>
                 <CardContent className="min-h-0 flex-1">
                   <div className="h-full min-h-0 overflow-auto rounded-xl border">

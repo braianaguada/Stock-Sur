@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Link, useSearchParams } from "react-router-dom";
 import { CalendarClock, CircleDollarSign, Search, WalletCards } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
-import { AmountDisplay, MetricCard, MetricGrid, MetricHeroCard, OperationalTableShell } from "@/components/common/VisualSystem";
-import { Badge } from "@/components/ui/badge";
+import { CountBadge, MetricCard, MetricGrid, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
+import { DataTable } from "@/components/data-table/DataTable";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FilterBar, PageHeader } from "@/components/ui/page";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCustomerAccountStatement } from "@/features/customer-account/hooks/useCustomerAccountStatement";
-import type { AccountStatementStatus } from "@/features/customer-account/lib/accountStatement";
+import type { AccountStatementRow, AccountStatementStatus } from "@/features/customer-account/lib/accountStatement";
 import { customerIdFromAccountParams } from "@/features/customer-account/lib/routes";
 import { formatBusinessDate, todayBusinessDateInputValue } from "@/lib/formatters";
 import { useQuery } from "@tanstack/react-query";
@@ -30,12 +31,12 @@ const statusLabels: Record<AccountStatementStatus, string> = {
   payment: "Pago",
 };
 
-const statusVariant: Record<AccountStatementStatus, "default" | "secondary" | "destructive" | "outline"> = {
-  pending: "secondary",
-  partial: "default",
-  paid: "outline",
-  overdue: "destructive",
-  payment: "outline",
+const statusTone: Record<AccountStatementStatus, "default" | "success" | "warning" | "danger" | "info"> = {
+  pending: "warning",
+  partial: "info",
+  paid: "success",
+  overdue: "danger",
+  payment: "success",
 };
 
 function todayDate() {
@@ -80,6 +81,17 @@ export default function CustomerAccountPage() {
   const pagination = usePaginationSlice({ items: rows, page, pageSize });
   const summary = statementQuery.data?.summary ?? { balance: 0, overdueDebt: 0, notDueDebt: 0, periodPayments: 0, movementsCount: 0 };
   const customers = customersQuery.data ?? [];
+  const columns = useMemo<ColumnDef<AccountStatementRow, unknown>[]>(() => [
+    { accessorKey: "business_date", header: "Fecha", cell: ({ row }) => formatBusinessDate(row.original.business_date) },
+    { accessorKey: "due_date", header: "Vencimiento", cell: ({ row }) => row.original.due_date ? formatBusinessDate(row.original.due_date) : "Sin vencimiento" },
+    { accessorKey: "customer_name", header: "Cliente", cell: ({ row }) => <PrimaryCell title={row.original.customer_name ?? "-"} metadata={row.original.origin_label} /> },
+    { accessorKey: "reference", header: "Remito / factura / referencia", cell: ({ row }) => row.original.document_id ? <Button asChild variant="link" className="h-auto p-0 text-left"><Link to={`/documents?document_id=${row.original.document_id}`}>{row.original.reference}</Link></Button> : row.original.reference },
+    { accessorKey: "description", header: "Descripción", cell: ({ row }) => <PrimaryCell title={row.original.description ?? "-"} /> },
+    { accessorKey: "debit", header: () => <div className="text-right">Débito</div>, cell: ({ row }) => row.original.debit > 0 ? <MoneyCell value={row.original.debit} /> : <div className="text-right">-</div> },
+    { accessorKey: "credit", header: () => <div className="text-right">Crédito</div>, cell: ({ row }) => row.original.credit > 0 ? <MoneyCell value={row.original.credit} className="text-success" /> : <div className="text-right">-</div> },
+    { accessorKey: "running_balance", header: () => <div className="text-right">Saldo</div>, cell: ({ row }) => <MoneyCell value={row.original.running_balance} /> },
+    { accessorKey: "status", header: "Estado", cell: ({ row }) => <StatusBadge tone={statusTone[row.original.status]}>{statusLabels[row.original.status]}</StatusBadge> },
+  ], []);
 
   useEffect(() => {
     const nextCustomerId = customerIdFromAccountParams(params);
@@ -101,14 +113,15 @@ export default function CustomerAccountPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer archetype="workspace" className="page-shell">
         <PageHeader
           eyebrow="Clientes"
           title="Estado de cuenta"
           description="Vista operativa de deuda, pagos y vencimientos estimados por cliente."
+          variant="workspace"
         />
 
-        <FilterBar>
+        <FilterToolbar>
           <Select value={customerId} onValueChange={handleCustomerChange}>
             <SelectTrigger className="w-full min-w-[220px] md:w-[260px]">
               <SelectValue placeholder="Cliente" />
@@ -139,17 +152,10 @@ export default function CustomerAccountPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar factura, remito o referencia..." className="pl-9" />
           </div>
-        </FilterBar>
+        </FilterToolbar>
 
-        <MetricHeroCard
-          label="Saldo total"
-          value={summary.balance}
-          helper="Balance acumulado de la cuenta según los movimientos registrados."
-          breakdown={<span>{summary.movementsCount} movimientos en el período</span>}
-          icon={<WalletCards className="h-6 w-6" />}
-        />
-
-        <MetricGrid className="xl:grid-cols-3">
+        <MetricGrid>
+          <MetricCard label="Saldo total" value={summary.balance} helper={`${summary.movementsCount} movimientos en el período`} tone="info" icon={<WalletCards className="h-5 w-5" />} />
           <MetricCard
             label="Deuda vencida"
             value={summary.overdueDebt}
@@ -173,81 +179,17 @@ export default function CustomerAccountPage() {
           />
         </MetricGrid>
 
-        <OperationalTableShell
-          title="Movimientos de cuenta"
-          description="Débitos, créditos y saldo acumulado según los filtros aplicados."
-          count={summary.movementsCount}
-        >
-          <div className="overflow-x-auto">
-            <Table className="min-w-[1180px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Vencimiento</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Origen</TableHead>
-                  <TableHead>Remito / factura / referencia</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead className="text-right">Débito</TableHead>
-                  <TableHead className="text-right">Crédito</TableHead>
-                  <TableHead className="text-right">Saldo</TableHead>
-                  <TableHead>Estado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {statementQuery.isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="py-12 text-center text-muted-foreground">
-                      Cargando movimientos...
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-                {statementQuery.isError ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="py-12 text-center text-destructive">
-                      No se pudieron cargar los movimientos. Intentá nuevamente.
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-                {!statementQuery.isLoading && !statementQuery.isError && rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="py-12 text-center text-muted-foreground">
-                      No hay movimientos para mostrar con los filtros actuales.
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-                {pagination.pagedItems.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{formatBusinessDate(row.business_date)}</TableCell>
-                    <TableCell>{row.due_date ? formatBusinessDate(row.due_date) : "Sin vencimiento"}</TableCell>
-                    <TableCell className="font-medium">{row.customer_name ?? "-"}</TableCell>
-                    <TableCell>{row.origin_label}</TableCell>
-                    <TableCell>
-                      {row.document_id ? (
-                        <Button asChild variant="link" className="h-auto p-0 text-left">
-                          <Link to={`/documents?document_id=${row.document_id}`}>{row.reference}</Link>
-                        </Button>
-                      ) : row.reference}
-                    </TableCell>
-                    <TableCell className="max-w-[260px] truncate">{row.description ?? "-"}</TableCell>
-                    <TableCell className="text-right">
-                      {row.debit > 0 ? <AmountDisplay value={row.debit} size="sm" /> : "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {row.credit > 0 ? <AmountDisplay value={row.credit} size="sm" className="text-success" /> : "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <AmountDisplay value={row.running_balance} size="sm" />
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant[row.status]}>{statusLabels[row.status]}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </OperationalTableShell>
+        <Card className="min-w-0 border-border/70 shadow-none">
+          <CardHeader className="flex flex-row items-start justify-between gap-3">
+            <div><CardTitle>Movimientos de cuenta</CardTitle><CardDescription>Débitos, créditos y saldo acumulado según los filtros aplicados.</CardDescription></div>
+            <CountBadge>{summary.movementsCount} {summary.movementsCount === 1 ? "registro" : "registros"}</CountBadge>
+          </CardHeader>
+          <CardContent>
+            {statementQuery.isError ? <p role="alert" className="py-10 text-center text-sm text-destructive">No se pudieron cargar los movimientos. Intentá nuevamente.</p> : (
+              <DataTable columns={columns} data={pagination.pagedItems} isLoading={statementQuery.isLoading} emptyMessage="No hay movimientos para mostrar con los filtros actuales." getRowId={(row) => row.id} density="compact" />
+            )}
+          </CardContent>
+        </Card>
         <DataTablePagination
           page={pagination.safePage}
           totalPages={pagination.totalPages}
@@ -260,7 +202,7 @@ export default function CustomerAccountPage() {
           onPageSizeChange={(value) => setPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
           itemLabel="movimientos"
         />
-      </div>
+      </PageContainer>
     </AppLayout>
   );
 }

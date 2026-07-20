@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
+import { CategoryBadge, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { buildItemDisplayName } from "@/lib/item-display";
 import { cn } from "@/lib/utils";
 import type { DemandProfile, StockHealth, StockRow } from "@/features/stock/types";
@@ -13,10 +13,10 @@ type StockCurrentTableProps = {
   formatCoverage: (value: number | null, unit: "m" | "d") => string;
   formatQuantity: (value: number, unit: string | null) => string;
   healthLabel: Record<StockHealth, string>;
-  healthClass: Record<StockHealth, string>;
   demandProfileLabel: Record<DemandProfile, string>;
-  demandProfileClass: Record<DemandProfile, string>;
 };
+
+const healthTone: Record<StockHealth, "danger" | "warning" | "success" | "muted"> = { RED: "danger", YELLOW: "warning", GREEN: "success", GRAY: "muted" };
 
 function CoverageBar({ row, formatCoverage }: { row: StockRow; formatCoverage: (value: number | null, unit: "m" | "d") => string }) {
   const isLowRot = row.low_rotation;
@@ -57,9 +57,7 @@ export function StockCurrentTable({
   formatCoverage,
   formatQuantity,
   healthLabel,
-  healthClass,
   demandProfileLabel,
-  demandProfileClass,
 }: StockCurrentTableProps) {
   const columns = useMemo<ColumnDef<StockRow, unknown>[]>(() => [
     {
@@ -74,16 +72,12 @@ export function StockCurrentTable({
       accessorKey: "item_name",
       header: () => "Nombre",
       cell: ({ row }) => (
-        <div className="min-w-0">
-          <span className="block truncate text-sm font-medium">
-            {buildItemDisplayName({
+        <PrimaryCell title={buildItemDisplayName({
               name: row.original.item_name,
               brand: row.original.item_brand,
               model: row.original.item_model,
               attributes: row.original.item_attributes,
-            })}
-          </span>
-        </div>
+            })} metadata={row.original.item_sku} />
       ),
       meta: {
         className: "w-[300px]",
@@ -102,12 +96,12 @@ export function StockCurrentTable({
       header: () => "Estado",
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1">
-          <Badge variant="outline" className={cn("w-fit px-2 py-0 text-[10px] font-medium", healthClass[row.original.health])}>
+          <StatusBadge tone={healthTone[row.original.health]}>
             {healthLabel[row.original.health]}
-          </Badge>
-          <Badge variant="outline" className={cn("w-fit px-2 py-0 text-[10px]", demandProfileClass[row.original.demand_profile])}>
+          </StatusBadge>
+          <CategoryBadge>
             {demandProfileLabel[row.original.demand_profile]}
-          </Badge>
+          </CategoryBadge>
         </div>
       ),
       meta: {
@@ -139,7 +133,7 @@ export function StockCurrentTable({
         className: "w-[90px]",
       },
     },
-  ], [demandProfileClass, demandProfileLabel, formatCoverage, formatQuantity, healthClass, healthLabel]);
+  ], [demandProfileLabel, formatCoverage, formatQuantity, healthLabel]);
 
   return (
     <DataTable
@@ -149,8 +143,7 @@ export function StockCurrentTable({
       loadingMessage="Cargando..."
       emptyMessage="No hay stock para mostrar"
       className="table-fixed"
-      rowClassName="h-10"
-      cellClassName="h-10 py-1"
+      density="compact"
       reserveEmptyRows={pageSize}
     />
   );

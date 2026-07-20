@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VisibilityState } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/common/VisualSystem";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,9 +9,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FilterToolbar, PageTabs } from "@/components/ui/page";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, ChevronRight, RefreshCcw, Search, Trash2 } from "lucide-react";
+import { RefreshCcw, Search, Trash2 } from "lucide-react";
 import { PriceListProductsTable } from "@/features/price-lists/components/PriceListProductsTable";
 import { PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
 import type { PriceListFormState, PriceListHistoryRow, PriceListProductRow, PriceListSummary } from "@/features/price-lists/types";
@@ -156,32 +158,31 @@ export function PriceListDetailDialog({
             onValueChange={onDetailTabChange}
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <TabsList className="w-full justify-start">
-              <TabsTrigger value="products">Productos</TabsTrigger>
-              <TabsTrigger value="config">Configuracion</TabsTrigger>
-              <TabsTrigger value="history">Historial</TabsTrigger>
-            </TabsList>
+            <PageTabs
+              tabs={[
+                { label: "Productos", value: "products" },
+                { label: "Configuración", value: "config" },
+                { label: "Historial", value: "history" },
+              ]}
+              value={detailTab}
+              onValueChange={onDetailTabChange}
+            />
 
             <TabsContent value="products" className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
               <div className="shrink-0 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/42 px-4 py-3 text-sm">
                   <div className="flex flex-wrap items-center gap-1.5">
                     {renderPricingSummary(selectedList)}
-                    <Badge
-                      variant="outline"
-                      className={selectedList.status === "UPDATED"
-                        ? "px-2.5 py-0.5 text-[10px] border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200"
-                        : "px-2.5 py-0.5 text-[10px] border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200"}
-                    >
+                    <StatusBadge tone={selectedList.status === "UPDATED" ? "success" : "danger"}>
                       {PRICE_LIST_STATUS_LABEL[selectedList.status]}
-                    </Badge>
+                    </StatusBadge>
                   </div>
                   <div className="text-muted-foreground">
                     Ultimo recalculo: {formatDateTime(selectedList.last_recalculated_at)} - {renderUserName(selectedList.last_recalculated_by)}
                   </div>
                 </div>
                 <Collapsible open={productColumnsOpen} onOpenChange={onProductColumnsOpenChange}>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <FilterToolbar>
                     <div className="relative max-w-sm flex-1 min-w-[260px]">
                       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
@@ -196,7 +197,7 @@ export function PriceListDetailDialog({
                         Columnas
                       </Button>
                     </CollapsibleTrigger>
-                  </div>
+                  </FilterToolbar>
                   <CollapsibleContent>
                     <Card className="mt-3">
                       <CardContent className="space-y-3 p-4">
@@ -235,22 +236,16 @@ export function PriceListDetailDialog({
                     onEditProductOverride={openOverrideDialog}
                   />
                 </div>
-                <div className="shrink-0 border-t bg-background px-4 py-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Mostrando {(detailPage - 1) * 10 + (pagedProducts.length === 0 ? 0 : 1)}-
-                      {Math.min(detailPage * 10, detailTotalItems)} de {detailTotalItems} productos
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button type="button" variant="outline" size="icon" onClick={() => onDetailPageChange(Math.max(1, detailPage - 1))} disabled={detailPage <= 1}>
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <span className="min-w-24 text-center text-sm text-muted-foreground">Pagina {detailPage} de {detailTotalPages}</span>
-                      <Button type="button" variant="outline" size="icon" onClick={() => onDetailPageChange(Math.min(detailTotalPages, detailPage + 1))} disabled={detailPage >= detailTotalPages}>
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                <div className="shrink-0 border-t bg-background p-3">
+                  <DataTablePagination
+                    page={detailPage}
+                    totalPages={detailTotalPages}
+                    totalItems={detailTotalItems}
+                    rangeStart={detailTotalItems === 0 ? 0 : (detailPage - 1) * 10 + 1}
+                    rangeEnd={Math.min(detailPage * 10, detailTotalItems)}
+                    onPageChange={onDetailPageChange}
+                    itemLabel="productos"
+                  />
                 </div>
               </div>
             </TabsContent>
