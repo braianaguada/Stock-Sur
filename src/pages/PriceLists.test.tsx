@@ -68,8 +68,8 @@ vi.mock("@/components/common/CompanyAccessNotice", () => ({
 }));
 
 vi.mock("@/components/ui/page", () => ({
-  DataCard: ({ children, className }: { children: ReactNode; className?: string }) => <div className={className}>{children}</div>,
-  FilterBar: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  PageContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  FilterToolbar: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   PageHeader: ({
     title,
     actions,

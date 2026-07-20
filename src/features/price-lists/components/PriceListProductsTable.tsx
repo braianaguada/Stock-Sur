@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
-import { Pencil, Package, PackageX } from "lucide-react";
+import { Pencil } from "lucide-react";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { CategoryBadge, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PriceListProductRow } from "@/features/price-lists/types";
 import { formatMoney } from "@/features/price-lists/utils";
@@ -23,20 +23,13 @@ type PriceListProductsTableProps = {
 
 function StockBadge({ total }: { total: number | undefined }) {
   if (total === undefined) {
-    return (
-      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] border-border/50 text-muted-foreground font-normal">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-        S/D
-      </Badge>
-    );
+    return <StatusBadge tone="muted">S/D</StatusBadge>;
   }
   if (total <= 0) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant="outline" className="h-5 cursor-default gap-1 px-1.5 text-[10px] border-destructive/40 bg-destructive/8 text-destructive font-medium">
-            <PackageX className="h-2.5 w-2.5" /> Sin stock
-          </Badge>
+          <StatusBadge tone="danger">Sin stock</StatusBadge>
         </TooltipTrigger>
         <TooltipContent side="top" className="text-xs">Stock actual: 0</TooltipContent>
       </Tooltip>
@@ -45,9 +38,7 @@ function StockBadge({ total }: { total: number | undefined }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Badge variant="outline" className="h-5 cursor-default gap-1 px-1.5 text-[10px] border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400 font-medium">
-          <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
-        </Badge>
+        <StatusBadge tone="success">{total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}</StatusBadge>
       </TooltipTrigger>
       <TooltipContent side="top" className="text-xs">Stock actual: {total}</TooltipContent>
     </Tooltip>
@@ -70,12 +61,7 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, 
       accessorKey: "name",
       header: () => "Nombre",
       cell: ({ row }) => (
-        <div className="min-w-0">
-          <OverflowTooltip text={row.original.name} className="block truncate text-sm font-medium leading-5" />
-          {showAttributesInline && row.original.attributes ? (
-            <OverflowTooltip text={row.original.attributes} className="block truncate text-[11px] leading-4 text-muted-foreground" />
-          ) : null}
-        </div>
+        <PrimaryCell title={row.original.name} metadata={showAttributesInline ? row.original.attributes : undefined} />
       ),
       meta: {
         className: "w-[300px]",
@@ -138,15 +124,11 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, 
           config: priceRoundingConfig,
         });
         return (
-          <Badge
-            variant="outline"
-            className={operationalPrice.source === "PRODUCT_OVERRIDE"
-              ? "px-2.5 py-0.5 text-[10px] border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/20 dark:bg-violet-500/10 dark:text-violet-200"
-              : "px-2.5 py-0.5 text-[10px] border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/20 dark:bg-slate-500/10 dark:text-slate-200"}
+          <CategoryBadge
             title={operationalPrice.source === "PRODUCT_OVERRIDE" ? "Usa precio personalizado para esta lista" : "Usa precio calculado por formula"}
           >
             {operationalPrice.source === "PRODUCT_OVERRIDE" ? "Personalizado" : "Formula"}
-          </Badge>
+          </CategoryBadge>
         );
       },
       meta: {
@@ -179,11 +161,11 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, 
       id: "actions",
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
-        <div className="flex justify-end">
-          <Button type="button" variant="ghost" size="icon" onClick={() => onEditProductOverride?.(row.original)} title="Precio personalizado">
+        <RowActions>
+          <RowActionButton label="Precio personalizado" tone="edit" onClick={() => onEditProductOverride?.(row.original)}>
             <Pencil className="h-4 w-4" />
-          </Button>
-        </div>
+          </RowActionButton>
+        </RowActions>
       ),
       meta: {
         className: "w-[90px]",
@@ -193,14 +175,9 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, 
       accessorKey: "needs_recalculation",
       header: () => "Estado",
       cell: ({ row }) => (
-        <Badge
-          variant="outline"
-          className={row.original.needs_recalculation
-            ? "px-2.5 py-0.5 text-[10px] border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200"
-            : "px-2.5 py-0.5 text-[10px] border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200"}
-        >
+        <StatusBadge tone={row.original.needs_recalculation ? "danger" : "success"}>
           {row.original.needs_recalculation ? "Pendiente" : "Actualizado"}
-        </Badge>
+        </StatusBadge>
       ),
       meta: {
         className: "w-[110px]",
@@ -209,16 +186,13 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, 
   ], [onEditProductOverride, priceRoundingConfig, showAttributesInline, stockByItemId]);
 
   return (
-    <div className="overflow-x-auto">
-      <DataTable
+    <DataTable
         columns={columns}
         data={rows}
         emptyMessage="No hay productos para mostrar."
         className="table-fixed min-w-[1440px]"
         columnVisibility={columnVisibility}
-        rowClassName={showAttributesInline ? "h-14" : "h-12"}
-        cellClassName={showAttributesInline ? "h-14 py-1.5" : "h-12 py-1"}
+        density="compact"
       />
-    </div>
   );
 }
