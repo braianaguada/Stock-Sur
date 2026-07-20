@@ -153,7 +153,7 @@ export function AppSidebar() {
       <button type="button" onClick={(event) => openGroup(null, event.currentTarget)} className="mt-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-border/60 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Todos los módulos" title="Todos los módulos"><LayoutGrid className="h-5 w-5" /></button>
     </aside>
     <header className="sticky top-0 z-40 border-b border-border/55 bg-background/78 backdrop-blur-2xl lg:pl-24">
-      <div className="mx-auto max-w-[1720px] px-4 sm:px-5 lg:px-8">
+      <div className="mx-auto max-w-[var(--content-max)] px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 py-3">
           {isImpersonating ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">

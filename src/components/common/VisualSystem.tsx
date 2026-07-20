@@ -26,6 +26,27 @@ type AmountDisplayProps = {
   allowHorizontalScroll?: boolean;
 };
 
+export function PrimaryCell({
+  title,
+  metadata,
+  className,
+}: {
+  title: ReactNode;
+  metadata?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("min-w-0", className)}>
+      <div className="truncate text-sm font-medium leading-5 text-foreground">{title}</div>
+      {metadata ? <div className="truncate text-xs leading-4 text-muted-foreground">{metadata}</div> : null}
+    </div>
+  );
+}
+
+export function MoneyCell(props: Omit<AmountDisplayProps, "size" | "allowHorizontalScroll">) {
+  return <AmountDisplay {...props} size="sm" className={cn("text-right", props.className)} />;
+}
+
 export function AmountDisplay({
   value,
   size = "md",
@@ -83,7 +104,7 @@ export function MetricCard({
       <CardContent className="p-5">
         <div className="flex min-h-[126px] items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-xs font-semibold tracking-[0.08em] text-muted-foreground">
               {label}
             </p>
             <AmountDisplay value={value} size="lg" format={format} />
@@ -109,6 +130,7 @@ type MetricHeroCardProps = {
   className?: string;
 };
 
+/** @deprecated Compatibility adapter for existing analytical screens. Do not add new consumers. */
 export function MetricHeroCard({
   label,
   value,
@@ -127,7 +149,7 @@ export function MetricHeroCard({
       <CardContent className="p-6 lg:p-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">{label}</p>
+            <p className="text-xs font-semibold tracking-[0.08em] text-primary">{label}</p>
             <AmountDisplay value={value} size="hero" className="font-extrabold" />
             {helper ? <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{helper}</p> : null}
           </div>
@@ -158,6 +180,7 @@ type OperationalTableShellProps = {
   className?: string;
 };
 
+/** @deprecated Compatibility adapter. New operational datasets must compose DataTable in a canonical Surface. */
 export function OperationalTableShell({
   title,
   description,
@@ -167,7 +190,7 @@ export function OperationalTableShell({
   className,
 }: OperationalTableShellProps) {
   return (
-    <Card className={cn("border-border/70 shadow-none", className)}>
+    <Card className={cn("min-w-0 border-border/70 shadow-none", className)}>
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <CardTitle>{title}</CardTitle>
@@ -183,17 +206,20 @@ export function OperationalTableShell({
   );
 }
 
+/** @deprecated Compatibility adapter. New screens must use the canonical Surface/Card recipe. */
 export function SectionCard({ children, className }: { children: ReactNode; className?: string }) {
   return <Card className={cn("border-border/70 shadow-none", className)}>{children}</Card>;
 }
 
-export function CompactBadge({
+export function StatusBadge({
   children,
   tone = "default",
+  announce = false,
   className,
 }: {
   children: ReactNode;
   tone?: MetricTone;
+  announce?: boolean;
   className?: string;
 }) {
   const badgeToneClassName: Record<MetricTone, string> = {
@@ -202,15 +228,43 @@ export function CompactBadge({
     warning: "border-warning/18 bg-warning/12 text-warning",
     danger: "border-destructive/18 bg-destructive/12 text-destructive",
     info: "border-info/18 bg-info/12 text-info",
-    muted: "border-slate-200 bg-slate-50 text-slate-700",
+    muted: "border-border/70 bg-muted/60 text-muted-foreground",
   };
 
   return (
     <Badge
       variant="outline"
-      className={cn("w-fit max-w-full whitespace-nowrap px-2.5 py-0.5 text-[11px] font-medium", badgeToneClassName[tone], className)}
+      role={announce ? "status" : undefined}
+      className={cn("min-h-6 w-fit max-w-full whitespace-nowrap px-2 py-0 text-xs font-semibold leading-4", badgeToneClassName[tone], className)}
     >
       {children}
     </Badge>
   );
+}
+
+/** @deprecated Compatibility alias. Use a semantic badge primitive instead. */
+export const CompactBadge = StatusBadge;
+
+export function CountBadge({ children, className }: { children: ReactNode; className?: string }) {
+  return <StatusBadge tone="muted" className={className}>{children}</StatusBadge>;
+}
+
+export function InfoBadge({ children, className }: { children: ReactNode; className?: string }) {
+  return <StatusBadge tone="info" className={className}>{children}</StatusBadge>;
+}
+
+export function HealthBadge({
+  children,
+  healthy,
+  className,
+}: {
+  children: ReactNode;
+  healthy: boolean;
+  className?: string;
+}) {
+  return <StatusBadge tone={healthy ? "success" : "warning"} className={className}>{children}</StatusBadge>;
+}
+
+export function CategoryBadge({ children, className }: { children: ReactNode; className?: string }) {
+  return <StatusBadge className={cn("border-primary/15 bg-primary/8 text-primary", className)}>{children}</StatusBadge>;
 }

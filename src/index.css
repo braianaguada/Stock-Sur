@@ -36,6 +36,15 @@
     --domain-accent-strong: 248 66% 42%;
     --domain-accent-soft: 248 84% 96%;
     --domain-secondary: var(--brand-cyan);
+    --content-max: 100rem;
+    --content-standard: 92.5rem;
+    --content-readable: 75rem;
+    --control-height: 2.5rem;
+    --surface-radius: 0.875rem;
+    --control-radius: 0.625rem;
+    --table-head-height: 2.75rem;
+    --table-row-comfortable: 3.25rem;
+    --table-row-compact: 2.75rem;
     --border: 214 18% 88%;
     --input: 214 18% 85%;
     --ring: 215 72% 38%;
@@ -208,6 +217,13 @@
       hsl(var(--card));
   }
 
+  .page-hero-analytical {
+    background:
+      radial-gradient(circle at 92% 0%, hsl(var(--domain-secondary) / 0.12), transparent 30%),
+      linear-gradient(115deg, hsl(var(--domain-accent-soft) / 0.92), hsl(var(--card) / 0.86) 62%),
+      hsl(var(--card));
+  }
+
   .page-hero::before {
     content: "";
     @apply pointer-events-none absolute inset-y-0 left-0 w-1;
@@ -215,7 +231,7 @@
   }
 
   .page-eyebrow {
-    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em];
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.1em];
     border-color: hsl(var(--domain-accent) / 0.22);
     background-color: hsl(var(--domain-accent) / 0.09);
     color: hsl(var(--domain-accent-strong));

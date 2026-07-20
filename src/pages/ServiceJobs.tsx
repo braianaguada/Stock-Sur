@@ -307,7 +307,7 @@ export default function ServiceJobsPage() {
           {hasActiveFilters ? <Button type="button" variant="ghost" onClick={clearFilters}>Limpiar filtros</Button> : null}
         </FilterBar>
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+        <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
           <OperationalTableShell
             title="Bandeja de trabajos"
             description="Seleccioná un trabajo para consultar y operar sus servicios."
@@ -339,7 +339,7 @@ export default function ServiceJobsPage() {
                     type="button"
                     aria-pressed={selectedJob?.id === job.id}
                     onClick={() => setSelectedJobId(job.id)}
-                    className={cn("rounded-xl border p-4 text-left transition-colors", selectedJob?.id === job.id ? "border-primary/35 bg-primary/5" : "bg-card hover:bg-muted/30")}
+                    className={cn("min-w-0 w-full rounded-xl border p-4 text-left transition-colors", selectedJob?.id === job.id ? "border-primary/35 bg-primary/5" : "bg-card hover:bg-muted/30")}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">

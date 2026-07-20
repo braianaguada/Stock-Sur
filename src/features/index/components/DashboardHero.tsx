@@ -63,7 +63,7 @@ export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
   };
 
   return (
-    <section className="dashboard-panel dashboard-terrain overflow-hidden" aria-labelledby="dashboard-hero-title">
+    <section className="dashboard-panel dashboard-terrain min-w-0 overflow-hidden" aria-labelledby="dashboard-hero-title">
       <div className="relative z-10 flex flex-col gap-4 border-b border-border/50 px-5 py-5 sm:px-7">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -101,7 +101,7 @@ export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
         </div>
       </div>
 
-      <div id="dashboard-view-panel" role="tabpanel" aria-labelledby={`dashboard-tab-${view.key}`} className="relative z-10 grid min-h-[380px] gap-6 px-5 py-6 sm:px-7 lg:grid-cols-[minmax(260px,.85fr)_1.4fr]">
+      <div id="dashboard-view-panel" role="tabpanel" aria-labelledby={`dashboard-tab-${view.key}`} className="relative z-10 grid min-w-0 min-h-[380px] gap-6 px-5 py-6 sm:px-7 lg:grid-cols-[minmax(260px,.85fr)_1.4fr]">
         <div className="flex flex-col justify-between gap-5">
           <div>
             <p className="text-sm font-medium text-primary">{view.title}</p>
