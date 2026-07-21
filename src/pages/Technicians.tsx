@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
-import { AmountDisplay, CountBadge, InfoBadge, MetricCard, MetricGrid, MetricHeroCard, OperationalTableShell, PrimaryCell, SectionCard, StatusBadge } from "@/components/common/VisualSystem";
+import { AmountDisplay, CountBadge, InfoBadge, MetricCard, MetricGrid, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
@@ -358,7 +358,7 @@ export default function TechniciansPage() {
               </div>
             </FilterToolbar>
 
-            <MetricHeroCard
+            <MetricCard
               label="Margen bruto estimado"
               value={materialControl.report.totals.grossMargin}
               helper={`Valor comercial menos costo estimado entre ${formatBusinessDate(controlState.dateFrom)} y ${formatBusinessDate(controlState.dateTo)}.`}
@@ -379,12 +379,12 @@ export default function TechniciansPage() {
               <MetricCard label="Movimientos por tecnico" value={materialControl.report.movements.length} format="plain" />
             </MetricGrid>
 
-            <OperationalTableShell
-              title="Movimientos por tecnico"
-              description="Resumen principal para cierre mensual por balance de materiales."
-              count={materialControl.report.technicianSummaries.length}
-            >
-              <div className="overflow-x-auto">
+            <Card className="min-w-0 border-border/70 shadow-none">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div><CardTitle>Movimientos por tecnico</CardTitle><CardDescription>Resumen principal para cierre mensual por balance de materiales.</CardDescription></div>
+                <CountBadge>{materialControl.report.technicianSummaries.length} registros</CountBadge>
+              </CardHeader>
+              <CardContent className="overflow-x-auto p-0">
                 <Table className="min-w-[1260px]">
                   <TableHeader>
                     <TableRow>
@@ -429,15 +429,15 @@ export default function TechniciansPage() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
-            </OperationalTableShell>
+              </CardContent>
+            </Card>
 
-            <OperationalTableShell
-              title="Movimientos detallados"
-              description="Remitos y devoluciones vinculados a tecnicos en el rango seleccionado."
-              count={materialControl.report.movements.length}
-            >
-              <div className="overflow-x-auto">
+            <Card className="min-w-0 border-border/70 shadow-none">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div><CardTitle>Movimientos detallados</CardTitle><CardDescription>Remitos y devoluciones vinculados a tecnicos en el rango seleccionado.</CardDescription></div>
+                <CountBadge>{materialControl.report.movements.length} registros</CountBadge>
+              </CardHeader>
+              <CardContent className="overflow-x-auto p-0">
                 <Table className="min-w-[1280px]">
                   <TableHeader>
                     <TableRow>
@@ -505,8 +505,8 @@ export default function TechniciansPage() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
-            </OperationalTableShell>
+              </CardContent>
+            </Card>
 
             <section className="technician-material-print" aria-label="Vista imprimible de movimientos">
               <header className="print-report-header">
@@ -625,9 +625,9 @@ export default function TechniciansPage() {
                 <MetricCard label="Balance de materiales" value={selectedSummary.materialBalance} />
               </MetricGrid>
               <div className="grid gap-3 md:grid-cols-3">
-                <SectionCard className="p-4"><p className="text-xs font-semibold uppercase text-muted-foreground">Clientes atendidos</p><p className="mt-1 text-2xl font-bold">{selectedSummary.clients}</p></SectionCard>
-                <SectionCard className="p-4"><p className="text-xs font-semibold uppercase text-muted-foreground">Trabajos vinculados</p><p className="mt-1 text-2xl font-bold">{selectedSummary.jobs}</p></SectionCard>
-                <SectionCard className="p-4"><p className="text-xs font-semibold uppercase text-muted-foreground">Movimientos</p><p className="mt-1 text-2xl font-bold">{selectedSummary.movements.length}</p></SectionCard>
+                <Card className="border-border/70 p-4 shadow-none"><p className="text-xs font-semibold text-muted-foreground">Clientes atendidos</p><p className="mt-1 text-2xl font-bold">{selectedSummary.clients}</p></Card>
+                <Card className="border-border/70 p-4 shadow-none"><p className="text-xs font-semibold text-muted-foreground">Trabajos vinculados</p><p className="mt-1 text-2xl font-bold">{selectedSummary.jobs}</p></Card>
+                <Card className="border-border/70 p-4 shadow-none"><p className="text-xs font-semibold text-muted-foreground">Movimientos</p><p className="mt-1 text-2xl font-bold">{selectedSummary.movements.length}</p></Card>
               </div>
               <Tabs value={detailTab} onValueChange={setDetailTab}>
                 <TabsList>

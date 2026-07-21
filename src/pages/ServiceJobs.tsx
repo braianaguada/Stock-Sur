@@ -5,14 +5,14 @@ import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
-import { CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
-import { Badge } from "@/components/ui/badge";
+import { CountBadge, InfoBadge, MetricCard, MetricGrid, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FilterBar, PageHeader, StatCard } from "@/components/ui/page";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,7 +73,7 @@ function JobStatusBadge({ status }: { status: ServiceJobListItem["status"] }) {
     CANCELLED: "danger",
   } as const satisfies Record<ServiceJobListItem["status"], "info" | "warning" | "muted" | "success" | "danger">;
   const statusTone = tone[status];
-  return <CompactBadge tone={statusTone}>{JOB_STATUS_LABEL[status]}</CompactBadge>;
+  return <StatusBadge tone={statusTone}>{JOB_STATUS_LABEL[status]}</StatusBadge>;
 }
 
 export default function ServiceJobsPage() {
@@ -249,7 +249,7 @@ export default function ServiceJobsPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer archetype="workspace" className="page-shell">
         {!currentCompany ? <CompanyAccessNotice description="Necesitas una empresa activa para gestionar trabajos y servicios." /> : null}
 
         <PageHeader
@@ -259,16 +259,14 @@ export default function ServiceJobsPage() {
           actions={<Button onClick={openCreateJob}><Plus className="mr-2 h-4 w-4" /> Nuevo trabajo</Button>}
         />
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <StatCard label="Abiertos" value={operationalStats.openJobs} icon={<Wrench className="h-5 w-5" />} />
-          <StatCard label="En curso" value={operationalStats.inProgressJobs} tone="warning" icon={<ClipboardList className="h-5 w-5" />} />
-          <StatCard label="Finalizados" value={operationalStats.doneJobs} tone="success" icon={<CheckCircle2 className="h-5 w-5" />} />
-          <StatCard label="Servicios pendientes" value={operationalStats.pendingServices} tone="info" />
-          <StatCard label="Servicios realizados" value={operationalStats.doneServices} tone="success" />
-          <StatCard label="Costo est. materiales" value={formatMoney(operationalStats.estimatedMaterialCost)} tone="info" icon={<PackageCheck className="h-5 w-5" />} />
-        </div>
+        <MetricGrid>
+          <MetricCard label="Trabajos abiertos" value={operationalStats.openJobs} format="plain" helper={`${operationalStats.inProgressJobs} en curso`} icon={<Wrench className="h-5 w-5" />} />
+          <MetricCard label="Servicios pendientes" value={operationalStats.pendingServices} format="plain" helper={`${operationalStats.doneServices} realizados`} tone="warning" icon={<ClipboardList className="h-5 w-5" />} />
+          <MetricCard label="Trabajos finalizados" value={operationalStats.doneJobs} format="plain" tone="success" icon={<CheckCircle2 className="h-5 w-5" />} />
+          <MetricCard label="Costo est. materiales" value={formatMoney(operationalStats.estimatedMaterialCost)} format="plain" tone="info" icon={<PackageCheck className="h-5 w-5" />} />
+        </MetricGrid>
 
-        <FilterBar>
+        <FilterToolbar>
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input aria-label="Buscar trabajos" placeholder="Buscar por trabajo o cliente..." className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} />
@@ -305,15 +303,15 @@ export default function ServiceJobsPage() {
           <Input aria-label="Desde" className="w-full md:w-40" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
           <Input aria-label="Hasta" className="w-full md:w-40" type="date" value={to} onChange={(event) => setTo(event.target.value)} />
           {hasActiveFilters ? <Button type="button" variant="ghost" onClick={clearFilters}>Limpiar filtros</Button> : null}
-        </FilterBar>
+        </FilterToolbar>
 
         <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-          <OperationalTableShell
-            title="Bandeja de trabajos"
-            description="Seleccioná un trabajo para consultar y operar sus servicios."
-            count={jobs.length}
-            className="min-w-0"
-          >
+          <Card className="min-w-0 border-border/70 shadow-none">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div><CardTitle>Bandeja de trabajos</CardTitle><CardDescription>Seleccioná un trabajo para consultar y operar sus servicios.</CardDescription></div>
+              <CountBadge>{jobs.length} {jobs.length === 1 ? "registro" : "registros"}</CountBadge>
+            </CardHeader>
+            <CardContent>
             {isLoading ? (
               <div className="grid gap-3 py-2" aria-label="Cargando trabajos">
                 <div className="h-5 w-48 animate-pulse rounded bg-muted" />
@@ -376,7 +374,7 @@ export default function ServiceJobsPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="font-medium">{job.title}</div>
-                          {job.archived_at ? <Badge variant="secondary">Archivado</Badge> : null}
+                          {job.archived_at ? <InfoBadge>Archivado</InfoBadge> : null}
                         </div>
                         <div className="text-xs text-muted-foreground">Abierto {formatDateTime(job.opened_at)}</div>
                       </TableCell>
@@ -420,9 +418,11 @@ export default function ServiceJobsPage() {
               </div>
               </>
             )}
-          </OperationalTableShell>
+            </CardContent>
+          </Card>
 
-          <aside className="data-panel self-start p-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
+          <Card className="min-w-0 self-start border-border/70 shadow-none xl:sticky xl:top-4">
+            <CardContent className="p-4">
             {selectedJob ? (
               <div className="grid gap-4">
                 <div className="flex items-start justify-between gap-3">
@@ -430,7 +430,7 @@ export default function ServiceJobsPage() {
                     <p className="page-eyebrow">Detalle</p>
                     <div className="flex items-center gap-2">
                       <h2 className="text-2xl font-bold tracking-tight">{selectedJob.title}</h2>
-                      {selectedJobArchived ? <Badge variant="secondary">Archivado</Badge> : null}
+                      {selectedJobArchived ? <InfoBadge>Archivado</InfoBadge> : null}
                     </div>
                     <p className="text-sm text-muted-foreground">{selectedJob.customers?.name ?? "Sin cliente asociado"}</p>
                   </div>
@@ -485,7 +485,7 @@ export default function ServiceJobsPage() {
                           <div className="font-semibold">{service.title}</div>
                           <div className="text-xs text-muted-foreground">{service.scheduled_at ? formatDateTime(service.scheduled_at) : "Sin fecha programada"}</div>
                         </div>
-                        <Badge variant="outline">{SERVICE_STATUS_LABEL[service.status]}</Badge>
+                        <StatusBadge tone={service.status === "DONE" ? "success" : service.status === "CANCELLED" ? "danger" : service.status === "IN_PROGRESS" ? "warning" : "info"}>{SERVICE_STATUS_LABEL[service.status]}</StatusBadge>
                       </div>
                       <p className="mt-2 text-sm text-muted-foreground">{service.description || "Sin descripcion."}</p>
                       <p className="mt-2 text-xs text-muted-foreground">Tecnicos: {service.technicianNames.join(", ") || "sin asignar"}</p>
@@ -569,9 +569,10 @@ export default function ServiceJobsPage() {
             ) : (
               <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">Selecciona un trabajo para ver sus servicios.</div>
             )}
-          </aside>
+            </CardContent>
+          </Card>
         </div>
-      </div>
+      </PageContainer>
 
       <Dialog open={jobDialogOpen} onOpenChange={setJobDialogOpen}>
         <DialogContent>
@@ -708,7 +709,7 @@ export default function ServiceJobsPage() {
                         {remito.status} - {formatDateTime(remito.issue_date)} - {remito.customer_name ?? "Sin cliente"} - {techniciansById.get(remito.technician_id ?? "")?.name ?? "Sin tecnico"} - {formatMoney(remito.total)}
                       </p>
                       {warning ? <p className="mt-1 text-xs text-amber-600">{warning}</p> : null}
-                      {remito.service_id === linkingService?.id ? <Badge variant="outline" className="mt-2">Ya vinculado</Badge> : null}
+                      {remito.service_id === linkingService?.id ? <InfoBadge className="mt-2">Ya vinculado</InfoBadge> : null}
                     </div>
                     <Button
                       size="sm"

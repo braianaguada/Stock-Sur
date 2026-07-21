@@ -9,7 +9,8 @@ const savePrintHtmlAsPdfMock = vi.hoisted(() => vi.fn());
 vi.mock("@/components/AppLayout", () => ({ AppLayout: ({ children }: { children: ReactNode }) => <>{children}</> }));
 vi.mock("@/components/common/CompanyAccessNotice", () => ({ CompanyAccessNotice: ({ description }: { description: string }) => <div>{description}</div> }));
 vi.mock("@/components/ui/page", () => ({
-  FilterBar: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  FilterToolbar: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  PageContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   PageHeader: ({ title, actions }: { title: string; actions?: ReactNode }) => <div>{title}{actions}</div>,
 }));
 vi.mock("@/contexts/AuthContext", () => ({

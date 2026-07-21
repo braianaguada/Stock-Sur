@@ -23,6 +23,13 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 - El detalle de órdenes usa la tabla canónica para edición de cantidades e importes, conservando las validaciones y mutations existentes.
 - No se agregan migraciones ni se modifican reglas de negocio, permisos, consultas, query keys o aislamiento por empresa.
 
+## Flujos de servicios canónicos
+
+- Trabajos, servicios, tareas y documentos vinculados comparten el workspace, las métricas, filtros, estados y acciones del sistema visual global sin alterar su operación.
+- Documentos de servicio usa la tabla, celdas primarias, importes, badges y paginación canónicas; el editor conserva su grilla transaccional especializada.
+- Técnicos presenta resumen, bandejas y detalle con superficies canónicas. Rendiciones conserva sus matrices editables específicas y unifica la jerarquía de cabecera, métricas y controles.
+- Se preservan permisos, query keys, aislamiento por `company_id`, mutations y reglas de negocio. No requiere migraciones ni cambios de base de datos.
+
 ## Flujos comerciales canónicos
 
 - Documentos, su detalle y el registro en Caja comparten encabezado, filtros, tablas, celdas, estados, importes y diálogos canónicos sin modificar emisión ni registración.
