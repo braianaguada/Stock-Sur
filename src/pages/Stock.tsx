@@ -97,12 +97,6 @@ export default function StockPage() {
     RED: "Rojo",
     GRAY: "Sin datos",
   };
-  const insightToneClass = {
-    RED: "border-destructive/18 bg-destructive/10 text-foreground",
-    YELLOW: "border-warning/18 bg-warning/10 text-foreground",
-    BLUE: "border-info/18 bg-info/10 text-foreground",
-    GRAY: "border-border/70 bg-[hsl(var(--panel))]/66 text-foreground",
-  } as const;
   const insightBadgeTone = { RED: "danger", YELLOW: "warning", BLUE: "info", GRAY: "muted" } as const;
   const demandProfileLabel: Record<DemandProfile, string> = {
     LOW: "Rotacion baja",
@@ -278,7 +272,7 @@ export default function StockPage() {
               </Button>
             </div>
             {alerts.length > 0 ? (
-              <Card className="overflow-hidden">
+              <Card>
                 <CardHeader className="border-b border-border/70 bg-[hsl(var(--panel))]/55">
                   <CardTitle className="text-lg">Alertas operativas</CardTitle>
                 </CardHeader>
@@ -287,7 +281,7 @@ export default function StockPage() {
                     {alertsPagination.pagedItems.map((alert) => (
                       <div
                         key={alert.id}
-                        className={`flex items-center justify-between gap-4 rounded-2xl border px-4 py-4.5 text-sm shadow-[var(--shadow-xs)] ${insightToneClass[alert.tone]}`}
+                        className="flex items-center justify-between gap-4 rounded-xl border border-border/70 px-4 py-4 text-sm"
                       >
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-foreground">{alert.title}</p>

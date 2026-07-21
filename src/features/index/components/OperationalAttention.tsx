@@ -1,5 +1,6 @@
 import { AlertTriangle, ArrowRight, CheckCircle2, CircleAlert, Info } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Card } from "@/components/ui/card";
 import type { DashboardAction, DashboardActionTone } from "@/features/index/dashboard-insights";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +15,7 @@ export function OperationalAttention({ actions }: { actions: DashboardAction[] }
   const pending = actions.filter((action) => action.count > 0);
 
   return (
-    <section className="dashboard-panel flex h-full min-h-[360px] flex-col" aria-labelledby="operational-attention-title">
+    <Card className="flex h-full min-h-[360px] flex-col border-border/70 shadow-none" aria-labelledby="operational-attention-title">
       <div className="flex items-center gap-3 border-b border-border/60 px-5 py-5 sm:px-6">
         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-muted/70 text-foreground">
           <CircleAlert className="h-5 w-5" aria-hidden="true" />
@@ -54,6 +55,6 @@ export function OperationalAttention({ actions }: { actions: DashboardAction[] }
           </div>
         )}
       </div>
-    </section>
+    </Card>
   );
 }
