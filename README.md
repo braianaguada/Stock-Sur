@@ -969,6 +969,13 @@ Production migration history note:
 - El detalle de catálogos de proveedores reutiliza pestañas, filtros, tabla, estados y acciones canónicas, incluida la comparación de ofertas.
 - No se modificaron reglas de negocio, query keys, aislamiento por `company_id`, persistencia ni base de datos. No requiere migraciones.
 
+## Superficies analíticas canónicas
+
+- Dashboard, Caja, Totales, el resumen analítico de Stock y las métricas de Rendiciones comparten la jerarquía canónica de encabezado, controles, métricas, visualización y atención operativa.
+- Las métricas primarias y secundarias reutilizan `MetricGrid` y `MetricCard`; estados, conteos, importes y tablas usan sus primitives semánticas sin variantes locales ni imports deprecated.
+- Los gráficos conservan la composición adecuada para cada dominio, con color semántico accesible y contexto textual, sin forzar superficies analíticas idénticas.
+- Se preservaron permisos, query keys, aislamiento por `company_id`, cálculos y comportamiento funcional. No requiere migraciones ni cambios de base de datos.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo

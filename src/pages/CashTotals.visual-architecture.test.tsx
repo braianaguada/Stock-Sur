@@ -78,7 +78,7 @@ describe("CashTotalsPage visual architecture", () => {
     expect(screen.getByText("Gastos totales")).toBeInTheDocument();
   });
 
-  it("uses the shared operational table shell for the daily breakdown", () => {
+  it("uses the canonical data table for the daily breakdown", () => {
     render(<CashTotalsPage />);
 
     expect(screen.getByRole("heading", { name: "Totales agrupados por día" })).toBeInTheDocument();

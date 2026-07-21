@@ -3,6 +3,8 @@ import { ArrowLeft, ArrowRight, Boxes, CircleDollarSign, ReceiptText } from "luc
 import { Link } from "react-router-dom";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
+import { MetricCard, MetricGrid } from "@/components/common/VisualSystem";
+import { Card } from "@/components/ui/card";
 import type { DashboardInsights } from "@/features/index/dashboard-insights";
 import { buildDashboardViews, type DashboardValueFormat, type DashboardView } from "@/features/index/dashboard-view-model";
 import { cn } from "@/lib/utils";
@@ -63,7 +65,7 @@ export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
   };
 
   return (
-    <section className="dashboard-panel dashboard-terrain min-w-0 overflow-hidden" aria-labelledby="dashboard-hero-title">
+    <Card className="min-w-0 border-border/70 shadow-none" aria-labelledby="dashboard-hero-title">
       <div className="relative z-10 flex flex-col gap-4 border-b border-border/50 px-5 py-5 sm:px-7">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -107,20 +109,23 @@ export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
             <p className="text-sm font-medium text-primary">{view.title}</p>
             <p className="mt-1 text-xs text-muted-foreground">{view.description}</p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+          <MetricGrid className="grid-cols-1 sm:grid-cols-3 lg:grid-cols-1">
             {view.metrics.map((metric, index) => (
-              <div key={metric.key} className={cn("rounded-2xl border px-4 py-3 backdrop-blur-sm", index === 0 ? "border-primary/15 bg-primary/[.08]" : "border-border/50 bg-background/45")}>
-                <p className="text-xs text-muted-foreground">{metric.label}</p>
-                <p className="mt-1 text-xl font-semibold tracking-tight tabular-nums">{formatValue(metric.value, metric.format)}</p>
-              </div>
+              <MetricCard
+                key={metric.key}
+                label={metric.label}
+                value={formatValue(metric.value, metric.format)}
+                format="plain"
+                tone={index === 0 ? "info" : "default"}
+              />
             ))}
-          </div>
+          </MetricGrid>
           <Button asChild className="w-full rounded-full sm:w-fit">
             <Link to={view.href}>{view.actionLabel}<ArrowRight className="ml-2 h-4 w-4" /></Link>
           </Button>
         </div>
 
-        <div className="min-h-[240px] rounded-[22px] border border-white/40 bg-background/35 p-3 shadow-[inset_0_1px_0_hsl(var(--background)/.8)] backdrop-blur-sm">
+        <div className="min-h-[240px] rounded-xl border border-border/70 bg-background p-3">
           {view.hasActivity ? (
             <ResponsiveContainer width="100%" height="100%">
               {view.key === "inventory" ? (
@@ -148,6 +153,6 @@ export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
           ) : <div className="flex h-full items-center justify-center px-5 text-center text-sm text-muted-foreground">Todavía no hay actividad suficiente para representar este indicador.</div>}
         </div>
       </div>
-    </section>
+    </Card>
   );
 }

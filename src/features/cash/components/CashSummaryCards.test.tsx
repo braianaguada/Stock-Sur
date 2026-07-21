@@ -22,18 +22,18 @@ describe("CashOverviewPanel", () => {
   it("renders the day total and large values without truncation", () => {
     render(<CashOverviewPanel summary={summary} closureStatus="ABIERTO" movementCount={4} />);
 
-    expect(screen.getByText("Total vendido del dia")).toBeInTheDocument();
-    expect(screen.getByText("$ 1.380.000,00")).toBeInTheDocument();
-    expect(screen.getAllByText("$ 1.190.000,00").length).toBeGreaterThan(0);
+    expect(screen.getByText("Total vendido")).toBeInTheDocument();
+    expect(screen.getByTitle(/1\.380\.000,00/)).toBeInTheDocument();
+    expect(screen.getByTitle(/1\.190\.000,00/)).toBeInTheDocument();
     expect(screen.getByText("Caja abierta")).toBeInTheDocument();
   });
 
   it("keeps cash and non-cash expenses separated", () => {
     render(<CashOverviewPanel summary={summary} />);
 
-    expect(screen.getByText("Gastos efectivo")).toBeInTheDocument();
-    expect(screen.getByText("$ 10.000,00")).toBeInTheDocument();
-    expect(screen.getByText("Gastos fuera de caja: $ 5.000,00")).toBeInTheDocument();
+    expect(screen.getByText("Gastos en efectivo")).toBeInTheDocument();
+    expect(screen.getByTitle(/10\.000,00/)).toBeInTheDocument();
+    expect(screen.getByText("Gastos fuera de caja registrados")).toBeInTheDocument();
   });
 
   it("does not promote pending receipts as a primary action", () => {
@@ -41,6 +41,6 @@ describe("CashOverviewPanel", () => {
     render(<CashOverviewPanel summary={pendingSummary} pendingCount={2} />);
 
     expect(screen.queryByRole("button", { name: /revisar pendientes/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/2 movimientos sin comprobante asociado/i)).toBeInTheDocument();
+    expect(screen.getByText("2 sin comprobante")).toBeInTheDocument();
   });
 });

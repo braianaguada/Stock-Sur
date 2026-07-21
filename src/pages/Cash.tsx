@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PageHeader } from "@/components/ui/page";
+import { StatusBadge } from "@/components/common/VisualSystem";
+import { PageContainer, PageHeader } from "@/components/ui/page";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -464,7 +465,7 @@ export default function CashPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell domain-cash">
+      <PageContainer archetype="analytical" className="page-shell domain-cash">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitas una empresa activa para registrar ventas, asociar comprobantes y cerrar caja." />
         ) : null}
@@ -473,7 +474,8 @@ export default function CashPage() {
           eyebrow="Caja y cierre diario"
           title="Caja"
           description="Control diario de ventas, gastos y rendición."
-          meta={<span className={`rounded-md border px-2.5 py-1 text-xs font-medium ${effectiveClosure?.status === "CERRADO" ? "border-success/20 bg-success/10 text-success" : "border-warning/20 bg-warning/10 text-warning"}`}>{effectiveClosure?.status === "CERRADO" ? "Caja cerrada" : "Caja abierta"}</span>}
+          variant="analytical"
+          meta={<StatusBadge tone={effectiveClosure?.status === "CERRADO" ? "success" : "warning"}>{effectiveClosure?.status === "CERRADO" ? "Caja cerrada" : "Caja abierta"}</StatusBadge>}
           actions={(
             <>
               <Button
@@ -843,7 +845,7 @@ export default function CashPage() {
 
           </Tabs>
         )}
-      </div>
+      </PageContainer>
 
       {receiptDialogOpen ? (
         <Suspense fallback={<CashDialogLoader />}>

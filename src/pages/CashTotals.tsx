@@ -1,14 +1,15 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
-import { AmountDisplay, MetricCard, MetricGrid, MetricHeroCard, OperationalTableShell } from "@/components/common/VisualSystem";
-import { Badge } from "@/components/ui/badge";
+import { CountBadge, InfoBadge, MetricCard, MetricGrid, MoneyCell, PrimaryCell } from "@/components/common/VisualSystem";
+import { DataTable } from "@/components/data-table/DataTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FilterBar, PageHeader } from "@/components/ui/page";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildCashTotalsReport, getCashTotalsRange, type CashDailyTotal, type CashTotalsPeriod } from "@/features/cash/lib/cashTotals";
@@ -27,8 +28,8 @@ const periodLabels: Record<CashTotalsPeriod, string> = {
 };
 
 function amountClass(value: number) {
-  if (value < 0) return "text-rose-700";
-  if (value > 0) return "text-emerald-700";
+  if (value < 0) return "text-destructive";
+  if (value > 0) return "text-success";
   return "text-muted-foreground";
 }
 
@@ -90,6 +91,29 @@ export default function CashTotalsPage() {
   const report = reportQuery.data ?? buildCashTotalsReport([], [], []);
   const selectedDay = report.days[0] ?? null;
 
+  const columns = useMemo<ColumnDef<CashDailyTotal, unknown>[]>(() => [
+    {
+      accessorKey: "businessDate",
+      header: "Fecha",
+      cell: ({ row }) => (
+        <PrimaryCell
+          title={formatBusinessDate(row.original.businessDate)}
+          metadata={`${row.original.salesCount} venta${row.original.salesCount === 1 ? "" : "s"}${row.original.pendingReceiptCount ? ` · ${row.original.pendingReceiptCount} pendiente${row.original.pendingReceiptCount === 1 ? "" : "s"}` : ""}`}
+        />
+      ),
+    },
+    { accessorKey: "cashTotal", header: "Efectivo", meta: { className: "text-right", cellClassName: "text-right" }, cell: ({ row }) => <MoneyCell value={row.original.cashTotal} /> },
+    { accessorKey: "transferTotal", header: "Transferencia", meta: { className: "text-right", cellClassName: "text-right" }, cell: ({ row }) => <MoneyCell value={row.original.transferTotal} /> },
+    { accessorKey: "mercadoPagoTotal", header: "Point / MP", meta: { className: "text-right", cellClassName: "text-right" }, cell: ({ row }) => <MoneyCell value={row.original.mercadoPagoTotal} /> },
+    { accessorKey: "accountCurrentTotal", header: "Cuenta corriente", meta: { className: "text-right", cellClassName: "text-right" }, cell: ({ row }) => <MoneyCell value={row.original.accountCurrentTotal} /> },
+    { id: "services", header: "Servicios / otros", meta: { className: "text-right", cellClassName: "text-right" }, cell: ({ row }) => <MoneyCell value={row.original.servicesRemitoTotal + row.original.otherPaymentTotal} /> },
+    { accessorKey: "adjustmentsTotal", header: "Devoluciones", meta: { className: "text-right", cellClassName: "text-right" }, cell: ({ row }) => <MoneyCell value={row.original.adjustmentsTotal} className="text-destructive" /> },
+    { accessorKey: "expensesCashTotal", header: "Gastos efectivo", meta: { className: "text-right", cellClassName: "text-right" }, cell: ({ row }) => <MoneyCell value={row.original.expensesCashTotal} className="text-destructive" /> },
+    { accessorKey: "expensesNonCashTotal", header: "Gastos no efectivo", meta: { className: "text-right", cellClassName: "text-right" }, cell: ({ row }) => <MoneyCell value={row.original.expensesNonCashTotal} className="text-destructive" /> },
+    { accessorKey: "grossSalesTotal", header: "Total ventas", meta: { className: "text-right", cellClassName: "text-right" }, cell: ({ row }) => <MoneyCell value={row.original.grossSalesTotal} /> },
+    { accessorKey: "netCashTotal", header: "Efectivo neto", meta: { className: "text-right", cellClassName: "text-right" }, cell: ({ row }) => <MoneyCell value={row.original.netCashTotal} className={amountClass(row.original.netCashTotal)} /> },
+  ], []);
+
   const resetFilters = () => {
     const today = todayDateInputValue();
     setPeriod("month");
@@ -98,13 +122,9 @@ export default function CashTotalsPage() {
     setCustomTo(today);
   };
 
-  const renderAmount = (value: number, className?: string) => (
-    <AmountDisplay value={value} size="sm" className={className} />
-  );
-
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer archetype="analytical" className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitas una empresa activa para consultar totales de Caja." />
         ) : null}
@@ -113,9 +133,10 @@ export default function CashTotalsPage() {
           eyebrow="Caja"
           title="Totales por período"
           subtitle="Resumen diario, semanal, mensual o por rango para reemplazar el control manual en Excel."
+          variant="analytical"
         />
 
-        <FilterBar className="grid gap-4 md:grid-cols-[180px_180px_1fr_auto] md:items-end">
+        <FilterToolbar className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))] [&&]:items-end">
             <div className="space-y-2">
               <Label>Período</Label>
               <Select value={period} onValueChange={(value) => setPeriod(value as CashTotalsPeriod)}>
@@ -163,7 +184,7 @@ export default function CashTotalsPage() {
             <Button type="button" variant="outline" onClick={resetFilters}>
               Limpiar
             </Button>
-        </FilterBar>
+        </FilterToolbar>
 
         {reportQuery.error ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
@@ -171,85 +192,41 @@ export default function CashTotalsPage() {
           </div>
         ) : null}
 
-        <MetricHeroCard
-          label="Total vendido"
-          value={report.summary.grossSalesTotal}
-          helper={`${report.summary.salesCount} movimientos entre ${formatBusinessDate(range.from)} y ${formatBusinessDate(range.to)}`}
-          breakdown={
-            <div className="flex flex-wrap gap-2 lg:justify-end">
-              <Badge variant="outline">{report.days.length} día{report.days.length === 1 ? "" : "s"}</Badge>
-              <Badge variant="outline">{reportQuery.isFetching ? "Actualizando" : "Actualizado"}</Badge>
-            </div>
-          }
-        />
-
-        <MetricGrid className="xl:grid-cols-3">
+        <MetricGrid>
+          <MetricCard label="Total vendido" value={report.summary.grossSalesTotal} helper={`${report.summary.salesCount} movimientos · ${report.days.length} día${report.days.length === 1 ? "" : "s"}`} tone="info" />
           <MetricCard label="Efectivo neto" value={report.summary.netCashTotal} helper="Efectivo menos gastos de caja" tone="success" />
-          <MetricCard label="Efectivo bruto" value={report.summary.cashTotal} helper="Remito + facturable" tone="info" />
           <MetricCard label="Cuenta corriente" value={report.summary.accountCurrentTotal} helper="Separado del efectivo" tone="muted" />
-          <MetricCard label="Gastos efectivo" value={report.summary.expensesCashTotal} helper="Resta caja física" tone="warning" />
           <MetricCard label="Gastos totales" value={report.summary.expensesTotal} helper="Efectivo + no efectivo" tone="danger" />
+        </MetricGrid>
+        <MetricGrid className="xl:grid-cols-3">
+          <MetricCard label="Efectivo bruto" value={report.summary.cashTotal} helper="Remito + facturable" />
+          <MetricCard label="Gastos efectivo" value={report.summary.expensesCashTotal} helper="Resta caja física" tone="warning" />
           <MetricCard label="Devoluciones" value={-report.summary.returnsTotal} helper="Servicios / remito" tone="danger" />
         </MetricGrid>
 
-        <OperationalTableShell
-          title="Totales agrupados por día"
-          description={`Rango consultado: ${formatBusinessDate(range.from)} a ${formatBusinessDate(range.to)}.`}
-          count={report.days.length}
-        >
-            {reportQuery.isLoading ? (
-              <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-                Cargando totales...
-              </div>
-            ) : report.days.length === 0 ? (
-              <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-                No hay ventas ni gastos en el período seleccionado.
-              </div>
-            ) : (
-              <div className="overflow-auto rounded-xl border">
-                <table className="w-full min-w-[1120px] text-sm">
-                  <thead className="border-b bg-muted/40 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-3">Fecha</th>
-                      <th className="px-3 py-3 text-right">Efectivo</th>
-                      <th className="px-3 py-3 text-right">Transferencia</th>
-                      <th className="px-3 py-3 text-right">Point / MP</th>
-                      <th className="px-3 py-3 text-right">Cuenta corriente</th>
-                      <th className="px-3 py-3 text-right">Servicios / otros</th>
-                      <th className="px-3 py-3 text-right">Devoluciones</th>
-                      <th className="px-3 py-3 text-right">Gastos efectivo</th>
-                      <th className="px-3 py-3 text-right">Gastos no efectivo</th>
-                      <th className="px-3 py-3 text-right">Total ventas</th>
-                      <th className="px-3 py-3 text-right">Efectivo neto</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.days.map((day: CashDailyTotal) => (
-                      <tr key={day.businessDate} className="border-b last:border-b-0">
-                        <td className="px-3 py-3">
-                          <p className="font-medium">{formatBusinessDate(day.businessDate)}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {day.salesCount} venta{day.salesCount === 1 ? "" : "s"}
-                            {day.pendingReceiptCount ? ` · ${day.pendingReceiptCount} pendiente${day.pendingReceiptCount === 1 ? "" : "s"}` : ""}
-                          </p>
-                        </td>
-                        <td className="px-3 py-3 text-right">{renderAmount(day.cashTotal)}</td>
-                        <td className="px-3 py-3 text-right">{renderAmount(day.transferTotal)}</td>
-                        <td className="px-3 py-3 text-right">{renderAmount(day.mercadoPagoTotal)}</td>
-                        <td className="px-3 py-3 text-right">{renderAmount(day.accountCurrentTotal)}</td>
-                        <td className="px-3 py-3 text-right">{renderAmount(day.servicesRemitoTotal + day.otherPaymentTotal)}</td>
-                        <td className="px-3 py-3 text-right">{renderAmount(day.adjustmentsTotal, "text-rose-700")}</td>
-                        <td className="px-3 py-3 text-right">{renderAmount(day.expensesCashTotal, "text-rose-700")}</td>
-                        <td className="px-3 py-3 text-right">{renderAmount(day.expensesNonCashTotal, "text-rose-700")}</td>
-                        <td className="px-3 py-3 text-right">{renderAmount(day.grossSalesTotal)}</td>
-                        <td className="px-3 py-3 text-right">{renderAmount(day.netCashTotal, amountClass(day.netCashTotal))}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-        </OperationalTableShell>
+        <Card className="min-w-0 border-border/70 shadow-none">
+          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>Totales agrupados por día</CardTitle>
+              <CardDescription>Rango consultado: {formatBusinessDate(range.from)} a {formatBusinessDate(range.to)}.</CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <CountBadge>{report.days.length} {report.days.length === 1 ? "registro" : "registros"}</CountBadge>
+              <InfoBadge>{reportQuery.isFetching ? "Actualizando" : "Actualizado"}</InfoBadge>
+            </div>
+          </CardHeader>
+          <CardContent className="min-w-0">
+            <DataTable
+              columns={columns}
+              data={report.days}
+              isLoading={reportQuery.isLoading}
+              loadingMessage="Cargando totales..."
+              emptyMessage="No hay ventas ni gastos en el período seleccionado."
+              getRowId={(day) => day.businessDate}
+              density="compact"
+            />
+          </CardContent>
+        </Card>
 
         {selectedDay ? (
           <Card className="shadow-sm">
@@ -268,7 +245,7 @@ export default function CashTotalsPage() {
             </CardContent>
           </Card>
         ) : null}
-      </div>
+      </PageContainer>
     </AppLayout>
   );
 }

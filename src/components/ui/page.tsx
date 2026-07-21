@@ -87,8 +87,8 @@ export function PageHeader(props: {
 
   return (
     <section data-variant={variant} className={cn("page-hero shadow-none", variant === "workspace" && "pb-3", variant === "analytical" && "page-hero-analytical", divider && "border-b", className)}>
-      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 space-y-4">
+      <div className="relative flex flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-start lg:justify-between">
+        <div className="min-w-0 space-y-4 lg:min-w-[min(100%,28rem)] lg:flex-1">
           {eyebrow ? <div className="page-eyebrow">{eyebrow}</div> : null}
           <div className="space-y-2">
             <h1 className="page-title">{title}</h1>
@@ -100,7 +100,7 @@ export function PageHeader(props: {
           ) : null}
         </div>
         {actions ? (
-          <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto lg:shrink-0 lg:justify-end">{actions}</div>
+          <div className="flex min-w-0 w-full flex-wrap items-center gap-3 sm:w-auto lg:max-w-full lg:justify-end">{actions}</div>
         ) : null}
       </div>
     </section>
