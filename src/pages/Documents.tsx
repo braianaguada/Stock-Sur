@@ -29,7 +29,7 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 import { openPrintWindow } from "@/lib/print";
 import { Copy, Link2, MessageCircle, Plus, Search, Unlink } from "lucide-react";
-import { FilterBar, PageHeader } from "@/components/ui/page";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { EMPTY_LINE } from "@/features/documents/constants";
 import { DocumentsDataTable } from "@/features/documents/components/DocumentsDataTable";
 import {
@@ -724,7 +724,7 @@ export default function DocumentsPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell domain-commercial">
+      <PageContainer archetype="workspace" className="page-shell domain-commercial">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitas una empresa activa para crear documentos, emitir remitos y revisar su historial." />
         ) : null}
@@ -740,7 +740,7 @@ export default function DocumentsPage() {
           )}
         />
 
-        <FilterBar>
+        <FilterToolbar>
           <div className="relative max-w-sm flex-1 min-w-[200px]">
             <Label htmlFor="document-search" className="sr-only">Buscar documentos</Label>
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -822,7 +822,7 @@ export default function DocumentsPage() {
               </SelectContent>
             </Select>
           </div>
-        </FilterBar>
+        </FilterToolbar>
 
         <DocumentsDataTable
           documents={documentsPagination.pagedItems}
@@ -899,7 +899,7 @@ export default function DocumentsPage() {
           onPageSizeChange={(value) => setDocumentsPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
           itemLabel="documentos"
         />
-      </div>
+      </PageContainer>
 
       {dialogOpen ? (
         <Suspense fallback={<DocumentsDialogLoader />}>

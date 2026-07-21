@@ -119,7 +119,7 @@ vi.mock("@/features/billing/lib/authorization", () => ({
 }));
 
 describe("BillingPage visual architecture", () => {
-  it("presents fiscal context, operational metrics and responsive document selectors", () => {
+  it("presents fiscal context, operational metrics and the canonical document workspace", () => {
     render(<BillingPage />);
 
     expect(screen.getByRole("heading", { name: "Facturación" })).toBeInTheDocument();
@@ -129,11 +129,10 @@ describe("BillingPage visual architecture", () => {
     expect(screen.getByText("Pendientes")).toBeInTheDocument();
     expect(screen.getByText("Rechazados")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Comprobantes fiscales" })).toBeInTheDocument();
-    expect(screen.getByText("1 registro")).toBeInTheDocument();
-
-    const mobileSelector = screen.getByRole("button", { name: /Factura B.*Cliente Norte.*Autorizado/s });
-    expect(mobileSelector).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("columnheader", { name: "CAE" })).toBeInTheDocument();
+    expect(screen.getByText("1 comprobante")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Comprobante" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Estado" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Receptor" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Seleccionado" })).toHaveAttribute("aria-pressed", "true");
   });
 

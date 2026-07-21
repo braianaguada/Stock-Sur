@@ -2,15 +2,24 @@ import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, Banknote, Check, Copy, Eye, FileText, Loader2, MessageCircle, MoreHorizontal, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { CategoryBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { DOC_LABEL, DOC_TYPE_CLASS, INTERNAL_REMITO_LABEL, STATUS_CLASS, STATUS_LABEL, STATUS_VARIANT } from "@/features/documents/constants";
+import { DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "@/features/documents/constants";
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocRow, DocStatus } from "@/features/documents/types";
 import { formatNumber, resolveDocumentRecipient } from "@/features/documents/utils";
 import { formatIsoDate } from "@/lib/formatters";
+
+const STATUS_TONE: Record<DocStatus, "muted" | "info" | "success" | "danger"> = {
+  BORRADOR: "muted",
+  ENVIADO: "info",
+  APROBADO: "success",
+  RECHAZADO: "danger",
+  EMITIDO: "success",
+  ANULADO: "danger",
+};
 
 interface DocumentsDataTableProps {
   documents: DocRow[];
@@ -68,9 +77,9 @@ export function DocumentsDataTable({
       accessorKey: "doc_type",
       header: () => "Tipo",
       cell: ({ row }) => (
-        <Badge variant="outline" className={DOC_TYPE_CLASS[row.original.doc_type]}>
+        <CategoryBadge>
           {row.original.doc_type === "REMITO_DEVOLUCION" ? "Devolucion" : DOC_LABEL[row.original.doc_type]}
-        </Badge>
+        </CategoryBadge>
       ),
       meta: {
         className: "w-[120px]",
@@ -95,17 +104,15 @@ export function DocumentsDataTable({
       header: () => "Cliente",
       cell: ({ row }) => {
         const recipient = resolveDocumentRecipient(row.original);
-        return <div className="min-w-0">
-          <span className="block truncate font-medium">{recipient.primaryName}</span>
-          {row.original.customer_kind === "INTERNO" && row.original.internal_remito_type ? (
+        const metadata = row.original.customer_kind === "INTERNO" && row.original.internal_remito_type ? (
             <>
-              <span className="block truncate text-xs text-muted-foreground">
+              <span className="block truncate">
                 Tecnico: {row.original.technician_id ? technicianNamesById.get(row.original.technician_id) ?? "Tecnico eliminado" : "-"}
               </span>
-              <span className="block truncate text-xs text-muted-foreground">{INTERNAL_REMITO_LABEL[row.original.internal_remito_type]}</span>
+              <span className="block truncate">{INTERNAL_REMITO_LABEL[row.original.internal_remito_type]}</span>
             </>
-          ) : recipient.secondaryName ? <span className="block truncate text-xs text-muted-foreground">{recipient.secondaryName}</span> : null}
-        </div>;
+          ) : recipient.secondaryName;
+        return <PrimaryCell title={recipient.primaryName} metadata={metadata} />;
       },
       meta: {
         className: "w-[220px]",
@@ -117,9 +124,9 @@ export function DocumentsDataTable({
       header: () => "Estado",
       cell: ({ row }) => (
         <div className="space-y-1">
-          <Badge variant={STATUS_VARIANT[row.original.status]} className={STATUS_CLASS[row.original.status]}>
+          <StatusBadge tone={STATUS_TONE[row.original.status]}>
             {STATUS_LABEL[row.original.status]}
-          </Badge>
+          </StatusBadge>
           {row.original.doc_type === "REMITO" && row.original.external_invoice_status === "ACTIVE" ? (
             <p className="truncate font-mono text-[11px] text-muted-foreground">
               Factura: {row.original.external_invoice_number}
@@ -135,9 +142,7 @@ export function DocumentsDataTable({
       accessorKey: "total",
       header: () => <div className="text-right">Total</div>,
       cell: ({ row }) => (
-        <div className="whitespace-nowrap text-right font-mono tabular-nums">
-          ${Number(row.original.total).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-        </div>
+        <MoneyCell value={Number(row.original.total)} />
       ),
       meta: {
         className: "w-[140px]",
@@ -164,9 +169,9 @@ export function DocumentsDataTable({
               <Eye className="h-4 w-4" />
             </RowActionButton>
             {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && cashRegisteredDocumentIds.has(doc.id) ? (
-              <Badge variant="secondary" className="whitespace-nowrap border-success/20 bg-success/10 text-success">
+              <StatusBadge tone="success">
                 Registrado en Caja
-              </Badge>
+              </StatusBadge>
             ) : doc.doc_type === "REMITO" && doc.status === "EMITIDO" && canRegisterInCash ? (
               <Button variant="outline" size="sm" className="h-10 whitespace-nowrap" onClick={() => onRegisterInCash(doc)}>
                 <Banknote className="mr-1.5 h-4 w-4" />
