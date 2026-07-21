@@ -1,8 +1,11 @@
+import { useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, ReceiptText } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { DataTable } from "@/components/data-table/DataTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AmountDisplay, CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
+import { AmountDisplay, CountBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,13 +49,73 @@ export function CashExpensesTab({
 }: CashExpensesTabProps) {
   const summary = buildCashExpenseSummary(expenses);
 
+  const columns = useMemo<ColumnDef<CashExpenseRow, unknown>[]>(() => [
+    {
+      accessorKey: "spent_at",
+      header: () => "Hora",
+      cell: ({ row }) => <span className="font-mono text-xs">{formatTime(row.original.spent_at)}</span>,
+    },
+    {
+      accessorKey: "category",
+      header: () => "Categoría",
+      cell: ({ row }) => CASH_EXPENSE_CATEGORY_LABEL[row.original.category],
+    },
+    {
+      accessorKey: "description",
+      header: () => "Descripción",
+      cell: ({ row }) => (
+        <PrimaryCell
+          title={row.original.description}
+          metadata={row.original.cancelled_at ? "Anulado" : row.original.notes}
+        />
+      ),
+    },
+    {
+      accessorKey: "expense_kind",
+      header: () => "Medio",
+      cell: ({ row }) => (
+        <StatusBadge tone={row.original.cancelled_at ? "danger" : row.original.expense_kind === "CAJA" ? "warning" : "muted"}>
+          {row.original.cancelled_at ? "Anulado" : CASH_EXPENSE_KIND_LABEL[row.original.expense_kind]}
+        </StatusBadge>
+      ),
+    },
+    {
+      id: "receipt",
+      header: () => "Comprobante",
+      cell: ({ row }) => row.original.has_receipt ? (
+        <span className="inline-flex items-center gap-1"><ReceiptText className="h-3.5 w-3.5" />{row.original.receipt_reference ?? "Sí"}</span>
+      ) : "No",
+    },
+    {
+      accessorKey: "amount_total",
+      header: () => <div className="text-right">Monto</div>,
+      cell: ({ row }) => <MoneyCell value={Number(row.original.amount_total)} className={row.original.cancelled_at ? "text-muted-foreground line-through" : undefined} />,
+    },
+    {
+      id: "actions",
+      header: () => <div className="text-right">Acciones</div>,
+      cell: ({ row }) => row.original.cancelled_at ? null : (
+        <RowActions>
+          <RowActionButton
+            label="Anular gasto"
+            tone="danger"
+            onClick={() => onCancelExpense(row.original.id)}
+            disabled={cancelPending || !canCancelExpense(row.original)}
+          >
+            <Ban className="h-4 w-4" />
+          </RowActionButton>
+        </RowActions>
+      ),
+    },
+  ], [cancelPending, canCancelExpense, onCancelExpense]);
+
   const setField = <K extends keyof CashExpenseFormState>(field: K, value: CashExpenseFormState[K]) => {
     onFormChange({ ...form, [field]: value });
   };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-      <Card className="shadow-sm">
+      <Card className="border-border/70 shadow-none">
         <CardHeader>
           <CardTitle>Registrar gasto</CardTitle>
           <CardDescription>Los gastos en caja reducen el efectivo a rendir. Los gastos fuera de caja quedan registrados sin afectar el conteo fisico.</CardDescription>
@@ -183,16 +246,20 @@ export function CashExpensesTab({
         </CardContent>
       </Card>
 
-      <OperationalTableShell
-        title="Gastos del dia"
-        description="Registro operativo de egresos. Los anulados quedan visibles, pero no suman."
-        count={expenses.length}
-        actions={(
-          <CompactBadge tone={hasClosedClosureForDay ? "success" : "warning"}>
+      <Card className="min-w-0 border-border/70 shadow-none">
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <CardTitle>Gastos del día</CardTitle>
+            <CardDescription>Registro operativo de egresos. Los anulados quedan visibles, pero no suman.</CardDescription>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <CountBadge>{expenses.length} {expenses.length === 1 ? "gasto" : "gastos"}</CountBadge>
+            <StatusBadge tone={hasClosedClosureForDay ? "success" : "warning"}>
             {hasClosedClosureForDay ? "Caja cerrada" : "Caja abierta"}
-          </CompactBadge>
-        )}
-      >
+            </StatusBadge>
+          </div>
+        </CardHeader>
+        <CardContent>
           <div className="mb-4 grid gap-3 rounded-2xl border border-border/55 bg-[hsl(var(--panel))]/34 p-4 sm:grid-cols-3">
             <div>
               <p className="text-xs font-medium text-muted-foreground">Total egresos</p>
@@ -207,86 +274,15 @@ export function CashExpensesTab({
               <AmountDisplay value={summary.nonCash} size="sm" className="mt-1" />
             </div>
           </div>
-          {expensesLoading ? (
-            <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-              Cargando gastos...
-            </div>
-          ) : expenses.length === 0 ? (
-            <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-              Todavia no hay gastos cargados para esta fecha.
-            </div>
-          ) : (
-            <div className="max-h-[620px] overflow-auto rounded-xl border">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead className="border-b bg-muted/40 text-left text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-3">Hora</th>
-                    <th className="px-3 py-3">Categoria</th>
-                    <th className="px-3 py-3">Descripcion</th>
-                    <th className="px-3 py-3">Medio</th>
-                    <th className="px-3 py-3">Comprobante</th>
-                    <th className="px-3 py-3 text-right">Monto</th>
-                    <th className="px-3 py-3 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expenses.map((expense) => {
-                    const cancelled = Boolean(expense.cancelled_at);
-                    return (
-                      <tr key={expense.id} className="border-b last:border-b-0">
-                        <td className="px-3 py-3 font-mono text-xs">{formatTime(expense.spent_at)}</td>
-                        <td className="px-3 py-3">{CASH_EXPENSE_CATEGORY_LABEL[expense.category]}</td>
-                        <td className="px-3 py-3">
-                          <div className="max-w-[220px]">
-                            <p className="truncate font-medium">{expense.description}</p>
-                            {expense.notes ? <p className="truncate text-xs text-muted-foreground">{expense.notes}</p> : null}
-                            {cancelled ? <Badge variant="outline" className="mt-1 border-rose-200 bg-rose-50 text-rose-700">Anulado</Badge> : null}
-                          </div>
-                        </td>
-                        <td className="px-3 py-3">
-                          <CompactBadge tone={expense.expense_kind === "CAJA" ? "danger" : "muted"}>
-                            {CASH_EXPENSE_KIND_LABEL[expense.expense_kind]}
-                          </CompactBadge>
-                        </td>
-                        <td className="px-3 py-3">
-                          {expense.has_receipt ? (
-                            <span className="inline-flex items-center gap-1">
-                              <ReceiptText className="h-3.5 w-3.5" />
-                              {expense.receipt_reference ?? "Si"}
-                            </span>
-                          ) : (
-                            "No"
-                          )}
-                        </td>
-                        <td className={`px-3 py-3 ${cancelled ? "text-muted-foreground line-through" : ""}`}>
-                          <AmountDisplay
-                            value={Number(expense.amount_total)}
-                            size="sm"
-                            className={cancelled ? "text-right text-muted-foreground line-through" : "text-right"}
-                          />
-                        </td>
-                        <td className="px-3 py-3 text-right">
-                          {!cancelled ? (
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-destructive"
-                              onClick={() => onCancelExpense(expense.id)}
-                              disabled={cancelPending || !canCancelExpense(expense)}
-                            >
-                              <Ban className="h-4 w-4" />
-                            </Button>
-                          ) : null}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-      </OperationalTableShell>
+          <DataTable
+            columns={columns}
+            data={expenses}
+            isLoading={expensesLoading}
+            loadingMessage="Cargando gastos..."
+            emptyMessage="Todavía no hay gastos cargados para esta fecha."
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

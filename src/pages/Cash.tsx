@@ -6,9 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/common/VisualSystem";
-import { PageContainer, PageHeader } from "@/components/ui/page";
+import { PageContainer, PageHeader, PageTabs } from "@/components/ui/page";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -554,20 +553,20 @@ export default function CashPage() {
             />
           </section>
         ) : (
-          <Tabs
-            value={tab}
-            onValueChange={(value) => {
-              setSecondaryView(null);
-              setTab(value);
-            }}
-            className="space-y-4"
-          >
-            <TabsList className="w-full justify-start overflow-x-auto sm:w-auto" aria-label="Secciones de caja">
-              <TabsTrigger value="day">Movimientos</TabsTrigger>
-              <TabsTrigger value="expenses">Gastos</TabsTrigger>
-              <TabsTrigger value="closure">Cierre</TabsTrigger>
-            </TabsList>
-            <TabsContent value="day">
+          <div className="space-y-4">
+            <PageTabs
+              value={tab}
+              onValueChange={(value) => {
+                setSecondaryView(null);
+                setTab(value);
+              }}
+              tabs={[
+                { value: "day", label: "Movimientos" },
+                { value: "expenses", label: "Gastos" },
+                { value: "closure", label: "Cierre" },
+              ]}
+            />
+            {tab === "day" ? (
               <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
                 <CashSalesTab
                   filteredSales={salesPagination.pagedItems}
@@ -801,9 +800,9 @@ export default function CashPage() {
                   </CardContent>
                 </Card>
               </div>
-            </TabsContent>
+            ) : null}
 
-            <TabsContent value="expenses">
+            {tab === "expenses" ? (
               <CashExpensesTab
                 expenses={expenses}
                 expensesLoading={expensesLoading}
@@ -820,9 +819,9 @@ export default function CashPage() {
                 cancelPending={cancelExpenseMutation.isPending}
                 hasClosedClosureForDay={hasClosedClosureForDay}
               />
-            </TabsContent>
+            ) : null}
 
-            <TabsContent value="closure">
+            {tab === "closure" ? (
               <CashClosureTab
                 effectiveClosure={effectiveClosure}
                 closureLoading={closureLoading}
@@ -841,9 +840,9 @@ export default function CashPage() {
                 closePending={closeClosureMutation.isPending}
                 canCloseCash={canCloseCashAction}
               />
-            </TabsContent>
+            ) : null}
 
-          </Tabs>
+          </div>
         )}
       </PageContainer>
 

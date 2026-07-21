@@ -5,7 +5,7 @@ import { formatBusinessDate, formatDateTime } from "@/lib/formatters";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { CashClosureSalesTable } from "@/features/cash/components/CashClosureSalesTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
-import { AmountDisplay, CompactBadge } from "@/components/common/VisualSystem";
+import { AmountDisplay, StatusBadge } from "@/components/common/VisualSystem";
 import type { CashClosureHistoryRow, CashMovementRow } from "@/features/cash/types";
 
 type CashClosurePreviewDialogProps = {
@@ -66,9 +66,9 @@ export function CashClosurePreviewDialog({
                     : "Caja abierta"}
                 </p>
               </div>
-              <CompactBadge tone={selectedClosurePreview.status === "CERRADO" ? "success" : "warning"}>
+              <StatusBadge tone={selectedClosurePreview.status === "CERRADO" ? "success" : "warning"}>
                 {selectedClosurePreview.status === "CERRADO" ? "Cerrado" : "Abierto"}
-              </CompactBadge>
+              </StatusBadge>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">

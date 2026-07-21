@@ -15,7 +15,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { CategoryBadge, CountBadge, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { DocumentConfirmationDialog } from "./DocumentConfirmationDialog";
-import { CUSTOMER_KIND_LABEL, DOC_LABEL, DOC_TYPE_CLASS, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "@/features/documents/constants";
+import { CUSTOMER_KIND_LABEL, DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "@/features/documents/constants";
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
 import { describeDocumentHistoryEvent, formatNumber, resolveDocumentRecipient } from "@/features/documents/utils";
@@ -210,9 +210,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-950 p-4 text-white">
                       <div className="flex items-start justify-between gap-3">
-                        <Badge variant="outline" className={DOC_TYPE_CLASS[selectedDocument.doc_type]}>
+                        <CategoryBadge>
                           {DOC_LABEL[selectedDocument.doc_type]}
-                        </Badge>
+                        </CategoryBadge>
                         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Documento</span>
                       </div>
                       <p className="mt-4 text-2xl font-black tracking-tight">{DOC_LABEL[selectedDocument.doc_type]}</p>
@@ -266,9 +266,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                             </p>
                           </div>
                           {selectedDocument.external_invoice_number ? (
-                            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                            <StatusBadge tone="success">
                               Asociada
-                            </Badge>
+                            </StatusBadge>
                           ) : null}
                         </div>
                       </div>
@@ -385,9 +385,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Historial</p>
                       <p className="mt-1 text-sm text-slate-500">Trazabilidad del documento.</p>
                     </div>
-                    <Badge variant="outline" className="border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    <CountBadge>
                       {selectedEvents.length} evento{selectedEvents.length === 1 ? "" : "s"}
-                    </Badge>
+                    </CountBadge>
                   </div>
                 </div>
 
@@ -487,9 +487,9 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
         <div className="flex shrink-0 justify-end gap-2 border-t border-slate-300/70 bg-white px-5 py-4">
           {selectedDocument?.doc_type === "REMITO" && selectedDocument.status === "EMITIDO" ? (
             isRegisteredInCash ? (
-              <Badge variant="secondary" className="self-center border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">
+              <StatusBadge tone="success" className="self-center">
                 Registrado en Caja
-              </Badge>
+              </StatusBadge>
             ) : canRegisterInCash ? (
               <Button
                 type="button"
