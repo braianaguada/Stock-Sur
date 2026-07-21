@@ -32,6 +32,7 @@ import {
   purchaseOrderActions,
   type PurchaseOrderStatus,
   type SupplierPurchaseOrder,
+  type SupplierPurchaseOrderLine,
 } from "@/features/purchase-orders/types";
 import { useToast } from "@/hooks/use-toast";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
@@ -76,6 +77,37 @@ export default function PurchaseOrders() {
     totals[line.currency] = (totals[line.currency] ?? 0) + quantity * Number(line.unit_cost);
     return totals;
   }, {}), [draftQuantities, lines, selected?.status]);
+  const lineColumns = useMemo<ColumnDef<SupplierPurchaseOrderLine, unknown>[]>(() => [
+    {
+      accessorKey: "product_name_snapshot",
+      header: () => "Producto",
+      cell: ({ row }) => <PrimaryCell title={row.original.product_name_snapshot} metadata={`${row.original.supplier_code_snapshot ?? "S/COD"} · ${row.original.raw_description_snapshot}`} />,
+    },
+    {
+      accessorKey: "quantity",
+      header: () => <span className="block text-right">Cantidad</span>,
+      cell: ({ row }) => {
+        const quantity = selected?.status === "DRAFT" ? draftQuantities[row.original.id] ?? Number(row.original.quantity) : Number(row.original.quantity);
+        return selected?.status === "DRAFT" ? <Input aria-label={`Cantidad de ${row.original.product_name_snapshot}`} className="ml-auto w-24 text-right" type="number" min="1" step="1" value={quantity} onChange={(event) => setDraftQuantities((current) => ({ ...current, [row.original.id]: Number(event.target.value) }))} /> : <span className="tabular-nums">{quantity}</span>;
+      },
+      meta: { className: "text-right", cellClassName: "text-right" },
+    },
+    {
+      accessorKey: "unit_cost",
+      header: () => <span className="block text-right">Costo</span>,
+      cell: ({ row }) => <MoneyCell value={money(row.original.currency, row.original.unit_cost)} format="plain" />,
+      meta: { className: "hidden sm:table-cell text-right", cellClassName: "hidden sm:table-cell text-right" },
+    },
+    {
+      id: "subtotal",
+      header: () => <span className="block text-right">Subtotal</span>,
+      cell: ({ row }) => {
+        const quantity = selected?.status === "DRAFT" ? draftQuantities[row.original.id] ?? Number(row.original.quantity) : Number(row.original.quantity);
+        return <MoneyCell value={money(row.original.currency, quantity * Number(row.original.unit_cost))} format="plain" />;
+      },
+      meta: { className: "text-right", cellClassName: "text-right" },
+    },
+  ], [draftQuantities, selected?.status]);
   const filtered = useMemo(() => orders.filter((order) => {
     if (status !== "ALL" && order.status !== status) return false;
     const needle = search.trim().toLocaleLowerCase("es");
@@ -212,11 +244,8 @@ export default function PurchaseOrders() {
           <Input value={draftNotes} disabled={selected.status !== "DRAFT"} placeholder="Notas de la orden" onChange={(event) => setDraftNotes(event.target.value)} />
           {linesQuery.isLoading ? <div className="py-6 text-sm text-muted-foreground">Cargando productos...</div> : null}
           {linesQuery.isError ? <div className="py-6 text-sm text-destructive">No se pudieron cargar los productos: {linesQuery.error.message}</div> : null}
-          {!linesQuery.isLoading && !linesQuery.isError ? <div className="overflow-x-auto rounded-xl border"><table className="w-full min-w-[650px] text-sm"><thead className="bg-muted/40"><tr><th className="p-3 text-left">Código</th><th className="p-3 text-left">Descripción</th><th className="p-3 text-right">Cantidad</th><th className="p-3 text-right">Costo</th><th className="p-3 text-right">Subtotal</th></tr></thead><tbody>{lines.map((line) => {
-            const quantity = selected.status === "DRAFT" ? draftQuantities[line.id] ?? Number(line.quantity) : Number(line.quantity);
-            return <tr key={line.id} className="border-t"><td className="p-3 font-mono text-xs">{line.supplier_code_snapshot ?? "S/COD"}</td><td className="p-3 font-medium">{line.product_name_snapshot}<div className="mt-1 text-xs font-normal text-muted-foreground">{line.raw_description_snapshot}</div></td><td className="p-3 text-right">{selected.status === "DRAFT" ? <Input className="ml-auto w-24 text-right" type="number" min="1" step="1" value={quantity} onChange={(event) => setDraftQuantities((current) => ({ ...current, [line.id]: Number(event.target.value) }))} /> : quantity}</td><td className="p-3 text-right">{money(line.currency, line.unit_cost)}</td><td className="p-3 text-right font-semibold">{money(line.currency, quantity * Number(line.unit_cost))}</td></tr>;
-          })}</tbody></table></div> : null}
-          <div className="flex flex-wrap justify-end gap-4">{Object.entries(selectedTotals).map(([currency, total]) => <div key={currency}><span className="mr-2 text-sm text-muted-foreground">Total {currency}</span><span className="text-lg font-semibold">{money(currency, total)}</span></div>)}</div>
+          {!linesQuery.isLoading && !linesQuery.isError ? <div className="rounded-xl border"><DataTable columns={lineColumns} data={lines} emptyMessage="La orden no tiene productos." /></div> : null}
+          <div className="flex flex-wrap justify-end gap-4">{Object.entries(selectedTotals).map(([currency, total]) => <div key={currency}><span className="mr-2 text-sm text-muted-foreground">Total {currency}</span><MoneyCell className="inline-block text-lg" value={money(currency, total)} format="plain" /></div>)}</div>
         </div> : null}
       </EntityDialog>
 

@@ -104,6 +104,7 @@ export function AppSidebar() {
   const isItemActive = (url: string) =>
     location.pathname === url || (url !== "/" && location.pathname.startsWith(`${url}/`));
   const activeItem = visibleNavItems.find((item) => isItemActive(item.url));
+  const hasActiveModule = Boolean(activeItem && activeItem.url !== "/");
   const groupIcons = { commercial: UsersRound, inventory: Boxes, purchases: ShoppingCart, services: Wrench, cash: CircleDollarSign, admin: Settings2 } as const;
   const visibleGroups = appNavGroups.filter((group) => visibleNavItems.some((item) => item.group === group.id));
 
@@ -295,15 +296,15 @@ export function AppSidebar() {
                     }}
                     className={cn(
                       "min-h-10 min-w-0 justify-start gap-2 rounded-lg px-3 text-[13px] font-medium text-muted-foreground",
-                      activeItem?.url !== "/" && "bg-accent/55 text-foreground",
+                      hasActiveModule && "bg-accent/55 text-foreground",
                     )}
-                    aria-label={`Abrir módulos${activeItem?.url !== "/" ? `. Módulo activo: ${activeItem?.title}` : ""}`}
+                    aria-label={`Abrir módulos${hasActiveModule ? `. Módulo activo: ${activeItem?.title}` : ""}`}
                   >
                     <LayoutGrid className="h-4 w-4 shrink-0" />
                     <span>Módulos</span>
-                    {activeItem?.url !== "/" ? (
+                    {hasActiveModule ? (
                       <span className="max-w-[45vw] truncate border-l border-border pl-2 text-xs text-muted-foreground sm:max-w-none">
-                        {activeItem.title}
+                        {activeItem?.title}
                       </span>
                     ) : null}
                   </Button>

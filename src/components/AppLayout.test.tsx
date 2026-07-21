@@ -103,6 +103,13 @@ describe("AppLayout", () => {
     expect(screen.getByRole("link", { current: "page" })).toHaveAttribute("href", "/cash");
   });
 
+  it("renders protected routes that are not listed as navigation modules", () => {
+    renderLayout("/imports");
+
+    expect(screen.getByText("contenido demo")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Abrir módulos$/i })).toBeInTheDocument();
+  });
+
   it("shows a static company label instead of a selector when there is one company", () => {
     authState = {
       ...authState,

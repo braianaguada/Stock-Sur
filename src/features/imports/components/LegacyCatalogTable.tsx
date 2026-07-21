@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CategoryBadge, PrimaryCell } from "@/components/common/VisualSystem";
 
 export type LegacyCatalogTableRow = {
   id: string;
@@ -37,13 +38,9 @@ export function LegacyCatalogTable({
       },
     },
     {
-      accessorKey: "codigo",
-      header: () => "Codigo",
-      cell: ({ row }) => <span className="font-mono text-xs">{row.original.codigo}</span>,
-    },
-    {
       accessorKey: "articulo",
       header: () => "Articulo",
+      cell: ({ row }) => <PrimaryCell title={row.original.articulo} metadata={`Codigo ${row.original.codigo || "sin codigo"}`} />,
     },
     {
       accessorKey: "medida",
@@ -52,7 +49,7 @@ export function LegacyCatalogTable({
     {
       accessorKey: "rubro",
       header: () => "Rubro",
-      cell: ({ row }) => row.original.rubro || "-",
+      cell: ({ row }) => row.original.rubro ? <CategoryBadge>{row.original.rubro}</CategoryBadge> : "-",
     },
   ], [onSelectionChange, selectedIds]);
 
