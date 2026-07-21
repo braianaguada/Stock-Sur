@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
-import { AmountDisplay, CompactBadge, OperationalTableShell, SectionCard } from "@/components/common/VisualSystem";
-import { Badge } from "@/components/ui/badge";
+import { AmountDisplay, CountBadge, InfoBadge, MetricCard, MetricGrid, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
+import { DataTable } from "@/components/data-table/DataTable";
 import { Button } from "@/components/ui/button";
-import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FilterBar, PageHeader, StatCard } from "@/components/ui/page";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -131,6 +132,34 @@ export default function BillingPage() {
     }),
     [documents],
   );
+  const columns = useMemo<ColumnDef<BillingDocumentRow, unknown>[]>(() => [
+    { accessorKey: "created_at", header: () => "Fecha", cell: ({ row }) => formatDateTime(row.original.created_at) },
+    {
+      accessorKey: "invoice_type",
+      header: () => "Comprobante",
+      cell: ({ row }) => <PrimaryCell title={getBillingDocumentTypeLabel(row.original)} metadata={getBillingDocumentOriginLabel(row.original)} />,
+    },
+    {
+      accessorKey: "fiscal_status",
+      header: () => "Estado",
+      cell: ({ row }) => <StatusBadge tone={STATUS_TONE[row.original.fiscal_status]}>{STATUS_LABEL[row.original.fiscal_status]}</StatusBadge>,
+    },
+    {
+      id: "remito",
+      header: () => "Remito",
+      cell: ({ row }) => <span className="font-mono text-xs">{formatRemitoReference(row.original.source_remito_id ? remitosQuery.data?.get(row.original.source_remito_id) : null)}</span>,
+    },
+    { accessorKey: "receiver_name", header: () => "Receptor", cell: ({ row }) => <PrimaryCell title={row.original.receiver_name} metadata={row.original.cae ? `CAE ${row.original.cae}` : "Sin CAE"} /> },
+    { accessorKey: "total", header: () => <div className="text-right">Total</div>, cell: ({ row }) => <MoneyCell value={Number(row.original.total)} /> },
+    {
+      id: "actions",
+      header: () => <div className="text-right">Acciones</div>,
+      cell: ({ row }) => {
+        const selected = selectedDocument?.id === row.original.id;
+        return <div className="flex justify-end"><Button type="button" variant={selected ? "secondary" : "ghost"} size="sm" aria-pressed={selected} onClick={() => setSelectedDocumentId(row.original.id)}>{selected ? "Seleccionado" : "Ver detalle"}</Button></div>;
+      },
+    },
+  ], [remitosQuery.data, selectedDocument?.id]);
 
   const authorizeDocument = (document: BillingDocumentRow) => {
     void (async () => {
@@ -219,7 +248,7 @@ export default function BillingPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer archetype="workspace" className="domain-commercial">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitas una empresa activa para ver borradores fiscales internos." />
         ) : null}
@@ -236,10 +265,10 @@ export default function BillingPage() {
               subtitle="Revisá borradores, autorizá comprobantes habilitados y consultá el resultado fiscal desde un único espacio de trabajo."
               meta={
                 <>
-                  <CompactBadge tone="info">Homologación / dev</CompactBadge>
-                  <CompactBadge>Factura B y NC B total</CompactBadge>
-                  <CompactBadge tone="warning">Factura A solo borrador</CompactBadge>
-                  <CompactBadge tone="danger">Producción no habilitada</CompactBadge>
+                  <InfoBadge>Homologación / dev</InfoBadge>
+                  <StatusBadge>Factura B y NC B total</StatusBadge>
+                  <StatusBadge tone="warning">Factura A solo borrador</StatusBadge>
+                  <StatusBadge tone="danger">Producción no habilitada</StatusBadge>
                 </>
               }
             />
@@ -263,22 +292,23 @@ export default function BillingPage() {
               </div>
             ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-              <StatCard label="Autorizados" value={summary.authorized} icon={<CheckCircle2 className="h-5 w-5" />} tone="success" />
-              <StatCard label="Pendientes" value={summary.pending} icon={<Clock3 className="h-5 w-5" />} tone="warning" />
-              <StatCard label="Borradores" value={summary.drafts} icon={<FileClock className="h-5 w-5" />} tone="info" />
-              <StatCard label="Rechazados" value={summary.rejected} icon={<TriangleAlert className="h-5 w-5" />} tone="danger" />
-              <StatCard label="Notas de crédito" value={summary.creditNotes} icon={<ReceiptText className="h-5 w-5" />} />
-              <StatCard label="Facturas A borrador" value={summary.invoiceADrafts} icon={<FileText className="h-5 w-5" />} />
-            </div>
+            <MetricGrid className="sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+              <MetricCard label="Autorizados" value={summary.authorized} format="plain" icon={<CheckCircle2 className="h-5 w-5" />} tone="success" />
+              <MetricCard label="Pendientes" value={summary.pending} format="plain" icon={<Clock3 className="h-5 w-5" />} tone="warning" />
+              <MetricCard label="Borradores" value={summary.drafts} format="plain" icon={<FileClock className="h-5 w-5" />} tone="info" />
+              <MetricCard label="Rechazados" value={summary.rejected} format="plain" icon={<TriangleAlert className="h-5 w-5" />} tone="danger" />
+              <MetricCard label="Notas de crédito" value={summary.creditNotes} format="plain" icon={<ReceiptText className="h-5 w-5" />} />
+              <MetricCard label="Facturas A borrador" value={summary.invoiceADrafts} format="plain" icon={<FileText className="h-5 w-5" />} />
+            </MetricGrid>
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-              <OperationalTableShell
-                title="Comprobantes fiscales"
-                description="Seleccioná un comprobante para revisar sus datos y operar desde el panel de detalle."
-                count={filteredDocuments.length}
-              >
-                  <FilterBar className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_auto]">
+              <Card className="min-w-0 border-border/70 shadow-none">
+                <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div><CardTitle>Comprobantes fiscales</CardTitle><CardDescription>Seleccioná un comprobante para revisar sus datos y operar desde el panel de detalle.</CardDescription></div>
+                  <CountBadge>{filteredDocuments.length} {filteredDocuments.length === 1 ? "comprobante" : "comprobantes"}</CountBadge>
+                </CardHeader>
+                <CardContent>
+                  <FilterToolbar className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_auto]">
                     <label className="relative min-w-0">
                       <span className="sr-only">Buscar comprobantes</span>
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -338,7 +368,7 @@ export default function BillingPage() {
                         Limpiar filtros
                       </Button>
                     ) : null}
-                  </FilterBar>
+                  </FilterToolbar>
                   {documentsQuery.isError ? (
                     <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/8 p-5 text-sm text-destructive">
                       <p className="font-semibold">No se pudieron cargar los comprobantes.</p>
@@ -361,97 +391,12 @@ export default function BillingPage() {
                       </p>
                     </div>
                   ) : (
-                    <>
-                      <div className="grid gap-3 md:hidden">
-                        {filteredDocuments.map((document) => {
-                          const remito = document.source_remito_id ? remitosQuery.data?.get(document.source_remito_id) : null;
-                          const selected = selectedDocument?.id === document.id;
-                          return (
-                            <button
-                              key={document.id}
-                              type="button"
-                              aria-pressed={selected}
-                              className={`rounded-xl border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/5 shadow-sm" : "border-border/70 bg-card hover:border-primary/40"}`}
-                              onClick={() => setSelectedDocumentId(document.id)}
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <p className="font-semibold text-foreground">{getBillingDocumentTypeLabel(document)}</p>
-                                  <p className="mt-1 truncate text-sm text-muted-foreground">{document.receiver_name}</p>
-                                </div>
-                                <CompactBadge tone={STATUS_TONE[document.fiscal_status]}>{STATUS_LABEL[document.fiscal_status]}</CompactBadge>
-                              </div>
-                              <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
-                                <div>
-                                  <span className="block">Remito</span>
-                                  <span className="mt-1 block font-mono text-foreground">{formatRemitoReference(remito)}</span>
-                                </div>
-                                <div className="text-right">
-                                  <span className="block">Total</span>
-                                  <AmountDisplay value={Number(document.total)} size="sm" className="mt-1" />
-                                </div>
-                              </div>
-                              <p className="mt-3 text-xs text-muted-foreground">{formatDateTime(document.created_at)}</p>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="hidden overflow-x-auto rounded-xl border md:block">
-                        <table className="w-full min-w-[820px] text-sm">
-                        <thead className="border-b bg-muted/45 text-xs text-muted-foreground">
-                          <tr>
-                            <th className="px-3 py-2 text-left">Fecha</th>
-                            <th className="px-3 py-2 text-left">Tipo</th>
-                            <th className="px-3 py-2 text-left">Estado</th>
-                            <th className="px-3 py-2 text-left">Origen</th>
-                            <th className="px-3 py-2 text-left">Remito</th>
-                            <th className="px-3 py-2 text-left">Receptor</th>
-                            <th className="px-3 py-2 text-right">Total</th>
-                            <th className="px-3 py-2 text-left">CAE</th>
-                            <th className="px-3 py-2 text-right">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredDocuments.map((document) => {
-                            const remito = document.source_remito_id ? remitosQuery.data?.get(document.source_remito_id) : null;
-                            const selected = selectedDocument?.id === document.id;
-                            return (
-                              <tr
-                                key={document.id}
-                                className={`border-b transition-colors last:border-b-0 ${selected ? "bg-primary/5" : "hover:bg-muted/30"}`}
-                              >
-                                <td className="px-3 py-2">{formatDateTime(document.created_at)}</td>
-                                <td className="px-3 py-2">{getBillingDocumentTypeLabel(document)}</td>
-                                <td className="px-3 py-2"><CompactBadge tone={STATUS_TONE[document.fiscal_status]}>{STATUS_LABEL[document.fiscal_status]}</CompactBadge></td>
-                                <td className="px-3 py-2">{getBillingDocumentOriginLabel(document)}</td>
-                                <td className="px-3 py-2 font-mono text-xs">{formatRemitoReference(remito)}</td>
-                                <td className="px-3 py-2">{document.receiver_name}</td>
-                                <td className="px-3 py-2 text-right"><AmountDisplay value={Number(document.total)} size="sm" /></td>
-                                <td className="px-3 py-2 text-muted-foreground">{document.cae ?? "-"}</td>
-                                <td className="px-3 py-2">
-                                  <div className="flex justify-end">
-                                    <Button
-                                      type="button"
-                                      variant={selected ? "secondary" : "ghost"}
-                                      size="sm"
-                                      aria-pressed={selected}
-                                      onClick={() => setSelectedDocumentId(document.id)}
-                                    >
-                                      {selected ? "Seleccionado" : "Ver detalle"}
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                        </table>
-                      </div>
-                    </>
+                    <DataTable columns={columns} data={filteredDocuments} emptyMessage="No hay comprobantes fiscales." />
                   )}
-              </OperationalTableShell>
+                </CardContent>
+              </Card>
 
-              <SectionCard className="h-fit xl:sticky xl:top-4">
+              <Card className="h-fit border-border/70 shadow-none xl:sticky xl:top-4">
                 <CardHeader>
                   <CardTitle>{selectedDocument ? getBillingDocumentTypeLabel(selectedDocument) : "Detalle del comprobante"}</CardTitle>
                   <CardDescription>
@@ -470,7 +415,7 @@ export default function BillingPage() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between gap-4">
                           <span className="text-muted-foreground">Estado</span>
-                          <CompactBadge tone={STATUS_TONE[selectedDocument.fiscal_status]}>{STATUS_LABEL[selectedDocument.fiscal_status]}</CompactBadge>
+                          <StatusBadge tone={STATUS_TONE[selectedDocument.fiscal_status]}>{STATUS_LABEL[selectedDocument.fiscal_status]}</StatusBadge>
                         </div>
                         <div className="flex justify-between gap-4">
                           <span className="text-muted-foreground">Origen</span>
@@ -620,7 +565,7 @@ export default function BillingPage() {
                     </div>
                   )}
                 </CardContent>
-              </SectionCard>
+              </Card>
             </div>
           </>
         ) : null}
@@ -732,7 +677,7 @@ export default function BillingPage() {
                 </div>
                 <div className="mt-2 flex justify-between gap-4">
                   <span className="text-muted-foreground">Estado</span>
-                  <Badge variant="outline">{STATUS_LABEL[resetDialogDocument.fiscal_status]}</Badge>
+                  <StatusBadge tone={STATUS_TONE[resetDialogDocument.fiscal_status]}>{STATUS_LABEL[resetDialogDocument.fiscal_status]}</StatusBadge>
                 </div>
               </div>
             ) : null}
@@ -750,7 +695,7 @@ export default function BillingPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
+      </PageContainer>
     </AppLayout>
   );
 }

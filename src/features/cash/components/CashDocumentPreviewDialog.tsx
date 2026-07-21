@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { CategoryBadge, InfoBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -59,7 +59,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                   <div className="border-b border-border/60 px-5 py-4 sm:px-6">
                       <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="min-w-0">
-                          <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{documentLabel}</Badge>
+                          <CategoryBadge>{documentLabel}</CategoryBadge>
                           <div className="mt-3 flex items-center gap-4">
                             {companyBrand.logoUrl ? (
                               <img src={companyBrand.logoUrl} alt={companyBrand.appName} className="h-11 w-auto max-w-[180px] object-contain" />
@@ -191,9 +191,9 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                                   <p className="mt-1 text-sm leading-5 text-muted-foreground">{described.detail}</p>
                                 </div>
                                 <div className="shrink-0 text-right">
-                                  <Badge variant="outline" className="border-slate-300 bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-700">
+                                  <InfoBadge className="font-mono">
                                     {formatTimestampDate(event.created_at)}
-                                  </Badge>
+                                  </InfoBadge>
                                   <p className="mt-2 text-xs font-mono text-muted-foreground">{formatTimestampTime(event.created_at)}</p>
                                 </div>
                               </div>

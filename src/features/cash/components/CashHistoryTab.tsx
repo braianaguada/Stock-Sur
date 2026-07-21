@@ -2,7 +2,7 @@ import { DataTablePagination } from "@/components/data-table/DataTablePagination
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatBusinessDate, formatDateTime } from "@/lib/formatters";
-import { AmountDisplay, CompactBadge } from "@/components/common/VisualSystem";
+import { AmountDisplay, CountBadge, StatusBadge } from "@/components/common/VisualSystem";
 import type { CashClosureHistoryRow } from "../types";
 
 type CashHistoryTabProps = {
@@ -39,9 +39,9 @@ export function CashHistoryTab({
           <CardTitle>Historial de cierres</CardTitle>
           <CardDescription>Resumenes diarios guardados para consulta e impresion.</CardDescription>
         </div>
-        <CompactBadge tone="muted">
+        <CountBadge>
           {totalItems} registro{totalItems === 1 ? "" : "s"}
-        </CompactBadge>
+        </CountBadge>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
@@ -59,9 +59,9 @@ export function CashHistoryTab({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold">{formatBusinessDate(historyItem.business_date)}</p>
-                      <CompactBadge tone={historyItem.status === "CERRADO" ? "success" : "warning"}>
+                      <StatusBadge tone={historyItem.status === "CERRADO" ? "success" : "warning"}>
                         {historyItem.status === "CERRADO" ? "Cerrado" : "Abierto"}
-                      </CompactBadge>
+                      </StatusBadge>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {historyItem.status === "CERRADO"

@@ -3,14 +3,14 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, FileText, MoreHorizontal, NotebookText, ReceiptText } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
-import { AmountDisplay, CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
+import { CountBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatTime } from "@/lib/formatters";
-import { PAYMENT_LABEL, RECEIPT_LABEL, STATUS_CLASS, STATUS_LABEL } from "../constants";
+import { PAYMENT_LABEL, RECEIPT_LABEL, STATUS_LABEL } from "../constants";
 import type { CashMovementRow, SituationFilter } from "../types";
 import { getClosureSituationWithClosure } from "../utils";
 import { canShowCreateBillingDraftAction } from "@/features/billing/lib/draft";
@@ -77,7 +77,7 @@ export function CashSalesTab({
       accessorKey: "display_amount",
       header: () => <div className="text-right">Importe</div>,
       cell: ({ row }) => (
-        <AmountDisplay
+        <MoneyCell
           value={Number(row.original.display_amount)}
           size="sm"
           className={row.original.display_amount < 0 ? "text-right text-destructive" : "text-right"}
@@ -89,9 +89,7 @@ export function CashSalesTab({
       accessorKey: "customer_name_snapshot",
       header: () => "Cliente",
       cell: ({ row }) => (
-        <div className="max-w-[160px]">
-          <p className="truncate text-sm font-medium">{row.original.customer_name_snapshot ?? "Consumidor final"}</p>
-        </div>
+        <PrimaryCell title={row.original.customer_name_snapshot ?? "Consumidor final"} className="max-w-[160px]" />
       ),
       meta: { className: "w-[170px]", cellClassName: "py-2.5" },
     },
@@ -107,9 +105,9 @@ export function CashSalesTab({
       cell: ({ row }) => (
         <div className="min-w-0 text-sm">
           <p className="truncate">{RECEIPT_LABEL[row.original.receipt_kind]}</p>
-          <Badge variant="outline" className={`${STATUS_CLASS[row.original.status]} mt-1 max-w-full`}>
+          <StatusBadge tone={row.original.status === "ANULADA" ? "danger" : "success"} className="mt-1 max-w-full">
             {STATUS_LABEL[row.original.status]}
-          </Badge>
+          </StatusBadge>
           {row.original.receipt_reference ? <p className="truncate font-mono text-xs text-muted-foreground">{row.original.receipt_reference}</p> : null}
         </div>
       ),
@@ -121,9 +119,9 @@ export function CashSalesTab({
       cell: ({ row }) => {
         const closureSituation = getClosureSituationWithClosure(row.original, effectiveClosure);
         return (
-          <Badge variant="outline" className={closureSituation.className}>
+          <StatusBadge tone={closureSituation.label === "En caja cerrada" ? "success" : closureSituation.label === "Anulada" ? "danger" : "warning"}>
             {closureSituation.label}
-          </Badge>
+          </StatusBadge>
         );
       },
       meta: { className: "w-[150px]", cellClassName: "py-2.5" },
@@ -226,15 +224,17 @@ export function CashSalesTab({
   ]);
 
   return (
-    <OperationalTableShell
-      title="Movimientos del dia"
-      description="Control principal de ventas cargadas, medio de pago y situacion de cierre."
-      count={totalItems}
-      actions={(
-        <>
-          <CompactBadge tone={effectiveClosure?.status === "CERRADO" ? "success" : "warning"}>
+    <Card className="min-w-0 border-border/70 shadow-none">
+      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <CardTitle>Movimientos del día</CardTitle>
+          <CardDescription>Control principal de ventas cargadas, medio de pago y situación de cierre.</CardDescription>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <CountBadge>{totalItems} {totalItems === 1 ? "movimiento" : "movimientos"}</CountBadge>
+          <StatusBadge tone={effectiveClosure?.status === "CERRADO" ? "success" : "warning"}>
             {effectiveClosure?.status === "CERRADO" ? "Caja cerrada" : "Pendiente de cierre"}
-          </CompactBadge>
+          </StatusBadge>
           <Select value={situationFilter} onValueChange={(value) => onSituationFilterChange(value as SituationFilter)}>
             <SelectTrigger className="w-[190px]">
               <SelectValue />
@@ -247,9 +247,9 @@ export function CashSalesTab({
               <SelectItem value="ANULADA">Anuladas</SelectItem>
             </SelectContent>
           </Select>
-        </>
-      )}
-    >
+        </div>
+      </CardHeader>
+      <CardContent>
       {salesLoading || filteredSales.length > 0 ? (
         <div className="max-h-[560px] overflow-y-auto rounded-xl border">
           <DataTable
@@ -286,6 +286,7 @@ export function CashSalesTab({
           />
         </div>
       ) : null}
-    </OperationalTableShell>
+      </CardContent>
+    </Card>
   );
 }

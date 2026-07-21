@@ -1,7 +1,6 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AmountDisplay, CompactBadge } from "@/components/common/VisualSystem";
+import { AmountDisplay, StatusBadge } from "@/components/common/VisualSystem";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/formatters";
@@ -55,20 +54,15 @@ export function CashClosureTab({
     : "Listo para revisar y cerrar cuando los movimientos esten controlados.";
 
   return (
-    <Card className="shadow-[var(--shadow-sm)]">
+    <Card className="border-border/70 shadow-none">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <CardTitle>Cierre diario</CardTitle>
           <CardDescription>Decision final del dia: que efectivo deberia haber, que componentes se controlan y si la caja queda bloqueada.</CardDescription>
         </div>
-        <Badge
-          variant="outline"
-          className={effectiveClosure?.status === "CERRADO"
-            ? "border-success/18 bg-success/10 text-success"
-            : "border-warning/18 bg-warning/12 text-warning"}
-        >
+        <StatusBadge tone={effectiveClosure?.status === "CERRADO" ? "success" : "warning"}>
           {statusLabel}
-        </Badge>
+        </StatusBadge>
       </CardHeader>
       <CardContent className="space-y-6">
         {closureError ? (
@@ -104,9 +98,9 @@ export function CashClosureTab({
                 <p className="text-sm font-semibold">Estado del cierre</p>
                 <p className="mt-1 text-sm text-muted-foreground">{statusDescription}</p>
               </div>
-              <CompactBadge tone={effectiveClosure?.status === "CERRADO" ? "success" : "warning"}>
+              <StatusBadge tone={effectiveClosure?.status === "CERRADO" ? "success" : "warning"}>
                 {statusLabel}
-              </CompactBadge>
+              </StatusBadge>
             </div>
             <div className="mt-5 space-y-3 text-sm">
               <DetailLine label="Total ventas" value={Number(effectiveClosure?.expected_sales_total ?? 0)} />

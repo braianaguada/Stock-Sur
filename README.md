@@ -23,6 +23,13 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 - El detalle de órdenes usa la tabla canónica para edición de cantidades e importes, conservando las validaciones y mutations existentes.
 - No se agregan migraciones ni se modifican reglas de negocio, permisos, consultas, query keys o aislamiento por empresa.
 
+## Flujos comerciales canónicos
+
+- Documentos, su detalle y el registro en Caja comparten encabezado, filtros, tablas, celdas, estados, importes y diálogos canónicos sin modificar emisión ni registración.
+- Ventas, gastos, cierres e historial de Caja usan pestañas, resúmenes, badges, acciones y tablas del sistema visual global, conservando sus diferencias operativas.
+- Facturación presenta métricas, comprobantes y detalle en un único workspace responsive; Cuenta corriente y cobros conservan su implementación canónica existente.
+- Se preservaron permisos, query keys, aislamiento por `company_id`, mutations y reglas de negocio. No requiere migraciones ni cambios de base de datos.
+
 ## Compatibilidad de rutas legacy
 
 - `/legacy-catalog-import` se conserva como alias protegido del importador actual en `/items/catalog/import-legacy` para no romper marcadores o accesos antiguos.

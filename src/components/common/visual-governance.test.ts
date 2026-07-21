@@ -6,12 +6,6 @@ const root = resolve(process.cwd());
 
 const deprecatedConsumers: Record<string, readonly string[]> = {
   CompactBadge: [
-    "src/features/cash/components/CashClosurePreviewDialog.tsx",
-    "src/features/cash/components/CashClosureTab.tsx",
-    "src/features/cash/components/CashExpensesTab.tsx",
-    "src/features/cash/components/CashHistoryTab.tsx",
-    "src/features/cash/components/CashSalesTab.tsx",
-    "src/pages/Billing.tsx",
     "src/pages/Combos.tsx",
     "src/pages/ServiceDocuments.tsx",
     "src/pages/ServiceJobs.tsx",
@@ -22,14 +16,11 @@ const deprecatedConsumers: Record<string, readonly string[]> = {
   ],
   OperationalTableShell: [
     "src/components/common/VisualSystem.test.tsx",
-    "src/features/cash/components/CashExpensesTab.tsx",
-    "src/features/cash/components/CashSalesTab.tsx",
-    "src/pages/Billing.tsx",
     "src/pages/ServiceDocuments.tsx",
     "src/pages/ServiceJobs.tsx",
     "src/pages/Technicians.tsx",
   ],
-  SectionCard: ["src/pages/Billing.tsx", "src/pages/Combos.tsx", "src/pages/Technicians.tsx"],
+  SectionCard: ["src/pages/Combos.tsx", "src/pages/Technicians.tsx"],
 };
 
 const visualSystemImport =
@@ -148,5 +139,36 @@ describe("visual governance", () => {
 
     const purchaseOrders = readFileSync(resolve(root, "src/pages/PurchaseOrders.tsx"), "utf8");
     expect(purchaseOrders, "purchase order detail must use the canonical DataTable").not.toContain("<table");
+  });
+
+  it("keeps commercial flow surfaces on canonical primitives", () => {
+    const commercialFiles = [
+      "src/pages/Documents.tsx",
+      "src/pages/Cash.tsx",
+      "src/pages/Billing.tsx",
+      "src/pages/CustomerAccount.tsx",
+      "src/features/documents/components/DocumentsDataTable.tsx",
+      "src/features/documents/components/DocumentsPreviewDialog.tsx",
+      "src/features/documents/components/RegisterDocumentInCashDialog.tsx",
+      "src/features/cash/components/CashClosurePreviewDialog.tsx",
+      "src/features/cash/components/CashClosureTab.tsx",
+      "src/features/cash/components/CashDocumentPreviewDialog.tsx",
+      "src/features/cash/components/CashExpensesTab.tsx",
+      "src/features/cash/components/CashHistoryTab.tsx",
+      "src/features/cash/components/CashSalesTab.tsx",
+    ];
+
+    for (const file of commercialFiles) {
+      const source = readFileSync(resolve(root, file), "utf8");
+      expect(source, `${file} must not import deprecated visual primitives`).not.toMatch(
+        /\b(?:CompactBadge|DataCard|FilterBar|StatCard|MetricHeroCard|OperationalTableShell|SectionCard)\b/,
+      );
+      expect(source, `${file} must not import raw badges`).not.toContain('from "@/components/ui/badge"');
+    }
+
+    const expenses = readFileSync(resolve(root, "src/features/cash/components/CashExpensesTab.tsx"), "utf8");
+    const billing = readFileSync(resolve(root, "src/pages/Billing.tsx"), "utf8");
+    expect(expenses, "cash expenses must use the canonical DataTable").not.toContain("<table");
+    expect(billing, "billing documents must use the canonical DataTable").not.toContain("<table");
   });
 });
