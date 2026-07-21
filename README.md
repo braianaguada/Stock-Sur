@@ -16,6 +16,13 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 - Los paneles analiticos y contenedores operativos pueden contraerse dentro de grillas sin provocar overflow horizontal en mobile; la bandeja de trabajos conserva su selector responsive.
 - Este primer PR no agrega migraciones ni modifica reglas de negocio, permisos, consultas o aislamiento multitenant. La QA visual autenticada de los modulos queda como control obligatorio antes de declarar el rediseño completo apto.
 
+## Superficies de compras canónicas
+
+- Catálogos, importaciones, preview PDF, mapping, comparador, bandeja y detalle de órdenes comparten encabezados, filtros, tablas, celdas, badges y acciones del sistema visual global sin perder sus flujos especializados.
+- Las importaciones presentan una secuencia operativa clara entre carga, destino, mapping, validación y preview; las confirmaciones permanecen visibles dentro de contenedores con scroll controlado.
+- El detalle de órdenes usa la tabla canónica para edición de cantidades e importes, conservando las validaciones y mutations existentes.
+- No se agregan migraciones ni se modifican reglas de negocio, permisos, consultas, query keys o aislamiento por empresa.
+
 ## Compatibilidad de rutas legacy
 
 - `/legacy-catalog-import` se conserva como alias protegido del importador actual en `/items/catalog/import-legacy` para no romper marcadores o accesos antiguos.

@@ -123,4 +123,30 @@ describe("visual governance", () => {
       expect(source, `${file} must not import raw badges`).not.toContain('from "@/components/ui/badge"');
     }
   });
+
+  it("keeps procurement surfaces on canonical primitives", () => {
+    const procurementFiles = [
+      "src/pages/Imports.tsx",
+      "src/pages/LegacyCatalogImport.tsx",
+      "src/pages/PurchaseOrders.tsx",
+      "src/pages/Suppliers.tsx",
+      "src/features/imports/components/ImportsPreviewTable.tsx",
+      "src/features/imports/components/LegacyCatalogTable.tsx",
+      "src/features/suppliers/components/PdfDocumentPreview.tsx",
+      "src/features/suppliers/components/SupplierCatalogDialog.tsx",
+      "src/features/suppliers/components/SupplierCatalogLinesTable.tsx",
+      "src/features/suppliers/components/SupplierComparison.tsx",
+    ];
+
+    for (const file of procurementFiles) {
+      const source = readFileSync(resolve(root, file), "utf8");
+      expect(source, `${file} must not import deprecated visual primitives`).not.toMatch(
+        /\b(?:CompactBadge|DataCard|FilterBar|StatCard|MetricHeroCard|OperationalTableShell|SectionCard)\b/,
+      );
+      expect(source, `${file} must not import raw badges`).not.toContain('from "@/components/ui/badge"');
+    }
+
+    const purchaseOrders = readFileSync(resolve(root, "src/pages/PurchaseOrders.tsx"), "utf8");
+    expect(purchaseOrders, "purchase order detail must use the canonical DataTable").not.toContain("<table");
+  });
 });

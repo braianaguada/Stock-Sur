@@ -6,13 +6,14 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Upload, Check } from "lucide-react";
+import { ArrowLeft, Check, Upload } from "lucide-react";
 import { ImportsPreviewTable } from "@/features/imports/components/ImportsPreviewTable";
 import { useImportsFlow } from "@/features/imports/hooks/useImportsFlow";
-import { DataCard, PageHeader } from "@/components/ui/page";
+import { StatusBadge } from "@/components/common/VisualSystem";
+import { PageContainer, PageHeader } from "@/components/ui/page";
 
 export default function ImportsPage() {
   const { currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
@@ -40,10 +41,11 @@ export default function ImportsPage() {
     currentCompanyId: currentCompany?.id ?? null,
     toast,
   });
+  const currentStep = ["upload", "map", "preview", "done"].indexOf(step);
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer archetype="workspace" className="page-shell">
         {!currentCompany ? (
           <CompanyAccessNotice description="Necesitas una empresa activa para importar archivos y generar nuevas versiones de listas." />
         ) : null}
@@ -51,6 +53,17 @@ export default function ImportsPage() {
           eyebrow="Carga masiva"
           title="Importaciones"
           description="Importar listas de precios desde CSV o XLSX con una experiencia mas clara, manteniendo el mismo flujo por pasos."
+          variant="workspace"
+          meta={[
+            "Archivo",
+            "Mapeo",
+            "Validacion",
+            "Resultado",
+          ].map((label, index) => (
+            <StatusBadge key={label} tone={index < currentStep ? "success" : index === currentStep ? "warning" : "muted"}>
+              {index + 1}. {label}
+            </StatusBadge>
+          ))}
         />
 
         {currentCompany && !canCreateImports ? (
@@ -58,10 +71,14 @@ export default function ImportsPage() {
         ) : null}
 
         {step === "upload" && canCreateImports ? (
-          <Card className="max-w-lg">
-            <CardHeader><CardTitle className="text-lg">Subir archivo</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
+          <Card className="border-border/70 shadow-none">
+            <CardHeader>
+              <CardTitle>Archivo y destino</CardTitle>
+              <CardDescription>Selecciona la lista que recibira una nueva version y carga el archivo fuente.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+              <div className="space-y-5">
+                <div className="space-y-2">
                 <Label>Lista de precios *</Label>
                 <Select value={selectedPriceListId} onValueChange={setSelectedPriceListId}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar lista" /></SelectTrigger>
@@ -71,12 +88,13 @@ export default function ImportsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
+                </div>
+                <div className="space-y-2">
                 <Label>Notas (opcional)</Label>
                 <Input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ej: Lista marzo 2026" />
+                </div>
               </div>
-              <div className="rounded-lg border-2 border-dashed p-8 text-center">
+              <div className="flex min-h-52 flex-col justify-center rounded-xl border-2 border-dashed border-border bg-muted/20 p-6 text-center sm:p-8">
                 <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
                 <p className="mb-3 text-sm text-muted-foreground">Arrastra o selecciona un archivo CSV/XLSX</p>
                 <Input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" onChange={handleFileUpload} className="mx-auto max-w-xs" />
@@ -86,11 +104,13 @@ export default function ImportsPage() {
         ) : null}
 
         {step === "map" && canCreateImports ? (
-          <Card className="max-w-lg">
-            <CardHeader><CardTitle className="text-lg">Mapeo de columnas</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">{validRows.length} filas validas detectadas. Mapea las columnas:</p>
-              <div className="space-y-3">
+          <Card className="border-border/70 shadow-none">
+            <CardHeader>
+              <CardTitle>Mapeo de columnas</CardTitle>
+              <CardDescription>{validRows.length} filas validas detectadas. Indica que columna corresponde a cada dato.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label>Codigo proveedor (opcional)</Label>
                   <Select value={mapping.supplier_code} onValueChange={(value) => setMapping({ ...mapping, supplier_code: value })}>
@@ -116,33 +136,34 @@ export default function ImportsPage() {
                   </Select>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep("upload")}>Volver</Button>
-                <Button onClick={goPreview}>Previsualizar</Button>
-              </div>
             </CardContent>
+            <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-2 border-t bg-card/95 px-4 py-4 backdrop-blur sm:px-6">
+                <Button variant="outline" onClick={() => setStep("upload")}><ArrowLeft className="mr-2 h-4 w-4" />Volver</Button>
+                <Button onClick={goPreview}>Previsualizar</Button>
+            </div>
           </Card>
         ) : null}
 
         {step === "preview" && canCreateImports ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Mostrando primeras {previewData.length} de {validRows.length} filas validas</p>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep("map")}>Volver</Button>
+          <Card className="min-w-0 border-border/70 shadow-none">
+            <CardHeader>
+              <CardTitle>Validacion previa</CardTitle>
+              <CardDescription>Mostrando las primeras {previewData.length} de {validRows.length} filas validas. Revisa el resultado antes de confirmar.</CardDescription>
+            </CardHeader>
+            <CardContent className="max-h-[60vh] overflow-auto p-0">
+              <ImportsPreviewTable rows={previewData} />
+            </CardContent>
+            <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-2 border-t bg-card/95 px-4 py-4 backdrop-blur sm:px-6">
+                <Button variant="outline" onClick={() => setStep("map")}><ArrowLeft className="mr-2 h-4 w-4" />Volver</Button>
                 <Button onClick={() => importMutation.mutate()} disabled={importMutation.isPending}>
                   {importMutation.isPending ? "Importando..." : `Confirmar importacion (${validRows.length} filas)`}
                 </Button>
-              </div>
             </div>
-            <DataCard className="max-h-[60vh] overflow-auto">
-              <ImportsPreviewTable rows={previewData} />
-            </DataCard>
-          </div>
+          </Card>
         ) : null}
 
         {step === "done" && canCreateImports ? (
-          <Card className="max-w-lg">
+          <Card className="border-border/70 shadow-none">
             <CardContent className="space-y-4 py-12 text-center">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
                 <Check className="h-8 w-8 text-green-600" />
@@ -153,7 +174,7 @@ export default function ImportsPage() {
             </CardContent>
           </Card>
         ) : null}
-      </div>
+      </PageContainer>
     </AppLayout>
   );
 }
