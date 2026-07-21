@@ -136,7 +136,7 @@ export default function CashTotalsPage() {
           variant="analytical"
         />
 
-        <FilterToolbar className="grid gap-4 md:grid-cols-[180px_180px_1fr_auto] md:items-end">
+        <FilterToolbar className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))] [&&]:items-end">
             <div className="space-y-2">
               <Label>Período</Label>
               <Select value={period} onValueChange={(value) => setPeriod(value as CashTotalsPeriod)}>
@@ -215,7 +215,7 @@ export default function CashTotalsPage() {
               <InfoBadge>{reportQuery.isFetching ? "Actualizando" : "Actualizado"}</InfoBadge>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0">
             <DataTable
               columns={columns}
               data={report.days}
