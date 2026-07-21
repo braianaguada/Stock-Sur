@@ -11,7 +11,6 @@ const deprecatedConsumers: Record<string, readonly string[]> = {
     "src/features/cash/components/CashExpensesTab.tsx",
     "src/features/cash/components/CashHistoryTab.tsx",
     "src/features/cash/components/CashSalesTab.tsx",
-    "src/features/cash/components/CashSummaryCards.tsx",
     "src/pages/Billing.tsx",
     "src/pages/Combos.tsx",
     "src/pages/ServiceDocuments.tsx",
@@ -19,7 +18,6 @@ const deprecatedConsumers: Record<string, readonly string[]> = {
   ],
   MetricHeroCard: [
     "src/components/common/VisualSystem.test.tsx",
-    "src/pages/CashTotals.tsx",
     "src/pages/Technicians.tsx",
   ],
   OperationalTableShell: [
@@ -27,7 +25,6 @@ const deprecatedConsumers: Record<string, readonly string[]> = {
     "src/features/cash/components/CashExpensesTab.tsx",
     "src/features/cash/components/CashSalesTab.tsx",
     "src/pages/Billing.tsx",
-    "src/pages/CashTotals.tsx",
     "src/pages/ServiceDocuments.tsx",
     "src/pages/ServiceJobs.tsx",
     "src/pages/Technicians.tsx",
@@ -100,6 +97,28 @@ describe("visual governance", () => {
       const source = readFileSync(resolve(root, file), "utf8");
       expect(source, `${file} must not import deprecated visual primitives`).not.toMatch(
         /\b(?:DataCard|FilterBar|StatCard|MetricHeroCard|OperationalTableShell)\b/,
+      );
+      expect(source, `${file} must not import raw badges`).not.toContain('from "@/components/ui/badge"');
+    }
+  });
+
+  it("keeps analytical surfaces on canonical primitives", () => {
+    const analyticalFiles = [
+      "src/pages/Index.tsx",
+      "src/pages/Cash.tsx",
+      "src/pages/CashTotals.tsx",
+      "src/pages/Settlements.tsx",
+      "src/pages/Stock.tsx",
+      "src/features/cash/components/CashSummaryCards.tsx",
+      "src/features/index/components/DashboardHero.tsx",
+      "src/features/index/components/DashboardHighlights.tsx",
+      "src/features/index/components/OperationalAttention.tsx",
+    ];
+
+    for (const file of analyticalFiles) {
+      const source = readFileSync(resolve(root, file), "utf8");
+      expect(source, `${file} must not import deprecated visual primitives`).not.toMatch(
+        /\b(?:CompactBadge|DataCard|FilterBar|StatCard|MetricHeroCard|OperationalTableShell)\b/,
       );
       expect(source, `${file} must not import raw badges`).not.toContain('from "@/components/ui/badge"');
     }

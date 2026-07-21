@@ -73,6 +73,8 @@ describe("visual system components", () => {
     expect(screen.getByRole("heading", { name: "Caja" })).toBeInTheDocument();
     expect(screen.getByText("Panel operativo diario.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Nueva venta" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Caja" }).parentElement?.parentElement)
+      .toHaveClass("lg:min-w-[min(100%,28rem)]", "lg:flex-1");
   });
 
   it("keeps page header tabs in a responsive horizontal strip", () => {

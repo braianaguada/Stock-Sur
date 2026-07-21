@@ -3,8 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Printer, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { CountBadge, MetricCard, MetricGrid } from "@/components/common/VisualSystem";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -20,7 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PageHeader, StatCard } from "@/components/ui/page";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
@@ -423,11 +423,12 @@ export default function SettlementsPage() {
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer archetype="analytical" className="page-shell">
         <PageHeader
           eyebrow="Administracion"
           title="Rendiciones"
           subtitle="Carga manual de ingresos y egresos por empresa activa."
+          variant="analytical"
         />
 
         {accessState ? accessState : (
@@ -459,13 +460,13 @@ export default function SettlementsPage() {
                 </Card>
               ) : (
                 <>
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <StatCard label="Ingresos" value={currency.format(displayedTotals.income_total)} hint={`Efectivo ${currency.format(displayedTotals.income_cash_total)}`} />
-                    <StatCard label="Egresos" value={currency.format(displayedTotals.expense_total)} hint={`Efectivo ${currency.format(displayedTotals.expense_cash_total)}`} tone="warning" />
-                    <StatCard label="Total a rendir" value={currency.format(displayedTotals.settlement_total)} hint={`Ingresos menos egresos`} tone={displayedTotals.settlement_total < 0 ? "danger" : "success"} />
-                  </div>
+                  <MetricGrid className="xl:grid-cols-3">
+                    <MetricCard label="Ingresos" value={displayedTotals.income_total} helper={`Efectivo ${currency.format(displayedTotals.income_cash_total)}`} />
+                    <MetricCard label="Egresos" value={displayedTotals.expense_total} helper={`Efectivo ${currency.format(displayedTotals.expense_cash_total)}`} tone="warning" />
+                    <MetricCard label="Total a rendir" value={displayedTotals.settlement_total} helper="Ingresos menos egresos" tone={displayedTotals.settlement_total < 0 ? "danger" : "success"} />
+                  </MetricGrid>
 
-                  <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4 lg:flex-row lg:items-end">
+                  <FilterToolbar className="flex flex-col gap-3 lg:flex-row lg:items-end">
                     <Button type="button" variant="outline" onClick={openPrintDialog} disabled={editorLocked}>
                       <Printer className="mr-2 h-4 w-4" /> Imprimir
                     </Button>
@@ -484,14 +485,14 @@ export default function SettlementsPage() {
                     <p className="text-sm text-muted-foreground md:ml-auto">
                       {visibleIncomeLines.length} ingresos y {visibleExpenseLines.length} egresos visibles
                     </p>
-                  </div>
+                  </FilterToolbar>
 
                   <Card>
                     <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
                         <div className="flex items-center gap-2">
                           <CardTitle id="settlement-income-title">Ingresos</CardTitle>
-                          <Badge variant="secondary">{visibleIncomeLines.length}</Badge>
+                          <CountBadge>{visibleIncomeLines.length}</CountBadge>
                         </div>
                         <CardDescription>
                           Agrega un ingreso por cada cobro o entrada de dinero.
@@ -575,7 +576,7 @@ export default function SettlementsPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <CardTitle id="settlement-expense-title">Egresos</CardTitle>
-                          <Badge variant="secondary">{visibleExpenseLines.length}</Badge>
+                          <CountBadge>{visibleExpenseLines.length}</CountBadge>
                         </div>
                         <CardDescription>
                           Agrega un egreso por cada pago o salida de dinero.
@@ -648,7 +649,7 @@ export default function SettlementsPage() {
             </section>
           </div>
         )}
-      </div>
+      </PageContainer>
 
       <Dialog open={printOpen} onOpenChange={setPrintOpen}>
         <DialogContent>

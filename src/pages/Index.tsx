@@ -1,8 +1,10 @@
 import { AlertTriangle, BrainCircuit, RefreshCw, Sparkles } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
-import { Badge } from "@/components/ui/badge";
+import { InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/ui/page";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { DashboardHero } from "@/features/index/components/DashboardHero";
@@ -19,7 +21,8 @@ function DashboardAiInsight({ companyName, dashboard }: { companyName: string; d
   const summary = useDashboardAiSummary();
 
   return (
-    <section className="dashboard-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6" aria-labelledby="dashboard-ai-title">
+    <Card className="border-border/70 shadow-none" aria-labelledby="dashboard-ai-title">
+      <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6">
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><BrainCircuit className="h-5 w-5" aria-hidden="true" /></span>
       <div className="min-w-0 flex-1">
         <h2 id="dashboard-ai-title" className="font-semibold">Lectura ejecutiva bajo demanda</h2>
@@ -30,7 +33,8 @@ function DashboardAiInsight({ companyName, dashboard }: { companyName: string; d
         {summary.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
         {summary.data ? "Actualizar lectura" : "Generar lectura"}
       </Button>
-    </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -41,23 +45,24 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="space-y-5">
+      <PageContainer archetype="analytical" className="page-shell">
         {!currentCompany ? <CompanyAccessNotice description="Tu cuenta todavía no tiene una empresa activa." /> : null}
 
         {currentCompany ? (
           <>
-            <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-xs font-medium text-primary"><span className="h-1.5 w-1.5 rounded-full bg-primary" />Inicio · período actual</div>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Pulso del negocio</h1>
-                <p className="mt-1 text-sm text-muted-foreground">Ventas, inventario y operación de {settings.app_name} en una sola lectura.</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {dataUpdatedAt ? <Badge variant="outline" className="rounded-full">Actualizado {updatedAt.format(dataUpdatedAt)}</Badge> : null}
-                {isFetching && !isLoading ? <Badge variant="secondary" className="rounded-full"><RefreshCw className="mr-1 h-3 w-3 animate-spin" />Actualizando</Badge> : null}
-                <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => void refetch()} disabled={isFetching}><RefreshCw className="mr-2 h-4 w-4" />Actualizar</Button>
-              </div>
-            </header>
+            <PageHeader
+              eyebrow="Inicio · período actual"
+              title="Pulso del negocio"
+              subtitle={`Ventas, inventario y operación de ${settings.app_name} en una sola lectura.`}
+              variant="analytical"
+              meta={(
+                <>
+                  {dataUpdatedAt ? <InfoBadge>Actualizado {updatedAt.format(dataUpdatedAt)}</InfoBadge> : null}
+                  {isFetching && !isLoading ? <StatusBadge tone="info" announce><RefreshCw className="mr-1 h-3 w-3 animate-spin" />Actualizando</StatusBadge> : null}
+                </>
+              )}
+              actions={<Button type="button" variant="outline" size="sm" onClick={() => void refetch()} disabled={isFetching}><RefreshCw className="mr-2 h-4 w-4" />Actualizar</Button>}
+            />
 
             {error ? (
               <div className="flex flex-col gap-3 rounded-2xl border border-destructive/20 bg-destructive/[.04] p-4 sm:flex-row sm:items-center" role="alert">
@@ -79,7 +84,7 @@ export default function Dashboard() {
             )}
           </>
         ) : null}
-      </div>
+      </PageContainer>
     </AppLayout>
   );
 }
