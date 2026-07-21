@@ -1,12 +1,12 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Upload } from "lucide-react";
+import { Search, Upload } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -15,6 +15,9 @@ import { LegacyCatalogTable } from "@/features/imports/components/LegacyCatalogT
 import { supabase } from "@/integrations/supabase/client";
 import { cleanText, normalizeAlias } from "@/lib/clean";
 import type { ParsedRow } from "@/lib/importParserCore";
+import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { CountBadge, StatusBadge } from "@/components/common/VisualSystem";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 
 const LEGACY_IMPORT_DRAFT_KEY = "legacy-catalog-import-draft";
 const INITIAL_VISIBLE_ROWS = 200;
@@ -377,18 +380,28 @@ export default function LegacyCatalogImportPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Importador catalogo legacy</h1>
-          <p className="text-muted-foreground">Subi CSV/XLS/XLSX para crear items y codigos de proveedor.</p>
-        </div>
+      <PageContainer archetype="workspace" className="page-shell">
+        {!currentCompany ? <CompanyAccessNotice description="Necesitas una empresa activa para preparar una importacion de catalogo." /> : null}
+        <PageHeader
+          eyebrow="Compras / Catalogos"
+          title="Importador de catalogo legacy"
+          description="Carga, valida y selecciona articulos antes de crear items y codigos de proveedor."
+          variant="workspace"
+          meta={(
+            <>
+              <StatusBadge tone={rows.length > 0 ? "success" : "warning"}>1. Archivo</StatusBadge>
+              <StatusBadge tone={rows.length > 0 ? "warning" : "muted"}>2. Validacion</StatusBadge>
+            </>
+          )}
+        />
 
-        <Card>
+        <Card className="border-border/70 shadow-none">
           <CardHeader>
-            <CardTitle className="text-lg">Archivo fuente</CardTitle>
+            <CardTitle>Archivo fuente</CardTitle>
+            <CardDescription>El archivo permanece como borrador hasta que confirmes la seleccion.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3 rounded-lg border-2 border-dashed p-6 text-center">
+            <div className="space-y-3 rounded-xl border-2 border-dashed border-border bg-muted/20 p-6 text-center sm:p-8">
               <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Columnas requeridas: Codigo, Articulo y Rubro. Medida y Marca son opcionales</p>
               <Input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" className="mx-auto max-w-xs" onChange={onFileUpload} />
@@ -402,16 +415,20 @@ export default function LegacyCatalogImportPage() {
         </Card>
 
         {rows.length > 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Preview y seleccion</CardTitle>
+          <Card className="min-w-0 border-border/70 shadow-none">
+            <CardHeader className="flex flex-row items-start justify-between gap-3">
+              <div className="space-y-1">
+                <CardTitle>Preview y seleccion</CardTitle>
+                <CardDescription>Revisa las filas detectadas y limita la importacion a los articulos necesarios.</CardDescription>
+              </div>
+              <CountBadge>{selectedIds.size} de {rows.length}</CountBadge>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="min-w-[220px] space-y-2">
-                  <Label>Filtrar por rubro</Label>
+            <CardContent className="space-y-4 p-0">
+              <FilterToolbar className="mx-4 sm:mx-6">
+                <div className="w-full md:w-56">
+                  <Label className="sr-only">Filtrar por rubro</Label>
                   <Select value={rubroFilter} onValueChange={setRubroFilter}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Filtrar por rubro">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
@@ -423,9 +440,12 @@ export default function LegacyCatalogImportPage() {
                   </Select>
                 </div>
 
-                <div className="min-w-[260px] space-y-2">
-                  <Label>Buscar por articulo</Label>
+                <div className="relative w-full md:max-w-sm">
+                  <Label className="sr-only">Buscar por articulo</Label>
+                  <Search aria-hidden="true" className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
+                    aria-label="Buscar por articulo"
+                    className="pl-9"
                     value={articleSearch}
                     onChange={(e) => setArticleSearch(e.target.value)}
                     placeholder="Ej: Tornillo"
@@ -433,20 +453,17 @@ export default function LegacyCatalogImportPage() {
                 </div>
 
                 <div className="ml-auto text-sm text-muted-foreground">
-                  Seleccionadas: {selectedIds.size} / {rows.length}
+                  {filteredRows.length} visibles
                   {filteredRows.length !== rows.length ? ` - Filtradas: ${filteredRows.length}` : ""}
                 </div>
-              </div>
+              </FilterToolbar>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 px-4 sm:px-6">
                 <Button type="button" variant="outline" onClick={selectFiltered}>Seleccionar filtrados</Button>
                 <Button type="button" variant="outline" onClick={deselectAll}>Deseleccionar todo</Button>
-                <Button type="button" onClick={importSelected} disabled={importMutation.isPending}>
-                  Importar seleccionados
-                </Button>
               </div>
 
-              <div className="max-h-[60vh] overflow-auto rounded-lg border">
+              <div className="max-h-[60vh] overflow-auto border-y">
                 <LegacyCatalogTable
                   rows={visibleRows}
                   selectedIds={selectedIds}
@@ -455,7 +472,7 @@ export default function LegacyCatalogImportPage() {
               </div>
 
               {filteredRows.length > visibleRows.length ? (
-                <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-4 text-sm text-muted-foreground sm:px-6">
                   <p>
                     Mostrando {visibleRows.length} de {filteredRows.length} filas filtradas.
                   </p>
@@ -469,9 +486,15 @@ export default function LegacyCatalogImportPage() {
                 </div>
               ) : null}
             </CardContent>
+            <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-card/95 px-4 py-4 backdrop-blur sm:px-6">
+              <p className="text-sm text-muted-foreground">{selectedIds.size} filas listas para importar.</p>
+              <Button type="button" onClick={importSelected} disabled={importMutation.isPending || selectedIds.size === 0}>
+                {importMutation.isPending ? "Importando..." : "Importar seleccionados"}
+              </Button>
+            </div>
           </Card>
         ) : null}
-      </div>
+      </PageContainer>
     </AppLayout>
   );
 }
