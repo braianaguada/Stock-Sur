@@ -198,7 +198,7 @@ export default function CashTotalsPage() {
           <MetricCard label="Cuenta corriente" value={report.summary.accountCurrentTotal} helper="Separado del efectivo" tone="muted" />
           <MetricCard label="Gastos totales" value={report.summary.expensesTotal} helper="Efectivo + no efectivo" tone="danger" />
         </MetricGrid>
-        <MetricGrid className="xl:grid-cols-3">
+        <MetricGrid columns={3}>
           <MetricCard label="Efectivo bruto" value={report.summary.cashTotal} helper="Remito + facturable" />
           <MetricCard label="Gastos efectivo" value={report.summary.expensesCashTotal} helper="Resta caja física" tone="warning" />
           <MetricCard label="Devoluciones" value={-report.summary.returnsTotal} helper="Servicios / remito" tone="danger" />
@@ -237,7 +237,7 @@ export default function CashTotalsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <MetricGrid className="md:grid-cols-3 xl:grid-cols-3">
+              <MetricGrid columns={3}>
                 <MetricCard label="Efectivo remito" value={selectedDay.cashRemitoTotal} />
                 <MetricCard label="Efectivo facturable" value={selectedDay.cashFacturableTotal} />
                 <MetricCard label="Neto total del día" value={selectedDay.netTotal} tone="success" />

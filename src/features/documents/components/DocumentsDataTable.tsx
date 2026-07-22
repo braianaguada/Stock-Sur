@@ -5,7 +5,8 @@ import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { CategoryBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Card } from "@/components/ui/card";
+import { Dialog, DialogActionGrid, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "@/features/documents/constants";
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocRow, DocStatus } from "@/features/documents/types";
@@ -46,7 +47,6 @@ interface DocumentsDataTableProps {
   canRegisterInCash: boolean;
   canTransitionDocumentTo: (status: DocStatus) => boolean;
 }
-
 export function DocumentsDataTable({
   documents,
   isLoading,
@@ -189,7 +189,7 @@ export function DocumentsDataTable({
                   <DialogTitle>Acciones del documento</DialogTitle>
                   <DialogDescription>Elegí una acción para {doc.document_number ?? "este documento"}.</DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-2 sm:grid-cols-2 [&_button]:!h-10 [&_button]:!w-full [&_button]:!justify-start [&_button]:!rounded-lg [&_button_svg]:mr-2">
+                <DialogActionGrid columns={2}>
             <Button variant="ghost" onClick={() => onPrint(doc)} disabled={!canPrintDocument}>
               <Printer className="h-4 w-4" /><span>Imprimir / PDF</span>
             </Button>
@@ -266,7 +266,7 @@ export function DocumentsDataTable({
                 <Ban className="h-4 w-4" /><span>Anular devolución</span>
               </Button>
             ) : null}
-                </div>
+                </DialogActionGrid>
               </DialogContent>
             </Dialog>
           </RowActions>
@@ -301,7 +301,7 @@ export function DocumentsDataTable({
   ]);
 
   return (
-    <div className="data-panel overflow-x-auto">
+    <Card className="min-w-0 overflow-x-auto border-border/70 shadow-none">
       <DataTable
         columns={columns}
         data={documents}
@@ -312,6 +312,6 @@ export function DocumentsDataTable({
         cellClassName="h-11 py-0"
         reserveEmptyRows={pageSize}
       />
-    </div>
+    </Card>
   );
 }

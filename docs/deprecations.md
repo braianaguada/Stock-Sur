@@ -1,25 +1,26 @@
 # Deprecaciones frontend
 
-Las APIs de esta lista siguen disponibles sólo para migración. No aceptan consumidores nuevos.
+## APIs visuales retiradas
 
-| API | Reemplazo | Estado de retiro |
+La consolidación final dejó estas APIs con cero consumidores y eliminó sus exports. No deben reintroducirse:
+
+| API retirada | Reemplazo canónico | Estado |
 |---|---|---|
-| `FilterBar` | `FilterToolbar` | Retirar al llegar a cero imports. |
-| `StatCard` | `MetricCard` / resumen canónico | Retirar al llegar a cero imports. |
-| `DataCard` | superficie workspace canónica | Retirar al llegar a cero imports. |
-| `MetricHeroCard` | `MetricCard` con jerarquía del arquetipo | Retirar al llegar a cero imports. |
-| `SectionCard` | superficie/card canónica | Retirar al llegar a cero imports. |
-| `OperationalTableShell` | `DataTable` en superficie canónica | Retirar al llegar a cero imports. |
-| `CompactBadge` | badge semántico específico | Retirar al llegar a cero imports. |
+| `FilterBar` | `FilterToolbar` | Retirada; cero consumidores. |
+| `StatCard` | `MetricCard` dentro de `MetricGrid` | Retirada; cero consumidores. |
+| `DataCard` | `Card` o superficie del arquetipo correspondiente | Retirada; cero consumidores. |
+| `MetricHeroCard` | `MetricCard` con jerarquía definida por el arquetipo | Retirada; cero consumidores. |
+| `SectionCard` | `Card` canónica | Retirada; cero consumidores. |
+| `OperationalTableShell` | `DataTable` dentro de una superficie canónica | Retirada; cero consumidores. |
+| `CompactBadge` | badge semántico específico de `VisualSystem` | Retirada; cero consumidores. |
 
-También quedan prohibidos para consumidores nuevos:
+También fueron retiradas las recetas CSS `.data-panel`, `.stat-tile` y `.stat-tile-featured`. La gobernanza estructural impide que los identificadores retirados vuelvan a aparecer en `src`.
+
+## Uso prohibido
 
 - `ui/Table` crudo en una lista operativa estándar;
 - `ui/Badge` crudo para estados de dominio;
-- `.surface-card`, `.filter-strip`, `.data-panel`, `.stat-tile` y `.status-chip` desde rutas.
+- clases `.surface-card`, `.filter-strip` o `.status-chip` importadas directamente desde rutas;
+- variantes visuales locales que dupliquen `MetricGrid`, `FilterToolbar`, `DialogActionGrid`, `DataTable` o los badges semánticos.
 
-## Política
-
-El test estructural mantiene una allowlist de consumidores históricos. Una migración elimina rutas de esa lista; nunca agrega entradas salvo una excepción de UX aprobada y documentada en el PR. No se elimina un adapter mientras existan imports activos.
-
-Para retirar una API: buscar imports globales, migrar consumidores, ejecutar validaciones, eliminar export y tests de compatibilidad, y actualizar este documento y el catálogo en el mismo PR.
+Una excepción de tabla editable, impresión o flujo transaccional debe justificarse en el PR y conservar accesibilidad, responsive y semántica del sistema.

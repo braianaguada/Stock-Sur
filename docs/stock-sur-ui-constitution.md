@@ -167,21 +167,17 @@ Prohibidos: una séptima arquitectura sin ADR; clases locales que redefinen dens
 - `common/VisualSystem.tsx` es dueño de presentación semántica reutilizable: `MetricCard/MetricGrid`, `PrimaryCell/MoneyCell`, `StatusBadge`, `CountBadge`, `InfoBadge`, `HealthBadge` y `CategoryBadge`.
 - `DataTable` es la única API para datasets operativos estándar. `index.css` provee tokens y recetas base; no es un catálogo alternativo para las rutas.
 
-### COMPATIBILITY
+### RETIRED
 
-`FilterBar`, `StatCard`, `DataCard`, `MetricHeroCard`, `SectionCard`, `OperationalTableShell` y `CompactBadge` existen solamente para consumidores actuales. Son adapters o aliases, no APIs alternativas.
-
-### DEPRECATED
-
-Los símbolos de compatibilidad están marcados `@deprecated`. Cada PR de migración reemplaza sus consumidores por el canonical equivalente; el adapter se elimina cuando su búsqueda global llega a cero. `AmountDisplay` puede seguir como formato genérico fuera de tablas; dentro de tablas se usa `MoneyCell`.
+`FilterBar`, `StatCard`, `DataCard`, `MetricHeroCard`, `SectionCard`, `OperationalTableShell` y `CompactBadge` alcanzaron cero consumidores y fueron eliminados. No son APIs de compatibilidad ni pueden reintroducirse. `AmountDisplay` sigue como formato genérico fuera de tablas; dentro de tablas se usa `MoneyCell`.
 
 ### DO NOT USE
 
-Las pantallas nuevas no deben importar `FilterBar`, `StatCard`, `DataCard`, `MetricHeroCard`, `SectionCard`, `OperationalTableShell` ni `CompactBadge`; tampoco `ui/Table` crudo para listas operativas, `ui/Badge` crudo para estados de dominio, ni clases `.surface-card`, `.filter-strip`, `.data-panel`, `.stat-tile` o `.status-chip` directamente desde rutas. Excepciones de tabla editable, impresión o flujo transaccional requieren justificación en el PR.
+Las pantallas no deben reintroducir símbolos retirados; tampoco `ui/Table` crudo para listas operativas, `ui/Badge` crudo para estados de dominio, ni clases `.surface-card`, `.filter-strip` o `.status-chip` directamente desde rutas. Excepciones de tabla editable, impresión o flujo transaccional requieren justificación en el PR.
 
 ## Enforcement incremental
 
-La gobernanza se aplica sin una migración masiva: los consumidores legacy auditados permanecen en una allowlist verificable, pero no pueden crecer. Cada PR de rollout reduce esa línea base, actualiza el catálogo cuando cambia una API y justifica toda excepción. Los tests estructurales complementan —no reemplazan— revisión de código, QA visual autenticada y pruebas de interacción.
+La gobernanza verifica que las APIs retiradas permanezcan con cero consumidores y que cada dominio use los primitives canónicos. Los tests estructurales complementan —no reemplazan— revisión de código, QA visual autenticada y pruebas de interacción.
 
 ## Roadmap
 

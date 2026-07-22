@@ -103,13 +103,13 @@ export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
         </div>
       </div>
 
-      <div id="dashboard-view-panel" role="tabpanel" aria-labelledby={`dashboard-tab-${view.key}`} className="relative z-10 grid min-w-0 min-h-[380px] gap-6 px-5 py-6 sm:px-7 lg:grid-cols-[minmax(260px,.85fr)_1.4fr]">
+      <div id="dashboard-view-panel" role="tabpanel" aria-labelledby={`dashboard-tab-${view.key}`} className="relative z-10 grid min-h-[380px] min-w-0 gap-6 px-5 py-6 sm:px-7 lg:grid-cols-[minmax(420px,1fr)_minmax(0,1.2fr)]">
         <div className="flex flex-col justify-between gap-5">
           <div>
             <p className="text-sm font-medium text-primary">{view.title}</p>
             <p className="mt-1 text-xs text-muted-foreground">{view.description}</p>
           </div>
-          <MetricGrid className="grid-cols-1 sm:grid-cols-3 lg:grid-cols-1">
+          <MetricGrid columns={3}>
             {view.metrics.map((metric, index) => (
               <MetricCard
                 key={metric.key}

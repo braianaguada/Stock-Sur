@@ -323,9 +323,10 @@ export function DocumentsEditorDialog({
                 </div>
               ) : null}
 
-              <div className="flex items-center justify-end h-full w-full">
+              <div className="space-y-2">
+                <Label aria-hidden="true" className="invisible">Opciones</Label>
                 <CollapsibleTrigger asChild>
-                  <Button type="button" variant="outline" size="sm" className="h-9 mt-6 w-full shadow-none bg-background/50 hover:bg-background">
+                  <Button type="button" variant="outline" className="h-11 w-full bg-background/50 shadow-none hover:bg-background">
                     {detailsOpen ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
                     {detailsOpen ? "Ocultar opciones avanzadas" : "Opciones de documento"}
                   </Button>

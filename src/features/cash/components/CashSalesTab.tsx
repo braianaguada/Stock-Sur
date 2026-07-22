@@ -7,7 +7,7 @@ import { CountBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/co
 import { Button } from "@/components/ui/button";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogActionGrid, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatTime } from "@/lib/formatters";
 import { PAYMENT_LABEL, RECEIPT_LABEL, STATUS_LABEL } from "../constants";
@@ -155,7 +155,7 @@ export function CashSalesTab({
                   <DialogTitle>Acciones del movimiento</DialogTitle>
                   <DialogDescription>Elegí una acción para esta venta.</DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-2 [&_button]:!h-10 [&_button]:!w-full [&_button]:!justify-start [&_button_svg]:mr-2">
+                <DialogActionGrid>
           {canDraft ? (
             <>
               <Button
@@ -199,7 +199,7 @@ export function CashSalesTab({
               <span>Anular venta</span>
             </Button>
           ) : null}
-                </div>
+                </DialogActionGrid>
               </DialogContent>
             </Dialog>
           ) : null}

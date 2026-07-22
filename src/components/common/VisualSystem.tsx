@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   metricAccentToneClasses,
@@ -95,14 +95,14 @@ export function MetricCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden border-border/70 bg-gradient-to-br shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5",
+        "relative h-full border-border/70 bg-gradient-to-br shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5",
         metricSurfaceToneClasses[tone],
         metricAccentToneClasses[tone],
         className,
       )}
     >
-      <CardContent className="p-5">
-        <div className="flex min-h-[126px] items-start justify-between gap-4">
+      <CardContent className="h-full p-5">
+        <div className="flex h-full min-h-[126px] items-center justify-between gap-4">
           <div className="min-w-0 space-y-2">
             <p className="text-xs font-semibold tracking-[0.08em] text-muted-foreground">
               {label}
@@ -121,94 +121,22 @@ export function MetricCard({
   );
 }
 
-type MetricHeroCardProps = {
-  label: string;
-  value: number | string;
-  helper?: ReactNode;
-  breakdown?: ReactNode;
-  icon?: ReactNode;
-  className?: string;
-};
+const metricGridColumnClasses = {
+  2: "md:grid-cols-2",
+  3: "grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))]",
+  4: "md:grid-cols-2 xl:grid-cols-4",
+} as const;
 
-/** @deprecated Compatibility adapter for existing analytical screens. Do not add new consumers. */
-export function MetricHeroCard({
-  label,
-  value,
-  helper,
-  breakdown,
-  icon,
-  className,
-}: MetricHeroCardProps) {
-  return (
-    <Card
-      className={cn(
-        "relative overflow-hidden border-border/70 bg-card shadow-none before:absolute before:inset-y-5 before:left-0 before:w-1 before:bg-primary",
-        className,
-      )}
-    >
-      <CardContent className="p-6 lg:p-7">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0 space-y-3">
-            <p className="text-xs font-semibold tracking-[0.08em] text-primary">{label}</p>
-            <AmountDisplay value={value} size="hero" className="font-extrabold" />
-            {helper ? <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{helper}</p> : null}
-          </div>
-          <div className="flex shrink-0 items-center gap-4">
-            {breakdown ? <div className="text-sm text-muted-foreground">{breakdown}</div> : null}
-            {icon ? (
-              <div className="rounded-lg border border-primary/18 bg-primary/10 p-3 text-primary">
-                {icon}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export function MetricGrid({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("grid gap-3 md:grid-cols-2 xl:grid-cols-4", className)}>{children}</div>;
-}
-
-type OperationalTableShellProps = {
-  title: string;
-  description?: string;
-  count?: number;
-  actions?: ReactNode;
-  children: ReactNode;
-  className?: string;
-};
-
-/** @deprecated Compatibility adapter. New operational datasets must compose DataTable in a canonical Surface. */
-export function OperationalTableShell({
-  title,
-  description,
-  count,
-  actions,
+export function MetricGrid({
   children,
   className,
-}: OperationalTableShellProps) {
-  return (
-    <Card className={cn("min-w-0 border-border/70 shadow-none", className)}>
-      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <CardTitle>{title}</CardTitle>
-          {description ? <CardDescription>{description}</CardDescription> : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {typeof count === "number" ? <CompactBadge>{count} {count === 1 ? "registro" : "registros"}</CompactBadge> : null}
-          {actions}
-        </div>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
-
-/** @deprecated Compatibility adapter. New screens must use the canonical Surface/Card recipe. */
-export function SectionCard({ children, className }: { children: ReactNode; className?: string }) {
-  return <Card className={cn("border-border/70 shadow-none", className)}>{children}</Card>;
+  columns = 4,
+}: {
+  children: ReactNode;
+  className?: string;
+  columns?: keyof typeof metricGridColumnClasses;
+}) {
+  return <div className={cn("grid gap-3", metricGridColumnClasses[columns], className)}>{children}</div>;
 }
 
 export function StatusBadge({
@@ -241,9 +169,6 @@ export function StatusBadge({
     </Badge>
   );
 }
-
-/** @deprecated Compatibility alias. Use a semantic badge primitive instead. */
-export const CompactBadge = StatusBadge;
 
 export function CountBadge({ children, className }: { children: ReactNode; className?: string }) {
   return <StatusBadge tone="muted" className={className}>{children}</StatusBadge>;
