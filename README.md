@@ -1021,6 +1021,13 @@ Production migration history note:
 - Se retiraron los adapters visuales deprecated y las recetas CSS reemplazadas después de verificar cero consumidores; la gobernanza evita que reaparezcan.
 - No se modificaron reglas de negocio, consultas, mutations, permisos, RLS, aislamiento por `company_id`, base de datos ni el alcance funcional de Facturación. No requiere migraciones.
 
+## Suite crítica de base de datos
+
+- Los fixtures usan el modelo canónico de roles globales, el esquema vigente de clientes y membresías válidas por empresa.
+- Los rechazos esperados se ejecutan con savepoints para no contaminar la transacción del caso de prueba.
+- La cobertura de permisos de Rendiciones concede explícitamente cada acción ejercitada por el escenario.
+- No requiere migraciones ni modifica datos persistentes: los casos transaccionales revierten sus fixtures.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo

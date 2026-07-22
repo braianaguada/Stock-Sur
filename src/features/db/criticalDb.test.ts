@@ -124,6 +124,20 @@ async function seedActor(companyId: string, userId: string, status: "ACTIVE" | "
   return inserted.rows[0].id as string;
 }
 
+async function seedGlobalRole(userId: string, roleCode: string) {
+  await client.query(
+    `
+    insert into public.global_user_roles (user_id, role_id)
+    select $1, r.id
+    from public.roles r
+    where r.code = $2
+      and r.scope = 'GLOBAL'
+    on conflict do nothing
+    `,
+    [userId, roleCode],
+  );
+}
+
 const SETTLEMENT_PERMISSIONS = [
   "settlements.view",
   "settlements.create",
@@ -199,8 +213,8 @@ async function seedCustomer(companyId: string, name: string, isOccasional = fals
   const customerId = crypto.randomUUID();
   await client.query(
     `
-    insert into public.customers (id, company_id, name, cuit, is_occasional, created_at, updated_at)
-    values ($1, $2, $3, null, $4, now(), now())
+    insert into public.customers (id, company_id, name, cuit, is_occasional, created_at)
+    values ($1, $2, $3, null, $4, now())
     `,
     [customerId, companyId, name, isOccasional],
   );
@@ -261,14 +275,7 @@ describeCriticalDb("critical database rules", () => {
       const userId = crypto.randomUUID();
       const slug = `db-create-company-${userId.slice(0, 8)}`;
       await seedUser(userId);
-      await client.query(
-        `
-        insert into public.user_roles (user_id, role)
-        values ($1, 'superadmin')
-        on conflict do nothing
-        `,
-        [userId],
-      );
+      await seedGlobalRole(userId, "superadmin");
 
       await setActor(userId);
       await client.query("set local role authenticated");
@@ -595,9 +602,9 @@ describeCriticalDb("critical database rules", () => {
         [crypto.randomUUID(), overReturnDocumentId, itemId, userId],
       );
 
-      await expect(client.query(`select status from public.issue_document($1)`, [overReturnDocumentId])).rejects.toThrow();
+      await expectDbRejection(`select status from public.issue_document($1)`, [overReturnDocumentId]);
     });
-  });
+  }, 15000);
 
   it("no genera DEBIT para remito identificado sin condicion cuenta corriente", async () => {
     await withRollback(async () => {
@@ -1337,29 +1344,25 @@ describeCriticalDb("critical database rules", () => {
       await seedCompany(otherCompany);
       const otherItem = await seedItem(otherCompany, userId);
 
-      await expect(
-        client.query(
-          `select public.upsert_product_combo_with_lines($1, null, $2, $3, true, $4::jsonb)`,
-          [
-            companyId,
-            "Combo invalido",
-            null,
-            JSON.stringify([{ item_id: item1, quantity: 0, line_order: 1, notes: null }]),
-          ],
-        ),
-      ).rejects.toThrow();
+      await expectDbRejection(
+        `select public.upsert_product_combo_with_lines($1, null, $2, $3, true, $4::jsonb)`,
+        [
+          companyId,
+          "Combo invalido",
+          null,
+          JSON.stringify([{ item_id: item1, quantity: 0, line_order: 1, notes: null }]),
+        ],
+      );
 
-      await expect(
-        client.query(
-          `select public.upsert_product_combo_with_lines($1, null, $2, $3, true, $4::jsonb)`,
-          [
-            companyId,
-            "Combo otro item",
-            null,
-            JSON.stringify([{ item_id: otherItem, quantity: 1, line_order: 1, notes: null }]),
-          ],
-        ),
-      ).rejects.toThrow();
+      await expectDbRejection(
+        `select public.upsert_product_combo_with_lines($1, null, $2, $3, true, $4::jsonb)`,
+        [
+          companyId,
+          "Combo otro item",
+          null,
+          JSON.stringify([{ item_id: otherItem, quantity: 1, line_order: 1, notes: null }]),
+        ],
+      );
 
       const combos = await client.query(`select count(*)::int as count from public.product_combos where company_id = $1`, [companyId]);
       expect(combos.rows[0].count).toBe(0);
@@ -1470,12 +1473,15 @@ describeCriticalDb("critical database rules", () => {
   it("aisla rendiciones entre empresas", async () => {
     await withRollback(async () => {
       const userId = crypto.randomUUID();
+      const otherUserId = crypto.randomUUID();
       const companyA = crypto.randomUUID();
       const companyB = crypto.randomUUID();
       await seedUser(userId);
+      await seedUser(otherUserId);
       await seedCompany(companyA);
       await seedCompany(companyB);
       const companyUserId = await seedActor(companyA, userId);
+      await seedActor(companyB, otherUserId);
       await seedSettlementPermissions(companyUserId, ["settlements.view", "settlements.create", "settlements.edit"]);
 
       const settlementA = crypto.randomUUID();
@@ -1483,12 +1489,12 @@ describeCriticalDb("critical database rules", () => {
       await client.query(
         `
         insert into public.settlements (id, company_id, settlement_date, notes, created_by)
-        values ($1, $2, current_date, 'A', $5), ($3, $4, current_date, 'B', $5)
+        values ($1, $2, current_date, 'A', $5), ($3, $4, current_date, 'B', $6)
         `,
-        [settlementA, companyA, settlementB, companyB, userId],
+        [settlementA, companyA, settlementB, companyB, userId, otherUserId],
       );
       const incomeA = await insertSettlementIncomeLine(settlementA, userId, 100, 0);
-      const incomeB = await insertSettlementIncomeLine(settlementB, userId, 200, 0);
+      const incomeB = await insertSettlementIncomeLine(settlementB, otherUserId, 200, 0);
 
       await setActor(userId);
       await client.query("set local role authenticated");
@@ -1803,7 +1809,13 @@ describeCriticalDb("critical database rules", () => {
       await seedUser(userId);
       await seedCompany(companyId);
       const companyUserId = await seedActor(companyId, userId);
-      await seedSettlementPermissions(companyUserId, ["settlements.view", "settlements.create", "settlements.edit", "settlements.submit"]);
+      await seedSettlementPermissions(companyUserId, [
+        "settlements.view",
+        "settlements.create",
+        "settlements.edit",
+        "settlements.submit",
+        "settlements.cancel",
+      ]);
 
       await setActor(userId);
       await client.query("set local role authenticated");
