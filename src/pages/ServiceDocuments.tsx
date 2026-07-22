@@ -1,12 +1,14 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
-import { CompactBadge, OperationalTableShell } from "@/components/common/VisualSystem";
+import { CountBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { DataTable } from "@/components/data-table/DataTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
-import { FilterBar, PageHeader } from "@/components/ui/page";
-import { Card, CardContent } from "@/components/ui/card";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -579,10 +581,62 @@ export default function ServiceDocumentsPage() {
 
   const previewDocument = selectedDocument ?? null;
   const previewLines = selectedLines;
+  const documentColumns: ColumnDef<ServiceDocument, unknown>[] = [
+    {
+      id: "document",
+      header: "Documento",
+      cell: ({ row }) => (
+        <PrimaryCell
+          title={`${SERVICE_DOCUMENT_PREFIX}-${String(row.original.number).padStart(6, "0")}`}
+          metadata={row.original.reference || "Sin referencia"}
+        />
+      ),
+    },
+    {
+      id: "customer",
+      header: "Cliente",
+      cell: ({ row }) => <PrimaryCell title={row.original.customers?.name ?? "Sin cliente"} />,
+    },
+    {
+      accessorKey: "issue_date",
+      header: "Fecha",
+      cell: ({ row }) => formatIsoDate(row.original.issue_date),
+    },
+    {
+      accessorKey: "status",
+      header: "Estado",
+      cell: ({ row }) => (
+        <StatusBadge tone={SERVICE_STATUS_TONE[row.original.status]}>
+          {SERVICE_STATUS_LABEL[row.original.status]}
+        </StatusBadge>
+      ),
+    },
+    {
+      id: "total",
+      header: "Total",
+      meta: { className: "text-right", cellClassName: "text-right" },
+      cell: ({ row }) => <MoneyCell value={formatMoney(row.original.total ?? 0, row.original.currency)} format="plain" />,
+    },
+    {
+      id: "actions",
+      header: "Acciones",
+      meta: { className: "w-24 text-right", cellClassName: "text-right" },
+      cell: ({ row }) => (
+        <RowActions>
+          <RowActionButton label="Vista previa" tone="view" onClick={() => openPreview(row.original)}>
+            <Eye className="h-4 w-4" />
+          </RowActionButton>
+          <RowActionButton label="Mas acciones" onClick={() => setActionDocument(row.original)}>
+            <MoreHorizontal className="h-4 w-4" />
+          </RowActionButton>
+        </RowActions>
+      ),
+    },
+  ];
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer archetype="workspace" className="page-shell">
         {!currentCompany ? <CompanyAccessNotice description="Necesitas una empresa activa para crear presupuestos de servicio." /> : null}
 
         <PageHeader
@@ -601,7 +655,7 @@ export default function ServiceDocumentsPage() {
           }
         />
 
-        <FilterBar>
+        <FilterToolbar>
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Buscar cliente, numero o referencia..." className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} />
@@ -631,21 +685,15 @@ export default function ServiceDocumentsPage() {
               </SelectContent>
             </Select>
           </div>
-        </FilterBar>
+        </FilterToolbar>
 
-        <OperationalTableShell
-          title="Presupuestos de servicio"
-          description="Seguimiento comercial, vista previa y acciones sobre cada presupuesto."
-          count={documents.length}
-        >
-          {isLoading ? (
-            <div className="grid gap-3 p-6">
-              <div className="h-4 w-40 animate-pulse rounded bg-muted" />
-              <div className="h-24 animate-pulse rounded-lg border bg-muted/30" />
-              <div className="h-24 animate-pulse rounded-lg border bg-muted/30" />
-              <div className="h-24 animate-pulse rounded-lg border bg-muted/30" />
-            </div>
-          ) : documents.length === 0 ? (
+        <Card className="min-w-0 border-border/70 shadow-none">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div><CardTitle>Presupuestos de servicio</CardTitle><CardDescription>Seguimiento comercial, vista previa y acciones sobre cada presupuesto.</CardDescription></div>
+            <CountBadge>{documents.length} {documents.length === 1 ? "registro" : "registros"}</CountBadge>
+          </CardHeader>
+          <CardContent className="p-0">
+          {!isLoading && documents.length === 0 ? (
             <Card className="m-4 border-dashed bg-muted/15">
               <CardContent className="flex flex-col items-start gap-3 p-6 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
@@ -666,49 +714,20 @@ export default function ServiceDocumentsPage() {
             </Card>
           ) : (
             <div className="overflow-x-auto">
-            <Table className="min-w-[820px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Numero</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="w-24 text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagedDocuments.map((document) => (
-                  <TableRow key={document.id} className="h-14">
-                    <TableCell className="font-medium">{SERVICE_DOCUMENT_PREFIX}-{String(document.number).padStart(6, "0")}</TableCell>
-                    <TableCell>{document.customers?.name ?? "Sin cliente"}</TableCell>
-                    <TableCell>{formatIsoDate(document.issue_date)}</TableCell>
-                    <TableCell>
-                      <CompactBadge tone={SERVICE_STATUS_TONE[document.status]}>{SERVICE_STATUS_LABEL[document.status]}</CompactBadge>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-right font-semibold tabular-nums">{formatMoney(document.total ?? 0, document.currency)}</TableCell>
-                    <TableCell className="text-right">
-                      <RowActions>
-                        <RowActionButton label="Vista previa" tone="view" onClick={() => openPreview(document)}>
-                          <Eye className="h-4 w-4" />
-                        </RowActionButton>
-                        <RowActionButton label="Mas acciones" onClick={() => setActionDocument(document)}>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </RowActionButton>
-                      </RowActions>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {Array.from({ length: Math.max(0, pageSize - pagedDocuments.length) }, (_, index) => (
-                  <TableRow key={`empty-${index}`} className="h-14" aria-hidden="true">
-                    <TableCell colSpan={6} />
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+              <DataTable
+                columns={documentColumns}
+                data={pagedDocuments}
+                emptyMessage="No hay presupuestos para los filtros seleccionados."
+                isLoading={isLoading}
+                loadingMessage="Cargando presupuestos..."
+                getRowId={(document) => document.id}
+                reserveEmptyRows={pageSize}
+                className="min-w-[820px]"
+              />
             </div>
           )}
-        </OperationalTableShell>
+          </CardContent>
+        </Card>
         {documents.length > 0 ? (
           <DataTablePagination
             page={safePage}
@@ -723,7 +742,7 @@ export default function ServiceDocumentsPage() {
             itemLabel="presupuestos"
           />
         ) : null}
-      </div>
+      </PageContainer>
 
       <Dialog open={Boolean(actionDocument)} onOpenChange={(open) => { if (!open) setActionDocument(null); }}>
         <DialogContent className="max-w-sm">
