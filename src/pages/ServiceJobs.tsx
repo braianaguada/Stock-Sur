@@ -425,16 +425,16 @@ export default function ServiceJobsPage() {
             <CardContent className="p-4">
             {selectedJob ? (
               <div className="grid gap-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
                     <p className="page-eyebrow">Detalle</p>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-2xl font-bold tracking-tight">{selectedJob.title}</h2>
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <h2 className="min-w-0 break-words text-2xl font-bold tracking-tight">{selectedJob.title}</h2>
                       {selectedJobArchived ? <InfoBadge>Archivado</InfoBadge> : null}
                     </div>
-                    <p className="text-sm text-muted-foreground">{selectedJob.customers?.name ?? "Sin cliente asociado"}</p>
+                    <p className="break-words text-sm text-muted-foreground">{selectedJob.customers?.name ?? "Sin cliente asociado"}</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                     <JobStatusBadge status={selectedJob.status} />
                     {selectedJobArchived ? (
                       <Button size="sm" variant="outline" onClick={() => setJobToRestore(selectedJob)}>
@@ -447,7 +447,7 @@ export default function ServiceJobsPage() {
                     )}
                   </div>
                 </div>
-                <p className="rounded-xl border bg-muted/20 p-3 text-sm text-muted-foreground">{selectedJob.description || "Sin descripcion cargada."}</p>
+                <p className="break-words rounded-xl border bg-muted/20 p-3 text-sm text-muted-foreground">{selectedJob.description || "Sin descripcion cargada."}</p>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-xl border bg-muted/15 p-3">
                     <p className="text-xs font-semibold uppercase text-muted-foreground">Servicios</p>
@@ -466,7 +466,7 @@ export default function ServiceJobsPage() {
                     <p className="mt-1 text-xl font-bold">{formatMoney(selectedRemitoSummary.estimatedCost)}</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <h3 className="font-semibold">Servicios</h3>
                   <Button size="sm" onClick={openCreateService} disabled={selectedJobArchived}><Plus className="mr-2 h-4 w-4" /> Agregar servicio</Button>
                 </div>
