@@ -112,8 +112,8 @@ export default function SettingsPage() {
           }}
         />
 
-        <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
-          <Card id="company-settings" className="scroll-mt-24 border-border/70 shadow-none">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
+          <Card id="company-settings" className="min-w-0 scroll-mt-24 border-border/70 shadow-none">
             <CardHeader>
               <CardTitle>Datos de la empresa</CardTitle>
               <CardDescription>Estos datos se reutilizan en la app, la navegacion y los PDFs.</CardDescription>
@@ -292,8 +292,8 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <div className="space-y-6">
-            <Card id="brand-settings" className="scroll-mt-24 border-border/70 shadow-none">
+          <div className="min-w-0 space-y-6">
+            <Card id="brand-settings" className="min-w-0 scroll-mt-24 border-border/70 shadow-none">
               <CardHeader>
                 <CardTitle>Marca visual</CardTitle>
                 <CardDescription>

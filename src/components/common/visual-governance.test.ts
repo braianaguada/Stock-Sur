@@ -201,7 +201,11 @@ describe("visual governance", () => {
 
     const usersTable = readFileSync(resolve(root, "src/features/users/components/UsersAccessTable.tsx"), "utf8");
     const companiesTable = readFileSync(resolve(root, "src/features/users/components/CompaniesManagementCard.tsx"), "utf8");
+    const settings = readFileSync(resolve(root, "src/pages/Settings.tsx"), "utf8");
     expect(usersTable, "user administration must use the canonical DataTable").toContain("<DataTable");
     expect(companiesTable, "company administration must use the canonical DataTable").toContain("<DataTable");
+    expect(settings, "settings columns must shrink without causing root overflow").toContain(
+      'grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]',
+    );
   });
 });
