@@ -5,22 +5,10 @@ import { describe, expect, it } from "vitest";
 const root = resolve(process.cwd());
 
 const deprecatedConsumers: Record<string, readonly string[]> = {
-  CompactBadge: [
-    "src/pages/Combos.tsx",
-    "src/pages/ServiceDocuments.tsx",
-    "src/pages/ServiceJobs.tsx",
-  ],
-  MetricHeroCard: [
-    "src/components/common/VisualSystem.test.tsx",
-    "src/pages/Technicians.tsx",
-  ],
-  OperationalTableShell: [
-    "src/components/common/VisualSystem.test.tsx",
-    "src/pages/ServiceDocuments.tsx",
-    "src/pages/ServiceJobs.tsx",
-    "src/pages/Technicians.tsx",
-  ],
-  SectionCard: ["src/pages/Combos.tsx", "src/pages/Technicians.tsx"],
+  CompactBadge: ["src/pages/Combos.tsx"],
+  MetricHeroCard: ["src/components/common/VisualSystem.test.tsx"],
+  OperationalTableShell: ["src/components/common/VisualSystem.test.tsx"],
+  SectionCard: ["src/pages/Combos.tsx"],
 };
 
 const visualSystemImport =
@@ -170,5 +158,25 @@ describe("visual governance", () => {
     const billing = readFileSync(resolve(root, "src/pages/Billing.tsx"), "utf8");
     expect(expenses, "cash expenses must use the canonical DataTable").not.toContain("<table");
     expect(billing, "billing documents must use the canonical DataTable").not.toContain("<table");
+  });
+
+  it("keeps service workflow surfaces on canonical primitives", () => {
+    const serviceFiles = [
+      "src/pages/ServiceJobs.tsx",
+      "src/pages/ServiceDocuments.tsx",
+      "src/pages/Technicians.tsx",
+      "src/pages/Settlements.tsx",
+    ];
+
+    for (const file of serviceFiles) {
+      const source = readFileSync(resolve(root, file), "utf8");
+      expect(source, `${file} must not import deprecated visual primitives`).not.toMatch(
+        /\b(?:CompactBadge|DataCard|FilterBar|StatCard|MetricHeroCard|OperationalTableShell|SectionCard)\b/,
+      );
+      expect(source, `${file} must not import raw badges`).not.toContain('from "@/components/ui/badge"');
+    }
+
+    const serviceDocuments = readFileSync(resolve(root, "src/pages/ServiceDocuments.tsx"), "utf8");
+    expect(serviceDocuments, "service document listing must use the canonical DataTable").toContain("<DataTable");
   });
 });

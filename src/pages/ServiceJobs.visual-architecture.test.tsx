@@ -82,6 +82,8 @@ describe("ServiceJobsPage visual architecture", () => {
 
     expect(screen.getByRole("heading", { name: "Trabajos y servicios" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Bandeja de trabajos" }).closest("[class*='min-w-0']")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Instalaci.n sucursal norte/ })).toHaveClass("min-w-0", "break-words");
+    expect(screen.getByText("Detalle").parentElement?.parentElement).toHaveClass("flex-col", "sm:flex-row");
     expect(screen.getByText("1 registro")).toBeInTheDocument();
     expect(screen.getByTestId("service-job-mobile-list")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Instalación sucursal norte.*Cliente Norte.*En curso/s })).toHaveClass("min-w-0", "w-full");
