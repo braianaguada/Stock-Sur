@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogBody,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -34,13 +35,16 @@ export function EntityDialog({
 }: EntityDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn("w-[min(92vw,46rem)] max-w-[46rem] max-h-[88vh] overflow-y-auto", contentClassName)}>
-        <DialogHeader className={headerClassName}>
+      <DialogContent
+        variant="form"
+        className={cn("flex max-h-[min(88dvh,900px)] flex-col overflow-hidden", contentClassName)}
+      >
+        <DialogHeader className={cn("shrink-0 pr-8", headerClassName)}>
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
-        {bodyClassName ? <div className={bodyClassName}>{children}</div> : children}
-        {footer ? <DialogFooter>{footer}</DialogFooter> : null}
+        <DialogBody className={cn("-mx-1 px-1", bodyClassName)}>{children}</DialogBody>
+        {footer ? <DialogFooter className="shrink-0 border-t pt-4">{footer}</DialogFooter> : null}
       </DialogContent>
     </Dialog>
   );
