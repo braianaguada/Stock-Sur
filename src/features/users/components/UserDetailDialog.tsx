@@ -1,6 +1,6 @@
 import { BadgeCheck, Building2, Pencil, Plus, Shield, User2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
-import { Badge } from "@/components/ui/badge";
+import { CategoryBadge, MetricCard, MetricGrid, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { UserAccessRow, UserCompanyAccess } from "@/features/users/types";
@@ -19,7 +19,7 @@ export function UserDetailDialog(props: {
       onOpenChange={onOpenChange}
       title="Detalle de usuario"
       description="Vista previa de membresias, roles globales y acceso por empresa."
-      contentClassName="max-w-4xl overflow-x-hidden"
+      contentClassName="max-w-4xl"
     >
       {selectedUser ? (
         <div className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
@@ -41,9 +41,9 @@ export function UserDetailDialog(props: {
                 <div className="flex flex-wrap gap-2">
                   {selectedUser.global_roles?.length ? (
                     selectedUser.global_roles.map((role) => (
-                      <Badge key={role} variant={role === "superadmin" ? "default" : "secondary"}>
+                      <CategoryBadge key={role}>
                         {role}
-                      </Badge>
+                      </CategoryBadge>
                     ))
                   ) : (
                     <span className="text-sm text-muted-foreground">Sin roles globales asignados.</span>
@@ -52,45 +52,34 @@ export function UserDetailDialog(props: {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 bg-card/86 shadow-[var(--shadow-xs)]">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Resumen operativo</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/52 px-4 py-3.5">
-                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    <Building2 className="h-3.5 w-3.5" />
-                    Empresas
-                  </div>
-                  <p className="mt-2 text-2xl font-bold">{selectedUser.companies?.length ?? 0}</p>
-                </div>
-                <div className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/52 px-4 py-3.5">
-                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    <Shield className="h-3.5 w-3.5" />
-                    Roles globales
-                  </div>
-                  <p className="mt-2 text-2xl font-bold">{selectedUser.global_roles?.length ?? 0}</p>
-                </div>
-                <div className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/52 px-4 py-3.5">
-                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    <BadgeCheck className="h-3.5 w-3.5" />
-                    Membresias activas
-                  </div>
-                  <p className="mt-2 text-2xl font-bold">
-                    {selectedUser.companies?.filter((company) => company.status === "ACTIVE").length ?? 0}
-                  </p>
-                </div>
-                <div className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-[hsl(var(--panel))]/52 px-4 py-3.5">
-                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    <Shield className="h-3.5 w-3.5" />
-                    Roles empresa
-                  </div>
-                  <p className="mt-2 text-2xl font-bold">
-                    {selectedUser.companies?.reduce((sum, company) => sum + (company.roles?.length ?? 0), 0) ?? 0}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <MetricGrid className="sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-2">
+              <MetricCard
+                label="Empresas"
+                value={selectedUser.companies?.length ?? 0}
+                format="plain"
+                icon={<Building2 className="h-4 w-4" />}
+              />
+              <MetricCard
+                label="Roles globales"
+                value={selectedUser.global_roles?.length ?? 0}
+                format="plain"
+                icon={<Shield className="h-4 w-4" />}
+                tone="info"
+              />
+              <MetricCard
+                label="Membresías activas"
+                value={selectedUser.companies?.filter((company) => company.status === "ACTIVE").length ?? 0}
+                format="plain"
+                icon={<BadgeCheck className="h-4 w-4" />}
+                tone="success"
+              />
+              <MetricCard
+                label="Roles empresa"
+                value={selectedUser.companies?.reduce((sum, company) => sum + (company.roles?.length ?? 0), 0) ?? 0}
+                format="plain"
+                icon={<Shield className="h-4 w-4" />}
+              />
+            </MetricGrid>
           </div>
 
           <Card className="border-border/60 bg-card/86 shadow-[var(--shadow-xs)]">
@@ -118,9 +107,9 @@ export function UserDetailDialog(props: {
                         <div className="min-w-0 space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-semibold">{company.companyName}</p>
-                            <Badge variant={company.status === "ACTIVE" ? "outline" : "destructive"}>
+                            <StatusBadge tone={company.status === "ACTIVE" ? "success" : "danger"}>
                               {company.status === "ACTIVE" ? "Membresia activa" : "Membresia inactiva"}
-                            </Badge>
+                            </StatusBadge>
                           </div>
                           <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                             {company.companySlug}
@@ -140,9 +129,9 @@ export function UserDetailDialog(props: {
                     <div className="mt-3 flex flex-wrap gap-2">
                       {company.roles?.length ? (
                         company.roles.map((role) => (
-                          <Badge key={`${company.companyUserId}-${role}`} variant="secondary">
+                          <CategoryBadge key={`${company.companyUserId}-${role}`}>
                             {role}
-                          </Badge>
+                          </CategoryBadge>
                         ))
                       ) : (
                         <span className="text-sm text-muted-foreground">Sin rol base asignado en esta empresa.</span>
