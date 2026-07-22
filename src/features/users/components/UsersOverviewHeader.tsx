@@ -1,10 +1,10 @@
-import { Plus, Search } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Building2, Plus, Search, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { UsersFilter } from "@/features/users/types";
-import { FilterBar, PageHeader, StatCard } from "@/components/ui/page";
+import { FilterToolbar, PageHeader } from "@/components/ui/page";
+import { InfoBadge, MetricCard, MetricGrid, StatusBadge } from "@/components/common/VisualSystem";
 
 interface UsersOverviewHeaderProps {
   filter: UsersFilter;
@@ -35,8 +35,8 @@ export function UsersOverviewHeader({
         subtitle="Vista general de usuarios, empresas asignadas y roles globales. Se mantiene la potencia de gestión, con una lectura más clara y ejecutiva."
         meta={(
           <>
-            <Badge variant="outline">Acceso superadmin</Badge>
-            <Badge variant="secondary">Permisos centralizados</Badge>
+            <StatusBadge tone="warning">Acceso superadmin</StatusBadge>
+            <InfoBadge>Permisos centralizados</InfoBadge>
           </>
         )}
         actions={(
@@ -47,13 +47,13 @@ export function UsersOverviewHeader({
         )}
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Usuarios totales" value={overviewStats.totalUsers} tone="success" />
-        <StatCard label="Empresas asignadas" value={overviewStats.totalCompaniesAssigned} tone="info" />
-        <StatCard label="Superadmins" value={overviewStats.totalSuperadmins} />
-      </div>
+      <MetricGrid className="xl:grid-cols-3">
+        <MetricCard label="Usuarios totales" value={overviewStats.totalUsers} format="plain" tone="success" icon={<Users className="h-5 w-5" />} />
+        <MetricCard label="Empresas asignadas" value={overviewStats.totalCompaniesAssigned} format="plain" tone="info" icon={<Building2 className="h-5 w-5" />} />
+        <MetricCard label="Superadmins" value={overviewStats.totalSuperadmins} format="plain" icon={<ShieldCheck className="h-5 w-5" />} />
+      </MetricGrid>
 
-      <FilterBar className="justify-between gap-4">
+      <FilterToolbar className="justify-between gap-4">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -64,15 +64,18 @@ export function UsersOverviewHeader({
           />
         </div>
 
-        <Tabs value={filter} onValueChange={(value) => onFilterChange(value as UsersFilter)}>
-          <TabsList className="flex h-auto w-full flex-wrap justify-end gap-1.5 rounded-2xl p-1">
-            <TabsTrigger value="ALL">Todos</TabsTrigger>
-            <TabsTrigger value="SUPERADMINS">Superadmins</TabsTrigger>
-            <TabsTrigger value="WITHOUT_COMPANY">Sin empresa</TabsTrigger>
-            <TabsTrigger value="INACTIVE_MEMBERSHIPS">Con inactivas</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </FilterBar>
+        <Select value={filter} onValueChange={(value) => onFilterChange(value as UsersFilter)}>
+          <SelectTrigger className="w-full sm:w-[220px]" aria-label="Filtrar usuarios">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos los usuarios</SelectItem>
+            <SelectItem value="SUPERADMINS">Superadmins</SelectItem>
+            <SelectItem value="WITHOUT_COMPANY">Sin empresa</SelectItem>
+            <SelectItem value="INACTIVE_MEMBERSHIPS">Con membresías inactivas</SelectItem>
+          </SelectContent>
+        </Select>
+      </FilterToolbar>
     </>
   );
 }

@@ -179,4 +179,29 @@ describe("visual governance", () => {
     const serviceDocuments = readFileSync(resolve(root, "src/pages/ServiceDocuments.tsx"), "utf8");
     expect(serviceDocuments, "service document listing must use the canonical DataTable").toContain("<DataTable");
   });
+
+  it("keeps administration surfaces on canonical primitives", () => {
+    const administrationFiles = [
+      "src/pages/Users.tsx",
+      "src/pages/Settings.tsx",
+      "src/features/users/components/UsersOverviewHeader.tsx",
+      "src/features/users/components/UsersAccessTable.tsx",
+      "src/features/users/components/CompaniesManagementCard.tsx",
+      "src/features/users/components/UserAccessDialog.tsx",
+      "src/features/users/components/UserDetailDialog.tsx",
+    ];
+
+    for (const file of administrationFiles) {
+      const source = readFileSync(resolve(root, file), "utf8");
+      expect(source, `${file} must not import deprecated visual primitives`).not.toMatch(
+        /\b(?:CompactBadge|DataCard|FilterBar|StatCard|MetricHeroCard|OperationalTableShell|SectionCard)\b/,
+      );
+      expect(source, `${file} must not import raw badges`).not.toContain('from "@/components/ui/badge"');
+    }
+
+    const usersTable = readFileSync(resolve(root, "src/features/users/components/UsersAccessTable.tsx"), "utf8");
+    const companiesTable = readFileSync(resolve(root, "src/features/users/components/CompaniesManagementCard.tsx"), "utf8");
+    expect(usersTable, "user administration must use the canonical DataTable").toContain("<DataTable");
+    expect(companiesTable, "company administration must use the canonical DataTable").toContain("<DataTable");
+  });
 });

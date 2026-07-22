@@ -1,4 +1,5 @@
 ﻿import { AppLayout } from "@/components/AppLayout";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { PageHeader } from "@/components/ui/page";
+import { PageContainer, PageHeader } from "@/components/ui/page";
+import { InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
 import { THEME_OPTIONS, buildCompanyThemePayload } from "@/lib/companyTheme";
 import { canManageBillingSettings, canViewSettings } from "@/lib/permissions";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +20,7 @@ import { useBillingDiagnostics, useBillingPointsOfSale, useBillingSettings } fro
 import { billingFeatureEnabled } from "@/lib/features";
 
 export default function SettingsPage() {
+  const [activeSection, setActiveSection] = useState("company-settings");
   const { roles, currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
   const { toast } = useToast();
   const {
@@ -53,13 +56,13 @@ export default function SettingsPage() {
   if (!canAccessSettings) {
     return (
       <AppLayout>
-        <div className="page-shell">
+        <PageContainer className="page-shell">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Configuracion</h1>
             <p className="text-muted-foreground">Acceso restringido a usuarios administradores.</p>
           </div>
 
-          <Card className="max-w-2xl rounded-3xl border-amber-200 bg-amber-50/80">
+          <Card className="max-w-2xl border-warning/25 bg-warning/10 shadow-none">
             <CardHeader>
               <CardTitle>Sin permisos</CardTitle>
               <CardDescription>
@@ -67,7 +70,7 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
           </Card>
-        </div>
+        </PageContainer>
       </AppLayout>
     );
   }
@@ -75,47 +78,42 @@ export default function SettingsPage() {
   if (!currentCompany) {
     return (
       <AppLayout>
-        <div className="page-shell">
+        <PageContainer className="page-shell">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Configuracion</h1>
             <p className="text-muted-foreground">Todavia no hay una empresa activa seleccionada.</p>
           </div>
-        </div>
+        </PageContainer>
       </AppLayout>
     );
   }
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer className="page-shell">
         <PageHeader
-          eyebrow="Branding y operacion"
-          title="Configuracion"
+          eyebrow="Administración de empresa"
+          title="Configuración"
           subtitle={`Empresa, identidad visual y encabezados de documentos para ${form.app_name || currentCompany.name}. Todo lo que definas aca se refleja en menus, PDFs y branding compartido.`}
+          meta={(
+            <>
+              <InfoBadge>{currentCompany.name}</InfoBadge>
+              <StatusBadge tone={canManage ? "success" : "muted"}>{canManage ? "Edición habilitada" : "Solo lectura"}</StatusBadge>
+            </>
+          )}
+          tabs={[
+            { label: "Empresa y operación", value: "company-settings" },
+            { label: "Marca visual", value: "brand-settings" },
+          ]}
+          activeTab={activeSection}
+          onTabChange={(sectionId) => {
+            setActiveSection(sectionId);
+            document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
         />
 
-        <div className="hidden rounded-3xl border bg-gradient-to-r from-[hsl(var(--accent))] via-card to-card p-6">
-          <h1 className="text-2xl font-bold tracking-tight">Configuracion</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Empresa, identidad visual y encabezados de documentos para {form.app_name || currentCompany.name}. Todo lo que definas aca se refleja en menus, PDFs y branding compartido.
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <div className="rounded-full border bg-background/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              {form.app_name || "Nombre de la app"}
-            </div>
-            <div className="flex items-center gap-2 rounded-full border bg-background/70 px-4 py-2 text-xs text-muted-foreground">
-              <span className="h-2.5 w-2.5 rounded-full border" style={{ backgroundColor: form.primary_color }} />
-              Primario
-              <span className="h-2.5 w-2.5 rounded-full border" style={{ backgroundColor: form.secondary_color }} />
-              Secundario
-              <span className="h-2.5 w-2.5 rounded-full border" style={{ backgroundColor: form.accent_color }} />
-              Acento
-            </div>
-          </div>
-        </div>
-
         <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
-          <Card>
+          <Card id="company-settings" className="scroll-mt-24 border-border/70 shadow-none">
             <CardHeader>
               <CardTitle>Datos de la empresa</CardTitle>
               <CardDescription>Estos datos se reutilizan en la app, la navegacion y los PDFs.</CardDescription>
@@ -295,7 +293,7 @@ export default function SettingsPage() {
           </Card>
 
           <div className="space-y-6">
-            <Card>
+            <Card id="brand-settings" className="scroll-mt-24 border-border/70 shadow-none">
               <CardHeader>
                 <CardTitle>Marca visual</CardTitle>
                 <CardDescription>
@@ -385,7 +383,7 @@ export default function SettingsPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="overflow-hidden rounded-3xl border">
+                    <div className="rounded-3xl border">
                       <div className="flex min-h-[160px]">
                         <div className="w-28 p-4 text-white" style={{ backgroundColor: `hsl(${previewTheme.tokens["sidebar-background"]})` }}>
                           <div className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold">Top bar</div>
@@ -433,7 +431,7 @@ export default function SettingsPage() {
             diagnosticsLoading={billingDiagnosticsQuery.isLoading}
           />
         </section> : null}
-      </div>
+      </PageContainer>
     </AppLayout>
   );
 }
