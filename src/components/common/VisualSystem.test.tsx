@@ -37,15 +37,16 @@ describe("visual system components", () => {
     expect(screen.getByText("Alertas").closest("[class*='items-center']")).toHaveClass("h-full", "items-center");
   });
 
-  it("uses the canonical three-column metric grid without local layout variants", () => {
+  it("keeps canonical three-column metrics above their readable minimum width", () => {
     const { container } = render(
       <MetricGrid columns={3}>
         <MetricCard label="Total del día" value={555000} helper="Ventas del día" />
       </MetricGrid>,
     );
 
-    expect(container.firstElementChild).toHaveClass("md:grid-cols-2", "xl:grid-cols-3");
+    expect(container.firstElementChild).toHaveClass("grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))]");
     expect(screen.getByText("Total del día").closest("[class*='h-full']")).toHaveClass("h-full");
+    expect(screen.getByText("Total del día").closest("[class*='relative']")).not.toHaveClass("overflow-hidden");
   });
 
   it("renders page header title, description and action", () => {

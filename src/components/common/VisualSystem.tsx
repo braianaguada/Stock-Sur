@@ -95,7 +95,7 @@ export function MetricCard({
   return (
     <Card
       className={cn(
-        "relative h-full overflow-hidden border-border/70 bg-gradient-to-br shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5",
+        "relative h-full border-border/70 bg-gradient-to-br shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5",
         metricSurfaceToneClasses[tone],
         metricAccentToneClasses[tone],
         className,
@@ -123,7 +123,7 @@ export function MetricCard({
 
 const metricGridColumnClasses = {
   2: "md:grid-cols-2",
-  3: "md:grid-cols-2 xl:grid-cols-3",
+  3: "grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))]",
   4: "md:grid-cols-2 xl:grid-cols-4",
 } as const;
 

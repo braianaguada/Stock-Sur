@@ -1015,7 +1015,7 @@ Production migration history note:
 ## Consolidación visual final
 
 - Dashboard reserva ancho suficiente para las tres métricas laterales y usa la grilla canónica sin textos recortados.
-- `MetricCard` mantiene igual altura y centra verticalmente título, valor, ayuda e icono; `MetricGrid` centraliza las variantes responsive de dos, tres y cuatro columnas.
+- `MetricCard` mantiene igual altura y centra verticalmente título, valor, ayuda e icono; `MetricGrid` centraliza las variantes responsive y preserva un ancho legible para las grillas de tres columnas según el espacio real del contenedor.
 - `FilterToolbar` alinea por la base buscadores, selects y controles etiquetados. El editor de documentos alinea `Opciones de documento` con el resto de sus campos.
 - `DialogActionGrid` normaliza tamaño y alineación de las acciones en Documentos y Caja.
 - Se retiraron los adapters visuales deprecated y las recetas CSS reemplazadas después de verificar cero consumidores; la gobernanza evita que reaparezcan.
