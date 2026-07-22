@@ -41,7 +41,9 @@ export function EntityDialog({
       >
         <DialogHeader className={cn("shrink-0 pr-8", headerClassName)}>
           <DialogTitle>{title}</DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
+          <DialogDescription className={description ? undefined : "sr-only"}>
+            {description ?? `Información y acciones de ${title}.`}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className={cn("-mx-1 px-1", bodyClassName)}>{children}</DialogBody>
         {footer ? <DialogFooter className="shrink-0 border-t pt-4">{footer}</DialogFooter> : null}

@@ -13,7 +13,6 @@ describe("EntityDialog visual and accessibility contract", () => {
         open
         onOpenChange={onOpenChange}
         title="Editar entidad"
-        description="Datos de prueba"
         footer={<Button>Guardar</Button>}
       >
         <input aria-label="Nombre" />
@@ -25,6 +24,7 @@ describe("EntityDialog visual and accessibility contract", () => {
     expect(document.querySelector('[data-slot="dialog-body"]')).toHaveClass("overflow-y-auto");
     expect(document.querySelector('[data-slot="dialog-header"]')).toHaveClass("shrink-0");
     expect(document.querySelector('[data-slot="dialog-footer"]')).toHaveClass("shrink-0");
+    expect(screen.getByText("Información y acciones de Editar entidad.")).toHaveClass("sr-only");
     expect(container).toBeDefined();
 
     await userEvent.keyboard("{Escape}");
