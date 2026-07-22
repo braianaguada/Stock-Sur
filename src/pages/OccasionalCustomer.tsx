@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Link, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { DataTable } from "@/components/data-table/DataTable";
-import { AmountDisplay } from "@/components/common/VisualSystem";
+import { AmountDisplay, MetricCard, MetricGrid } from "@/components/common/VisualSystem";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { DataCard, FilterBar, PageHeader, StatCard } from "@/components/ui/page";
+import { FilterToolbar, PageHeader } from "@/components/ui/page";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { PAYMENT_LABEL } from "@/features/cash/constants";
@@ -98,7 +98,6 @@ const CLOSURE_FILTERS: Array<OccasionalClosureStatus | "ALL"> = [
 function Money({ value }: { value: number }) {
   return <AmountDisplay value={value} size="sm" className="text-right" />;
 }
-
 export default function OccasionalCustomerPage() {
   const { roles, currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
   const { toast } = useToast();
@@ -257,7 +256,7 @@ export default function OccasionalCustomerPage() {
           </div>
         ) : null}
 
-        <FilterBar>
+        <FilterToolbar>
           <div className="grid w-full gap-3 md:grid-cols-[150px_150px_minmax(220px,1fr)_190px_190px_190px]">
             <Input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
             <Input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
@@ -284,26 +283,48 @@ export default function OccasionalCustomerPage() {
               </SelectContent>
             </Select>
           </div>
-        </FilterBar>
+        </FilterToolbar>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Operaciones" value={totals.operationsCount} hint={`${totals.cashSalesCount} ventas de caja`} />
-          <StatCard label="Pendiente Factura B" value={currency.format(totals.pendingInvoiceBTotal)} hint={`${totals.pendingInvoiceBCount} pendientes, ${totals.draftBillingCount} borradores`} tone={totals.pendingInvoiceBTotal > 0 ? "warning" : "success"} />
-          <StatCard label="Factura B autorizada" value={currency.format(totals.authorizedInvoiceBTotal)} hint={`${totals.invoiceBAuthorizedCount} comprobantes`} tone="success" />
-          <StatCard label="NC B autorizada" value={currency.format(totals.authorizedCreditNoteBTotal)} hint={`Neto fiscal ${currency.format(totals.netFiscalTotal)}`} tone={totals.authorizedCreditNoteBTotal > 0 ? "info" : "default"} />
-        </div>
+        <MetricGrid>
+          <MetricCard
+            label="Operaciones"
+            value={totals.operationsCount}
+            format="plain"
+            helper={`${totals.cashSalesCount} ventas de caja`}
+          />
+          <MetricCard
+            label="Pendiente Factura B"
+            value={totals.pendingInvoiceBTotal}
+            helper={`${totals.pendingInvoiceBCount} pendientes, ${totals.draftBillingCount} borradores`}
+            tone={totals.pendingInvoiceBTotal > 0 ? "warning" : "success"}
+          />
+          <MetricCard
+            label="Factura B autorizada"
+            value={totals.authorizedInvoiceBTotal}
+            helper={`${totals.invoiceBAuthorizedCount} comprobantes`}
+            tone="success"
+          />
+          <MetricCard
+            label="NC B autorizada"
+            value={totals.authorizedCreditNoteBTotal}
+            helper={`Neto fiscal ${currency.format(totals.netFiscalTotal)}`}
+            tone={totals.authorizedCreditNoteBTotal > 0 ? "info" : "default"}
+          />
+        </MetricGrid>
 
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-          <DataCard>
-            <DataTable
+          <Card className="min-w-0 border-border/70 shadow-none">
+            <CardContent className="p-0">
+              <DataTable
               columns={columns}
               data={filteredOperations}
               isLoading={operationsQuery.isLoading}
               loadingMessage="Cargando operaciones ocasionales..."
               emptyMessage="Sin operaciones ocasionales para el periodo seleccionado."
               className="table-fixed"
-            />
-          </DataCard>
+              />
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

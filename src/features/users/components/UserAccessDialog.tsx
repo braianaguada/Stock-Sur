@@ -143,7 +143,7 @@ export function UserAccessDialog(props: {
             </p>
           </div>
 
-          <MetricGrid className="sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
+          <MetricGrid columns={3}>
             <MetricCard label="Heredados" value={inheritedPermissionCount} format="plain" tone="success" />
             <MetricCard label="Permitir" value={overrideStats.allow} format="plain" tone="info" />
             <MetricCard label="Denegar" value={overrideStats.deny} format="plain" tone="danger" />

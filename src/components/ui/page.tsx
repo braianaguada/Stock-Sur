@@ -1,11 +1,4 @@
 import type { ReactNode } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  metricAccentToneClasses,
-  metricIconToneClasses,
-  metricValueToneClasses,
-  type MetricTone,
-} from "@/components/ui/metric-tone";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -109,44 +102,4 @@ export function PageHeader(props: {
 
 export function FilterToolbar({ className, children }: { className?: string; children: ReactNode }) {
   return <section aria-label="Filtros" className={cn("filter-strip", className)}>{children}</section>;
-}
-
-/** @deprecated Compatibility alias. New screens must use FilterToolbar. */
-export const FilterBar = FilterToolbar;
-
-/** @deprecated Compatibility adapter. New screens must use MetricCard. */
-export function StatCard(props: {
-  label: string;
-  value: ReactNode;
-  icon?: ReactNode;
-  hint?: ReactNode;
-  tone?: MetricTone;
-  className?: string;
-  featured?: boolean;
-}) {
-  const { label, value, icon, hint, tone = "default", featured = false, className } = props;
-
-  return (
-    <Card className={cn("stat-tile relative overflow-hidden border-border/70 bg-card shadow-none before:absolute before:inset-y-4 before:left-0 before:w-0.5", metricAccentToneClasses[tone], featured && "stat-tile-featured before:bg-cyan-300", className)}>
-      <CardContent className="p-0">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <p className={cn("text-xs font-semibold tracking-[0.08em] text-muted-foreground", featured && "text-indigo-100")}>{label}</p>
-            <div className={cn("text-3xl font-extrabold tracking-tight", metricValueToneClasses[tone], featured && "text-white")}>{value}</div>
-            {hint ? <p className={cn("text-sm text-muted-foreground", featured && "text-indigo-100/85")}>{hint}</p> : null}
-          </div>
-          {icon ? (
-            <div className={cn("rounded-lg border p-2.5", metricIconToneClasses[tone], featured && "border-cyan-200/25 bg-cyan-300/15 text-cyan-100")}>
-              {icon}
-            </div>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/** @deprecated Compatibility adapter. New screens must use the canonical Surface/Card recipe. */
-export function DataCard({ className, children }: { className?: string; children: ReactNode }) {
-  return <section className={cn("data-panel", className)}>{children}</section>;
 }

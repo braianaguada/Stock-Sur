@@ -221,7 +221,7 @@ export default function StockPage() {
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsContent value="summary" className="space-y-6 pt-1">
-            <MetricGrid className="xl:grid-cols-3">
+            <MetricGrid columns={3}>
               <MetricCard
                 label="Riesgo critico"
                 value={insightCounts.RED}

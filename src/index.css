@@ -256,33 +256,9 @@
   }
 
   .filter-strip {
-    @apply flex flex-col gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-border/55 p-4 shadow-[var(--shadow-xs)] md:flex-row md:flex-wrap md:items-center;
+    @apply flex flex-col gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-border/55 p-4 shadow-[var(--shadow-xs)] md:flex-row md:flex-wrap md:items-end;
     background-color: hsl(var(--card) / 0.72);
     border-top-color: hsl(var(--domain-accent) / 0.28);
-  }
-
-  .data-panel {
-    @apply overflow-hidden rounded-[calc(var(--radius)+0.35rem)] border border-border/55 shadow-[var(--shadow-xs)] backdrop-blur-sm;
-    background-color: hsl(var(--card) / 0.88);
-    border-top-color: hsl(var(--domain-accent) / 0.24);
-  }
-
-  .stat-tile {
-    @apply relative overflow-hidden rounded-[calc(var(--radius)+0.25rem)] border border-border/55 p-6 shadow-[var(--shadow-xs)] backdrop-blur-sm;
-    background-color: hsl(var(--card) / 0.94);
-  }
-
-  .stat-tile::after {
-    content: "";
-    @apply pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent;
-  }
-
-  .stat-tile-featured {
-    border-color: hsl(var(--brand-indigo) / 0.48);
-    color: white;
-    background:
-      radial-gradient(circle at 86% 18%, hsl(var(--brand-cyan) / 0.34), transparent 30%),
-      linear-gradient(132deg, hsl(var(--brand-ink)), hsl(var(--brand-indigo)) 68%, hsl(232 72% 45%));
   }
 
   .cash-signal-surface {

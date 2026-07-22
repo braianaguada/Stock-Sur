@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Boxes, Loader2, Search, Plus, Power, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
-import { CompactBadge, SectionCard } from "@/components/common/VisualSystem";
+import { StatusBadge } from "@/components/common/VisualSystem";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -301,14 +301,14 @@ export default function CombosPage() {
   return (
     <AppLayout title="Combos" description="Plantillas reutilizables que agrupan productos reales con cantidades configuradas.">
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
-        <SectionCard className="overflow-hidden xl:sticky xl:top-4">
+        <Card className="overflow-hidden border-border/70 shadow-none xl:sticky xl:top-4">
           <CardHeader className="space-y-4 border-b bg-muted/20">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <CardTitle className="flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Catálogo de combos</CardTitle>
                 <CardDescription>Seleccioná una plantilla para revisar sus productos.</CardDescription>
               </div>
-              <CompactBadge tone="success">{activeComboCount} activos</CompactBadge>
+              <StatusBadge tone="success">{activeComboCount} activos</StatusBadge>
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -348,7 +348,7 @@ export default function CombosPage() {
                         </span>
                       </button>
                       <div className="flex flex-col items-end gap-2">
-                        <CompactBadge tone={combo.is_active ? "success" : "muted"}>{combo.is_active ? "Activo" : "Inactivo"}</CompactBadge>
+                        <StatusBadge tone={combo.is_active ? "success" : "muted"}>{combo.is_active ? "Activo" : "Inactivo"}</StatusBadge>
                         <Button
                           type="button"
                           variant="ghost"
@@ -375,9 +375,9 @@ export default function CombosPage() {
               ))
             )}
           </CardContent>
-        </SectionCard>
+        </Card>
 
-        <SectionCard className="min-w-0 overflow-hidden">
+        <Card className="min-w-0 overflow-hidden border-border/70 shadow-none">
           <CardHeader className="flex flex-col gap-3 border-b bg-muted/20 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle>{form.id ? "Editar combo" : "Nuevo combo"}</CardTitle>
@@ -387,8 +387,8 @@ export default function CombosPage() {
             </div>
             {form.id ? (
               <div className="flex flex-wrap items-center gap-2">
-                {isDirty ? <CompactBadge tone="warning">Cambios sin guardar</CompactBadge> : null}
-                <CompactBadge tone={form.is_active ? "success" : "muted"}>{form.is_active ? "Activo" : "Inactivo"}</CompactBadge>
+                {isDirty ? <StatusBadge tone="warning">Cambios sin guardar</StatusBadge> : null}
+                <StatusBadge tone={form.is_active ? "success" : "muted"}>{form.is_active ? "Activo" : "Inactivo"}</StatusBadge>
                 <Button
                   type="button"
                   variant="outline"
@@ -548,7 +548,7 @@ export default function CombosPage() {
               </Button>
             </div>
           </CardContent>
-        </SectionCard>
+        </Card>
       </div>
 
       <AlertDialog open={Boolean(pendingSelection)} onOpenChange={(open) => { if (!open) setPendingSelection(null); }}>

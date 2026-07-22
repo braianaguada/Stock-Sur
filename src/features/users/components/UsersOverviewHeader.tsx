@@ -47,7 +47,7 @@ export function UsersOverviewHeader({
         )}
       />
 
-      <MetricGrid className="xl:grid-cols-3">
+      <MetricGrid columns={3}>
         <MetricCard label="Usuarios totales" value={overviewStats.totalUsers} format="plain" tone="success" icon={<Users className="h-5 w-5" />} />
         <MetricCard label="Empresas asignadas" value={overviewStats.totalCompaniesAssigned} format="plain" tone="info" icon={<Building2 className="h-5 w-5" />} />
         <MetricCard label="Superadmins" value={overviewStats.totalSuperadmins} format="plain" icon={<ShieldCheck className="h-5 w-5" />} />
