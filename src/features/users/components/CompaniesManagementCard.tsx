@@ -4,14 +4,15 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Power, RotateCcw } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DataCard } from "@/components/ui/page";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
+import { CountBadge, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
+import { RowActionButton, RowActions } from "@/components/common/RowActions";
 
 type CompanyRow = {
   id: string;
@@ -78,44 +79,48 @@ export function CompaniesManagementCard() {
     {
       accessorKey: "name",
       header: () => "Empresa",
-      cell: ({ row }) => <div className="min-w-0"><p className="truncate font-medium">{row.original.name}</p><p className="truncate text-xs text-muted-foreground">{row.original.slug}</p></div>,
+      cell: ({ row }) => <PrimaryCell title={row.original.name} metadata={row.original.slug} />,
     },
     {
       accessorKey: "status",
       header: () => "Estado",
-      cell: ({ row }) => <Badge variant={row.original.status === "ACTIVE" ? "outline" : "secondary"}>{row.original.status === "ACTIVE" ? "Activa" : "Inactiva"}</Badge>,
+      cell: ({ row }) => <StatusBadge tone={row.original.status === "ACTIVE" ? "success" : "muted"}>{row.original.status === "ACTIVE" ? "Activa" : "Inactiva"}</StatusBadge>,
       meta: { className: "w-[120px]" },
     },
     {
       id: "actions",
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={() => setEditingCompany(row.original)}>
-            <Pencil className="mr-2 h-4 w-4" /> Editar
-          </Button>
+        <RowActions>
+          <RowActionButton label={`Editar ${row.original.name}`} tone="edit" onClick={() => setEditingCompany(row.original)}>
+            <Pencil className="h-4 w-4" />
+          </RowActionButton>
           {row.original.status === "ACTIVE" ? (
-            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setCompanyToDeactivate(row.original)}>
-              <Power className="mr-2 h-4 w-4" /> Desactivar
-            </Button>
+            <RowActionButton label={`Desactivar ${row.original.name}`} tone="danger" onClick={() => setCompanyToDeactivate(row.original)}>
+              <Power className="h-4 w-4" />
+            </RowActionButton>
           ) : (
-            <Button variant="ghost" size="sm" onClick={() => statusMutation.mutate({ id: row.original.id, status: "ACTIVE" })}>
-              <RotateCcw className="mr-2 h-4 w-4" /> Reactivar
-            </Button>
+            <RowActionButton label={`Reactivar ${row.original.name}`} tone="success" onClick={() => statusMutation.mutate({ id: row.original.id, status: "ACTIVE" })}>
+              <RotateCcw className="h-4 w-4" />
+            </RowActionButton>
           )}
-        </div>
+        </RowActions>
       ),
-      meta: { className: "w-[260px]" },
+      meta: { className: "w-[112px]" },
     },
   ], [statusMutation]);
 
   return (
     <>
-      <DataCard>
-        <div className="border-b border-border/60 px-4 py-4 sm:px-5">
-          <h2 className="font-semibold">Empresas</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Editar nombres e identificadores, o desactivar empresas sin borrar su historial.</p>
-        </div>
+      <Card className="min-w-0 border-border/70 shadow-none">
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle>Empresas</CardTitle>
+            <CardDescription>Editar identidad operativa o desactivar empresas sin borrar su historial.</CardDescription>
+          </div>
+          <CountBadge>{companiesQuery.data?.length ?? 0} {(companiesQuery.data?.length ?? 0) === 1 ? "empresa" : "empresas"}</CountBadge>
+        </CardHeader>
+        <CardContent className="p-0">
         <DataTable
           columns={columns}
           data={companiesQuery.data ?? []}
@@ -123,7 +128,8 @@ export function CompaniesManagementCard() {
           loadingMessage="Cargando empresas..."
           emptyMessage={companiesQuery.error ? getErrorMessage(companiesQuery.error) : "No hay empresas creadas."}
         />
-      </DataCard>
+        </CardContent>
+      </Card>
 
       <Dialog open={Boolean(editingCompany)} onOpenChange={(open) => !open && setEditingCompany(null)}>
         <DialogContent>

@@ -23,6 +23,8 @@ import { useUsersAccessManagement } from "@/features/users/hooks/useUsersAccessM
 import { createCompany } from "@/features/users/mutations";
 import { getErrorMessage } from "@/lib/errors";
 import type { UserAccessRow } from "@/features/users/types";
+import { PageContainer, PageHeader } from "@/components/ui/page";
+import { Card, CardContent } from "@/components/ui/card";
 
 const UserAccessDialog = lazy(() => import("@/features/users/components/UserAccessDialog").then((module) => ({ default: module.UserAccessDialog })));
 const UserDetailDialog = lazy(() => import("@/features/users/components/UserDetailDialog").then((module) => ({ default: module.UserDetailDialog })));
@@ -119,18 +121,19 @@ export default function UsersPage() {
   if (!canManage) {
     return (
       <AppLayout>
-        <div className="page-shell">
-          <div className="surface-card-muted max-w-2xl px-5 py-4 text-sm text-foreground">
-            Solo el superadmin puede acceder al panel de usuarios y permisos.
-          </div>
-        </div>
+        <PageContainer className="page-shell">
+          <PageHeader eyebrow="Administración global" title="Usuarios" subtitle="Gestión restringida de identidades, empresas, roles y permisos." />
+          <Card className="max-w-2xl border-warning/25 bg-warning/10 shadow-none">
+            <CardContent className="p-5 text-sm text-foreground">Solo el superadmin puede acceder al panel de usuarios y permisos.</CardContent>
+          </Card>
+        </PageContainer>
       </AppLayout>
     );
   }
 
   return (
     <AppLayout>
-      <div className="page-shell">
+      <PageContainer className="page-shell">
         <UsersOverviewHeader
           filter={filter}
           overviewStats={overviewStats}
@@ -152,7 +155,7 @@ export default function UsersPage() {
           }}
         />
         <CompaniesManagementCard />
-      </div>
+      </PageContainer>
 
       {selectedUser ? (
         <Suspense fallback={<UsersDialogLoader />}>

@@ -1,7 +1,6 @@
 import { EntityDialog } from "@/components/common/EntityDialog";
-import { Badge } from "@/components/ui/badge";
+import { InfoBadge, MetricCard, MetricGrid, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type {
@@ -54,7 +53,7 @@ export function UserAccessDialog(props: {
       onOpenChange={onOpenChange}
       title="Gestionar acceso por empresa"
       description="Define la empresa, el rol base y el estado de la membresia para este usuario."
-      contentClassName="max-w-xl overflow-x-hidden"
+      contentClassName="max-w-xl"
       footer={(
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -144,26 +143,11 @@ export function UserAccessDialog(props: {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Card className="border-emerald-200/70 bg-emerald-50/60 shadow-none">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-emerald-900">Heredados</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-bold text-emerald-950">{inheritedPermissionCount}</CardContent>
-            </Card>
-            <Card className="border-sky-200/70 bg-sky-50/60 shadow-none">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-sky-900">Permitir</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-bold text-sky-950">{overrideStats.allow}</CardContent>
-            </Card>
-            <Card className="border-rose-200/70 bg-rose-50/60 shadow-none">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-rose-900">Denegar</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-bold text-rose-950">{overrideStats.deny}</CardContent>
-            </Card>
-          </div>
+          <MetricGrid className="sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
+            <MetricCard label="Heredados" value={inheritedPermissionCount} format="plain" tone="success" />
+            <MetricCard label="Permitir" value={overrideStats.allow} format="plain" tone="info" />
+            <MetricCard label="Denegar" value={overrideStats.deny} format="plain" tone="danger" />
+          </MetricGrid>
 
           <div className="max-h-[320px] space-y-4 overflow-y-auto rounded-2xl border bg-muted/10 p-4">
             {Object.entries(permissionOptionsByModule).map(([moduleName, modulePermissions]) => (
@@ -186,9 +170,9 @@ export function UserAccessDialog(props: {
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium">{permission.description ?? permission.code}</p>
-                            {inherited ? <Badge variant="outline">Heredado por rol</Badge> : null}
-                            {overrideValue === "ALLOW" ? <Badge className="bg-sky-600 hover:bg-sky-600">Permitido</Badge> : null}
-                            {overrideValue === "DENY" ? <Badge variant="destructive">Denegado</Badge> : null}
+                            {inherited ? <InfoBadge>Heredado por rol</InfoBadge> : null}
+                            {overrideValue === "ALLOW" ? <StatusBadge tone="success">Permitido</StatusBadge> : null}
+                            {overrideValue === "DENY" ? <StatusBadge tone="danger">Denegado</StatusBadge> : null}
                           </div>
                           <p className="mt-1 text-xs text-muted-foreground">{permission.code}</p>
                         </div>

@@ -997,6 +997,13 @@ Production migration history note:
 - Los gráficos conservan la composición adecuada para cada dominio, con color semántico accesible y contexto textual, sin forzar superficies analíticas idénticas.
 - Se preservaron permisos, query keys, aislamiento por `company_id`, cálculos y comportamiento funcional. No requiere migraciones ni cambios de base de datos.
 
+## Administración visual canónica
+
+- Usuarios, empresas, roles, permisos y configuración comparten encabezados, métricas, filtros, tablas, celdas primarias, estados y acciones sensibles del sistema visual canónico.
+- La administración de empresa conserva su contexto y permisos; las acciones globales de usuarios y empresas continúan restringidas a Superadmin.
+- Los diálogos de detalle y acceso muestran membresías, roles y permisos con jerarquía semántica, sin imports visuales deprecated ni variantes locales.
+- No se modificaron consultas, mutations, query keys, RLS, aislamiento por `company_id`, reglas de negocio ni Facturación. No requiere migraciones ni cambios de base de datos.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
