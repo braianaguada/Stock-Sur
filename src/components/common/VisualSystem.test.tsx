@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { AmountDisplay, CategoryBadge, MetricCard, MetricHeroCard, MoneyCell, OperationalTableShell } from "./VisualSystem";
-import { PageContainer, PageHeader, StatCard } from "@/components/ui/page";
+import { AmountDisplay, CategoryBadge, MetricCard, MetricGrid, MoneyCell } from "./VisualSystem";
+import { PageContainer, PageHeader } from "@/components/ui/page";
 
 describe("visual system components", () => {
   it("renders full currency values with a title", () => {
@@ -30,33 +30,22 @@ describe("visual system components", () => {
     expect(screen.getByText("A rendir")).toBeInTheDocument();
   });
 
-  it("applies the shared metric tone to stat cards", () => {
-    render(
-      <StatCard
-        label="Alertas"
-        value="3"
-        tone="warning"
-        icon={<span data-testid="warning-icon">!</span>}
-      />,
-    );
+  it("applies the shared metric tone and vertically centers metric content", () => {
+    render(<MetricCard label="Alertas" value={3} format="plain" tone="warning" icon={<span data-testid="warning-icon">!</span>} />);
 
-    expect(screen.getByText("3")).toHaveClass("text-warning");
-    expect(screen.getByTestId("warning-icon").parentElement).toHaveClass(
-      "border-warning/18",
-      "bg-warning/12",
-      "text-warning",
-    );
-    expect(screen.getByText("Alertas").closest("[class*='stat-tile']")).toHaveClass(
-      "before:bg-warning/80",
-    );
+    expect(screen.getByTestId("warning-icon").parentElement).toHaveClass("border-warning/18", "bg-warning/12", "text-warning");
+    expect(screen.getByText("Alertas").closest("[class*='items-center']")).toHaveClass("h-full", "items-center");
   });
 
-  it("renders a hero metric", () => {
-    render(<MetricHeroCard label="Total del dia" value={555000} helper="Ventas del dia" />);
+  it("uses the canonical three-column metric grid without local layout variants", () => {
+    const { container } = render(
+      <MetricGrid columns={3}>
+        <MetricCard label="Total del día" value={555000} helper="Ventas del día" />
+      </MetricGrid>,
+    );
 
-    expect(screen.getByText("Total del dia")).toBeInTheDocument();
-    expect(screen.getByText("$ 555.000,00")).toBeInTheDocument();
-    expect(screen.getByText("Ventas del dia")).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass("md:grid-cols-2", "xl:grid-cols-3");
+    expect(screen.getByText("Total del día").closest("[class*='h-full']")).toHaveClass("h-full");
   });
 
   it("renders page header title, description and action", () => {
@@ -104,19 +93,6 @@ describe("visual system components", () => {
     expect(container.firstElementChild).not.toHaveClass("px-4", "sm:px-6", "lg:px-8");
     expect(screen.getByRole("heading", { name: "Documentos" }).closest("section"))
       .toHaveAttribute("data-variant", "workspace");
-  });
-
-  it("renders operational table shell metadata", () => {
-    render(
-      <OperationalTableShell title="Movimientos" description="Control diario" count={2}>
-        <div>Tabla</div>
-      </OperationalTableShell>,
-    );
-
-    expect(screen.getByText("Movimientos")).toBeInTheDocument();
-    expect(screen.getByText("Control diario")).toBeInTheDocument();
-    expect(screen.getByText("2 registros")).toBeInTheDocument();
-    expect(screen.getByText("Tabla")).toBeInTheDocument();
   });
 
   it("keeps domain categories separate from functional status and aligns money", () => {

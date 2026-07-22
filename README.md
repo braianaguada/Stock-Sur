@@ -1012,6 +1012,15 @@ Production migration history note:
 - Los toasts mantienen visible y accesible su control de cierre. No se modificaron reglas de negocio, consultas, mutations, permisos, RLS, aislamiento por `company_id` ni Facturación.
 - No requiere migraciones ni cambios de base de datos.
 
+## Consolidación visual final
+
+- Dashboard reserva ancho suficiente para las tres métricas laterales y usa la grilla canónica sin textos recortados.
+- `MetricCard` mantiene igual altura y centra verticalmente título, valor, ayuda e icono; `MetricGrid` centraliza las variantes responsive de dos, tres y cuatro columnas.
+- `FilterToolbar` alinea por la base buscadores, selects y controles etiquetados. El editor de documentos alinea `Opciones de documento` con el resto de sus campos.
+- `DialogActionGrid` normaliza tamaño y alineación de las acciones en Documentos y Caja.
+- Se retiraron los adapters visuales deprecated y las recetas CSS reemplazadas después de verificar cero consumidores; la gobernanza evita que reaparezcan.
+- No se modificaron reglas de negocio, consultas, mutations, permisos, RLS, aislamiento por `company_id`, base de datos ni el alcance funcional de Facturación. No requiere migraciones.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo

@@ -57,7 +57,7 @@ La segunda iteracion mejoro la jerarquia, pero todavia dejaba signos de wrapper 
 - Dashboard, Stock, Trabajos, Totales, Precios y Caja usan cards de resumen, pero con pesos visuales distintos.
 - Caja tenia muchas cards compitiendo con el mismo peso y valores con `truncate/ellipsis`.
 - Totales y Dashboard muestran importes relevantes que deberian migrar a `AmountDisplay`.
-- Regla inicial: una metrica principal usa `MetricHeroCard`; metricas secundarias usan `MetricCard` dentro de `MetricGrid`; alertas o estados no deben competir con la metrica principal.
+- Regla consolidada: todas las métricas usan `MetricCard` dentro de `MetricGrid`; el arquetipo define cuál es primaria y las alertas no compiten con ella.
 
 ### Tablas
 
@@ -65,11 +65,11 @@ La segunda iteracion mejoro la jerarquia, pero todavia dejaba signos de wrapper 
 - `Items`, `Documentos`, `Stock`, `Clientes`, `Proveedores` y varias tablas internas usan `DataTable`.
 - `CashTotals`, `Gastos`, `Trabajos` y algunos dialogos todavia tienen tablas manuales.
 - Las acciones de fila ya tienden a icon buttons, pero no siempre tienen la misma densidad ni ubicacion.
-- Regla inicial: tablas operativas dentro de `OperationalTableShell`, con contador, filtros compactos, empty state claro y scroll horizontal cuando corresponda.
+- Regla consolidada: tablas operativas con `DataTable` dentro de una superficie canónica, filtros compactos, empty state claro y scroll horizontal cuando corresponda.
 
 ### Filtros
 
-- `FilterBar` existe y se usa en varios modulos.
+- `FilterToolbar` es el único contenedor canónico de filtros y alinea controles etiquetados o sin etiqueta por su base.
 - Hay inconsistencias de ancho en buscadores, selects y fechas. Algunos filtros viven en cards separadas.
 - Regla inicial: buscador primero, selects despues, fechas agrupadas, limpiar filtros al final cuando exista.
 
@@ -89,7 +89,7 @@ La segunda iteracion mejoro la jerarquia, pero todavia dejaba signos de wrapper 
 
 - Hay badges por modulo para activo/inactivo, documentos, servicios, caja y stock.
 - Los textos y colores no estan totalmente unificados.
-- Regla inicial: badges compactos en tablas, textos cortos, no romper filas; reutilizar `CompactBadge` para metadatos simples y mantener mapas de estado por dominio hasta una fase de consolidacion.
+- Regla consolidada: badges compactos en tablas, textos cortos y mapas semánticos por dominio mediante `StatusBadge`, `InfoBadge`, `CountBadge`, `HealthBadge` o `CategoryBadge`.
 
 ### Importes y numeros
 
@@ -128,12 +128,11 @@ Recomendacion para la siguiente fase:
 Archivo: `src/components/common/VisualSystem.tsx`.
 
 - `AmountDisplay`: importes/numeros con `tabular-nums`, valor completo en `title` y tamanios `sm`, `md`, `lg`, `hero`.
-- `MetricHeroCard`: metrica principal del modulo.
 - `MetricCard`: metrica secundaria.
-- `MetricGrid`: grilla responsive de metricas.
-- `OperationalTableShell`: contenedor para tablas operativas con titulo, descripcion, contador y acciones.
-- `SectionCard`: panel base para secciones.
-- `CompactBadge`: badge compacto para metadatos.
+- `MetricGrid`: grilla responsive canónica de dos, tres o cuatro métricas.
+- `DataTable`: tabla operativa estándar dentro de una superficie `Card` cuando corresponde.
+- `DialogActionGrid`: acciones de overlays con tamaño y alineación consistentes.
+- Badges semánticos: `StatusBadge`, `InfoBadge`, `CountBadge`, `HealthBadge` y `CategoryBadge`.
 - `PageHeader` suma `divider` opcional y conserva compatibilidad.
 
 ## Caja como piloto
@@ -158,20 +157,20 @@ Archivo: `src/components/common/VisualSystem.tsx`.
 
 - `CashOverviewPanel`: patron recomendado para modulos financieros con una metrica dominante, facts operativos y breakdown compacto en formato lista.
 - `CashClosureTab`: usa un layout de decision en vez de una grilla de cards equivalentes.
-- `CashSalesTab`: sigue usando `OperationalTableShell`, pero ahora vive como contenido principal de `Hoy`.
+- `CashSalesTab`: usa `DataTable` dentro de la superficie principal de `Hoy`.
 - `CashHistoryTab` y `CashClosurePreviewDialog`: historial secundario con filas resumen y modal de lectura financiera, no una grilla pesada de cards.
 
 ## Backlog visual sugerido
 
-1. Totales: tablas manuales y resumen financiero; reutilizar `AmountDisplay`, `MetricCard`, `OperationalTableShell`; prioridad alta.
-2. Estado de cuenta: importes y estados contables; reutilizar `AmountDisplay`, `CompactBadge`, `OperationalTableShell`; prioridad alta.
-3. Documentos: filtros y acciones complejas; reutilizar `OperationalTableShell`, `CompactBadge`; prioridad alta.
-4. Trabajos/Servicios: muchos estados y dialogos; reutilizar `CompactBadge`, `PageHeader`, `FilterBar`; prioridad media-alta.
+1. Totales: tablas manuales y resumen financiero; reutilizar `AmountDisplay`, `MetricCard` y `DataTable`; prioridad alta.
+2. Estado de cuenta: importes y estados contables; reutilizar `AmountDisplay`, badges semánticos y `DataTable`; prioridad alta.
+3. Documentos: filtros y acciones complejas; reutilizar `DataTable`, `DialogActionGrid` y badges semánticos; prioridad alta.
+4. Trabajos/Servicios: muchos estados y diálogos; reutilizar badges semánticos, `PageHeader` y `FilterToolbar`; prioridad media-alta.
 5. Precios: densidad de tabla y chips de calculo; reutilizar `AmountDisplay`, `MetricCard`; prioridad media.
-6. Productos: ya usa varios patrones, necesita pulido de densidad; reutilizar `OperationalTableShell`; prioridad media.
-7. Combos: header y filtros menos alineados; reutilizar `PageHeader`, `FilterBar`; prioridad media.
+6. Productos: ya usa varios patrones, necesita pulido de densidad; reutilizar `DataTable`; prioridad media.
+7. Combos: header y filtros menos alineados; reutilizar `PageHeader` y `FilterToolbar`; prioridad media.
 8. Clientes/Proveedores: tablas bastante estables; consolidar badges y acciones; prioridad media-baja.
-9. Configuracion: formularios largos; reutilizar `SectionCard` y reglas de formulario; prioridad baja.
+9. Configuración: formularios largos; reutilizar `Card` y reglas canónicas de formulario; prioridad baja.
 
 ## Validaciones de esta fase
 

@@ -370,7 +370,7 @@ export default function TechniciansPage() {
               <MetricCard label="Balance de materiales" value={materialControl.report.totals.materialBalance} />
               <MetricCard label="Remitos" value={materialControl.report.totals.remitos} format="plain" />
             </MetricGrid>
-            <MetricGrid className="xl:grid-cols-3">
+            <MetricGrid columns={3}>
               <MetricCard label="Valor materiales entregados" value={materialControl.report.totals.materialDeliveredValue} tone="info" />
               <MetricCard label="Valor materiales devueltos" value={materialControl.report.totals.materialReturnedValue} tone="success" />
               <MetricCard label="Devoluciones" value={materialControl.report.totals.devoluciones} format="plain" />
@@ -608,17 +608,17 @@ export default function TechniciansPage() {
           </DialogHeader>
           {selectedSummary ? (
             <div className="grid gap-4">
-              <MetricGrid className="xl:grid-cols-3">
+              <MetricGrid columns={3}>
                 <MetricCard label="Valor comercial entregado" value={selectedSummary.commercialDeliveredTotal} tone="info" />
                 <MetricCard label="Valor comercial devuelto" value={selectedSummary.commercialReturnedTotal} tone="success" />
                 <MetricCard label="Balance comercial" value={selectedSummary.commercialBalance} />
               </MetricGrid>
-              <MetricGrid className="xl:grid-cols-3">
+              <MetricGrid columns={3}>
                 <MetricCard label="Costo estimado entregado" value={selectedSummary.costDeliveredValue} tone="info" />
                 <MetricCard label="Costo estimado devuelto" value={selectedSummary.costReturnedValue} tone="success" />
                 <MetricCard label="Costo neto estimado" value={selectedSummary.costNetValue} />
               </MetricGrid>
-              <MetricGrid className="xl:grid-cols-4">
+              <MetricGrid columns={4}>
                 <MetricCard label="Margen bruto estimado" value={selectedSummary.grossMargin} />
                 <MetricCard label="Materiales entregados" value={selectedSummary.materialDeliveredValue} tone="info" />
                 <MetricCard label="Materiales devueltos" value={selectedSummary.materialReturnedValue} tone="success" />

@@ -52,7 +52,7 @@ export function UserDetailDialog(props: {
               </CardContent>
             </Card>
 
-            <MetricGrid className="sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-2">
+            <MetricGrid columns={2}>
               <MetricCard
                 label="Empresas"
                 value={selectedUser.companies?.length ?? 0}

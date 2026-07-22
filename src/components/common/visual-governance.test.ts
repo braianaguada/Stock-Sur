@@ -4,15 +4,15 @@ import { describe, expect, it } from "vitest";
 
 const root = resolve(process.cwd());
 
-const deprecatedConsumers: Record<string, readonly string[]> = {
-  CompactBadge: ["src/pages/Combos.tsx"],
-  MetricHeroCard: ["src/components/common/VisualSystem.test.tsx"],
-  OperationalTableShell: ["src/components/common/VisualSystem.test.tsx"],
-  SectionCard: ["src/pages/Combos.tsx"],
-};
-
-const visualSystemImport =
-  /import\s*\{([^}]+)\}\s*from\s*["'](?:@\/components\/common\/VisualSystem|\.\/VisualSystem)["']/g;
+const retiredVisualSymbols = [
+  "CompactBadge",
+  "DataCard",
+  "FilterBar",
+  "MetricHeroCard",
+  "OperationalTableShell",
+  "SectionCard",
+  "StatCard",
+] as const;
 
 function listSourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -22,26 +22,18 @@ function listSourceFiles(directory: string): string[] {
   });
 }
 
-function importsDeprecatedSymbol(source: string, symbol: string): boolean {
-  return [...source.matchAll(visualSystemImport)].some((match) =>
-    match[1]
-      .split(",")
-      .map((name) => name.trim().split(/\s+as\s+/)[0])
-      .includes(symbol),
-  );
-}
-
 describe("visual governance", () => {
-  it("does not expand the audited deprecated consumer baseline", () => {
+  it("keeps retired visual APIs at zero source consumers", () => {
     const sourceFiles = listSourceFiles(resolve(root, "src"));
 
-    for (const [symbol, files] of Object.entries(deprecatedConsumers)) {
+    for (const symbol of retiredVisualSymbols) {
       const actualConsumers = sourceFiles
-        .filter((file) => importsDeprecatedSymbol(readFileSync(file, "utf8"), symbol))
+        .filter((file) => relative(root, file).replace(/\\/g, "/") !== "src/components/common/visual-governance.test.ts")
+        .filter((file) => new RegExp(`\\b${symbol}\\b`).test(readFileSync(file, "utf8")))
         .map((file) => relative(root, file).replace(/\\/g, "/"))
         .sort();
 
-      expect(actualConsumers, `${symbol} consumers must match docs/deprecations.md`).toEqual([...files].sort());
+      expect(actualConsumers, `${symbol} must remain retired`).toEqual([]);
     }
   });
 
@@ -56,7 +48,20 @@ describe("visual governance", () => {
     expect(catalog).toContain("`PageContainer`");
     expect(catalog).toContain("`DataTable`");
     expect(deprecations).toContain("`MetricHeroCard`");
-    expect(deprecations).toContain("allowlist");
+    expect(deprecations).toContain("cero consumidores");
+  });
+
+  it("locks the final visual polish into canonical layout rules", () => {
+    const dashboard = readFileSync(resolve(root, "src/features/index/components/DashboardHero.tsx"), "utf8");
+    const editor = readFileSync(resolve(root, "src/features/documents/components/DocumentsEditorDialog.tsx"), "utf8");
+    const documentTable = readFileSync(resolve(root, "src/features/documents/components/DocumentsDataTable.tsx"), "utf8");
+    const styles = readFileSync(resolve(root, "src/index.css"), "utf8");
+
+    expect(dashboard).toContain("minmax(420px,1fr)");
+    expect(dashboard).toContain("<MetricGrid columns={3}>");
+    expect(editor).toContain(">Opciones</Label>");
+    expect(documentTable).toContain("<DialogActionGrid columns={2}>");
+    expect(styles).toContain("md:flex-row md:flex-wrap md:items-end");
   });
 
   it("keeps tabbed workspaces on canonical primitives", () => {

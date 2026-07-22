@@ -460,7 +460,7 @@ export default function SettlementsPage() {
                 </Card>
               ) : (
                 <>
-                  <MetricGrid className="xl:grid-cols-3">
+                  <MetricGrid columns={3}>
                     <MetricCard label="Ingresos" value={displayedTotals.income_total} helper={`Efectivo ${currency.format(displayedTotals.income_cash_total)}`} />
                     <MetricCard label="Egresos" value={displayedTotals.expense_total} helper={`Efectivo ${currency.format(displayedTotals.expense_cash_total)}`} tone="warning" />
                     <MetricCard label="Total a rendir" value={displayedTotals.settlement_total} helper="Ingresos menos egresos" tone={displayedTotals.settlement_total < 0 ? "danger" : "success"} />

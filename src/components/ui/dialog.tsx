@@ -92,6 +92,23 @@ const DialogBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement
 );
 DialogBody.displayName = "DialogBody";
 
+const DialogActionGrid = ({
+  className,
+  columns = 1,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & { columns?: 1 | 2 }) => (
+  <div
+    data-slot="dialog-action-grid"
+    className={cn(
+      "grid gap-2 [&_button]:h-10 [&_button]:w-full [&_button]:justify-start [&_button]:rounded-lg [&_button]:px-3 [&_button_svg]:shrink-0",
+      columns === 2 && "sm:grid-cols-2",
+      className,
+    )}
+    {...props}
+  />
+);
+DialogActionGrid.displayName = "DialogActionGrid";
+
 const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
@@ -119,6 +136,7 @@ export {
   DialogContent,
   DialogHeader,
   DialogBody,
+  DialogActionGrid,
   DialogFooter,
   DialogTitle,
   DialogDescription,
