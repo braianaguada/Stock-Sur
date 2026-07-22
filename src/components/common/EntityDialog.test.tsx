@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Button } from "@/components/ui/button";
@@ -28,5 +29,31 @@ describe("EntityDialog visual and accessibility contract", () => {
 
     await userEvent.keyboard("{Escape}");
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("returns focus to the control that opened a controlled dialog", async () => {
+    const user = userEvent.setup();
+
+    function ControlledDialog() {
+      const [open, setOpen] = useState(false);
+
+      return (
+        <>
+          <Button onClick={() => setOpen(true)}>Nueva entidad</Button>
+          <EntityDialog open={open} onOpenChange={setOpen} title="Nueva entidad" description="Datos de la entidad">
+            <input aria-label="Nombre" />
+          </EntityDialog>
+        </>
+      );
+    }
+
+    render(<ControlledDialog />);
+    const trigger = screen.getByRole("button", { name: "Nueva entidad" });
+
+    await user.click(trigger);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    expect(trigger).toHaveFocus();
   });
 });
