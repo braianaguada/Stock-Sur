@@ -24,6 +24,8 @@ type DataTableProps<TData> = {
   emptyMessage: string;
   isLoading?: boolean;
   loadingMessage?: string;
+  errorMessage?: string;
+  onRetry?: () => void;
   className?: string;
   sorting?: SortingState;
   onSortingChange?: (sorting: SortingState) => void;
@@ -42,6 +44,8 @@ export function DataTable<TData>({
   emptyMessage,
   isLoading = false,
   loadingMessage = "Cargando...",
+  errorMessage,
+  onRetry,
   className,
   sorting,
   onSortingChange,
@@ -101,10 +105,18 @@ export function DataTable<TData>({
         ))}
       </TableHeader>
       <TableBody>
-        {isLoading ? (
-          <TableEmptyState colSpan={visibleColumnCount} title={loadingMessage} />
+        {errorMessage ? (
+          <TableEmptyState
+            colSpan={visibleColumnCount}
+            variant="error"
+            title={errorMessage}
+            actionLabel={onRetry ? "Reintentar" : undefined}
+            onAction={onRetry}
+          />
+        ) : isLoading ? (
+          <TableEmptyState colSpan={visibleColumnCount} variant="loading" title={loadingMessage} />
         ) : rows.length === 0 ? (
-          <TableEmptyState colSpan={visibleColumnCount} title={emptyMessage} />
+          <TableEmptyState colSpan={visibleColumnCount} variant="empty" title={emptyMessage} />
         ) : rows.map((row) => (
           <TableRow key={row.id} className={rowClassName}>
             {row.getVisibleCells().map((cell) => (

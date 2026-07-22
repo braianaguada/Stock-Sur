@@ -213,21 +213,26 @@ export default function PurchaseOrders() {
           </Select>
         </FilterToolbar>
 
-        {ordersQuery.isError ? <Card className="border-destructive/40"><CardContent className="p-8 text-sm text-destructive">No se pudieron cargar las órdenes: {ordersQuery.error.message}</CardContent></Card> : null}
-        {!ordersQuery.isError ? (
-          <Card className="min-w-0 border-border/70 shadow-none">
-            <CardHeader className="flex flex-row items-start justify-between gap-3">
-              <div className="space-y-1">
-                <CardTitle>Historial de órdenes</CardTitle>
-                <CardDescription>Seguimiento operativo por proveedor y estado.</CardDescription>
-              </div>
-              <CountBadge>{filtered.length} {filtered.length === 1 ? "registro" : "registros"}</CountBadge>
-            </CardHeader>
-            <CardContent className="p-0">
-              <DataTable columns={columns} data={pagination.pagedItems} isLoading={ordersQuery.isLoading} loadingMessage="Cargando órdenes..." emptyMessage="No hay órdenes que coincidan con los filtros." />
-            </CardContent>
-          </Card>
-        ) : null}
+        <Card className="min-w-0 border-border/70 shadow-none">
+          <CardHeader className="flex flex-row items-start justify-between gap-3">
+            <div className="space-y-1">
+              <CardTitle>Historial de órdenes</CardTitle>
+              <CardDescription>Seguimiento operativo por proveedor y estado.</CardDescription>
+            </div>
+            <CountBadge>{filtered.length} {filtered.length === 1 ? "registro" : "registros"}</CountBadge>
+          </CardHeader>
+          <CardContent className="p-0">
+            <DataTable
+              columns={columns}
+              data={pagination.pagedItems}
+              isLoading={ordersQuery.isLoading}
+              loadingMessage="Cargando órdenes..."
+              emptyMessage="No hay órdenes que coincidan con los filtros."
+              errorMessage={ordersQuery.isError ? `No se pudieron cargar las órdenes: ${ordersQuery.error.message}` : undefined}
+              onRetry={() => ordersQuery.refetch()}
+            />
+          </CardContent>
+        </Card>
         {!ordersQuery.isError ? <DataTablePagination {...pagination} pageSize={pageSize} pageSizeOptions={[20, 50, 100]} onPageChange={setPage} onPageSizeChange={(nextPageSize) => { setPageSize(nextPageSize); setPage(1); }} itemLabel="órdenes" /> : null}
       </PageContainer>
 
@@ -242,9 +247,17 @@ export default function PurchaseOrders() {
           <div className="flex flex-wrap items-center justify-between gap-2"><StatusBadge tone={selected.status === "SENT" ? "success" : selected.status === "CANCELLED" ? "muted" : "warning"}>{PURCHASE_ORDER_STATUS_LABELS[selected.status]}</StatusBadge><span className="text-sm text-muted-foreground">{new Date(selected.created_at).toLocaleString("es-AR")}</span></div>
           {selected.status === "DRAFT" ? <p className="text-sm text-muted-foreground">Podés ajustar cantidades y notas mientras la orden siga en borrador. Los precios conservan la lista que originó la orden.</p> : null}
           <Input value={draftNotes} disabled={selected.status !== "DRAFT"} placeholder="Notas de la orden" onChange={(event) => setDraftNotes(event.target.value)} />
-          {linesQuery.isLoading ? <div className="py-6 text-sm text-muted-foreground">Cargando productos...</div> : null}
-          {linesQuery.isError ? <div className="py-6 text-sm text-destructive">No se pudieron cargar los productos: {linesQuery.error.message}</div> : null}
-          {!linesQuery.isLoading && !linesQuery.isError ? <div className="rounded-xl border"><DataTable columns={lineColumns} data={lines} emptyMessage="La orden no tiene productos." /></div> : null}
+          <div className="rounded-xl border">
+            <DataTable
+              columns={lineColumns}
+              data={lines}
+              emptyMessage="La orden no tiene productos."
+              isLoading={linesQuery.isLoading}
+              loadingMessage="Cargando productos..."
+              errorMessage={linesQuery.isError ? `No se pudieron cargar los productos: ${linesQuery.error.message}` : undefined}
+              onRetry={() => linesQuery.refetch()}
+            />
+          </div>
           <div className="flex flex-wrap justify-end gap-4">{Object.entries(selectedTotals).map(([currency, total]) => <div key={currency}><span className="mr-2 text-sm text-muted-foreground">Total {currency}</span><MoneyCell className="inline-block text-lg" value={money(currency, total)} format="plain" /></div>)}</div>
         </div> : null}
       </EntityDialog>

@@ -28,7 +28,7 @@ export function SupplierExtractionReviewDialog({ open, onOpenChange, fileName, f
   const isPdf = file?.type === "application/pdf" || fileName?.toLowerCase().endsWith(".pdf");
 
   return (
-    <EntityDialog open={open} onOpenChange={onOpenChange} title="Revisar importación" description={fileName ? `Verificá los productos detectados en ${fileName}.` : "Verificá el listado antes de importarlo."} contentClassName="max-h-[calc(100dvh-1rem)] max-w-7xl overflow-y-auto" footer={<><Button variant="outline" onClick={onCancel} disabled={isImporting}>Cancelar</Button><Button onClick={onConfirm} disabled={isImporting || lines.length === 0 || warningCount > 0}>{isImporting ? "Importando…" : "Confirmar importación"}</Button></>}>
+    <EntityDialog open={open} onOpenChange={onOpenChange} title="Revisar importación" description={fileName ? `Verificá los productos detectados en ${fileName}.` : "Verificá el listado antes de importarlo."} contentClassName="max-h-[calc(100dvh-1rem)] max-w-7xl" footer={<><Button variant="outline" onClick={onCancel} disabled={isImporting}>Cancelar</Button><Button onClick={onConfirm} disabled={isImporting || lines.length === 0 || warningCount > 0}>{isImporting ? "Importando…" : "Confirmar importación"}</Button></>}>
       <div className={isPdf && file ? "grid gap-4 xl:grid-cols-[minmax(20rem,0.85fr)_minmax(0,1.4fr)]" : "space-y-4"}>
         {isPdf && file ? <PdfDocumentPreview file={file} /> : null}
         <div className="min-w-0 space-y-4">

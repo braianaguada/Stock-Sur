@@ -1,24 +1,40 @@
 import type { ReactNode } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { DataState, type DataStateVariant } from "@/components/common/DataState";
 import { cn } from "@/lib/utils";
 
 type TableEmptyStateProps = {
   colSpan: number;
+  variant?: DataStateVariant;
   title: string;
   description?: string;
   icon?: ReactNode;
+  actionLabel?: string;
+  onAction?: () => void;
   className?: string;
 };
 
-export function TableEmptyState({ colSpan, title, description, icon, className }: TableEmptyStateProps) {
+export function TableEmptyState({
+  colSpan,
+  variant = "empty",
+  title,
+  description,
+  icon,
+  actionLabel,
+  onAction,
+  className,
+}: TableEmptyStateProps) {
   return (
     <TableRow>
-      <TableCell colSpan={colSpan} className={cn("py-10 text-center", className)}>
-        <div className="mx-auto flex max-w-sm flex-col items-center gap-2 text-muted-foreground">
-          {icon ? <div className="rounded-full border bg-muted/30 p-2 text-muted-foreground/80">{icon}</div> : null}
-          <p className="text-sm font-medium text-foreground">{title}</p>
-          {description ? <p className="text-xs leading-5">{description}</p> : null}
-        </div>
+      <TableCell colSpan={colSpan} className={cn("p-4 text-center", className)}>
+        <DataState
+          variant={variant}
+          title={title}
+          description={description}
+          icon={icon}
+          actionLabel={actionLabel}
+          onAction={onAction}
+        />
       </TableCell>
     </TableRow>
   );

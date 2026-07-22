@@ -1004,6 +1004,14 @@ Production migration history note:
 - Los diálogos de detalle y acceso muestran membresías, roles y permisos con jerarquía semántica, sin imports visuales deprecated ni variantes locales.
 - No se modificaron consultas, mutations, query keys, RLS, aislamiento por `company_id`, reglas de negocio ni Facturación. No requiere migraciones ni cambios de base de datos.
 
+## Overlays, formularios y feedback canónicos
+
+- `EntityDialog` usa ancho de formulario, cabecera y acciones fijas, con scroll interno únicamente en el cuerpo para sostener el contexto en pantallas pequeñas y zoom alto.
+- Diálogos y confirmaciones comparten límites de viewport, cierre accesible, foco contenido y retorno al control que los abrió; inputs, selects y textareas exponen el estado inválido con borde y foco semánticos.
+- Loading, vacío y error se distinguen mediante `DataState`; las tablas pueden ofrecer reintento sin reemplazar su superficie ni perder la jerarquía operativa.
+- Los toasts mantienen visible y accesible su control de cierre. No se modificaron reglas de negocio, consultas, mutations, permisos, RLS, aislamiento por `company_id` ni Facturación.
+- No requiere migraciones ni cambios de base de datos.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo

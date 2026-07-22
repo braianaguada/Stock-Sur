@@ -215,7 +215,7 @@ export function DocumentsEditorDialog({
         }
       }}
       title={editingDocId ? (isReturn ? "Editar devolucion" : "Editar borrador") : "Nuevo documento"}
-      contentClassName="!w-[min(98vw,1680px)] sm:!w-[min(98vw,1680px)] !max-w-[1680px] sm:!max-w-[1680px] max-h-[92vh] overflow-x-hidden overflow-y-auto"
+      contentClassName="!w-[min(98vw,1680px)] sm:!w-[min(98vw,1680px)] !max-w-[1680px] sm:!max-w-[1680px] max-h-[92vh] overflow-x-hidden"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {isReturn ? (

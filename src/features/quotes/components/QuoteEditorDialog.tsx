@@ -41,7 +41,7 @@ export function QuoteEditorDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Nuevo presupuesto"
-      contentClassName="max-h-[85vh] max-w-2xl overflow-auto"
+      contentClassName="max-h-[85vh] max-w-2xl"
     >
       <form
         onSubmit={(event) => {
