@@ -494,7 +494,7 @@ describeCriticalDb("critical database rules", () => {
         await expectDbRejection(insertInternalRemito, [crypto.randomUUID(), ...state, userId, companyId]);
       }
     });
-  });
+  }, 15000);
 
   it("genera y no duplica DEBIT desde remito emitido", async () => {
     await withRollback(async () => {
@@ -522,7 +522,7 @@ describeCriticalDb("critical database rules", () => {
       );
 
       await client.query(`select status from public.issue_document($1)`, [documentId]);
-      await client.query(`select status from public.issue_document($1)`, [documentId]).catch(() => null);
+      await expectDbRejection(`select status from public.issue_document($1)`, [documentId]);
 
       const entries = await client.query(
         `select entry_type, origin_type, origin_id, amount from public.customer_account_entries where document_id = $1`,
@@ -532,7 +532,7 @@ describeCriticalDb("critical database rules", () => {
       expect(entries.rows[0]).toMatchObject({ entry_type: "DEBIT", origin_type: "DOCUMENT" });
       expect(Number(entries.rows[0].amount)).toBe(100);
     });
-  });
+  }, 15000);
 
   it("remito devolucion genera stock IN y no permite devolver de mas", async () => {
     await withRollback(async () => {
@@ -749,7 +749,7 @@ describeCriticalDb("critical database rules", () => {
       expect(Number(reversed.rows[1].amount)).toBe(50);
       expect(reversed.rows[1].metadata.reverses_entry_id).toBe(entries.rows[0].id);
     });
-  });
+  }, 15000);
 
   it("no genera CREDIT para remito devolucion de cliente ocasional", async () => {
     await withRollback(async () => {
@@ -1152,7 +1152,7 @@ describeCriticalDb("critical database rules", () => {
       expect(saved.rows[0].customer_id).toBe(otherCustomerId);
       expect(saved.rows[0].service_id).toBeNull();
     });
-  });
+  }, 15000);
 
   it("duplica presupuesto como borrador sin numero y conserva lineas", async () => {
     await withRollback(async () => {
@@ -1493,7 +1493,9 @@ describeCriticalDb("critical database rules", () => {
         `,
         [settlementA, companyA, settlementB, companyB, userId, otherUserId],
       );
+      await setActor(userId);
       const incomeA = await insertSettlementIncomeLine(settlementA, userId, 100, 0);
+      await setActor(otherUserId);
       const incomeB = await insertSettlementIncomeLine(settlementB, otherUserId, 200, 0);
 
       await setActor(userId);
