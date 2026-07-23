@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
-import { PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
+import { CategoryBadge, PrimaryCell } from "@/components/common/VisualSystem";
 import { formatDateTime } from "@/lib/formatters";
 import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type { Movement, MovementType } from "@/features/stock/types";
@@ -42,10 +42,10 @@ export function StockMovementsTable({
       accessorKey: "type",
       header: () => "Tipo",
       cell: ({ row }) => (
-        <StatusBadge tone={row.original.type === "IN" ? "success" : "warning"} className="gap-2">
+        <CategoryBadge className="gap-2">
           {typeIcon(row.original.type)}
           {typeLabel[row.original.type]}
-        </StatusBadge>
+        </CategoryBadge>
       ),
     },
     {

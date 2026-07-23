@@ -181,13 +181,16 @@ export function InfoBadge({ children, className }: { children: ReactNode; classN
 export function HealthBadge({
   children,
   healthy,
+  tone,
   className,
 }: {
   children: ReactNode;
-  healthy: boolean;
+  healthy?: boolean;
+  tone?: Extract<MetricTone, "success" | "warning" | "danger" | "muted">;
   className?: string;
 }) {
-  return <StatusBadge tone={healthy ? "success" : "warning"} className={className}>{children}</StatusBadge>;
+  const resolvedTone = tone ?? (healthy === false ? "warning" : "success");
+  return <StatusBadge tone={resolvedTone} className={className}>{children}</StatusBadge>;
 }
 
 export function CategoryBadge({ children, className }: { children: ReactNode; className?: string }) {

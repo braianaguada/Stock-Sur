@@ -741,16 +741,18 @@ export default function DocumentsPage() {
         />
 
         <FilterToolbar>
-          <div className="relative max-w-sm flex-1 min-w-[200px]">
-            <Label htmlFor="document-search" className="sr-only">Buscar documentos</Label>
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="document-search"
-              placeholder="Buscar por cliente, CUIT, número o factura externa..."
-              className="pl-9"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
+          <div className="w-full space-y-1 md:max-w-sm">
+            <Label htmlFor="document-search" className="text-xs text-muted-foreground">Buscar</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="document-search"
+                placeholder="Buscar por cliente, CUIT, número o factura externa..."
+                className="pl-9"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
           </div>
 
           <div className="w-full space-y-1 md:w-52">

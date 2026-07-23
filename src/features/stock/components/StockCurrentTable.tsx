@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
-import { CategoryBadge, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
+import { CategoryBadge, HealthBadge, PrimaryCell } from "@/components/common/VisualSystem";
 import { buildItemDisplayName } from "@/lib/item-display";
 import { cn } from "@/lib/utils";
 import type { DemandProfile, StockHealth, StockRow } from "@/features/stock/types";
@@ -96,9 +96,9 @@ export function StockCurrentTable({
       header: () => "Estado",
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1">
-          <StatusBadge tone={healthTone[row.original.health]}>
+          <HealthBadge tone={healthTone[row.original.health]}>
             {healthLabel[row.original.health]}
-          </StatusBadge>
+          </HealthBadge>
           <CategoryBadge>
             {demandProfileLabel[row.original.demand_profile]}
           </CategoryBadge>

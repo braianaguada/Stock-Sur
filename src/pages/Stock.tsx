@@ -356,7 +356,7 @@ export default function StockPage() {
                 </Select>
               </div>
             </FilterToolbar>
-            <Card className="min-w-0 border-border/70 p-4 shadow-none">
+            <Card className="min-w-0 border-border/70 shadow-none">
               <StockCurrentTable
                 rows={stockPagination.pagedItems}
                 isLoading={loadingStock}
@@ -398,7 +398,7 @@ export default function StockPage() {
                 }}
               />
             </div></FilterToolbar>
-            <Card className="min-w-0 border-border/70 p-4 shadow-none">
+            <Card className="min-w-0 border-border/70 shadow-none">
               <StockMovementsTable
                 movements={movementsPagination.pagedItems}
                 isLoading={loadingMovements}
