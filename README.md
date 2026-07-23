@@ -22,6 +22,12 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 - La remediacion solo modifica la dependencia directa y su lockfile; no cambia estilos, reglas de negocio, datos, permisos, RLS ni aislamiento por `company_id`.
 - `npm audit --omit=dev` queda sin vulnerabilidades conocidas. Esta remediacion no requiere migraciones.
 
+## Integridad de consultas operativas
+
+- Cuenta corriente, Trabajos/Servicios y Control de materiales de tecnicos recuperan todos los resultados mediante paginacion, sin topes silenciosos de 300 o 1000 filas.
+- Las consultas relacionales con listas de identificadores usan lotes acotados y paginados, con orden estable y conservando los filtros por `company_id`.
+- No se modifican datos, reglas de negocio, permisos, RLS ni esquema. Esta remediacion no requiere migraciones.
+
 ## Sistema visual transversal
 
 - La gobernanza del rediseño se centraliza en la [Constitución UI](docs/stock-sur-ui-constitution.md), la [arquitectura frontend](docs/frontend-architecture.md), el [catálogo de componentes](docs/component-catalog.md) y el [registro de deprecaciones](docs/deprecations.md).
