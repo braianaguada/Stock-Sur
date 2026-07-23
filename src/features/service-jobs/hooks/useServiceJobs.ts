@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getErrorMessage } from "@/lib/errors";
 import { queryKeys } from "@/lib/query-keys";
+import { fetchAllPages, fetchAllPagesByChunks } from "@/lib/supabase-pagination";
 import { serviceDb } from "@/features/services/db";
 import { getServiceJobDeleteState } from "../lib/serviceJobLifecycle";
 import { getServiceJobOperationalFields } from "../lib/operationalSummary";
@@ -43,14 +44,16 @@ export function useServiceJobs(params: {
     queryKey: queryKeys.serviceJobs.customers(companyId),
     enabled: Boolean(companyId),
     queryFn: async () => {
-      const { data, error } = await serviceDb
-        .from("customers")
-        .select("id, name, cuit, is_occasional")
-        .eq("company_id", companyId)
-        .eq("is_occasional", false)
-        .order("name");
-      if (error) throw error;
-      return (data ?? []) as ServiceJobCustomer[];
+      const data = await fetchAllPages(() =>
+        serviceDb
+          .from("customers")
+          .select("id, name, cuit, is_occasional")
+          .eq("company_id", companyId)
+          .eq("is_occasional", false)
+          .order("name")
+          .order("id"),
+      );
+      return data as ServiceJobCustomer[];
     },
   });
 
@@ -58,13 +61,15 @@ export function useServiceJobs(params: {
     queryKey: queryKeys.serviceJobs.technicians(companyId),
     enabled: Boolean(companyId),
     queryFn: async () => {
-      const { data, error } = await serviceDb
-        .from("technicians")
-        .select("*")
-        .eq("company_id", companyId)
-        .order("name");
-      if (error) throw error;
-      return ((data ?? []) as Array<ServiceJobTechnician & { is_active?: boolean }>)
+      const data = await fetchAllPages(() =>
+        serviceDb
+          .from("technicians")
+          .select("*")
+          .eq("company_id", companyId)
+          .order("name")
+          .order("id"),
+      );
+      return (data as Array<ServiceJobTechnician & { is_active?: boolean }>)
         .filter((technician) => technician.is_active !== false)
         .map((technician) => ({ id: technician.id, name: technician.name }));
     },
@@ -74,67 +79,71 @@ export function useServiceJobs(params: {
     queryKey: queryKeys.serviceJobs.list(companyId, trimmedSearch, status, technicianId, from, to, priority, archived),
     enabled: Boolean(companyId),
     queryFn: async () => {
-      let query = serviceDb
-        .from("service_jobs")
-        .select("*, customers(id, name, is_occasional)")
-        .eq("company_id", companyId)
-        .order("updated_at", { ascending: false });
+      const jobs = await fetchAllPages(() => {
+        let query = serviceDb
+          .from("service_jobs")
+          .select("*, customers(id, name, is_occasional)")
+          .eq("company_id", companyId)
+          .order("updated_at", { ascending: false })
+          .order("id", { ascending: false });
 
-      if (status !== "ALL") query = query.eq("status", status);
-      if (priority !== "ALL") query = query.eq("priority", priority);
-      if (archived === "active") query = query.is("archived_at", null);
-      if (archived === "archived") query = query.not("archived_at", "is", null);
-      if (from) query = query.gte("opened_at", `${from}T00:00:00`);
-      if (to) query = query.lte("opened_at", `${to}T23:59:59`);
-
-      const { data, error } = await query.limit(300);
-      if (error) throw error;
-
-      const jobs = (data ?? []) as ServiceJobRow[];
+        if (status !== "ALL") query = query.eq("status", status);
+        if (priority !== "ALL") query = query.eq("priority", priority);
+        if (archived === "active") query = query.is("archived_at", null);
+        if (archived === "archived") query = query.not("archived_at", "is", null);
+        if (from) query = query.gte("opened_at", `${from}T00:00:00`);
+        if (to) query = query.lte("opened_at", `${to}T23:59:59`);
+        return query;
+      }) as ServiceJobRow[];
       const jobIds = jobs.map((job) => job.id);
       if (jobIds.length === 0) return { jobs: [], services: [], assignments: [], remitos: [] };
 
-      const { data: servicesData, error: servicesError } = await serviceDb
-        .from("service_job_services")
-        .select("*")
-        .eq("company_id", companyId)
-        .in("job_id", jobIds)
-        .order("scheduled_at", { ascending: false });
-      if (servicesError) throw servicesError;
-
-      const services = (servicesData ?? []) as ServiceRow[];
+      const services = await fetchAllPagesByChunks(jobIds, (ids) =>
+        serviceDb
+          .from("service_job_services")
+          .select("*")
+          .eq("company_id", companyId)
+          .in("job_id", ids)
+          .order("scheduled_at", { ascending: false })
+          .order("id", { ascending: false }),
+      ) as ServiceRow[];
       const serviceIds = services.map((service) => service.id);
       if (serviceIds.length === 0) return { jobs, services, assignments: [], remitos: [] };
 
-      const [assignmentsResult, remitosResult] = await Promise.all([
-        serviceDb
-          .from("service_job_service_technicians")
-          .select("*, technicians(id, name)")
-          .eq("company_id", companyId)
-          .in("service_id", serviceIds),
-        serviceDb
-          .from("documents")
-          .select("id, service_id, status, point_of_sale, document_number, issue_date, customer_id, customer_kind, technician_id, customer_name, total, created_at")
-          .eq("company_id", companyId)
-          .eq("doc_type", "REMITO")
-          .in("service_id", serviceIds)
-          .order("created_at", { ascending: false }),
+      const [assignmentsData, remitosData] = await Promise.all([
+        fetchAllPagesByChunks(serviceIds, (ids) =>
+          serviceDb
+            .from("service_job_service_technicians")
+            .select("*, technicians(id, name)")
+            .eq("company_id", companyId)
+            .in("service_id", ids)
+            .order("id"),
+        ),
+        fetchAllPagesByChunks(serviceIds, (ids) =>
+          serviceDb
+            .from("documents")
+            .select("id, service_id, status, point_of_sale, document_number, issue_date, customer_id, customer_kind, technician_id, customer_name, total, created_at")
+            .eq("company_id", companyId)
+            .eq("doc_type", "REMITO")
+            .in("service_id", ids)
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false }),
+        ),
       ]);
-      const { data: assignmentsData, error: assignmentsError } = assignmentsResult;
-      if (assignmentsError) throw assignmentsError;
-      const { data: remitosData, error: remitosError } = remitosResult;
-      if (remitosError) throw remitosError;
 
-      const remitos = (remitosData ?? []) as ServiceMaterialRemito[];
+      const remitos = remitosData as ServiceMaterialRemito[];
       const remitoIds = remitos.map((remito) => remito.id);
       const lineStatsByDocument = new Map<string, { lineCount: number; estimatedCost: number }>();
       if (remitoIds.length > 0) {
-        const { data: linesData, error: linesError } = await serviceDb
-          .from("document_lines")
-          .select("document_id, quantity, base_cost_snapshot")
-          .in("document_id", remitoIds);
-        if (linesError) throw linesError;
-        for (const line of linesData ?? []) {
+        const linesData = await fetchAllPagesByChunks(remitoIds, (ids) =>
+          serviceDb
+            .from("document_lines")
+            .select("id, document_id, quantity, base_cost_snapshot")
+            .in("document_id", ids)
+            .order("document_id")
+            .order("id"),
+        );
+        for (const line of linesData) {
           const documentId = String(line.document_id);
           const current = lineStatsByDocument.get(documentId) ?? { lineCount: 0, estimatedCost: 0 };
           current.lineCount += 1;
@@ -146,7 +155,7 @@ export function useServiceJobs(params: {
       return {
         jobs,
         services,
-        assignments: (assignmentsData ?? []) as ServiceTechnicianAssignment[],
+        assignments: assignmentsData as ServiceTechnicianAssignment[],
         remitos: remitos.map((remito) => ({
           ...remito,
           total: Number(remito.total) || 0,
@@ -161,17 +170,18 @@ export function useServiceJobs(params: {
     queryKey: ["service-jobs", "linkable-remitos", companyId],
     enabled: Boolean(companyId),
     queryFn: async () => {
-      const { data, error } = await serviceDb
-        .from("documents")
-        .select("id, service_id, status, point_of_sale, document_number, issue_date, customer_id, customer_kind, technician_id, customer_name, total, created_at")
-        .eq("company_id", companyId)
-        .eq("doc_type", "REMITO")
-        .not("customer_id", "is", null)
-        .neq("customer_kind", "INTERNO")
-        .order("created_at", { ascending: false })
-        .limit(300);
-      if (error) throw error;
-      return ((data ?? []) as LinkableMaterialRemito[]).map((remito) => ({
+      const data = await fetchAllPages(() =>
+        serviceDb
+          .from("documents")
+          .select("id, service_id, status, point_of_sale, document_number, issue_date, customer_id, customer_kind, technician_id, customer_name, total, created_at")
+          .eq("company_id", companyId)
+          .eq("doc_type", "REMITO")
+          .not("customer_id", "is", null)
+          .neq("customer_kind", "INTERNO")
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false }),
+      );
+      return (data as LinkableMaterialRemito[]).map((remito) => ({
         ...remito,
         total: Number(remito.total) || 0,
         lineCount: 0,

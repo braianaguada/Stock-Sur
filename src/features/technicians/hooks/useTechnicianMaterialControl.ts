@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPages, fetchAllPagesByChunks } from "@/lib/supabase-pagination";
 import {
   buildMaterialControlReport,
   type MaterialControlDocType,
@@ -125,17 +126,18 @@ export function useTechnicianMaterialControl({
     queryKey: ["technicians", "material-control", "documents", companyId, state.dateFrom, state.dateTo],
     enabled: Boolean(companyId && state.dateFrom && state.dateTo),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, technician_id, customer_id, customer_name, service_id, origin_document_id, source_document_id, source_document_number_snapshot, external_invoice_number, total, created_at")
-        .eq("company_id", companyId!)
-        .in("doc_type", ["REMITO", "REMITO_DEVOLUCION"] satisfies MaterialControlDocType[])
-        .gte("issue_date", state.dateFrom)
-        .lte("issue_date", state.dateTo)
-        .order("issue_date", { ascending: false })
-        .limit(1000);
-      if (error) throw error;
-      return (data ?? []).map((document) => ({ ...document, total: Number(document.total) || 0 })) as MaterialControlDocument[];
+      const data = await fetchAllPages(() =>
+        supabase
+          .from("documents")
+          .select("id, doc_type, status, point_of_sale, document_number, issue_date, technician_id, customer_id, customer_name, service_id, origin_document_id, source_document_id, source_document_number_snapshot, external_invoice_number, total, created_at")
+          .eq("company_id", companyId!)
+          .in("doc_type", ["REMITO", "REMITO_DEVOLUCION"] satisfies MaterialControlDocType[])
+          .gte("issue_date", state.dateFrom)
+          .lte("issue_date", state.dateTo)
+          .order("issue_date", { ascending: false })
+          .order("id", { ascending: false }),
+      );
+      return data.map((document) => ({ ...document, total: Number(document.total) || 0 })) as MaterialControlDocument[];
     },
   });
 
@@ -149,13 +151,15 @@ export function useTechnicianMaterialControl({
     queryKey: ["technicians", "material-control", "lines", documentIds.join(",")],
     enabled: documentIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("document_lines")
-        .select("id, document_id, item_id, description, sku_snapshot, quantity, unit_price, line_total, base_cost_snapshot")
-        .in("document_id", documentIds)
-        .order("line_order");
-      if (error) throw error;
-      return (data ?? []).map((line) => ({
+      const data = await fetchAllPagesByChunks(documentIds, (ids) =>
+        supabase
+          .from("document_lines")
+          .select("id, document_id, item_id, description, sku_snapshot, quantity, unit_price, line_total, base_cost_snapshot")
+          .in("document_id", ids)
+          .order("line_order")
+          .order("id"),
+      );
+      return data.map((line) => ({
         ...line,
         quantity: Number(line.quantity) || 0,
         unit_price: Number(line.unit_price) || 0,
@@ -169,13 +173,15 @@ export function useTechnicianMaterialControl({
     queryKey: ["technicians", "material-control", "technicians", companyId],
     enabled: Boolean(companyId),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("technicians")
-        .select("*")
-        .eq("company_id", companyId!)
-        .order("name");
-      if (error) throw error;
-      return ((data ?? []) as MaterialControlTechnician[])
+      const data = await fetchAllPages(() =>
+        supabase
+          .from("technicians")
+          .select("*")
+          .eq("company_id", companyId!)
+          .order("name")
+          .order("id"),
+      );
+      return (data as MaterialControlTechnician[])
         .map((technician) => ({ ...technician, is_active: technician.is_active ?? true }));
     },
   });
@@ -184,13 +190,14 @@ export function useTechnicianMaterialControl({
     queryKey: ["technicians", "material-control", "customers", companyId],
     enabled: Boolean(companyId),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("customers")
-        .select("id, name")
-        .eq("company_id", companyId!)
-        .order("name");
-      if (error) throw error;
-      return data ?? [];
+      return fetchAllPages(() =>
+        supabase
+          .from("customers")
+          .select("id, name")
+          .eq("company_id", companyId!)
+          .order("name")
+          .order("id"),
+      );
     },
   });
 
@@ -198,12 +205,15 @@ export function useTechnicianMaterialControl({
     queryKey: ["technicians", "material-control", "services", serviceIds.join(",")],
     enabled: serviceIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("service_job_services")
-        .select("id, title, job_id, service_jobs(id, title, customers(id, name))")
-        .in("id", serviceIds);
-      if (error) throw error;
-      return ((data ?? []) as RawService[]).map((service) => {
+      const data = await fetchAllPagesByChunks(serviceIds, (ids) =>
+        supabase
+          .from("service_job_services")
+          .select("id, title, job_id, service_jobs(id, title, customers(id, name))")
+          .eq("company_id", companyId!)
+          .in("id", ids)
+          .order("id"),
+      );
+      return (data as RawService[]).map((service) => {
         const job = first(service.service_jobs);
         const customer = first(job?.customers);
         return {
