@@ -589,6 +589,7 @@ Validaciones de esta iteracion:
 Notas:
 
 - `npm run test` deja `src/features/db/criticalDb.test.ts` en `skipped` si no hay `PGPASSWORD` configurado.
+- QA DB crítica autenticada contra staging: 40/40 casos aprobados con rollback transaccional. Los escenarios remotos lentos usan un timeout explícito de 15 segundos y los rechazos esperados recuperan la transacción mediante `SAVEPOINT`.
 - La migracion de trabajos/servicios se debe aplicar en staging con `npm run db:push:staging` antes de probar `/service-jobs`.
 - En staging no habia tecnicos cargados al iniciar el QA manual; se creo un tecnico QA en la entidad `technicians` existente para validar la asignacion desde trabajos/servicios.
 - La migracion de combos ya se aplico en staging con `npm run db:push:staging --include-all` por una diferencia de historial remoto.
