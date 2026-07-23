@@ -373,7 +373,9 @@ export function SupplierCatalogDialog({
                     <div className="flex flex-wrap items-center gap-2">
                       {orderLines.length > 0 ? <CountBadge>{orderLines.length} en el pedido</CountBadge> : null}
                       {activeVersion ? (
-                        <InfoBadge>{formatSupplierDate(activeVersion.imported_at)}</InfoBadge>
+                        <span className="text-xs text-muted-foreground">
+                          Importado el {formatSupplierDate(activeVersion.imported_at)}
+                        </span>
                       ) : null}
                     </div>
                   </div>

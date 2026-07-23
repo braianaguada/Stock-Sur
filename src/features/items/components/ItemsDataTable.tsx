@@ -7,7 +7,7 @@ import { DataTable } from "@/components/data-table/DataTable";
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
+import { CategoryBadge, HealthBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import type { Item, ItemOperationalMeta } from "@/features/items/types";
 
 export type ItemSortField = "sku" | "name" | "supplier" | "brand" | "model" | "attributes" | "category" | "is_active" | "created_at" | "stock";
@@ -47,18 +47,18 @@ const sortFieldByColumnId: Record<string, ItemSortField> = {
 function stockChip(total: number | undefined, demand?: string | null) {
   if (total === undefined) {
     return (
-      <StatusBadge tone="muted" className="gap-1">
+      <HealthBadge tone="muted" className="gap-1">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
         S/D
-      </StatusBadge>
+      </HealthBadge>
     );
   }
   
   if (total <= 0) {
     return (
-      <StatusBadge tone="danger" className="gap-1">
+      <HealthBadge tone="danger" className="gap-1">
         <PackageX className="h-2.5 w-2.5" /> Sin stock
-      </StatusBadge>
+      </HealthBadge>
     );
   }
 
@@ -69,17 +69,17 @@ function stockChip(total: number | undefined, demand?: string | null) {
 
   if (isCritical) {
     return (
-      <StatusBadge tone="warning" className="gap-1">
+      <HealthBadge tone="warning" className="gap-1">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning" />
         {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })} (Bajo)
-      </StatusBadge>
+      </HealthBadge>
     );
   }
 
   return (
-    <StatusBadge tone="success" className="gap-1">
+    <HealthBadge tone="success" className="gap-1">
       <Package className="h-2.5 w-2.5" /> {total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}
-    </StatusBadge>
+    </HealthBadge>
   );
 }
 
@@ -280,9 +280,9 @@ function ItemsDataTableComponent({
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="inline-flex max-w-[94px]">
-                <StatusBadge tone={status.tone} className="max-w-full justify-center truncate">
+                <HealthBadge tone={status.tone} className="max-w-full justify-center truncate">
                   {status.label}
-                </StatusBadge>
+                </HealthBadge>
               </span>
             </TooltipTrigger>
             <TooltipContent side="left" className="max-w-56">
@@ -384,9 +384,9 @@ function ItemsDataTableComponent({
       accessorKey: "demand_profile",
       header: () => "Demanda",
       cell: ({ row }) => (
-        <StatusBadge tone={row.original.demand_profile === "HIGH" ? "warning" : "muted"}>
+        <CategoryBadge>
           {row.original.demand_profile === "HIGH" ? "Alta" : row.original.demand_profile === "MEDIUM" ? "Media" : "Baja"}
-        </StatusBadge>
+        </CategoryBadge>
       ),
       meta: {
         className: "w-[100px]",
@@ -496,9 +496,9 @@ function ItemsDataTableComponent({
                 <div>
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Estado operativo</p>
                   <span title={status.detail}>
-                    <StatusBadge tone={status.tone} className="mt-1 max-w-full truncate">
+                    <HealthBadge tone={status.tone} className="mt-1 max-w-full truncate">
                       {status.label}
-                    </StatusBadge>
+                    </HealthBadge>
                   </span>
                 </div>
                 <div>

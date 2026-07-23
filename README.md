@@ -1046,6 +1046,14 @@ Production migration history note:
 - Se retiraron los adapters visuales deprecated y las recetas CSS reemplazadas después de verificar cero consumidores; la gobernanza evita que reaparezcan.
 - No se modificaron reglas de negocio, consultas, mutations, permisos, RLS, aislamiento por `company_id`, base de datos ni el alcance funcional de Facturación. No requiere migraciones.
 
+## Normalización transversal de cards, badges y controles
+
+- Dashboard evita comprimir las métricas junto al gráfico hasta disponer de ancho suficiente; su skeleton conserva la misma estructura responsive.
+- Stock e Ítems reutilizan `MetricGrid`, `MetricCard`, `HealthBadge`, `CategoryBadge`, `StatusBadge` y `CountBadge` según la semántica real del dato, sin variantes visuales locales.
+- Documentos alinea buscador, filtros y opciones del editor, y sus acciones usan una superficie de tamaños homogéneos.
+- Cuenta corriente, cotizaciones, precios y catálogos distinguen estados, categorías e información contextual con las primitives canónicas correspondientes.
+- No se modificaron reglas de negocio, consultas, query keys, permisos, RLS, aislamiento por `company_id`, base de datos ni Facturación. No requiere migraciones.
+
 ## Suite crítica de base de datos
 
 - Los fixtures usan el modelo canónico de roles globales, el esquema vigente de clientes y membresías válidas por empresa.

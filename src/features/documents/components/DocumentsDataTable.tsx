@@ -208,61 +208,61 @@ export function DocumentsDataTable({
             ) : null}
             {doc.doc_type === "PRESUPUESTO" && doc.status === "BORRADOR" ? (
               <>
-                <Button variant="ghost" size="icon" className="text-[hsl(var(--domain-accent-strong))] hover:bg-[hsl(var(--domain-accent))]/10 hover:text-[hsl(var(--domain-accent-strong))]" onClick={() => onTransition(doc.id, "ENVIADO")} title="Marcar como enviado" disabled={!canTransitionDocumentTo("ENVIADO")}>
+                <Button variant="ghost" className="text-[hsl(var(--domain-accent-strong))] hover:bg-[hsl(var(--domain-accent))]/10 hover:text-[hsl(var(--domain-accent-strong))]" onClick={() => onTransition(doc.id, "ENVIADO")} title="Marcar como enviado" disabled={!canTransitionDocumentTo("ENVIADO")}>
                   <Send className="h-4 w-4" /><span>Marcar enviado</span>
                 </Button>
-                <Button variant="ghost" size="icon" className="text-success hover:bg-success/10 hover:text-success" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
+                <Button variant="ghost" className="text-success hover:bg-success/10 hover:text-success" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
                   <Check className="h-4 w-4" /><span>Aprobar</span>
                 </Button>
-                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
+                <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
                   <X className="h-4 w-4" /><span>Rechazar</span>
                 </Button>
-                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
+                <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" /><span>Anular</span>
                 </Button>
               </>
             ) : null}
             {doc.doc_type === "PRESUPUESTO" && doc.status === "ENVIADO" ? (
               <>
-                <Button variant="ghost" size="icon" className="text-success hover:bg-success/10 hover:text-success" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
+                <Button variant="ghost" className="text-success hover:bg-success/10 hover:text-success" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
                   <Check className="h-4 w-4" /><span>Aprobar</span>
                 </Button>
-                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
+                <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
                   <X className="h-4 w-4" /><span>Rechazar</span>
                 </Button>
-                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
+                <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" /><span>Anular</span>
                 </Button>
               </>
             ) : null}
             {(doc.doc_type === "REMITO" || doc.doc_type === "REMITO_DEVOLUCION") && doc.status === "BORRADOR" ? (
               <>
-                <Button variant="ghost" size="icon" className="text-[hsl(var(--domain-accent-strong))] hover:bg-[hsl(var(--domain-accent))]/10 hover:text-[hsl(var(--domain-accent-strong))]" onClick={() => onIssueRemito(doc.id)} title={doc.doc_type === "REMITO_DEVOLUCION" ? "Emitir devolucion" : "Emitir remito"} disabled={!canIssueRemito || isIssuingDocument}>
+                <Button variant="ghost" className="text-[hsl(var(--domain-accent-strong))] hover:bg-[hsl(var(--domain-accent))]/10 hover:text-[hsl(var(--domain-accent-strong))]" onClick={() => onIssueRemito(doc.id)} title={doc.doc_type === "REMITO_DEVOLUCION" ? "Emitir devolucion" : "Emitir remito"} disabled={!canIssueRemito || isIssuingDocument}>
                   {isIssuingDocument ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   <span>{doc.doc_type === "REMITO_DEVOLUCION" ? "Emitir devolución" : "Emitir remito"}</span>
                 </Button>
-                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular borrador" disabled={!canTransitionDocumentTo("ANULADO")}>
+                <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular borrador" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" /><span>Anular borrador</span>
                 </Button>
               </>
             ) : null}
             {doc.doc_type === "PRESUPUESTO" && doc.status === "APROBADO" ? (
-              <Button variant="ghost" size="icon" className="text-[hsl(var(--domain-accent-strong))] hover:bg-[hsl(var(--domain-accent))]/10 hover:text-[hsl(var(--domain-accent-strong))]" onClick={() => onCloneAsRemito(doc.id)} title="Convertir a remito" disabled={!canCloneBudgetToRemito}>
+              <Button variant="ghost" className="text-[hsl(var(--domain-accent-strong))] hover:bg-[hsl(var(--domain-accent))]/10 hover:text-[hsl(var(--domain-accent-strong))]" onClick={() => onCloneAsRemito(doc.id)} title="Convertir a remito" disabled={!canCloneBudgetToRemito}>
                 <FileText className="h-4 w-4" /><span>Convertir a remito</span>
               </Button>
             ) : null}
             {doc.doc_type === "REMITO" && doc.status === "EMITIDO" ? (
               <>
-                <Button variant="ghost" size="icon" className="text-[hsl(var(--domain-accent-strong))] hover:bg-[hsl(var(--domain-accent))]/10 hover:text-[hsl(var(--domain-accent-strong))]" onClick={() => onGenerateReturn(doc.id)} title="Generar devolución">
+                <Button variant="ghost" className="text-[hsl(var(--domain-accent-strong))] hover:bg-[hsl(var(--domain-accent))]/10 hover:text-[hsl(var(--domain-accent-strong))]" onClick={() => onGenerateReturn(doc.id)} title="Generar devolución">
                   <RotateCcw className="h-4 w-4" /><span>Generar devolución</span>
                 </Button>
-                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular remito" disabled={!canTransitionDocumentTo("ANULADO")}>
+                <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular remito" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" /><span>Anular remito</span>
                 </Button>
               </>
             ) : null}
             {doc.doc_type === "REMITO_DEVOLUCION" && doc.status === "EMITIDO" ? (
-              <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular devolucion" disabled={!canTransitionDocumentTo("ANULADO")}>
+              <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular devolucion" disabled={!canTransitionDocumentTo("ANULADO")}>
                 <Ban className="h-4 w-4" /><span>Anular devolución</span>
               </Button>
             ) : null}

@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { InfoBadge } from "@/components/common/VisualSystem";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getOperationalPrice } from "@/features/pricing/operational-price";
 import type { PriceRoundingConfig } from "@/features/pricing/rounding";
@@ -44,12 +44,9 @@ export function OperationalPriceDisplay({
               <span
                 aria-label={roundedFromLabel}
               >
-                <Badge
-                  variant="outline"
-                  className="h-5 cursor-default border-sky-500/30 bg-sky-500/10 px-1.5 text-[10px] text-sky-700 dark:text-sky-300"
-                >
+                <InfoBadge className="min-h-5 cursor-default px-1.5 text-[10px] leading-3">
                   Redondeado
-                </Badge>
+                </InfoBadge>
               </span>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">

@@ -326,7 +326,7 @@ export function DocumentsEditorDialog({
               <div className="space-y-2">
                 <Label aria-hidden="true" className="invisible">Opciones</Label>
                 <CollapsibleTrigger asChild>
-                  <Button type="button" variant="outline" className="h-11 w-full bg-background/50 shadow-none hover:bg-background">
+                  <Button type="button" variant="outline" className="w-full bg-background/50 shadow-none hover:bg-background">
                     {detailsOpen ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
                     {detailsOpen ? "Ocultar opciones avanzadas" : "Opciones de documento"}
                   </Button>
@@ -870,18 +870,21 @@ export function DocumentsEditorDialog({
                       />
                     </div>
 
-                    <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-1 flex items-center min-h-9 mt-4 xl:mt-0 relative overflow-hidden">
-                      <Label className="text-xs text-muted-foreground xl:hidden absolute top-0 -mt-5">Total</Label>
-                      <div className="text-sm font-semibold text-foreground w-full xl:text-left whitespace-nowrap">{formatMoney(lineTotal)}</div>
+                    <div className="space-y-1 xl:space-y-0">
+                      <Label className="text-xs text-muted-foreground xl:hidden">Total</Label>
+                      <div className="flex min-h-9 items-center rounded-lg border border-border/40 bg-muted/20 px-3 py-1">
+                        <div className="w-full whitespace-nowrap text-sm font-semibold text-foreground xl:text-left">{formatMoney(lineTotal)}</div>
+                      </div>
                     </div>
 
-                    <div className="flex items-end justify-end xl:justify-center mt-[-36px] xl:mt-0">
+                    <div className="flex items-end justify-end xl:justify-center">
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         className="h-9 w-9 text-muted-foreground opacity-50 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all"
                         onClick={() => removeLine(index)}
+                        aria-label={`Eliminar línea ${index + 1}`}
                         title="Eliminar linea"
                       >
                         <Trash2 className="h-4 w-4" />

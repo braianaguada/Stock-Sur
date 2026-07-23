@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { CategoryBadge } from "@/components/common/VisualSystem";
 import { Trash2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { ITEM_UNIT_OPTIONS } from "@/features/items/constants";
@@ -216,12 +216,20 @@ export function ItemFormDialog({
                   <div className="flex items-center gap-2">
                     <span className="text-sm">{alias.alias}</span>
                     {alias.is_supplier_code ? (
-                      <Badge variant="outline" className="text-xs">
+                      <CategoryBadge>
                         código
-                      </Badge>
+                      </CategoryBadge>
                     ) : null}
                   </div>
-                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDeleteAlias(alias)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => onDeleteAlias(alias)}
+                    aria-label={`Eliminar alias ${alias.alias}`}
+                    title={`Eliminar alias ${alias.alias}`}
+                  >
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>

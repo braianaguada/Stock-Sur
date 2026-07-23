@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { CategoryBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CustomerAccountCreditDialog } from "./CustomerAccountCreditDialog";
@@ -94,9 +94,9 @@ export function CustomerAccountDialog({ open, companyId, customer, onOpenChange,
                   <TableRow key={entry.id}>
                     <TableCell>{formatBusinessDate(entry.business_date)}</TableCell>
                     <TableCell>
-                      <Badge variant={entry.entry_type === "DEBIT" ? "destructive" : "outline"}>
+                      <CategoryBadge>
                         {entry.entry_type}
-                      </Badge>
+                      </CategoryBadge>
                     </TableCell>
                     <TableCell>{entry.origin_type}</TableCell>
                     <TableCell>{entry.description ?? "-"}</TableCell>
