@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
+import { fetchAllPages, fetchAllPagesByChunks } from "@/lib/supabase-pagination";
 import { buildAccountStatement, type AccountStatementFilters, type AccountStatementSource } from "@/features/customer-account/lib/accountStatement";
 
 type RawAccountEntry = {
@@ -62,33 +63,34 @@ export function useCustomerAccountStatement(companyId: string | null | undefined
     queryKey: queryKeys.customers.accountStatement(companyId ?? null, filters),
     enabled: Boolean(companyId),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("customer_account_entries")
-        .select(`
-          id,
-          company_id,
-          customer_id,
-          entry_type,
-          origin_type,
-          origin_id,
-          document_id,
-          cash_sale_id,
-          amount,
-          business_date,
-          description,
-          notes,
-          metadata,
-          customers!inner(name, is_occasional, account_due_days),
-          documents(id, doc_type, point_of_sale, document_number, external_invoice_number, issue_date),
-          cash_sales(id, receipt_kind, receipt_reference, business_date)
-        `)
-        .eq("company_id", companyId!)
-        .eq("customers.is_occasional", false)
-        .order("business_date", { ascending: true })
-        .order("created_at", { ascending: true })
-        .limit(1000);
-      if (error) throw error;
-      const entries = (data ?? []).map((row) => normalizeEntry(row as unknown as RawAccountEntry));
+      const data = await fetchAllPages(() =>
+        supabase
+          .from("customer_account_entries")
+          .select(`
+            id,
+            company_id,
+            customer_id,
+            entry_type,
+            origin_type,
+            origin_id,
+            document_id,
+            cash_sale_id,
+            amount,
+            business_date,
+            description,
+            notes,
+            metadata,
+            customers!inner(name, is_occasional, account_due_days),
+            documents(id, doc_type, point_of_sale, document_number, external_invoice_number, issue_date),
+            cash_sales(id, receipt_kind, receipt_reference, business_date)
+          `)
+          .eq("company_id", companyId!)
+          .eq("customers.is_occasional", false)
+          .order("business_date", { ascending: true })
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true }),
+      );
+      const entries = data.map((row) => normalizeEntry(row as unknown as RawAccountEntry));
       const invoiceReferences = Array.from(new Set(
         entries
           .filter((entry) => !entry.document_id)
@@ -102,16 +104,18 @@ export function useCustomerAccountStatement(companyId: string | null | undefined
 
       if (invoiceReferences.length === 0) return entries;
 
-      const { data: linkedDocuments, error: linkedDocumentsError } = await supabase
-        .from("documents")
-        .select("id, doc_type, point_of_sale, document_number, external_invoice_number, issue_date")
-        .eq("company_id", companyId!)
-        .eq("external_invoice_status", "ACTIVE")
-        .in("external_invoice_number", invoiceReferences);
-      if (linkedDocumentsError) throw linkedDocumentsError;
+      const linkedDocuments = await fetchAllPagesByChunks(invoiceReferences, (references) =>
+        supabase
+          .from("documents")
+          .select("id, doc_type, point_of_sale, document_number, external_invoice_number, issue_date")
+          .eq("company_id", companyId!)
+          .eq("external_invoice_status", "ACTIVE")
+          .in("external_invoice_number", references)
+          .order("id", { ascending: true }),
+      );
 
       const documentByInvoice = new Map(
-        (linkedDocuments ?? [])
+        linkedDocuments
           .filter((document) => document.external_invoice_number)
           .map((document) => [document.external_invoice_number!.trim(), document]),
       );

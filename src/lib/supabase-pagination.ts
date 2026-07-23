@@ -17,3 +17,19 @@ export async function fetchAllPages<T>(createQuery: () => RangeQuery<T>, pageSiz
 
   return rows;
 }
+
+export async function fetchAllPagesByChunks<T, TValue>(
+  values: TValue[],
+  createQuery: (chunk: TValue[]) => RangeQuery<T>,
+  chunkSize = 100,
+  pageSize = 1000,
+) {
+  const rows: T[] = [];
+
+  for (let from = 0; from < values.length; from += chunkSize) {
+    const chunk = values.slice(from, from + chunkSize);
+    rows.push(...await fetchAllPages(() => createQuery(chunk), pageSize));
+  }
+
+  return rows;
+}
