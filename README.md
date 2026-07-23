@@ -10,6 +10,12 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 - El contenido recuperado coincide exactamente con la funcion `public.get_dashboard_timeseries(uuid, text, date, date)` ya desplegada en staging; esta rama solo restaura el archivo faltante en Git y no aplica cambios de esquema ni datos.
 - La validacion focalizada de la funcion se ejecuto en una transaccion de solo lectura con rollback. La suite DB critica requiere un rol de prueba autorizado para sembrar `auth.users`; el rol efimero del enlace no cuenta con ese permiso.
 
+## Seguridad de importaciones Excel
+
+- `xlsx` se actualizo de `0.18.5` a `0.20.3` desde el tarball oficial de SheetJS para corregir los advisories de prototype pollution y ReDoS que afectan a la version anterior.
+- Se conservan los flujos existentes de lectura `.xlsx` y `.xls`; los parsers general y de catalogos de proveedores mantienen cobertura automatizada.
+- No hay cambios de reglas de negocio, datos, permisos, RLS ni aislamiento por `company_id`. Esta remediacion no requiere migraciones.
+
 ## Sistema visual transversal
 
 - La gobernanza del rediseño se centraliza en la [Constitución UI](docs/stock-sur-ui-constitution.md), la [arquitectura frontend](docs/frontend-architecture.md), el [catálogo de componentes](docs/component-catalog.md) y el [registro de deprecaciones](docs/deprecations.md).
