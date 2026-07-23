@@ -16,6 +16,12 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 - Se conservan los flujos existentes de lectura `.xlsx` y `.xls`; los parsers general y de catalogos de proveedores mantienen cobertura automatizada.
 - No hay cambios de reglas de negocio, datos, permisos, RLS ni aislamiento por `company_id`. Esta remediacion no requiere migraciones.
 
+## Seguridad del pipeline CSS
+
+- `postcss` se actualizo de `8.5.10` a `8.5.22` para corregir el advisory de lectura arbitraria de archivos mediante `sourceMappingURL` controlado por un atacante.
+- La remediacion solo modifica la dependencia directa y su lockfile; no cambia estilos, reglas de negocio, datos, permisos, RLS ni aislamiento por `company_id`.
+- `npm audit --omit=dev` queda sin vulnerabilidades conocidas. Esta remediacion no requiere migraciones.
+
 ## Sistema visual transversal
 
 - La gobernanza del rediseño se centraliza en la [Constitución UI](docs/stock-sur-ui-constitution.md), la [arquitectura frontend](docs/frontend-architecture.md), el [catálogo de componentes](docs/component-catalog.md) y el [registro de deprecaciones](docs/deprecations.md).
