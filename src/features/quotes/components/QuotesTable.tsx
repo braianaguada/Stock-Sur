@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, FileDown, Trash2 } from "lucide-react";
+import { StatusBadge } from "@/components/common/VisualSystem";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { QUOTE_STATUS_LABELS, QUOTE_STATUS_VARIANTS } from "@/features/quotes/constants";
+import { QUOTE_STATUS_LABELS } from "@/features/quotes/constants";
 import { businessDateFromTimestamp } from "@/lib/formatters";
 import type { QuoteListRow } from "@/features/quotes/types";
 
@@ -40,9 +40,19 @@ export function QuotesTable({
       accessorKey: "status",
       header: () => "Estado",
       cell: ({ row }) => (
-        <Badge variant={QUOTE_STATUS_VARIANTS[row.original.status] ?? "secondary"}>
+        <StatusBadge
+          tone={
+            row.original.status === "ACCEPTED"
+              ? "success"
+              : row.original.status === "REJECTED"
+                ? "danger"
+                : row.original.status === "SENT"
+                  ? "info"
+                  : "muted"
+          }
+        >
           {QUOTE_STATUS_LABELS[row.original.status] ?? row.original.status}
-        </Badge>
+        </StatusBadge>
       ),
     },
     {

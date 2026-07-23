@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -43,6 +42,7 @@ import {
 } from "@/features/items/components/ItemsDataTable";
 import { getOperationalPrice } from "@/features/pricing/operational-price";
 import { cn } from "@/lib/utils";
+import { CountBadge, MetricCard, MetricGrid } from "@/components/common/VisualSystem";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const NEW_ITEM_DRAFT_KEY = "items:new-item-draft";
@@ -923,46 +923,38 @@ export default function ItemsPage() {
           )}
           meta={(
             <div className="flex gap-2">
-              <Badge variant="outline">{stockStats.total} registrados</Badge>
-              {selectedItemIds.length > 0 && <Badge variant="secondary">{selectedItemIds.length} seleccionados</Badge>}
+              <CountBadge>{stockStats.total} registrados</CountBadge>
+              {selectedItemIds.length > 0 ? <CountBadge>{selectedItemIds.length} seleccionados</CountBadge> : null}
             </div>
           )}
         />
 
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="flex flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 shadow-sm transition-all hover:shadow-md">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Ítems</span>
-            <span className="text-xl font-black">{stockStats.total}</span>
-          </div>
-          <div className="flex flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 shadow-sm transition-all hover:shadow-md">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Activos en Venta</span>
-            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{stockStats.active}</span>
-          </div>
+        <MetricGrid className="mb-6" columns={4}>
+          <MetricCard label="Total ítems" value={stockStats.total} format="plain" helper="Registrados en el catálogo" />
+          <MetricCard label="Activos en venta" value={stockStats.active} format="plain" helper="Disponibles para operar" tone="success" />
           <button
             type="button"
             className={cn(
-              "flex flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 text-left shadow-sm transition-all hover:bg-card hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              stockFilter === "in_stock" && "border-blue-500/50 bg-blue-500/10",
+              "h-full rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              stockFilter === "in_stock" && "ring-2 ring-info/50",
             )}
             onClick={() => setStockFilter("in_stock")}
             aria-pressed={stockFilter === "in_stock"}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Con Stock</span>
-            <span className="text-xl font-black text-blue-600 dark:text-blue-400">{stockStats.inStock}</span>
+            <MetricCard label="Con stock" value={stockStats.inStock} format="plain" helper="Filtrar ítems disponibles" tone="info" />
           </button>
           <button
             type="button"
             className={cn(
-              "flex flex-col gap-1 rounded-2xl border border-border/50 bg-card/50 p-3 text-left shadow-sm transition-all hover:bg-card hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              stockFilter === "no_stock" && "border-rose-500/50 bg-rose-500/10",
+              "h-full rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              stockFilter === "no_stock" && "ring-2 ring-destructive/50",
             )}
             onClick={() => setStockFilter("no_stock")}
             aria-pressed={stockFilter === "no_stock"}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Sin Stock</span>
-            <span className="text-xl font-black text-rose-600 dark:text-rose-400">{stockStats.noStock}</span>
+            <MetricCard label="Sin stock" value={stockStats.noStock} format="plain" helper="Filtrar ítems sin existencias" tone="danger" />
           </button>
-        </div>
+        </MetricGrid>
 
         <Collapsible open={columnsOpen} onOpenChange={setColumnsOpen}>
           <FilterToolbar>
@@ -1103,7 +1095,7 @@ export default function ItemsPage() {
           </CollapsibleContent>
         </Collapsible>
 
-        <Card className="min-w-0 overflow-hidden border-border/70 shadow-none">
+        <Card className="min-w-0 border-border/70 shadow-none">
           <ItemsDataTable
             items={visibleItems}
             isLoading={isLoading}

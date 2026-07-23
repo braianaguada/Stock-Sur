@@ -14,10 +14,8 @@ export function DashboardLoading() {
         <Block className="h-[430px] xl:col-span-8" />
         <Block className="h-[430px] xl:col-span-4" />
       </div>
-      <div className="grid gap-5 xl:grid-cols-12">
-        <Block className="h-[360px] xl:col-span-8" />
-        <Block className="h-[360px] xl:col-span-4" />
-      </div>
+      <Block className="h-[360px] w-full" />
+      <Block className="h-[240px] w-full" />
       <span className="sr-only">Cargando datos reales, por favor esperá.</span>
     </div>
   );

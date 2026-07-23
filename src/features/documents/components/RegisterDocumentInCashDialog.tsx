@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
-import { MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
+import { MoneyCell, PrimaryCell } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -70,7 +70,9 @@ export function RegisterDocumentInCashDialog({
           </div>
 
           {document.external_invoice_status === "ACTIVE" ? (
-            <StatusBadge tone="info">Se registrará como factura {document.external_invoice_number}.</StatusBadge>
+            <p className="rounded-md border border-info/25 bg-info/10 px-3 py-2 text-sm text-info">
+              Se registrará como factura {document.external_invoice_number}.
+            </p>
           ) : null}
 
           {isClosedBusinessDate ? (

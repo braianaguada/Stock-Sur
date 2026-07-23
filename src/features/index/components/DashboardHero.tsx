@@ -103,7 +103,7 @@ export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
         </div>
       </div>
 
-      <div id="dashboard-view-panel" role="tabpanel" aria-labelledby={`dashboard-tab-${view.key}`} className="relative z-10 grid min-h-[380px] min-w-0 gap-6 px-5 py-6 sm:px-7 lg:grid-cols-[minmax(420px,1fr)_minmax(0,1.2fr)]">
+      <div id="dashboard-view-panel" role="tabpanel" aria-labelledby={`dashboard-tab-${view.key}`} className="relative z-10 grid min-h-[380px] min-w-0 gap-6 px-5 py-6 sm:px-7 2xl:grid-cols-[minmax(420px,1fr)_minmax(0,1.2fr)]">
         <div className="flex flex-col justify-between gap-5">
           <div>
             <p className="text-sm font-medium text-primary">{view.title}</p>

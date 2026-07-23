@@ -1,5 +1,6 @@
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
-import { AmountDisplay, CategoryBadge, MetricCard, MetricGrid, MoneyCell } from "./VisualSystem";
+import { AmountDisplay, CategoryBadge, HealthBadge, MetricCard, MetricGrid, MoneyCell, StatusBadge } from "./VisualSystem";
 import { PageContainer, PageHeader } from "@/components/ui/page";
 
 describe("visual system components", () => {
@@ -106,5 +107,31 @@ describe("visual system components", () => {
 
     expect(screen.getByText("Remito")).toHaveClass("border-primary/15", "bg-primary/8");
     expect(screen.getByText("$ 1.250,50")).toHaveClass("text-right", "tabular-nums");
+  });
+
+  it("keeps status, category, and health semantics visually distinct", () => {
+    render(
+      <>
+        <StatusBadge tone="info">Enviado</StatusBadge>
+        <CategoryBadge>Salida</CategoryBadge>
+        <HealthBadge tone="danger">Sin stock</HealthBadge>
+      </>,
+    );
+
+    expect(screen.getByText("Enviado")).toHaveClass("text-info");
+    expect(screen.getByText("Salida")).toHaveClass("text-primary");
+    expect(screen.getByText("Sin stock")).toHaveClass("text-destructive");
+  });
+
+  it("preserves the boolean health shorthand", () => {
+    render(
+      <>
+        <HealthBadge healthy>Disponible</HealthBadge>
+        <HealthBadge healthy={false}>Atención</HealthBadge>
+      </>,
+    );
+
+    expect(screen.getByText("Disponible")).toHaveClass("text-success");
+    expect(screen.getByText("Atención")).toHaveClass("text-warning");
   });
 });
