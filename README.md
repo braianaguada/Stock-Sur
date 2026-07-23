@@ -4,6 +4,12 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Trazabilidad de migraciones de staging
+
+- Se recupero `supabase/migrations/20260717150000_dashboard_timeseries.sql` desde su commit original y se contrasto con el historial remoto de Supabase.
+- El contenido recuperado coincide exactamente con la funcion `public.get_dashboard_timeseries(uuid, text, date, date)` ya desplegada en staging; esta rama solo restaura el archivo faltante en Git y no aplica cambios de esquema ni datos.
+- La validacion focalizada de la funcion se ejecuto en una transaccion de solo lectura con rollback. La suite DB critica requiere un rol de prueba autorizado para sembrar `auth.users`; el rol efimero del enlace no cuenta con ese permiso.
+
 ## Sistema visual transversal
 
 - La gobernanza del rediseño se centraliza en la [Constitución UI](docs/stock-sur-ui-constitution.md), la [arquitectura frontend](docs/frontend-architecture.md), el [catálogo de componentes](docs/component-catalog.md) y el [registro de deprecaciones](docs/deprecations.md).
