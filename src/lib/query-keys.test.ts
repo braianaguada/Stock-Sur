@@ -7,6 +7,14 @@ describe("company scoped query keys", () => {
     expect(queryKeys.company.settings(null)).toEqual(["company-settings", "no-company"]);
   });
 
+  it("scopes import price-list options by company", () => {
+    expect(queryKeys.imports.priceLists("company-1")).toEqual([
+      "imports-price-lists",
+      "company-1",
+    ]);
+    expect(queryKeys.imports.priceLists(null)).toEqual(["imports-price-lists", "no-company"]);
+  });
+
   it("scopes document detail, lines and events by company", () => {
     expect(queryKeys.documents.detail("company-1", "doc-1")).toEqual(["documents", "detail", "company-1", "doc-1"]);
     expect(queryKeys.documents.lines("company-1", "doc-1")).toEqual(["document-lines", "company-1", "doc-1"]);
