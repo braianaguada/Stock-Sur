@@ -8,6 +8,23 @@ import type {
   UsersFilter,
 } from "@/features/users/types";
 
+export function normalizeCompanySlug(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export function normalizeCompanyIdentity(values: { name: string; slug: string }) {
+  return {
+    name: values.name.trim(),
+    slug: normalizeCompanySlug(values.slug),
+  };
+}
+
 export function filterUsersAccessList(users: UserAccessRow[], filter: UsersFilter, search: string) {
   const normalizedSearch = search.trim().toLowerCase();
 
