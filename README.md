@@ -4,6 +4,12 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Descarga PDF de documentos de servicio
+
+- La descarga autenticada vuelve a obtener la sesion desde el namespace `auth` del cliente de Supabase antes de solicitar el PDF.
+- El flujo conserva la autorizacion existente, el guardado nativo cuando esta disponible y la descarga convencional como alternativa.
+- La regresion queda cubierta por tests focalizados. No se modifican documentos, permisos, RLS, datos ni esquema, y no requiere migraciones.
+
 ## Trazabilidad de migraciones de staging
 
 - Se recupero `supabase/migrations/20260717150000_dashboard_timeseries.sql` desde su commit original y se contrasto con el historial remoto de Supabase.

@@ -30,7 +30,7 @@ function normalizePdfFileName(fileName: string) {
 async function getAuthorizationHeader() {
   const impersonationToken = sessionStorage.getItem(IMPERSONATION_ACCESS_TOKEN_STORAGE_KEY);
   if (impersonationToken) return `Bearer ${impersonationToken}`;
-  const { data } = await supabaseAuth.getSession();
+  const { data } = await supabaseAuth.auth.getSession();
   return data.session?.access_token ? `Bearer ${data.session.access_token}` : null;
 }
 
