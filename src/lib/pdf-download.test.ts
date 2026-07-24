@@ -4,7 +4,7 @@ const getSessionMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/integrations/supabase/client", () => ({
   IMPERSONATION_ACCESS_TOKEN_STORAGE_KEY: "stock-sur-impersonation-access-token",
-  supabaseAuth: { getSession: getSessionMock },
+  supabaseAuth: { auth: { getSession: getSessionMock } },
 }));
 
 import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "./pdf-download";
@@ -69,5 +69,6 @@ describe("PDF download", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/render-pdf", expect.objectContaining({
       headers: expect.objectContaining({ authorization: "Bearer access-token" }),
     }));
+    expect(getSessionMock).toHaveBeenCalledOnce();
   });
 });
