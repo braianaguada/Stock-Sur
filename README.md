@@ -1067,6 +1067,14 @@ Production migration history note:
 - La cobertura de permisos de Rendiciones concede explícitamente cada acción ejercitada por el escenario.
 - No requiere migraciones ni modifica datos persistentes: los casos transaccionales revierten sus fixtures.
 
+## Aislamiento de cache y constitucion tecnica
+
+- La identidad efectiva combina actor, usuario efectivo e instancia de impersonacion. Logout, cambio de usuario, inicio/fin de impersonacion y restauracion cancelan requests, vacian React Query y descartan respuestas tardias.
+- El cambio normal de empresa elimina solamente el cache identificado con la empresa anterior y mantiene permisos vacios hasta validar el nuevo contexto.
+- Los guardrails verifican cero ciclos con Madge, impiden ampliar imports directos de Supabase desde pages y exigen `companyId` en las query keys canonicas del alcance.
+- Las reglas para codigo nuevo, capas, testing, dependencias, performance y eliminacion segura de codigo muerto estan en [`docs/stock-sur-technical-constitution.md`](docs/stock-sur-technical-constitution.md).
+- Este cambio no incluye migraciones ni modificaciones de base de datos.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo

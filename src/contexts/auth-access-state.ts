@@ -1,7 +1,7 @@
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole } from "@/lib/permissions";
-import type { CompanySummary } from "@/contexts/AuthContext";
+import type { CompanySummary } from "@/contexts/auth-types";
 import type { ImpersonationMeta } from "@/contexts/auth-impersonation";
 
 export type AuthStateSnapshot = {

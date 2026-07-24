@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { queryKeys } from "@/lib/query-keys";
 
 describe("company scoped query keys", () => {
+  it("scopes company settings by company", () => {
+    expect(queryKeys.company.settings("company-1")).toEqual(["company-settings", "company-1"]);
+    expect(queryKeys.company.settings(null)).toEqual(["company-settings", "no-company"]);
+  });
+
   it("scopes document detail, lines and events by company", () => {
     expect(queryKeys.documents.detail("company-1", "doc-1")).toEqual(["documents", "detail", "company-1", "doc-1"]);
     expect(queryKeys.documents.lines("company-1", "doc-1")).toEqual(["document-lines", "company-1", "doc-1"]);
