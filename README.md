@@ -1106,6 +1106,13 @@ Production migration history note:
 - La normalización conserva las diferencias de presupuesto, remito comercial y remito interno, y evita guardar vínculos incompatibles entre esos flujos.
 - La regresión unitaria cubre los tres escenarios. No se modifican emisión, stock, Caja, cuenta corriente, RLS ni esquema, y no requiere migraciones.
 
+## Calculo de stock e invalidacion de catalogos
+
+- El calculo de existencias, demanda, cobertura y salud vive en una funcion pura del dominio Stock; el hook de pantalla solo consulta y orquesta.
+- Las importaciones de proveedores reutilizan la invalidacion canonica de proveedores y catalogos.
+- Se elimino una acumulacion historica sin consumidores. Las regresiones cubren movimientos firmados, demanda manual, items historicos y antiguedad de salidas.
+- No se modificaron reglas de negocio, query keys, RLS, aislamiento por `company_id` ni esquema. No requiere migraciones.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
