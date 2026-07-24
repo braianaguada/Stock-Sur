@@ -35,4 +35,43 @@ describe("company scoped query keys", () => {
     expect(queryKeys.settlements.totals("company-1", "settlement-1")).toEqual(["settlements", "totals", "company-1", "settlement-1"]);
     expect(queryKeys.settlements.list(null)).toEqual(["settlements", "list", "no-company"]);
   });
+
+  it("scopes technician lists and material control dependencies by company", () => {
+    expect(queryKeys.technicians.list("company-1", "ana", "active")).toEqual([
+      "technicians",
+      "company-1",
+      "list",
+      "ana",
+      "active",
+    ]);
+    expect(queryKeys.technicians.materialControl.documents("company-1", "2026-07-01", "2026-07-31")).toEqual([
+      "technicians",
+      "company-1",
+      "material-control",
+      "documents",
+      "2026-07-01",
+      "2026-07-31",
+    ]);
+    expect(queryKeys.technicians.materialControl.lines("company-1", "doc-1,doc-2")).toEqual([
+      "technicians",
+      "company-1",
+      "material-control",
+      "lines",
+      "doc-1,doc-2",
+    ]);
+    expect(queryKeys.technicians.materialControl.services("company-2", "service-1")).toEqual([
+      "technicians",
+      "company-2",
+      "material-control",
+      "services",
+      "service-1",
+    ]);
+    expect(queryKeys.technicians.materialControl.lines(null, "")).toEqual([
+      "technicians",
+      "no-company",
+      "material-control",
+      "lines",
+      "",
+    ]);
+  });
 });

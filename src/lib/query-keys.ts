@@ -94,6 +94,7 @@ export const queryKeys = {
   },
   documents: {
     customers: (companyId: string | null) => ["documents-customers", companyId ?? "no-company"] as const,
+    technicians: (companyId: string | null) => ["documents", "technicians", companyId ?? "no-company"] as const,
     items: (companyId: string | null) => ["documents-items", companyId ?? "no-company"] as const,
     priceLists: (companyId: string | null) => ["documents-price-lists", companyId ?? "no-company"] as const,
     priceListItems: (companyId: string | null, priceListId: string) => ["documents-price-list-items", companyId ?? "no-company", priceListId] as const,
@@ -143,6 +144,7 @@ export const queryKeys = {
   },
   serviceJobs: {
     all: () => ["service-jobs"] as const,
+    company: (companyId: string | null) => ["service-jobs", companyId ?? "no-company"] as const,
     list: (
       companyId: string | null,
       search: string,
@@ -155,6 +157,26 @@ export const queryKeys = {
     ) => ["service-jobs", companyId ?? "no-company", search, status, technicianId, from, to, priority, archived] as const,
     customers: (companyId: string | null) => ["service-jobs-customers", companyId ?? "no-company"] as const,
     technicians: (companyId: string | null) => ["service-jobs-technicians", companyId ?? "no-company"] as const,
+  },
+  technicians: {
+    company: (companyId: string | null) => ["technicians", companyId ?? "no-company"] as const,
+    list: (
+      companyId: string | null,
+      search: string,
+      statusFilter: "active" | "inactive" | "all",
+    ) => ["technicians", companyId ?? "no-company", "list", search, statusFilter] as const,
+    materialControl: {
+      documents: (companyId: string | null, from: string, to: string) =>
+        ["technicians", companyId ?? "no-company", "material-control", "documents", from, to] as const,
+      lines: (companyId: string | null, documentIdsKey: string) =>
+        ["technicians", companyId ?? "no-company", "material-control", "lines", documentIdsKey] as const,
+      technicians: (companyId: string | null) =>
+        ["technicians", companyId ?? "no-company", "material-control", "technicians"] as const,
+      customers: (companyId: string | null) =>
+        ["technicians", companyId ?? "no-company", "material-control", "customers"] as const,
+      services: (companyId: string | null, serviceIdsKey: string) =>
+        ["technicians", companyId ?? "no-company", "material-control", "services", serviceIdsKey] as const,
+    },
   },
   stock: {
     recentItems: (companyId: string | null, userId: string | null | undefined) =>
