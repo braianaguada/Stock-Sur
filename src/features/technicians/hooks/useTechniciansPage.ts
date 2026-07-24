@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
 import { invalidateTechnicianQueries } from "@/lib/invalidate";
+import { queryKeys } from "@/lib/query-keys";
 import type { Technician } from "../types";
 import type { TechnicianFormState } from "../components/TechnicianFormDialog";
 import { hasTechnicianHistory, TECHNICIAN_DELETE_BLOCKED_MESSAGE, type TechnicianHistoryCounts } from "../technicianLifecycle";
@@ -42,7 +43,7 @@ export function useTechniciansPage({ companyId, userId, toast }: UseTechniciansP
   const [statusFilter, setStatusFilter] = useState<TechnicianStatusFilter>("active");
   const qc = useQueryClient();
   const techniciansQuery = useQuery({
-    queryKey: ["technicians", companyId, deferredSearch, statusFilter],
+    queryKey: queryKeys.technicians.list(companyId ?? null, deferredSearch, statusFilter),
     enabled: Boolean(companyId),
     queryFn: async () => {
       let q = supabase.from("technicians").select("*").eq("company_id", companyId!).order("name");
@@ -60,36 +61,44 @@ export function useTechniciansPage({ companyId, userId, toast }: UseTechniciansP
   });
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!companyId) throw new Error("Necesitas una empresa activa para guardar técnicos.");
       const payload = { company_id: companyId!, name: form.name, phone: form.phone || null, notes: form.notes || null, is_active: form.is_active, created_by: userId ?? null };
-      const q = editing ? supabase.from("technicians").update(payload).eq("id", editing.id) : supabase.from("technicians").insert(payload);
+      const q = editing
+        ? supabase.from("technicians").update(payload).eq("id", editing.id).eq("company_id", companyId)
+        : supabase.from("technicians").insert(payload);
       const { error } = await q;
       if (error) throw error;
+      return companyId;
     },
-    onSuccess: async () => { await invalidateTechnicianQueries(qc); setDialogOpen(false); setEditing(null); setForm(EMPTY_FORM); toast({ title: editing ? "Tecnico actualizado" : "Tecnico creado" }); },
+    onSuccess: async (affectedCompanyId) => { await invalidateTechnicianQueries(qc, affectedCompanyId); setDialogOpen(false); setEditing(null); setForm(EMPTY_FORM); toast({ title: editing ? "Tecnico actualizado" : "Tecnico creado" }); },
     onError: (error) => toast({ title: "No se pudo guardar", description: getErrorMessage(error), variant: "destructive" }),
   });
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      if (!companyId) throw new Error("Necesitas una empresa activa para eliminar técnicos.");
       const counts = await getTechnicianHistoryCounts(id);
       if (hasTechnicianHistory(counts)) {
         throw new Error(TECHNICIAN_DELETE_BLOCKED_MESSAGE);
       }
-      const { error } = await supabase.from("technicians").delete().eq("id", id);
+      const { error } = await supabase.from("technicians").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
+      return companyId;
     },
-    onSuccess: async () => {
-      await invalidateTechnicianQueries(qc);
+    onSuccess: async (affectedCompanyId) => {
+      await invalidateTechnicianQueries(qc, affectedCompanyId);
       toast({ title: "Tecnico eliminado" });
     },
     onError: (error) => toast({ title: "No se pudo eliminar", description: getErrorMessage(error), variant: "destructive" }),
   });
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      const { error } = await supabase.from("technicians").update({ is_active: isActive }).eq("id", id);
+      if (!companyId) throw new Error("Necesitas una empresa activa para cambiar el estado de técnicos.");
+      const { error } = await supabase.from("technicians").update({ is_active: isActive }).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
+      return companyId;
     },
-    onSuccess: async (_, variables) => {
-      await invalidateTechnicianQueries(qc);
+    onSuccess: async (affectedCompanyId, variables) => {
+      await invalidateTechnicianQueries(qc, affectedCompanyId);
       toast({ title: variables.isActive ? "Tecnico activado" : "Tecnico marcado como inactivo" });
     },
     onError: (error) => toast({ title: "No se pudo cambiar el estado", description: getErrorMessage(error), variant: "destructive" }),

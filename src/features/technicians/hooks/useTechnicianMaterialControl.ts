@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/query-keys";
 import { fetchAllPages, fetchAllPagesByChunks } from "@/lib/supabase-pagination";
 import {
   buildMaterialControlReport,
@@ -123,7 +124,7 @@ export function useTechnicianMaterialControl({
   state: TechnicianMaterialControlState;
 }) {
   const documentsQuery = useQuery({
-    queryKey: ["technicians", "material-control", "documents", companyId, state.dateFrom, state.dateTo],
+    queryKey: queryKeys.technicians.materialControl.documents(companyId ?? null, state.dateFrom, state.dateTo),
     enabled: Boolean(companyId && state.dateFrom && state.dateTo),
     queryFn: async () => {
       const data = await fetchAllPages(() =>
@@ -148,8 +149,8 @@ export function useTechnicianMaterialControl({
   );
 
   const linesQuery = useQuery({
-    queryKey: ["technicians", "material-control", "lines", documentIds.join(",")],
-    enabled: documentIds.length > 0,
+    queryKey: queryKeys.technicians.materialControl.lines(companyId ?? null, documentIds.join(",")),
+    enabled: Boolean(companyId) && documentIds.length > 0,
     queryFn: async () => {
       const data = await fetchAllPagesByChunks(documentIds, (ids) =>
         supabase
@@ -170,7 +171,7 @@ export function useTechnicianMaterialControl({
   });
 
   const techniciansQuery = useQuery({
-    queryKey: ["technicians", "material-control", "technicians", companyId],
+    queryKey: queryKeys.technicians.materialControl.technicians(companyId ?? null),
     enabled: Boolean(companyId),
     queryFn: async () => {
       const data = await fetchAllPages(() =>
@@ -187,7 +188,7 @@ export function useTechnicianMaterialControl({
   });
 
   const customersQuery = useQuery({
-    queryKey: ["technicians", "material-control", "customers", companyId],
+    queryKey: queryKeys.technicians.materialControl.customers(companyId ?? null),
     enabled: Boolean(companyId),
     queryFn: async () => {
       return fetchAllPages(() =>
@@ -202,8 +203,8 @@ export function useTechnicianMaterialControl({
   });
 
   const servicesQuery = useQuery({
-    queryKey: ["technicians", "material-control", "services", serviceIds.join(",")],
-    enabled: serviceIds.length > 0,
+    queryKey: queryKeys.technicians.materialControl.services(companyId ?? null, serviceIds.join(",")),
+    enabled: Boolean(companyId) && serviceIds.length > 0,
     queryFn: async () => {
       const data = await fetchAllPagesByChunks(serviceIds, (ids) =>
         supabase

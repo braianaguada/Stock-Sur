@@ -1075,6 +1075,12 @@ Production migration history note:
 - Las reglas para codigo nuevo, capas, testing, dependencias, performance y eliminacion segura de codigo muerto estan en [`docs/stock-sur-technical-constitution.md`](docs/stock-sur-technical-constitution.md).
 - Este cambio no incluye migraciones ni modificaciones de base de datos.
 
+## Limites de datos y cache de tecnicos
+
+- Las consultas de Tecnicos y Control de materiales usan factories canonicas con `companyId`, incluidos renglones y servicios derivados.
+- Las mutations de tecnicos exigen empresa activa, acotan update/delete por `company_id` e invalidan solamente Tecnicos, Documentos y Trabajos de la empresa afectada.
+- El cambio evita reutilizar datos derivados entre empresas y no modifica esquema, RLS ni reglas de negocio.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
