@@ -1100,6 +1100,12 @@ Production migration history note:
 - Los identificadores se envian siempre en el formato canonico exigido por la base de datos: minusculas ASCII, numeros y guiones.
 - La regresion unitaria cubre espacios, acentos y separadores; no se modifican permisos, RLS, reglas de negocio ni esquema.
 
+## Persistencia de borradores comerciales
+
+- La creación y la edición de borradores de Documentos comparten una única normalización del payload persistido.
+- La normalización conserva las diferencias de presupuesto, remito comercial y remito interno, y evita guardar vínculos incompatibles entre esos flujos.
+- La regresión unitaria cubre los tres escenarios. No se modifican emisión, stock, Caja, cuenta corriente, RLS ni esquema, y no requiere migraciones.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
