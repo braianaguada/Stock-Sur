@@ -1,0 +1,46 @@
+{
+  "src/pages/Auth.tsx": {
+    "reason": "Pantalla de autenticación: usa exclusivamente el cliente auth.",
+    "removalCondition": "Extraer un gateway de autenticación compartido cuando exista un segundo consumidor."
+  },
+  "src/pages/CashTotals.tsx": {
+    "reason": "Superficie heredada de caja todavía pendiente de migrar a un repositorio de feature.",
+    "removalCondition": "Migrar en el PR técnico específico de Caja, con regresiones de cierres y totales."
+  },
+  "src/pages/Combos.tsx": {
+    "reason": "CRUD heredado de combos pendiente de encapsulación.",
+    "removalCondition": "Mover lecturas y mutaciones a features/combos/data en su PR dedicado."
+  },
+  "src/pages/CustomerAccount.tsx": {
+    "reason": "Integración heredada de cuenta corriente con consultas operativas locales.",
+    "removalCondition": "Migrar a features/customer-account/data preservando aislamiento y estados."
+  },
+  "src/pages/Documents.tsx": {
+    "reason": "Orquestador documental heredado con mutations aún acopladas a Supabase.",
+    "removalCondition": "Extraer gateways documentales con pruebas de emisión, caja y stock."
+  },
+  "src/pages/Items.tsx": {
+    "reason": "Catálogo heredado con operaciones directas todavía no consolidadas.",
+    "removalCondition": "Migrar CRUD y búsquedas a features/items/data en un PR focalizado."
+  },
+  "src/pages/LegacyCatalogImport.tsx": {
+    "reason": "Importador legado aislado que requiere una migración funcional completa.",
+    "removalCondition": "Retirar el flujo legado o encapsularlo al consolidar importaciones."
+  },
+  "src/pages/PriceLists.tsx": {
+    "reason": "Flujo heredado de listas con operaciones directas pendientes de gateway.",
+    "removalCondition": "Migrar a features/pricing/data con regresiones de cálculo y permisos."
+  },
+  "src/pages/PrintBilling.tsx": {
+    "reason": "Lectura imprimible del módulo de facturación aún incompleto.",
+    "removalCondition": "Encapsular al finalizar el módulo, sin ampliar facturación en este PR."
+  },
+  "src/pages/ServiceDocuments.tsx": {
+    "reason": "Orquestador heredado de documentos de servicio con mutations directas.",
+    "removalCondition": "Migrar junto con regresiones de trabajos, adjuntos e impresión."
+  },
+  "src/pages/Settlements.tsx": {
+    "reason": "Rendiciones heredadas pendientes de capa de acceso dedicada.",
+    "removalCondition": "Extraer a features/settlements/data con pruebas de permisos y métricas."
+  }
+}

@@ -2,6 +2,9 @@ import type { AccountStatementFilters } from "@/features/customer-account/lib/ac
 import type { DocStatus, DocType } from "@/features/documents/types";
 
 export const queryKeys = {
+  company: {
+    settings: (companyId: string | null) => ["company-settings", companyId ?? "no-company"] as const,
+  },
   dashboard: {
     overview: (companyId: string | null) => ["dashboard-overview", companyId ?? "no-company"] as const,
     itemsCount: (companyId: string | null) => ["items-count", companyId ?? "no-company"] as const,

@@ -4,11 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { CompanyBrandContext, DEFAULT_COMPANY_SETTINGS, type CompanySettings } from "@/contexts/company-brand-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { applyCompanyTheme } from "@/lib/companyTheme";
+import { queryKeys } from "@/lib/query-keys";
 
 export function CompanyBrandProvider({ children }: { children: ReactNode }) {
   const { currentCompany, session } = useAuth();
   const query = useQuery({
-    queryKey: ["company-settings", currentCompany?.id ?? "default"],
+    queryKey: queryKeys.company.settings(currentCompany?.id ?? null),
     enabled: Boolean(session?.user && currentCompany?.id),
     queryFn: async () => {
       const { data, error } = await supabase
