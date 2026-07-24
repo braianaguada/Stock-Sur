@@ -56,7 +56,7 @@ export function useDocumentsData({
   });
 
   const { data: allTechnicians = [] } = useQuery({
-    queryKey: ["documents", "technicians", currentCompanyId],
+    queryKey: queryKeys.documents.technicians(currentCompanyId),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
