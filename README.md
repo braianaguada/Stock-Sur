@@ -1088,6 +1088,12 @@ Production migration history note:
 - La confirmacion invalida solo ese catalogo; no crea cache global de items ni refresca dominios de Stock que no fueron modificados.
 - No requiere migraciones ni modifica reglas de negocio, RLS o datos fuera de la accion solicitada.
 
+## Cache auxiliar de importaciones
+
+- Las listas disponibles para importar usan una query key canonica segmentada por `companyId`.
+- Al completar una importacion no se invalida la cache de listas de venta: la operacion crea una version y sus lineas, pero no modifica las opciones de listas consultadas.
+- No requiere migraciones ni modifica reglas de negocio, RLS o datos fuera de la importacion confirmada.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
