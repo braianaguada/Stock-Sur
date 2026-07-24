@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabaseAuth } from "@/integrations/supabase/client";
 import type { AppRole } from "@/lib/permissions";
 import { canManageSettings } from "@/lib/permissions";
@@ -26,9 +27,16 @@ import {
   subscribeToAuthSession,
   syncActorSession,
 } from "@/contexts/auth-session-effects";
-import type { Tables } from "@/integrations/supabase/types";
+import {
+  EffectiveIdentityTracker,
+  RequestGeneration,
+  getEffectiveIdentityKey,
+  retireCompanyCache,
+  retireIdentityCache,
+} from "@/contexts/auth-query-lifecycle";
+import type { CompanySummary } from "@/contexts/auth-types";
 
-export type CompanySummary = Pick<Tables<"companies">, "id" | "name" | "slug" | "status">;
+export type { CompanySummary } from "@/contexts/auth-types";
 
 interface AuthContextType {
   session: Session | null;
@@ -76,7 +84,16 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+function resolveIdentityKey(actorSession: Session | null, nextImpersonationMeta: ImpersonationMeta | null) {
+  return getEffectiveIdentityKey({
+    actorUserId: actorSession?.user?.id ?? null,
+    effectiveUserId: nextImpersonationMeta?.targetUserId ?? actorSession?.user?.id ?? null,
+    impersonationId: nextImpersonationMeta?.impersonationId ?? null,
+  });
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [effectiveUser, setEffectiveUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
@@ -88,7 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authHydrated, setAuthHydrated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [switchingCompany, setSwitchingCompany] = useState(false);
-  const lastIdentityKeyRef = useRef<string | null>(null);
+  const identityTrackerRef = useRef(new EffectiveIdentityTracker());
+  const authLoadGenerationRef = useRef(new RequestGeneration());
+  const companyAccessGenerationRef = useRef(new RequestGeneration());
 
   const isImpersonating = Boolean(impersonationMeta);
 
@@ -101,19 +120,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCompanyPermissionCodes([]);
   }, []);
 
+  const prepareIdentityTransition = useCallback(async (nextIdentityKey: string) => {
+    if (!identityTrackerRef.current.claim(nextIdentityKey)) return false;
+
+    authLoadGenerationRef.current.invalidate();
+    companyAccessGenerationRef.current.invalidate();
+    setSwitchingCompany(false);
+    setLoading(true);
+    clearAuthState();
+    await retireIdentityCache(queryClient);
+    return true;
+  }, [clearAuthState, queryClient]);
+
   const syncCurrentActorSession = useCallback(async () => {
     const refreshedSession = await syncActorSession(setSession);
     setEffectiveUser(refreshedSession?.user ?? null);
   }, []);
 
   const clearImpersonationState = useCallback(async () => {
+    await prepareIdentityTransition(resolveIdentityKey(session, null));
     clearStoredImpersonation();
     setImpersonationMeta(null);
-    setLoading(true);
     await syncCurrentActorSession();
-  }, [syncCurrentActorSession]);
+  }, [prepareIdentityTransition, session, syncCurrentActorSession]);
 
   const loadAuthState = useCallback(async (actorSession: Session | null, nextImpersonationMeta: ImpersonationMeta | null) => {
+    await prepareIdentityTransition(resolveIdentityKey(actorSession, nextImpersonationMeta));
+    const loadGeneration = authLoadGenerationRef.current.next();
+
     try {
       const nextUserId = nextImpersonationMeta?.targetUserId ?? actorSession?.user?.id ?? null;
       const nextState = await loadAuthStateSnapshot({
@@ -123,6 +157,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           : CURRENT_COMPANY_STORAGE_KEY,
         impersonationMeta: nextImpersonationMeta,
       });
+
+      if (!authLoadGenerationRef.current.isCurrent(loadGeneration)) return;
 
       if (!nextState) {
         clearAuthState();
@@ -141,11 +177,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCompanyPermissionCodes([]);
       }
     } catch {
-      clearAuthState();
+      if (authLoadGenerationRef.current.isCurrent(loadGeneration)) {
+        clearAuthState();
+      }
     } finally {
-      setLoading(false);
+      if (authLoadGenerationRef.current.isCurrent(loadGeneration)) {
+        setLoading(false);
+      }
     }
-  }, [clearAuthState]);
+  }, [clearAuthState, prepareIdentityTransition]);
 
   const applyAuthSnapshot = useCallback((nextState: NonNullable<Awaited<ReturnType<typeof loadAuthStateSnapshot>>>) => {
     setEffectiveUser(nextState.effectiveUser);
@@ -162,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setSwitchingCompany(true);
+    const accessGeneration = companyAccessGenerationRef.current.next();
     try {
       const nextState = await loadAuthStateSnapshot({
         actorSession: session,
@@ -174,6 +215,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("No se pudo validar tu acceso a empresas.");
       }
 
+      if (!companyAccessGenerationRef.current.isCurrent(accessGeneration)) {
+        throw new Error("El cambio de identidad interrumpio el cambio de empresa.");
+      }
+
       const nextCompany = nextState.companies.find((company) => company.id === companyId) ?? null;
       if (!nextCompany) {
         applyAuthSnapshot(nextState);
@@ -181,15 +226,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           companyId: nextState.currentCompanyId,
           userId: nextState.effectiveUser.id,
         });
+        if (!companyAccessGenerationRef.current.isCurrent(accessGeneration)) {
+          throw new Error("El cambio de identidad interrumpio el cambio de empresa.");
+        }
         setCompanyRoleCodes(nextAccess.companyRoleCodes);
         setCompanyPermissionCodes(nextAccess.companyPermissionCodes);
         throw new Error("Tu acceso a esa empresa ya no esta disponible.");
+      }
+
+      setCompanyRoleCodes([]);
+      setCompanyPermissionCodes([]);
+      await retireCompanyCache(queryClient, currentCompanyId);
+
+      if (!companyAccessGenerationRef.current.isCurrent(accessGeneration)) {
+        throw new Error("El cambio de identidad interrumpio el cambio de empresa.");
       }
 
       const nextAccess = await loadCompanyAccessSnapshot({
         companyId,
         userId: nextState.effectiveUser.id,
       });
+
+      if (!companyAccessGenerationRef.current.isCurrent(accessGeneration)) {
+        throw new Error("El cambio de identidad interrumpio el cambio de empresa.");
+      }
 
       setEffectiveUser(nextState.effectiveUser);
       setRoles(nextState.roles);
@@ -202,9 +262,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return nextCompany;
     } finally {
-      setSwitchingCompany(false);
+      if (companyAccessGenerationRef.current.isCurrent(accessGeneration)) {
+        setSwitchingCompany(false);
+      }
     }
-  }, [applyAuthSnapshot, clearAuthState, effectiveUser?.id, impersonationMeta, session]);
+  }, [applyAuthSnapshot, clearAuthState, currentCompanyId, effectiveUser?.id, impersonationMeta, queryClient, session]);
 
   const refreshCompanies = useCallback(async () => {
     await loadAuthState(session, impersonationMeta);
@@ -224,16 +286,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const nextIdentityKey = `${session?.user?.id ?? "anonymous"}:${impersonationMeta?.targetUserId ?? "self"}`;
-    const shouldBlockNavigation =
-      lastIdentityKeyRef.current === null ||
-      lastIdentityKeyRef.current !== nextIdentityKey;
-
-    if (shouldBlockNavigation) {
-      setLoading(true);
-    }
-
-    lastIdentityKeyRef.current = nextIdentityKey;
     void loadAuthState(session, impersonationMeta);
   }, [authHydrated, impersonationMeta, loadAuthState, session]);
 
@@ -256,12 +308,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearImpersonationState, impersonationMeta]);
 
   useEffect(() => {
+    const accessGeneration = companyAccessGenerationRef.current.next();
+    setCompanyRoleCodes([]);
+    setCompanyPermissionCodes([]);
+
     const loadCompanyAccess = async () => {
       const nextAccess = await loadCompanyAccessSnapshot({
         companyId: currentCompanyId,
         userId: effectiveUser?.id ?? null,
       });
 
+      if (!companyAccessGenerationRef.current.isCurrent(accessGeneration)) return;
       setCompanyRoleCodes(nextAccess.companyRoleCodes);
       setCompanyPermissionCodes(nextAccess.companyPermissionCodes);
     };
@@ -308,6 +365,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       expiresAt,
     };
 
+    await prepareIdentityTransition(resolveIdentityKey(session, nextImpersonationMeta));
     persistImpersonation(nextImpersonationMeta, accessToken);
     setImpersonationMeta(nextImpersonationMeta);
     setLoading(true);
@@ -346,6 +404,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    await prepareIdentityTransition(resolveIdentityKey(null, null));
     clearPersistedCurrentCompanyId(effectiveUser?.id);
     clearPersistedCurrentCompanyId(session?.user?.id);
     clearLegacyCurrentCompanyId();

@@ -2,6 +2,8 @@
 
 Esta guía traduce la [Constitución UI](stock-sur-ui-constitution.md) a límites de implementación. La constitución define el resultado; este documento define dónde vive cada responsabilidad.
 
+La [Constitucion tecnica](stock-sur-technical-constitution.md) es el contrato obligatorio para identidad efectiva, cache, multitenancy, acceso a datos, dependencias, testing y eliminacion de codigo muerto.
+
 ## Capas
 
 1. `src/components/ui`: primitives de interacción y composición sin conocimiento de dominio.
@@ -30,6 +32,10 @@ Las listas operativas no usan `ui/Table` directamente. Son excepciones válidas 
 - El estado local queda limitado a interacción efímera: apertura de overlay, borradores y selección no navegable.
 - Loading, empty, error y retry se expresan mediante un contrato estable; no se reemplaza toda la tabla por bloques con otra geometría.
 - El rediseño visual no autoriza cambios simultáneos en queries, mutations, permisos o reglas de negocio.
+
+- Actor, usuario efectivo e instancia de impersonacion forman el limite de identidad. Al cambiarlo se cancelan requests, se limpia todo el cache remoto y se descartan respuestas tardias.
+- Un cambio de empresa conserva la identidad: cancela y elimina solamente las queries cuya key contiene la empresa anterior, y mantiene permisos vacios hasta validar la nueva.
+- Las pages no agregan acceso directo a Supabase. La deuda existente se controla mediante una allowlist explicita con motivo y condicion de retiro.
 
 ## Excepciones
 
