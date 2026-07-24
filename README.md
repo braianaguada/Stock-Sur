@@ -1081,6 +1081,13 @@ Production migration history note:
 - Las mutations de tecnicos exigen empresa activa, acotan update/delete por `company_id` e invalidan solamente Tecnicos, Documentos y Trabajos de la empresa afectada.
 - El cambio evita reutilizar datos derivados entre empresas y no modifica esquema, RLS ni reglas de negocio.
 
+## Cache optimista del catalogo de items
+
+- La actualizacion masiva del tipo de demanda opera sobre la misma query key canonica que renderiza el catalogo: empresa, categoria y estado activos.
+- El rollback restaura exclusivamente el snapshot que inicio la operacion, incluso si el usuario cambia de empresa o filtros mientras la mutation esta pendiente.
+- La confirmacion invalida solo ese catalogo; no crea cache global de items ni refresca dominios de Stock que no fueron modificados.
+- No requiere migraciones ni modifica reglas de negocio, RLS o datos fuera de la accion solicitada.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
