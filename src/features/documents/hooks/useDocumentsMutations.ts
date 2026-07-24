@@ -5,6 +5,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { invalidateDocumentQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import { STATUS_LABEL } from "../constants";
+import { buildDocumentDraftPersistencePayload } from "../lib/draft-persistence";
 import { buildReturnDraftPayload } from "../lib/returns";
 import type {
   DocRow,
@@ -231,10 +232,11 @@ export function useDocumentsMutations({
         manualTaxId: draftForm.customer_tax_id,
         manualTaxCondition: draftForm.customer_tax_condition,
       });
-      const isInternal = draftForm.doc_type === "REMITO" && draftForm.customer_kind === "INTERNO";
-      const recipientSnapshot = isInternal
-        ? { customer_id: null, customer_name: null, customer_tax_id: null, customer_tax_condition: null }
-        : customerSnapshot;
+      const draftPayload = buildDocumentDraftPersistencePayload({
+        draft: draftForm,
+        customerSnapshot,
+        total: totalDraft,
+      });
 
       let documentId = editingDocId;
       if (!documentId) {
@@ -242,26 +244,8 @@ export function useDocumentsMutations({
           .from("documents")
           .insert({
             company_id: currentCompanyId,
-            doc_type: draftForm.doc_type,
+            ...draftPayload,
             status: "BORRADOR",
-            point_of_sale: draftForm.point_of_sale,
-            customer_id: recipientSnapshot.customer_id,
-            technician_id: isInternal ? draftForm.technician_id : draftForm.technician_id || null,
-            service_id: isInternal ? null : draftForm.doc_type === "REMITO" ? draftForm.service_id || null : null,
-            customer_name: recipientSnapshot.customer_name,
-            customer_tax_condition: recipientSnapshot.customer_tax_condition,
-            customer_tax_id: recipientSnapshot.customer_tax_id,
-            customer_kind: draftForm.customer_kind,
-            internal_remito_type: draftForm.doc_type === "REMITO" && draftForm.customer_kind === "INTERNO" ? draftForm.internal_remito_type || null : null,
-            payment_terms: isInternal ? null : draftForm.payment_terms || null,
-            delivery_address: draftForm.delivery_address || null,
-            salesperson: draftForm.salesperson || null,
-            valid_until: draftForm.doc_type === "PRESUPUESTO" ? draftForm.valid_until || null : null,
-            price_list_id: draftForm.price_list_id || null,
-            notes: draftForm.notes || null,
-            subtotal: totalDraft,
-            tax_total: 0,
-            total: totalDraft,
             created_by: userId,
           })
           .select("id")
@@ -272,25 +256,7 @@ export function useDocumentsMutations({
         const { error: updErr } = await supabase
           .from("documents")
           .update({
-            doc_type: draftForm.doc_type,
-            point_of_sale: draftForm.point_of_sale,
-            customer_id: recipientSnapshot.customer_id,
-            technician_id: isInternal ? draftForm.technician_id : draftForm.technician_id || null,
-            service_id: isInternal ? null : draftForm.doc_type === "REMITO" ? draftForm.service_id || null : null,
-            customer_name: recipientSnapshot.customer_name,
-            customer_tax_condition: recipientSnapshot.customer_tax_condition,
-            customer_tax_id: recipientSnapshot.customer_tax_id,
-            customer_kind: draftForm.customer_kind,
-            internal_remito_type: draftForm.doc_type === "REMITO" && draftForm.customer_kind === "INTERNO" ? draftForm.internal_remito_type || null : null,
-            payment_terms: isInternal ? null : draftForm.payment_terms || null,
-            delivery_address: draftForm.delivery_address || null,
-            salesperson: draftForm.salesperson || null,
-            valid_until: draftForm.doc_type === "PRESUPUESTO" ? draftForm.valid_until || null : null,
-            price_list_id: draftForm.price_list_id || null,
-            notes: draftForm.notes || null,
-            subtotal: totalDraft,
-            tax_total: 0,
-            total: totalDraft,
+            ...draftPayload,
             updated_at: nowIso,
           })
           .eq("id", documentId)
