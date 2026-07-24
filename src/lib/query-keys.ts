@@ -56,6 +56,10 @@ export const queryKeys = {
     aliases: (companyId: string | null, itemId: string | null | undefined) =>
       ["item-aliases", companyId ?? "no-company", itemId] as const,
   },
+  imports: {
+    priceLists: (companyId: string | null) =>
+      ["imports-price-lists", companyId ?? "no-company"] as const,
+  },
   cash: {
     customers: (companyId: string | null) => ["cash-customers", companyId ?? "no-company"] as const,
     sales: (companyId: string | null, businessDate: string) => ["cash-sales", companyId ?? "no-company", businessDate] as const,

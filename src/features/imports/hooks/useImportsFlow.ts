@@ -1,9 +1,10 @@
 import { useCallback, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
 import { isRowEmpty, parsePrice } from "@/lib/importParserCore";
 import { matchImportLine } from "@/lib/matching";
+import { queryKeys } from "@/lib/query-keys";
 import { buildImportPreviewRows } from "@/features/imports/utils";
 import type { ImportMappingState, ImportStep, ParsedRow } from "@/features/imports/types";
 
@@ -50,7 +51,6 @@ export function useImportsFlow(params: {
   toast: ToastFn;
 }) {
   const { currentCompanyId, toast } = params;
-  const queryClient = useQueryClient();
 
   const [step, setStep] = useState<ImportStep>("upload");
   const [rawRows, setRawRows] = useState<ParsedRow[]>([]);
@@ -64,7 +64,7 @@ export function useImportsFlow(params: {
   const [notes, setNotes] = useState("");
 
   const priceListsQuery = useQuery({
-    queryKey: ["price-lists-simple", currentCompanyId ?? "no-company"],
+    queryKey: queryKeys.imports.priceLists(currentCompanyId),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
@@ -208,7 +208,6 @@ export function useImportsFlow(params: {
       };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
       setStep("done");
       toast({
         title: `Importacion completada: ${result.total} lineas, ${result.matched} matcheadas`,
