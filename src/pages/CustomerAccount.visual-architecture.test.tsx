@@ -12,8 +12,8 @@ vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ currentCompany: { id: "company-1" } }),
 }));
 
-vi.mock("@tanstack/react-query", () => ({
-  useQuery: () => ({ data: [], isLoading: false, isError: false }),
+vi.mock("@/features/customer-account/hooks/useCustomerAccountCustomers", () => ({
+  useCustomerAccountCustomers: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
 vi.mock("@/features/customer-account/hooks/useCustomerAccountStatement", () => ({

@@ -11,8 +11,8 @@ vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ currentCompany: { id: "company-1" } }),
 }));
 
-vi.mock("@tanstack/react-query", () => ({
-  useQuery: () => ({
+vi.mock("@/features/cash/hooks/useCashTotalsReport", () => ({
+  useCashTotalsReport: () => ({
     data: {
       summary: {
         businessDate: "__summary__",

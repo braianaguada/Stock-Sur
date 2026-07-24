@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -12,14 +11,11 @@ import { Label } from "@/components/ui/label";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCashTotalsReport } from "@/features/cash/hooks/useCashTotalsReport";
 import { buildCashTotalsReport, getCashTotalsRange, type CashDailyTotal, type CashTotalsPeriod } from "@/features/cash/lib/cashTotals";
-import { fetchAllCashRows } from "@/features/cash/lib/fetchAllCashRows";
-import type { CashAdjustmentRow, CashExpenseRow, CashSaleRow } from "@/features/cash/types";
 import { todayDateInputValue } from "@/features/cash/utils";
 import { getErrorMessage } from "@/lib/errors";
 import { formatBusinessDate } from "@/lib/formatters";
-import { queryKeys } from "@/lib/query-keys";
-import { supabase } from "@/integrations/supabase/client";
 
 const periodLabels: Record<CashTotalsPeriod, string> = {
   day: "Día",
@@ -46,43 +42,7 @@ export default function CashTotalsPage() {
     [anchorDate, customFrom, customTo, period],
   );
 
-  const reportQuery = useQuery({
-    queryKey: queryKeys.cash.totals(currentCompany?.id ?? null, range.from, range.to),
-    enabled: Boolean(currentCompany?.id),
-    queryFn: async () => {
-      const [sales, expenses, adjustments] = await Promise.all([
-        fetchAllCashRows<CashSaleRow>((from, to) => supabase
-          .from("cash_sales")
-          .select("id, business_date, sold_at, amount_total, payment_method, receipt_kind, status, document_id, closure_id, receipt_reference, customer_name_snapshot, notes", { count: "exact" })
-          .eq("company_id", currentCompany!.id)
-          .gte("business_date", range.from)
-          .lte("business_date", range.to)
-          .order("business_date", { ascending: false })
-          .order("id", { ascending: true })
-          .range(from, to)),
-        fetchAllCashRows<CashExpenseRow>((from, to) => supabase
-          .from("cash_expenses")
-          .select("id, company_id, business_date, spent_at, expense_kind, category, amount_total, description, has_receipt, receipt_reference, notes, closure_id, created_by, created_at, updated_at, cancelled_at, cancelled_by", { count: "exact" })
-          .eq("company_id", currentCompany!.id)
-          .gte("business_date", range.from)
-          .lte("business_date", range.to)
-          .order("business_date", { ascending: false })
-          .order("id", { ascending: true })
-          .range(from, to)),
-        fetchAllCashRows<CashAdjustmentRow>((from, to) => supabase
-          .from("cash_adjustments")
-          .select("id, company_id, business_date, occurred_at, document_id, adjustment_kind, payment_method, amount_total, signed_amount, customer_id, customer_name_snapshot, closure_id, notes, cancelled_at, cancelled_by, created_by, created_at, updated_at", { count: "exact" })
-          .eq("company_id", currentCompany!.id)
-          .gte("business_date", range.from)
-          .lte("business_date", range.to)
-          .order("business_date", { ascending: false })
-          .order("id", { ascending: true })
-          .range(from, to)),
-      ]);
-
-      return buildCashTotalsReport(sales, expenses, adjustments);
-    },
-  });
+  const reportQuery = useCashTotalsReport(currentCompany?.id, range.from, range.to);
 
   const report = reportQuery.data ?? buildCashTotalsReport([], [], []);
   const selectedDay = report.days[0] ?? null;
