@@ -31,6 +31,10 @@ import { fetchAllPages } from "@/lib/supabase-pagination";
 import { getItemSearchTokens, rankNaturalItemSearch, type ItemSearchAliasRecord } from "@/features/items/search";
 import { type Item, type ItemAlias, type ItemOperationalMeta } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
+import {
+  optimisticallyUpdateDemandProfile,
+  rollbackItemsCatalog,
+} from "@/features/items/catalog-cache";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { Card } from "@/components/ui/card";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
@@ -288,8 +292,13 @@ export default function ItemsPage() {
     }));
   }, [columnVisibility, columnsHydrated, itemTableColumnsStorageKey]);
 
+  const itemsCatalogQueryKey = queryKeys.items.catalog(
+    currentCompany?.id ?? null,
+    categoryFilter,
+    statusFilter,
+  );
   const itemsQuery = useQuery({
-    queryKey: queryKeys.items.catalog(currentCompany?.id ?? null, categoryFilter, statusFilter),
+    queryKey: itemsCatalogQueryKey,
     enabled: Boolean(currentCompany),
     queryFn: async () => {
       let q = supabase
@@ -756,35 +765,20 @@ export default function ItemsPage() {
         .in("id", selectedItemIds);
       if (error) throw error;
     },
-    onMutate: async () => {
-      // Optimistic update
-      await qc.cancelQueries({ queryKey: queryKeys.items.all() });
-      const previousItems = qc.getQueryData(queryKeys.items.all());
-      
-      qc.setQueryData(queryKeys.items.all(), (old: Item[] | undefined) => {
-        if (!old) return old;
-        return old.map((item: Item) => 
-          selectedItemIds.includes(item.id) 
-            ? { ...item, demand_profile: bulkDemandProfile } 
-            : item
-        );
-      });
-
-      return { previousItems };
-    },
-    onSuccess: async () => {
-      await Promise.all([
-        invalidateItemQueries(qc),
-        invalidateStockQueries(qc),
-      ]);
+    onMutate: () =>
+      optimisticallyUpdateDemandProfile(
+        qc,
+        itemsCatalogQueryKey,
+        selectedItemIds,
+        bulkDemandProfile,
+      ),
+    onSuccess: async (_, __, snapshot) => {
+      await qc.invalidateQueries({ queryKey: snapshot.queryKey, exact: true });
       setSelectedItemIds([]);
       toast({ title: "Tipo de demanda actualizado" });
     },
-    onError: (e: Error, _, context) => {
-      const ctx = context as { previousItems?: Item[] } | undefined;
-      if (ctx?.previousItems) {
-        qc.setQueryData(queryKeys.items.all(), ctx.previousItems);
-      }
+    onError: (e: Error, _, snapshot) => {
+      rollbackItemsCatalog(qc, snapshot);
       toast({ title: "Error", description: e.message, variant: "destructive" });
     },
   });
