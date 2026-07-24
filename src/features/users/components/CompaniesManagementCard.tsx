@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
 import { CountBadge, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
+import { normalizeCompanyIdentity, normalizeCompanySlug } from "@/features/users/utils";
 
 type CompanyRow = {
   id: string;
@@ -52,9 +53,10 @@ export function CompaniesManagementCard() {
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!editingCompany) return;
+      const companyIdentity = normalizeCompanyIdentity({ name, slug });
       const { error } = await supabase
         .from("companies")
-        .update({ name: name.trim(), slug: slug.trim() })
+        .update(companyIdentity)
         .eq("id", editingCompany.id);
       if (error) throw error;
     },
@@ -139,7 +141,7 @@ export function CompaniesManagementCard() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label htmlFor="edit-company-name">Nombre</Label><Input id="edit-company-name" value={name} onChange={(event) => setName(event.target.value)} /></div>
-            <div className="space-y-2"><Label htmlFor="edit-company-slug">Identificador</Label><Input id="edit-company-slug" value={slug} onChange={(event) => setSlug(event.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="edit-company-slug">Identificador</Label><Input id="edit-company-slug" value={slug} onChange={(event) => setSlug(normalizeCompanySlug(event.target.value))} /></div>
             {updateMutation.error ? <p className="text-sm text-destructive">{getErrorMessage(updateMutation.error)}</p> : null}
           </div>
           <DialogFooter>

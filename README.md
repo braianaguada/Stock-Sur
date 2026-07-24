@@ -1094,6 +1094,12 @@ Production migration history note:
 - Al completar una importacion no se invalida la cache de listas de venta: la operacion crea una version y sus lineas, pero no modifica las opciones de listas consultadas.
 - No requiere migraciones ni modifica reglas de negocio, RLS o datos fuera de la importacion confirmada.
 
+## Formularios y validacion de identidad de empresas
+
+- La creacion y la edicion de empresas comparten la misma normalizacion pura para nombre e identificador.
+- Los identificadores se envian siempre en el formato canonico exigido por la base de datos: minusculas ASCII, numeros y guiones.
+- La regresion unitaria cubre espacios, acentos y separadores; no se modifican permisos, RLS, reglas de negocio ni esquema.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo

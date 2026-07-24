@@ -10,16 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-function toCompanySlug(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+import { normalizeCompanyIdentity, normalizeCompanySlug } from "@/features/users/utils";
 
 export function CreateCompanyDialog(props: {
   open: boolean;
@@ -42,7 +33,7 @@ export function CreateCompanyDialog(props: {
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    onCreate({ name: name.trim(), slug: slug.trim() });
+    onCreate(normalizeCompanyIdentity({ name, slug }));
   };
 
   return (
@@ -64,7 +55,7 @@ export function CreateCompanyDialog(props: {
               onChange={(event) => {
                 const nextName = event.target.value;
                 setName(nextName);
-                if (!slugWasEdited) setSlug(toCompanySlug(nextName));
+                if (!slugWasEdited) setSlug(normalizeCompanySlug(nextName));
               }}
               placeholder="Ej: Sucursal Norte"
               autoFocus
@@ -78,7 +69,7 @@ export function CreateCompanyDialog(props: {
               value={slug}
               onChange={(event) => {
                 setSlugWasEdited(true);
-                setSlug(toCompanySlug(event.target.value));
+                setSlug(normalizeCompanySlug(event.target.value));
               }}
               placeholder="sucursal-norte"
             />
