@@ -1127,6 +1127,13 @@ Production migration history note:
 - El catalogo de componentes referencia la ubicacion canonica real de `RowActions`.
 - No requiere migraciones ni cambios de datos.
 
+## Rendimiento del dashboard y limpieza de tests
+
+- Los graficos del Dashboard se cargan de forma diferida solo cuando existe actividad representable; metricas, navegacion y acciones permanecen disponibles en el paquete inicial.
+- La carga conserva el espacio del grafico y un estado accesible para evitar saltos de layout.
+- El mock de Tecnicos replica el estado controlado del filtro operativo y elimina la advertencia espuria de React durante la suite.
+- No se modificaron reglas de negocio, datos, permisos, RLS ni esquema. No requiere migraciones.
+
 ## Persistencia de borradores comerciales
 
 - La creación y la edición de borradores de Documentos comparten una única normalización del payload persistido.

@@ -1,7 +1,6 @@
-import { useMemo, useState, type KeyboardEvent } from "react";
+import { lazy, Suspense, useMemo, useState, type KeyboardEvent } from "react";
 import { ArrowLeft, ArrowRight, Boxes, CircleDollarSign, ReceiptText } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
 import { MetricCard, MetricGrid } from "@/components/common/VisualSystem";
 import { Card } from "@/components/ui/card";
@@ -12,13 +11,14 @@ import { cn } from "@/lib/utils";
 const currency = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
 const percent = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 });
-const month = new Intl.DateTimeFormat("es-AR", { month: "short", timeZone: "UTC" });
 const icons: Record<DashboardView["key"], typeof ReceiptText> = {
   sales: ReceiptText,
   inventory: Boxes,
   profitability: CircleDollarSign,
 };
-const seriesColors = ["hsl(var(--brand-indigo))", "hsl(var(--brand-cyan))"];
+const DashboardHeroChart = lazy(() =>
+  import("./DashboardHeroChart").then(({ DashboardHeroChart: Chart }) => ({ default: Chart })),
+);
 
 function formatValue(value: number, format: DashboardValueFormat) {
   if (format === "currency") return currency.format(value);
@@ -26,10 +26,13 @@ function formatValue(value: number, format: DashboardValueFormat) {
   return number.format(value);
 }
 
-function formatMonthLabel(label: string) {
-  const match = /^(\d{4})-(\d{2})$/.exec(label);
-  if (!match) return label;
-  return month.format(new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1))).replace(".", "");
+function DashboardChartFallback() {
+  return (
+    <div className="flex h-full min-h-[214px] items-center justify-center rounded-lg bg-muted/20" role="status">
+      <span className="sr-only">Cargando gráfico</span>
+      <div className="h-2/3 w-5/6 animate-pulse rounded-lg bg-muted/45" aria-hidden="true" />
+    </div>
+  );
 }
 
 export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
@@ -37,17 +40,6 @@ export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
   const [selected, setSelected] = useState(0);
   const view = views[Math.min(selected, views.length - 1)];
   const Icon = icons[view.key];
-  const chartData = useMemo(() => {
-    const rows = new Map<string, Record<string, string | number>>();
-    view.series.forEach((chartSeries) => {
-      chartSeries.points.forEach((point) => {
-        const row = rows.get(point.label) ?? { label: formatMonthLabel(point.label) };
-        row[chartSeries.key] = point.value;
-        rows.set(point.label, row);
-      });
-    });
-    return [...rows.values()];
-  }, [view]);
 
   const selectAndFocus = (index: number) => {
     const next = (index + views.length) % views.length;
@@ -127,29 +119,9 @@ export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
 
         <div className="min-h-[240px] rounded-xl border border-border/70 bg-background p-3">
           {view.hasActivity ? (
-            <ResponsiveContainer width="100%" height="100%">
-              {view.key === "inventory" ? (
-                <BarChart data={chartData} accessibilityLayer margin={{ top: 12, right: 10, left: 0, bottom: 4 }}>
-                  <CartesianGrid stroke="hsl(var(--border) / .45)" vertical={false} strokeDasharray="3 5" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis hide />
-                  <Tooltip formatter={(value: number) => currency.format(value)} />
-                  <Bar dataKey={view.series[0].key} name={view.series[0].label} fill="hsl(var(--brand-cyan))" radius={[8, 8, 3, 3]} />
-                </BarChart>
-              ) : (
-                <AreaChart data={chartData} accessibilityLayer margin={{ top: 12, right: 10, left: 0, bottom: 4 }}>
-                  <defs>
-                    {view.series.map((chartSeries, index) => <linearGradient key={chartSeries.key} id={`hero-fill-${chartSeries.key}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={seriesColors[index]} stopOpacity=".38" /><stop offset="100%" stopColor={seriesColors[index]} stopOpacity=".03" /></linearGradient>)}
-                  </defs>
-                  <CartesianGrid stroke="hsl(var(--border) / .45)" vertical={false} strokeDasharray="3 5" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis hide />
-                  <Tooltip formatter={(value: number) => currency.format(value)} />
-                  {view.series.length > 1 ? <Legend /> : null}
-                  {view.series.map((chartSeries, index) => <Area key={chartSeries.key} type="monotone" dataKey={chartSeries.key} name={chartSeries.label} stroke={seriesColors[index]} strokeWidth={2.5} fill={`url(#hero-fill-${chartSeries.key})`} />)}
-                </AreaChart>
-              )}
-            </ResponsiveContainer>
+            <Suspense fallback={<DashboardChartFallback />}>
+              <DashboardHeroChart view={view} />
+            </Suspense>
           ) : <div className="flex h-full items-center justify-center px-5 text-center text-sm text-muted-foreground">Todavía no hay actividad suficiente para representar este indicador.</div>}
         </div>
       </div>

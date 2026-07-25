@@ -53,12 +53,18 @@ describe("visual governance", () => {
 
   it("locks the final visual polish into canonical layout rules", () => {
     const dashboard = readFileSync(resolve(root, "src/features/index/components/DashboardHero.tsx"), "utf8");
+    const dashboardChart = readFileSync(
+      resolve(root, "src/features/index/components/DashboardHeroChart.tsx"),
+      "utf8",
+    );
     const editor = readFileSync(resolve(root, "src/features/documents/components/DocumentsEditorDialog.tsx"), "utf8");
     const documentTable = readFileSync(resolve(root, "src/features/documents/components/DocumentsDataTable.tsx"), "utf8");
     const styles = readFileSync(resolve(root, "src/index.css"), "utf8");
 
     expect(dashboard).toContain("minmax(420px,1fr)");
     expect(dashboard).toContain("<MetricGrid columns={3}>");
+    expect(dashboard, "the dashboard shell must not eagerly load the chart library").not.toContain('from "recharts"');
+    expect(dashboardChart, "the deferred chart owns the Recharts dependency").toContain('from "recharts"');
     expect(editor).toContain(">Opciones</Label>");
     expect(documentTable).toContain("<DialogActionGrid columns={2}>");
     expect(styles).toContain("md:flex-row md:flex-wrap md:items-end");
@@ -95,6 +101,7 @@ describe("visual governance", () => {
       "src/pages/Stock.tsx",
       "src/features/cash/components/CashSummaryCards.tsx",
       "src/features/index/components/DashboardHero.tsx",
+      "src/features/index/components/DashboardHeroChart.tsx",
       "src/features/index/components/DashboardHighlights.tsx",
       "src/features/index/components/OperationalAttention.tsx",
     ];
