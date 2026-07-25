@@ -18,15 +18,6 @@ export const metricSurfaceToneClasses: Record<MetricTone, string> = {
   muted: "from-card via-card to-slate-500/10",
 };
 
-export const metricValueToneClasses: Record<MetricTone, string> = {
-  default: "text-foreground",
-  success: "text-success",
-  warning: "text-warning",
-  danger: "text-destructive",
-  info: "text-info",
-  muted: "text-muted-foreground",
-};
-
 export const metricIconToneClasses: Record<MetricTone, string> = {
   default: "border-border/60 bg-background/80 text-primary",
   success: "border-success/18 bg-success/10 text-success",

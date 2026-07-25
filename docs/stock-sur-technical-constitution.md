@@ -102,6 +102,7 @@ Los tests no afirman comportamiento mediante snapshots opacos cuando puede proba
 Guardrails obligatorios:
 
 - Madge usa `tsconfig.app.json`, resuelve aliases y mantiene cero ciclos.
+- Knip incluye las entradas frontend, tests y funciones serverless. Excluye tipos publicos y el archivo generado de Supabase; sus demas excepciones se limitan a binarios ejecutados desde scripts y deben revisarse al cambiar el tooling.
 - Las pages no amplian el acceso directo a Supabase.
 - Las query keys multitenant incluyen `companyId`.
 - No se habilita strict global como efecto lateral de un refactor; su adopcion sera gradual y focalizada.

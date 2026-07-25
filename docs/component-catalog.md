@@ -18,7 +18,7 @@ Este catálogo es el índice operativo. Los contratos normativos viven en la [Co
 | Cantidad | `CountBadge` | `components/common/VisualSystem.tsx` | Conteos compactos. |
 | Contexto excepcional | `InfoBadge` | `components/common/VisualSystem.tsx` | No usar para fecha, moneda o documento. |
 | Importe fuera de tabla | `AmountDisplay` | `components/common/VisualSystem.tsx` | Permitido fuera de celdas tabulares. |
-| Acciones de fila | `RowActions` | `components/data-table` | Una dominante, hasta dos visibles y overflow. |
+| Acciones de fila | `RowActions` | `components/common/RowActions.tsx` | Una dominante, hasta dos visibles y overflow. |
 | Estado de datos | `DataState` | `components/common` | Loading, empty, error y retry accionable. |
 
 ## Criterio de elección
