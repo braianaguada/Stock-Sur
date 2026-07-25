@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { normalizeCompanyIdentity, normalizeCompanySlug } from "@/features/users/utils";
+import {
+  buildPermissionOverridePayload,
+  normalizeCompanyIdentity,
+  normalizeCompanySlug,
+} from "@/features/users/utils";
 
 describe("company identity form normalization", () => {
   it("uses the same canonical slug format for create and edit forms", () => {
@@ -17,5 +21,20 @@ describe("company identity form normalization", () => {
       name: "Sucursal Núñez",
       slug: "sucursal-nunez",
     });
+  });
+});
+
+describe("permission override payload", () => {
+  it("persists only explicit overrides and keeps their effects", () => {
+    expect(
+      buildPermissionOverridePayload({
+        "permission-allow": "ALLOW",
+        "permission-inherit": "INHERIT",
+        "permission-deny": "DENY",
+      }),
+    ).toEqual([
+      { permission_id: "permission-allow", effect: "ALLOW" },
+      { permission_id: "permission-deny", effect: "DENY" },
+    ]);
   });
 });

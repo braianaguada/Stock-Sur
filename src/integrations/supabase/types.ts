@@ -2765,6 +2765,16 @@ export type Database = {
         Returns: boolean
       }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
+      save_user_company_access: {
+        Args: {
+          p_company_id: string
+          p_permission_overrides?: Json
+          p_role_id: string
+          p_status: Database["public"]["Enums"]["company_user_status"]
+          p_user_id: string
+        }
+        Returns: string
+      }
       duplicate_document: {
         Args: { p_document_id: string }
         Returns: {

@@ -4,6 +4,7 @@ import type {
   PermissionOverrideState,
   UserAccessRow,
 } from "@/features/users/types";
+import { buildPermissionOverridePayload } from "@/features/users/utils";
 
 export async function createCompany(params: { name: string; slug: string }) {
   const { data, error } = await supabase.rpc("create_company", {
@@ -31,60 +32,13 @@ export async function saveUserCompanyAccess(params: {
   if (!hasCompany) throw new Error("La empresa seleccionada ya no está disponible. Recargá Usuarios e intentá de nuevo");
   if (!hasRole) throw new Error("El rol seleccionado ya no está disponible. Recargá Usuarios e intentá de nuevo");
 
-  let companyUserId = accessForm.companyUserId;
-
-  if (companyUserId) {
-    const { error } = await supabase
-      .from("company_users")
-      .update({ status: accessForm.status })
-      .eq("id", companyUserId);
-    if (error) throw error;
-  } else {
-    const { data, error } = await supabase
-      .from("company_users")
-      .upsert(
-        {
-          company_id: accessForm.companyId,
-          user_id: selectedUser.user_id,
-          status: accessForm.status,
-        },
-        { onConflict: "company_id,user_id" },
-      )
-      .select("id")
-      .single();
-    if (error) throw error;
-    companyUserId = data.id;
-  }
-
-  const { error: deleteRolesError } = await supabase
-    .from("company_user_roles")
-    .delete()
-    .eq("company_user_id", companyUserId);
-  if (deleteRolesError) throw deleteRolesError;
-
-  const { error: insertRoleError } = await supabase
-    .from("company_user_roles")
-    .insert({ company_user_id: companyUserId, role_id: accessForm.roleId });
-  if (insertRoleError) throw insertRoleError;
-
-  const { error: deleteOverridesError } = await supabase
-    .from("company_user_permissions")
-    .delete()
-    .eq("company_user_id", companyUserId);
-  if (deleteOverridesError) throw deleteOverridesError;
-
-  const overrideRows = Object.entries(permissionOverrides)
-    .filter(([, effect]) => effect !== "INHERIT")
-    .map(([permissionId, effect]) => ({
-      company_user_id: companyUserId,
-      permission_id: permissionId,
-      effect,
-    }));
-
-  if (overrideRows.length > 0) {
-    const { error: insertOverridesError } = await supabase
-      .from("company_user_permissions")
-      .insert(overrideRows);
-    if (insertOverridesError) throw insertOverridesError;
-  }
+  const { data, error } = await supabase.rpc("save_user_company_access", {
+    p_user_id: selectedUser.user_id,
+    p_company_id: accessForm.companyId,
+    p_status: accessForm.status,
+    p_role_id: accessForm.roleId,
+    p_permission_overrides: buildPermissionOverridePayload(permissionOverrides),
+  });
+  if (error) throw error;
+  return data;
 }
