@@ -1,5 +1,3 @@
-export type PriceRoundingIncrement = 100 | 500 | 1000;
-
 export type PriceRoundingConfig = {
   enabled?: boolean | null;
   increment?: number | null;

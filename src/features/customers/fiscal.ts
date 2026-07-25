@@ -1,9 +1,5 @@
 import type { Customer, CustomerFiscalProfile } from "./types";
 
-const CUSTOMER_FISCAL_VALIDATION_STATUSES = ["PENDING", "VALIDATED_AUTO", "ERROR"] as const;
-
-export type CustomerFiscalValidationStatus = typeof CUSTOMER_FISCAL_VALIDATION_STATUSES[number];
-
 export function normalizeCuit(value: string | null | undefined) {
   return (value ?? "").replace(/\D/g, "");
 }

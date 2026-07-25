@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ServiceDocumentCurrency, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentPricingMode } from "./types";
+import type { ServiceDocumentForm, ServiceDocumentLine } from "./types";
 
 const AI_SERVICE_QUOTE_MODEL = "gemini-2.5-flash-lite";
 
@@ -58,25 +58,6 @@ export const serviceQuoteAiSchema = z.object({
 export type ServiceQuoteAiSuggestion = z.infer<typeof serviceQuoteAiSchema>;
 
 export type ServiceQuoteAiApplyMode = "all" | "lines" | "price";
-
-export type ServiceQuoteAiRequest = {
-  companyId: string;
-  description: string;
-  customerId?: string | null;
-  customerName?: string | null;
-  equipmentType?: string;
-  businessArea?: string;
-  location?: string;
-  urgency?: "LOW" | "NORMAL" | "HIGH";
-  complexity?: "LOW" | "MEDIUM" | "HIGH";
-  preferredCurrency?: ServiceDocumentCurrency;
-  knownMaterials?: string;
-  includesLabor?: boolean;
-  includesTravel?: boolean;
-  priceStyle?: "ECONOMY" | "NORMAL" | "PREMIUM";
-  currentLines?: ServiceDocumentLine[];
-  currentNotes?: string;
-};
 
 export type ServiceQuoteAiResponse = {
   suggestionId?: string | null;
