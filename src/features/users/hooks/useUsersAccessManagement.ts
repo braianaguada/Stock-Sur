@@ -58,6 +58,7 @@ export function useUsersAccessManagement(params: {
     status: "ACTIVE",
   });
   const [permissionOverrides, setPermissionOverrides] = useState<PermissionOverrideState>({});
+  const [permissionOverridesInitialized, setPermissionOverridesInitialized] = useState(false);
 
   const usersQuery = useQuery({
     queryKey: ["users-access-list"],
@@ -100,6 +101,24 @@ export function useUsersAccessManagement(params: {
     queryFn: () => listCompanyPermissionOverrides(accessForm.companyUserId!),
   });
   const existingPermissionOverrides = existingPermissionOverridesQuery.data ?? EMPTY_PERMISSIONS;
+  const catalogQueriesReady =
+    companyOptionsQuery.isSuccess &&
+    companyRoleOptionsQuery.isSuccess &&
+    permissionOptionsQuery.isSuccess;
+  const existingOverridesReady =
+    !accessForm.companyUserId || existingPermissionOverridesQuery.isSuccess;
+  const inheritedPermissionsReady =
+    !accessForm.roleId || inheritedRolePermissionIdsQuery.isSuccess;
+  const accessSnapshotError =
+    companyOptionsQuery.error ??
+    companyRoleOptionsQuery.error ??
+    permissionOptionsQuery.error ??
+    existingPermissionOverridesQuery.error ??
+    inheritedRolePermissionIdsQuery.error;
+  const accessSnapshotReady =
+    catalogQueriesReady &&
+    existingOverridesReady &&
+    inheritedPermissionsReady;
 
   useEffect(() => {
     if (!accessDialogOpen) return;
@@ -109,9 +128,16 @@ export function useUsersAccessManagement(params: {
   }, [accessDialogOpen, accessForm.roleId, companyRoleOptions]);
 
   useEffect(() => {
-    if (!accessDialogOpen) return;
+    if (!accessDialogOpen || permissionOverridesInitialized || !accessSnapshotReady) return;
     setPermissionOverrides(buildPermissionOverridesState(permissionOptions, existingPermissionOverrides));
-  }, [accessDialogOpen, existingPermissionOverrides, permissionOptions]);
+    setPermissionOverridesInitialized(true);
+  }, [
+    accessDialogOpen,
+    accessSnapshotReady,
+    existingPermissionOverrides,
+    permissionOptions,
+    permissionOverridesInitialized,
+  ]);
 
   const usersById = useMemo(
     () => new Map(data.map((user) => [user.user_id, user])),
@@ -127,15 +153,19 @@ export function useUsersAccessManagement(params: {
   );
 
   const saveAccessMutation = useMutation({
-    mutationFn: () =>
-      saveUserCompanyAccess({
+    mutationFn: () => {
+      if (!accessSnapshotReady || !permissionOverridesInitialized) {
+        throw new Error("Esperá a que termine de cargar el acceso actual antes de guardar");
+      }
+      return saveUserCompanyAccess({
         selectedUser,
         accessForm,
         permissionOverrides,
         hasSelectedUser: Boolean(selectedUser && usersById.has(selectedUser.user_id)),
         hasCompany: companyOptionsById.has(accessForm.companyId),
         hasRole: companyRolesById.has(accessForm.roleId),
-      }),
+      });
+    },
     onSuccess: async () => {
       if (!selectedUser) return;
       const refreshedUser = await syncSelectedUserAccess(qc, selectedUser.user_id);
@@ -161,7 +191,27 @@ export function useUsersAccessManagement(params: {
     setSelectedUser(user);
     setAccessForm(buildAccessFormState(companyRoleOptions, company));
     setPermissionOverrides({});
+    setPermissionOverridesInitialized(false);
     setAccessDialogOpen(true);
+  };
+
+  const onAccessDialogOpenChange = (open: boolean) => {
+    setAccessDialogOpen(open);
+    if (!open) {
+      setPermissionOverridesInitialized(false);
+      setPermissionOverrides({});
+    }
+  };
+
+  const retryAccessSnapshot = async () => {
+    const retries: Array<Promise<unknown>> = [
+      companyOptionsQuery.refetch(),
+      companyRoleOptionsQuery.refetch(),
+      permissionOptionsQuery.refetch(),
+    ];
+    if (accessForm.companyUserId) retries.push(existingPermissionOverridesQuery.refetch());
+    if (accessForm.roleId) retries.push(inheritedRolePermissionIdsQuery.refetch());
+    await Promise.all(retries);
   };
 
   const onPermissionOverrideChange = (permissionId: string, value: boolean | null) => {
@@ -173,6 +223,7 @@ export function useUsersAccessManagement(params: {
 
   return {
     accessDialogOpen,
+    accessSnapshotError: accessSnapshotError ? getErrorMessage(accessSnapshotError) : null,
     accessForm,
     canManage,
     companyOptions,
@@ -182,16 +233,27 @@ export function useUsersAccessManagement(params: {
     filteredUsers,
     inheritedPermissionCount,
     inheritedRolePermissionIds,
+    isAccessSnapshotLoading:
+      accessDialogOpen &&
+      !accessSnapshotError &&
+      (!accessSnapshotReady || !permissionOverridesInitialized),
     isLoading: usersQuery.isLoading,
     onPermissionOverrideChange,
+    onAccessDialogOpenChange,
     openAccessDialog,
     overrideStats,
     permissionOverrides,
     permissionsByModule,
     saveAccessMutation,
+    canSaveAccess:
+      accessSnapshotReady &&
+      permissionOverridesInitialized &&
+      Boolean(selectedUser && usersById.has(selectedUser.user_id)) &&
+      companyOptionsById.has(accessForm.companyId) &&
+      companyRolesById.has(accessForm.roleId),
     search,
     selectedUser,
-    setAccessDialogOpen,
+    retryAccessSnapshot,
     setAccessForm,
     setFilter,
     setSearch,
