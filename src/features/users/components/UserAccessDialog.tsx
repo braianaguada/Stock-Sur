@@ -24,9 +24,13 @@ export function UserAccessDialog(props: {
   inheritedPermissionCount: number;
   overrideStats: { allow: number; deny: number };
   isSaving: boolean;
+  isAccessSnapshotLoading: boolean;
+  accessSnapshotError: string | null;
+  canSave: boolean;
   onOpenChange: (open: boolean) => void;
   onAccessFormChange: (updater: (current: AccessFormState) => AccessFormState) => void;
   onPermissionOverrideChange: (permissionId: string, value: "ALLOW" | "DENY" | "INHERIT") => void;
+  onRetry: () => void;
   onSave: () => void;
 }) {
   const {
@@ -41,11 +45,16 @@ export function UserAccessDialog(props: {
     inheritedPermissionCount,
     overrideStats,
     isSaving,
+    isAccessSnapshotLoading,
+    accessSnapshotError,
+    canSave,
     onOpenChange,
     onAccessFormChange,
     onPermissionOverrideChange,
+    onRetry,
     onSave,
   } = props;
+  const controlsDisabled = isSaving || isAccessSnapshotLoading || Boolean(accessSnapshotError);
 
   return (
     <EntityDialog
@@ -59,7 +68,7 @@ export function UserAccessDialog(props: {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={onSave} disabled={isSaving}>
+          <Button onClick={onSave} disabled={isSaving || !canSave}>
             {isSaving ? "Guardando..." : "Guardar acceso"}
           </Button>
         </>
@@ -71,12 +80,30 @@ export function UserAccessDialog(props: {
           <p className="text-sm text-muted-foreground">{selectedUser?.email}</p>
         </div>
 
+        {isAccessSnapshotLoading ? (
+          <div className="rounded-2xl border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+            Cargando membresia, rol y permisos actuales...
+          </div>
+        ) : null}
+
+        {accessSnapshotError ? (
+          <div className="space-y-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-4">
+            <div>
+              <p className="text-sm font-medium text-destructive">No se pudo cargar el acceso actual</p>
+              <p className="mt-1 text-sm text-muted-foreground">{accessSnapshotError}</p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+              Reintentar
+            </Button>
+          </div>
+        ) : null}
+
         <div className="space-y-2">
           <Label>Empresa</Label>
           <Select
             value={accessForm.companyId}
             onValueChange={(value) => onAccessFormChange((current) => ({ ...current, companyId: value }))}
-            disabled={Boolean(accessForm.companyUserId)}
+            disabled={controlsDisabled || Boolean(accessForm.companyUserId)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar empresa" />
@@ -102,6 +129,7 @@ export function UserAccessDialog(props: {
             <Select
               value={accessForm.roleId}
               onValueChange={(value) => onAccessFormChange((current) => ({ ...current, roleId: value }))}
+              disabled={controlsDisabled}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar rol" />
@@ -123,6 +151,7 @@ export function UserAccessDialog(props: {
               onValueChange={(value: "ACTIVE" | "INACTIVE") =>
                 onAccessFormChange((current) => ({ ...current, status: value }))
               }
+              disabled={controlsDisabled}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -181,6 +210,7 @@ export function UserAccessDialog(props: {
                           onValueChange={(value: "ALLOW" | "DENY" | "INHERIT") =>
                             onPermissionOverrideChange(permission.id, value)
                           }
+                          disabled={controlsDisabled}
                         >
                           <SelectTrigger>
                             <SelectValue />

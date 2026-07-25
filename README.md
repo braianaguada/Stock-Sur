@@ -1113,6 +1113,13 @@ Production migration history note:
 - Los identificadores se envian siempre en el formato canonico exigido por la base de datos: minusculas ASCII, numeros y guiones.
 - La regresion unitaria cubre espacios, acentos y separadores; no se modifican permisos, RLS, reglas de negocio ni esquema.
 
+## Accesos administrativos atomicos
+
+- La membresia, el rol y las excepciones de permisos de un usuario se reemplazan mediante una unica RPC transaccional.
+- La RPC deriva la membresia por usuario y empresa, exige Superadmin, valida empresa activa, rol administrable y permisos permitidos.
+- El formulario bloquea el guardado hasta cargar el snapshot completo y ofrece reintento ante errores, evitando sobrescribir excepciones con estado incompleto.
+- Migracion de staging: `20260725120000_atomic_user_company_access.sql`. No se aplico ni se modifico produccion.
+
 ## Persistencia de borradores comerciales
 
 - La creación y la edición de borradores de Documentos comparten una única normalización del payload persistido.

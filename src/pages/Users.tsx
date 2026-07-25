@@ -43,7 +43,9 @@ export default function UsersPage() {
   const [isStartingImpersonation, setIsStartingImpersonation] = useState(false);
   const {
     accessDialogOpen,
+    accessSnapshotError,
     accessForm,
+    canSaveAccess,
     canManage,
     companyOptions,
     companyRoleOptions,
@@ -52,17 +54,19 @@ export default function UsersPage() {
     filteredUsers,
     inheritedPermissionCount,
     inheritedRolePermissionIds,
+    isAccessSnapshotLoading,
     isLoading,
     onPermissionOverrideChange,
+    onAccessDialogOpenChange,
     openAccessDialog,
     overrideStats,
     overviewStats,
     permissionOverrides,
     permissionsByModule,
     saveAccessMutation,
+    retryAccessSnapshot,
     search,
     selectedUser,
-    setAccessDialogOpen,
     setAccessForm,
     setFilter,
     setSearch,
@@ -182,9 +186,13 @@ export default function UsersPage() {
             inheritedPermissionCount={inheritedPermissionCount}
             overrideStats={overrideStats}
             isSaving={saveAccessMutation.isPending}
-            onOpenChange={setAccessDialogOpen}
+            isAccessSnapshotLoading={isAccessSnapshotLoading}
+            accessSnapshotError={accessSnapshotError}
+            canSave={canSaveAccess}
+            onOpenChange={onAccessDialogOpenChange}
             onAccessFormChange={(updater) => setAccessForm(updater)}
             onPermissionOverrideChange={onPermissionOverrideChange}
+            onRetry={() => void retryAccessSnapshot()}
             onSave={() => saveAccessMutation.mutate()}
           />
         </Suspense>

@@ -69,6 +69,12 @@ export function buildPermissionOverrideStats(permissionOverrides: PermissionOver
   };
 }
 
+export function buildPermissionOverridePayload(permissionOverrides: PermissionOverrideState) {
+  return Object.entries(permissionOverrides)
+    .filter((entry): entry is [string, "ALLOW" | "DENY"] => entry[1] !== "INHERIT")
+    .map(([permission_id, effect]) => ({ permission_id, effect }));
+}
+
 export function buildUsersOverviewStats(users: UserAccessRow[]) {
   return {
     totalUsers: users.length,

@@ -301,6 +301,174 @@ describeCriticalDb("critical database rules", () => {
     });
   });
 
+  it("reemplaza el acceso de empresa completo de forma atomica e idempotente", async () => {
+    await withRollback(async () => {
+      const actorId = crypto.randomUUID();
+      const targetUserId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(actorId);
+      await seedUser(targetUserId);
+      await seedCompany(companyId);
+      await seedGlobalRole(actorId, "superadmin");
+
+      const roles = await client.query(
+        `
+        select id, code
+        from public.roles
+        where scope = 'COMPANY'
+          and code in ('admin', 'consulta')
+        `,
+      );
+      const roleByCode = new Map(roles.rows.map((role) => [role.code, role.id]));
+      const permission = await client.query(
+        `
+        select id
+        from public.permissions
+        where module <> 'users'
+        order by code
+        limit 1
+        `,
+      );
+      const permissionId = permission.rows[0].id as string;
+
+      await setActor(actorId);
+      await client.query("set local role authenticated");
+
+      const created = await client.query(
+        `
+        select public.save_user_company_access(
+          $1,
+          $2,
+          'ACTIVE',
+          $3,
+          $4::jsonb
+        ) as company_user_id
+        `,
+        [
+          targetUserId,
+          companyId,
+          roleByCode.get("admin"),
+          JSON.stringify([{ permission_id: permissionId, effect: "DENY" }]),
+        ],
+      );
+      const companyUserId = created.rows[0].company_user_id as string;
+
+      const updated = await client.query(
+        `
+        select public.save_user_company_access(
+          $1,
+          $2,
+          'INACTIVE',
+          $3,
+          '[]'::jsonb
+        ) as company_user_id
+        `,
+        [targetUserId, companyId, roleByCode.get("consulta")],
+      );
+
+      expect(updated.rows[0].company_user_id).toBe(companyUserId);
+
+      const access = await client.query(
+        `
+        select
+          cu.status,
+          array_agg(r.code order by r.code) as roles,
+          count(cup.id)::integer as override_count
+        from public.company_users cu
+        join public.company_user_roles cur on cur.company_user_id = cu.id
+        join public.roles r on r.id = cur.role_id
+        left join public.company_user_permissions cup on cup.company_user_id = cu.id
+        where cu.id = $1
+        group by cu.status
+        `,
+        [companyUserId],
+      );
+
+      expect(access.rows).toEqual([
+        {
+          status: "INACTIVE",
+          roles: ["consulta"],
+          override_count: 0,
+        },
+      ]);
+    });
+  });
+
+  it("rechaza snapshots administrativos invalidos sin dejar estado parcial", async () => {
+    await withRollback(async () => {
+      const actorId = crypto.randomUUID();
+      const targetUserId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(actorId);
+      await seedUser(targetUserId);
+      await seedCompany(companyId);
+
+      const role = await client.query(
+        `
+        select id
+        from public.roles
+        where scope = 'COMPANY'
+          and code = 'admin'
+        limit 1
+        `,
+      );
+      const roleId = role.rows[0].id as string;
+
+      await setActor(actorId);
+      await client.query("set local role authenticated");
+
+      await expectDbRejection(
+        `
+        select public.save_user_company_access(
+          $1,
+          $2,
+          'ACTIVE',
+          $3,
+          '[]'::jsonb
+        )
+        `,
+        [targetUserId, companyId, roleId],
+      );
+
+      await client.query("reset role");
+      await seedGlobalRole(actorId, "superadmin");
+      await client.query("set local role authenticated");
+
+      const invalidPermissionId = crypto.randomUUID();
+      await expectDbRejection(
+        `
+        select public.save_user_company_access(
+          $1,
+          $2,
+          'ACTIVE',
+          $3,
+          $4::jsonb
+        )
+        `,
+        [
+          targetUserId,
+          companyId,
+          roleId,
+          JSON.stringify([
+            { permission_id: invalidPermissionId, effect: "ALLOW" },
+            { permission_id: invalidPermissionId, effect: "DENY" },
+          ]),
+        ],
+      );
+
+      const memberships = await client.query(
+        `
+        select count(*)::integer as count
+        from public.company_users
+        where company_id = $1
+          and user_id = $2
+        `,
+        [companyId, targetUserId],
+      );
+      expect(memberships.rows[0].count).toBe(0);
+    });
+  });
+
   it("aísla lecturas, escrituras y RPC entre empresas", async () => {
     await withRollback(async () => {
       const userId = crypto.randomUUID();
