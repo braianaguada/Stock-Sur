@@ -24,7 +24,13 @@ import { getErrorMessage } from "@/lib/errors";
 import { formatIsoDate, formatMoney } from "@/lib/formatters";
 import { openPrintWindow } from "@/lib/print";
 import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "@/lib/pdf-download";
-import { serviceDb } from "@/features/services/db";
+import {
+  acceptServiceDocumentAiSuggestion,
+  createServiceDocumentShareLink,
+  fetchActiveServiceDocumentShareLink,
+  fetchServiceDocumentPrintResources,
+  revokeServiceDocumentShareLink,
+} from "@/features/services/api";
 import { ServiceQuoteAiAssistantDialog } from "@/features/services/components/ServiceQuoteAiAssistantDialog";
 import { ServiceDocumentPreviewDialog } from "@/features/services/components/ServiceDocumentPreviewDialog";
 import { EMPTY_SERVICE_LINE, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
@@ -176,15 +182,11 @@ export default function ServiceDocumentsPage() {
     toast,
     onDone: async (savedDocument) => {
       if (pendingAiSuggestionId && savedDocument?.id) {
-        const { error } = await serviceDb
-          .from("service_document_ai_suggestions")
-          .update({
-            accepted: true,
-            accepted_at: new Date().toISOString(),
-            service_document_id: savedDocument.id,
-          })
-          .eq("id", pendingAiSuggestionId);
-        if (error) throw error;
+        await acceptServiceDocumentAiSuggestion({
+          companyId: currentCompany?.id ?? null,
+          suggestionId: pendingAiSuggestionId,
+          documentId: savedDocument.id,
+        });
         setPendingAiSuggestionId(null);
       }
       setDialogOpen(false);
@@ -240,28 +242,17 @@ export default function ServiceDocumentsPage() {
       html,body{margin:0;padding:0;background:#fff}
       body{font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#334155}
       </style></head><body>Preparando impresión...</body></html>`);
-    const { data: lineRows } = await serviceDb
-      .from("service_document_lines")
-      .select("id, document_id, description, quantity, unit, unit_price, line_total, sort_order")
-      .eq("document_id", document.id)
-      .order("sort_order");
-    const { data: attachmentRows } = await serviceDb
-      .from("service_document_attachments")
-      .select("*")
-      .eq("service_document_id", document.id)
-      .eq("include_in_print", true)
-      .order("sort_order");
-    const documentLines = (lineRows ?? []) as ServiceDocumentLine[];
-    const documentAttachments = await Promise.all(((attachmentRows ?? []) as ServiceDocumentAttachment[]).map(async (attachment) => {
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { data } = await supabase.storage.from(attachment.storage_bucket).createSignedUrl(attachment.storage_path, 60 * 30);
-      return { ...attachment, signed_url: data?.signedUrl ?? null };
-    }));
     if (!win) return;
-    win.document.open();
-    win.document.write(buildServiceDocumentPrintHtml({ document, lines: documentLines, attachments: documentAttachments, companySettings: settings }));
-    win.document.close();
-    win.focus();
+    try {
+      const resources = await fetchServiceDocumentPrintResources(currentCompany?.id ?? null, document.id);
+      win.document.open();
+      win.document.write(buildServiceDocumentPrintHtml({ document, ...resources, companySettings: settings }));
+      win.document.close();
+      win.focus();
+    } catch (error) {
+      win.close();
+      toast({ title: "No se pudo preparar la impresión", description: getErrorMessage(error), variant: "destructive" });
+    }
   };
 
   const downloadServicePdf = async (document: ServiceDocument) => {
@@ -277,21 +268,10 @@ export default function ServiceDocumentsPage() {
 
     setDownloadingDocumentId(document.id);
     try {
-      const [{ data: lineRows, error: linesError }, { data: attachmentRows, error: attachmentsError }] = await Promise.all([
-        serviceDb.from("service_document_lines").select("id, document_id, description, quantity, unit, unit_price, line_total, sort_order").eq("document_id", document.id).order("sort_order"),
-        serviceDb.from("service_document_attachments").select("*").eq("service_document_id", document.id).eq("include_in_print", true).order("sort_order"),
-      ]);
-      if (linesError) throw linesError;
-      if (attachmentsError) throw attachmentsError;
-      const documentAttachments = await Promise.all(((attachmentRows ?? []) as ServiceDocumentAttachment[]).map(async (attachment) => {
-        const { supabase } = await import("@/integrations/supabase/client");
-        const { data } = await supabase.storage.from(attachment.storage_bucket).createSignedUrl(attachment.storage_path, 60 * 30);
-        return { ...attachment, signed_url: data?.signedUrl ?? null };
-      }));
+      const resources = await fetchServiceDocumentPrintResources(currentCompany?.id ?? null, document.id);
       const html = buildServiceDocumentPrintHtml({
         document,
-        lines: (lineRows ?? []) as ServiceDocumentLine[],
-        attachments: documentAttachments,
+        ...resources,
         companySettings: settings,
       });
       await savePrintHtmlAsPdf({
@@ -501,15 +481,7 @@ export default function ServiceDocumentsPage() {
     setWhatsAppPhone(document.customers?.phone ?? "");
     setShareLinkLoading(true);
     try {
-      const { data, error } = await serviceDb
-        .from("service_document_share_links")
-        .select("*")
-        .eq("service_document_id", document.id)
-        .eq("enabled", true)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      if (error) throw error;
-      const activeLink = ((data ?? []) as ServiceDocumentShareLink[])[0] ?? null;
+      const activeLink = await fetchActiveServiceDocumentShareLink(currentCompany?.id ?? null, document.id);
       const publicLink = activeLink ? buildPublicServiceDocumentUrl(activeLink.token) : "";
       setShareLink(activeLink);
       setShareMessage(activeLink ? buildServiceDocumentShareMessage(document, publicLink) : "");
@@ -529,12 +501,7 @@ export default function ServiceDocumentsPage() {
     if (shareLink?.enabled) return shareLink;
     setShareLinkLoading(true);
     try {
-      const { data, error } = await serviceDb.rpc("create_service_document_share_link", {
-        p_service_document_id: shareDocument.id,
-        p_expires_at: null,
-      });
-      if (error) throw error;
-      const link = data as ServiceDocumentShareLink;
+      const link = await createServiceDocumentShareLink(shareDocument.id);
       const publicLink = buildPublicServiceDocumentUrl(link.token);
       const message = buildServiceDocumentShareMessage(shareDocument, publicLink);
       setShareLink(link);
@@ -569,9 +536,10 @@ export default function ServiceDocumentsPage() {
 
   const revokeShareLink = async () => {
     if (!shareLink) return;
-    const { error } = await serviceDb.rpc("revoke_service_document_share_link", { p_token: shareLink.token });
-    if (error) {
-      toast({ title: "No se pudo revocar", description: error.message, variant: "destructive" });
+    try {
+      await revokeServiceDocumentShareLink(shareLink.token);
+    } catch (error) {
+      toast({ title: "No se pudo revocar", description: getErrorMessage(error), variant: "destructive" });
       return;
     }
     setShareLink({ ...shareLink, enabled: false });

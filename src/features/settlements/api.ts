@@ -55,6 +55,7 @@ type SettlementRpc = {
   from(table: "settlements"): TableClient<Settlement>;
   from(table: "settlement_income_lines"): TableClient<SettlementIncomeLine>;
   from(table: "settlement_expense_lines"): TableClient<SettlementExpenseLine>;
+  from(table: "profiles"): TableClient<{ full_name: string | null }>;
 };
 
 const db = supabase as unknown as SettlementRpc;
@@ -76,6 +77,16 @@ function currentUserLabel(email: string | null | undefined) {
   const value = (email ?? "").trim();
   if (!value) return "Usuario";
   return value.includes("@") ? value.slice(0, value.indexOf("@")) : value;
+}
+
+export async function fetchSettlementPreparerName(userId: string) {
+  const { data, error } = await db
+    .from("profiles")
+    .select("full_name")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.full_name?.trim() ?? "";
 }
 
 export async function fetchSettlements(companyId: string): Promise<SettlementListRow[]> {
