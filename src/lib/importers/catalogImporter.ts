@@ -6,7 +6,6 @@ type MergeRange = {
   e: { r: number; c: number };
 };
 
-export type MatchStatus = "MATCHED" | "PENDING" | "NEW";
 export type SupportedCurrency = "ARS" | "USD";
 export type CurrencyDetectionSource = "PRICE_CELL" | "CURRENCY_COLUMN" | "PRICE_HEADER" | "MANUAL" | "DEFAULT_ARS";
 export type CurrencyDetectionStatus = "DETECTED" | "DEFAULTED" | "AMBIGUOUS" | "UNSUPPORTED";

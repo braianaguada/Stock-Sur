@@ -26,13 +26,6 @@ export interface ProductComboFormLine {
   notes: string;
 }
 
-export interface ProductComboFormState {
-  name: string;
-  description: string;
-  is_active: boolean;
-  lines: ProductComboFormLine[];
-}
-
 export const EMPTY_PRODUCT_COMBO_LINE: ProductComboFormLine = {
   item_id: "",
   quantity: 1,

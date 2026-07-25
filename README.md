@@ -1124,6 +1124,7 @@ Production migration history note:
 
 - Knip audita tanto el frontend como la funcion serverless de PDF; excluye contratos de tipos publicos y el archivo generado de Supabase, y documenta las herramientas ejecutadas por scripts.
 - Se retiraron exports, constantes visuales y wrappers de Rendiciones sin consumidores comprobados, sin modificar los RPC ni los flujos activos.
+- Se eliminaron dos artefactos `.diff` historicos versionados por error y seis contratos TypeScript sin referencias verificadas mediante busqueda global y Knip.
 - El catalogo de componentes referencia la ubicacion canonica real de `RowActions`.
 - No requiere migraciones ni cambios de datos.
 
