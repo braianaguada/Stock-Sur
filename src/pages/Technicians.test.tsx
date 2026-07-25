@@ -43,6 +43,8 @@ vi.mock("@/features/technicians/hooks/useTechniciansPage", () => ({
     isLoading: false,
     search: "",
     setSearch: vi.fn(),
+    statusFilter: "active",
+    setStatusFilter: vi.fn(),
     dialogOpen: false,
     setDialogOpen: vi.fn(),
     editing: null,
