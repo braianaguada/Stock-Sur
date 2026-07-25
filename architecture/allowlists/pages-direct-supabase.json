@@ -3,17 +3,9 @@
     "reason": "Pantalla de autenticación: usa exclusivamente el cliente auth.",
     "removalCondition": "Extraer un gateway de autenticación compartido cuando exista un segundo consumidor."
   },
-  "src/pages/CashTotals.tsx": {
-    "reason": "Superficie heredada de caja todavía pendiente de migrar a un repositorio de feature.",
-    "removalCondition": "Migrar en el PR técnico específico de Caja, con regresiones de cierres y totales."
-  },
   "src/pages/Combos.tsx": {
     "reason": "CRUD heredado de combos pendiente de encapsulación.",
     "removalCondition": "Mover lecturas y mutaciones a features/combos/data en su PR dedicado."
-  },
-  "src/pages/CustomerAccount.tsx": {
-    "reason": "Integración heredada de cuenta corriente con consultas operativas locales.",
-    "removalCondition": "Migrar a features/customer-account/data preservando aislamiento y estados."
   },
   "src/pages/Documents.tsx": {
     "reason": "Orquestador documental heredado con mutations aún acopladas a Supabase.",

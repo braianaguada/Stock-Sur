@@ -1081,6 +1081,13 @@ Production migration history note:
 - Las mutations de tecnicos exigen empresa activa, acotan update/delete por `company_id` e invalidan solamente Tecnicos, Documentos y Trabajos de la empresa afectada.
 - El cambio evita reutilizar datos derivados entre empresas y no modifica esquema, RLS ni reglas de negocio.
 
+## Limites de datos de Caja y cuenta corriente
+
+- `CashTotals` y `CustomerAccount` se limitan a componer estado y UI; sus consultas viven en hooks de feature.
+- Las query keys canonicas conservan `companyId`, filtros y habilitacion condicionada a una empresa activa.
+- El guardrail arquitectonico ya no necesita excepciones para imports directos de Supabase en estas paginas.
+- No se modificaron reglas de negocio, resultados visuales, permisos, RLS ni esquema. No requiere migraciones.
+
 ## Cache optimista del catalogo de items
 
 - La actualizacion masiva del tipo de demanda opera sobre la misma query key canonica que renderiza el catalogo: empresa, categoria y estado activos.

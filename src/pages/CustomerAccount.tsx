@@ -12,13 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCustomerAccountCustomers } from "@/features/customer-account/hooks/useCustomerAccountCustomers";
 import { useCustomerAccountStatement } from "@/features/customer-account/hooks/useCustomerAccountStatement";
 import type { AccountStatementRow, AccountStatementStatus } from "@/features/customer-account/lib/accountStatement";
 import { customerIdFromAccountParams } from "@/features/customer-account/lib/routes";
 import { formatBusinessDate, todayBusinessDateInputValue } from "@/lib/formatters";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { queryKeys } from "@/lib/query-keys";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
@@ -63,20 +61,7 @@ export default function CustomerAccountPage() {
   }), [customerId, from, search, status, to]);
 
   const statementQuery = useCustomerAccountStatement(currentCompany?.id, filters);
-  const customersQuery = useQuery({
-    queryKey: queryKeys.customers.list(currentCompany?.id ?? null, "account-statement"),
-    enabled: Boolean(currentCompany?.id),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("customers")
-        .select("id, name")
-        .eq("company_id", currentCompany!.id)
-        .eq("is_occasional", false)
-        .order("name");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const customersQuery = useCustomerAccountCustomers(currentCompany?.id);
   const rows = statementQuery.data?.rows ?? [];
   const pagination = usePaginationSlice({ items: rows, page, pageSize });
   const summary = statementQuery.data?.summary ?? { balance: 0, overdueDebt: 0, notDueDebt: 0, periodPayments: 0, movementsCount: 0 };
