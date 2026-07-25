@@ -56,7 +56,7 @@ function queryKeyContainsCompany(queryKey: QueryKey, companyId: string): boolean
   });
 }
 
-export function isQueryScopedToCompany(query: Pick<Query, "queryKey">, companyId: string) {
+function isQueryScopedToCompany(query: Pick<Query, "queryKey">, companyId: string) {
   return queryKeyContainsCompany(query.queryKey, companyId);
 }
 

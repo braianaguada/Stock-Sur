@@ -140,7 +140,7 @@ export async function fetchSettlementLines(companyId: string, settlementId: stri
   };
 }
 
-export async function fetchSettlementTotals(settlementId: string): Promise<SettlementTotals> {
+async function fetchSettlementTotals(settlementId: string): Promise<SettlementTotals> {
   const { data, error } = await db.rpc("get_settlement_totals", { p_settlement_id: settlementId });
   if (error) throw new Error(error.message);
   const row = Array.isArray(data) ? data[0] : data;
@@ -183,24 +183,6 @@ export async function saveSettlementDraft(params: {
 }) {
   const { data, error } = await db.rpc("save_settlement_draft", buildSaveSettlementDraftArgs(params));
   return assertData(data, error, "No se pudo guardar el borrador.");
-}
-
-export async function submitSettlement(settlementId: string) {
-  const { data, error } = await db.rpc("submit_settlement", { p_settlement_id: settlementId });
-  return assertData(data, error, "No se pudo presentar la rendicion.");
-}
-
-export async function receiveSettlement(settlementId: string, receivedByName: string) {
-  const { data, error } = await db.rpc("receive_settlement", {
-    p_settlement_id: settlementId,
-    p_received_by_name: receivedByName.trim(),
-  });
-  return assertData(data, error, "No se pudo recibir la rendicion.");
-}
-
-export async function cancelSettlement(settlementId: string) {
-  const { data, error } = await db.rpc("cancel_settlement", { p_settlement_id: settlementId });
-  return assertData(data, error, "No se pudo anular la rendicion.");
 }
 
 function incomeLinePayload(line: EditableIncomeLine, displayOrder: number) {
