@@ -130,6 +130,7 @@ export const queryKeys = {
     linesAll: () => ["combos", "lines"] as const,
   },
   serviceDocuments: {
+    company: (companyId: string | null) => ["service-documents", companyId ?? "no-company"] as const,
     customers: (companyId: string | null) => ["service-documents-customers", companyId ?? "no-company"] as const,
     list: (companyId: string | null, search: string, status: string, customerFilter = "ALL") =>
       ["service-documents", companyId ?? "no-company", search, status, customerFilter] as const,
@@ -144,7 +145,12 @@ export const queryKeys = {
       ["service-document-share-links", companyId ?? "no-company", documentId ?? "no-document"] as const,
     events: (companyId: string | null, documentId: string | null) =>
       ["service-document-events", companyId ?? "no-company", documentId ?? "no-document"] as const,
+    eventProfiles: (companyId: string | null, userIds: string[]) =>
+      ["service-document-event-profiles", companyId ?? "no-company", userIds] as const,
     public: (token: string | null) => ["public-service-document", token ?? "no-token"] as const,
+  },
+  profiles: {
+    name: (userId: string | null) => ["profiles", "name", userId ?? "no-user"] as const,
   },
   serviceJobs: {
     all: () => ["service-jobs"] as const,

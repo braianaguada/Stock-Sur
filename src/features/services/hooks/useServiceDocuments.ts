@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { supabase } from "@/integrations/supabase/client";
+import { createServiceAttachmentSignedUrl } from "../api";
 import { serviceDb } from "../db";
 import type { ServiceDocument, ServiceDocumentAttachment, ServiceDocumentEvent, ServiceDocumentShareLink, ServiceDocumentStatus } from "../types";
 
@@ -77,6 +77,7 @@ export function useServiceDocuments(params: {
       const { data, error } = await serviceDb
         .from("service_document_lines")
         .select("*")
+        .eq("company_id", companyId)
         .eq("document_id", documentId)
         .order("sort_order");
       if (error) throw error;
@@ -91,18 +92,12 @@ export function useServiceDocuments(params: {
       const { data, error } = await serviceDb
         .from("service_document_attachments")
         .select("*")
+        .eq("company_id", companyId)
         .eq("service_document_id", documentId)
         .order("sort_order");
       if (error) throw error;
       const attachments = (data ?? []) as ServiceDocumentAttachment[];
-      return Promise.all(
-        attachments.map(async (attachment) => {
-          const { data: signedData } = await supabase.storage
-            .from(attachment.storage_bucket)
-            .createSignedUrl(attachment.storage_path, 60 * 30);
-          return { ...attachment, signed_url: signedData?.signedUrl ?? null };
-        }),
-      );
+      return Promise.all(attachments.map((attachment) => createServiceAttachmentSignedUrl(attachment)));
     },
   });
 
@@ -113,6 +108,7 @@ export function useServiceDocuments(params: {
       const { data, error } = await serviceDb
         .from("service_document_share_links")
         .select("*")
+        .eq("company_id", companyId)
         .eq("service_document_id", documentId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -143,7 +139,7 @@ export function useServiceDocuments(params: {
   }, [eventsQuery.data]);
 
   const eventProfilesQuery = useQuery({
-    queryKey: ["service-document-event-profiles", companyId, eventUserIds],
+    queryKey: queryKeys.serviceDocuments.eventProfiles(companyId, eventUserIds),
     enabled: Boolean(companyId && eventUserIds.length > 0),
     queryFn: async () => {
       const { data, error } = await serviceDb

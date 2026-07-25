@@ -4,6 +4,12 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Limites de datos de Servicios y Rendiciones
+
+- Documentos de servicio centraliza aceptacion de sugerencias, recursos de impresion y enlaces compartidos en el gateway del feature, con filtros explicitos por `company_id`.
+- Rendiciones obtiene el nombre del responsable mediante su gateway; las paginas ya no acceden directamente al cliente de Supabase.
+- Las query keys e invalidaciones de documentos quedan acotadas por empresa. No se modifican reglas de negocio, datos, RLS ni esquema y no requiere migraciones.
+
 ## Descarga PDF de documentos de servicio
 
 - La descarga autenticada vuelve a obtener la sesion desde el namespace `auth` del cliente de Supabase antes de solicitar el PDF.

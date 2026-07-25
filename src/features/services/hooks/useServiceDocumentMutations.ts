@@ -90,7 +90,11 @@ export function useServiceDocumentMutations(params: {
 
       for (const attachment of attachments.filter((item) => item.remove && item.storage_path)) {
         await supabase.storage.from("service-document-attachments").remove([attachment.storage_path!]);
-        await serviceDb.from("service_document_attachments").delete().eq("id", attachment.id);
+        await serviceDb
+          .from("service_document_attachments")
+          .delete()
+          .eq("company_id", companyId)
+          .eq("id", attachment.id);
       }
 
       const activeAttachments = attachments.filter((item) => !item.remove);
@@ -131,6 +135,7 @@ export function useServiceDocumentMutations(params: {
               sort_order: payload.sort_order,
               include_in_print: payload.include_in_print,
             })
+            .eq("company_id", companyId)
             .eq("id", attachment.id)
             .select()
             .single();
@@ -140,7 +145,7 @@ export function useServiceDocumentMutations(params: {
       return savedDocument;
     },
     onSuccess: async (savedDocument) => {
-      await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
+      await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.company(companyId) });
       await onDone(savedDocument);
       toast({ title: editingDocumentId ? "Presupuesto actualizado" : "Presupuesto creado" });
     },
@@ -160,7 +165,7 @@ export function useServiceDocumentMutations(params: {
       if (error) throw error;
     },
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
+      await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.company(companyId) });
       toast({ title: "Presupuesto duplicado" });
     },
     onError: (error: unknown) => {
@@ -179,7 +184,7 @@ export function useServiceDocumentMutations(params: {
       if (error) throw error;
     },
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
+      await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.company(companyId) });
       toast({ title: "Remito de servicio creado" });
     },
     onError: (error: unknown) => {
@@ -198,7 +203,7 @@ export function useServiceDocumentMutations(params: {
 
     },
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.all() });
+      await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.company(companyId) });
       toast({ title: "Estado actualizado" });
     },
     onError: (error: unknown) => {
