@@ -1,19 +1,41 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buildSaveSettlementDraftArgs, saveSettlementDraft } from "@/features/settlements/api";
+import {
+  buildSaveSettlementDraftArgs,
+  fetchSettlementPreparerName,
+  saveSettlementDraft,
+} from "@/features/settlements/api";
 
-const { rpcMock } = vi.hoisted(() => ({
+const { fromMock, rpcMock } = vi.hoisted(() => ({
+  fromMock: vi.fn(),
   rpcMock: vi.fn(),
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    from: fromMock,
     rpc: rpcMock,
   },
 }));
 
 describe("settlements api", () => {
   beforeEach(() => {
+    fromMock.mockReset();
     rpcMock.mockReset();
+  });
+
+  it("loads the preparer name through the profiles gateway", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: { full_name: "  Responsable  " },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    fromMock.mockReturnValue({ select });
+
+    await expect(fetchSettlementPreparerName("user-1")).resolves.toBe("Responsable");
+    expect(fromMock).toHaveBeenCalledWith("profiles");
+    expect(select).toHaveBeenCalledWith("full_name");
+    expect(eq).toHaveBeenCalledWith("user_id", "user-1");
   });
 
   it("builds save draft RPC payload using real DB columns", () => {

@@ -25,13 +25,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import {
   createSettlementDraft,
   fetchSettlementDetail,
   fetchSettlementLines,
+  fetchSettlementPreparerName,
   fetchSettlements,
   saveSettlementDraft,
 } from "@/features/settlements/api";
@@ -173,17 +173,9 @@ export default function SettlementsPage() {
   });
 
   const profileQuery = useQuery({
-    queryKey: ["profile-name", user?.id],
+    queryKey: queryKeys.profiles.name(user?.id ?? null),
     enabled: Boolean(user?.id),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data?.full_name?.trim() ?? "";
-    },
+    queryFn: () => fetchSettlementPreparerName(user!.id),
   });
   const currentUserName = profileQuery.data
     || String(user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? "").trim()

@@ -26,13 +26,5 @@
   "src/pages/PrintBilling.tsx": {
     "reason": "Lectura imprimible del módulo de facturación aún incompleto.",
     "removalCondition": "Encapsular al finalizar el módulo, sin ampliar facturación en este PR."
-  },
-  "src/pages/ServiceDocuments.tsx": {
-    "reason": "Orquestador heredado de documentos de servicio con mutations directas.",
-    "removalCondition": "Migrar junto con regresiones de trabajos, adjuntos e impresión."
-  },
-  "src/pages/Settlements.tsx": {
-    "reason": "Rendiciones heredadas pendientes de capa de acceso dedicada.",
-    "removalCondition": "Extraer a features/settlements/data con pruebas de permisos y métricas."
   }
 }
