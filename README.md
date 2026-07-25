@@ -1120,6 +1120,13 @@ Production migration history note:
 - El formulario bloquea el guardado hasta cargar el snapshot completo y ofrece reintento ante errores, evitando sobrescribir excepciones con estado incompleto.
 - Migracion de staging: `20260725120000_atomic_user_company_access.sql`. No se aplico ni se modifico produccion.
 
+## Higiene de contratos y codigo muerto
+
+- Knip audita tanto el frontend como la funcion serverless de PDF; excluye contratos de tipos publicos y el archivo generado de Supabase, y documenta las herramientas ejecutadas por scripts.
+- Se retiraron exports, constantes visuales y wrappers de Rendiciones sin consumidores comprobados, sin modificar los RPC ni los flujos activos.
+- El catalogo de componentes referencia la ubicacion canonica real de `RowActions`.
+- No requiere migraciones ni cambios de datos.
+
 ## Persistencia de borradores comerciales
 
 - La creación y la edición de borradores de Documentos comparten una única normalización del payload persistido.

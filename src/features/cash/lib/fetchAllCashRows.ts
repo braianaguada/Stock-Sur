@@ -9,7 +9,7 @@ type CashPageFetcher<T> = (
   to: number,
 ) => PromiseLike<CashPageResult<T>>;
 
-export const CASH_TOTALS_PAGE_SIZE = 1000;
+const CASH_TOTALS_PAGE_SIZE = 1000;
 
 export async function fetchAllCashRows<T extends { id: string }>(
   fetchPage: CashPageFetcher<T>,

@@ -15,24 +15,6 @@ export const STATUS_LABEL: Record<DocStatus, string> = {
   ANULADO: "Anulado",
 };
 
-export const STATUS_VARIANT: Record<DocStatus, "secondary" | "default" | "destructive" | "outline"> = {
-  BORRADOR: "secondary",
-  ENVIADO: "outline",
-  APROBADO: "default",
-  RECHAZADO: "destructive",
-  EMITIDO: "default",
-  ANULADO: "destructive",
-};
-
-export const STATUS_CLASS: Record<DocStatus, string> = {
-  BORRADOR: "",
-  ENVIADO: "border-info/20 bg-info/10 text-info",
-  APROBADO: "border-success/20 bg-success/10 text-success",
-  RECHAZADO: "",
-  EMITIDO: "border-foreground/20 bg-foreground text-background",
-  ANULADO: "",
-};
-
 export const DOC_TYPE_CLASS: Record<DocType, string> = {
   PRESUPUESTO: "border-[hsl(var(--domain-accent)/.22)] bg-[hsl(var(--domain-accent-soft))] text-[hsl(var(--domain-accent-strong))]",
   REMITO: "border-[hsl(var(--domain-accent)/.22)] bg-[hsl(var(--domain-accent-soft))] text-[hsl(var(--domain-accent-strong))]",
