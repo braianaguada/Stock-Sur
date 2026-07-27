@@ -91,7 +91,3 @@ export function buildTechnicianAssignments(
     created_by: userId ?? null,
   }));
 }
-
-export function serviceWithoutMaterialsIsValid(form: ServiceForm) {
-  return Boolean(form.title.trim());
-}

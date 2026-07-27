@@ -6,7 +6,6 @@ import {
   buildTechnicianAssignments,
   normalizeJobPriority,
   normalizeJobStatus,
-  serviceWithoutMaterialsIsValid,
 } from "./serviceJobForm";
 
 describe("service job form helpers", () => {
@@ -59,10 +58,6 @@ describe("service job form helpers", () => {
       status: "PENDING",
     });
     expect(payload.scheduled_at).toContain("2026-05-09");
-  });
-
-  it("keeps a service without materials valid", () => {
-    expect(serviceWithoutMaterialsIsValid({ ...DEFAULT_SERVICE_FORM, title: "Diagnostico sin materiales" })).toBe(true);
   });
 
   it("normalizes invalid status and priority to safe defaults", () => {

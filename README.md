@@ -556,7 +556,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `src/lib/formatters.test.ts` cubre que `2026-05-09` se muestre como `09/05/2026` sin corrimiento de dia
   - `src/features/customer-account/lib/routes.test.ts` cubre el link filtrado `/customer-account?customerId=<id>` y la lectura de `customerId`/`customer_id` desde query params
 - Cobertura QA agregada para trabajos/servicios:
-  - `src/features/service-jobs/lib/serviceJobForm.test.ts` cubre payload valido de trabajo, bloqueo de titulo vacio, servicio con tecnicos, deduplicacion de tecnicos, servicio sin materiales valido y normalizacion de estado/prioridad
+  - `src/features/service-jobs/lib/serviceJobForm.test.ts` cubre payload valido de trabajo, bloqueo de titulo vacio, servicio con tecnicos, deduplicacion de tecnicos y normalizacion de estado/prioridad
   - `src/features/service-jobs/lib/serviceRemitos.test.ts` cubre payload de remito BORRADOR desde servicio, bloqueo de tipos no permitidos, bloqueo cross-company, resumen de remitos y advertencias de tecnico
   - `src/features/service-jobs/lib/operationalSummary.test.ts` cubre conteos por estado, servicios pendientes/realizados y suma de costo estimado desde remitos asociados
   - `src/App.routes.smoke.test.tsx` cubre que `/service-jobs` monte sin romper
@@ -1281,6 +1281,7 @@ git pull origin staging
 - Catalog matching retains only active alias resolution paths and no longer carries an unused alias-suggestion helper.
 - Import parsing exposes only the file-parser entry point; shared row and price helpers are consumed from their canonical core module.
 - Customer fiscal helpers retain only validation paths used by active screens; unused future-billing snapshot scaffolding was removed.
+- Service form helpers retain only payload and normalization paths used by active workflows; an unused standalone validity alias was removed.
 - Vite vendor chunk rules track installed runtime dependencies and avoid unreachable package-specific branches.
 - Shared stock indicators in price-list tables use one canonical component and semantic status mapping.
 - Printable documents and services share the same optional metadata renderer and escaping contract.
