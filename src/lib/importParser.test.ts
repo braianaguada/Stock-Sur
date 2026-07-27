@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isRowEmpty, normalizeNumberString, parseImportFile, parsePrice } from "@/lib/importParser";
+import { parseImportFile } from "@/lib/importParser";
+import { isRowEmpty, normalizeNumberString, parsePrice } from "@/lib/importParserCore";
 
 describe("normalizeNumberString", () => {
   it("normaliza formatos con moneda, espacios y comas", () => {
