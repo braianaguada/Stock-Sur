@@ -1276,6 +1276,7 @@ git pull origin staging
 - `LineItemsTable` keeps its row shape private because no external module consumes that type.
 - Price-list consultation utilities retain only selection logic used by the active workflow.
 - Date rendering uses canonical business-date and timestamp formatters without feature-local passthroughs.
+- The PostgreSQL driver is a development dependency because it is used only by the critical database test suite, never by the browser or Vercel runtimes.
 - Vite vendor chunk rules track installed runtime dependencies and avoid unreachable package-specific branches.
 - Shared stock indicators in price-list tables use one canonical component and semantic status mapping.
 - Printable documents and services share the same optional metadata renderer and escaping contract.
