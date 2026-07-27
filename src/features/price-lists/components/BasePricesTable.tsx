@@ -2,14 +2,14 @@ import { useMemo, useState } from "react";
 import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
 import { Pencil, TrendingDown, TrendingUp } from "lucide-react";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
-import { MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
+import { MoneyCell, PrimaryCell } from "@/components/common/VisualSystem";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { StockBadge } from "@/features/price-lists/components/StockBadge";
 import type { BasePriceRow } from "@/features/price-lists/types";
 import { formatTimestampDate } from "@/lib/formatters";
 import { formatMoney, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
@@ -24,30 +24,6 @@ type BasePricesTableProps = {
   renderUserName: (userId: string | null) => string;
   onSaveDraftValue: (itemId: string, nextBaseCost: number) => void;
 };
-
-function StockBadge({ total }: { total: number | undefined }) {
-  if (total === undefined) {
-    return <StatusBadge tone="muted">S/D</StatusBadge>;
-  }
-  if (total <= 0) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <StatusBadge tone="danger">Sin stock</StatusBadge>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="text-xs">Stock actual: 0</TooltipContent>
-      </Tooltip>
-    );
-  }
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <StatusBadge tone="success">{total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}</StatusBadge>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="text-xs">Stock actual: {total}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 export function BasePricesTable({
   rows,
