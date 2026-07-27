@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
 
-export type LineItemRow = {
+type LineItemRow = {
   id: string;
   line_order?: number | null;
   sku?: string | null;
