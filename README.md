@@ -1017,7 +1017,7 @@ Production migration history note:
 - Los hallazgos altos de la revisión del piloto se corrigieron en código: acciones de fila, truncado de importes, overflow, targets táctiles, navegación, contraste semántico, codificación accesible de gráficos y separación entre dominio/estado/acción.
 - La dirección de analítica aprobada combina flujos proporcionales y superficies topográficas con profundidad 2.5D sutil, leyendas y magnitudes verificables; el dashboard podrá alternar Stock, Ventas, Rentabilidad y Cuentas corrientes sin usar formas meramente decorativas.
 - La base del piloto deriva los grupos de navegación desde una única configuración, comparte tonos entre indicadores y elimina exports y estilos sin consumidores comprobados.
-- La expansión se hará en PR separados: migración compatible a tema claro/oscuro, inventario, comercial, compras, servicios y administración. La poda transversal seguirá por módulos y con tests, sin borrar automáticamente los falsos positivos de Knip o depcheck.
+- La expansión se hará en PR separados: migración compatible a tema claro/oscuro, inventario, comercial, compras, servicios y administración. La poda transversal seguirá por módulos y con tests, sin borrar automáticamente los falsos positivos de las herramientas estáticas.
 
 ## Espacios de trabajo con pestañas
 
@@ -1127,6 +1127,12 @@ Production migration history note:
 - Se eliminaron dos artefactos `.diff` historicos versionados por error y seis contratos TypeScript sin referencias verificadas mediante busqueda global y Knip.
 - El catalogo de componentes referencia la ubicacion canonica real de `RowActions`.
 - No requiere migraciones ni cambios de datos.
+
+## Higiene de dependencias
+
+- Knip 6 queda como auditor canonico de dependencias, archivos y exports; su configuracion ya no mantiene excepciones redundantes para herramientas invocadas desde scripts.
+- Se retiro Depcheck porque duplicaba esa auditoria y reportaba como defectos dependencias validas de PostCSS e imports `npm:` de Supabase Functions.
+- Madge conserva la verificacion independiente de ciclos. No se modificaron dependencias de runtime, reglas de negocio, datos ni base de datos.
 
 ## Rendimiento del dashboard y limpieza de tests
 
