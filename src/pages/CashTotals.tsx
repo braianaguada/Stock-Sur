@@ -13,9 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { useCashTotalsReport } from "@/features/cash/hooks/useCashTotalsReport";
 import { buildCashTotalsReport, getCashTotalsRange, type CashDailyTotal, type CashTotalsPeriod } from "@/features/cash/lib/cashTotals";
-import { todayDateInputValue } from "@/features/cash/utils";
 import { getErrorMessage } from "@/lib/errors";
-import { formatBusinessDate } from "@/lib/formatters";
+import { formatBusinessDate, todayBusinessDateInputValue } from "@/lib/formatters";
 
 const periodLabels: Record<CashTotalsPeriod, string> = {
   day: "Día",
@@ -33,9 +32,9 @@ function amountClass(value: number) {
 export default function CashTotalsPage() {
   const { currentCompany } = useAuth();
   const [period, setPeriod] = useState<CashTotalsPeriod>("month");
-  const [anchorDate, setAnchorDate] = useState(todayDateInputValue());
-  const [customFrom, setCustomFrom] = useState(todayDateInputValue());
-  const [customTo, setCustomTo] = useState(todayDateInputValue());
+  const [anchorDate, setAnchorDate] = useState(todayBusinessDateInputValue());
+  const [customFrom, setCustomFrom] = useState(todayBusinessDateInputValue());
+  const [customTo, setCustomTo] = useState(todayBusinessDateInputValue());
 
   const range = useMemo(
     () => getCashTotalsRange(period, anchorDate, { from: customFrom, to: customTo }),
@@ -71,7 +70,7 @@ export default function CashTotalsPage() {
   ], []);
 
   const resetFilters = () => {
-    const today = todayDateInputValue();
+    const today = todayBusinessDateInputValue();
     setPeriod("month");
     setAnchorDate(today);
     setCustomFrom(today);

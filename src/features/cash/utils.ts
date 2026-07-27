@@ -1,4 +1,4 @@
-﻿import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber, formatTime, todayBusinessDateInputValue } from "@/lib/formatters";
+﻿import { currency, formatBusinessDate, formatDateTime, formatDocumentNumber, formatTime } from "@/lib/formatters";
 import { escapeHtml, escapeHtmlWithLineBreaks, PRINT_FAVICON_TAG } from "@/lib/print";
 import { PAYMENT_LABEL, RECEIPT_LABEL } from "./constants";
 import type {
@@ -12,10 +12,6 @@ import type {
   DocumentEventQuickRow,
   RemitoOption,
 } from "./types";
-
-export function todayDateInputValue() {
-  return todayBusinessDateInputValue();
-}
 
 export function shouldAutoCloseCashClosure({
   enabled,
