@@ -22,6 +22,11 @@ export function escapeHtmlWithLineBreaks(value: unknown) {
   return escapeHtml(value).replace(/\r?\n/g, "<br />");
 }
 
+export function renderOptionalPrintMeta(label: string, value: unknown) {
+  if (value === null || value === undefined || value === "") return "";
+  return `<div class="meta-line"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+}
+
 export function openPrintWindow(html: string, features?: string) {
   const win = window.open("", "_blank", features);
   if (!win) return null;
