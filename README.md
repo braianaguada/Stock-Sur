@@ -1167,6 +1167,12 @@ Production migration history note:
 - Se elimino una acumulacion historica sin consumidores. Las regresiones cubren movimientos firmados, demanda manual, items historicos y antiguedad de salidas.
 - No se modificaron reglas de negocio, query keys, RLS, aislamiento por `company_id` ni esquema. No requiere migraciones.
 
+## Fecha comercial de Caja
+
+- Caja y Totales reutilizan directamente el helper canonico de fecha comercial de Buenos Aires.
+- Se retiro el alias local redundante sin cambiar inicializacion, filtros, cierres ni reglas de negocio.
+- No requiere migraciones ni modifica datos, permisos, RLS o aislamiento por `company_id`.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
