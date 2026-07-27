@@ -1193,6 +1193,12 @@ Production migration history note:
 - Se conserva la prioridad del valor definido en build, la configuracion `VITE_PUBLIC_APP_URL` y el fallback al origen actual del navegador.
 - No requiere migraciones ni modifica tokens, permisos, RLS o aislamiento por `company_id`.
 
+## Superficie publica de Rendiciones
+
+- La forma interna del RPC de guardado de borradores permanece encapsulada en `src/features/settlements/api.ts`.
+- Los consumidores conservan las mismas funciones publicas y el mismo comportamiento operativo.
+- No requiere migraciones ni modifica permisos, RLS o aislamiento por `company_id`.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
