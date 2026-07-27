@@ -15,12 +15,6 @@ export const STATUS_LABEL: Record<DocStatus, string> = {
   ANULADO: "Anulado",
 };
 
-export const DOC_TYPE_CLASS: Record<DocType, string> = {
-  PRESUPUESTO: "border-[hsl(var(--domain-accent)/.22)] bg-[hsl(var(--domain-accent-soft))] text-[hsl(var(--domain-accent-strong))]",
-  REMITO: "border-[hsl(var(--domain-accent)/.22)] bg-[hsl(var(--domain-accent-soft))] text-[hsl(var(--domain-accent-strong))]",
-  REMITO_DEVOLUCION: "border-[hsl(var(--domain-accent)/.22)] bg-[hsl(var(--domain-accent-soft))] text-[hsl(var(--domain-accent-strong))]",
-};
-
 export const CUSTOMER_KIND_LABEL: Record<CustomerKind, string> = {
   GENERAL: "Cliente general",
   INTERNO: "Personal / tecnico interno",

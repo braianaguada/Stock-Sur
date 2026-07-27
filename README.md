@@ -561,7 +561,7 @@ Al 2026-05-11, los cambios principales incorporados en `staging` son:
   - `src/features/service-jobs/lib/operationalSummary.test.ts` cubre conteos por estado, servicios pendientes/realizados y suma de costo estimado desde remitos asociados
   - `src/App.routes.smoke.test.tsx` cubre que `/service-jobs` monte sin romper
 - Cobertura QA agregada para Listas de precios:
-  - `src/features/price-lists/lib/consultation.test.ts` cubre labels visuales de la consulta rapida y margen aproximado sin tocar la logica de precio operativo
+  - `src/features/price-lists/lib/consultation.test.ts` cubre labels visuales de la consulta rapida
   - `src/features/price-lists/lib/consultation.test.ts` cubre que `?itemId=` seleccione la lista que contiene el producto destacado antes de mostrar el fallback
   - `src/pages/PriceLists.test.tsx` cubre que la pestania `Listas` mantenga `Listas configuradas`, quite la tabla gigante y conserve `Ver lista`, `Recalcular` y la navegacion con `?itemId=`
 - Validacion manual recomendada en staging:
@@ -1140,6 +1140,12 @@ Production migration history note:
 - Los cambios aplicados permanecen trazados por las migraciones y el historial Git; estos artefactos no tenian consumidores y no formaban parte de la operacion actual.
 - Se elimino tambien la utilidad manual que permitia escribir directamente en `main`, en linea con el flujo vigente que prohibe tocar produccion desde tareas normales.
 - No se ejecutaron scripts, no se modificaron datos ni esquema y no requiere migraciones.
+
+## Retiro de helpers sin consumidores
+
+- Se retiraron cinco exports historicos de documentos, servicios y listas de precios que solo eran ejercitados por sus propios tests y no tenian consumidores de runtime.
+- Se conservaron las APIs activas de cada modulo y se ajustaron exclusivamente las aserciones asociadas al codigo retirado.
+- No se modificaron reglas de negocio, query keys, permisos, datos ni esquema. No requiere migraciones.
 
 ## Rendimiento del dashboard y limpieza de tests
 

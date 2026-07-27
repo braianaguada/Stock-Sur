@@ -35,11 +35,6 @@ export function getPriceConsultationState(row: {
   };
 }
 
-export function getApproxMarginPct(baseCost: number | null, operationalPrice: number | null) {
-  if (typeof operationalPrice !== "number" || operationalPrice <= 0) return null;
-  return ((operationalPrice - (Number(baseCost) || 0)) / operationalPrice) * 100;
-}
-
 export function resolveConsultListIdForQuery({
   currentListId,
   quickListId,
@@ -66,24 +61,4 @@ export function resolveConsultListIdForQuery({
   if (currentListId && priceLists.some((list) => list.id === currentListId)) return currentListId;
   if (quickListId && priceLists.some((list) => list.id === quickListId)) return quickListId;
   return priceLists[0].id;
-}
-
-export function getQuickPriceListStorageKey(userId: string | null | undefined, companyId: string | null | undefined) {
-  return `price-lists:quick-list:${userId ?? "anonymous"}:${companyId ?? "no-company"}`;
-}
-
-export function paginateRows<T>(rows: T[], page: number, pageSize: number) {
-  const safePageSize = Math.max(1, pageSize);
-  const totalItems = rows.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / safePageSize));
-  const safePage = Math.min(Math.max(1, page), totalPages);
-  const start = (safePage - 1) * safePageSize;
-  return {
-    rows: rows.slice(start, start + safePageSize),
-    page: safePage,
-    totalItems,
-    totalPages,
-    rangeStart: totalItems === 0 ? 0 : start + 1,
-    rangeEnd: Math.min(start + safePageSize, totalItems),
-  };
 }
