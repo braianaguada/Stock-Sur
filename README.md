@@ -1178,6 +1178,8 @@ Production migration history note:
 - La busqueda general y la busqueda natural de items comparten una normalizacion canonica de acentos, espacios y puntuacion admitida.
 - Las equivalencias, sinonimos y reglas de ranking especificas de items permanecen dentro de su modulo.
 - No requiere migraciones ni modifica datos, permisos, RLS o aislamiento por `company_id`.
+- Se retiro el adaptador frontend de busqueda IA de items y sus pruebas aisladas porque no tenia consumidores de produccion.
+- La Edge Function `item-search-ai` se conserva hasta poder descartar de forma independiente cualquier uso desplegado o externo.
 
 ## Git workflow
 
