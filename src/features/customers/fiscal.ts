@@ -48,23 +48,3 @@ export function canUseCustomerForInvoiceA(customer: Customer | null | undefined,
     reasons,
   };
 }
-function getInvoiceAReadinessReasons(customer: Customer | null | undefined, fiscalProfile: CustomerFiscalProfile | null | undefined) {
-  return canUseCustomerForInvoiceA(customer, fiscalProfile).reasons;
-}
-
-export function buildCustomerFiscalSnapshot(customer: Customer, fiscalProfile: CustomerFiscalProfile) {
-  return {
-    customer_id: customer.id,
-    legal_name: fiscalProfile.legal_name,
-    tax_id: fiscalProfile.tax_id,
-    tax_condition: fiscalProfile.tax_condition,
-    fiscal_address: fiscalProfile.fiscal_address,
-    validation_status: fiscalProfile.validation_status,
-    validation_source: fiscalProfile.validation_source,
-    tax_condition_source: fiscalProfile.tax_condition_source,
-    legal_name_source: fiscalProfile.legal_name_source,
-    taxpayer_status: fiscalProfile.taxpayer_status,
-    validated_at: fiscalProfile.validated_at,
-    snapshot_created_at: new Date().toISOString(),
-  };
-}
