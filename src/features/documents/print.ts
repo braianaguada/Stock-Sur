@@ -1,5 +1,5 @@
 import type { CompanySettings } from "@/contexts/company-brand-context";
-import { escapeHtml, PRINT_BRAND_MARK, PRINT_FAVICON_TAG } from "@/lib/print";
+import { escapeHtml, PRINT_BRAND_MARK, PRINT_FAVICON_TAG, renderOptionalPrintMeta } from "@/lib/print";
 import { formatDateTime, formatIsoDate } from "@/lib/formatters";
 import { DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "./constants";
 import type { DocLineRow, DocRow } from "./types";
@@ -26,11 +26,6 @@ const moneyFormatter = new Intl.NumberFormat("es-AR", {
 const numberFormatter = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 2,
 });
-
-function optionalMeta(label: string, value: unknown) {
-  if (value === null || value === undefined || value === "") return "";
-  return `<div class="meta-line"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
-}
 
 function optionalBadge(label: string, value: unknown) {
   if (value === null || value === undefined || value === "") return "";
@@ -232,20 +227,20 @@ export function buildDocumentPrintHtml({
         <section class="meta-grid avoid-break">
           <div class="box">
             <p class="box-title">${document.customer_kind === "INTERNO" ? "Destinatario" : "Cliente"}</p>
-            ${optionalMeta(document.customer_kind === "INTERNO" ? "Destinatario" : "Cliente", resolveDocumentRecipient(document, { technicianName }).primaryName)}
-            ${document.customer_kind !== "INTERNO" && resolveDocumentRecipient(document, { technicianName }).secondaryName ? optionalMeta("Nombre ocasional", resolveDocumentRecipient(document, { technicianName }).secondaryName) : ""}
+            ${renderOptionalPrintMeta(document.customer_kind === "INTERNO" ? "Destinatario" : "Cliente", resolveDocumentRecipient(document, { technicianName }).primaryName)}
+            ${document.customer_kind !== "INTERNO" && resolveDocumentRecipient(document, { technicianName }).secondaryName ? renderOptionalPrintMeta("Nombre ocasional", resolveDocumentRecipient(document, { technicianName }).secondaryName) : ""}
           </div>
           <div class="box">
             <p class="box-title">Operacion</p>
-            ${optionalMeta("Tipo", documentTypeLabel)}
-            ${technicianName ? optionalMeta("Tecnico", technicianName) : ""}
-            ${document.doc_type !== "REMITO_DEVOLUCION" && document.internal_remito_type ? optionalMeta("Tipo / motivo interno", INTERNAL_REMITO_LABEL[document.internal_remito_type]) : ""}
-            ${sourceLabel ? optionalMeta("Origen", sourceLabel) : ""}
-            ${externalInvoice ? optionalMeta("Factura ext.", externalInvoice) : ""}
-            ${document.payment_terms ? optionalMeta("Cond. venta", document.payment_terms) : ""}
-            ${document.salesperson ? optionalMeta("Vendedor", document.salesperson) : ""}
-            ${document.delivery_address ? optionalMeta("Entrega", document.delivery_address) : ""}
-            ${optionalMeta("Creado", formatDateTime(document.created_at))}
+            ${renderOptionalPrintMeta("Tipo", documentTypeLabel)}
+            ${technicianName ? renderOptionalPrintMeta("Tecnico", technicianName) : ""}
+            ${document.doc_type !== "REMITO_DEVOLUCION" && document.internal_remito_type ? renderOptionalPrintMeta("Tipo / motivo interno", INTERNAL_REMITO_LABEL[document.internal_remito_type]) : ""}
+            ${sourceLabel ? renderOptionalPrintMeta("Origen", sourceLabel) : ""}
+            ${externalInvoice ? renderOptionalPrintMeta("Factura ext.", externalInvoice) : ""}
+            ${document.payment_terms ? renderOptionalPrintMeta("Cond. venta", document.payment_terms) : ""}
+            ${document.salesperson ? renderOptionalPrintMeta("Vendedor", document.salesperson) : ""}
+            ${document.delivery_address ? renderOptionalPrintMeta("Entrega", document.delivery_address) : ""}
+            ${renderOptionalPrintMeta("Creado", formatDateTime(document.created_at))}
           </div>
         </section>
 
