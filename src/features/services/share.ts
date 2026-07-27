@@ -61,13 +61,3 @@ export function buildMailtoUrl(params: { email: string; subject: string; body: s
   const body = encodeURIComponent(params.body);
   return `mailto:${encodeURIComponent(recipient)}?subject=${subject}&body=${body}`;
 }
-
-export function sanitizePdfFileName(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\w.-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 90) || "cliente";
-}
