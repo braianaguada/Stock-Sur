@@ -16,7 +16,7 @@ import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { getErrorMessage } from "@/lib/errors";
 import { canAttachCashReceipt, canCancelCashExpense, canCancelCashSale, canCloseCash, canCreateBilling, canCreateCashExpense, canCreateCashSale } from "@/lib/permissions";
 import { openPrintWindow } from "@/lib/print";
-import { currentTimeInBuenosAires } from "@/lib/formatters";
+import { currentTimeInBuenosAires, todayBusinessDateInputValue } from "@/lib/formatters";
 import { ArrowLeft, History, Plus } from "lucide-react";
 import { CashClosureTab } from "@/features/cash/components/CashClosureTab";
 import { CashExpensesTab } from "@/features/cash/components/CashExpensesTab";
@@ -48,7 +48,6 @@ import {
   formatRemitoOptionLabel,
   normalizeReceiptSearch,
   shouldAutoCloseCashClosure,
-  todayDateInputValue,
 } from "@/features/cash/utils";
 
 const CashReceiptDialog = lazy(async () => {
@@ -79,7 +78,7 @@ export default function CashPage() {
   const { roles, currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
   const { toast } = useToast();
   const { settings: companySettings } = useCompanyBrand();
-  const [businessDate, setBusinessDate] = useState(todayDateInputValue());
+  const [businessDate, setBusinessDate] = useState(todayBusinessDateInputValue());
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO_REMITO");
   const [receiptKind, setReceiptKind] = useState<ReceiptKind>("REMITO");
   const [selectedRemitoId, setSelectedRemitoId] = useState<string>("__none__");
@@ -268,7 +267,7 @@ export default function CashPage() {
       enabled: companySettings.auto_close_cash_enabled,
       configuredTime: companySettings.auto_close_cash_time,
       businessDate,
-      todayBusinessDate: todayDateInputValue(),
+      todayBusinessDate: todayBusinessDateInputValue(),
       currentHour,
       currentMinute,
       closureId: closure.id,
