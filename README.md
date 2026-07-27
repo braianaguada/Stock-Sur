@@ -1187,6 +1187,12 @@ Production migration history note:
 - Clientes conserva sus exports publicos para no romper consumidores existentes; se elimino la implementacion duplicada de Facturacion.
 - No requiere migraciones ni modifica datos, permisos, RLS o aislamiento por `company_id`.
 
+## Origen publico compartido
+
+- Los enlaces publicos de Documentos y Servicios resuelven el origen de la aplicacion desde un unico helper en `src/lib/public-app-url.ts`.
+- Se conserva la prioridad del valor definido en build, la configuracion `VITE_PUBLIC_APP_URL` y el fallback al origen actual del navegador.
+- No requiere migraciones ni modifica tokens, permisos, RLS o aislamiento por `company_id`.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
