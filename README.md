@@ -1134,6 +1134,13 @@ Production migration history note:
 - Se retiro Depcheck porque duplicaba esa auditoria y reportaba como defectos dependencias validas de PostCSS e imports `npm:` de Supabase Functions.
 - Madge conserva la verificacion independiente de ciclos. No se modificaron dependencias de runtime, reglas de negocio, datos ni base de datos.
 
+## Retiro de scripts historicos de catalogo
+
+- Se retiraron los once scripts puntuales del 09/04/2026 usados por el PR #138 para normalizar y sincronizar el catalogo.
+- Los cambios aplicados permanecen trazados por las migraciones y el historial Git; estos artefactos no tenian consumidores y no formaban parte de la operacion actual.
+- Se elimino tambien la utilidad manual que permitia escribir directamente en `main`, en linea con el flujo vigente que prohibe tocar produccion desde tareas normales.
+- No se ejecutaron scripts, no se modificaron datos ni esquema y no requiere migraciones.
+
 ## Rendimiento del dashboard y limpieza de tests
 
 - Los graficos del Dashboard se cargan de forma diferida solo cuando existe actividad representable; metricas, navegacion y acciones permanecen disponibles en el paquete inicial.
