@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getErrorMessage } from "@/lib/errors";
-import { isValidCuitFormat, normalizeCuit } from "../lib/cuit";
+import { isValidCuitFormat, normalizeCuit } from "@/lib/cuit";
 import type { BillingDiagnosticsResult, BillingPointOfSaleRow, BillingSettingsRow } from "../types";
 
 type ToastFn = (toast: {
