@@ -1,3 +1,5 @@
+import { normalizeSearchText } from "@/lib/search";
+
 export interface ItemSearchAliasRecord {
   item_id: string;
   alias: string;
@@ -40,14 +42,8 @@ const TOKEN_SYNONYMS: Record<string, string[]> = {
   aa: ["aire", "acondicionado"],
 };
 
-function normalizeSearchText(value: string) {
-  let output = String(value ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9/+\s.-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+function normalizeItemSearchText(value: string | null | undefined) {
+  let output = normalizeSearchText(value);
 
   for (const [pattern, replacement] of PHRASE_NORMALIZATIONS) {
     output = output.replace(pattern, replacement);
@@ -57,7 +53,7 @@ function normalizeSearchText(value: string) {
 }
 
 function getBaseTokens(value: string) {
-  return normalizeSearchText(value)
+  return normalizeItemSearchText(value)
     .split(" ")
     .map((token) => token.trim())
     .filter(Boolean);
@@ -69,7 +65,7 @@ function tokenize(value: string) {
   baseTokens.forEach((token) => {
     expanded.add(token);
     (TOKEN_SYNONYMS[token] ?? []).forEach((synonym) => {
-      normalizeSearchText(synonym)
+      normalizeItemSearchText(synonym)
         .split(" ")
         .filter(Boolean)
         .forEach((part) => expanded.add(part));
@@ -84,7 +80,7 @@ export function getItemSearchTokens(value: string) {
 }
 
 function buildItemText(item: ItemSearchFields) {
-  return normalizeSearchText([
+  return normalizeItemSearchText([
     item.sku ?? "",
     item.name,
     item.supplier ?? "",
@@ -125,7 +121,7 @@ function tokenMatchesCandidate(token: string, candidateText: string) {
   if (candidateText.includes(token)) return true;
 
   return (TOKEN_SYNONYMS[token] ?? []).some((synonym) => {
-    const normalized = normalizeSearchText(synonym);
+    const normalized = normalizeItemSearchText(synonym);
     if (!normalized) return false;
     if (candidateText.includes(normalized)) return true;
     return normalized.split(" ").some((part) => candidateText.includes(part));
@@ -148,7 +144,7 @@ export function rankNaturalItemSearch<T extends ItemSearchFields>(params: {
   aliases: ItemSearchAliasRecord[];
   query: string;
 }): T[] {
-  const queryText = normalizeSearchText(params.query);
+  const queryText = normalizeItemSearchText(params.query);
   const queryBaseTokens = getBaseTokens(params.query);
   const queryTokens = tokenize(params.query);
   if (!queryText) return params.items;
@@ -163,15 +159,15 @@ export function rankNaturalItemSearch<T extends ItemSearchFields>(params: {
     .map((item) => {
       const itemText = buildItemText(item);
       const itemAliases = aliasesByItemId.get(item.id) ?? [];
-      const combinedText = normalizeSearchText([itemText, ...itemAliases.map((alias) => alias.alias)].join(" "));
+      const combinedText = normalizeItemSearchText([itemText, ...itemAliases.map((alias) => alias.alias)].join(" "));
       const itemMatched = satisfiesQuery(queryBaseTokens, combinedText);
       const itemTokenResult = scoreTokenOverlap(queryTokens, itemText);
-      const nameScore = scoreTextMatch(queryText, normalizeSearchText(item.name));
-      const skuScore = scoreTextMatch(queryText, normalizeSearchText(item.sku));
+      const nameScore = scoreTextMatch(queryText, normalizeItemSearchText(item.name));
+      const skuScore = scoreTextMatch(queryText, normalizeItemSearchText(item.sku));
       const baseScore = itemMatched ? Math.max(nameScore, skuScore) + itemTokenResult.score : 0;
 
       const aliasRank = itemAliases.reduce((best, alias) => {
-        const aliasText = normalizeSearchText(alias.alias);
+        const aliasText = normalizeItemSearchText(alias.alias);
         if (!satisfiesQuery(queryBaseTokens, aliasText)) {
           return best;
         }
@@ -208,7 +204,7 @@ export function rankNaturalItemSearch<T extends ItemSearchFields>(params: {
 }
 
 function naturalSearchHint(query: string) {
-  const normalized = normalizeSearchText(query);
+  const normalized = normalizeItemSearchText(query);
   if (!normalized) return null;
   if (normalized.includes("1/2")) return "Incluye equivalencias como media o medio.";
   if (normalized.includes("aire acondicionado")) return "Incluye equivalencias como AA o split.";
