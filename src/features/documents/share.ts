@@ -1,12 +1,6 @@
+import { getPublicAppOrigin } from "@/lib/public-app-url";
 import type { DocRow } from "./types";
 import { formatNumber } from "./utils";
-
-function getPublicAppOrigin() {
-  const buildOrigin = typeof __PUBLIC_APP_URL__ === "string" ? __PUBLIC_APP_URL__ : "";
-  const configuredOrigin = buildOrigin || import.meta.env.VITE_PUBLIC_APP_URL?.trim();
-  if (configuredOrigin) return configuredOrigin.replace(/\/+$/, "");
-  return window.location.origin;
-}
 
 export function buildPublicDocumentUrl(token: string) {
   return `${getPublicAppOrigin()}/public/document/${encodeURIComponent(token)}`;
