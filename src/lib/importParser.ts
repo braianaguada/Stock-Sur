@@ -3,7 +3,7 @@ import { isRowEmpty, type ParsedRow } from "@/lib/importParserCore";
 
 const EMPTY_HEADER_PREFIX = "column_";
 
-export { isRowEmpty, normalizeNumberString, parsePrice, type ParsedRow } from "@/lib/importParserCore";
+export { isRowEmpty, normalizeNumberString, parsePrice } from "@/lib/importParserCore";
 
 async function readFileAsText(file: File): Promise<string> {
   if (typeof file.text === "function") {
