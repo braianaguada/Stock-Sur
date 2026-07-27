@@ -1278,6 +1278,7 @@ git pull origin staging
 - Date rendering uses canonical business-date and timestamp formatters without feature-local passthroughs.
 - The PostgreSQL driver is a development dependency because it is used only by the critical database test suite, never by the browser or Vercel runtimes.
 - Item search tokenization uses its public canonical helper directly and no longer retains unused local search guidance.
+- Catalog matching retains only active alias resolution paths and no longer carries an unused alias-suggestion helper.
 - Vite vendor chunk rules track installed runtime dependencies and avoid unreachable package-specific branches.
 - Shared stock indicators in price-list tables use one canonical component and semantic status mapping.
 - Printable documents and services share the same optional metadata renderer and escaping contract.
