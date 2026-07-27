@@ -33,7 +33,7 @@ import { CUSTOMER_KIND_LABEL, DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } f
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
 import { describeDocumentHistoryEvent, formatNumber, resolveDocumentRecipient } from "@/features/documents/utils";
-import { formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
+import { formatBusinessDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 
 interface DocumentsPreviewDialogProps {
   open: boolean;
@@ -222,7 +222,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       <div className="mt-4 grid grid-cols-2 gap-3 text-[11px]">
                         <div>
                           <p className="font-bold uppercase tracking-[0.16em] text-slate-500">Fecha</p>
-                          <p className="mt-1 font-semibold">{formatIsoDate(selectedDocument.issue_date)}</p>
+                          <p className="mt-1 font-semibold">{formatBusinessDate(selectedDocument.issue_date)}</p>
                         </div>
                         <div>
                           <p className="font-bold uppercase tracking-[0.16em] text-slate-500">Estado</p>
@@ -241,7 +241,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       {selectedDocument.customer_kind !== "INTERNO" ? <PreviewField label="CUIT" value={<span className="font-mono">{selectedDocument.customer_tax_id ?? "-"}</span>} /> : null}
                       {selectedDocument.customer_kind !== "INTERNO" ? <PreviewField label="Cond. fiscal" value={selectedDocument.customer_tax_condition ?? "-"} /> : null}
                       <PreviewField label="PDV" value={<span className="font-mono">{String(selectedDocument.point_of_sale).padStart(4, "0")}</span>} />
-                      <PreviewField label="Validez" value={selectedDocument.valid_until ? formatIsoDate(selectedDocument.valid_until) : "-"} />
+                      <PreviewField label="Validez" value={selectedDocument.valid_until ? formatBusinessDate(selectedDocument.valid_until) : "-"} />
                       {selectedDocument.customer_kind !== "INTERNO" ? <PreviewField label="Condicion" value={selectedDocument.payment_terms ?? "-"} /> : null}
                       <PreviewField label="Vendedor" value={selectedDocument.salesperson ?? "-"} />
                       <PreviewField label="Tecnico" value={technicianName ?? "-"} />

@@ -1,6 +1,6 @@
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { escapeHtml, PRINT_BRAND_MARK, PRINT_FAVICON_TAG, renderOptionalPrintMeta } from "@/lib/print";
-import { formatDateTime, formatIsoDate } from "@/lib/formatters";
+import { formatBusinessDate, formatDateTime } from "@/lib/formatters";
 import { DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "./constants";
 import type { DocLineRow, DocRow } from "./types";
 import { formatNumber, resolveDocumentRecipient } from "./utils";
@@ -88,7 +88,7 @@ export function buildDocumentPrintHtml({
       : null;
   const externalInvoice =
     document.external_invoice_number
-      ? `${document.external_invoice_number}${document.external_invoice_date ? ` - ${formatIsoDate(document.external_invoice_date)}` : ""}`
+      ? `${document.external_invoice_number}${document.external_invoice_date ? ` - ${formatBusinessDate(document.external_invoice_date)}` : ""}`
       : null;
 
   const logoMarkup = companySettings.logo_url
@@ -216,9 +216,9 @@ export function buildDocumentPrintHtml({
             <h2 class="doc-kind">${escapeHtml(documentTypeLabel)}</h2>
             <p class="doc-number ${hasDocumentNumber ? "" : "is-pending"}">${escapeHtml(documentNumber)}</p>
             <div class="doc-meta">
-              ${optionalBadge("Fecha", formatIsoDate(document.issue_date))}
+              ${optionalBadge("Fecha", formatBusinessDate(document.issue_date))}
               <div class="badge-line"><span>Estado</span><strong class="status-chip">${escapeHtml(STATUS_LABEL[document.status])}</strong></div>
-              ${document.valid_until ? optionalBadge("Validez", formatIsoDate(document.valid_until)) : ""}
+              ${document.valid_until ? optionalBadge("Validez", formatBusinessDate(document.valid_until)) : ""}
               ${optionalBadge("PDV", String(document.point_of_sale).padStart(4, "0"))}
             </div>
           </section>
