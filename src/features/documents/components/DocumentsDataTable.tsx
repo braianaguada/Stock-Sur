@@ -11,7 +11,7 @@ import { DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "@/features/docum
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocRow, DocStatus } from "@/features/documents/types";
 import { formatNumber, resolveDocumentRecipient } from "@/features/documents/utils";
-import { formatIsoDate } from "@/lib/formatters";
+import { formatBusinessDate } from "@/lib/formatters";
 
 const STATUS_TONE: Record<DocStatus, "muted" | "info" | "success" | "danger"> = {
   BORRADOR: "muted",
@@ -152,7 +152,7 @@ export function DocumentsDataTable({
     {
       accessorKey: "issue_date",
       header: () => "Fecha",
-      cell: ({ row }) => formatIsoDate(row.original.issue_date),
+      cell: ({ row }) => formatBusinessDate(row.original.issue_date),
       meta: {
         className: "w-[120px]",
         cellClassName: "py-2.5",

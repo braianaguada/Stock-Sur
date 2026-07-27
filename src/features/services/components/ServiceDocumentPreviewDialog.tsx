@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
 import type { ServiceDocument, ServiceDocumentEvent, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
-import { formatIsoDate, formatMoney, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
+import { formatBusinessDate, formatMoney, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 
 type ServiceDocumentPreviewDialogProps = {
   open: boolean;
@@ -181,7 +181,7 @@ export function ServiceDocumentPreviewDialog({
                       </div>
                       <div>
                         <p className="font-bold uppercase tracking-[0.18em] text-slate-500">Fecha</p>
-                        <p className="mt-1 font-semibold">{formatIsoDate(previewDocument.issue_date)}</p>
+                        <p className="mt-1 font-semibold">{formatBusinessDate(previewDocument.issue_date)}</p>
                       </div>
                       <div>
                         <p className="font-bold uppercase tracking-[0.18em] text-slate-500">Estado</p>
@@ -189,7 +189,7 @@ export function ServiceDocumentPreviewDialog({
                       </div>
                       <div>
                         <p className="font-bold uppercase tracking-[0.18em] text-slate-500">Vigencia</p>
-                        <p className="mt-1 font-semibold">{previewDocument.valid_until ? formatIsoDate(previewDocument.valid_until) : "-"}</p>
+                        <p className="mt-1 font-semibold">{previewDocument.valid_until ? formatBusinessDate(previewDocument.valid_until) : "-"}</p>
                       </div>
                     </div>
                   </div>

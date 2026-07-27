@@ -21,7 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
-import { formatIsoDate, formatMoney } from "@/lib/formatters";
+import { formatBusinessDate, formatMoney } from "@/lib/formatters";
 import { openPrintWindow } from "@/lib/print";
 import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "@/lib/pdf-download";
 import {
@@ -568,7 +568,7 @@ export default function ServiceDocumentsPage() {
     {
       accessorKey: "issue_date",
       header: "Fecha",
-      cell: ({ row }) => formatIsoDate(row.original.issue_date),
+      cell: ({ row }) => formatBusinessDate(row.original.issue_date),
     },
     {
       accessorKey: "status",

@@ -1,5 +1,5 @@
 import type { CompanySettings } from "@/contexts/company-brand-context";
-import { formatIsoDate, formatMoney } from "@/lib/formatters";
+import { formatBusinessDate, formatMoney } from "@/lib/formatters";
 import { escapeHtml, escapeHtmlWithLineBreaks, PRINT_BRAND_MARK, PRINT_FAVICON_TAG, renderOptionalPrintMeta } from "@/lib/print";
 import { SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "./constants";
 import type { ServiceDocument, ServiceDocumentAttachment, ServiceDocumentLine } from "./types";
@@ -37,7 +37,7 @@ function buildExchangeRateNote(document: ServiceDocument) {
   if (!Number.isFinite(rate) || rate <= 0) return "";
   const arsTotal = Number(document.total ?? 0) * rate;
   const source = document.exchange_rate_source === "MANUAL" ? "Cotizacion manual" : "Cotizacion de referencia Banco Nacion";
-  const date = document.exchange_rate_date ? formatIsoDate(document.exchange_rate_date) : "";
+  const date = document.exchange_rate_date ? formatBusinessDate(document.exchange_rate_date) : "";
   return `
     <section class="exchange-note avoid-break">
       <strong>${escapeHtml(source)}</strong>
@@ -217,9 +217,9 @@ export function buildServiceDocumentPrintHtml({
             <h2 class="doc-kind">${escapeHtml(documentLabel)}</h2>
             <p class="doc-number">${escapeHtml(documentNumber)}</p>
             <div class="doc-meta">
-              <div class="badge-line"><span>Fecha</span><strong>${formatIsoDate(document.issue_date)}</strong></div>
+              <div class="badge-line"><span>Fecha</span><strong>${formatBusinessDate(document.issue_date)}</strong></div>
               <div class="badge-line"><span>Estado</span><strong class="status-chip">${escapeHtml(SERVICE_STATUS_LABEL[document.status])}</strong></div>
-              ${document.valid_until ? `<div class="badge-line"><span>Vigencia</span><strong>${formatIsoDate(document.valid_until)}</strong></div>` : ""}
+              ${document.valid_until ? `<div class="badge-line"><span>Vigencia</span><strong>${formatBusinessDate(document.valid_until)}</strong></div>` : ""}
             </div>
           </section>
         </header>
@@ -236,7 +236,7 @@ export function buildServiceDocumentPrintHtml({
             <p class="box-title">Operacion</p>
             ${renderOptionalPrintMeta("Tipo", documentLabel)}
             ${renderOptionalPrintMeta("Referencia", document.reference)}
-            ${renderOptionalPrintMeta("Creado", formatIsoDate(document.issue_date))}
+            ${renderOptionalPrintMeta("Creado", formatBusinessDate(document.issue_date))}
           </div>
         </section>
 

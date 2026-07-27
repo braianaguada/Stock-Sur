@@ -7,7 +7,7 @@ import type {
   SupplierCatalogVersion,
   SupplierFormState,
 } from "@/features/suppliers/types";
-import { formatSupplierDate } from "@/features/suppliers/utils";
+import { formatDateTime } from "@/lib/formatters";
 
 export function createEmptySupplierForm(): SupplierFormState {
   return {
@@ -60,7 +60,7 @@ export function buildSupplierOrderMessage(params: {
   const { selectedSupplier, orderLines, activeVersion, catalogTitleById } = params;
   if (!selectedSupplier || orderLines.length === 0) return "";
 
-  const versionDate = activeVersion ? formatSupplierDate(activeVersion.imported_at) : "Sin version";
+  const versionDate = activeVersion ? formatDateTime(activeVersion.imported_at) : "Sin version";
   const catalogName = activeVersion
     ? catalogTitleById.get(activeVersion.catalog_id) ?? activeVersion.title ?? "Listado"
     : "Sin listado";
