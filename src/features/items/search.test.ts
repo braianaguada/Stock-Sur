@@ -120,4 +120,14 @@ describe("natural item search", () => {
 
     expect(ranked.map((item) => item.id)).toEqual(["1"]);
   });
+
+  it("preserves accented item matching through the shared normalization", () => {
+    const ranked = rankNaturalItemSearch({
+      items: [{ ...ITEMS[0], name: "Caño de cobre reforzado" }],
+      aliases: [],
+      query: "cano cobre",
+    });
+
+    expect(ranked.map((item) => item.id)).toEqual(["1"]);
+  });
 });
