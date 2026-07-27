@@ -1276,3 +1276,4 @@ git pull origin staging
 - Vite vendor chunk rules track installed runtime dependencies and avoid unreachable package-specific branches.
 - Shared stock indicators in price-list tables use one canonical component and semantic status mapping.
 - Printable documents and services share the same optional metadata renderer and escaping contract.
+- Stock formatting and movement validation share one exact rule for integer-only units.

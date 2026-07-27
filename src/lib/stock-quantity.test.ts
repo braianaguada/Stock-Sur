@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { formatStockQuantity } from "@/lib/stock-quantity";
+import { formatStockQuantity, isIntegerOnlyStockUnit } from "@/lib/stock-quantity";
+
+describe("isIntegerOnlyStockUnit", () => {
+  it("recognizes only the canonical unit value", () => {
+    expect(isIntegerOnlyStockUnit("un")).toBe(true);
+    expect(isIntegerOnlyStockUnit("UN")).toBe(false);
+    expect(isIntegerOnlyStockUnit(" un ")).toBe(false);
+    expect(isIntegerOnlyStockUnit("kg")).toBe(false);
+    expect(isIntegerOnlyStockUnit(null)).toBe(false);
+    expect(isIntegerOnlyStockUnit(undefined)).toBe(false);
+  });
+});
 
 describe("formatStockQuantity", () => {
   it("hides floating point noise in stock quantities", () => {

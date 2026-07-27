@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { clearSessionDraft, useSessionDraft } from "@/hooks/use-session-draft";
 import { invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
+import { isIntegerOnlyStockUnit } from "@/lib/stock-quantity";
 import { fetchAllPages } from "@/lib/supabase-pagination";
 import { matchesNaturalItemSearch } from "@/features/items/search";
 import {
@@ -21,7 +22,6 @@ import type {
   StockRow,
 } from "@/features/stock/types";
 
-const INTEGER_ONLY_UNITS = new Set(["un"]);
 const NEW_STOCK_MOVEMENT_DRAFT_KEY = "stock:new-movement-draft";
 const DEFAULT_STOCK_MOVEMENT_FORM: StockMovementForm = {
   item_id: "",
@@ -311,7 +311,7 @@ export function useStockPage() {
       if (Number.isNaN(quantity) || !Number.isFinite(quantity) || quantity <= 0) {
         throw new Error("La cantidad debe ser mayor a 0");
       }
-      if (selected.unit && INTEGER_ONLY_UNITS.has(selected.unit) && !Number.isInteger(quantity)) {
+      if (isIntegerOnlyStockUnit(selected.unit) && !Number.isInteger(quantity)) {
         throw new Error("Este producto se mueve por unidad entera. Ingresa una cantidad sin decimales.");
       }
 
