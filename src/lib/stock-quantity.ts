@@ -1,8 +1,10 @@
-const INTEGER_ONLY_UNITS = new Set(["un"]);
+export function isIntegerOnlyStockUnit(unit: string | null | undefined) {
+  return unit === "un";
+}
 
 export function formatStockQuantity(value: number, unit: string | null) {
   if (!Number.isFinite(value)) return "-";
-  if (unit && INTEGER_ONLY_UNITS.has(unit)) {
+  if (isIntegerOnlyStockUnit(unit)) {
     return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 }).format(Math.round(value));
   }
 
