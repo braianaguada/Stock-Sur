@@ -1181,6 +1181,12 @@ Production migration history note:
 - Se retiro el adaptador frontend de busqueda IA de items y sus pruebas aisladas porque no tenia consumidores de produccion.
 - La Edge Function `item-search-ai` se conserva hasta poder descartar de forma independiente cualquier uso desplegado o externo.
 
+## Normalizacion de CUIT
+
+- Facturacion y Clientes comparten las funciones canonicas de normalizacion, formato y digito verificador desde `src/lib/cuit.ts`.
+- Clientes conserva sus exports publicos para no romper consumidores existentes; se elimino la implementacion duplicada de Facturacion.
+- No requiere migraciones ni modifica datos, permisos, RLS o aislamiento por `company_id`.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
