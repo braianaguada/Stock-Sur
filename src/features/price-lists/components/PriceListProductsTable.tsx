@@ -5,7 +5,7 @@ import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { CategoryBadge, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { StockBadge } from "@/features/price-lists/components/StockBadge";
 import type { PriceListProductRow } from "@/features/price-lists/types";
 import { formatMoney } from "@/features/price-lists/utils";
 import { OperationalPriceDisplay } from "@/features/pricing/OperationalPriceDisplay";
@@ -20,30 +20,6 @@ type PriceListProductsTableProps = {
   priceRoundingConfig?: PriceRoundingConfig | null;
   onEditProductOverride?: (row: PriceListProductRow) => void;
 };
-
-function StockBadge({ total }: { total: number | undefined }) {
-  if (total === undefined) {
-    return <StatusBadge tone="muted">S/D</StatusBadge>;
-  }
-  if (total <= 0) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <StatusBadge tone="danger">Sin stock</StatusBadge>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="text-xs">Stock actual: 0</TooltipContent>
-      </Tooltip>
-    );
-  }
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <StatusBadge tone="success">{total.toLocaleString("es-AR", { maximumFractionDigits: 1 })}</StatusBadge>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="text-xs">Stock actual: {total}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, priceRoundingConfig, onEditProductOverride }: PriceListProductsTableProps) {
   const showAttributesInline = columnVisibility.attributes === false;
