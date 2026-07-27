@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rankNaturalItemSearch } from "@/features/items/search";
+import { getItemSearchTokens, rankNaturalItemSearch } from "@/features/items/search";
 import type { Item } from "@/features/items/types";
 
 const ITEMS: Item[] = [
@@ -32,6 +32,14 @@ const ITEMS: Item[] = [
 ];
 
 describe("natural item search", () => {
+  it("normalizes fraction tokens through the public helper", () => {
+    expect(getItemSearchTokens("media")).toEqual(["1/2"]);
+  });
+
+  it("normalizes accents and expands item synonyms through the public helper", () => {
+    expect(getItemSearchTokens("Caño")).toEqual(["cano", "tubo"]);
+  });
+
   it("finds products by natural fraction wording", () => {
     const ranked = rankNaturalItemSearch({
       items: ITEMS,
