@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
     "api/render-pdf.ts",
     "src/App.tsx",
@@ -17,20 +17,5 @@
     "src/integrations/supabase/types.ts": [
       "exports"
     ]
-  },
-  "ignoreDependencies": [
-    "depcheck",
-    "eslint",
-    "supabase"
-  ],
-  "ignoreBinaries": [
-    "depcheck",
-    "eslint",
-    "knip",
-    "madge",
-    "supabase",
-    "tsc",
-    "vite",
-    "vitest"
-  ]
+  }
 }
