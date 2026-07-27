@@ -1,6 +1,6 @@
 import type { CompanySettings } from "@/contexts/company-brand-context";
 import { formatIsoDate, formatMoney } from "@/lib/formatters";
-import { escapeHtml, escapeHtmlWithLineBreaks, PRINT_BRAND_MARK, PRINT_FAVICON_TAG } from "@/lib/print";
+import { escapeHtml, escapeHtmlWithLineBreaks, PRINT_BRAND_MARK, PRINT_FAVICON_TAG, renderOptionalPrintMeta } from "@/lib/print";
 import { SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "./constants";
 import type { ServiceDocument, ServiceDocumentAttachment, ServiceDocumentLine } from "./types";
 
@@ -10,11 +10,6 @@ type BuildServiceDocumentPrintHtmlParams = {
   attachments?: ServiceDocumentAttachment[];
   companySettings: CompanySettings;
 };
-
-function optionalMeta(label: string, value: unknown) {
-  if (value === null || value === undefined || value === "") return "";
-  return `<div class="meta-line"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
-}
 
 function buildServiceRows(lines: ServiceDocumentLine[], showLinePrices: boolean, currencyCode: string) {
   if (lines.length === 0) {
@@ -232,16 +227,16 @@ export function buildServiceDocumentPrintHtml({
         <section class="meta-grid avoid-break">
           <div class="box">
             <p class="box-title">Cliente</p>
-            ${optionalMeta("Nombre", document.customers?.name ?? "Sin cliente")}
-            ${optionalMeta("CUIT", document.customers?.cuit)}
-            ${optionalMeta("Telefono", document.customers?.phone)}
-            ${optionalMeta("Email", document.customers?.email)}
+            ${renderOptionalPrintMeta("Nombre", document.customers?.name ?? "Sin cliente")}
+            ${renderOptionalPrintMeta("CUIT", document.customers?.cuit)}
+            ${renderOptionalPrintMeta("Telefono", document.customers?.phone)}
+            ${renderOptionalPrintMeta("Email", document.customers?.email)}
           </div>
           <div class="box">
             <p class="box-title">Operacion</p>
-            ${optionalMeta("Tipo", documentLabel)}
-            ${optionalMeta("Referencia", document.reference)}
-            ${optionalMeta("Creado", formatIsoDate(document.issue_date))}
+            ${renderOptionalPrintMeta("Tipo", documentLabel)}
+            ${renderOptionalPrintMeta("Referencia", document.reference)}
+            ${renderOptionalPrintMeta("Creado", formatIsoDate(document.issue_date))}
           </div>
         </section>
 
