@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildInitialServiceDocumentForm, canConvertServiceDocumentToRemito, canTransitionServiceDocument } from "./logic";
+import { buildInitialServiceDocumentForm, canTransitionServiceDocument } from "./logic";
 
 describe("service document logic", () => {
   afterEach(() => {
@@ -53,12 +53,6 @@ describe("service document logic", () => {
     expect(canTransitionServiceDocument({ status: "APPROVED" }, "SENT")).toBe(false);
     expect(canTransitionServiceDocument({ status: "REJECTED" }, "APPROVED")).toBe(false);
     expect(canTransitionServiceDocument({ status: "CANCELLED" }, "DRAFT")).toBe(false);
-  });
-
-  it("only allows remito conversion from approved quotes", () => {
-    expect(canConvertServiceDocumentToRemito({ type: "QUOTE", status: "APPROVED" })).toBe(true);
-    expect(canConvertServiceDocumentToRemito({ type: "QUOTE", status: "SENT" })).toBe(false);
-    expect(canConvertServiceDocumentToRemito({ type: "REMITO", status: "APPROVED" })).toBe(false);
   });
 
 });

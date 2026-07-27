@@ -56,7 +56,3 @@ export function canTransitionServiceDocument(document: Pick<ServiceDocument, "st
   if (target === "CANCELLED") return document.status === "DRAFT" || document.status === "SENT" || document.status === "APPROVED";
   return false;
 }
-
-export function canConvertServiceDocumentToRemito(document: Pick<ServiceDocument, "type" | "status">) {
-  return document.type === "QUOTE" && document.status === "APPROVED";
-}
