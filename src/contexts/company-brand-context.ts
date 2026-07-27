@@ -60,7 +60,7 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   price_rounding_increment: null,
 };
 
-export interface CompanyBrandContextValue {
+interface CompanyBrandContextValue {
   settings: CompanySettings;
   isLoading: boolean;
 }

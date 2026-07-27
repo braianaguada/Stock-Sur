@@ -45,7 +45,7 @@ export default defineConfig(({ mode }) => ({
             return "vendor-supabase";
           }
 
-          if (id.includes("@radix-ui/") || id.includes("cmdk") || id.includes("vaul")) {
+          if (id.includes("@radix-ui/")) {
             return "vendor-ui";
           }
 
@@ -53,7 +53,7 @@ export default defineConfig(({ mode }) => ({
           if (id.includes("pdfjs-dist")) return "vendor-pdf";
           if (id.includes("tesseract.js")) return "vendor-ocr";
 
-          if (id.includes("date-fns") || id.includes("zod") || id.includes("clsx") || id.includes("tailwind-merge")) {
+          if (id.includes("zod") || id.includes("clsx") || id.includes("tailwind-merge")) {
             return "vendor-utils";
           }
         },

@@ -1269,3 +1269,8 @@ git pull origin staging
 ### Why this flow
 
 `main` and `staging` may sometimes have different commit hashes even when the file content is the same. That is acceptable. The goal is to keep promotions predictable and the history linear so future PRs and merges stay clean.
+
+## Technical consolidation
+
+- Public module contracts only expose values and types with external consumers; implementation-only types and helpers remain private.
+- Vite vendor chunk rules track installed runtime dependencies and avoid unreachable package-specific branches.

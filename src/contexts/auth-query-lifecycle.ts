@@ -1,6 +1,6 @@
 import type { Query, QueryClient, QueryKey } from "@tanstack/react-query";
 
-export type EffectiveIdentity = {
+type EffectiveIdentity = {
   actorUserId: string | null;
   effectiveUserId: string | null;
   impersonationId: string | null;
