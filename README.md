@@ -1280,6 +1280,7 @@ git pull origin staging
 - Item search tokenization uses its public canonical helper directly and no longer retains unused local search guidance.
 - Catalog matching retains only active alias resolution paths and no longer carries an unused alias-suggestion helper.
 - Import parsing exposes only the file-parser entry point; shared row and price helpers are consumed from their canonical core module.
+- Customer fiscal helpers retain only validation paths used by active screens; unused future-billing snapshot scaffolding was removed.
 - Vite vendor chunk rules track installed runtime dependencies and avoid unreachable package-specific branches.
 - Shared stock indicators in price-list tables use one canonical component and semantic status mapping.
 - Printable documents and services share the same optional metadata renderer and escaping contract.
