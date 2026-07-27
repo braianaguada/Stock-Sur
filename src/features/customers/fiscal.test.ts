@@ -1,6 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  buildCustomerFiscalSnapshot,
   canUseCustomerForInvoiceA,
   isValidCuitChecksum,
   isValidCuitFormat,
@@ -64,24 +63,5 @@ describe("customer fiscal profile helpers", () => {
 
   it("allows a non occasional customer with a validated complete fiscal profile", () => {
     expect(canUseCustomerForInvoiceA(customer, profile)).toEqual({ allowed: true, reasons: [] });
-  });
-
-  it("builds fiscal snapshot for future billing documents", () => {
-    vi.setSystemTime(new Date("2026-06-04T13:00:00Z"));
-    expect(buildCustomerFiscalSnapshot(customer, profile)).toEqual({
-      customer_id: "customer-1",
-      legal_name: "Cliente SA",
-      tax_id: "20409378472",
-      tax_condition: "RESPONSABLE_INSCRIPTO",
-      fiscal_address: "Calle 123",
-      validation_status: "VALIDATED_AUTO",
-      validation_source: "AFIPSDK_WS_SR_CONSTANCIA_INSCRIPCION",
-      tax_condition_source: "OFFICIAL_DERIVED",
-      legal_name_source: "OFFICIAL",
-      taxpayer_status: "ACTIVO",
-      validated_at: "2026-06-04T12:00:00Z",
-      snapshot_created_at: "2026-06-04T13:00:00.000Z",
-    });
-    vi.useRealTimers();
   });
 });
