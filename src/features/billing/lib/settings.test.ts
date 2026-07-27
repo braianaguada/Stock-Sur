@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeCuit, isValidCuitFormat } from "./cuit";
+import { isValidCuitFormat, normalizeCuit } from "@/lib/cuit";
 import { buildDisableBillingSettingsPayload, buildEnableBillingSettingsPayload, canShowBillingSettingsToggle } from "./settings";
 
 describe("billing settings controls", () => {

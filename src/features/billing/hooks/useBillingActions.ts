@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
-import { isValidCuitFormat, normalizeCuit } from "../lib/cuit";
+import { isValidCuitFormat, normalizeCuit } from "@/lib/cuit";
 import { buildDisableBillingSettingsPayload, buildEnableBillingSettingsPayload } from "../lib/settings";
 import type { BillingDocumentRow, BillingInvoiceType, BillingSettingsRow } from "../types";
 
