@@ -59,7 +59,7 @@ function getBaseTokens(value: string) {
     .filter(Boolean);
 }
 
-function tokenize(value: string) {
+export function getItemSearchTokens(value: string) {
   const baseTokens = getBaseTokens(value);
   const expanded = new Set<string>();
   baseTokens.forEach((token) => {
@@ -73,10 +73,6 @@ function tokenize(value: string) {
   });
 
   return [...expanded];
-}
-
-export function getItemSearchTokens(value: string) {
-  return tokenize(value);
 }
 
 function buildItemText(item: ItemSearchFields) {
@@ -146,7 +142,7 @@ export function rankNaturalItemSearch<T extends ItemSearchFields>(params: {
 }): T[] {
   const queryText = normalizeItemSearchText(params.query);
   const queryBaseTokens = getBaseTokens(params.query);
-  const queryTokens = tokenize(params.query);
+  const queryTokens = getItemSearchTokens(params.query);
   if (!queryText) return params.items;
 
   const aliasesByItemId = new Map<string, ItemSearchAliasRecord[]>();
@@ -201,12 +197,4 @@ export function rankNaturalItemSearch<T extends ItemSearchFields>(params: {
       return left.item.name.localeCompare(right.item.name);
     })
     .map((entry) => entry.item);
-}
-
-function naturalSearchHint(query: string) {
-  const normalized = normalizeItemSearchText(query);
-  if (!normalized) return null;
-  if (normalized.includes("1/2")) return "Incluye equivalencias como media o medio.";
-  if (normalized.includes("aire acondicionado")) return "Incluye equivalencias como AA o split.";
-  return null;
 }
