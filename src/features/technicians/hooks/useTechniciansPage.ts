@@ -9,7 +9,7 @@ import type { TechnicianFormState } from "../components/TechnicianFormDialog";
 import { hasTechnicianHistory, TECHNICIAN_DELETE_BLOCKED_MESSAGE, type TechnicianHistoryCounts } from "../technicianLifecycle";
 
 type ToastFn = (options: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
-export type TechnicianStatusFilter = "active" | "inactive" | "all";
+type TechnicianStatusFilter = "active" | "inactive" | "all";
 
 const EMPTY_FORM: TechnicianFormState = { name: "", phone: "", notes: "", is_active: true };
 
