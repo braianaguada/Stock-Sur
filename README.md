@@ -1173,6 +1173,12 @@ Production migration history note:
 - Se retiro el alias local redundante sin cambiar inicializacion, filtros, cierres ni reglas de negocio.
 - No requiere migraciones ni modifica datos, permisos, RLS o aislamiento por `company_id`.
 
+## Normalizacion de busquedas
+
+- La busqueda general y la busqueda natural de items comparten una normalizacion canonica de acentos, espacios y puntuacion admitida.
+- Las equivalencias, sinonimos y reglas de ranking especificas de items permanecen dentro de su modulo.
+- No requiere migraciones ni modifica datos, permisos, RLS o aislamiento por `company_id`.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
