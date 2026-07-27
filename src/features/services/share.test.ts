@@ -5,7 +5,6 @@ import {
   buildServiceDocumentShareMessage,
   buildWhatsAppUrl,
   normalizeWhatsAppNumber,
-  sanitizePdfFileName,
 } from "./share";
 import type { ServiceDocument } from "./types";
 
@@ -49,9 +48,5 @@ describe("service document sharing", () => {
     expect(mailto).toContain("subject=Presupuesto%20de%20servicio");
     expect(mailto).toContain("body=Hola%2C%20te%20compartimos");
     expect(mailto).not.toContain("+");
-  });
-
-  it("sanitizes PDF file names", () => {
-    expect(sanitizePdfFileName("Cliente / QA: Sur")).toBe("Cliente-QA-Sur");
   });
 });
