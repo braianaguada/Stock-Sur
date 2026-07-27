@@ -60,7 +60,7 @@ type SettlementRpc = {
 
 const db = supabase as unknown as SettlementRpc;
 
-export type SaveSettlementDraftRpcArgs = {
+type SaveSettlementDraftRpcArgs = {
   p_settlement_id: string;
   p_header: ReturnType<typeof headerFormToPayload>;
   p_income_lines: Array<ReturnType<typeof incomeLinePayload>>;
