@@ -22,7 +22,7 @@ import type {
   SupplierCatalog,
   SupplierCatalogVersion,
 } from "@/features/suppliers/types";
-import { formatSupplierDate } from "@/features/suppliers/utils";
+import { formatDateTime } from "@/lib/formatters";
 
 type SupplierCatalogDialogProps = {
   open: boolean;
@@ -300,7 +300,7 @@ export function SupplierCatalogDialog({
                             <div>
                               <div className="font-semibold">{catalog.title}</div>
                               <div className="text-xs text-muted-foreground">
-                                Creado {formatSupplierDate(catalog.created_at)}
+                                Creado {formatDateTime(catalog.created_at)}
                               </div>
                             </div>
                             <CountBadge>{(versionsByCatalog[catalog.id] ?? []).length} versiones</CountBadge>
@@ -330,7 +330,7 @@ export function SupplierCatalogDialog({
                                         {version.title ?? catalog.title}
                                       </div>
                                       <div className="mt-1 text-xs text-muted-foreground">
-                                        {formatSupplierDate(version.imported_at)}
+                                        {formatDateTime(version.imported_at)}
                                       </div>
                                     </div>
                                     {activeVersionId === version.id ? <StatusBadge tone="success">Activa</StatusBadge> : null}
@@ -374,7 +374,7 @@ export function SupplierCatalogDialog({
                       {orderLines.length > 0 ? <CountBadge>{orderLines.length} en el pedido</CountBadge> : null}
                       {activeVersion ? (
                         <span className="text-xs text-muted-foreground">
-                          Importado el {formatSupplierDate(activeVersion.imported_at)}
+                          Importado el {formatDateTime(activeVersion.imported_at)}
                         </span>
                       ) : null}
                     </div>

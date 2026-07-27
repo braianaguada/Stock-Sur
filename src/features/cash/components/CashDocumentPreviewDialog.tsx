@@ -2,7 +2,7 @@ import { CategoryBadge, InfoBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { currency, formatDocumentNumber, formatIsoDate, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
+import { currency, formatBusinessDate, formatDocumentNumber, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 import { getCustomerDisplayName } from "@/features/documents/utils";
 import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL } from "../constants";
 import type { CashMovementRow, DocumentEventQuickRow, DocumentLineQuickRow, DocumentQuickRow } from "../types";
@@ -88,7 +88,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                           </div>
                           <div>
                             <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Operación</p>
-                            <p className="mt-1 text-sm text-foreground">Fecha: <span className="font-medium">{formatIsoDate(linkedDocument.issue_date)}</span></p>
+                            <p className="mt-1 text-sm text-foreground">Fecha: <span className="font-medium">{formatBusinessDate(linkedDocument.issue_date)}</span></p>
                             <p className="mt-1 text-xs text-muted-foreground">Estado: <span className="text-foreground">{DOC_STATUS_LABEL[linkedDocument.status]}</span></p>
                           </div>
                           <div>

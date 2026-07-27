@@ -1275,6 +1275,7 @@ git pull origin staging
 - Public module contracts only expose values and types with external consumers; implementation-only types and helpers remain private.
 - `LineItemsTable` keeps its row shape private because no external module consumes that type.
 - Price-list consultation utilities retain only selection logic used by the active workflow.
+- Date rendering uses canonical business-date and timestamp formatters without feature-local passthroughs.
 - Vite vendor chunk rules track installed runtime dependencies and avoid unreachable package-specific branches.
 - Shared stock indicators in price-list tables use one canonical component and semantic status mapping.
 - Printable documents and services share the same optional metadata renderer and escaping contract.

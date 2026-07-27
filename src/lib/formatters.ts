@@ -50,10 +50,6 @@ export function formatBusinessDate(value: string) {
   return `${day}/${month}/${year}`;
 }
 
-export function formatIsoDate(value: string) {
-  return formatBusinessDate(value);
-}
-
 export function businessDateFromTimestamp(value: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: AR_TIME_ZONE,
