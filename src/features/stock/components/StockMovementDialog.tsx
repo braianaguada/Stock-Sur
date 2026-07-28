@@ -33,7 +33,7 @@ type StockMovementDialogProps = {
 };
 
 function stockTone(stock: number) {
-  if (stock <= 0) return "destructive";
+  if (stock <= 0) return "danger";
   if (stock <= 5) return "warning";
   return "success";
 }
@@ -113,7 +113,7 @@ export function StockMovementDialog({
                             attributes: item.attributes,
                           })}
                         </span>
-                        <StatusBadge tone={tone ?? "neutral"} className="shrink-0 tabular-nums">
+                        <StatusBadge tone={tone ?? "muted"} className="shrink-0 tabular-nums">
                           {itemStock === undefined ? "Stock no disponible" : formatStockQuantity(itemStock, item.unit)}
                         </StatusBadge>
                       </button>
@@ -134,7 +134,7 @@ export function StockMovementDialog({
                     })}
                   </p>
                 </div>
-                <StatusBadge tone={selectedTone ?? "neutral"} className="flex items-center gap-1.5 tabular-nums">
+                <StatusBadge tone={selectedTone ?? "muted"} className="flex items-center gap-1.5 tabular-nums">
                   <Package className="h-4 w-4" />
                   {selectedStock === undefined
                     ? "Stock no disponible"

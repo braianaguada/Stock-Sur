@@ -69,7 +69,7 @@ describe("customer fiscal UI", () => {
   it("shows fiscal data section and ready state only for complete validated profile", () => {
     renderDialog(baseForm);
     expect(screen.getByText("Datos fiscales para Factura A futura")).toBeInTheDocument();
-    expect(screen.getByText("Listo para Factura A")).toBeInTheDocument();
+    expect(screen.getByText("Listo para factura A")).toBeInTheDocument();
   });
 
   it("does not expose occasional customer editing as a customer form option", () => {
@@ -113,7 +113,7 @@ describe("customer fiscal UI", () => {
     });
 
     expect(screen.getByText("Ambiente de consulta: dev")).toBeInTheDocument();
-    expect(screen.getByText("Emision fiscal: dev")).toBeInTheDocument();
+    expect(screen.getByText("Emisión fiscal: dev")).toBeInTheDocument();
     expect(screen.getByText("CUIT emisor: 20******472")).toBeInTheDocument();
     expect(screen.getByText("Consulta en ambiente dev. Los CUIT reales pueden no devolver datos completos.")).toBeInTheDocument();
     expect(screen.getByText("Factura A futura. No emite comprobantes desde esta validacion.")).toBeInTheDocument();

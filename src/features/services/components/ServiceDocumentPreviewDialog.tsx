@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { CountBadge, StatusBadge } from "@/components/common/VisualSystem";
 import {
   ArrowRightCircle,
   ArrowRightLeft,
@@ -12,7 +13,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { CompanySettings } from "@/contexts/company-brand-context";
@@ -32,12 +32,12 @@ type ServiceDocumentPreviewDialogProps = {
   onOpenPrint: (document: ServiceDocument) => void;
 };
 
-const SERVICE_PREVIEW_STATUS_BADGE_CLASS: Record<ServiceDocumentStatus, string> = {
-  DRAFT: "border-slate-200 bg-slate-50 text-slate-700",
-  SENT: "border-sky-200 bg-sky-50 text-sky-700",
-  APPROVED: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  REJECTED: "border-rose-200 bg-rose-50 text-rose-700",
-  CANCELLED: "border-amber-200 bg-amber-50 text-amber-700",
+const SERVICE_PREVIEW_STATUS_TONE: Record<ServiceDocumentStatus, "muted" | "info" | "success" | "danger"> = {
+  DRAFT: "muted",
+  SENT: "info",
+  APPROVED: "success",
+  REJECTED: "danger",
+  CANCELLED: "muted",
 };
 
 const SERVICE_PREVIEW_ACCENT_CLASS: Record<ServiceDocument["type"], string> = {
@@ -170,9 +170,9 @@ export function ServiceDocumentPreviewDialog({
                         <p className="text-[10px] font-bold uppercase tracking-[0.26em] text-slate-400">Servicio</p>
                         <h4 className="mt-2 text-2xl font-black tracking-tight">{documentTitle}</h4>
                       </div>
-                      <Badge variant="outline" className={SERVICE_PREVIEW_STATUS_BADGE_CLASS[previewDocument.status]}>
+                      <StatusBadge tone={SERVICE_PREVIEW_STATUS_TONE[previewDocument.status]}>
                         {SERVICE_STATUS_LABEL[previewDocument.status]}
-                      </Badge>
+                      </StatusBadge>
                     </div>
                     <div className="mt-5 grid grid-cols-2 gap-3 text-xs">
                       <div>
@@ -303,9 +303,9 @@ export function ServiceDocumentPreviewDialog({
                       <p className="text-[10px] font-black uppercase tracking-[0.26em] text-slate-400">Historial</p>
                       <p className="mt-1 text-sm text-slate-500">Trazabilidad del documento.</p>
                     </div>
-                    <Badge variant="outline" className="border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    <CountBadge>
                       {selectedEvents.length} evento{selectedEvents.length === 1 ? "" : "s"}
-                    </Badge>
+                    </CountBadge>
                   </div>
                 </div>
 

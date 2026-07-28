@@ -44,7 +44,7 @@ export function OperationalPriceDisplay({
               <span
                 aria-label={roundedFromLabel}
               >
-                <InfoBadge className="min-h-5 cursor-default px-1.5 text-[10px] leading-3">
+                <InfoBadge className="cursor-default">
                   Redondeado
                 </InfoBadge>
               </span>
