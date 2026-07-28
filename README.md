@@ -1283,6 +1283,7 @@ git pull origin staging
 - Customer fiscal helpers retain only validation paths used by active screens; unused future-billing snapshot scaffolding was removed.
 - Service form helpers retain only payload and normalization paths used by active workflows; an unused standalone validity alias was removed.
 - Service document logic retains only guards used by active screens; an unused remito-conversion predicate was removed without changing the RPC workflow.
+- Document constants retain only active labels and defaults; obsolete history style maps replaced by the canonical preview palette were removed.
 - Vite vendor chunk rules track installed runtime dependencies and avoid unreachable package-specific branches.
 - Shared stock indicators in price-list tables use one canonical component and semantic status mapping.
 - Printable documents and services share the same optional metadata renderer and escaping contract.
