@@ -10,8 +10,6 @@ const DialogTrigger = DialogPrimitive.Trigger;
 
 const DialogPortal = DialogPrimitive.Portal;
 
-const DialogClose = DialogPrimitive.Close;
-
 type DialogContentVariant = "quick" | "form" | "command";
 
 const dialogContentWidths: Record<DialogContentVariant, string> = {

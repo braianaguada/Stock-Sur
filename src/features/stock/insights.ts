@@ -1,4 +1,4 @@
-import type { StockHealth, StockRow } from "@/features/stock/types";
+import type { StockRow } from "@/features/stock/types";
 
 export type StockInsightTone = "RED" | "YELLOW" | "BLUE" | "GRAY";
 
@@ -192,10 +192,6 @@ export function countStockInsightTones(insights: StockInsight[]) {
       GRAY: 0,
     },
   );
-}
-
-function countCriticalStockRows(rows: StockRow[]) {
-  return rows.filter((row) => row.health === "RED").length;
 }
 
 export function getStockInsightKindLabel(kind: StockInsight["kind"]) {

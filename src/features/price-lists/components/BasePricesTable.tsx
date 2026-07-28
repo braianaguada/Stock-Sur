@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { StockBadge } from "@/features/price-lists/components/StockBadge";
 import type { BasePriceRow } from "@/features/price-lists/types";
 import { formatTimestampDate } from "@/lib/formatters";
-import { formatMoney, formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
+import { formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
 
 type BasePricesTableProps = {
   rows: BasePriceRow[];

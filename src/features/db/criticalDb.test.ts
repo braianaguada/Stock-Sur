@@ -197,7 +197,7 @@ async function insertSettlementExpenseLine(settlementId: string, userId: string,
   return lineId;
 }
 
-async function seedItem(companyId: string, userId: string) {
+async function seedItem(companyId: string, _userId: string) {
   const itemId = crypto.randomUUID();
   await client.query(
     `

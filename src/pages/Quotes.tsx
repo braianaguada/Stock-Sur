@@ -39,7 +39,6 @@ export default function QuotesPage() {
     removeLine,
     saveMutation,
     search,
-    selectedQuoteId,
     setDetailDialogOpen,
     setDialogOpen,
     setForm,

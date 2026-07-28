@@ -42,7 +42,7 @@ import { buildServiceDocumentPrintHtml } from "@/features/services/print";
 import { fetchBnaOfficialUsdRate, getManualExchangeRateSnapshot } from "@/features/services/exchangeRateProvider";
 import { buildMailtoUrl, buildPublicServiceDocumentUrl, buildServiceDocumentShareMessage, buildWhatsAppUrl } from "@/features/services/share";
 import type { ServiceQuoteAiApplyMode, ServiceQuoteAiSuggestion } from "@/features/services/aiAssistant";
-import type { ServiceDocument, ServiceDocumentAttachment, ServiceDocumentAttachmentDraft, ServiceDocumentEvent, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentShareLink, ServiceDocumentStatus } from "@/features/services/types";
+import type { ServiceDocument, ServiceDocumentAttachmentDraft, ServiceDocumentEvent, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentShareLink, ServiceDocumentStatus } from "@/features/services/types";
 
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
 const ATTACHMENT_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
