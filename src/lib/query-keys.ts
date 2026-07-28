@@ -100,6 +100,7 @@ export const queryKeys = {
     customers: (companyId: string | null) => ["documents-customers", companyId ?? "no-company"] as const,
     technicians: (companyId: string | null) => ["documents", "technicians", companyId ?? "no-company"] as const,
     items: (companyId: string | null) => ["documents-items", companyId ?? "no-company"] as const,
+    itemStock: (companyId: string | null) => ["documents-item-stock", companyId ?? "no-company"] as const,
     priceLists: (companyId: string | null) => ["documents-price-lists", companyId ?? "no-company"] as const,
     priceListItems: (companyId: string | null, priceListId: string) => ["documents-price-list-items", companyId ?? "no-company", priceListId] as const,
     priceListItemsAll: () => ["documents-price-list-items"] as const,

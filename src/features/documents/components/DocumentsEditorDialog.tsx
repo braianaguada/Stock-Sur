@@ -42,6 +42,7 @@ type AvailableItemOption = {
   brand?: string | null;
   model?: string | null;
   category?: string | null;
+  available_stock?: number;
 };
 
 type ComboOption = {
@@ -78,6 +79,50 @@ interface DocumentsEditorDialogProps {
 
 function formatMoney(value: number) {
   return `$${value.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
+}
+
+type EditableNumberInputProps = Omit<React.ComponentProps<typeof Input>, "onChange" | "value"> & {
+  value: number | "";
+  onValueChange: (value: number) => void;
+};
+
+function EditableNumberInput({
+  value,
+  onValueChange,
+  onFocus,
+  onBlur,
+  ...props
+}: EditableNumberInputProps) {
+  const [draft, setDraft] = useState(String(value));
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) setDraft(String(value));
+  }, [isFocused, value]);
+
+  return (
+    <Input
+      {...props}
+      value={draft}
+      onFocus={(event) => {
+        setIsFocused(true);
+        if (value === 0) setDraft("");
+        onFocus?.(event);
+      }}
+      onChange={(event) => {
+        const nextDraft = event.target.value;
+        setDraft(nextDraft);
+        if (nextDraft.trim() === "") return;
+        const nextValue = Number(nextDraft);
+        if (Number.isFinite(nextValue)) onValueChange(nextValue);
+      }}
+      onBlur={(event) => {
+        setIsFocused(false);
+        setDraft(String(value));
+        onBlur?.(event);
+      }}
+    />
+  );
 }
 
 export function DocumentsEditorDialog({
@@ -649,6 +694,8 @@ export function DocumentsEditorDialog({
                           <div className="text-xs text-muted-foreground break-words">
                             {displayMeta ? `${displayMeta} - ` : ""}
                             Unidad: {item.unit || "un"}
+                            {" | "}
+                            Stock disponible: {item.available_stock ?? 0}
                             {alreadyAdded ? " | Ya agregado" : ""}
                           </div>
                         </div>
@@ -765,15 +812,14 @@ export function DocumentsEditorDialog({
 
                     <div className="space-y-1 xl:space-y-0">
                       <Label className="text-xs text-muted-foreground xl:hidden">Cantidad</Label>
-                      <Input
+                      <EditableNumberInput
+                        aria-label={`Cantidad de ${line.description}`}
                         className="h-9 text-sm"
                         type="number"
                         min={0.001}
                         step="any"
                         value={line.quantity}
-                        onChange={(event) =>
-                          updateLine(index, { quantity: Number(event.target.value) || 0 })
-                        }
+                        onValueChange={(quantity) => updateLine(index, { quantity })}
                       />
                     </div>
 
@@ -828,16 +874,20 @@ export function DocumentsEditorDialog({
 
                     <div className="space-y-1 xl:space-y-0">
                       <Label className="text-xs text-muted-foreground xl:hidden">Margen %</Label>
-                      <Input
+                      <EditableNumberInput
+                        aria-label={`Margen de ${line.description}`}
                         className="h-9 text-sm"
                         type="number"
                         min={0}
                         step="any"
                         disabled={line.pricing_mode !== "MANUAL_MARGIN"}
                         placeholder="N/A"
-                        value={line.pricing_mode === "MANUAL_MARGIN" ? (line.manual_margin_pct ?? "") : ""}
-                        onChange={(event) => {
-                          const marginPct = event.target.value === "" ? 0 : Number(event.target.value);
+                        value={
+                          line.pricing_mode === "MANUAL_MARGIN"
+                            ? (line.manual_margin_pct ?? 0)
+                            : ""
+                        }
+                        onValueChange={(marginPct) => {
                           updateLine(index, {
                             manual_margin_pct: marginPct,
                             unit_price: calculatePriceFromCostBase(
@@ -854,16 +904,17 @@ export function DocumentsEditorDialog({
 
                     <div className="space-y-1 xl:space-y-0">
                       <Label className="text-xs text-muted-foreground xl:hidden">Precio unitario</Label>
-                      <Input
+                      <EditableNumberInput
+                        aria-label={`Precio unitario de ${line.description}`}
                         className="h-9 text-sm"
                         type="number"
                         min={0}
                         step="any"
                         disabled={lockPrice}
                         value={line.unit_price}
-                        onChange={(event) =>
+                        onValueChange={(unitPrice) =>
                           updateLine(index, {
-                            unit_price: Number(event.target.value) || 0,
+                            unit_price: unitPrice,
                             price_overridden_at: new Date().toISOString(),
                           })
                         }
