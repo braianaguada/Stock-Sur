@@ -82,4 +82,30 @@ describe("company scoped query keys", () => {
       "",
     ]);
   });
+
+  it("scopes supplier lists and catalog history by company and supplier", () => {
+    expect(queryKeys.suppliers.company("company-1")).toEqual(["suppliers", "company-1"]);
+    expect(queryKeys.suppliers.list("company-1", "valvula", "active")).toEqual([
+      "suppliers",
+      "company-1",
+      "valvula",
+      "active",
+    ]);
+    expect(queryKeys.suppliers.catalogs("company-1", "supplier-1")).toEqual([
+      "supplier-catalogs",
+      "company-1",
+      "supplier-1",
+    ]);
+    expect(queryKeys.suppliers.catalogVersions("company-1", "supplier-1")).toEqual([
+      "supplier-catalog-versions",
+      "company-1",
+      "supplier-1",
+    ]);
+    expect(queryKeys.suppliers.catalogLinesVersion("company-1", "version-1")).toEqual([
+      "supplier-catalog-lines",
+      "company-1",
+      "version-1",
+    ]);
+    expect(queryKeys.suppliers.company(null)).toEqual(["suppliers", "no-company"]);
+  });
 });

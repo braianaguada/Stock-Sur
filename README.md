@@ -1305,3 +1305,4 @@ git pull origin staging
 - Stock formatting and movement validation share one exact rule for integer-only units.
 - Vite keeps its static plugin list direct, without a no-op conditional filter.
 - CI rejects newly introduced unused declarations, unreachable exports/files/dependencies, and circular source dependencies through ESLint, Knip, and Madge.
+- Supplier catalog dialogs select the latest imported version deterministically, clear their state when the active company changes, and invalidate only canonical company- and supplier-scoped query keys.

@@ -227,6 +227,8 @@ export const queryKeys = {
     linesAll: () => ["quote-lines"] as const,
   },
   suppliers: {
+    company: (companyId: string | null) =>
+      ["suppliers", companyId ?? "no-company"] as const,
     list: (companyId: string | null, search: string, statusFilter: "active" | "inactive" | "all") =>
       ["suppliers", companyId ?? "no-company", search, statusFilter] as const,
     listAll: () => ["suppliers"] as const,
@@ -238,6 +240,8 @@ export const queryKeys = {
     catalogVersionsAll: () => ["supplier-catalog-versions"] as const,
     catalogLines: (companyId: string | null, versionId: string | null, search: string) =>
       ["supplier-catalog-lines", companyId ?? "no-company", versionId, search] as const,
+    catalogLinesVersion: (companyId: string | null, versionId: string | null) =>
+      ["supplier-catalog-lines", companyId ?? "no-company", versionId] as const,
     catalogLinesAll: () => ["supplier-catalog-lines"] as const,
   },
 };
