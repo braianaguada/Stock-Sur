@@ -224,16 +224,19 @@ export default function StockPage() {
               <MetricCard
                 label="Riesgo critico"
                 value={insightCounts.RED}
+                format="plain"
                 tone="danger"
               />
               <MetricCard
                 label="Atencion"
                 value={insightCounts.YELLOW}
+                format="plain"
                 tone="warning"
               />
               <MetricCard
                 label="Oportunidades"
                 value={insightCounts.BLUE}
+                format="plain"
                 tone="success"
               />
             </MetricGrid>
