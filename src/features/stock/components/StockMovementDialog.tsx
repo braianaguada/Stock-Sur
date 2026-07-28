@@ -13,7 +13,7 @@ import { EntityDialog } from "@/components/common/EntityDialog";
 import { buildItemDisplayName } from "@/lib/item-display";
 import { formatStockQuantity } from "@/lib/stock-quantity";
 import { cn } from "@/lib/utils";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, Search } from "lucide-react";
 import type { MovementType, SearchableItem, StockMovementForm } from "@/features/stock/types";
 
 type StockMovementDialogProps = {
@@ -55,6 +55,7 @@ export function StockMovementDialog({
 }: StockMovementDialogProps) {
   const selectedStock = selectedItem ? stockByItemId.get(selectedItem.id) : undefined;
   const selectedTone = selectedStock === undefined ? null : stockTone(selectedStock);
+  const hasSearch = itemSearch.trim().length > 0;
 
   return (
     <EntityDialog open={open} onOpenChange={onOpenChange} title="Nuevo movimiento">
@@ -67,61 +68,63 @@ export function StockMovementDialog({
       >
         <div className="space-y-2">
           <Label>Buscar ítem</Label>
-          <Input
-            autoFocus
-            value={itemSearch}
-            onChange={(event) => onItemSearchChange(event.target.value)}
-            placeholder="Buscar por nombre, SKU, marca, modelo o atributos..."
-          />
-          <div className="max-h-52 overflow-auto rounded-2xl border border-border/80 bg-background/95 shadow-sm">
-            {itemSearch.trim() === "" && availableItems.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">Escribe para buscar un ítem.</p>
-            ) : searchingItems ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">Buscando ítems...</p>
-            ) : availableItems.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">No hay ítems para mostrar.</p>
-            ) : (
-              availableItems.map((item) => {
-                const itemStock = stockByItemId.get(item.id);
-                const tone = itemStock === undefined ? null : stockTone(itemStock);
+          <div className="overflow-hidden rounded-2xl border border-border/80 bg-background/95 shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                autoFocus
+                value={itemSearch}
+                onChange={(event) => onItemSearchChange(event.target.value)}
+                placeholder="Buscar por nombre, SKU, marca, modelo o atributos..."
+                className="border-0 pl-9 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            </div>
 
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      onSelectedItemChange(item);
-                      onFormChange({ ...form, item_id: item.id });
-                    }}
-                    className={cn(
-                      "flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/80",
-                      selectedItem?.id === item.id && "bg-primary/10",
-                    )}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-semibold text-foreground">
-                        {buildItemDisplayName({
-                          name: item.name,
-                          brand: item.brand,
-                          model: item.model,
-                          attributes: item.attributes,
-                        })}
-                      </span>
-                    </span>
-                    <StatusBadge tone={tone ?? "neutral"} className="shrink-0 tabular-nums">
-                      {itemStock === undefined ? "Stock no disponible" : formatStockQuantity(itemStock, item.unit)}
-                    </StatusBadge>
-                  </button>
-                );
-              })
-            )}
-          </div>
+            {hasSearch ? (
+              <div className="max-h-52 overflow-auto border-t border-border/70">
+                {searchingItems ? (
+                  <p className="px-3 py-2 text-sm text-muted-foreground">Buscando ítems...</p>
+                ) : availableItems.length === 0 ? (
+                  <p className="px-3 py-2 text-sm text-muted-foreground">No se encontraron ítems.</p>
+                ) : (
+                  availableItems.map((item) => {
+                    const itemStock = stockByItemId.get(item.id);
+                    const tone = itemStock === undefined ? null : stockTone(itemStock);
 
-          {selectedItem ? (
-            <div className="rounded-2xl border border-border/70 bg-muted/30 px-4 py-2.5">
-              <div className="flex items-start justify-between gap-3">
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          onSelectedItemChange(item);
+                          onFormChange({ ...form, item_id: item.id });
+                          onItemSearchChange("");
+                        }}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/80",
+                          selectedItem?.id === item.id && "bg-primary/10",
+                        )}
+                      >
+                        <span className="min-w-0 truncate font-semibold text-foreground">
+                          {buildItemDisplayName({
+                            name: item.name,
+                            brand: item.brand,
+                            model: item.model,
+                            attributes: item.attributes,
+                          })}
+                        </span>
+                        <StatusBadge tone={tone ?? "neutral"} className="shrink-0 tabular-nums">
+                          {itemStock === undefined ? "Stock no disponible" : formatStockQuantity(itemStock, item.unit)}
+                        </StatusBadge>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            ) : selectedItem ? (
+              <div className="flex items-start justify-between gap-3 border-t border-border/70 bg-muted/30 px-3 py-2.5">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Seleccionado</p>
+                  <p className="text-xs text-muted-foreground">Producto seleccionado</p>
                   <p className="truncate text-sm font-semibold text-foreground">
                     {buildItemDisplayName({
                       name: selectedItem.name,
@@ -138,8 +141,8 @@ export function StockMovementDialog({
                     : formatStockQuantity(selectedStock, selectedItem.unit)}
                 </StatusBadge>
               </div>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
