@@ -1,9 +1,9 @@
 import { EntityDialog } from "@/components/common/EntityDialog";
+import { HealthBadge, InfoBadge } from "@/components/common/VisualSystem";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import type { Customer, CustomerFiscalDiagnostics } from "@/features/customers/types";
 import { canUseCustomerForInvoiceA, getCuitValidationMessage } from "@/features/customers/fiscal";
 
@@ -191,9 +191,9 @@ export function CustomerFormDialog({
               <h3 className="text-sm font-semibold">Datos fiscales para Factura A futura</h3>
               <p className="text-xs text-muted-foreground">Fuente: Constancia de inscripcion ARCA. No emite comprobantes.</p>
             </div>
-            <Badge variant={invoiceAReadiness.allowed ? "default" : "secondary"}>
-              {invoiceAReadiness.allowed ? "Listo para Factura A" : "No listo para Factura A"}
-            </Badge>
+            <HealthBadge healthy={invoiceAReadiness.allowed}>
+              {invoiceAReadiness.allowed ? "Listo para factura A" : "No listo para factura A"}
+            </HealthBadge>
           </div>
 
           <div className="space-y-2">
@@ -250,10 +250,10 @@ export function CustomerFormDialog({
           {diagnostics ? (
             <div className="space-y-2 rounded-md border border-dashed p-3 text-xs">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">Ambiente de consulta: {diagnostics.lookupEnvironment}</Badge>
-                <Badge variant="outline">Emision fiscal: {diagnostics.billingEnvironment}</Badge>
-                <Badge variant="outline">Condicion: {diagnostics.taxCondition || "UNKNOWN"}</Badge>
-                <Badge variant="outline">CUIT emisor: {diagnostics.issuerTaxIdMasked}</Badge>
+                <InfoBadge>Ambiente de consulta: {diagnostics.lookupEnvironment}</InfoBadge>
+                <InfoBadge>Emisión fiscal: {diagnostics.billingEnvironment}</InfoBadge>
+                <InfoBadge>Condición: {diagnostics.taxCondition || "Sin determinar"}</InfoBadge>
+                <InfoBadge>CUIT emisor: {diagnostics.issuerTaxIdMasked}</InfoBadge>
               </div>
               {environmentNotice ? <p className="text-muted-foreground">{environmentNotice}</p> : null}
               <p className="text-muted-foreground">Factura A futura. No emite comprobantes desde esta validacion.</p>
