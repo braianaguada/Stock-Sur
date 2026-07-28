@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
 import { buildItemDisplayName } from "@/lib/item-display";
 import { searchIncludes } from "@/lib/search";
+import { fetchAllPages } from "@/lib/supabase-pagination";
 import { DOC_LABEL } from "../constants";
 import type {
   DocEventRow,
@@ -115,6 +116,30 @@ export function useDocumentsData({
     },
   });
 
+  const { data: stockByItemId = new Map<string, number>() } = useQuery({
+    queryKey: queryKeys.documents.itemStock(currentCompanyId),
+    enabled: Boolean(currentCompanyId),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const movements = await fetchAllPages(() =>
+        supabase
+          .from("stock_movements")
+          .select("item_id, type, quantity")
+          .eq("company_id", currentCompanyId!),
+      );
+      const totals = new Map<string, number>();
+      for (const movement of movements) {
+        const previous = totals.get(movement.item_id) ?? 0;
+        const quantity = Number(movement.quantity);
+        totals.set(
+          movement.item_id,
+          movement.type === "OUT" ? previous - quantity : previous + quantity,
+        );
+      }
+      return totals;
+    },
+  });
+
   const { data: priceLists = [] } = useQuery({
     queryKey: queryKeys.documents.priceLists(currentCompanyId),
     enabled: Boolean(currentCompanyId),
@@ -187,6 +212,7 @@ export function useDocumentsData({
     const availableItemIds = new Set(priceListItems.map((row) => row.item_id));
     return items.filter((item) => !selectedPriceListId || availableItemIds.has(item.id)).map((item) => ({
       ...item,
+      available_stock: stockByItemId.get(item.id) ?? 0,
       display_name: buildItemDisplayName({
         name: item.name,
         brand: "brand" in item ? (item.brand as string | null | undefined) : null,
@@ -194,7 +220,7 @@ export function useDocumentsData({
         attributes: "attributes" in item ? (item.attributes as string | null | undefined) : null,
       }),
     }));
-  }, [items, priceListItems, selectedPriceListId]);
+  }, [items, priceListItems, selectedPriceListId, stockByItemId]);
 
   const priceByItem = useMemo(() => {
     const map = new Map<string, number>();

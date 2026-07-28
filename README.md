@@ -1272,6 +1272,7 @@ git pull origin staging
 
 ## Technical consolidation
 
+- La carga de renglones de documentos informa el stock disponible de la empresa activa y permite reemplazar valores numéricos en cero sin que el formulario los reponga mientras se escribe.
 - Public module contracts only expose values and types with external consumers; implementation-only types and helpers remain private.
 - `LineItemsTable` keeps its row shape private because no external module consumes that type.
 - Price-list consultation utilities retain only selection logic used by the active workflow.

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import type { DocumentFormState } from "@/features/documents/types";
+import type { DocumentFormState, LineDraft } from "@/features/documents/types";
 import { DocumentsEditorDialog } from "./DocumentsEditorDialog";
 
 vi.mock("@/components/common/EntityDialog", () => ({
@@ -28,7 +28,10 @@ vi.mock("@/features/documents/utils", () => ({
   changeDocumentRecipientType: (form: DocumentFormState) => form,
   changeRemitoUsage: (form: DocumentFormState) => form,
 }));
-vi.mock("@/lib/item-display", () => ({ buildItemDisplayMeta: () => "", buildItemDisplayName: () => "" }));
+vi.mock("@/lib/item-display", () => ({
+  buildItemDisplayMeta: () => "",
+  buildItemDisplayName: (item: { name?: string }) => item.name ?? "",
+}));
 
 vi.mock("@/components/ui/select", () => ({
   Select: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -56,7 +59,21 @@ const baseForm: DocumentFormState = {
   notes: "",
 };
 
-function renderDialog(documentForm: DocumentFormState, onSubmit = vi.fn()) {
+function renderDialog(
+  documentForm: DocumentFormState,
+  onSubmit = vi.fn(),
+  options: {
+    lines?: LineDraft[];
+    availableItems?: Array<{
+      id: string;
+      sku: string;
+      name: string;
+      unit?: string | null;
+      available_stock?: number;
+    }>;
+    setLines?: React.Dispatch<React.SetStateAction<LineDraft[]>>;
+  } = {},
+) {
   render(
     <DocumentsEditorDialog
       open
@@ -64,8 +81,8 @@ function renderDialog(documentForm: DocumentFormState, onSubmit = vi.fn()) {
       editingDocId={null}
       documentForm={documentForm}
       setDraftForm={vi.fn()}
-      lines={[]}
-      setLines={vi.fn()}
+      lines={options.lines ?? []}
+      setLines={options.setLines ?? vi.fn()}
       totalDraft={0}
       customers={[{ id: "customer-1", name: "Cliente registrado" }]}
       technicians={[{ id: "technician-1", name: "Tecnico Uno" }]}
@@ -81,7 +98,7 @@ function renderDialog(documentForm: DocumentFormState, onSubmit = vi.fn()) {
         },
       ]}
       priceLists={[]}
-      availableItems={[]}
+      availableItems={options.availableItems ?? []}
       combos={[]}
       onPriceListChange={vi.fn()}
       onAddItem={vi.fn()}
@@ -175,5 +192,62 @@ describe("DocumentsEditorDialog", () => {
     fireEvent.submit(screen.getByRole("button", { name: "Guardar borrador" }).closest("form")!);
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows company-scoped available stock while selecting a product", () => {
+    renderDialog(
+      { ...baseForm, price_list_id: "list-1" },
+      vi.fn(),
+      {
+        availableItems: [{
+          id: "item-1",
+          sku: "SKU-1",
+          name: "Producto con stock",
+          unit: "un",
+          available_stock: 12,
+        }],
+      },
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText("Buscar por SKU, nombre, marca, modelo o atributos"),
+      { target: { value: "Producto" } },
+    );
+
+    expect(screen.getByText(/Stock disponible: 12/)).toBeInTheDocument();
+  });
+
+  it("allows replacing a zero price without restoring zero while typing", () => {
+    const setLines = vi.fn();
+    const line: LineDraft = {
+      item_id: "item-1",
+      sku_snapshot: "SKU-1",
+      description: "Producto editable",
+      unit: "un",
+      quantity: 1,
+      unit_price: 0,
+      pricing_mode: "MANUAL_PRICE",
+      suggested_unit_price: 0,
+      base_cost_snapshot: 0,
+      list_flete_pct_snapshot: 0,
+      list_utilidad_pct_snapshot: 0,
+      list_impuesto_pct_snapshot: 0,
+      manual_margin_pct: null,
+      price_overridden_by: null,
+      price_overridden_at: null,
+    };
+    renderDialog(
+      { ...baseForm, price_list_id: "list-1" },
+      vi.fn(),
+      { lines: [line], setLines },
+    );
+
+    const priceInput = screen.getByRole("spinbutton", { name: "Precio unitario de Producto editable" });
+    fireEvent.focus(priceInput);
+    expect(priceInput).toHaveValue(null);
+    fireEvent.change(priceInput, { target: { value: "125" } });
+
+    expect(priceInput).toHaveValue(125);
+    expect(setLines).toHaveBeenCalled();
   });
 });
