@@ -38,6 +38,7 @@ export default function UsersPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [createCompanyOpen, setCreateCompanyOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<"users" | "companies">("users");
   const [impersonationDialogUser, setImpersonationDialogUser] = useState<UserAccessRow | null>(null);
   const [impersonationReason, setImpersonationReason] = useState("");
   const [isStartingImpersonation, setIsStartingImpersonation] = useState(false);
@@ -137,28 +138,33 @@ export default function UsersPage() {
 
   return (
     <AppLayout>
-      <PageContainer className="page-shell">
+      <PageContainer archetype="workspace" className="page-shell">
         <UsersOverviewHeader
+          activeSection={activeSection}
           filter={filter}
           overviewStats={overviewStats}
           search={search}
+          onSectionChange={setActiveSection}
           onFilterChange={setFilter}
           onCreateCompany={() => setCreateCompanyOpen(true)}
           onSearchChange={setSearch}
         />
 
-        <UsersAccessTable
-          isLoading={isLoading}
-          error={error}
-          users={filteredUsers}
-          onOpenUser={setSelectedUser}
-          onOpenAccessDialog={openAccessDialog}
-          onOpenImpersonation={(user) => {
-            setImpersonationReason("");
-            setImpersonationDialogUser(user);
-          }}
-        />
-        <CompaniesManagementCard />
+        {activeSection === "users" ? (
+          <UsersAccessTable
+            isLoading={isLoading}
+            error={error}
+            users={filteredUsers}
+            onOpenUser={setSelectedUser}
+            onOpenAccessDialog={openAccessDialog}
+            onOpenImpersonation={(user) => {
+              setImpersonationReason("");
+              setImpersonationDialogUser(user);
+            }}
+          />
+        ) : (
+          <CompaniesManagementCard />
+        )}
       </PageContainer>
 
       {selectedUser ? (
