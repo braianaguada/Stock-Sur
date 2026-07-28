@@ -1290,6 +1290,7 @@ git pull origin staging
 
 ## Technical consolidation
 
+- El panel de detalle de Trabajos y Servicios conserva el borde de la bandeja y el espaciado interno canónico de las cards en desktop y responsive.
 - La carga de movimientos de Stock comienza con un único buscador, mantiene el producto seleccionado dentro del mismo control y muestra las alertas operativas como cantidades sin formato monetario.
 - La edición de costos base comienza vacía cuando el valor actual es cero; las listas sólo quedan pendientes cuando cambia efectivamente un costo o un porcentaje que altera el cálculo. La migración que acota ese recálculo queda versionada, pero no fue aplicada a staging desde esta rama; su prueba DB es transaccional y revierte todos los cambios.
 - La carga de renglones de documentos informa el stock disponible de la empresa activa y permite reemplazar valores numéricos en cero sin que el formulario los reponga mientras se escribe.
