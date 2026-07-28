@@ -46,7 +46,8 @@ export async function fetchSupplierCatalogVersions(companyId: string, supplierId
     .select("id, catalog_id, title, imported_at, supplier_document_id")
     .eq("company_id", companyId)
     .eq("supplier_id", supplierId)
-    .order("imported_at", { ascending: false });
+    .order("imported_at", { ascending: false })
+    .order("id", { ascending: false });
   if (error) throw error;
 
   const versions = (data ?? []) as Array<{
@@ -70,6 +71,7 @@ export async function fetchSupplierCatalogVersions(companyId: string, supplierId
   const { data: lineCounts, error: lineCountError } = await supabase
     .from("supplier_catalog_lines")
     .select("supplier_catalog_version_id")
+    .eq("company_id", companyId)
     .in("supplier_catalog_version_id", versions.map((version) => version.id));
   if (lineCountError) throw lineCountError;
 

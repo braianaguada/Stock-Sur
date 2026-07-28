@@ -87,6 +87,24 @@ export function groupSupplierVersionsByCatalog(catalogVersions: SupplierCatalogV
   }, {});
 }
 
+export function selectSupplierCatalogVersionId(
+  catalogVersions: SupplierCatalogVersion[],
+  currentVersionId: string | null,
+) {
+  if (currentVersionId && catalogVersions.some((version) => version.id === currentVersionId)) {
+    return currentVersionId;
+  }
+
+  return catalogVersions.reduce<SupplierCatalogVersion | null>((latest, version) => {
+    if (!latest) return version;
+
+    const importedAtComparison = version.imported_at.localeCompare(latest.imported_at);
+    if (importedAtComparison > 0) return version;
+    if (importedAtComparison < 0) return latest;
+    return version.id.localeCompare(latest.id) > 0 ? version : latest;
+  }, null)?.id ?? null;
+}
+
 export function addCatalogLineToOrder(
   orderItems: Record<string, OrderLine>,
   lineQuantities: Record<string, number>,
