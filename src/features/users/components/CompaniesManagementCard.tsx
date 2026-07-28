@@ -123,13 +123,13 @@ export function CompaniesManagementCard() {
           <CountBadge>{companiesQuery.data?.length ?? 0} {(companiesQuery.data?.length ?? 0) === 1 ? "empresa" : "empresas"}</CountBadge>
         </CardHeader>
         <CardContent className="p-0">
-        <DataTable
-          columns={columns}
-          data={companiesQuery.data ?? []}
-          isLoading={companiesQuery.isLoading}
-          loadingMessage="Cargando empresas..."
-          emptyMessage={companiesQuery.error ? getErrorMessage(companiesQuery.error) : "No hay empresas creadas."}
-        />
+          <DataTable
+            columns={columns}
+            data={companiesQuery.data ?? []}
+            isLoading={companiesQuery.isLoading}
+            loadingMessage="Cargando empresas..."
+            emptyMessage={companiesQuery.error ? getErrorMessage(companiesQuery.error) : "No hay empresas creadas."}
+          />
         </CardContent>
       </Card>
 
