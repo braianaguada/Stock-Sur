@@ -4,8 +4,14 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Link, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { DataTable } from "@/components/data-table/DataTable";
-import { AmountDisplay, MetricCard, MetricGrid } from "@/components/common/VisualSystem";
-import { Badge } from "@/components/ui/badge";
+import {
+  AmountDisplay,
+  CategoryBadge,
+  InfoBadge,
+  MetricCard,
+  MetricGrid,
+  StatusBadge,
+} from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,9 +45,10 @@ import {
   type OccasionalFiscalStatus,
   type OccasionalOperation,
 } from "@/features/customers/occasional/operations";
+import type { MetricTone } from "@/components/ui/metric-tone";
 
 const FISCAL_STATUS_LABEL: Record<OccasionalFiscalStatus, string> = {
-  PENDING_INVOICE_B: "Pendiente Factura B",
+  PENDING_INVOICE_B: "Pendiente factura B",
   DRAFT_BILLING: "Borrador fiscal",
   INVOICE_B_AUTHORIZED: "Factura B autorizada",
   CREDIT_NOTE_B_AUTHORIZED: "NC B autorizada",
@@ -56,14 +63,14 @@ const CLOSURE_STATUS_LABEL: Record<OccasionalClosureStatus, string> = {
   WITHOUT_CASH_SALE: "Sin venta de caja",
 };
 
-const FISCAL_BADGE_CLASS: Record<OccasionalFiscalStatus, string> = {
-  PENDING_INVOICE_B: "border-amber-200 bg-amber-50 text-amber-700",
-  DRAFT_BILLING: "border-sky-200 bg-sky-50 text-sky-700",
-  INVOICE_B_AUTHORIZED: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  CREDIT_NOTE_B_AUTHORIZED: "border-violet-200 bg-violet-50 text-violet-700",
-  REJECTED_BILLING: "border-rose-200 bg-rose-50 text-rose-700",
-  CANCELLED: "border-slate-200 bg-slate-50 text-slate-600",
-  UNKNOWN: "border-slate-200 bg-slate-50 text-slate-600",
+const FISCAL_STATUS_TONE: Record<OccasionalFiscalStatus, MetricTone> = {
+  PENDING_INVOICE_B: "warning",
+  DRAFT_BILLING: "info",
+  INVOICE_B_AUTHORIZED: "success",
+  CREDIT_NOTE_B_AUTHORIZED: "success",
+  REJECTED_BILLING: "danger",
+  CANCELLED: "muted",
+  UNKNOWN: "muted",
 };
 
 const PAYMENT_FILTERS: Array<PaymentMethod | "ALL"> = [
@@ -159,9 +166,9 @@ export default function OccasionalCustomerPage() {
       header: () => "Fiscal B",
       cell: ({ row }) => (
         <div className="space-y-1">
-          <Badge variant="outline" className={FISCAL_BADGE_CLASS[row.original.fiscalStatus]}>
+          <StatusBadge tone={FISCAL_STATUS_TONE[row.original.fiscalStatus]}>
             {FISCAL_STATUS_LABEL[row.original.fiscalStatus]}
-          </Badge>
+          </StatusBadge>
           {row.original.invoiceB?.voucher_full_number ? <p className="font-mono text-xs text-muted-foreground">{row.original.invoiceB.voucher_full_number}</p> : null}
           {row.original.creditNoteB?.voucher_full_number ? <p className="font-mono text-xs text-muted-foreground">NC {row.original.creditNoteB.voucher_full_number}</p> : null}
         </div>
@@ -235,12 +242,14 @@ export default function OccasionalCustomerPage() {
           description="Seguimiento operativo read-only de remitos, caja, Factura B y NC B sin cliente registrado."
           meta={(
             <>
-              <Badge variant="secondary">Sistema</Badge>
-              <Badge variant="secondary">No editable</Badge>
-              <Badge variant="outline">customer_id = null</Badge>
-              <Badge variant="outline">Factura A sin autorizacion</Badge>
-              <Badge variant="outline">NC A no implementada</Badge>
-              <Badge variant={environment === "dev" ? "secondary" : "destructive"}>Billing {environment}</Badge>
+              <CategoryBadge>Sistema</CategoryBadge>
+              <StatusBadge tone="muted">No editable</StatusBadge>
+              <InfoBadge>customer_id = null</InfoBadge>
+              <InfoBadge>Factura A sin autorización</InfoBadge>
+              <InfoBadge>NC A no implementada</InfoBadge>
+              <StatusBadge tone={environment === "dev" ? "info" : "warning"}>
+                Facturación {environment}
+              </StatusBadge>
             </>
           )}
           actions={(

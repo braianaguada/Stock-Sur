@@ -1070,6 +1070,8 @@ Production migration history note:
 - Stock e Ítems reutilizan `MetricGrid`, `MetricCard`, `HealthBadge`, `CategoryBadge`, `StatusBadge` y `CountBadge` según la semántica real del dato, sin variantes visuales locales.
 - Documentos alinea buscador, filtros y opciones del editor, y sus acciones usan una superficie de tamaños homogéneos.
 - Cuenta corriente, cotizaciones, precios y catálogos distinguen estados, categorías e información contextual con las primitives canónicas correspondientes.
+- Clientes ocasionales, documentos de Servicios, Precios y movimientos de Stock usan los badges canónicos según semántica (`StatusBadge`, `HealthBadge`, `CategoryBadge`, `CountBadge` e `InfoBadge`), con textos de interfaz en capitalización consistente.
+- La gobernanza visual impide nuevos consumidores directos de `Badge` y variantes locales de color, densidad o capitalización. `BillingFiscalSettingsSection` queda como excepción temporal explícita hasta abordar Configuración/Facturación en su propio alcance.
 - No se modificaron reglas de negocio, consultas, query keys, permisos, RLS, aislamiento por `company_id`, base de datos ni Facturación. No requiere migraciones.
 
 ## Suite crítica de base de datos
