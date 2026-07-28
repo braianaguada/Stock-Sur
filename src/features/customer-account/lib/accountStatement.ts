@@ -61,12 +61,9 @@ export type AccountStatementSummary = {
   movementsCount: number;
 };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 function asDateOnly(value: string): string {
   return value.slice(0, 10);
 }
-
 function addDays(date: string, days: number): string {
   const parsed = new Date(`${asDateOnly(date)}T00:00:00Z`);
   parsed.setUTCDate(parsed.getUTCDate() + days);
@@ -193,9 +190,4 @@ export function buildAccountStatement(
   );
 
   return { rows: filteredRows.reverse(), summary };
-}
-
-function daysUntil(date: string | null, today = new Date().toISOString().slice(0, 10)): number | null {
-  if (!date) return null;
-  return Math.round((new Date(`${date}T00:00:00Z`).getTime() - new Date(`${today}T00:00:00Z`).getTime()) / DAY_MS);
 }

@@ -16,7 +16,6 @@ import {
 } from "@/features/stock/stockRows";
 import type {
   Movement,
-  MovementType,
   SearchableItem,
   StockMovementForm,
   StockRow,

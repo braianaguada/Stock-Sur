@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
 import { invalidateDocumentQueries, invalidateStockQueries } from "@/lib/invalidate";
-import { queryKeys } from "@/lib/query-keys";
 import { STATUS_LABEL } from "../constants";
 import { buildDocumentDraftPersistencePayload } from "../lib/draft-persistence";
 import { buildReturnDraftPayload } from "../lib/returns";

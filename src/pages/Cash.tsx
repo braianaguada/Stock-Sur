@@ -284,16 +284,6 @@ export default function CashPage() {
     });
   }, [businessDate, closure, closeClosureMutation, companySettings.auto_close_cash_enabled, companySettings.auto_close_cash_time, currentCompany]);
 
-  const customerOptionLabels = useMemo(
-    () =>
-      new Map(
-        customers.map((customer) => [
-          customer.id,
-          `${customer.name}${customer.cuit ? ` - ${customer.cuit}` : ""}`,
-        ]),
-      ),
-    [customers],
-  );
   const formatCashOptionCustomer = (remito: (typeof availableRemitos)[number]) => {
     const recipient = resolveDocumentRecipient(remito);
     return recipient.secondaryName ? `${recipient.primaryName} - ${recipient.secondaryName}` : recipient.primaryName;
@@ -858,7 +848,6 @@ export default function CashPage() {
             saving={attachReceiptMutation.isPending}
             onPendingReceiptKindChange={setPendingReceiptKind}
             onPendingRemitoIdChange={setPendingRemitoId}
-            onPendingReceiptReferenceChange={setPendingReceiptReference}
             onSave={(state) => attachReceiptMutation.mutate(state satisfies CashPendingReceiptState)}
             canSave={canAttachCashReceipt(roles)}
           />

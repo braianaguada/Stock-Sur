@@ -1,8 +1,6 @@
 import { z } from "zod";
 import type { ServiceDocumentForm, ServiceDocumentLine } from "./types";
 
-const AI_SERVICE_QUOTE_MODEL = "gemini-2.5-flash-lite";
-
 export const serviceQuoteAiSchema = z.object({
   summary: z.string().trim().min(1),
   recommendedPricingMode: z.enum(["DETAILED", "GLOBAL_TOTAL"]),

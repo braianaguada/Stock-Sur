@@ -136,7 +136,7 @@ export default function DocumentsPage() {
     [companySettings.price_rounding_enabled, companySettings.price_rounding_increment],
   );
 
-  const { search, deferredSearch, setSearch, trimmedSearch } = useSearch();
+  const { search, setSearch, trimmedSearch } = useSearch();
   const [typeFilter, setTypeFilter] = useState<DocType | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<DocStatus | "ALL">("ALL");
   const [customerFilter, setCustomerFilter] = useState("ALL");
@@ -437,14 +437,6 @@ export default function DocumentsPage() {
           currentLine: draftLines[index],
           applyRounding: (price) => roundPrice(price, priceRoundingConfig),
         });
-  };
-
-  const onPickItem = (index: number, itemId: string) => {
-    setLines((previous) => {
-      const next = [...previous];
-      applyPickItemToLines(next, index, itemId);
-      return next;
-    });
   };
 
   const onAddItem = (itemId: string) => {

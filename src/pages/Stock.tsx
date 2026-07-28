@@ -64,7 +64,6 @@ export default function StockPage() {
     allStockRows,
     stockRows,
     loadingStock,
-    movements,
     filteredMovements,
     loadingMovements,
     search,

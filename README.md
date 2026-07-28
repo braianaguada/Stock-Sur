@@ -1290,3 +1290,4 @@ git pull origin staging
 - Printable documents and services share the same optional metadata renderer and escaping contract.
 - Stock formatting and movement validation share one exact rule for integer-only units.
 - Vite keeps its static plugin list direct, without a no-op conditional filter.
+- CI rejects newly introduced unused declarations, unreachable exports/files/dependencies, and circular source dependencies through ESLint, Knip, and Madge.
