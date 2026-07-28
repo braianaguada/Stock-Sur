@@ -31,14 +31,14 @@ describe("useServiceDocumentMutations", () => {
     toast.mockReset();
   });
 
-  it("saves service documents through rpc with trimmed payload", async () => {
+  it("saves service documents as drafts through rpc with trimmed payload", async () => {
     rpc.mockResolvedValueOnce({ error: null });
     const mutations = useServiceDocumentMutations({
       companyId: "company-1",
       editingDocumentId: null,
       form: {
         customer_id: "cust-1",
-        status: "DRAFT",
+        status: "APPROVED",
         reference: " ref ",
         issue_date: "2026-04-29",
         valid_until: "",
@@ -73,6 +73,7 @@ describe("useServiceDocumentMutations", () => {
       expect.objectContaining({
         p_company_id: "company-1",
         p_customer_id: "cust-1",
+        p_status: "DRAFT",
         p_reference: "ref",
         p_delivery_time: "48 hs",
         p_payment_terms: "contado",
