@@ -27,7 +27,7 @@ import {
   canTransitionDocumentTo,
 } from "@/lib/permissions";
 import { queryKeys } from "@/lib/query-keys";
-import { openPrintWindow } from "@/lib/print";
+import { openPrintWindow, writePrintWindow } from "@/lib/print";
 import { Copy, Link2, MessageCircle, Plus, Search, Unlink } from "lucide-react";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { EMPTY_LINE } from "@/features/documents/constants";
@@ -586,6 +586,19 @@ export default function DocumentsPage() {
   };
 
   const printDocument = async (document: DocRow) => {
+    const win = openPrintWindow(
+      "<!doctype html><html><head><title>Preparando documento...</title></head><body><p>Preparando documento...</p></body></html>",
+    );
+
+    if (!win) {
+      toast({
+        title: "No se pudo abrir la impresion",
+        description: "El navegador bloqueo la ventana emergente. Habilitala para Stock Sur y reintenta.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { data: lineRows, error: linesError } = await supabase
       .from("document_lines")
       .select("line_order, sku_snapshot, description, unit, quantity, unit_price, line_total")
@@ -593,6 +606,7 @@ export default function DocumentsPage() {
       .order("line_order");
 
     if (linesError) {
+      win.close();
       toast({
         title: "No se pudo preparar la impresion",
         description: getErrorMessage(linesError),
@@ -612,7 +626,8 @@ export default function DocumentsPage() {
       technicianName = technicianData?.name ?? null;
     }
 
-    const win = openPrintWindow(
+    writePrintWindow(
+      win,
       buildDocumentPrintHtml({
         document,
         lines: (lineRows ?? []) as Array<
@@ -631,14 +646,6 @@ export default function DocumentsPage() {
         technicianName,
       }),
     );
-
-    if (!win) {
-      toast({
-        title: "No se pudo abrir la impresion",
-        description: "El navegador bloqueo la ventana emergente. Habilitala para Stock Sur y reintenta.",
-        variant: "destructive",
-      });
-    }
   };
 
   const openDocumentShare = async (document: DocRow) => {

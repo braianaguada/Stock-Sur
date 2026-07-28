@@ -1211,6 +1211,12 @@ Production migration history note:
 - Los cambios de estado permanecen como acciones operativas separadas y sujetas a sus permisos.
 - No requiere migraciones ni modifica RLS, datos o aislamiento por `company_id`.
 
+## Documentos: apertura de impresion
+
+- La ventana de impresion se reserva al iniciar la accion y se completa cuando terminan de cargar las lineas.
+- Esto evita que el navegador bloquee la descarga o impresion por haberse abierto despues de una consulta asincronica.
+- No requiere migraciones ni modifica documentos, permisos o aislamiento por `company_id`.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
