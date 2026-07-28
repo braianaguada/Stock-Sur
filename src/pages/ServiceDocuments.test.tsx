@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
@@ -154,6 +154,16 @@ describe("ServiceDocumentsPage", () => {
     expect(screen.getByText("Enviado presupuesto")).toBeInTheDocument();
     expect(screen.getByText(/SERV-000012 cambiara de estado/i)).toBeInTheDocument();
     expect(nativeConfirm).not.toHaveBeenCalled();
+  });
+
+  it("keeps status transitions outside the service document form", () => {
+    render(<ServiceDocumentsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo presupuesto" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByText("Estado", { selector: "label" })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Guardar" })).toBeInTheDocument();
   });
 
   it("opens the AI assistant and renders a generated price preview", async () => {

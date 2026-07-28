@@ -57,7 +57,7 @@ export function useServiceDocumentMutations(params: {
         p_document_id: editingDocumentId,
         p_company_id: companyId,
         p_customer_id: form.customer_id,
-        p_status: form.status,
+        p_status: "DRAFT",
         p_reference: form.reference.trim() || null,
         p_issue_date: form.issue_date,
         p_valid_until: form.valid_until || null,
