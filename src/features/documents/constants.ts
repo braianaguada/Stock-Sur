@@ -32,22 +32,6 @@ export const PRICING_MODE_LABEL: Record<LinePricingMode, string> = {
   MANUAL_PRICE: "Precio manual",
 };
 
-const HISTORY_TONE_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
-  neutral: "border-border bg-muted text-foreground",
-  info: "border-info/20 bg-info/10 text-info",
-  success: "border-success/20 bg-success/10 text-success",
-  warning: "border-warning/20 bg-warning/10 text-warning",
-  danger: "border-destructive/20 bg-destructive/10 text-destructive",
-};
-
-const HISTORY_DOT_CLASS: Record<"neutral" | "info" | "success" | "warning" | "danger", string> = {
-  neutral: "bg-muted-foreground shadow-border",
-  info: "bg-info shadow-info/20",
-  success: "bg-success shadow-success/20",
-  warning: "bg-warning shadow-warning/20",
-  danger: "bg-destructive shadow-destructive/20",
-};
-
 export const EMPTY_LINE: LineDraft = {
   item_id: null,
   sku_snapshot: "",
