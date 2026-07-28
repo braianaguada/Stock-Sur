@@ -1205,6 +1205,12 @@ Production migration history note:
 - Los consumidores conservan las mismas funciones publicas y el mismo comportamiento operativo.
 - No requiere migraciones ni modifica permisos, RLS o aislamiento por `company_id`.
 
+## Documentos de servicio: guardado seguro
+
+- El formulario de presupuestos de servicio guarda siempre en estado borrador.
+- Los cambios de estado permanecen como acciones operativas separadas y sujetas a sus permisos.
+- No requiere migraciones ni modifica RLS, datos o aislamiento por `company_id`.
+
 ## Git workflow
 
 ## Proveedores: importación semántica y catálogo operativo
