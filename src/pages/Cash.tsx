@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/common/VisualSystem";
-import { PageContainer, PageHeader, PageTabs } from "@/components/ui/page";
+import { PageContainer, PageHeader } from "@/components/ui/page";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -463,7 +463,35 @@ export default function CashPage() {
           title="Caja"
           description="Control diario de ventas, gastos y rendición."
           variant="analytical"
-          meta={<StatusBadge tone={effectiveClosure?.status === "CERRADO" ? "success" : "warning"}>{effectiveClosure?.status === "CERRADO" ? "Caja cerrada" : "Caja abierta"}</StatusBadge>}
+          meta={(
+            <>
+              <StatusBadge tone={effectiveClosure?.status === "CERRADO" ? "success" : "warning"}>
+                {effectiveClosure?.status === "CERRADO" ? "Caja cerrada" : "Caja abierta"}
+              </StatusBadge>
+              <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border/70 bg-background px-2 py-1">
+                <Label htmlFor="business-date" className="whitespace-nowrap text-xs text-muted-foreground">
+                  Fecha operativa
+                </Label>
+                <Input
+                  id="business-date"
+                  type="date"
+                  value={businessDate}
+                  onChange={(event) => setBusinessDate(event.target.value)}
+                  className="h-8 min-w-0 w-[145px] border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
+                />
+              </div>
+            </>
+          )}
+          tabs={secondaryView ? undefined : [
+            { value: "day", label: "Movimientos" },
+            { value: "expenses", label: "Gastos" },
+            { value: "closure", label: "Cierre" },
+          ]}
+          activeTab={secondaryView ? undefined : tab}
+          onTabChange={(value) => {
+            setSecondaryView(null);
+            setTab(value);
+          }}
           actions={(
             <>
               <Button
@@ -480,18 +508,6 @@ export default function CashPage() {
               <Button type="button" variant="outline" onClick={() => setSecondaryView("history")}>
                 <History className="mr-2 h-4 w-4" /> Ver historial
               </Button>
-              <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-background px-2 py-1">
-                <Label htmlFor="business-date" className="whitespace-nowrap text-xs text-muted-foreground">
-                  Fecha operativa
-                </Label>
-                <Input
-                  id="business-date"
-                  type="date"
-                  value={businessDate}
-                  onChange={(event) => setBusinessDate(event.target.value)}
-                  className="h-8 w-[145px] border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
-                />
-              </div>
             </>
           )}
         />
@@ -517,13 +533,6 @@ export default function CashPage() {
           </div>
         ) : null}
 
-        <CashOverviewPanel
-          summary={summary}
-          closureStatus={effectiveClosure?.status}
-          movementCount={filteredSales.length}
-          pendingCount={pendingSales.length}
-        />
-
         {secondaryView ? (
           <section className="space-y-4">
             <Button type="button" variant="ghost" onClick={() => setSecondaryView(null)} className="w-fit">
@@ -542,58 +551,53 @@ export default function CashPage() {
             />
           </section>
         ) : (
-          <div className="space-y-4">
-            <PageTabs
-              value={tab}
-              onValueChange={(value) => {
-                setSecondaryView(null);
-                setTab(value);
-              }}
-              tabs={[
-                { value: "day", label: "Movimientos" },
-                { value: "expenses", label: "Gastos" },
-                { value: "closure", label: "Cierre" },
-              ]}
+          <div className="space-y-6">
+            <CashOverviewPanel
+              summary={summary}
+              movementCount={filteredSales.length}
+              pendingCount={pendingSales.length}
             />
             {tab === "day" ? (
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-                <CashSalesTab
-                  filteredSales={salesPagination.pagedItems}
-                  salesLoading={salesLoading}
-                  situationFilter={situationFilter}
-                  onSituationFilterChange={setSituationFilter}
-                  effectiveClosure={effectiveClosure}
-                  onOpenDetail={openSaleDetail}
-                  onCancelSale={(saleId) => {
-                    if (!canCancelCashSale(roles)) return;
-                    cancelSaleMutation.mutate(saleId);
-                  }}
-                  canCancelSale={canCancelSale}
-                  cancelPending={cancelSaleMutation.isPending}
-                  billingEnabled={billingSettingsQuery.billingEnabled}
-                  billedSourceIds={billedSourceIds}
-                  canCreateBillingDraft={canCreateBillingDraft}
-                  onCreateBillingDraft={(sale) => createBillingDraft(sale, "FACTURA_B")}
-                  onCreateInvoiceADraft={(sale) => createBillingDraft(sale, "FACTURA_A")}
-                  getInvoiceAReadiness={getInvoiceAReadiness}
-                  createBillingDraftPending={createBillingDraftMutation.isPending}
-                  page={salesPagination.page}
-                  totalPages={salesPagination.totalPages}
-                  totalItems={filteredSales.length}
-                  onPageChange={setSalesPage}
-                  pageSize={salesPageSize}
-                  pageSizeOptions={PAGE_SIZE_OPTIONS}
-                  onPageSizeChange={(value) => setSalesPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
-                />
+              <div className="grid items-start gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+                <div className="order-2 min-w-0">
+                  <CashSalesTab
+                    filteredSales={salesPagination.pagedItems}
+                    salesLoading={salesLoading}
+                    situationFilter={situationFilter}
+                    onSituationFilterChange={setSituationFilter}
+                    effectiveClosure={effectiveClosure}
+                    onOpenDetail={openSaleDetail}
+                    onCancelSale={(saleId) => {
+                      if (!canCancelCashSale(roles)) return;
+                      cancelSaleMutation.mutate(saleId);
+                    }}
+                    canCancelSale={canCancelSale}
+                    cancelPending={cancelSaleMutation.isPending}
+                    billingEnabled={billingSettingsQuery.billingEnabled}
+                    billedSourceIds={billedSourceIds}
+                    canCreateBillingDraft={canCreateBillingDraft}
+                    onCreateBillingDraft={(sale) => createBillingDraft(sale, "FACTURA_B")}
+                    onCreateInvoiceADraft={(sale) => createBillingDraft(sale, "FACTURA_A")}
+                    getInvoiceAReadiness={getInvoiceAReadiness}
+                    createBillingDraftPending={createBillingDraftMutation.isPending}
+                    page={salesPagination.page}
+                    totalPages={salesPagination.totalPages}
+                    totalItems={filteredSales.length}
+                    onPageChange={setSalesPage}
+                    pageSize={salesPageSize}
+                    pageSizeOptions={PAGE_SIZE_OPTIONS}
+                    onPageSizeChange={(value) => setSalesPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
+                  />
+                </div>
 
                 <Card
                   ref={saleFormRef}
-                  className="h-fit border-primary/8 bg-card shadow-[var(--shadow-xs)] xl:sticky xl:top-4"
+                  className="order-1 h-fit border-primary/8 bg-card shadow-[var(--shadow-xs)] xl:sticky xl:top-4"
                 >
                   <CardHeader>
-                    <CardTitle>{receiptKind === "REMITO_DEVOLUCION" ? "Nueva devolucion" : "Nueva venta"}</CardTitle>
+                    <CardTitle>{receiptKind === "REMITO_DEVOLUCION" ? "Nueva devolución" : "Nueva venta"}</CardTitle>
                     <CardDescription>
-                      Panel secundario para cargar una operacion sin perder de vista los movimientos del dia.
+                      Registrá una operación y controlá su impacto antes de guardarla.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>

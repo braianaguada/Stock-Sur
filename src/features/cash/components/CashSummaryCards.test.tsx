@@ -20,12 +20,12 @@ const summary: CashSummary = {
 
 describe("CashOverviewPanel", () => {
   it("renders the day total and large values without truncation", () => {
-    render(<CashOverviewPanel summary={summary} closureStatus="ABIERTO" movementCount={4} />);
+    render(<CashOverviewPanel summary={summary} movementCount={4} />);
 
     expect(screen.getByText("Total vendido")).toBeInTheDocument();
     expect(screen.getByTitle(/1\.380\.000,00/)).toBeInTheDocument();
     expect(screen.getByTitle(/1\.190\.000,00/)).toBeInTheDocument();
-    expect(screen.getByText("Caja abierta")).toBeInTheDocument();
+    expect(screen.queryByText("Caja abierta")).not.toBeInTheDocument();
   });
 
   it("keeps cash and non-cash expenses separated", () => {

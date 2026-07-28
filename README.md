@@ -1294,6 +1294,7 @@ git pull origin staging
 
 - La administración de Usuarios organiza accesos y empresas como subsecciones estables, usa el ancho canónico de workspace y simplifica las membresías de la tabla sin alterar permisos, consultas ni acciones sensibles.
 - El panel de detalle de Trabajos y Servicios conserva el borde de la bandeja y el espaciado interno canónico de las cards en desktop y responsive.
+- Caja ordena la fecha y el estado como contexto operativo, integra la navegación principal al encabezado y separa con claridad el panorama, la carga de operaciones, los movimientos y el historial sin modificar cálculos ni persistencia.
 - La carga de movimientos de Stock comienza con un único buscador, mantiene el producto seleccionado dentro del mismo control y muestra las alertas operativas como cantidades sin formato monetario.
 - La edición de costos base comienza vacía cuando el valor actual es cero; las listas sólo quedan pendientes cuando cambia efectivamente un costo o un porcentaje que altera el cálculo. La migración que acota ese recálculo queda versionada, pero no fue aplicada a staging desde esta rama; su prueba DB es transaccional y revierte todos los cambios.
 - La carga de renglones de documentos informa el stock disponible de la empresa activa y permite reemplazar valores numéricos en cero sin que el formulario los reponga mientras se escribe.
