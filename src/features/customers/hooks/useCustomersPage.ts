@@ -107,7 +107,7 @@ export function useCustomersPage({
   userId,
   toast,
 }: UseCustomersPageOptions) {
-  const { search, deferredSearch, setSearch, trimmedSearch } = useSearch();
+  const { search, setSearch, trimmedSearch } = useSearch();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);

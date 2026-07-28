@@ -1,5 +1,3 @@
-type XlsxModule = typeof import("xlsx");
-type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 import { loadPdfJs, loadTesseract, loadXlsx } from "@/lib/lazy-vendors";
 type MergeRange = {
   s: { r: number; c: number };
@@ -1368,61 +1366,6 @@ export function extractPdfCatalogCandidates(
 
   flushPendingProduct();
   return lines;
-}
-
-function extractPdfLineCandidate(
-  sourceLine: string,
-  rowIndex: number,
-  preferPrice: "first" | "last",
-  defaultCurrency: "ARS" | "USD",
-  context: PdfLineContext,
-): CatalogImportLine | null {
-  const line = sourceLine.replace(/\s+/g, " ").trim();
-  if (!line || line.length < 4) return null;
-  if (isLikelyPdfNoiseValue(line)) return null;
-  if (PDF_IGNORE_PATTERNS.some((pattern) => pattern.test(line.trim()))) return null;
-  if (/^[*•]/.test(line)) return null;
-  const chunks = line.split(/\s{2,}/).filter(Boolean);
-  const candidateString = chunks.length > 1 ? chunks.join(" | ") : line;
-  const numberMatches = [...candidateString.matchAll(/-?\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d+)?|-?\d+(?:[.,]\d+)?/g)];
-  const prices = numberMatches
-    .map((match) => ({ raw: match[0], value: parseFlexibleNumber(match[0]) }))
-    .filter((entry): entry is { raw: string; value: number } => entry.value !== null)
-    .filter((entry) => isLikelyPriceValue(entry.raw));
-  if (prices.length === 0) return null;
-  const pickedPrice = preferPrice === "first" ? prices[0] : prices[prices.length - 1];
-  if (!pickedPrice || pickedPrice.value <= 0) return null;
-  const currency = detectCurrency(candidateString, defaultCurrency);
-  let description = line
-    .replace(pickedPrice.raw, " ")
-    .replace(/\b(u\$s|us\$|usd|ars)\b/gi, " ")
-    .replace(/\$/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  const codeMatch = description.match(/^([A-Z0-9][A-Z0-9\-_./]{1,15})\s+(.+)$/i);
-  const supplierCode = codeMatch ? codeMatch[1] : null;
-  description = codeMatch ? codeMatch[2].trim() : description;
-  if (description.length < 3) return null;
-  if (isLikelyTechnicalDescription(description)) return null;
-  let confidence = 0.58;
-  if (supplierCode) confidence += 0.12;
-  if (/u\$s|us\$|usd|ars|\$/i.test(candidateString)) confidence += 0.08;
-  if (context.pageHasCatalogSignals) confidence += 0.08;
-  if (context.pageHasTechnicalTable) confidence -= 0.05;
-  if (description.length >= 18) confidence += 0.05;
-  if (description.length < 8) confidence -= 0.08;
-  if (!/[a-zA-Záéíóúñ]/i.test(description)) return null;
-  return {
-    supplier_code: supplierCode,
-    raw_description: description,
-    normalized_description: description.toLowerCase(),
-    cost: pickedPrice.value,
-    currency,
-    tax_treatment: inferTaxTreatment(candidateString),
-    row_index: rowIndex,
-    source_page: context.pageNumber,
-    confidence: Math.max(0.1, Math.min(0.99, confidence)),
-  };
 }
 
 function scorePdfCandidate(candidate: PdfParseCandidateMetrics): number {

@@ -194,8 +194,6 @@ export function useSupplierImportFlow(params: {
       if (!selectedSupplier) throw new Error("Selecciona un proveedor");
       if (!selectedFile) throw new Error("Selecciona un archivo");
 
-      const { data: authData } = await supabase.auth.getUser();
-      const userId = authData.user?.id ?? null;
       const extension = selectedFile.name.split(".").pop()?.toLowerCase();
       const isXlsx = ["xlsx", "xls"].includes(extension ?? "");
       const isPdf = extension === "pdf";

@@ -13,6 +13,19 @@
   "exclude": [
     "types"
   ],
+  "ignoreDependencies": [
+    "eslint",
+    "supabase"
+  ],
+  "ignoreBinaries": [
+    "eslint",
+    "knip",
+    "madge",
+    "supabase",
+    "tsc",
+    "vite",
+    "vitest"
+  ],
   "ignoreIssues": {
     "src/integrations/supabase/types.ts": [
       "exports"

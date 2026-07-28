@@ -1,6 +1,6 @@
 import { formatDocumentNumber } from "@/lib/formatters";
 import { STATUS_LABEL } from "./constants";
-import type { DocEventRow, DocStatus, DocumentFormState, DocumentServiceOption, PriceListRow } from "./types";
+import type { DocEventRow, DocStatus, DocumentFormState, DocumentServiceOption } from "./types";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -189,25 +189,6 @@ export function validateDocumentRecipientDraft(
     if (!service) throw new Error("El servicio asociado no esta disponible");
     if (service.customerId !== draft.customer_id) {
       throw new Error("El cliente del remito debe coincidir con el cliente del servicio");
-    }
-  }
-}
-
-function applyPriceListRounding(value: number, roundMode: PriceListRow["round_mode"], roundTo: number | null) {
-  switch (roundMode) {
-    case "integer":
-      return Math.round(value);
-    case "tens":
-      return Math.round(value / 10) * 10;
-    case "hundreds":
-      return Math.round(value / 100) * 100;
-    case "x99":
-      return value <= 0 ? 0 : Math.floor(value) + 0.99;
-    case "none":
-    default: {
-      const safeRoundTo = !roundTo || roundTo <= 0 ? 1 : roundTo;
-      if (safeRoundTo === 1) return value;
-      return Math.round(value / safeRoundTo) * safeRoundTo;
     }
   }
 }

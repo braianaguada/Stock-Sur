@@ -19,7 +19,6 @@ type CashReceiptDialogProps = {
   canSave: boolean;
   onPendingReceiptKindChange: (value: "REMITO" | "FACTURA") => void;
   onPendingRemitoIdChange: (value: string) => void;
-  onPendingReceiptReferenceChange: (value: string) => void;
   onSave: (state: CashPendingReceiptState) => void;
 };
 
@@ -35,7 +34,6 @@ export function CashReceiptDialog({
   canSave,
   onPendingReceiptKindChange,
   onPendingRemitoIdChange,
-  onPendingReceiptReferenceChange,
   onSave,
 }: CashReceiptDialogProps) {
   const remitoOptionLabels = useMemo(

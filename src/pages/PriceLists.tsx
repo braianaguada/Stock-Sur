@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { queryKeys } from "@/lib/query-keys";
 import { fetchAllPages } from "@/lib/supabase-pagination";
 import type { VisibilityState } from "@tanstack/react-table";
 import { AppLayout } from "@/components/AppLayout";
@@ -98,7 +97,7 @@ export default function PriceListsPage() {
   const [listSearch, setListSearch] = useState("");
   const [detailSearch, setDetailSearch] = useState("");
   const [detailPage, setDetailPage] = useState(1);
-  const [detailPageSize, setDetailPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+  const [detailPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

@@ -32,11 +32,6 @@ function buildAliasIndex(aliases: AliasRecord[]) {
     .filter((a) => a.normalizedAlias.length >= MIN_ALIAS_LENGTH || a.is_supplier_code);
 }
 
-function getTokenSet(normalizedText: string): Set<string> {
-  if (!normalizedText) return new Set<string>();
-  return new Set(normalizedText.split(" ").filter((token) => token.length >= MIN_ALIAS_LENGTH));
-}
-
 function countAliasTokens(alias: string): number {
   if (!alias) return 0;
   return alias.split(" ").filter((token) => token.length >= MIN_ALIAS_LENGTH).length;
@@ -63,7 +58,6 @@ export function matchImportLine(args: {
     }
   }
 
-  const descriptionTokens = getTokenSet(descriptionNormalized);
   // "ALIAS_TOKEN" should prioritize multi-word aliases that appear as full token phrases.
   const paddedDescription = ` ${descriptionNormalized} `;
   const tokenMatches = aliases.filter((a) => {
