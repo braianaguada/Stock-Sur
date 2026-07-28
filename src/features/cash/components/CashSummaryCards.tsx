@@ -8,18 +8,16 @@ import {
   StatusBadge,
 } from "@/components/common/VisualSystem";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { CashSummary, ClosureStatus } from "../types";
+import type { CashSummary } from "../types";
 
 type CashSummaryCardsProps = {
   summary: CashSummary;
-  closureStatus?: ClosureStatus | null;
   movementCount?: number;
   pendingCount?: number;
 };
 
 export function CashOverviewPanel({
   summary,
-  closureStatus,
   movementCount = 0,
   pendingCount = summary.pendientes,
 }: CashSummaryCardsProps) {
@@ -35,28 +33,25 @@ export function CashOverviewPanel({
 
   return (
     <section className="space-y-4" aria-labelledby="cash-overview-title">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 id="cash-overview-title" className="text-lg font-semibold">Resumen operativo</h2>
-          <p className="text-sm text-muted-foreground">Venta, efectivo esperado y composición de la fecha seleccionada.</p>
-        </div>
-        <StatusBadge tone={closureStatus === "CERRADO" ? "success" : "warning"}>
-          {closureStatus === "CERRADO" ? "Caja cerrada" : "Caja abierta"}
-        </StatusBadge>
+      <div>
+        <h2 id="cash-overview-title" className="text-lg font-semibold">Panorama de la jornada</h2>
+        <p className="text-sm text-muted-foreground">
+          Balance esperado, actividad y composición de la fecha operativa.
+        </p>
       </div>
 
       <MetricGrid>
-        <MetricCard label="Total vendido" value={summary.total} helper="Venta bruta del día" tone="info" />
-        <MetricCard label="Efectivo a rendir" value={summary.efectivoNetoEsperado} helper="Efectivo esperado después de gastos" tone="success" />
-        <MetricCard label="Gastos en efectivo" value={summary.gastosEfectivo} helper="Resta de la caja física" tone={summary.gastosEfectivo > 0 ? "danger" : "muted"} />
+        <MetricCard label="Efectivo a rendir" value={summary.efectivoNetoEsperado} helper="Saldo esperado después de gastos" tone="success" />
+        <MetricCard label="Total vendido" value={summary.total} helper="Venta bruta de la jornada" tone="info" />
+        <MetricCard label="Gastos en efectivo" value={summary.gastosEfectivo} helper="Egresos que reducen la caja física" tone={summary.gastosEfectivo > 0 ? "danger" : "muted"} />
         <MetricCard label="Otros medios" value={digitalTotal} helper="Servicios, Point y transferencias" />
       </MetricGrid>
 
       <Card className="border-border/70 shadow-none">
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle>Composición</CardTitle>
-            <CardDescription>Desglose de los importes que forman el resumen.</CardDescription>
+            <CardTitle>Composición por medio</CardTitle>
+            <CardDescription>Desglose verificable de los importes de la jornada.</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             <CountBadge>{movementCount} movimiento{movementCount === 1 ? "" : "s"}</CountBadge>

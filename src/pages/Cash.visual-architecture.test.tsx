@@ -156,7 +156,7 @@ vi.mock("@/features/billing/hooks/useBillingActions", () => ({
 }));
 
 describe("CashPage visual architecture", () => {
-  it("renders a compact header with actions and operative date together", () => {
+  it("keeps operative context and navigation anchored in the header", () => {
     render(<CashPage />);
 
     expect(screen.getByRole("heading", { name: "Caja" })).toBeInTheDocument();
@@ -198,6 +198,8 @@ describe("CashPage visual architecture", () => {
     await user.click(screen.getByRole("button", { name: /ver historial/i }));
 
     expect(screen.getByText("Historial de cierres")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Panorama de la jornada" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
     expect(screen.getByText("Total ventas")).toBeInTheDocument();
     expect(screen.getByText("Efectivo")).toBeInTheDocument();
     expect(screen.getAllByText("Gastos").length).toBeGreaterThan(0);
