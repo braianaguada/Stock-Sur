@@ -3,7 +3,9 @@ import {
   buildSupplierFormState,
   buildSupplierOrderMessage,
   createEmptySupplierForm,
+  selectSupplierCatalogVersionId,
 } from "@/features/suppliers/state";
+import type { SupplierCatalogVersion } from "@/features/suppliers/types";
 
 describe("supplier form state", () => {
   it("keeps phone and WhatsApp as independent values", () => {
@@ -87,5 +89,49 @@ describe("buildSupplierOrderMessage", () => {
 
     expect(message).toContain("A1 - Cable HDMI x 2 - ARS 1.234,50");
     expect(message).toContain("B2 - Contactor x 3 - USD 8,75");
+  });
+});
+
+describe("selectSupplierCatalogVersionId", () => {
+  const version = (
+    id: string,
+    importedAt: string,
+  ): SupplierCatalogVersion => ({
+    id,
+    catalog_id: "catalog-1",
+    title: id,
+    imported_at: importedAt,
+    supplier_document_id: `document-${id}`,
+    file_name: `${id}.pdf`,
+    file_type: "pdf",
+    line_count: 1,
+  });
+
+  it("selects the latest version independently of the response order", () => {
+    expect(selectSupplierCatalogVersionId([
+      version("version-old", "2026-01-10T10:00:00.000Z"),
+      version("version-new", "2026-03-10T10:00:00.000Z"),
+      version("version-middle", "2026-02-10T10:00:00.000Z"),
+    ], null)).toBe("version-new");
+  });
+
+  it("keeps a current version only while it belongs to the loaded supplier", () => {
+    const versions = [
+      version("version-new", "2026-03-10T10:00:00.000Z"),
+      version("version-old", "2026-01-10T10:00:00.000Z"),
+    ];
+
+    expect(selectSupplierCatalogVersionId(versions, "version-old")).toBe("version-old");
+    expect(selectSupplierCatalogVersionId(versions, "version-other-supplier")).toBe("version-new");
+  });
+
+  it("uses the id as deterministic tie breaker and clears an empty history", () => {
+    const importedAt = "2026-03-10T10:00:00.000Z";
+
+    expect(selectSupplierCatalogVersionId([
+      version("version-a", importedAt),
+      version("version-b", importedAt),
+    ], null)).toBe("version-b");
+    expect(selectSupplierCatalogVersionId([], "version-old")).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invalidateSupplierQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
@@ -27,6 +27,7 @@ import {
   createCatalogDialogState,
   createEmptySupplierForm,
   groupSupplierVersionsByCatalog,
+  selectSupplierCatalogVersionId,
 } from "@/features/suppliers/state";
 import type {
   CatalogImportLine,
@@ -110,6 +111,33 @@ export function useSuppliersPage({
   const deferredCatalogSearch = useDeferredValue(catalogSearch);
   const trimmedDeferredCatalogSearch = deferredCatalogSearch.trim();
 
+  const resetCatalogDialogState = useCallback(() => {
+    const nextState = createCatalogDialogState();
+    setCatalogSearch(nextState.catalogSearch);
+    setActiveVersionId(nextState.activeVersionId);
+    setOrderItems(nextState.orderItems);
+    setLineQuantities(nextState.lineQuantities);
+    setLastDiagnostics(nextState.lastDiagnostics);
+    setPdfProgress(nextState.pdfProgress);
+    setSelectedCatalogId(nextState.selectedCatalogId);
+    setSelectedFile(nextState.selectedFile);
+    setCatalogUiTab(nextState.catalogUiTab);
+    setExtractionReviewOpen(false);
+    setExtractionReviewLines([]);
+    setLastPurchaseOrder(null);
+  }, []);
+
+  const previousCompanyIdRef = useRef(companyId ?? null);
+  useEffect(() => {
+    const nextCompanyId = companyId ?? null;
+    if (previousCompanyIdRef.current === nextCompanyId) return;
+
+    previousCompanyIdRef.current = nextCompanyId;
+    setCatalogDialogOpen(false);
+    setSelectedSupplier(null);
+    resetCatalogDialogState();
+  }, [companyId, resetCatalogDialogState]);
+
   const suppliersQuery = useQuery({
     queryKey: queryKeys.suppliers.list(companyId ?? null, trimmedDeferredSearch, statusFilter),
     enabled: Boolean(companyId),
@@ -172,6 +200,19 @@ export function useSuppliersPage({
     () => groupSupplierVersionsByCatalog(catalogVersions),
     [catalogVersions],
   );
+
+  useEffect(() => {
+    if (!catalogDialogOpen || !selectedSupplier || catalogVersionsQuery.isLoading) return;
+
+    setActiveVersionId((currentVersionId) =>
+      selectSupplierCatalogVersionId(catalogVersions, currentVersionId),
+    );
+  }, [
+    catalogDialogOpen,
+    catalogVersions,
+    catalogVersionsQuery.isLoading,
+    selectedSupplier,
+  ]);
 
   const {
     closeMappingModal,
@@ -249,7 +290,7 @@ export function useSuppliersPage({
       });
     },
     onSuccess: async () => {
-      await invalidateSupplierQueries(qc);
+      await invalidateSupplierQueries(qc, companyId!);
       setDialogOpen(false);
       setEditing(null);
       setForm(createEmptySupplierForm());
@@ -271,7 +312,7 @@ export function useSuppliersPage({
       await deleteSupplier(companyId, supplierId);
     },
     onSuccess: async () => {
-      await invalidateSupplierQueries(qc);
+      await invalidateSupplierQueries(qc, companyId!);
       toast({ title: "Proveedor eliminado" });
     },
     onError: (error: unknown) => {
@@ -289,7 +330,7 @@ export function useSuppliersPage({
       await restoreSupplier(companyId, supplierId);
     },
     onSuccess: async () => {
-      await invalidateSupplierQueries(qc);
+      await invalidateSupplierQueries(qc, companyId!);
       toast({ title: "Proveedor restaurado" });
     },
     onError: (error: unknown) => {
@@ -300,22 +341,6 @@ export function useSuppliersPage({
       });
     },
   });
-
-  const resetCatalogDialogState = () => {
-    const nextState = createCatalogDialogState();
-    setCatalogSearch(nextState.catalogSearch);
-    setActiveVersionId(nextState.activeVersionId);
-    setOrderItems(nextState.orderItems);
-    setLineQuantities(nextState.lineQuantities);
-    setLastDiagnostics(nextState.lastDiagnostics);
-    setPdfProgress(nextState.pdfProgress);
-    setSelectedCatalogId(nextState.selectedCatalogId);
-    setSelectedFile(nextState.selectedFile);
-    setCatalogUiTab(nextState.catalogUiTab);
-    setExtractionReviewOpen(false);
-    setExtractionReviewLines([]);
-    setLastPurchaseOrder(null);
-  };
 
   const openCreate = () => {
     setEditing(null);
@@ -338,7 +363,10 @@ export function useSuppliersPage({
 
   const onCatalogDialogOpenChange = (open: boolean) => {
     setCatalogDialogOpen(open);
-    if (!open) resetCatalogDialogState();
+    if (!open) {
+      setSelectedSupplier(null);
+      resetCatalogDialogState();
+    }
   };
 
   const onCatalogVersionSelect = (versionId: string) => {

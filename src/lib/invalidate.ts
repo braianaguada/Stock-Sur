@@ -58,13 +58,41 @@ export async function invalidatePricingQueries(queryClient: QueryClient) {
   ]);
 }
 
-export async function invalidateSupplierQueries(queryClient: QueryClient) {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.listAll() }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.catalogsAll() }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.catalogVersionsAll() }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.catalogLinesAll() }),
-  ]);
+export async function invalidateSupplierQueries(
+  queryClient: QueryClient,
+  companyId: string,
+) {
+  await queryClient.invalidateQueries({
+    queryKey: queryKeys.suppliers.company(companyId),
+  });
+}
+
+export async function invalidateSupplierCatalogQueries(
+  queryClient: QueryClient,
+  params: {
+    companyId: string;
+    supplierId: string;
+    versionId?: string | null;
+  },
+) {
+  const invalidations = [
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.suppliers.catalogs(params.companyId, params.supplierId),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.suppliers.catalogVersions(params.companyId, params.supplierId),
+    }),
+  ];
+
+  if (params.versionId) {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.suppliers.catalogLinesVersion(params.companyId, params.versionId),
+      }),
+    );
+  }
+
+  await Promise.all(invalidations);
 }
 
 export async function invalidateQuoteQueries(queryClient: QueryClient) {
