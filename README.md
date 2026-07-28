@@ -4,6 +4,12 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Presentacion operativa del Dashboard
+
+- La composicion de cobros presenta etiquetas legibles y consistentes aun cuando el origen entregue identificadores tecnicos en minusculas, como `servicios_remito`.
+- La lectura ejecutiva conserva separacion respecto del bloque anterior y adapta su accion a mobile sin perder alineacion en escritorio.
+- No se modifican calculos, datos, permisos, RLS, aislamiento por `company_id` ni esquema. Este ajuste no requiere migraciones.
+
 ## Limites de datos de Servicios y Rendiciones
 
 - Documentos de servicio centraliza aceptacion de sugerencias, recursos de impresion y enlaces compartidos en el gateway del feature, con filtros explicitos por `company_id`.
