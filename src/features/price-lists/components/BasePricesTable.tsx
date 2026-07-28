@@ -40,7 +40,7 @@ export function BasePricesTable({
 
   const openBaseCostDialog = (row: BasePriceRow) => {
     setEditingRow(row);
-    setBaseCostDraft(String(row.base_cost));
+    setBaseCostDraft(row.base_cost === 0 ? "" : String(row.base_cost));
   };
 
   const saveBaseCost = () => {
