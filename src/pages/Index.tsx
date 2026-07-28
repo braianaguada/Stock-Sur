@@ -17,22 +17,24 @@ import { useDashboardStats } from "@/features/index/hooks/useDashboardStats";
 
 const updatedAt = new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit" });
 
-function DashboardAiInsight({ companyName, dashboard }: { companyName: string; dashboard: DashboardInsights }) {
+export function DashboardAiInsight({ companyName, dashboard }: { companyName: string; dashboard: DashboardInsights }) {
   const summary = useDashboardAiSummary();
 
   return (
-    <Card className="border-border/70 shadow-none" aria-labelledby="dashboard-ai-title">
-      <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><BrainCircuit className="h-5 w-5" aria-hidden="true" /></span>
-      <div className="min-w-0 flex-1">
-        <h2 id="dashboard-ai-title" className="font-semibold">Lectura ejecutiva bajo demanda</h2>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">{summary.data?.summary ?? "Generá una lectura complementaria de tendencias y prioridades usando los datos visibles de este panel."}</p>
-        {summary.data?.fallback ? <p className="mt-2 text-xs text-warning">Se utilizó la lectura local porque el servicio de IA no estaba disponible.</p> : null}
-      </div>
-      <Button type="button" variant="outline" className="rounded-full" disabled={summary.isPending} onClick={() => summary.mutate({ companyName, dashboard })}>
-        {summary.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-        {summary.data ? "Actualizar lectura" : "Generar lectura"}
-      </Button>
+    <Card className="mt-2 border-border/70 shadow-none" aria-labelledby="dashboard-ai-title">
+      <CardContent className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center">
+        <div className="flex min-w-0 items-start gap-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><BrainCircuit className="h-5 w-5" aria-hidden="true" /></span>
+          <div className="min-w-0 flex-1">
+            <h2 id="dashboard-ai-title" className="font-semibold">Lectura ejecutiva bajo demanda</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{summary.data?.summary ?? "Generá una lectura complementaria de tendencias y prioridades usando los datos visibles de este panel."}</p>
+            {summary.data?.fallback ? <p className="mt-2 text-xs text-warning">Se utilizó la lectura local porque el servicio de IA no estaba disponible.</p> : null}
+          </div>
+        </div>
+        <Button type="button" variant="outline" className="w-full shrink-0 justify-center rounded-full sm:w-auto lg:ml-auto lg:self-center" disabled={summary.isPending} onClick={() => summary.mutate({ companyName, dashboard })}>
+          {summary.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+          {summary.data ? "Actualizar lectura" : "Generar lectura"}
+        </Button>
       </CardContent>
     </Card>
   );
