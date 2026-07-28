@@ -31,10 +31,14 @@ export function openPrintWindow(html: string, features?: string) {
   const win = window.open("", "_blank", features);
   if (!win) return null;
 
+  writePrintWindow(win, html);
+
+  return win;
+}
+
+export function writePrintWindow(win: Window, html: string) {
   win.document.open();
   win.document.write(withPrintFavicon(html));
   win.document.close();
   win.focus();
-
-  return win;
 }
