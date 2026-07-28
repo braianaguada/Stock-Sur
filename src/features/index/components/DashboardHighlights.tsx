@@ -2,9 +2,9 @@ import { ArrowRight, Banknote, PackageSearch } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import type { DashboardInsights } from "@/features/index/dashboard-insights";
+import { formatDashboardPaymentMethod } from "@/features/index/payment-method-label";
 
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
-const paymentLabels: Record<string, string> = { EFECTIVO: "Efectivo", TRANSFERENCIA: "Transferencia", TARJETA: "Tarjeta", CUENTA_CORRIENTE: "Cuenta corriente" };
 
 export function DashboardHighlights({ dashboard }: { dashboard: DashboardInsights }) {
   const payments = dashboard.paymentMethods.slice(0, 4);
@@ -19,7 +19,7 @@ export function DashboardHighlights({ dashboard }: { dashboard: DashboardInsight
       <div className="flex flex-1 flex-col gap-4 p-5">
         {payments.length ? payments.map((item) => (
           <div key={item.method}>
-            <div className="flex items-center justify-between gap-3 text-xs"><span className="truncate text-muted-foreground">{paymentLabels[item.method] ?? item.method}</span><strong className="tabular-nums">{money.format(item.total)}</strong></div>
+            <div className="flex items-center justify-between gap-3 text-xs"><span className="truncate text-muted-foreground">{formatDashboardPaymentMethod(item.method)}</span><strong className="tabular-nums">{money.format(item.total)}</strong></div>
             <div className="mt-2 h-1.5 rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(4, item.total / max * 100)}%` }} /></div>
           </div>
         )) : <div className="flex flex-1 flex-col items-center justify-center text-center"><PackageSearch className="h-7 w-7 text-muted-foreground" /><p className="mt-3 text-sm text-muted-foreground">No hay cobros registrados en el período.</p></div>}
