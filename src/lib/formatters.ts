@@ -65,19 +65,6 @@ export function businessDateFromTimestamp(value: string) {
   return `${year}-${month}-${day}`;
 }
 
-function monthKeyFromTimestamp(value: string) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: AR_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-  }).formatToParts(new Date(value));
-
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  if (!year || !month) return value.slice(0, 7);
-  return `${year}-${month}`;
-}
-
 export function currentTimeInBuenosAires() {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: AR_TIME_ZONE,
