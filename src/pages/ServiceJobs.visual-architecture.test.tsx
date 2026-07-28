@@ -82,6 +82,9 @@ describe("ServiceJobsPage visual architecture", () => {
 
     expect(screen.getByRole("heading", { name: "Trabajos y servicios" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Bandeja de trabajos" }).closest("[class*='min-w-0']")).toBeInTheDocument();
+    const detailPanel = screen.getByLabelText("Detalle del trabajo");
+    expect(detailPanel).toHaveClass("border-border/70");
+    expect(detailPanel.firstElementChild).toHaveClass("p-6", "lg:p-7");
     expect(screen.getByRole("heading", { name: /Instalaci.n sucursal norte/ })).toHaveClass("min-w-0", "break-words");
     expect(screen.getByText("Detalle").parentElement?.parentElement).toHaveClass("flex-col", "sm:flex-row");
     expect(screen.getByText("1 registro")).toBeInTheDocument();

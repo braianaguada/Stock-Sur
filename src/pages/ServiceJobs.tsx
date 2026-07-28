@@ -421,8 +421,11 @@ export default function ServiceJobsPage() {
             </CardContent>
           </Card>
 
-          <Card className="min-w-0 self-start border-border/70 shadow-none xl:sticky xl:top-4">
-            <CardContent className="p-4">
+          <Card
+            aria-label="Detalle del trabajo"
+            className="min-w-0 self-start border-border/70 shadow-none xl:sticky xl:top-4"
+          >
+            <CardContent className="p-6 lg:p-7">
             {selectedJob ? (
               <div className="grid gap-4">
                 <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
