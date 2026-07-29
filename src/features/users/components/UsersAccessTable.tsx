@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Building2, Eye, LogIn, Mail, Pencil, User2 } from "lucide-react";
+import { Eye, LogIn, Pencil, User2 } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getErrorMessage } from "@/lib/errors";
@@ -23,15 +23,14 @@ export function UsersAccessTable(props: {
       accessorKey: "email",
       header: () => "Usuario",
       cell: ({ row }) => (
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2 font-medium">
-            <User2 className="h-4 w-4 text-muted-foreground" />
-            {row.original.full_name?.trim() || "Sin nombre cargado"}
+        <div className="flex min-w-[13rem] items-start gap-2">
+          <User2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 space-y-1.5">
+            <PrimaryCell
+              title={row.original.full_name?.trim() || "Sin nombre cargado"}
+              metadata={row.original.email}
+            />
             {(row.original.companies?.length ?? 0) === 0 ? <StatusBadge tone="warning">Sin empresa</StatusBadge> : null}
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Mail className="h-4 w-4" />
-            {row.original.email}
           </div>
         </div>
       ),
@@ -63,41 +62,36 @@ export function UsersAccessTable(props: {
       accessorKey: "companies",
       header: () => "Empresas",
       cell: ({ row }) => (
-        <div className="space-y-2.5">
+        <div className="min-w-[18rem] divide-y divide-border/60">
           {row.original.companies?.length ? (
             row.original.companies.map((company) => (
               <div
                 key={company.companyUserId}
-                className="rounded-[calc(var(--radius)+0.05rem)] border border-border/65 bg-card/78 p-3.5 shadow-[var(--shadow-xs)]"
+                className="py-3 first:pt-0 last:pb-0"
               >
-                <div className="flex flex-wrap items-start gap-3">
-                  <div className="flex min-w-0 flex-1 items-start gap-3">
-                    <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--panel))]/72 text-muted-foreground">
-                      <Building2 className="h-4 w-4" />
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <PrimaryCell title={company.companyName} metadata={company.companySlug} />
+                      <StatusBadge tone={company.status === "ACTIVE" ? "success" : "danger"}>
+                        {company.status === "ACTIVE" ? "Activa" : "Inactiva"}
+                      </StatusBadge>
                     </div>
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <PrimaryCell title={company.companyName} metadata={`${company.companySlug} · ${company.roles?.length ?? 0} roles`} />
-                        <StatusBadge tone={company.status === "ACTIVE" ? "success" : "danger"}>
-                          {company.status === "ACTIVE" ? "Activa" : "Inactiva"}
-                        </StatusBadge>
-                      </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {company.roles?.length ? (
+                        company.roles.map((role) => (
+                          <CategoryBadge key={`${company.companyUserId}-${role}`}>
+                            {role}
+                          </CategoryBadge>
+                        ))
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Sin rol base</span>
+                      )}
                     </div>
                   </div>
                   <RowActionButton label={`Editar acceso en ${company.companyName}`} tone="edit" onClick={() => onOpenAccessDialog(row.original, company)}>
                     <Pencil className="h-4 w-4" />
                   </RowActionButton>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {company.roles?.length ? (
-                    company.roles.map((role) => (
-                      <CategoryBadge key={`${company.companyUserId}-${role}`}>
-                        {role}
-                      </CategoryBadge>
-                    ))
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Sin rol base</span>
-                  )}
                 </div>
               </div>
             ))
@@ -140,13 +134,13 @@ export function UsersAccessTable(props: {
         <CountBadge>{users.length} {users.length === 1 ? "usuario" : "usuarios"}</CountBadge>
       </CardHeader>
       <CardContent className="p-0">
-      <DataTable
-        columns={columns}
-        data={error ? [] : users}
-        isLoading={isLoading}
-        loadingMessage="Cargando usuarios..."
-        emptyMessage={error ? getErrorMessage(error) : "No se encontraron usuarios con ese filtro."}
-      />
+        <DataTable
+          columns={columns}
+          data={error ? [] : users}
+          isLoading={isLoading}
+          loadingMessage="Cargando usuarios..."
+          emptyMessage={error ? getErrorMessage(error) : "No se encontraron usuarios con ese filtro."}
+        />
       </CardContent>
     </Card>
   );

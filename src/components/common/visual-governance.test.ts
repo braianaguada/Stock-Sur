@@ -250,6 +250,17 @@ describe("visual governance", () => {
     const settings = readFileSync(resolve(root, "src/pages/Settings.tsx"), "utf8");
     expect(usersTable, "user administration must use the canonical DataTable").toContain("<DataTable");
     expect(companiesTable, "company administration must use the canonical DataTable").toContain("<DataTable");
+    expect(usersTable, "user identities must use the canonical PrimaryCell").toContain("<PrimaryCell");
+    expect(usersTable, "company memberships must not render nested card surfaces").not.toContain("shadow-[var(--shadow-xs)]");
+    const usersPage = readFileSync(resolve(root, "src/pages/Users.tsx"), "utf8");
+    const usersHeader = readFileSync(resolve(root, "src/features/users/components/UsersOverviewHeader.tsx"), "utf8");
+    expect(usersPage, "administration datasets must use the workspace width contract").toContain(
+      '<PageContainer archetype="workspace" className="page-shell">',
+    );
+    expect(usersHeader, "administration sections must use canonical PageHeader tabs").toContain(
+      '{ label: "Usuarios y accesos", value: "users" }',
+    );
+    expect(usersHeader, "user search must expose an accessible name").toContain('aria-label="Buscar usuarios"');
     expect(settings, "settings columns must shrink without causing root overflow").toContain(
       'grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]',
     );
