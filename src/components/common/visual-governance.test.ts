@@ -261,8 +261,14 @@ describe("visual governance", () => {
       '{ label: "Usuarios y accesos", value: "users" }',
     );
     expect(usersHeader, "user search must expose an accessible name").toContain('aria-label="Buscar usuarios"');
-    expect(settings, "settings columns must shrink without causing root overflow").toContain(
-      'grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]',
+    expect(settings, "settings navigation must switch workspaces instead of scrolling visible cards").not.toContain(
+      "scrollIntoView",
+    );
+    expect(settings, "settings company workspace must render from the active tab").toContain(
+      'activeSection === "company-settings"',
+    );
+    expect(settings, "settings must use the canonical workspace container").toContain(
+      '<PageContainer archetype="workspace"',
     );
   });
 });
