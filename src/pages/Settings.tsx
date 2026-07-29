@@ -90,36 +90,50 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
-      <PageContainer className="page-shell">
+      <PageContainer archetype="workspace" className="page-shell">
         <PageHeader
           eyebrow="Administración de empresa"
           title="Configuración"
-          subtitle={`Empresa, identidad visual y encabezados de documentos para ${form.app_name || currentCompany.name}. Todo lo que definas aca se refleja en menus, PDFs y branding compartido.`}
+          subtitle={`Administrá los datos operativos y la identidad visual de ${form.app_name || currentCompany.name}.`}
           meta={(
             <>
               <InfoBadge>{currentCompany.name}</InfoBadge>
               <StatusBadge tone={canManage ? "success" : "muted"}>{canManage ? "Edición habilitada" : "Solo lectura"}</StatusBadge>
             </>
           )}
+          actions={canManage ? (
+            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || isLoading}>
+              {saveMutation.isPending ? "Guardando..." : "Guardar configuración"}
+            </Button>
+          ) : null}
           tabs={[
             { label: "Empresa y operación", value: "company-settings" },
             { label: "Marca visual", value: "brand-settings" },
           ]}
           activeTab={activeSection}
-          onTabChange={(sectionId) => {
-            setActiveSection(sectionId);
-            document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
+          onTabChange={setActiveSection}
+          variant="workspace"
         />
 
-        <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
-          <Card id="company-settings" className="min-w-0 scroll-mt-24 border-border/70 shadow-none">
+        {activeSection === "company-settings" ? (
+          <Card
+            aria-labelledby="company-settings-title"
+            className="min-w-0 border-border/70 shadow-none"
+          >
             <CardHeader>
-              <CardTitle>Datos de la empresa</CardTitle>
-              <CardDescription>Estos datos se reutilizan en la app, la navegacion y los PDFs.</CardDescription>
+              <CardTitle id="company-settings-title">Empresa y operación</CardTitle>
+              <CardDescription>
+                Datos compartidos por la aplicación, reglas operativas y valores predeterminados de documentos y servicios.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1 border-b border-border/60 pb-3 md:col-span-2">
+                  <h2 className="font-semibold text-foreground">Identidad fiscal</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Información principal de la empresa utilizada en la interfaz y los comprobantes.
+                  </p>
+                </div>
                 <div className="space-y-2">
                   <Label>Nombre visible de la app</Label>
                   <Input value={form.app_name} onChange={(e) => setForm((prev) => ({ ...prev, app_name: e.target.value }))} placeholder="Alpataco Refrigeracion" />
@@ -135,6 +149,12 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <Label>Punto de venta por defecto</Label>
                   <Input type="number" min={1} value={form.default_point_of_sale} onChange={(e) => setForm((prev) => ({ ...prev, default_point_of_sale: e.target.value }))} />
+                </div>
+                <div className="mt-4 space-y-1 border-b border-border/60 pb-3 md:col-span-2">
+                  <h2 className="font-semibold text-foreground">Reglas operativas</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Comportamientos que afectan la emisión, el cierre de caja y los precios sugeridos.
+                  </p>
                 </div>
                 <div className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4 md:col-span-2">
                   <div className="flex items-start gap-3">
@@ -240,6 +260,12 @@ export default function SettingsPage() {
                     </Select>
                   </div>
                 </div>
+                <div className="mt-4 space-y-1 border-b border-border/60 pb-3 md:col-span-2">
+                  <h2 className="font-semibold text-foreground">Contacto y documentos</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Datos de contacto y textos que se reutilizan en los documentos emitidos.
+                  </p>
+                </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Direccion</Label>
                   <Input value={form.address} onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))} />
@@ -263,6 +289,12 @@ export default function SettingsPage() {
                 <div className="space-y-2 md:col-span-2">
                   <Label>Pie de documento</Label>
                   <Textarea value={form.document_footer} onChange={(e) => setForm((prev) => ({ ...prev, document_footer: e.target.value }))} rows={3} />
+                </div>
+                <div className="mt-4 space-y-1 border-b border-border/60 pb-3 md:col-span-2">
+                  <h2 className="font-semibold text-foreground">Valores predeterminados de servicios</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Textos y condiciones iniciales para nuevas propuestas de servicios.
+                  </p>
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Default de servicios: introduccion</Label>
@@ -291,11 +323,13 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
-
-          <div className="min-w-0 space-y-6">
-            <Card id="brand-settings" className="min-w-0 scroll-mt-24 border-border/70 shadow-none">
-              <CardHeader>
-                <CardTitle>Marca visual</CardTitle>
+        ) : (
+          <Card
+            aria-labelledby="brand-settings-title"
+            className="min-w-0 border-border/70 shadow-none"
+          >
+            <CardHeader>
+              <CardTitle id="brand-settings-title">Marca visual</CardTitle>
                 <CardDescription>
                   SVG es el formato ideal para logo. PNG funciona como respaldo. El color de acento se usa para fondos suaves, paneles seleccionados y superficies de apoyo.
                 </CardDescription>
@@ -404,15 +438,9 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
-                {canManage ? (
-                  <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || isLoading} className="w-full">
-                    {saveMutation.isPending ? "Guardando..." : "Guardar configuracion"}
-                  </Button>
-                ) : null}
               </CardContent>
             </Card>
-          </div>
-        </div>
+        )}
 
         {billingFeatureEnabled ? <section id="billing-fiscal-settings">
           <BillingFiscalSettingsSection
