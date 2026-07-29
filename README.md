@@ -1043,6 +1043,7 @@ Production migration history note:
 ## Administración visual canónica
 
 - Usuarios, empresas, roles, permisos y configuración comparten encabezados, métricas, filtros, tablas, celdas primarias, estados y acciones sensibles del sistema visual canónico.
+- Configuración separa `Empresa y operación` y `Marca visual` en workspaces reales: la navegación cambia el contenido visible y la acción de guardado permanece disponible en el encabezado, sin tabs que solo desplacen paneles ya visibles.
 - La administración de empresa conserva su contexto y permisos; las acciones globales de usuarios y empresas continúan restringidas a Superadmin.
 - Los diálogos de detalle y acceso muestran membresías, roles y permisos con jerarquía semántica, sin imports visuales deprecated ni variantes locales.
 - No se modificaron consultas, mutations, query keys, RLS, aislamiento por `company_id`, reglas de negocio ni Facturación. No requiere migraciones ni cambios de base de datos.
