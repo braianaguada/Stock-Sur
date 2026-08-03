@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Boxes, Loader2, Search, Plus, Power, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
-import { StatusBadge } from "@/components/common/VisualSystem";
+import { CategoryBadge, CountBadge, StatusBadge } from "@/components/common/VisualSystem";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -364,12 +364,12 @@ export default function CombosPage() {
                       {comboLines.slice(0, 3).map((line) => {
                         const item = itemsById.get(line.item_id);
                         return (
-                          <span key={line.id} className="rounded-full bg-muted px-2 py-1 text-[11px]">
+                          <CategoryBadge key={line.id}>
                             {item?.name ?? "Producto"} x {line.quantity}
-                          </span>
+                          </CategoryBadge>
                         );
                       })}
-                      {comboLines.length > 3 ? <span className="rounded-full bg-muted px-2 py-1 text-[11px]">+{comboLines.length - 3}</span> : null}
+                      {comboLines.length > 3 ? <CountBadge>+{comboLines.length - 3}</CountBadge> : null}
                     </div>
                 </div>
               ))

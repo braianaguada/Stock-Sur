@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { CategoryBadge, InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -189,10 +189,12 @@ export function BillingFiscalSettingsSection({
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{settingsForm.isEnabled ? "Interna activa" : "Interna apagada"}</Badge>
-            <Badge variant="outline">Provider AFIPSDK</Badge>
-            <Badge variant="outline">Ambiente dev</Badge>
-            <Badge variant="outline">WSFE</Badge>
+            <StatusBadge tone={settingsForm.isEnabled ? "success" : "muted"}>
+              {settingsForm.isEnabled ? "Interna activa" : "Interna apagada"}
+            </StatusBadge>
+            <InfoBadge>Provider AFIPSDK</InfoBadge>
+            <InfoBadge>Ambiente dev</InfoBadge>
+            <CategoryBadge>WSFE</CategoryBadge>
           </div>
         </div>
       </CardHeader>
@@ -223,7 +225,11 @@ export function BillingFiscalSettingsSection({
                 Diagnostico seguro: muestra presencia/estado, nunca valores de secretos.
               </p>
             </div>
-            <Badge variant="outline">{diagnosticsLoading ? "Verificando" : diagnostics?.edgeFunctionAvailable ? "Edge OK" : "Sin diagnostico"}</Badge>
+            <StatusBadge
+              tone={diagnosticsLoading ? "info" : diagnostics?.edgeFunctionAvailable ? "success" : "warning"}
+            >
+              {diagnosticsLoading ? "Verificando" : diagnostics?.edgeFunctionAvailable ? "Edge OK" : "Sin diagnostico"}
+            </StatusBadge>
           </div>
           <div className="mt-4 grid gap-2 text-sm md:grid-cols-2 xl:grid-cols-4">
             {[
@@ -238,7 +244,7 @@ export function BillingFiscalSettingsSection({
             ].map(([label, ok]) => (
               <div key={String(label)} className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2">
                 <span>{label}</span>
-                <Badge variant={ok ? "default" : "outline"}>{ok ? "OK" : "Pendiente"}</Badge>
+                <StatusBadge tone={ok ? "success" : "warning"}>{ok ? "OK" : "Pendiente"}</StatusBadge>
               </div>
             ))}
           </div>

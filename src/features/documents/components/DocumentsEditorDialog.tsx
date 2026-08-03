@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Percent, Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
+import { CategoryBadge, InfoBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
@@ -799,19 +800,13 @@ export function DocumentsEditorDialog({
                         {line.unrounded_suggested_unit_price !== null
                           && line.unrounded_suggested_unit_price !== undefined
                           && line.unrounded_suggested_unit_price !== line.suggested_unit_price ? (
-                            <span
-                              className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
-                              title={`Original sugerido: ${formatMoney(line.unrounded_suggested_unit_price)}`}
-                            >
-                              Redondeado
+                            <span title={`Original sugerido: ${formatMoney(line.unrounded_suggested_unit_price)}`}>
+                              <InfoBadge>Redondeado</InfoBadge>
                             </span>
                           ) : null}
                         {line.is_product_override ? (
-                          <span
-                            className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700"
-                            title="Usa precio personalizado para esta lista"
-                          >
-                            Personalizado
+                          <span title="Usa precio personalizado para esta lista">
+                            <CategoryBadge>Personalizado</CategoryBadge>
                           </span>
                         ) : null}
                       </div>

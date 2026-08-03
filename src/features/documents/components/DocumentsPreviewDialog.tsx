@@ -15,7 +15,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-import { CategoryBadge, CountBadge, StatusBadge } from "@/components/common/VisualSystem";
+import { CategoryBadge, CountBadge, InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -459,11 +459,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="text-sm font-black leading-5 text-slate-950">{described.title}</p>
-                                  {index === 0 ? (
-                                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
-                                      Reciente
-                                    </span>
-                                  ) : null}
+                                  {index === 0 ? <InfoBadge>Reciente</InfoBadge> : null}
                                 </div>
                                 <p className="mt-1 text-sm leading-5 text-slate-600">{described.detail}</p>
                               </div>

@@ -22,7 +22,7 @@ export function DashboardAiInsight({ companyName, dashboard }: { companyName: st
 
   return (
     <Card className="mt-5 border-border/70 shadow-none" aria-labelledby="dashboard-ai-title">
-      <CardContent className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center">
+      <CardContent className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:p-6">
         <div className="flex min-w-0 items-start gap-4">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><BrainCircuit className="h-5 w-5" aria-hidden="true" /></span>
           <div className="min-w-0 flex-1">

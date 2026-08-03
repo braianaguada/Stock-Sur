@@ -28,6 +28,7 @@ describe("DashboardAiInsight", () => {
     const action = screen.getByRole("button", { name: "Generar lectura" });
 
     expect(card).toHaveClass("mt-5");
+    expect(title.parentElement?.parentElement?.parentElement).toHaveClass("lg:p-6");
     expect(action).toHaveClass("w-full", "sm:w-auto", "lg:ml-auto", "lg:self-center");
   });
 });
