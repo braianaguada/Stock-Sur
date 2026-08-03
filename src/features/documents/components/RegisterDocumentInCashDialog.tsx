@@ -49,7 +49,8 @@ export function RegisterDocumentInCashDialog({
       onOpenChange={(nextOpen) => !isSubmitting && onOpenChange(nextOpen)}
       title="Registrar en Caja"
       description="El importe, la fecha y el comprobante se toman del remito y no pueden modificarse."
-      contentClassName="sm:max-w-lg"
+      contentClassName="max-h-[calc(100dvh-2rem)] sm:max-w-lg"
+      bodyClassName="pb-2"
       footer={(
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancelar</Button>

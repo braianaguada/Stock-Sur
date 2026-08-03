@@ -138,6 +138,8 @@ export interface PriceListRow {
   round_to: number | null;
 }
 
+export type DocumentDraftSubmissionIntent = "SAVE_DRAFT" | "ISSUE_REMITO";
+
 export interface PriceListItemRow {
   item_id: string;
   is_active: boolean;

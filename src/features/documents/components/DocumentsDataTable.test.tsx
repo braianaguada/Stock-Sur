@@ -69,10 +69,11 @@ function renderTable(documents: DocRow[], overrides: Partial<ComponentProps<type
 }
 
 describe("DocumentsDataTable duplicate action", () => {
-  it("keeps one visible row action and groups secondary actions", () => {
+  it("keeps frequent actions visible and groups secondary actions", () => {
     renderTable([baseDocument]);
 
     expect(screen.getByRole("button", { name: "Ver detalle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Imprimir / PDF" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /acciones/i })).toBeInTheDocument();
   });
 
@@ -132,7 +133,7 @@ describe("DocumentsDataTable cash registration", () => {
   it("shows the registered state and prevents another registration", () => {
     renderTable([emittedRemito], { cashRegisteredDocumentIds: new Set([emittedRemito.id]) });
 
-    expect(screen.getByText("Registrado en Caja")).toBeInTheDocument();
+    expect(screen.getByText("Registrado en Caja")).toHaveClass("sr-only");
     expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
   });
 

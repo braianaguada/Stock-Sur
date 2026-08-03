@@ -168,15 +168,21 @@ export function DocumentsDataTable({
             <RowActionButton label="Ver detalle" tone="view" onClick={() => onOpenDetail(doc.id)}>
               <Eye className="h-4 w-4" />
             </RowActionButton>
+            {canPrintDocument ? (
+              <RowActionButton label="Imprimir / PDF" onClick={() => onPrint(doc)}>
+                <Printer className="h-4 w-4" />
+              </RowActionButton>
+            ) : null}
             {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && cashRegisteredDocumentIds.has(doc.id) ? (
               <StatusBadge tone="success">
-                Registrado en Caja
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                <span aria-hidden="true">En Caja</span>
+                <span className="sr-only">Registrado en Caja</span>
               </StatusBadge>
             ) : doc.doc_type === "REMITO" && doc.status === "EMITIDO" && canRegisterInCash ? (
-              <Button variant="outline" size="sm" className="h-10 whitespace-nowrap" onClick={() => onRegisterInCash(doc)}>
-                <Banknote className="mr-1.5 h-4 w-4" />
-                Registrar en Caja
-              </Button>
+              <RowActionButton label="Registrar en Caja" onClick={() => onRegisterInCash(doc)}>
+                <Banknote className="h-4 w-4" />
+              </RowActionButton>
             ) : null}
             <Dialog>
               <DialogTrigger asChild>
@@ -190,9 +196,6 @@ export function DocumentsDataTable({
                   <DialogDescription>Elegí una acción para {doc.document_number ?? "este documento"}.</DialogDescription>
                 </DialogHeader>
                 <DialogActionGrid columns={2}>
-            <Button variant="ghost" onClick={() => onPrint(doc)} disabled={!canPrintDocument}>
-              <Printer className="h-4 w-4" /><span>Imprimir / PDF</span>
-            </Button>
             <Button variant="ghost" onClick={() => onShare(doc)}>
               <MessageCircle className="h-4 w-4" /><span>Compartir</span>
             </Button>
@@ -273,7 +276,7 @@ export function DocumentsDataTable({
         );
       },
       meta: {
-        className: "w-[190px] min-w-[190px] text-right",
+        className: "w-[184px] min-w-[184px] text-right",
         cellClassName: "py-2.5 whitespace-nowrap",
       },
     },
@@ -307,7 +310,7 @@ export function DocumentsDataTable({
         data={documents}
         isLoading={isLoading}
         emptyMessage="No hay documentos para mostrar"
-        className="table-fixed"
+        className="min-w-[940px] table-fixed"
         rowClassName="h-11"
         cellClassName="h-11 py-0"
         reserveEmptyRows={pageSize}

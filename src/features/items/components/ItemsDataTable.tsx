@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { Copy, Package, PackageX, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { CopyPlus, Package, PackageX, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { OverflowTooltip } from "@/components/common/OverflowTooltip";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
@@ -29,7 +29,7 @@ type ItemsDataTableProps = {
   onEdit: (item: Item) => void;
   onDelete: (item: Item) => void;
   onRestore: (itemId: string) => void;
-  onCopySku: (item: Item) => void;
+  onDuplicate: (item: Item) => void;
 };
 
 const sortFieldByColumnId: Record<string, ItemSortField> = {
@@ -149,7 +149,7 @@ function ItemsDataTableComponent({
   onEdit,
   onDelete,
   onRestore,
-  onCopySku,
+  onDuplicate,
 }: ItemsDataTableProps) {
   const allVisibleSelected = items.length > 0 && items.every((item) => selectedItemIds.includes(item.id));
 
@@ -417,8 +417,8 @@ function ItemsDataTableComponent({
       header: () => "Acciones",
       cell: ({ row }) => (
         <RowActions align="start">
-          <RowActionButton label="Copiar SKU" onClick={() => onCopySku(row.original)}>
-            <Copy className="h-3.5 w-3.5" />
+          <RowActionButton label="Duplicar ítem" onClick={() => onDuplicate(row.original)}>
+            <CopyPlus className="h-3.5 w-3.5" />
           </RowActionButton>
           <RowActionButton label="Editar" tone="edit" onClick={() => onEdit(row.original)}>
             <Pencil className="h-3.5 w-3.5" />
@@ -439,7 +439,7 @@ function ItemsDataTableComponent({
         cellClassName: "py-1.5",
       },
     },
-  ], [allVisibleSelected, items, onCopySku, onDelete, onEdit, onRestore, onSelectionChange, onSort, operationalMetaByItemId, selectedItemIds, sortBy, sortDirection, stockByItemId]);
+  ], [allVisibleSelected, items, onDelete, onDuplicate, onEdit, onRestore, onSelectionChange, onSort, operationalMetaByItemId, selectedItemIds, sortBy, sortDirection, stockByItemId]);
 
   return (
     <>
@@ -513,8 +513,8 @@ function ItemsDataTableComponent({
 
               <div className="mt-3 flex justify-end border-t pt-2">
                 <RowActions align="end">
-                  <RowActionButton label="Copiar SKU" onClick={() => onCopySku(item)}>
-                    <Copy className="h-3.5 w-3.5" />
+                  <RowActionButton label="Duplicar ítem" onClick={() => onDuplicate(item)}>
+                    <CopyPlus className="h-3.5 w-3.5" />
                   </RowActionButton>
                   <RowActionButton label="Editar" tone="edit" onClick={() => onEdit(item)}>
                     <Pencil className="h-3.5 w-3.5" />

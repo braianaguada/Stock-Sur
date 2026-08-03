@@ -34,6 +34,22 @@ function hasDemandSignal(row: StockRow) {
   return row.avg_daily_out_30d > 0 || row.avg_daily_out_90d > 0 || row.avg_daily_out_365d > 0;
 }
 
+function stockItemLabel(row: StockRow) {
+  return row.item_sku ? `${row.item_name} · SKU ${row.item_sku}` : row.item_name;
+}
+
+function detailWithItemContext(row: StockRow, detail: string) {
+  const context = [
+    row.item_brand ? `Marca: ${row.item_brand}` : null,
+    row.item_model ? `Modelo: ${row.item_model}` : null,
+    row.item_attributes ? `Detalle: ${row.item_attributes}` : null,
+    row.item_category ? `Categoría: ${row.item_category}` : null,
+    row.item_supplier ? `Proveedor: ${row.item_supplier}` : null,
+  ].filter((value): value is string => Boolean(value));
+
+  return context.length > 0 ? `${context.join(" · ")}. ${detail}` : detail;
+}
+
 function buildDemandSpikeInsight(row: StockRow): StockInsight | null {
   if (row.low_rotation || row.total <= 0 || row.avg_daily_out_30d <= 0 || row.avg_daily_out_90d <= 0) {
     return null;
@@ -49,8 +65,8 @@ function buildDemandSpikeInsight(row: StockRow): StockInsight | null {
     tone: row.days_of_cover !== null && row.days_of_cover <= 20 ? "YELLOW" : "BLUE",
     kind: "DEMAND_SPIKE",
     priority: row.days_of_cover !== null && row.days_of_cover <= 20 ? 84 : 68,
-    title: `${row.item_name} acelero su consumo`,
-    detail: `La salida diaria de 30 dias esta ${round(ratio)}x arriba de la ventana de 90 dias. Cobertura actual: ${round(Math.max(0, row.days_of_cover ?? 0))} dias.`,
+    title: `${stockItemLabel(row)} aceleró su consumo`,
+    detail: detailWithItemContext(row, `La salida diaria de 30 días está ${round(ratio)}x arriba de la ventana de 90 días. Cobertura actual: ${round(Math.max(0, row.days_of_cover ?? 0))} días.`),
     suggestedAction: "Revisar reposicion y validar si hubo cambio real de demanda o una venta puntual.",
   };
 }
@@ -65,8 +81,8 @@ function buildDormantInsight(row: StockRow): StockInsight | null {
     tone: "BLUE",
     kind: "DORMANT_STOCK",
     priority: 58,
-    title: `${row.item_name} sin consumo reciente`,
-    detail: "Hay stock disponible pero no se detectan salidas en los ultimos 365 dias.",
+    title: `${stockItemLabel(row)} sin consumo reciente`,
+    detail: detailWithItemContext(row, "Hay stock disponible pero no se detectan salidas en los últimos 365 días."),
     suggestedAction: "Validar si el item sigue activo, si conviene liquidarlo o dejarlo fuera de futuras compras.",
   };
 }
@@ -81,8 +97,8 @@ function buildNoSignalInsight(row: StockRow): StockInsight | null {
     tone: "GRAY",
     kind: "NO_SIGNAL",
     priority: 24,
-    title: `${row.item_name} todavia no tiene señal suficiente`,
-    detail: "No hay stock ni consumo historico util para estimar cobertura o riesgo.",
+    title: `${stockItemLabel(row)} todavía no tiene señal suficiente`,
+    detail: detailWithItemContext(row, "No hay stock ni consumo histórico útil para estimar cobertura o riesgo."),
     suggestedAction: "Esperar mas movimientos o cargar una estimacion manual de demanda si el item es importante.",
   };
 }
@@ -99,10 +115,10 @@ export function buildStockInsights(rows: StockRow[]): StockInsight[] {
         tone: "RED",
         kind: "STOCKOUT",
         priority: 100,
-        title: `${row.item_name} sin stock`,
-        detail: row.days_of_cover !== null
-          ? `La cobertura ya llego a 0. Ultima estimacion util: ${round(Math.max(0, row.days_of_cover))} dias.`
-          : "No hay unidades disponibles y el item ya no tiene cobertura operativa.",
+        title: `${stockItemLabel(row)} sin stock`,
+        detail: detailWithItemContext(row, row.days_of_cover !== null
+          ? `La cobertura ya llegó a 0. Última estimación útil: ${round(Math.max(0, row.days_of_cover))} días.`
+          : "No hay unidades disponibles y el ítem ya no tiene cobertura operativa."),
         suggestedAction: "Reponer urgente o frenar compromisos comerciales hasta confirmar abastecimiento.",
       });
       return;
@@ -118,8 +134,8 @@ export function buildStockInsights(rows: StockRow[]): StockInsight[] {
           tone: months >= 24 ? "YELLOW" : "BLUE",
           kind: "OVERSTOCK",
           priority: months >= 24 ? 76 : 62,
-          title: `${row.item_name} con sobrestock de baja rotacion`,
-          detail: `Cobertura estimada: ${formatMonths(months)} para un item de rotacion baja.`,
+          title: `${stockItemLabel(row)} con sobrestock de baja rotación`,
+          detail: detailWithItemContext(row, `Cobertura estimada: ${formatMonths(months)} para un ítem de rotación baja.`),
           suggestedAction: "Reducir futuras compras y revisar si conviene vender stock existente antes de reponer.",
         });
       }
@@ -132,8 +148,8 @@ export function buildStockInsights(rows: StockRow[]): StockInsight[] {
           tone: "RED",
           kind: "LOW_COVERAGE",
           priority: 94,
-          title: `${row.item_name} con quiebre inminente`,
-          detail: `Cobertura estimada: ${round(row.days_of_cover)} dias.`,
+          title: `${stockItemLabel(row)} con quiebre inminente`,
+          detail: detailWithItemContext(row, `Cobertura estimada: ${round(row.days_of_cover)} días.`),
           suggestedAction: "Priorizar compra inmediata y revisar pedidos abiertos o proveedor alternativo.",
         });
       } else if (row.days_of_cover <= 15) {
@@ -144,8 +160,8 @@ export function buildStockInsights(rows: StockRow[]): StockInsight[] {
           tone: "YELLOW",
           kind: "LOW_COVERAGE",
           priority: 78,
-          title: `${row.item_name} necesita reposicion esta semana`,
-          detail: `Cobertura estimada: ${round(row.days_of_cover)} dias.`,
+          title: `${stockItemLabel(row)} necesita reposición esta semana`,
+          detail: detailWithItemContext(row, `Cobertura estimada: ${round(row.days_of_cover)} días.`),
           suggestedAction: "Programar reposicion antes de la proxima semana operativa.",
         });
       } else if (row.days_of_cover >= 90 && row.avg_daily_out_30d < row.avg_daily_out_365d * 0.4) {
@@ -156,8 +172,8 @@ export function buildStockInsights(rows: StockRow[]): StockInsight[] {
           tone: "BLUE",
           kind: "OVERSTOCK",
           priority: 56,
-          title: `${row.item_name} con cobertura alta para el ritmo actual`,
-          detail: `Tiene ${round(row.days_of_cover)} dias de cobertura y el consumo de 30 dias viene desacelerado.`,
+          title: `${stockItemLabel(row)} con cobertura alta para el ritmo actual`,
+          detail: detailWithItemContext(row, `Tiene ${round(row.days_of_cover)} días de cobertura y el consumo de 30 días viene desacelerado.`),
           suggestedAction: "Revisar si conviene espaciar la compra siguiente.",
         });
       }

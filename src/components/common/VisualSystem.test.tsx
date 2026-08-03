@@ -109,7 +109,7 @@ describe("visual system components", () => {
     expect(screen.getByText("$ 1.250,50")).toHaveClass("text-right", "tabular-nums");
   });
 
-  it("keeps status, category, and health semantics visually distinct", () => {
+  it("keeps contextual badges on one palette while preserving health semantics", () => {
     render(
       <>
         <StatusBadge tone="info">Enviado</StatusBadge>
@@ -118,7 +118,7 @@ describe("visual system components", () => {
       </>,
     );
 
-    expect(screen.getByText("Enviado")).toHaveClass("text-info");
+    expect(screen.getByText("Enviado")).toHaveClass("text-primary", "normal-case", "tracking-normal");
     expect(screen.getByText("Salida")).toHaveClass("text-primary");
     expect(screen.getByText("Sin stock")).toHaveClass("text-destructive");
   });

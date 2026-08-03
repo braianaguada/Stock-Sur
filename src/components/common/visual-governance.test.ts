@@ -43,7 +43,7 @@ describe("visual governance", () => {
   it("prevents local visual variants on canonical badges", () => {
     const canonicalBadgeTag = /<(?:StatusBadge|HealthBadge|CategoryBadge|CountBadge|InfoBadge)\b[\s\S]*?>/g;
     const localVisualVariant =
-      /\b(?:bg-|border-(?:amber|blue|emerald|green|info|primary|red|rose|sky|slate|success|violet|warning)|capitalize|h-\d|leading-|lowercase|min-h-|px-|py-|text-(?:\[[^\]]+\]|amber|blue|emerald|green|info|primary|red|rose|sky|slate|success|violet|warning|xs)|uppercase)/;
+      /\b(?:bg-|border-(?:amber|blue|emerald|green|info|primary|red|rose|sky|slate|success|violet|warning)|capitalize|font-|h-\d|leading-|lowercase|min-h-|px-|py-|rounded-|tracking-|text-(?:\[[^\]]+\]|amber|blue|emerald|green|info|primary|red|rose|sky|slate|success|violet|warning|xs)|uppercase)/;
     const visualSystem = "src/components/common/VisualSystem.tsx";
     const violations = listSourceFiles(resolve(root, "src")).flatMap((file) => {
       const relativePath = relative(root, file).replace(/\\/g, "/");

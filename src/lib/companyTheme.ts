@@ -13,7 +13,7 @@ type ThemeOption = {
   defaultPrimary: string;
 };
 
-export const THEME_OPTIONS: ThemeOption[] = [
+const THEME_OPTIONS: ThemeOption[] = [
   {
     id: "professional",
     name: "Profesional azul",
@@ -168,7 +168,11 @@ type DerivedTheme = {
   tokens: Record<string, string>;
 };
 
-const deriveTheme = (presetId: CompanyThemePresetId, primaryInput: string): DerivedTheme => {
+const deriveTheme = (
+  presetId: CompanyThemePresetId,
+  primaryInput: string,
+  secondaryInput?: string | null,
+): DerivedTheme => {
   const preset = THEME_OPTIONS.find((theme) => theme.id === presetId) ?? THEME_OPTIONS[0];
   const primaryColor = normalizeHex(primaryInput, preset.defaultPrimary);
   const primaryHover = shiftHsl(primaryColor, { l: preset.appearance === "dark" ? 6 : -7, s: 4 });
@@ -179,7 +183,10 @@ const deriveTheme = (presetId: CompanyThemePresetId, primaryInput: string): Deri
   const dangerColor = preset.appearance === "dark" ? "#ef6b73" : "#d9485f";
 
   if (preset.id === "premium-dark") {
-    const secondaryColor = shiftHsl(primaryColor, { h: 26, s: 12, l: 10 });
+    const secondaryColor = normalizeHex(
+      secondaryInput,
+      shiftHsl(primaryColor, { h: 26, s: 12, l: 10 }),
+    );
     const accentColor = shiftHsl(primaryColor, { l: -22, s: -28 });
 
     return {
@@ -233,7 +240,10 @@ const deriveTheme = (presetId: CompanyThemePresetId, primaryInput: string): Deri
   }
 
   if (preset.id === "industrial") {
-    const secondaryColor = shiftHsl(primaryColor, { h: 12, s: 2, l: 8 });
+    const secondaryColor = normalizeHex(
+      secondaryInput,
+      shiftHsl(primaryColor, { h: 12, s: 2, l: 8 }),
+    );
     const accentColor = shiftHsl(primaryColor, { l: 40, s: -20 });
 
     return {
@@ -287,7 +297,10 @@ const deriveTheme = (presetId: CompanyThemePresetId, primaryInput: string): Deri
   }
 
   if (preset.id === "minimal") {
-    const secondaryColor = shiftHsl(primaryColor, { s: -14, l: -4 });
+    const secondaryColor = normalizeHex(
+      secondaryInput,
+      shiftHsl(primaryColor, { s: -14, l: -4 }),
+    );
     const accentColor = shiftHsl(primaryColor, { s: -26, l: 38 });
 
     return {
@@ -340,7 +353,10 @@ const deriveTheme = (presetId: CompanyThemePresetId, primaryInput: string): Deri
     };
   }
 
-  const secondaryColor = shiftHsl(primaryColor, { h: 24, s: 6, l: -10 });
+  const secondaryColor = normalizeHex(
+    secondaryInput,
+    shiftHsl(primaryColor, { h: 24, s: 6, l: -10 }),
+  );
   const accentColor = shiftHsl(primaryColor, { l: 42, s: -18 });
 
   return {
@@ -405,7 +421,7 @@ export const inferThemePreset = (settings: Pick<CompanySettings, "primary_color"
         id: theme.id,
         score:
           hslDistance(derived.legacy.secondaryColor, actualSecondary) +
-          hslDistance(derived.legacy.accentColor, actualAccent),
+          hslDistance(derived.legacy.accentColor, actualAccent) * 3,
       };
     })
     .sort((a, b) => a.score - b.score);
@@ -415,13 +431,21 @@ export const inferThemePreset = (settings: Pick<CompanySettings, "primary_color"
 
 const getCompanyThemeState = (settings: Pick<CompanySettings, "primary_color" | "secondary_color" | "accent_color">) => {
   const presetId = inferThemePreset(settings);
-  return deriveTheme(presetId, settings.primary_color);
+  return deriveTheme(presetId, settings.primary_color, settings.secondary_color);
 };
 
-export const getThemePreviewState = (presetId: CompanyThemePresetId, primaryColor: string) => deriveTheme(presetId, primaryColor);
+export const getThemePreviewState = (
+  presetId: CompanyThemePresetId,
+  primaryColor: string,
+  secondaryColor?: string | null,
+) => deriveTheme(presetId, primaryColor, secondaryColor);
 
-export const buildCompanyThemePayload = (presetId: CompanyThemePresetId, primaryColor: string) => {
-  const derived = deriveTheme(presetId, primaryColor);
+export const buildCompanyThemePayload = (
+  presetId: CompanyThemePresetId,
+  primaryColor: string,
+  secondaryColor?: string | null,
+) => {
+  const derived = deriveTheme(presetId, primaryColor, secondaryColor);
   return {
     primary_color: derived.primaryColor,
     secondary_color: derived.legacy.secondaryColor,

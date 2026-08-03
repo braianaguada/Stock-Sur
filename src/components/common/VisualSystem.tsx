@@ -155,7 +155,7 @@ export function StatusBadge({
     success: "border-success/18 bg-success/10 text-success",
     warning: "border-warning/18 bg-warning/12 text-warning",
     danger: "border-destructive/18 bg-destructive/12 text-destructive",
-    info: "border-info/18 bg-info/12 text-info",
+    info: "border-primary/15 bg-primary/8 text-primary",
     muted: "border-border/70 bg-muted/60 text-muted-foreground",
   };
 
@@ -163,7 +163,11 @@ export function StatusBadge({
     <Badge
       variant="outline"
       role={announce ? "status" : undefined}
-      className={cn("min-h-6 w-fit max-w-full whitespace-nowrap px-2 py-0 text-xs font-semibold leading-4", badgeToneClassName[tone], className)}
+      className={cn(
+        "min-h-6 w-fit max-w-full whitespace-nowrap px-2 py-0 text-xs font-semibold normal-case leading-4 tracking-normal",
+        badgeToneClassName[tone],
+        className,
+      )}
     >
       {children}
     </Badge>
@@ -194,5 +198,5 @@ export function HealthBadge({
 }
 
 export function CategoryBadge({ children, className }: { children: ReactNode; className?: string }) {
-  return <StatusBadge className={cn("border-primary/15 bg-primary/8 text-primary", className)}>{children}</StatusBadge>;
+  return <StatusBadge tone="info" className={className}>{children}</StatusBadge>;
 }

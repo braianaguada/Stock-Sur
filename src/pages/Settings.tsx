@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { PageContainer, PageHeader } from "@/components/ui/page";
 import { InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
-import { THEME_OPTIONS, buildCompanyThemePayload } from "@/lib/companyTheme";
 import { canManageBillingSettings, canViewSettings } from "@/lib/permissions";
 import { useToast } from "@/hooks/use-toast";
 import { useSettingsManagement } from "@/features/settings/hooks/useSettingsManagement";
@@ -330,9 +329,9 @@ export default function SettingsPage() {
           >
             <CardHeader>
               <CardTitle id="brand-settings-title">Marca visual</CardTitle>
-                <CardDescription>
-                  SVG es el formato ideal para logo. PNG funciona como respaldo. El color de acento se usa para fondos suaves, paneles seleccionados y superficies de apoyo.
-                </CardDescription>
+              <CardDescription>
+                Definí el logo, el modo de apariencia y dos colores de marca. El sistema deriva el resto de los tonos para mantener contraste y consistencia.
+              </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -349,50 +348,49 @@ export default function SettingsPage() {
                   )}
                 </div>
                 <div className="space-y-3">
-                  <Label>Tema visual</Label>
-                  <div className="grid gap-3">
-                    {THEME_OPTIONS.map((theme) => {
-                      const sample = buildCompanyThemePayload(theme.id, theme.defaultPrimary);
-                      return (
-                        <button
-                          key={theme.id}
-                          type="button"
-                          onClick={() => {
-                            setThemePreset(theme.id);
-                            const next = buildCompanyThemePayload(theme.id, theme.defaultPrimary);
-                            setForm((prev) => ({ ...prev, ...next }));
-                          }}
-                          className={`flex items-start justify-between rounded-2xl border px-4 py-4 text-left transition-all ${
-                            themePreset === theme.id
-                              ? "border-primary bg-primary/5 shadow-[var(--shadow-xs)]"
-                              : "border-border/80 bg-background/70 hover:bg-accent/60"
-                          }`}
-                        >
-                          <div>
-                            <p className="font-semibold">{theme.name}</p>
-                            <p className="mt-1 text-sm text-muted-foreground">{theme.description}</p>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="h-3 w-3 rounded-full border bg-white" style={{ backgroundColor: sample.primary_color }} />
-                            <span className="h-3 w-3 rounded-full border bg-white" style={{ backgroundColor: sample.secondary_color }} />
-                            <span className="h-3 w-3 rounded-full border bg-white" style={{ backgroundColor: sample.accent_color }} />
-                          </div>
-                        </button>
-                      );
-                    })}
+                  <Label>Apariencia</Label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {([
+                      { id: "professional" as const, name: "Modo claro", description: "Superficies claras y contraste cómodo para uso diario." },
+                      { id: "premium-dark" as const, name: "Modo oscuro", description: "Superficies oscuras con la misma jerarquía y accesibilidad." },
+                    ]).map((mode) => (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        aria-pressed={themePreset === mode.id}
+                        onClick={() => setThemePreset(mode.id)}
+                        className={`rounded-2xl border px-4 py-4 text-left transition-colors ${
+                          themePreset === mode.id
+                            ? "border-primary bg-primary/5 shadow-[var(--shadow-xs)]"
+                            : "border-border/80 bg-background/70 hover:bg-accent/60"
+                        }`}
+                      >
+                        <p className="font-semibold">{mode.name}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{mode.description}</p>
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <div className="grid gap-4 md:grid-cols-[1fr_180px]">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Color principal</Label>
-                    <Input value={form.primary_color} onChange={(e) => setForm((prev) => ({ ...prev, primary_color: e.target.value }))} placeholder="#1f4f99" />
+                    <div className="grid grid-cols-[1fr_56px] gap-2">
+                      <Input value={form.primary_color} onChange={(e) => setForm((prev) => ({ ...prev, primary_color: e.target.value }))} placeholder="#1f4f99" />
+                      <Input aria-label="Elegir color principal" type="color" value={form.primary_color} onChange={(e) => setForm((prev) => ({ ...prev, primary_color: e.target.value }))} className="h-10 p-1" />
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      El sistema deriva automaticamente superficies, hover, topbar y tonos suaves a partir de este color.
+                      Acciones primarias, foco y elementos seleccionados.
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label>Muestra rapida</Label>
-                    <Input type="color" value={form.primary_color} onChange={(e) => setForm((prev) => ({ ...prev, primary_color: e.target.value }))} className="h-12 p-2" />
+                    <Label>Color secundario</Label>
+                    <div className="grid grid-cols-[1fr_56px] gap-2">
+                      <Input value={form.secondary_color} onChange={(e) => setForm((prev) => ({ ...prev, secondary_color: e.target.value }))} placeholder="#315a8a" />
+                      <Input aria-label="Elegir color secundario" type="color" value={form.secondary_color} onChange={(e) => setForm((prev) => ({ ...prev, secondary_color: e.target.value }))} className="h-10 p-1" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Apoyos visuales y contraste complementario. Los estados conservan su color semántico.
+                    </p>
                   </div>
                 </div>
                 <div className="rounded-3xl border border-border/60 bg-[hsl(var(--panel))]/42 p-4">
