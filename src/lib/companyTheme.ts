@@ -152,6 +152,33 @@ const toHslChannels = (hex: string) => {
   return `${Math.round(hsl.h)} ${Math.round(hsl.s)}% ${Math.round(hsl.l)}%`;
 };
 
+const relativeLuminance = ({ r, g, b }: Rgb) => {
+  const linearize = (channel: number) => {
+    const normalized = channel / 255;
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+
+  return linearize(r) * 0.2126 + linearize(g) * 0.7152 + linearize(b) * 0.0722;
+};
+
+const contrastRatio = (background: Rgb, foreground: Rgb) => {
+  const lighter = Math.max(relativeLuminance(background), relativeLuminance(foreground));
+  const darker = Math.min(relativeLuminance(background), relativeLuminance(foreground));
+  return (lighter + 0.05) / (darker + 0.05);
+};
+
+const readableForeground = (backgroundHex: string) => {
+  const background = hexToRgb(backgroundHex) ?? { r: 0, g: 0, b: 0 };
+  const light = { r: 255, g: 255, b: 255 };
+  const dark = { r: 0, g: 0, b: 0 };
+
+  return contrastRatio(background, light) >= contrastRatio(background, dark)
+    ? "0 0% 100%"
+    : "0 0% 0%";
+};
+
 const hslDistance = (aHex: string, bHex: string) => {
   const a = rgbToHsl(hexToRgb(aHex) ?? { r: 0, g: 0, b: 0 });
   const b = rgbToHsl(hexToRgb(bHex) ?? { r: 0, g: 0, b: 0 });
@@ -181,6 +208,7 @@ const deriveTheme = (
   const successColor = preset.id === "industrial" ? shiftHsl(primaryColor, { h: 12, s: 10, l: 4 }) : "#1f9d66";
   const warningColor = preset.appearance === "dark" ? "#f4b942" : "#c98512";
   const dangerColor = preset.appearance === "dark" ? "#ef6b73" : "#d9485f";
+  const primaryForeground = readableForeground(primaryColor);
 
   if (preset.id === "premium-dark") {
     const secondaryColor = normalizeHex(
@@ -213,10 +241,10 @@ const deriveTheme = (
         hover: "224 15% 18%",
         "focus-ring": toHslChannels(primaryColor),
         primary: toHslChannels(primaryColor),
-        "primary-foreground": "0 0% 100%",
+        "primary-foreground": primaryForeground,
         "primary-soft": toHslChannels(primarySoft),
         secondary: toHslChannels(secondaryColor),
-        "secondary-foreground": "224 39% 11%",
+        "secondary-foreground": readableForeground(secondaryColor),
         destructive: toHslChannels(dangerColor),
         "destructive-foreground": "0 0% 100%",
         success: toHslChannels(successColor),
@@ -229,7 +257,7 @@ const deriveTheme = (
         "sidebar-background": "222 35% 7%",
         "sidebar-foreground": "214 18% 78%",
         "sidebar-primary": toHslChannels(primaryColor),
-        "sidebar-primary-foreground": "0 0% 100%",
+        "sidebar-primary-foreground": primaryForeground,
         "sidebar-accent": "222 21% 14%",
         "sidebar-accent-foreground": "210 16% 94%",
         "sidebar-border": "222 18% 16%",
@@ -270,10 +298,10 @@ const deriveTheme = (
         hover: "168 22% 89%",
         "focus-ring": toHslChannels(primaryColor),
         primary: toHslChannels(primaryColor),
-        "primary-foreground": "0 0% 100%",
+        "primary-foreground": primaryForeground,
         "primary-soft": toHslChannels(primarySoft),
         secondary: toHslChannels(secondaryColor),
-        "secondary-foreground": "0 0% 100%",
+        "secondary-foreground": readableForeground(secondaryColor),
         destructive: toHslChannels(dangerColor),
         "destructive-foreground": "0 0% 100%",
         success: toHslChannels(successColor),
@@ -286,7 +314,7 @@ const deriveTheme = (
         "sidebar-background": "185 37% 11%",
         "sidebar-foreground": "182 19% 83%",
         "sidebar-primary": toHslChannels(primaryColor),
-        "sidebar-primary-foreground": "0 0% 100%",
+        "sidebar-primary-foreground": primaryForeground,
         "sidebar-accent": "184 28% 18%",
         "sidebar-accent-foreground": "180 17% 93%",
         "sidebar-border": "185 22% 20%",
@@ -327,10 +355,10 @@ const deriveTheme = (
         hover: "30 19% 92%",
         "focus-ring": toHslChannels(primaryColor),
         primary: toHslChannels(primaryColor),
-        "primary-foreground": "0 0% 100%",
+        "primary-foreground": primaryForeground,
         "primary-soft": toHslChannels(primarySoft),
         secondary: toHslChannels(secondaryColor),
-        "secondary-foreground": "0 0% 100%",
+        "secondary-foreground": readableForeground(secondaryColor),
         destructive: toHslChannels(dangerColor),
         "destructive-foreground": "0 0% 100%",
         success: toHslChannels(successColor),
@@ -343,7 +371,7 @@ const deriveTheme = (
         "sidebar-background": "219 27% 14%",
         "sidebar-foreground": "213 18% 82%",
         "sidebar-primary": toHslChannels(primaryColor),
-        "sidebar-primary-foreground": "0 0% 100%",
+        "sidebar-primary-foreground": primaryForeground,
         "sidebar-accent": "219 18% 20%",
         "sidebar-accent-foreground": "214 19% 94%",
         "sidebar-border": "219 16% 21%",
@@ -383,10 +411,10 @@ const deriveTheme = (
       hover: "214 30% 91%",
       "focus-ring": toHslChannels(primaryColor),
       primary: toHslChannels(primaryColor),
-      "primary-foreground": "0 0% 100%",
+      "primary-foreground": primaryForeground,
       "primary-soft": toHslChannels(primarySoft),
       secondary: toHslChannels(secondaryColor),
-      "secondary-foreground": "0 0% 100%",
+      "secondary-foreground": readableForeground(secondaryColor),
       destructive: toHslChannels(dangerColor),
       "destructive-foreground": "0 0% 100%",
       success: toHslChannels(successColor),
@@ -399,7 +427,7 @@ const deriveTheme = (
       "sidebar-background": "220 33% 13%",
       "sidebar-foreground": "212 18% 82%",
       "sidebar-primary": toHslChannels(primaryHover),
-      "sidebar-primary-foreground": "0 0% 100%",
+      "sidebar-primary-foreground": readableForeground(primaryHover),
       "sidebar-accent": "220 23% 18%",
       "sidebar-accent-foreground": "213 21% 95%",
       "sidebar-border": "220 18% 20%",

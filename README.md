@@ -1322,6 +1322,9 @@ git pull origin staging
 
 ## Operational UX remediation
 
+- El modo claro y oscuro usa superficies opacas y tokens semánticos en selects, diálogos y confirmaciones. Los colores de marca principal/secundario calculan automáticamente un foreground legible, y los badges de dominio quedan centralizados en `VisualSystem` con tamaño, casing y paleta consistentes.
+- La tarjeta de lectura ejecutiva conserva padding superior en escritorio, sin depender del reset de `CardContent` pensado para cards con encabezado separado.
+
 - La creación de remitos permite guardar el borrador o emitirlo directamente desde el mismo formulario; los presupuestos conservan únicamente el guardado. La devolución comercial admite técnico nulo cuando coincide con el remito origen, sin alterar las validaciones de empresa, permisos, stock o cuenta corriente.
 - Documentos y documentos de servicios exponen las acciones frecuentes sin depender del menú secundario, reservan espacio estable para acciones y mantienen desplazamiento horizontal controlado en pantallas angostas. El diálogo de registro en Caja respeta el alto disponible y conserva separación inferior.
 - Los estados usan `StatusBadge` e `InfoBadge` como contratos canónicos de altura, casing, peso y color semántico. La gobernanza visual rechaza nuevas variantes locales.

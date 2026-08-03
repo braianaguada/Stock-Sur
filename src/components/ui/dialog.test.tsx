@@ -1,6 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { Button } from "@/components/ui/button";
-import { DialogActionGrid } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogActionGrid,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 describe("DialogActionGrid", () => {
   it("normalizes action size, alignment and responsive columns", () => {
@@ -21,6 +27,27 @@ describe("DialogActionGrid", () => {
       "[&_button]:h-10",
       "[&_button]:w-full",
       "[&_button]:justify-start",
+    );
+  });
+});
+
+describe("DialogContent", () => {
+  it("uses an opaque semantic surface with stable contrast", () => {
+    render(
+      <Dialog open>
+        <DialogContent>
+          <DialogTitle>Confirmar operación</DialogTitle>
+          <DialogDescription>Revisá los datos antes de continuar.</DialogDescription>
+        </DialogContent>
+      </Dialog>,
+    );
+
+    expect(screen.getByRole("dialog")).toHaveClass(
+      "z-50",
+      "border-border",
+      "bg-background",
+      "text-foreground",
+      "shadow-[var(--shadow-md)]",
     );
   });
 });
