@@ -13,7 +13,7 @@ type ThemeOption = {
   defaultPrimary: string;
 };
 
-export const THEME_OPTIONS: ThemeOption[] = [
+const THEME_OPTIONS: ThemeOption[] = [
   {
     id: "professional",
     name: "Profesional azul",
