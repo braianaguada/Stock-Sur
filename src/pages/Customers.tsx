@@ -14,7 +14,6 @@ import { CustomersDataTable } from "@/features/customers/components/CustomersDat
 import type { Customer } from "@/features/customers/types";
 import { useCustomersPage } from "@/features/customers/hooks/useCustomersPage";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
-import { InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 
@@ -86,13 +85,7 @@ export default function CustomersPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold">Cliente ocasional / Consumidor Final</p>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <StatusBadge tone="muted">Sistema</StatusBadge>
-                <StatusBadge tone="muted">No editable</StatusBadge>
-                <InfoBadge>Operaciones sin cliente registrado</InfoBadge>
-                <StatusBadge>customer_id = null</StatusBadge>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">No aplica Factura A ni cuenta corriente.</p>
+              <p className="mt-1 text-sm text-muted-foreground">No aplica Factura A ni cuenta corriente.</p>
             </div>
             <Button type="button" variant="outline" asChild>
               <Link to="/customers/occasional">Ver seguimiento</Link>

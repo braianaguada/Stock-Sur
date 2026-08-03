@@ -111,7 +111,20 @@ describe("remito return logic", () => {
     ).toThrow("remito emitido");
   });
 
-  it("requires a technician on the return document", () => {
+  it("allows a commercial return when neither document is associated with a technician", () => {
+    const commercialOrigin = { ...originDocument, technician_id: null };
+    const result = validateReturnDocument({
+      returnDocument: { origin_document_id: "remito-1", technician_id: null },
+      originDocument: commercialOrigin,
+      originLines: [originLine],
+      previousReturnLines: [],
+      newReturnLines: [returnLine(1)],
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("still rejects a return whose technician differs from its origin", () => {
     expect(() =>
       validateReturnDocument({
         returnDocument: { origin_document_id: "remito-1", technician_id: null },
@@ -120,7 +133,7 @@ describe("remito return logic", () => {
         previousReturnLines: [],
         newReturnLines: [returnLine(1)],
       }),
-    ).toThrow("tecnico");
+    ).toThrow("mismo tecnico");
   });
 
   it("builds a draft return payload from an emitted remito without issuing it", () => {
@@ -147,6 +160,16 @@ describe("remito return logic", () => {
       quantity: 10,
       line_total: 0,
     });
+  });
+
+  it("preserves a null technician when building a return for a commercial remito", () => {
+    const payload = buildReturnDraftPayload({
+      originDocument: { ...originDocument, technician_id: null },
+      originLines: [originLine],
+      sourceNumber: "0001-00000007",
+    });
+
+    expect(payload.document.technician_id).toBeNull();
   });
 
   it("normalizes remito-only recipient fields when creating a return from an internal remito", () => {

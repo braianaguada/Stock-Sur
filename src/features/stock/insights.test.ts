@@ -8,6 +8,11 @@ function makeRow(overrides: Partial<StockRow>): StockRow {
     item_name: "Item",
     item_sku: "SKU",
     item_unit: "un",
+    item_supplier: null,
+    item_brand: null,
+    item_model: null,
+    item_attributes: null,
+    item_category: null,
     total: 10,
     avg_daily_out_30d: 1,
     avg_daily_out_90d: 1,
@@ -96,5 +101,37 @@ describe("stock insights", () => {
     expect(counts.RED).toBe(1);
     expect(counts.YELLOW).toBe(1);
     expect(counts.BLUE).toBe(1);
+  });
+
+  it("distinguishes alerts for items that share the same name", () => {
+    const insights = buildStockInsights([
+      makeRow({
+        item_id: "oil-10w40",
+        item_name: "ACEITE",
+        item_sku: "ACE-10W40",
+        item_brand: "Marca Norte",
+        item_model: "10W40",
+        item_attributes: "4 litros",
+        total: 0,
+        days_of_cover: 0,
+      }),
+      makeRow({
+        item_id: "oil-5w30",
+        item_name: "ACEITE",
+        item_sku: "ACE-5W30",
+        item_brand: "Marca Sur",
+        item_model: "5W30",
+        item_attributes: "1 litro",
+        total: 0,
+        days_of_cover: 0,
+      }),
+    ]);
+
+    expect(insights.map((insight) => insight.title)).toEqual(expect.arrayContaining([
+      "ACEITE · SKU ACE-10W40 sin stock",
+      "ACEITE · SKU ACE-5W30 sin stock",
+    ]));
+    expect(insights.find((insight) => insight.itemId === "oil-10w40")?.detail)
+      .toContain("Marca: Marca Norte · Modelo: 10W40 · Detalle: 4 litros");
   });
 });

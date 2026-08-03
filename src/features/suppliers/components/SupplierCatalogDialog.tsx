@@ -136,6 +136,8 @@ export function SupplierCatalogDialog({
   lastPurchaseOrder,
   onCreatePurchaseOrder,
 }: SupplierCatalogDialogProps) {
+  const showOrderPanel = orderLines.length > 0 || Boolean(lastPurchaseOrder) || purchaseOrders.length > 0;
+
   return (
     <EntityDialog
       open={open}
@@ -356,10 +358,10 @@ export function SupplierCatalogDialog({
             <div
               className={cn(
                 "grid h-full min-h-0 gap-3 overflow-y-auto p-3 sm:p-4 xl:overflow-hidden",
-                orderLines.length > 0 && "xl:grid-cols-[minmax(0,1fr)_360px]",
+                showOrderPanel && "xl:grid-cols-[minmax(0,1fr)_360px]",
               )}
             >
-              <Card className="min-h-[24rem] flex flex-col xl:min-h-0">
+              <Card className="min-h-[24rem] min-w-0 flex flex-col xl:min-h-0">
                 <CardHeader className="gap-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -404,7 +406,7 @@ export function SupplierCatalogDialog({
                 </CardContent>
               </Card>
 
-              {orderLines.length > 0 ? <Card className="min-h-[24rem] flex flex-col xl:min-h-0">
+              {orderLines.length > 0 ? <Card className="min-h-[24rem] min-w-0 flex flex-col xl:min-h-0">
                 <CardHeader>
                   <CardTitle className="text-base">Pedido al proveedor</CardTitle>
                   <CardDescription>Selecciona productos, cantidades y genera el mensaje.</CardDescription>
@@ -469,7 +471,7 @@ export function SupplierCatalogDialog({
                 </CardContent>
               </Card> : null}
               {orderLines.length === 0 && (lastPurchaseOrder || purchaseOrders.length > 0) ? (
-                <Card className="min-h-[20rem]">
+                <Card className="min-h-[20rem] min-w-0 xl:min-h-0 xl:overflow-auto">
                   <CardHeader>
                     <CardTitle className="text-base">Órdenes de compra</CardTitle>
                     <CardDescription>Órdenes generadas para este proveedor.</CardDescription>

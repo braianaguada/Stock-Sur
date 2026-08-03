@@ -107,7 +107,7 @@ describe("ServiceDocumentsPage", () => {
     savePrintHtmlAsPdfMock.mockReset();
   });
 
-  it("keeps preview primary and groups print actions in a labelled menu", async () => {
+  it("keeps preview, PDF and share visible and groups secondary actions", async () => {
     const write = vi.fn();
     const focus = vi.fn();
     vi.stubGlobal("open", vi.fn(() => ({ document: { open: vi.fn(), write, close: vi.fn() }, focus, close: vi.fn() })));
@@ -119,8 +119,9 @@ describe("ServiceDocumentsPage", () => {
 
     expect(screen.getByText("Documentos")).toBeInTheDocument();
     expect(screen.getByTitle("Vista previa")).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle("Mas acciones"));
     expect(screen.getByTitle("Guardar PDF")).toBeInTheDocument();
+    expect(screen.getByTitle("Compartir")).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle("Mas acciones"));
     expect(screen.getByTitle("Imprimir")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
@@ -132,7 +133,6 @@ describe("ServiceDocumentsPage", () => {
     await waitFor(() => expect(window.open).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    fireEvent.click(screen.getByTitle("Mas acciones"));
     fireEvent.click(screen.getByTitle("Guardar PDF"));
     await waitFor(() => expect(savePrintHtmlAsPdfMock).toHaveBeenCalledWith(expect.objectContaining({
       html: expect.stringContaining("Presupuesto de servicio"),

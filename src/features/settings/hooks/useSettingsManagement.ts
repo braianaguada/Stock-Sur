@@ -60,8 +60,13 @@ export function useSettingsManagement({
   });
 
   useEffect(() => {
-    const preset = inferThemePreset(settings);
-    const derivedTheme = buildCompanyThemePayload(preset, settings.primary_color ?? "#1f4f99");
+    const storedPreset = inferThemePreset(settings);
+    const preset: CompanyThemePresetId = storedPreset === "premium-dark" ? "premium-dark" : "professional";
+    const derivedTheme = buildCompanyThemePayload(
+      preset,
+      settings.primary_color ?? "#1f4f99",
+      settings.secondary_color,
+    );
     setThemePreset(preset);
     setForm({
       app_name: settings.app_name ?? "",
@@ -93,8 +98,8 @@ export function useSettingsManagement({
   }, [settings]);
 
   const previewTheme = useMemo(
-    () => getThemePreviewState(themePreset, form.primary_color),
-    [form.primary_color, themePreset],
+    () => getThemePreviewState(themePreset, form.primary_color, form.secondary_color),
+    [form.primary_color, form.secondary_color, themePreset],
   );
 
   const canManage = canManageCompanySettings(roles, { companyRoleCodes, companyPermissionCodes });
@@ -102,7 +107,7 @@ export function useSettingsManagement({
   const saveMutation = useMutation({
     mutationFn: async () => {
       let logoUrl = settings.logo_url;
-      const themePayload = buildCompanyThemePayload(themePreset, form.primary_color);
+      const themePayload = buildCompanyThemePayload(themePreset, form.primary_color, form.secondary_color);
 
       if (logoFile) {
         const extension = logoFile.name.split(".").pop()?.toLowerCase() ?? "png";

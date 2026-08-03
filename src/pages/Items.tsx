@@ -188,6 +188,7 @@ export default function ItemsPage() {
   const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "no_stock">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [duplicatingSourceSku, setDuplicatingSourceSku] = useState<string | null>(null);
   const [createdItem, setCreatedItem] = useState<Item | null>(null);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
   const [aliasToDelete, setAliasToDelete] = useState<ItemAlias | null>(null);
@@ -614,6 +615,12 @@ export default function ItemsPage() {
       if (!name) {
         throw new Error("Nombre obligatorio");
       }
+      if (
+        duplicatingSourceSku !== null
+        && (!sku || sku === cleanText(duplicatingSourceSku).toUpperCase())
+      ) {
+        throw new Error("Ingresá un SKU nuevo para duplicar el ítem");
+      }
 
       const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
       const payload = {
@@ -679,6 +686,7 @@ export default function ItemsPage() {
         sessionStorage.removeItem(newItemDraftStorageKey);
       }
       setDialogOpen(false);
+      setDuplicatingSourceSku(null);
       setEditingItem(null);
       setNewAlias("");
       setIsSupplierCode(false);
@@ -835,6 +843,7 @@ export default function ItemsPage() {
       sessionStorage.removeItem(newItemDraftStorageKey);
     }
     setEditingItem(null);
+    setDuplicatingSourceSku(null);
     setNewAlias("");
     setIsSupplierCode(false);
     setForm({
@@ -857,6 +866,7 @@ export default function ItemsPage() {
       sessionStorage.removeItem(newItemDraftStorageKey);
     }
     setEditingItem(item);
+    setDuplicatingSourceSku(null);
     setNewAlias("");
     setIsSupplierCode(false);
     setForm({
@@ -874,13 +884,27 @@ export default function ItemsPage() {
     setDialogOpen(true);
   };
 
-  const copySku = async (item: Item) => {
-    try {
-      await navigator.clipboard.writeText(item.sku);
-      toast({ title: "SKU copiado", description: item.sku });
-    } catch {
-      toast({ title: "No se pudo copiar el SKU", description: item.sku, variant: "destructive" });
+  const openDuplicate = (item: Item) => {
+    if (newItemDraftStorageKey) {
+      sessionStorage.removeItem(newItemDraftStorageKey);
     }
+    setEditingItem(null);
+    setDuplicatingSourceSku(item.sku ?? "");
+    setNewAlias("");
+    setIsSupplierCode(false);
+    setForm({
+      sku: "",
+      name: item.name,
+      supplier: item.supplier ?? "",
+      brand: item.brand ?? "",
+      model: item.model ?? "",
+      attributes: item.attributes ?? "",
+      unit: item.unit || "un",
+      category: item.category ?? "",
+      demand_profile: item.demand_profile ?? "LOW",
+      demand_monthly_estimate: item.demand_monthly_estimate?.toString() ?? "",
+    });
+    setDialogOpen(true);
   };
 
   const addAlias = () => {
@@ -1105,7 +1129,7 @@ export default function ItemsPage() {
             onEdit={openEdit}
             onDelete={setItemToDelete}
             onRestore={(itemId) => restoreMutation.mutate(itemId)}
-            onCopySku={copySku}
+            onDuplicate={openDuplicate}
           />
         </Card>
         <DataTablePagination
@@ -1125,6 +1149,7 @@ export default function ItemsPage() {
       <ItemFormDialog
         open={dialogOpen}
         editingItem={editingItem}
+        isDuplicating={duplicatingSourceSku !== null}
         form={form}
         aliases={aliases}
         newAlias={newAlias}
@@ -1132,6 +1157,7 @@ export default function ItemsPage() {
         isSaving={saveMutation.isPending}
         onOpenChange={(open) => {
           setDialogOpen(open);
+          if (!open) setDuplicatingSourceSku(null);
           if (!open && newItemDraftStorageKey && !editingItem) {
             sessionStorage.removeItem(newItemDraftStorageKey);
           }

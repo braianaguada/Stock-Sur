@@ -53,7 +53,7 @@ export type ReturnDraftPayload = {
     status: "BORRADOR";
     point_of_sale: number;
     customer_id: string | null;
-    technician_id: string;
+    technician_id: string | null;
     customer_name: string | null;
     customer_tax_condition: string | null;
     customer_tax_id: string | null;
@@ -123,9 +123,6 @@ export function validateReturnDocument({
   if (!returnDocument.origin_document_id) {
     throw new Error("La devolucion debe referenciar un remito original");
   }
-  if (!returnDocument.technician_id) {
-    throw new Error("La devolucion debe estar asociada a un tecnico");
-  }
   if (!originDocument || originDocument.id !== returnDocument.origin_document_id) {
     throw new Error("La devolucion debe referenciar un remito original");
   }
@@ -165,10 +162,6 @@ export function buildReturnDraftPayload({
   if (originDocument.doc_type !== "REMITO" || originDocument.status !== "EMITIDO") {
     throw new Error("La devolucion debe generarse desde un remito emitido");
   }
-  if (!originDocument.technician_id) {
-    throw new Error("La devolucion debe estar asociada a un tecnico");
-  }
-
   const isInternalOrigin = originDocument.customer_kind === "INTERNO";
 
   return {

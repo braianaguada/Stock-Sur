@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import type { DocumentFormState, LineDraft } from "@/features/documents/types";
+import type { DocumentDraftSubmissionIntent, DocumentFormState, LineDraft, PriceListRow } from "@/features/documents/types";
 import { DocumentsEditorDialog } from "./DocumentsEditorDialog";
 
 vi.mock("@/components/common/EntityDialog", () => ({
@@ -61,7 +61,7 @@ const baseForm: DocumentFormState = {
 
 function renderDialog(
   documentForm: DocumentFormState,
-  onSubmit = vi.fn(),
+  onSubmit: ReturnType<typeof vi.fn<(intent: DocumentDraftSubmissionIntent) => void>> = vi.fn(),
   options: {
     lines?: LineDraft[];
     availableItems?: Array<{
@@ -72,13 +72,16 @@ function renderDialog(
       available_stock?: number;
     }>;
     setLines?: React.Dispatch<React.SetStateAction<LineDraft[]>>;
+    editingDocId?: string | null;
+    canIssueOnCreate?: boolean;
+    priceLists?: PriceListRow[];
   } = {},
 ) {
   render(
     <DocumentsEditorDialog
       open
       onOpenChange={vi.fn()}
-      editingDocId={null}
+      editingDocId={options.editingDocId ?? null}
       documentForm={documentForm}
       setDraftForm={vi.fn()}
       lines={options.lines ?? []}
@@ -97,7 +100,7 @@ function renderDialog(
           customerName: "Cliente registrado",
         },
       ]}
-      priceLists={[]}
+      priceLists={options.priceLists ?? []}
       availableItems={options.availableItems ?? []}
       combos={[]}
       onPriceListChange={vi.fn()}
@@ -105,6 +108,7 @@ function renderDialog(
       onAddCombo={vi.fn()}
       removeLine={vi.fn()}
       onSubmit={onSubmit}
+      canIssueOnCreate={options.canIssueOnCreate}
       onResetDraftForm={vi.fn()}
       isSubmitting={false}
     />,
@@ -114,6 +118,40 @@ function renderDialog(
 }
 
 describe("DocumentsEditorDialog", () => {
+  it("offers direct issue only while creating a remito and preserves draft saving", () => {
+    const onSubmit = vi.fn<(intent: DocumentDraftSubmissionIntent) => void>();
+    const priceLists: PriceListRow[] = [{
+      id: "price-list-1",
+      name: "General",
+      flete_pct: 0,
+      utilidad_pct: 0,
+      impuesto_pct: 0,
+      round_mode: "none",
+      round_to: null,
+    }];
+    renderDialog(
+      { ...baseForm, price_list_id: "price-list-1" },
+      onSubmit,
+      { canIssueOnCreate: true, priceLists },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Emitir remito" }));
+    expect(onSubmit).toHaveBeenCalledWith("ISSUE_REMITO");
+
+    fireEvent.submit(screen.getByRole("button", { name: "Guardar borrador" }).closest("form")!);
+    expect(onSubmit).toHaveBeenCalledWith("SAVE_DRAFT");
+  });
+
+  it("does not offer direct issue for a budget", () => {
+    renderDialog(
+      { ...baseForm, doc_type: "PRESUPUESTO" },
+      vi.fn(),
+      { canIssueOnCreate: true },
+    );
+
+    expect(screen.queryByRole("button", { name: "Emitir remito" })).not.toBeInTheDocument();
+  });
+
   it("keeps the internal customer kind available for remitos", () => {
     renderDialog({ ...baseForm, customer_kind: "INTERNO", customer_name: "" });
 
