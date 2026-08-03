@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -30,7 +30,7 @@ const meta: ItemOperationalMeta = {
   margin_pct: 33.3,
 };
 
-function renderTable(operationalMeta = meta) {
+function renderTable(operationalMeta = meta, onDuplicate = vi.fn()) {
   return render(
     <MemoryRouter>
       <TooltipProvider>
@@ -49,7 +49,7 @@ function renderTable(operationalMeta = meta) {
           onEdit={vi.fn()}
           onDelete={vi.fn()}
           onRestore={vi.fn()}
-          onCopySku={vi.fn()}
+          onDuplicate={onDuplicate}
         />
       </TooltipProvider>
     </MemoryRouter>,
@@ -84,8 +84,18 @@ describe("ItemsDataTable", () => {
     expect(within(card).getByText("OK").closest("[title]"))
       .toHaveAttribute("title", "Sin alertas operativas");
     expect(within(card).getByRole("checkbox", { name: "Seleccionar Producto prueba" })).toBeInTheDocument();
-    expect(within(card).getByRole("button", { name: "Copiar SKU" })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Duplicar ítem" })).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Editar" })).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Desactivar" })).toBeInTheDocument();
+  });
+
+  it("delegates item duplication without writing data directly", () => {
+    const onDuplicate = vi.fn();
+    renderTable(meta, onDuplicate);
+
+    const card = within(screen.getByTestId("items-mobile-list")).getByTestId("item-mobile-card");
+    fireEvent.click(within(card).getByRole("button", { name: "Duplicar ítem" }));
+
+    expect(onDuplicate).toHaveBeenCalledWith(item);
   });
 });

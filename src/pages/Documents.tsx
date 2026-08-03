@@ -923,7 +923,8 @@ export default function DocumentsPage() {
             onAddCombo={onAddCombo}
             onPriceListChange={onPriceListChange}
             removeLine={removeLine}
-            onSubmit={() => upsertDraftMutation.mutate()}
+            onSubmit={(intent) => upsertDraftMutation.mutate(intent)}
+            canIssueOnCreate={canIssueRemito(roles)}
             onResetDraftForm={resetDraftForm}
             isSubmitting={upsertDraftMutation.isPending || !canCreateDocumentDraft(roles)}
             sourceDocumentLabel={editingSourceDocumentLabel}

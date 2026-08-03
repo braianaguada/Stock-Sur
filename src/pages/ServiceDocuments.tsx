@@ -588,11 +588,23 @@ export default function ServiceDocumentsPage() {
     {
       id: "actions",
       header: "Acciones",
-      meta: { className: "w-24 text-right", cellClassName: "text-right" },
+      meta: { className: "w-44 min-w-44 text-right", cellClassName: "text-right" },
       cell: ({ row }) => (
         <RowActions>
           <RowActionButton label="Vista previa" tone="view" onClick={() => openPreview(row.original)}>
             <Eye className="h-4 w-4" />
+          </RowActionButton>
+          {canPrintServiceDocuments ? (
+            <RowActionButton
+              label="Guardar PDF"
+              onClick={() => void downloadServicePdf(row.original)}
+              disabled={downloadingDocumentId === row.original.id}
+            >
+              <Download className="h-4 w-4" />
+            </RowActionButton>
+          ) : null}
+          <RowActionButton label="Compartir" onClick={() => void openShare(row.original)}>
+            <Link2 className="h-4 w-4" />
           </RowActionButton>
           <RowActionButton label="Mas acciones" onClick={() => setActionDocument(row.original)}>
             <MoreHorizontal className="h-4 w-4" />
@@ -752,14 +764,6 @@ export default function ServiceDocumentsPage() {
               {canManageServiceDocuments && actionDocument.status !== "CANCELLED" ? (
                 <Button variant="ghost" className="justify-start" onClick={() => triggerDuplicate(actionDocument)} disabled={duplicateMutation.isPending}>
                   <Copy className="mr-2 h-4 w-4" /> Duplicar
-                </Button>
-              ) : null}
-              <Button variant="ghost" className="justify-start" onClick={() => { void openShare(actionDocument); setActionDocument(null); }}>
-                <Link2 className="mr-2 h-4 w-4 text-success" /> Compartir
-              </Button>
-              {canPrintServiceDocuments ? (
-                <Button title="Guardar PDF" variant="ghost" className="justify-start" onClick={() => { void downloadServicePdf(actionDocument); setActionDocument(null); }} disabled={downloadingDocumentId === actionDocument.id}>
-                  <Download className="mr-2 h-4 w-4 text-info" /> Guardar PDF
                 </Button>
               ) : null}
               {canPrintServiceDocuments ? (

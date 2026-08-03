@@ -1319,3 +1319,14 @@ git pull origin staging
 - Vite keeps its static plugin list direct, without a no-op conditional filter.
 - CI rejects newly introduced unused declarations, unreachable exports/files/dependencies, and circular source dependencies through ESLint, Knip, and Madge.
 - Supplier catalog dialogs select the latest imported version deterministically, clear their state when the active company changes, and invalidate only canonical company- and supplier-scoped query keys.
+
+## Operational UX remediation
+
+- La creación de remitos permite guardar el borrador o emitirlo directamente desde el mismo formulario; los presupuestos conservan únicamente el guardado. La devolución comercial admite técnico nulo cuando coincide con el remito origen, sin alterar las validaciones de empresa, permisos, stock o cuenta corriente.
+- Documentos y documentos de servicios exponen las acciones frecuentes sin depender del menú secundario, reservan espacio estable para acciones y mantienen desplazamiento horizontal controlado en pantallas angostas. El diálogo de registro en Caja respeta el alto disponible y conserva separación inferior.
+- Los estados usan `StatusBadge` e `InfoBadge` como contratos canónicos de altura, casing, peso y color semántico. La gobernanza visual rechaza nuevas variantes locales.
+- El panel principal separa la lectura ejecutiva del contenido precedente y las alertas de stock incorporan SKU, marca, modelo, detalle, categoría y proveedor disponibles para distinguir productos homónimos.
+- Los ítems reemplazan “Copiar SKU” por un flujo de duplicado que precarga los datos, exige un SKU nuevo y permite editar antes de crear. La búsqueda de renglones de documentos mantiene visible el stock disponible.
+- El detalle de Cliente ocasional conserva sólo el contexto operativo necesario. Los catálogos de proveedores muestran las órdenes de compra aun cuando no existan renglones en la versión seleccionada.
+- Configuración ofrece una selección visual acotada a modo claro u oscuro y colores principal/secundario; las preferencias heredadas se normalizan sin borrar datos ni modificar reglas de negocio.
+- La migración `20260803120000_allow_commercial_remito_returns.sql` reemplaza de forma compatible `issue_document` para aceptar devoluciones comerciales sin técnico y conserva la igualdad null-safe con el documento origen. No fue aplicada a producción desde esta rama.

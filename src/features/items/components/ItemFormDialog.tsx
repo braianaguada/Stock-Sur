@@ -31,6 +31,7 @@ type ItemFormState = {
 type ItemFormDialogProps = {
   open: boolean;
   editingItem: Item | null;
+  isDuplicating?: boolean;
   form: ItemFormState;
   aliases: ItemAlias[];
   newAlias: string;
@@ -49,6 +50,7 @@ type ItemFormDialogProps = {
 export function ItemFormDialog({
   open,
   editingItem,
+  isDuplicating = false,
   form,
   aliases,
   newAlias,
@@ -67,7 +69,7 @@ export function ItemFormDialog({
     <EntityDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={editingItem ? "Editar ítem" : "Nuevo ítem"}
+      title={editingItem ? "Editar ítem" : isDuplicating ? "Duplicar ítem" : "Nuevo ítem"}
       contentClassName="sm:max-w-2xl"
     >
       <form
@@ -79,7 +81,7 @@ export function ItemFormDialog({
       >
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label>SKU</Label>
+            <Label>SKU{isDuplicating ? " *" : ""}</Label>
             <Button type="button" variant="outline" size="sm" onClick={onGenerateSku}>
               Autogenerar
             </Button>
@@ -88,6 +90,7 @@ export function ItemFormDialog({
             value={form.sku}
             onChange={(event) => onFormChange({ ...form, sku: event.target.value })}
             placeholder="Ej: BOMBA-001"
+            required={isDuplicating}
           />
         </div>
         <div className="space-y-2">

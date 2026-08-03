@@ -774,6 +774,60 @@ describeCriticalDb("critical database rules", () => {
     });
   }, 15000);
 
+  it("permite emitir una devolucion comercial cuando origen y devolucion no tienen tecnico", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await setActor(userId);
+      await seedCompany(companyId);
+      const companyUserId = await seedActor(companyId, userId);
+      await seedPermission(companyUserId, "documents.issue");
+
+      const itemId = await seedItem(companyId, userId);
+      await client.query(
+        `insert into public.stock_movements (id, company_id, item_id, type, quantity, reference, notes, created_by, created_at)
+         values ($1, $2, $3, 'IN', 3, 'commercial-return-seed', 'seed', $4, now())`,
+        [crypto.randomUUID(), companyId, itemId, userId],
+      );
+
+      const originDocumentId = crypto.randomUUID();
+      await client.query(
+        `insert into public.documents (id, doc_type, status, point_of_sale, issue_date, subtotal, discount_total, total, tax_total, customer_kind, created_by, created_at, updated_at, company_id)
+         values ($1, 'REMITO', 'BORRADOR', 1, current_date, 100, 0, 100, 0, 'GENERAL', $2, now(), now(), $3)`,
+        [originDocumentId, userId, companyId],
+      );
+      await client.query(
+        `insert into public.document_lines (id, document_id, line_order, item_id, description, quantity, unit_price, discount_pct, line_total, created_by, created_at, updated_at, tax_pct, pricing_mode, suggested_unit_price)
+         values ($1, $2, 1, $3, 'Commercial origin', 2, 50, 0, 100, $4, now(), now(), 0, 'MANUAL_PRICE', 50)`,
+        [crypto.randomUUID(), originDocumentId, itemId, userId],
+      );
+      await client.query(`select status from public.issue_document($1)`, [originDocumentId]);
+
+      const returnDocumentId = crypto.randomUUID();
+      await client.query(
+        `insert into public.documents (id, doc_type, status, point_of_sale, issue_date, subtotal, discount_total, total, tax_total, customer_kind, origin_document_id, created_by, created_at, updated_at, company_id)
+         values ($1, 'REMITO_DEVOLUCION', 'BORRADOR', 1, current_date, 50, 0, 50, 0, 'GENERAL', $2, $3, now(), now(), $4)`,
+        [returnDocumentId, originDocumentId, userId, companyId],
+      );
+      await client.query(
+        `insert into public.document_lines (id, document_id, line_order, item_id, description, quantity, unit_price, discount_pct, line_total, created_by, created_at, updated_at, tax_pct, pricing_mode, suggested_unit_price)
+         values ($1, $2, 1, $3, 'Commercial return', 1, 50, 0, 50, $4, now(), now(), 0, 'MANUAL_PRICE', 50)`,
+        [crypto.randomUUID(), returnDocumentId, itemId, userId],
+      );
+
+      const issued = await client.query(`select status, technician_id from public.issue_document($1)`, [returnDocumentId]);
+      expect(issued.rows[0]).toMatchObject({ status: "EMITIDO", technician_id: null });
+
+      const stock = await client.query(
+        `select coalesce(sum(case type when 'IN' then quantity when 'OUT' then -quantity else quantity end), 0) as balance
+         from public.stock_movements where company_id = $1 and item_id = $2`,
+        [companyId, itemId],
+      );
+      expect(Number(stock.rows[0].balance)).toBe(2);
+    });
+  }, 15000);
+
   it("no genera DEBIT para remito identificado sin condicion cuenta corriente", async () => {
     await withRollback(async () => {
       const userId = crypto.randomUUID();

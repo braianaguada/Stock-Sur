@@ -13,6 +13,7 @@ import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type {
   DocType,
   DocumentFormState,
+  DocumentDraftSubmissionIntent,
   DocumentServiceOption,
   InternalRemitoType,
   LineDraft,
@@ -71,7 +72,8 @@ interface DocumentsEditorDialogProps {
   onAddItem: (itemId: string) => void;
   onAddCombo: (comboId: string, quantity: number) => void;
   removeLine: (idx: number) => void;
-  onSubmit: () => void;
+  onSubmit: (intent: DocumentDraftSubmissionIntent) => void;
+  canIssueOnCreate?: boolean;
   onResetDraftForm: () => void;
   isSubmitting: boolean;
   sourceDocumentLabel?: string | null;
@@ -145,6 +147,7 @@ export function DocumentsEditorDialog({
   onAddCombo,
   removeLine,
   onSubmit,
+  canIssueOnCreate = false,
   onResetDraftForm,
   isSubmitting,
   sourceDocumentLabel,
@@ -236,15 +239,19 @@ export function DocumentsEditorDialog({
     if (!open) setSubmitAttempted(false);
   }, [open]);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const submitWithIntent = (intent: DocumentDraftSubmissionIntent) => {
     setSubmitAttempted(true);
 
     if (isInternal && (!documentForm.technician_id || !documentForm.internal_remito_type)) {
       return;
     }
 
-    onSubmit();
+    onSubmit(intent);
+  };
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    submitWithIntent("SAVE_DRAFT");
   };
 
   return (
@@ -967,10 +974,22 @@ export function DocumentsEditorDialog({
               {formatMoney(totalDraft)}
             </span>
           </div>
-          <Button type="submit" disabled={isSubmitting || priceLists.length === 0} className="h-11 rounded-full px-8 shadow-sm">
-            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {isSubmitting ? "Guardando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
-          </Button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button type="submit" disabled={isSubmitting || priceLists.length === 0} variant="outline" className="h-11 rounded-full px-8">
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isSubmitting ? "Procesando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
+            </Button>
+            {!editingDocId && documentForm.doc_type === "REMITO" && canIssueOnCreate ? (
+              <Button
+                type="button"
+                disabled={isSubmitting || priceLists.length === 0}
+                className="h-11 rounded-full px-8 shadow-sm"
+                onClick={() => submitWithIntent("ISSUE_REMITO")}
+              >
+                Emitir remito
+              </Button>
+            ) : null}
+          </div>
         </div>
       </form>
     </EntityDialog>

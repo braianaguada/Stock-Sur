@@ -27,7 +27,7 @@ describe("DashboardAiInsight", () => {
     const card = title.closest("[aria-labelledby='dashboard-ai-title']");
     const action = screen.getByRole("button", { name: "Generar lectura" });
 
-    expect(card).toHaveClass("mt-2");
+    expect(card).toHaveClass("mt-5");
     expect(action).toHaveClass("w-full", "sm:w-auto", "lg:ml-auto", "lg:self-center");
   });
 });

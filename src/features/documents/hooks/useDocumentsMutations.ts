@@ -10,6 +10,7 @@ import type {
   DocRow,
   DocStatus,
   DocumentFormState,
+  DocumentDraftSubmissionIntent,
   DocumentServiceOption,
   LineDraft,
   PriceListItemRow,
@@ -174,8 +175,11 @@ export function useDocumentsMutations({
   );
 
   const upsertDraftMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (intent: DocumentDraftSubmissionIntent = "SAVE_DRAFT") => {
       if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
+      if (intent === "ISSUE_REMITO" && (editingDocId || draftForm.doc_type !== "REMITO")) {
+        throw new Error("La emision directa solo esta disponible al crear un remito nuevo");
+      }
       if (draftForm.customer_id && !customersById.has(draftForm.customer_id)) {
         throw new Error("El cliente seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
       }
@@ -299,12 +303,43 @@ export function useDocumentsMutations({
         payload: { source: "ui" },
         created_by: userId,
       });
+
+      if (intent === "ISSUE_REMITO") {
+        const { error: issueError } = await supabase.rpc("issue_document", { p_document_id: documentId! });
+        if (issueError) {
+          return {
+            intent,
+            issued: false,
+            issueError: getErrorMessage(issueError),
+          };
+        }
+        return { intent, issued: true, issueError: null };
+      }
+
+      return { intent, issued: false, issueError: null };
     },
-    onSuccess: () => {
-      void invalidateDocumentQueries(qc);
+    onSuccess: (result) => {
+      void Promise.all([
+        invalidateDocumentQueries(qc),
+        ...(result.issued ? [invalidateStockQueries(qc)] : []),
+      ]);
       setDialogOpen(false);
       resetDraftForm();
-      toast({ title: editingDocId ? "Borrador actualizado" : "Borrador guardado" });
+      if (result.issueError) {
+        toast({
+          title: "Remito guardado como borrador",
+          description: `No se pudo emitir: ${result.issueError}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: result.issued
+          ? "Remito emitido"
+          : editingDocId
+            ? "Borrador actualizado"
+            : "Borrador guardado",
+      });
     },
     onError: (error: unknown) => {
       toast({
@@ -329,9 +364,6 @@ export function useDocumentsMutations({
       }
       if (currentDocument.doc_type === "REMITO_DEVOLUCION" && !currentDocument.origin_document_id) {
         throw new Error("La devolucion debe referenciar un remito original");
-      }
-      if (currentDocument.doc_type === "REMITO_DEVOLUCION" && !currentDocument.technician_id) {
-        throw new Error("La devolucion debe estar asociada a un tecnico");
       }
       if (currentDocument.doc_type === "REMITO" && currentDocument.customer_kind === "INTERNO" && !currentDocument.technician_id) {
         throw new Error("El remito interno debe estar asociado a un tecnico");
@@ -543,10 +575,6 @@ export function useDocumentsMutations({
       if (src.status !== "EMITIDO") {
         throw new Error("Solo se puede devolver un remito emitido");
       }
-      if (!src.technician_id) {
-        throw new Error("La devolucion debe estar asociada a un tecnico");
-      }
-
       const returnPayload = buildReturnDraftPayload({
         originDocument: src,
         originLines: srcLines ?? [],

@@ -191,7 +191,7 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
                                   <p className="mt-1 text-sm leading-5 text-muted-foreground">{described.detail}</p>
                                 </div>
                                 <div className="shrink-0 text-right">
-                                  <InfoBadge className="font-mono">
+                                  <InfoBadge>
                                     {formatTimestampDate(event.created_at)}
                                   </InfoBadge>
                                   <p className="mt-2 text-xs font-mono text-muted-foreground">{formatTimestampTime(event.created_at)}</p>
