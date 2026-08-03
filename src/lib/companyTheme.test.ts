@@ -23,4 +23,20 @@ describe("company theme", () => {
     expect(document.documentElement).toHaveClass("dark");
     expect(document.documentElement.dataset.uiTheme).toBe("premium-dark");
   });
+
+  it("derives readable foregrounds for light configurable brand colors", () => {
+    const preview = getThemePreviewState("professional", "#fef08a", "#fde68a");
+
+    expect(preview.tokens["primary-foreground"]).toBe("0 0% 0%");
+    expect(preview.tokens["secondary-foreground"]).toBe("0 0% 0%");
+    expect(preview.tokens["sidebar-primary-foreground"]).toBe("0 0% 0%");
+  });
+
+  it("derives readable foregrounds for dark configurable brand colors", () => {
+    const preview = getThemePreviewState("premium-dark", "#111827", "#172554");
+
+    expect(preview.tokens["primary-foreground"]).toBe("0 0% 100%");
+    expect(preview.tokens["secondary-foreground"]).toBe("0 0% 100%");
+    expect(preview.tokens["sidebar-primary-foreground"]).toBe("0 0% 100%");
+  });
 });

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CountBadge, StatusBadge } from "@/components/common/VisualSystem";
+import { CountBadge, InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
 import {
   ArrowRightCircle,
   ArrowRightLeft,
@@ -345,11 +345,7 @@ export function ServiceDocumentPreviewDialog({
                           <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-sm font-black leading-5 text-slate-950">{described.title}</p>
-                              {index === 0 ? (
-                                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
-                                  Reciente
-                                </span>
-                              ) : null}
+                              {index === 0 ? <InfoBadge>Reciente</InfoBadge> : null}
                             </div>
                             <p className="mt-1 text-sm leading-5 text-slate-600">{described.detail}</p>
                             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-200 pt-3 text-xs text-slate-500">

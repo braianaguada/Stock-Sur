@@ -26,11 +26,7 @@ describe("visual governance", () => {
   it("keeps domain badges behind the canonical visual system", () => {
     const sourceFiles = listSourceFiles(resolve(root, "src"));
     const governanceTest = "src/components/common/visual-governance.test.ts";
-    const rawBadgeAllowlist = [
-      "src/components/common/VisualSystem.tsx",
-      // Temporary exception: billing settings belongs to the unfinished billing/configuration scope.
-      "src/features/billing/components/BillingFiscalSettingsSection.tsx",
-    ];
+    const rawBadgeAllowlist = ["src/components/common/VisualSystem.tsx"];
     const actualRawBadgeConsumers = sourceFiles
       .filter((file) => relative(root, file).replace(/\\/g, "/") !== governanceTest)
       .filter((file) => /from\s+["']@\/components\/ui\/badge["']/.test(readFileSync(file, "utf8")))
@@ -55,6 +51,25 @@ describe("visual governance", () => {
     });
 
     expect(violations, "canonical badges may only receive layout/behavior classes").toEqual([]);
+  });
+
+  it("prevents hand-drawn badges in domain surfaces", () => {
+    const badgeLikeElement =
+      /<(?:span|div)\b[^>]*className=["'][^"']*\brounded-full\b[^"']*\b(?:text-xs|text-\[[^\]]+\])[^"']*["'][^>]*>/g;
+    const chromeAllowlist = new Set([
+      "src/components/AppSidebar.tsx",
+      "src/pages/Auth.tsx",
+    ]);
+    const violations = listSourceFiles(resolve(root, "src")).flatMap((file) => {
+      const relativePath = relative(root, file).replace(/\\/g, "/");
+      if (chromeAllowlist.has(relativePath)) return [];
+
+      return [...readFileSync(file, "utf8").matchAll(badgeLikeElement)].map(
+        (match) => `${relativePath}: ${match[0].replace(/\s+/g, " ")}`,
+      );
+    });
+
+    expect(violations, "domain badges must use VisualSystem primitives").toEqual([]);
   });
 
   it("keeps retired visual APIs at zero source consumers", () => {
