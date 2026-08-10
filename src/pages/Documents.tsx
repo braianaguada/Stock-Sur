@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
+import { ClearableSearchInput } from "@/components/common/ClearableSearchInput";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -28,7 +29,8 @@ import {
 } from "@/lib/permissions";
 import { queryKeys } from "@/lib/query-keys";
 import { openPrintWindow, writePrintWindow } from "@/lib/print";
-import { Copy, Link2, MessageCircle, Plus, Search, Unlink } from "lucide-react";
+import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "@/lib/pdf-download";
+import { Copy, Link2, MessageCircle, Plus, Unlink } from "lucide-react";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { EMPTY_LINE } from "@/features/documents/constants";
 import { DocumentsDataTable } from "@/features/documents/components/DocumentsDataTable";
@@ -156,6 +158,7 @@ export default function DocumentsPage() {
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [documentsPage, setDocumentsPage] = useState(1);
   const [documentsPageSize, setDocumentsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+  const [downloadingDocumentId, setDownloadingDocumentId] = useState<string | null>(null);
   const [draftForm, setDraftForm] = useState<DocumentFormState>(() =>
     buildEmptyDocumentForm(defaultPointOfSale),
   );
@@ -648,6 +651,53 @@ export default function DocumentsPage() {
     );
   };
 
+  const downloadDocumentPdf = async (document: DocRow) => {
+    const fileName = `${document.doc_type}-${formatNumber(document.document_number, document.point_of_sale)}.pdf`;
+    let target;
+    try {
+      target = await choosePdfSaveTarget(fileName);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast({ title: "No se pudo seleccionar el archivo", description: getErrorMessage(error), variant: "destructive" });
+      return;
+    }
+
+    setDownloadingDocumentId(document.id);
+    try {
+      const { data: lineRows, error: linesError } = await supabase
+        .from("document_lines")
+        .select("line_order, sku_snapshot, description, unit, quantity, unit_price, line_total")
+        .eq("document_id", document.id)
+        .order("line_order");
+      if (linesError) throw linesError;
+
+      let technicianName: string | null = null;
+      if (document.technician_id) {
+        const { data: technicianData, error: technicianError } = await supabase
+          .from("technicians")
+          .select("name")
+          .eq("id", document.technician_id)
+          .maybeSingle();
+        if (technicianError) throw technicianError;
+        technicianName = technicianData?.name ?? null;
+      }
+
+      const html = buildDocumentPrintHtml({
+        document,
+        lines: (lineRows ?? []) as Array<Pick<DocLineRow, "line_order" | "sku_snapshot" | "description" | "quantity" | "unit" | "unit_price" | "line_total">>,
+        companySettings,
+        technicianName,
+      });
+      await savePrintHtmlAsPdf({ html, fileName, proof: { mode: "authenticated", kind: "document", documentId: document.id }, target });
+      toast({ title: "PDF guardado" });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast({ title: "No se pudo descargar el PDF", description: getErrorMessage(error), variant: "destructive" });
+    } finally {
+      setDownloadingDocumentId(null);
+    }
+  };
+
   const openDocumentShare = async (document: DocRow) => {
     if (document.doc_type === "REMITO_DEVOLUCION") {
       toast({ title: "Documento no compartible", description: "Los links públicos están disponibles para presupuestos y remitos." });
@@ -742,16 +792,7 @@ export default function DocumentsPage() {
         <FilterToolbar>
           <div className="w-full space-y-1 md:max-w-sm">
             <Label htmlFor="document-search" className="text-xs text-muted-foreground">Buscar</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="document-search"
-                placeholder="Buscar por cliente, CUIT, número o factura externa..."
-                className="pl-9"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </div>
+            <ClearableSearchInput id="document-search" placeholder="Buscar por cliente, CUIT, número o factura externa..." value={search} onValueChange={setSearch} />
           </div>
 
           <div className="w-full space-y-1 md:w-52">
@@ -825,7 +866,7 @@ export default function DocumentsPage() {
           </div>
         </FilterToolbar>
 
-        <DocumentsDataTable
+          <DocumentsDataTable
           documents={documentsPagination.pagedItems}
           isLoading={isLoading}
           pageSize={documentsPageSize}
@@ -834,10 +875,12 @@ export default function DocumentsPage() {
             setSelectedDocId(documentId);
             setDetailOpen(true);
           }}
-          onPrint={(document) => {
-            if (!canPrintDocument(roles)) return;
-            void printDocument(document);
-          }}
+            onPrint={(document) => {
+              if (!canPrintDocument(roles)) return;
+              void printDocument(document);
+            }}
+            onDownloadPdf={(document) => void downloadDocumentPdf(document)}
+            downloadingDocumentId={downloadingDocumentId}
           onShare={(document) => void openDocumentShare(document)}
           onEditDraft={openEditDialog}
           onTransition={(documentId, targetStatus) => {
@@ -977,6 +1020,8 @@ export default function DocumentsPage() {
               if (!canPrintDocument(roles)) return;
               void printDocument(document);
             }}
+            onDownloadPdf={(document) => void downloadDocumentPdf(document)}
+            downloadingDocumentId={downloadingDocumentId}
           onDuplicateDocument={(document) => {
               if (!canCreateDocumentDraft(roles)) return;
               setPendingAction({ kind: "duplicate", documentId: document.id, closePreview: true });

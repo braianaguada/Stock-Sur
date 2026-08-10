@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Percent, Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
+import { ClearableSearchInput } from "@/components/common/ClearableSearchInput";
 import { CategoryBadge, InfoBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -635,13 +636,11 @@ export function DocumentsEditorDialog({
           </div>
 
           <div className={isReturn ? "hidden" : "space-y-3"}>
-            <div className="relative max-w-sm flex-1 min-w-[200px]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <div className="max-w-sm flex-1 min-w-[200px]">
+              <ClearableSearchInput
                 value={itemSearch}
-                className="pl-10"
+                onValueChange={setItemSearch}
                 placeholder="Buscar por SKU, nombre, marca, modelo o atributos"
-                onChange={(event) => setItemSearch(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && filteredItems.length > 0) {
                     event.preventDefault();

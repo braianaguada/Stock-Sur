@@ -52,6 +52,7 @@ export type ServiceDocumentLine = {
   unit_price: number | null;
   line_total: number;
   sort_order: number;
+  line_type?: "ITEM" | "TITLE" | "SUBTITLE";
 };
 
 export type ServiceDocumentForm = {

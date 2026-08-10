@@ -53,6 +53,18 @@ const line: ServiceDocumentLine = {
 };
 
 describe("buildServiceDocumentPrintHtml", () => {
+  it("renders service section titles without quantity or prices", () => {
+    const html = buildServiceDocumentPrintHtml({
+      document,
+      lines: [{ ...line, description: "Mano de obra", line_type: "TITLE" }],
+      companySettings: DEFAULT_COMPANY_SETTINGS,
+    });
+
+    expect(html).toContain('class="section-row section-title"');
+    expect(html).toContain("Mano de obra");
+    expect(html).not.toContain('class="c-qty">1');
+  });
+
   it("builds a modern fixed A4 service remito layout", () => {
     const html = buildServiceDocumentPrintHtml({
       document,

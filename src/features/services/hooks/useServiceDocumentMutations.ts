@@ -53,7 +53,7 @@ export function useServiceDocumentMutations(params: {
 
       if (validLines.length === 0) throw new Error("Agrega al menos una linea de servicio");
 
-      const { data, error } = await serviceDb.rpc("save_service_document", {
+      const { data, error } = await serviceDb.rpc("save_service_document_with_sections", {
         p_document_id: editingDocumentId,
         p_company_id: companyId,
         p_customer_id: form.customer_id,
@@ -69,10 +69,11 @@ export function useServiceDocumentMutations(params: {
         p_currency: form.currency || "ARS",
         p_lines: validLines.map((line) => ({
           description: line.description,
-          quantity: line.quantity,
-          unit: line.unit?.trim() || null,
-          unit_price: line.unit_price,
-          line_total: line.line_total,
+          line_type: line.line_type ?? "ITEM",
+          quantity: line.line_type && line.line_type !== "ITEM" ? null : line.quantity,
+          unit: line.line_type && line.line_type !== "ITEM" ? null : line.unit?.trim() || null,
+          unit_price: line.line_type && line.line_type !== "ITEM" ? null : line.unit_price,
+          line_total: line.line_type && line.line_type !== "ITEM" ? 0 : line.line_total,
         })),
         p_exchange_rate_source: form.currency === "USD" ? form.exchange_rate_source : null,
         p_exchange_rate: form.currency === "USD" ? parseOptionalNumber(form.exchange_rate) : null,
@@ -158,7 +159,7 @@ export function useServiceDocumentMutations(params: {
     mutationFn: async (sourceDocumentId: string) => {
       if (!companyId) throw new Error("Selecciona una empresa antes de duplicar presupuestos de servicio");
 
-      const { error } = await serviceDb.rpc("create_service_document_copy", {
+      const { error } = await serviceDb.rpc("create_service_document_copy_with_sections", {
         p_source_document_id: sourceDocumentId,
         p_target_type: "QUOTE",
       });
@@ -177,7 +178,7 @@ export function useServiceDocumentMutations(params: {
     mutationFn: async (sourceDocumentId: string) => {
       if (!companyId) throw new Error("Selecciona una empresa antes de convertir a remito");
 
-      const { error } = await serviceDb.rpc("create_service_document_copy", {
+      const { error } = await serviceDb.rpc("create_service_document_copy_with_sections", {
         p_source_document_id: sourceDocumentId,
         p_target_type: "REMITO",
       });
