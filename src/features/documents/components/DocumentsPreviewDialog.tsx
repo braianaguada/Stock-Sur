@@ -2,7 +2,6 @@ import { useState, type ReactNode } from "react";
 import {
   ArrowRightCircle,
   ArrowRightLeft,
-  Banknote,
   CheckCircle2,
   Clock,
   Copy,
@@ -152,9 +151,6 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     onDuplicateDocument,
     isDuplicatingDocument,
     canDuplicateDocument,
-    canRegisterInCash,
-    isRegisteredInCash,
-    onRegisterInCash,
     serviceLinkLabel,
     onOpenService,
   } = props;
@@ -324,7 +320,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                     </div>
 
                     <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                      <table className="w-full table-fixed border-collapse text-sm">
+                      <table className="w-full min-w-[680px] table-fixed border-collapse text-sm">
                         <thead className="bg-slate-950 text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">
                           <tr className="border-slate-800">
                             <th className="w-12 px-3 py-3 text-left">#</th>
@@ -491,31 +487,6 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
         ) : null}
 
         <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-300/70 bg-white px-3 py-3 sm:px-5 sm:py-4">
-          {selectedDocument?.doc_type === "REMITO" && selectedDocument.status === "EMITIDO" ? (
-            isRegisteredInCash ? (
-              <StatusBadge tone="success" className="self-center">
-                Registrado en Caja
-              </StatusBadge>
-            ) : canRegisterInCash ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                onClick={() => onRegisterInCash(selectedDocument)}
-              >
-                <Banknote className="h-4 w-4" />
-                Registrar en Caja
-              </Button>
-            ) : null
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            className="border-slate-400 bg-white text-slate-800 hover:border-slate-500 hover:bg-slate-100 hover:text-slate-950"
-            onClick={() => onOpenChange(false)}
-          >
-            Cerrar
-          </Button>
           <Button
             type="button"
             onClick={() => {

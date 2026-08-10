@@ -173,24 +173,8 @@ export function DocumentsDataTable({
               <Eye className="h-4 w-4" />
             </RowActionButton>
             {canPrintDocument ? (
-              <RowActionButton label="Imprimir / PDF" onClick={() => onPrint(doc)}>
-                <Printer className="h-4 w-4" />
-              </RowActionButton>
-            ) : null}
-            {canPrintDocument ? (
               <RowActionButton label="Descargar PDF" onClick={() => onDownloadPdf(doc)} disabled={downloadingDocumentId === doc.id}>
                 {downloadingDocumentId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              </RowActionButton>
-            ) : null}
-            {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && cashRegisteredDocumentIds.has(doc.id) ? (
-              <StatusBadge tone="success">
-                <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                <span aria-hidden="true">En Caja</span>
-                <span className="sr-only">Registrado en Caja</span>
-              </StatusBadge>
-            ) : doc.doc_type === "REMITO" && doc.status === "EMITIDO" && canRegisterInCash ? (
-              <RowActionButton label="Registrar en Caja" onClick={() => onRegisterInCash(doc)}>
-                <Banknote className="h-4 w-4" />
               </RowActionButton>
             ) : null}
             <Dialog>
@@ -205,9 +189,23 @@ export function DocumentsDataTable({
                   <DialogDescription>Elegí una acción para {doc.document_number ?? "este documento"}.</DialogDescription>
                 </DialogHeader>
                 <DialogActionGrid columns={2}>
+            {canPrintDocument ? (
+              <Button variant="ghost" onClick={() => onPrint(doc)}>
+                <Printer className="h-4 w-4" /><span>Imprimir / PDF</span>
+              </Button>
+            ) : null}
             <Button variant="ghost" onClick={() => onShare(doc)}>
               <MessageCircle className="h-4 w-4" /><span>Compartir</span>
             </Button>
+            {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && cashRegisteredDocumentIds.has(doc.id) ? (
+              <div className="flex min-h-10 items-center gap-2 rounded-lg bg-emerald-50 px-3 text-sm font-semibold text-emerald-700">
+                <Check className="h-4 w-4" /><span>Registrado en Caja</span>
+              </div>
+            ) : doc.doc_type === "REMITO" && doc.status === "EMITIDO" && canRegisterInCash ? (
+              <Button variant="ghost" onClick={() => onRegisterInCash(doc)}>
+                <Banknote className="h-4 w-4" /><span>Registrar en Caja</span>
+              </Button>
+            ) : null}
             {doc.status === "BORRADOR" && canEditDocumentDraft ? (
               <Button variant="ghost" onClick={() => onEditDraft(doc.id)}>
                 <Pencil className="h-4 w-4" /><span>Editar borrador</span>
@@ -285,7 +283,7 @@ export function DocumentsDataTable({
         );
       },
       meta: {
-        className: "w-[184px] min-w-[184px] text-right",
+        className: "w-[144px] min-w-[144px] text-right",
         cellClassName: "py-2.5 whitespace-nowrap",
       },
     },
@@ -315,17 +313,32 @@ export function DocumentsDataTable({
   ]);
 
   return (
-    <Card className="min-w-0 overflow-x-auto border-border/70 shadow-none">
-      <DataTable
-        columns={columns}
-        data={documents}
-        isLoading={isLoading}
-        emptyMessage="No hay documentos para mostrar"
-        className="min-w-[940px] table-fixed"
-        rowClassName="h-11"
-        cellClassName="h-11 py-0"
-        reserveEmptyRows={pageSize}
-      />
-    </Card>
+    <>
+      <div className="grid gap-3 md:hidden">
+        {documents.map((doc) => {
+          const recipient = resolveDocumentRecipient(doc);
+          return (
+            <Card key={doc.id} className="space-y-3 border-border/70 p-4 shadow-none">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0"><p className="font-mono text-sm font-semibold">{formatNumber(doc.document_number, doc.point_of_sale)}</p><p className="truncate text-sm text-muted-foreground">{recipient.primaryName}</p></div>
+                <StatusBadge tone={STATUS_TONE[doc.status]}>{STATUS_LABEL[doc.status]}</StatusBadge>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-xs text-muted-foreground">Fecha</p><p>{formatBusinessDate(doc.issue_date)}</p></div><div className="text-right"><p className="text-xs text-muted-foreground">Total</p><MoneyCell value={Number(doc.total)} /></div></div>
+              <div className="flex flex-wrap justify-end gap-1 border-t border-border/60 pt-3">
+                <RowActionButton label="Ver detalle" tone="view" onClick={() => onOpenDetail(doc.id)}><Eye className="h-4 w-4" /></RowActionButton>
+                {canPrintDocument ? <RowActionButton label="Imprimir / PDF" onClick={() => onPrint(doc)}><Printer className="h-4 w-4" /></RowActionButton> : null}
+                {canPrintDocument ? <RowActionButton label="Descargar PDF" onClick={() => onDownloadPdf(doc)} disabled={downloadingDocumentId === doc.id}>{downloadingDocumentId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}</RowActionButton> : null}
+                <RowActionButton label="Compartir" onClick={() => onShare(doc)}><MessageCircle className="h-4 w-4" /></RowActionButton>
+                {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && canRegisterInCash && !cashRegisteredDocumentIds.has(doc.id) ? <RowActionButton label="Registrar en Caja" onClick={() => onRegisterInCash(doc)}><Banknote className="h-4 w-4" /></RowActionButton> : null}
+              </div>
+            </Card>
+          );
+        })}
+        {!isLoading && documents.length === 0 ? <Card className="border-dashed p-6 text-center text-sm text-muted-foreground">No hay documentos para mostrar</Card> : null}
+      </div>
+      <Card className="hidden min-w-0 overflow-x-auto border-border/70 shadow-none md:block">
+        <DataTable columns={columns} data={documents} isLoading={isLoading} emptyMessage="No hay documentos para mostrar" className="min-w-[940px] table-fixed" rowClassName="h-11" cellClassName="h-11 py-0" reserveEmptyRows={pageSize} />
+      </Card>
+    </>
   );
 }

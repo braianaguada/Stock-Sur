@@ -1330,6 +1330,14 @@ git pull origin staging
 
 ## Operational UX remediation
 
+### Documentos y servicios responsive (agosto 2026)
+
+- Documentos y presupuestos de servicio usan tarjetas de acciones en mobile y tablas con ancho controlado en sus vistas previas, evitando columnas y botones superpuestos.
+- La vista previa separa documento e historial mediante pestañas en pantallas angostas. Las acciones de impresión, descarga, duplicado y Caja se muestran con un criterio visual consistente.
+- Los presupuestos de servicio conservan el ítem con cantidad, unidad y precio como renglón principal; títulos y subtítulos son separadores opcionales sin importe.
+- El asistente de servicios permite fotografiar o subir un remito, extraer el texto localmente mediante OCR y preparar una propuesta editable. Nunca guarda, emite ni genera movimientos sin revisión y confirmación del usuario.
+- El dashboard permite filtrar por día, semana o mes y suma venta, costo, ganancia, margen bruto, cantidad, precio promedio, evolución y rentabilidad por producto sin quitar los indicadores existentes.
+
 - El modo claro y oscuro usa superficies opacas y tokens semánticos en selects, diálogos y confirmaciones. Los colores de marca principal/secundario calculan automáticamente un foreground legible, y los badges de dominio quedan centralizados en `VisualSystem` con tamaño, casing y paleta consistentes.
 - La tarjeta de lectura ejecutiva conserva padding superior en escritorio, sin depender del reset de `CardContent` pensado para cards con encabezado separado.
 
