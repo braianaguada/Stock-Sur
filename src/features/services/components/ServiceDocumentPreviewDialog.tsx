@@ -226,7 +226,7 @@ export function ServiceDocumentPreviewDialog({
                       <p className="text-xs font-semibold text-slate-500">{previewLines.length} item{previewLines.length === 1 ? "" : "s"}</p>
                     </div>
                     <div className="overflow-x-auto rounded-xl border border-slate-200">
-                      <Table>
+                      <Table className="min-w-[680px]">
                         <TableHeader className="bg-slate-950">
                           <TableRow className="border-slate-800 hover:bg-slate-950">
                             <TableHead className="h-9 w-10 text-xs font-black uppercase tracking-[0.18em] text-slate-300">#</TableHead>
@@ -377,13 +377,6 @@ export function ServiceDocumentPreviewDialog({
         )}
 
         <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-300/70 bg-white px-3 py-3 sm:px-5 sm:py-4">
-          <Button
-            variant="outline"
-            className="border-slate-400 bg-white text-slate-800 hover:border-slate-500 hover:bg-slate-100 hover:text-slate-950"
-            onClick={onClose}
-          >
-            Cerrar
-          </Button>
           <Button type="button" onClick={() => { if (previewDocument) onOpenPrint(previewDocument); }} disabled={!previewDocument}>
             Abrir impresión
           </Button>

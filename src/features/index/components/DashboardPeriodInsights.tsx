@@ -16,14 +16,20 @@ export function DashboardPeriodInsights({ data, loading }: { data: PeriodPayload
   const series = record(data?.timeseries);
   const buckets = Array.isArray(series.buckets) ? series.buckets.map(record) : [];
   const maxRevenue = Math.max(...buckets.map((bucket) => number(bucket.netRevenue)), 1);
+  const revenue = number(totals.revenue);
+  const cost = number(totals.cost);
+  const soldQuantity = number(totals.quantity);
+  const grossProfit = number(totals.grossProfit);
+  const grossMargin = revenue ? grossProfit / revenue * 100 : 0;
+  const averageUnitPrice = soldQuantity ? revenue / soldQuantity : 0;
 
   return (
     <div className="mt-5 grid gap-5 xl:grid-cols-12" aria-busy={loading}>
       <Card className="border-border/70 shadow-none xl:col-span-5">
         <div className="flex items-center gap-3 border-b border-border/60 p-5"><TrendingUp className="h-5 w-5" /><div><h2 className="font-semibold">Resultado del período</h2><p className="text-xs text-muted-foreground">Ventas emitidas, costo y ganancia bruta</p></div></div>
-        <div className="grid grid-cols-2 gap-3 p-5">
-          {[["Venta", totals.revenue], ["Costo", totals.cost], ["Ganancia", totals.grossProfit], ["Cantidad", totals.quantity]].map(([label, value]) => (
-            <div key={String(label)} className="rounded-xl border border-border/60 bg-muted/20 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-lg font-bold tabular-nums">{label === "Cantidad" ? quantity.format(number(value)) : money.format(number(value))}</p></div>
+        <div className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3">
+          {[["Venta", revenue, "money"], ["Costo", cost, "money"], ["Ganancia", grossProfit, "money"], ["Margen bruto", grossMargin, "percent"], ["Cantidad vendida", soldQuantity, "quantity"], ["Precio promedio", averageUnitPrice, "money"]].map(([label, value, format]) => (
+            <div key={String(label)} className="rounded-xl border border-border/60 bg-muted/20 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-lg font-bold tabular-nums">{format === "quantity" ? quantity.format(number(value)) : format === "percent" ? `${number(value).toFixed(1)}%` : money.format(number(value))}</p></div>
           ))}
         </div>
         <div className="space-y-3 border-t border-border/60 p-5">

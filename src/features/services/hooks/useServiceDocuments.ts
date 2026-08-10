@@ -77,7 +77,6 @@ export function useServiceDocuments(params: {
       const { data, error } = await serviceDb
         .from("service_document_lines")
         .select("*")
-        .eq("company_id", companyId)
         .eq("document_id", documentId)
         .order("sort_order");
       if (error) throw error;

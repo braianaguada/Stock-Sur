@@ -51,7 +51,7 @@ describe("services api", () => {
     storageFromMock.mockReset();
   });
 
-  it("scopes printable lines and attachments to the active company", async () => {
+  it("scopes printable lines through the document RLS and attachments to the active company", async () => {
     const lines = queryBuilder({
       data: [{ id: "line-1", document_id: "doc-1" }],
       error: null,
@@ -77,7 +77,7 @@ describe("services api", () => {
 
     const result = await fetchServiceDocumentPrintResources("company-1", "doc-1");
 
-    expect(lines.eq).toHaveBeenCalledWith("company_id", "company-1");
+    expect(lines.eq).not.toHaveBeenCalledWith("company_id", expect.anything());
     expect(lines.eq).toHaveBeenCalledWith("document_id", "doc-1");
     expect(attachments.eq).toHaveBeenCalledWith("company_id", "company-1");
     expect(attachments.eq).toHaveBeenCalledWith("service_document_id", "doc-1");

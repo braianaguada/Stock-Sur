@@ -691,7 +691,17 @@ export default function ServiceDocumentsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="overflow-x-auto">
+            <div>
+              <div className="grid gap-3 p-4 md:hidden">
+                {pagedDocuments.map((document) => (
+                  <Card key={document.id} className="space-y-3 border-border/70 p-4 shadow-none">
+                    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-mono text-sm font-semibold">{SERVICE_DOCUMENT_PREFIX}-{String(document.number).padStart(6, "0")}</p><p className="truncate text-sm text-muted-foreground">{document.customers?.name ?? "Sin cliente"}</p></div><StatusBadge tone={SERVICE_STATUS_TONE[document.status]}>{SERVICE_STATUS_LABEL[document.status]}</StatusBadge></div>
+                    <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-xs text-muted-foreground">Fecha</p><p>{formatBusinessDate(document.issue_date)}</p></div><div className="text-right"><p className="text-xs text-muted-foreground">Total</p><p className="font-semibold">{formatMoney(document.total ?? 0, document.currency)}</p></div></div>
+                    <div className="flex flex-wrap justify-end gap-1 border-t border-border/60 pt-3"><RowActionButton label="Vista previa" tone="view" onClick={() => openPreview(document)}><Eye className="h-4 w-4" /></RowActionButton>{canPrintServiceDocuments ? <RowActionButton label="Guardar PDF" onClick={() => void downloadServicePdf(document)} disabled={downloadingDocumentId === document.id}><Download className="h-4 w-4" /></RowActionButton> : null}<RowActionButton label="Compartir" onClick={() => void openShare(document)}><Link2 className="h-4 w-4" /></RowActionButton><RowActionButton label="Más acciones" onClick={() => setActionDocument(document)}><MoreHorizontal className="h-4 w-4" /></RowActionButton></div>
+                  </Card>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
               <DataTable
                 columns={documentColumns}
                 data={pagedDocuments}
@@ -702,6 +712,7 @@ export default function ServiceDocumentsPage() {
                 reserveEmptyRows={pageSize}
                 className="min-w-[820px]"
               />
+              </div>
             </div>
           )}
           </CardContent>
@@ -906,17 +917,17 @@ export default function ServiceDocumentsPage() {
                   <TableHeader><TableRow className="h-9"><TableHead>Descripción</TableHead><TableHead className="w-24">Cantidad</TableHead><TableHead className="w-24">Unidad</TableHead>{form.pricing_mode === "DETAILED" ? <TableHead className="w-32">Precio</TableHead> : null}{form.pricing_mode === "DETAILED" ? <TableHead className="w-32 text-right">Total</TableHead> : null}<TableHead className="w-10" /></TableRow></TableHeader>
                   <TableBody>{lines.map((line, index) => (
                     <TableRow key={index} className="h-12">
-                      <TableCell className="space-y-1 py-1.5"><Select value={line.line_type ?? "ITEM"} onValueChange={(value) => updateLine(index, { line_type: value as ServiceDocumentLine["line_type"] })}><SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ITEM">Trabajo / ítem</SelectItem><SelectItem value="TITLE">Título</SelectItem><SelectItem value="SUBTITLE">Subtítulo</SelectItem></SelectContent></Select><Textarea className="min-h-12 resize-none text-sm" rows={2} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
-                      <TableCell className="py-1.5"><Input className="h-9" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /></TableCell>
-                      <TableCell className="py-1.5"><Input className="h-9" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /></TableCell>
-                      {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5"><Input className="h-9" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /></TableCell> : null}
-                      {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5 text-right text-sm font-semibold">{formatMoney(calculateServiceLineTotal(line), form.currency)}</TableCell> : null}
+                      <TableCell className="space-y-1 py-1.5">{(line.line_type ?? "ITEM") !== "ITEM" ? <p className="text-xs font-semibold uppercase tracking-wide text-primary">{line.line_type === "TITLE" ? "Título de sección" : "Subtítulo"}</p> : null}<Textarea className="min-h-12 resize-none text-sm" rows={2} placeholder={(line.line_type ?? "ITEM") === "ITEM" ? "Describí el trabajo o ítem" : "Texto de la sección"} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
+                      <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /> : null}</TableCell>
+                      <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /> : null}</TableCell>
+                      {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /> : null}</TableCell> : null}
+                      {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5 text-right text-sm font-semibold">{(line.line_type ?? "ITEM") === "ITEM" ? formatMoney(calculateServiceLineTotal(line), form.currency) : null}</TableCell> : null}
                       <TableCell className="py-1.5"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeLine(index)} disabled={lines.length === 1}><Trash2 className="h-4 w-4" /></Button></TableCell>
                     </TableRow>
                   ))}</TableBody>
                 </Table>
               </div>
-              <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, sort_order: current.length + 1 }])}><Plus className="mr-2 h-4 w-4" /> Agregar trabajo</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, line_type: "TITLE", quantity: null, unit: null, unit_price: null, sort_order: current.length + 1 }])}>Agregar título</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, line_type: "SUBTITLE", quantity: null, unit: null, unit_price: null, sort_order: current.length + 1 }])}>Agregar subtítulo</Button></div>
+              <div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="h-9" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, line_type: "ITEM", sort_order: current.length + 1 }])}><Plus className="mr-2 h-4 w-4" /> Agregar ítem</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, line_type: "TITLE", quantity: null, unit: null, unit_price: null, sort_order: current.length + 1 }])}>Agregar título</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, line_type: "SUBTITLE", quantity: null, unit: null, unit_price: null, sort_order: current.length + 1 }])}>Agregar subtítulo</Button></div>
             </section>
 
             <section className="grid gap-2.5 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm md:grid-cols-3">
