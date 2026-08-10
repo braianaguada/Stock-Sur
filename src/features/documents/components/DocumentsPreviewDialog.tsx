@@ -51,6 +51,8 @@ interface DocumentsPreviewDialogProps {
   isUpdatingExternalInvoice: boolean;
   canPrintDocument: boolean;
   onOpenPrint: (document: DocRow) => void;
+  onDownloadPdf?: (document: DocRow) => void;
+  downloadingDocumentId?: string | null;
   onDuplicateDocument: (document: DocRow) => void;
   isDuplicatingDocument: boolean;
   canDuplicateDocument: boolean;
@@ -145,6 +147,8 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     isUpdatingExternalInvoice,
     canPrintDocument,
     onOpenPrint,
+    onDownloadPdf,
+    downloadingDocumentId,
     onDuplicateDocument,
     isDuplicatingDocument,
     canDuplicateDocument,
@@ -157,6 +161,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
   const [externalInvoiceDialogOpen, setExternalInvoiceDialogOpen] = useState(false);
   const [externalInvoiceNumber, setExternalInvoiceNumber] = useState("");
   const [clearExternalInvoiceOpen, setClearExternalInvoiceOpen] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<"document" | "history">("document");
 
   const handleSetExternalInvoice = () => {
     if (!selectedDocument) return;
@@ -179,16 +184,21 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
           <DialogDescription>Revision comercial, productos y trazabilidad.</DialogDescription>
         </DialogHeader>
 
+        <div className="grid shrink-0 grid-cols-2 gap-1 border-b border-slate-300 bg-white p-2 2xl:hidden" role="tablist" aria-label="Contenido de la vista previa">
+          <Button type="button" variant={mobilePanel === "document" ? "default" : "ghost"} role="tab" aria-selected={mobilePanel === "document"} onClick={() => setMobilePanel("document")}>Documento</Button>
+          <Button type="button" variant={mobilePanel === "history" ? "default" : "ghost"} role="tab" aria-selected={mobilePanel === "history"} onClick={() => setMobilePanel("history")}>Historial ({selectedEvents.length})</Button>
+        </div>
+
         {selectedDocument ? (
-          <div className="grid min-h-0 flex-1 gap-4 p-4 2xl:grid-cols-[minmax(0,1.9fr)_minmax(360px,440px)]">
-            <div className="min-h-0 min-w-0 overflow-y-auto pr-1 [scrollbar-gutter:stable]">
-              <div className="mx-auto max-w-[1040px] rounded-[22px] border border-slate-300 bg-white p-5 shadow-sm">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden p-2 sm:p-4 2xl:grid-cols-[minmax(0,1.9fr)_minmax(360px,440px)]">
+            <div className={`${mobilePanel === "document" ? "block" : "hidden"} min-h-0 min-w-0 overflow-y-auto [scrollbar-gutter:stable] 2xl:block 2xl:pr-1`}>
+              <div className="mx-auto max-w-[1040px] rounded-[22px] border border-slate-300 bg-white p-3 shadow-sm sm:p-5">
                 <div className="overflow-hidden rounded-[18px] border border-slate-200">
                   <div className={`h-1.5 w-full bg-gradient-to-r ${DOC_ACCENT_CLASS[selectedDocument.doc_type]}`} />
 
                   <header className="grid gap-5 border-b border-slate-200 p-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-                    <div className="flex min-w-0 items-center gap-5">
-                      <div className="flex h-24 w-44 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-2">
+                    <div className="flex min-w-0 flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-5">
+                      <div className="flex h-20 w-36 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-2 sm:h-24 sm:w-44">
                         {companySettings.logo_url ? (
                           <img src={companySettings.logo_url} alt={companySettings.app_name} className="max-h-full w-auto max-w-full object-contain" />
                         ) : (
@@ -313,7 +323,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       </div>
                     </div>
 
-                    <div className="overflow-hidden rounded-2xl border border-slate-200">
+                    <div className="overflow-x-auto rounded-2xl border border-slate-200">
                       <table className="w-full table-fixed border-collapse text-sm">
                         <thead className="bg-slate-950 text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">
                           <tr className="border-slate-800">
@@ -377,7 +387,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
               </div>
             </div>
 
-            <aside className="min-h-0 overflow-y-auto pr-1 [scrollbar-gutter:stable] 2xl:min-w-[360px]">
+            <aside className={`${mobilePanel === "history" ? "block" : "hidden"} min-h-0 overflow-y-auto [scrollbar-gutter:stable] 2xl:block 2xl:min-w-[360px] 2xl:pr-1`}>
               <section className="overflow-hidden rounded-[22px] border border-slate-300 bg-white shadow-sm">
                 <div className="border-b border-slate-200 p-5">
                   <div className="flex items-start justify-between gap-4">
@@ -480,7 +490,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
           </div>
         ) : null}
 
-        <div className="flex shrink-0 justify-end gap-2 border-t border-slate-300/70 bg-white px-5 py-4">
+        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-300/70 bg-white px-3 py-3 sm:px-5 sm:py-4">
           {selectedDocument?.doc_type === "REMITO" && selectedDocument.status === "EMITIDO" ? (
             isRegisteredInCash ? (
               <StatusBadge tone="success" className="self-center">
@@ -515,6 +525,11 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
           >
             Abrir impresion
           </Button>
+          {onDownloadPdf && selectedDocument ? (
+            <Button type="button" variant="outline" onClick={() => onDownloadPdf(selectedDocument)} disabled={!canPrintDocument || downloadingDocumentId === selectedDocument.id}>
+              {downloadingDocumentId === selectedDocument.id ? "Descargando..." : "Descargar PDF"}
+            </Button>
+          ) : null}
           {selectedDocument && canDuplicateDocumentType(selectedDocument.doc_type) ? (
             <Button
               type="button"

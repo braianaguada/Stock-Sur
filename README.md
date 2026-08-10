@@ -4,6 +4,14 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Documentos mobile y métricas por período
+
+- Las vistas previas comerciales y de servicio separan Documento e Historial en pestañas mobile; los editores evitan tablas horizontales en pantallas chicas.
+- Documentos permite descargar el PDF autenticado directamente y los buscadores principales incorporan una acción para limpiar el texto completo.
+- Los presupuestos de servicio admiten líneas de título y subtítulo, conservadas al guardar, duplicar, visualizar y generar el PDF mediante `20260810123000_service_document_line_sections.sql`.
+- El Dashboard conserva sus métricas actuales y agrega filtros Hoy/semana/mes, serie temporal y productos vendidos con cantidad/unidad, venta, costo y ganancia. La RPC multitenant se incorpora en `20260810120000_dashboard_period_product_insights.sql`.
+- No se modifica producción. La captura OCR de remitos manuscritos queda deliberadamente fuera de este corte y se diseñará como una segunda fase con revisión humana antes de crear el borrador.
+
 ## Presentacion operativa del Dashboard
 
 - La composicion de cobros presenta etiquetas legibles y consistentes aun cuando el origen entregue identificadores tecnicos en minusculas, como `servicios_remito`.

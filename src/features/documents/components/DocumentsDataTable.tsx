@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Banknote, Check, Copy, Eye, FileText, Loader2, MessageCircle, MoreHorizontal, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
+import { Ban, Banknote, Check, Copy, Download, Eye, FileText, Loader2, MessageCircle, MoreHorizontal, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { CategoryBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { DataTable } from "@/components/data-table/DataTable";
@@ -29,6 +29,8 @@ interface DocumentsDataTableProps {
   technicianNamesById?: Map<string, string>;
   onOpenDetail: (documentId: string) => void;
   onPrint: (document: DocRow) => void;
+  onDownloadPdf: (document: DocRow) => void;
+  downloadingDocumentId?: string | null;
   onShare: (document: DocRow) => void;
   onEditDraft: (documentId: string) => void;
   onTransition: (documentId: string, status: DocStatus) => void;
@@ -54,6 +56,8 @@ export function DocumentsDataTable({
   technicianNamesById = new Map(),
   onOpenDetail,
   onPrint,
+  onDownloadPdf,
+  downloadingDocumentId,
   onShare,
   onEditDraft,
   onTransition,
@@ -171,6 +175,11 @@ export function DocumentsDataTable({
             {canPrintDocument ? (
               <RowActionButton label="Imprimir / PDF" onClick={() => onPrint(doc)}>
                 <Printer className="h-4 w-4" />
+              </RowActionButton>
+            ) : null}
+            {canPrintDocument ? (
+              <RowActionButton label="Descargar PDF" onClick={() => onDownloadPdf(doc)} disabled={downloadingDocumentId === doc.id}>
+                {downloadingDocumentId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               </RowActionButton>
             ) : null}
             {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && cashRegisteredDocumentIds.has(doc.id) ? (
@@ -296,6 +305,8 @@ export function DocumentsDataTable({
     onIssueRemito,
     onOpenDetail,
     onPrint,
+    onDownloadPdf,
+    downloadingDocumentId,
     onShare,
     onTransition,
     onCloneAsRemito,

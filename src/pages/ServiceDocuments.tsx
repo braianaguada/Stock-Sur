@@ -1,7 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { ClearableSearchInput } from "@/components/common/ClearableSearchInput";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { CountBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
@@ -636,10 +637,7 @@ export default function ServiceDocumentsPage() {
         />
 
         <FilterToolbar>
-          <div className="relative w-full md:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar cliente, numero o referencia..." className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} />
-          </div>
+          <div className="w-full md:max-w-sm"><ClearableSearchInput placeholder="Buscar cliente, numero o referencia..." value={search} onValueChange={setSearch} /></div>
           <div className="w-full md:w-56">
             <Select value={status} onValueChange={(value) => setStatus(value as ServiceDocumentStatus | "ALL")}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -879,12 +877,36 @@ export default function ServiceDocumentsPage() {
             <section className="grid gap-2 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm">
               <Label className="text-xs">Texto introductorio</Label>
               <Textarea className="min-h-14 resize-none text-sm" rows={2} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
-              <div className="overflow-x-auto rounded-lg border bg-background">
+              <div className="grid gap-3 md:hidden">
+                {lines.map((line, index) => (
+                  <div key={index} className="rounded-lg border bg-background p-3 shadow-sm">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trabajo {index + 1}</p>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={`Eliminar trabajo ${index + 1}`} onClick={() => removeLine(index)} disabled={lines.length === 1}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                    <div className="grid gap-3">
+                      <div className="space-y-1"><Label className="text-xs">Tipo de contenido</Label><Select value={line.line_type ?? "ITEM"} onValueChange={(value) => updateLine(index, { line_type: value as ServiceDocumentLine["line_type"] })}><SelectTrigger className="h-10"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ITEM">Trabajo / ítem</SelectItem><SelectItem value="TITLE">Título de sección</SelectItem><SelectItem value="SUBTITLE">Subtítulo</SelectItem></SelectContent></Select></div>
+                      <div className="space-y-1"><Label className="text-xs">Descripción</Label><Textarea className="min-h-20 resize-y text-sm" rows={3} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></div>
+                      {(line.line_type ?? "ITEM") === "ITEM" ? <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1"><Label className="text-xs">Cantidad</Label><Input className="h-10" inputMode="decimal" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /></div>
+                        <div className="space-y-1"><Label className="text-xs">Unidad</Label><Input className="h-10" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /></div>
+                      </div> : null}
+                      {form.pricing_mode === "DETAILED" && (line.line_type ?? "ITEM") === "ITEM" ? (
+                        <div className="grid grid-cols-2 items-end gap-3">
+                          <div className="space-y-1"><Label className="text-xs">Precio unitario</Label><Input className="h-10" inputMode="decimal" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /></div>
+                          <div className="rounded-md bg-muted/50 px-3 py-2"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total</p><p className="font-semibold">{formatMoney(calculateServiceLineTotal(line), form.currency)}</p></div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto rounded-lg border bg-background md:block">
                 <Table>
                   <TableHeader><TableRow className="h-9"><TableHead>Descripción</TableHead><TableHead className="w-24">Cantidad</TableHead><TableHead className="w-24">Unidad</TableHead>{form.pricing_mode === "DETAILED" ? <TableHead className="w-32">Precio</TableHead> : null}{form.pricing_mode === "DETAILED" ? <TableHead className="w-32 text-right">Total</TableHead> : null}<TableHead className="w-10" /></TableRow></TableHeader>
                   <TableBody>{lines.map((line, index) => (
                     <TableRow key={index} className="h-12">
-                      <TableCell className="py-1.5"><Textarea className="min-h-12 resize-none text-sm" rows={2} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
+                      <TableCell className="space-y-1 py-1.5"><Select value={line.line_type ?? "ITEM"} onValueChange={(value) => updateLine(index, { line_type: value as ServiceDocumentLine["line_type"] })}><SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ITEM">Trabajo / ítem</SelectItem><SelectItem value="TITLE">Título</SelectItem><SelectItem value="SUBTITLE">Subtítulo</SelectItem></SelectContent></Select><Textarea className="min-h-12 resize-none text-sm" rows={2} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
                       <TableCell className="py-1.5"><Input className="h-9" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /></TableCell>
                       <TableCell className="py-1.5"><Input className="h-9" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /></TableCell>
                       {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5"><Input className="h-9" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /></TableCell> : null}
@@ -894,9 +916,7 @@ export default function ServiceDocumentsPage() {
                   ))}</TableBody>
                 </Table>
               </div>
-              <Button type="button" variant="outline" size="sm" className="h-9 w-fit" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, sort_order: current.length + 1 }])}>
-                <Plus className="mr-2 h-4 w-4" /> Agregar línea
-              </Button>
+              <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, sort_order: current.length + 1 }])}><Plus className="mr-2 h-4 w-4" /> Agregar trabajo</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, line_type: "TITLE", quantity: null, unit: null, unit_price: null, sort_order: current.length + 1 }])}>Agregar título</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, line_type: "SUBTITLE", quantity: null, unit: null, unit_price: null, sort_order: current.length + 1 }])}>Agregar subtítulo</Button></div>
             </section>
 
             <section className="grid gap-2.5 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm md:grid-cols-3">

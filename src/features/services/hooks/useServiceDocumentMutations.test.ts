@@ -69,7 +69,7 @@ describe("useServiceDocumentMutations", () => {
     await mutations.upsertMutation.mutationFn();
 
     expect(rpc).toHaveBeenCalledWith(
-      "save_service_document",
+      "save_service_document_with_sections",
       expect.objectContaining({
         p_company_id: "company-1",
         p_customer_id: "cust-1",
@@ -81,7 +81,7 @@ describe("useServiceDocumentMutations", () => {
         p_intro_text: "intro",
         p_closing_text: "cierre",
         p_pricing_mode: "DETAILED",
-        p_lines: [{ description: "Trabajo", quantity: 2, unit: "u", unit_price: 10, line_total: 20 }],
+        p_lines: [{ description: "Trabajo", line_type: "ITEM", quantity: 2, unit: "u", unit_price: 10, line_total: 20 }],
       }),
     );
   });
@@ -121,12 +121,12 @@ describe("useServiceDocumentMutations", () => {
     await mutations.upsertMutation.mutationFn();
 
     expect(rpc).toHaveBeenCalledWith(
-      "save_service_document",
+      "save_service_document_with_sections",
       expect.objectContaining({
         p_pricing_mode: "GLOBAL_TOTAL",
         p_global_total: 1500,
         p_hide_line_prices: true,
-        p_lines: [{ description: "Trabajo descriptivo", quantity: 1, unit: "u", unit_price: null, line_total: 0 }],
+        p_lines: [{ description: "Trabajo descriptivo", line_type: "ITEM", quantity: 1, unit: "u", unit_price: null, line_total: 0 }],
       }),
     );
   });
@@ -167,8 +167,8 @@ describe("useServiceDocumentMutations", () => {
     await mutations.convertToRemitoMutation.mutationFn("doc-2");
     await mutations.transitionMutation.mutationFn({ documentId: "doc-3", targetStatus: "APPROVED" });
 
-    expect(rpc).toHaveBeenCalledWith("create_service_document_copy", expect.objectContaining({ p_target_type: "QUOTE" }));
-    expect(rpc).toHaveBeenCalledWith("create_service_document_copy", expect.objectContaining({ p_target_type: "REMITO" }));
+    expect(rpc).toHaveBeenCalledWith("create_service_document_copy_with_sections", expect.objectContaining({ p_target_type: "QUOTE" }));
+    expect(rpc).toHaveBeenCalledWith("create_service_document_copy_with_sections", expect.objectContaining({ p_target_type: "REMITO" }));
     expect(rpc).toHaveBeenCalledWith("transition_service_document_status", expect.objectContaining({ p_document_id: "doc-3", p_target_status: "APPROVED" }));
   });
 
