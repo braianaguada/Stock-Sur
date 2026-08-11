@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
-import { CategoryBadge, HealthBadge, PrimaryCell } from "@/components/common/VisualSystem";
+import { HealthBadge, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { buildItemDisplayName } from "@/lib/item-display";
 import { cn } from "@/lib/utils";
-import type { DemandProfile, StockHealth, StockRow } from "@/features/stock/types";
+import { demandProfileBadge, stockHealthBadge } from "@/features/stock/presentation";
+import type { StockRow } from "@/features/stock/types";
 
 type StockCurrentTableProps = {
   rows: StockRow[];
@@ -12,11 +13,7 @@ type StockCurrentTableProps = {
   pageSize: number;
   formatCoverage: (value: number | null, unit: "m" | "d") => string;
   formatQuantity: (value: number, unit: string | null) => string;
-  healthLabel: Record<StockHealth, string>;
-  demandProfileLabel: Record<DemandProfile, string>;
 };
-
-const healthTone: Record<StockHealth, "danger" | "warning" | "success" | "muted"> = { RED: "danger", YELLOW: "warning", GREEN: "success", GRAY: "muted" };
 
 function CoverageBar({ row, formatCoverage }: { row: StockRow; formatCoverage: (value: number | null, unit: "m" | "d") => string }) {
   const isLowRot = row.low_rotation;
@@ -56,8 +53,6 @@ export function StockCurrentTable({
   pageSize,
   formatCoverage,
   formatQuantity,
-  healthLabel,
-  demandProfileLabel,
 }: StockCurrentTableProps) {
   const columns = useMemo<ColumnDef<StockRow, unknown>[]>(() => [
     {
@@ -94,16 +89,16 @@ export function StockCurrentTable({
     {
       id: "health",
       header: () => "Estado",
-      cell: ({ row }) => (
-        <div className="flex flex-wrap gap-1">
-          <HealthBadge tone={healthTone[row.original.health]}>
-            {healthLabel[row.original.health]}
-          </HealthBadge>
-          <CategoryBadge>
-            {demandProfileLabel[row.original.demand_profile]}
-          </CategoryBadge>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const health = stockHealthBadge[row.original.health];
+        const demand = demandProfileBadge[row.original.demand_profile];
+        return (
+          <div className="flex flex-wrap gap-1">
+            <HealthBadge tone={health.tone}>{health.label}</HealthBadge>
+            <StatusBadge tone={demand.tone}>{demand.label}</StatusBadge>
+          </div>
+        );
+      },
       meta: {
         className: "w-[180px]",
       },
@@ -133,7 +128,7 @@ export function StockCurrentTable({
         className: "w-[90px]",
       },
     },
-  ], [demandProfileLabel, formatCoverage, formatQuantity, healthLabel]);
+  ], [formatCoverage, formatQuantity]);
 
   return (
     <DataTable

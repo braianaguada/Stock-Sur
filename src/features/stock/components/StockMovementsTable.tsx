@@ -1,18 +1,17 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
-import { CategoryBadge, PrimaryCell } from "@/components/common/VisualSystem";
+import { PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { formatDateTime } from "@/lib/formatters";
 import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
-import type { Movement, MovementType } from "@/features/stock/types";
+import { movementTypeBadge } from "@/features/stock/presentation";
+import type { Movement } from "@/features/stock/types";
 
 type StockMovementsTableProps = {
   movements: Movement[];
   isLoading: boolean;
   pageSize: number;
   formatQuantity: (value: number, unit: string | null) => string;
-  typeIcon: (type: MovementType) => JSX.Element;
-  typeLabel: Record<MovementType, string>;
 };
 
 export function StockMovementsTable({
@@ -20,8 +19,6 @@ export function StockMovementsTable({
   isLoading,
   pageSize,
   formatQuantity,
-  typeIcon,
-  typeLabel,
 }: StockMovementsTableProps) {
   const columns = useMemo<ColumnDef<Movement, unknown>[]>(() => [
     {
@@ -41,12 +38,10 @@ export function StockMovementsTable({
     {
       accessorKey: "type",
       header: () => "Tipo",
-      cell: ({ row }) => (
-        <CategoryBadge className="gap-2">
-          {typeIcon(row.original.type)}
-          {typeLabel[row.original.type]}
-        </CategoryBadge>
-      ),
+      cell: ({ row }) => {
+        const presentation = movementTypeBadge[row.original.type];
+        return <StatusBadge tone={presentation.tone}>{presentation.label}</StatusBadge>;
+      },
     },
     {
       id: "item",
@@ -83,7 +78,7 @@ export function StockMovementsTable({
       header: () => "Referencia",
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.reference ?? "-"}</span>,
     },
-  ], [formatQuantity, typeIcon, typeLabel]);
+  ], [formatQuantity]);
 
   return (
     <DataTable

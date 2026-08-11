@@ -54,12 +54,6 @@ export interface UpdateSupplierPurchaseOrderDraftInput {
   lines: Array<{ lineId: string; quantity: number }>;
 }
 
-export const PURCHASE_ORDER_STATUS_LABELS: Record<PurchaseOrderStatus, string> = {
-  DRAFT: "Borrador",
-  SENT: "Enviada",
-  CANCELLED: "Cancelada",
-};
-
 export function purchaseOrderActions(status: PurchaseOrderStatus) {
   return {
     canEdit: status === "DRAFT",

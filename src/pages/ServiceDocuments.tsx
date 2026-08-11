@@ -35,7 +35,7 @@ import {
 import { ServiceQuoteAiAssistantDialog } from "@/features/services/components/ServiceQuoteAiAssistantDialog";
 import { ServiceRemitoImportDialog } from "@/features/services/components/ServiceRemitoImportDialog";
 import { ServiceDocumentPreviewDialog } from "@/features/services/components/ServiceDocumentPreviewDialog";
-import { EMPTY_SERVICE_LINE, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
+import { EMPTY_SERVICE_LINE, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL, SERVICE_STATUS_TONE } from "@/features/services/constants";
 import { applyAiSuggestionToServiceDraft } from "@/features/services/aiAssistant";
 import { appendServiceDocumentLine, buildInitialServiceDocumentForm, canTransitionServiceDocument } from "@/features/services/logic";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
@@ -51,14 +51,6 @@ const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "S
 const ATTACHMENT_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const SERVICE_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
-
-const SERVICE_STATUS_TONE: Record<ServiceDocumentStatus, "muted" | "info" | "success" | "danger" | "warning"> = {
-  DRAFT: "muted",
-  SENT: "info",
-  APPROVED: "success",
-  REJECTED: "danger",
-  CANCELLED: "warning",
-};
 
 type AiSuggestionApplyParams = {
   suggestion: ServiceQuoteAiSuggestion;

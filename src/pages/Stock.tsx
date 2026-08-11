@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowDownCircle, ArrowUpCircle, Loader2, Plus, Search, Settings2, Sparkles } from "lucide-react";
+import { Loader2, Plus, Search, Sparkles } from "lucide-react";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { MetricCard, MetricGrid, StatusBadge } from "@/components/common/VisualSystem";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
@@ -26,7 +26,7 @@ import { StockMovementsTable } from "@/features/stock/components/StockMovementsT
 import { useStockPage } from "@/features/stock/hooks/useStockPage";
 import { buildStockInsights, countStockInsightTones, getStockInsightKindLabel } from "@/features/stock/insights";
 import { formatStockQuantity } from "@/lib/stock-quantity";
-import type { DemandProfile, MovementType, StockHealth } from "@/features/stock/types";
+import type { DemandProfile, StockHealth } from "@/features/stock/types";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 
@@ -79,29 +79,7 @@ export default function StockPage() {
     submitMovement,
   } = useStockPage();
 
-  const typeIcon = (type: MovementType) => {
-    if (type === "IN") return <ArrowDownCircle className="h-4 w-4 text-green-500" />;
-    if (type === "OUT") return <ArrowUpCircle className="h-4 w-4 text-red-500" />;
-    return <Settings2 className="h-4 w-4 text-yellow-500" />;
-  };
-
-  const typeLabel: Record<MovementType, string> = {
-    IN: "Entrada",
-    OUT: "Salida",
-    ADJUSTMENT: "Ajuste",
-  };
-  const healthLabel: Record<StockHealth, string> = {
-    GREEN: "Verde",
-    YELLOW: "Amarillo",
-    RED: "Rojo",
-    GRAY: "Sin datos",
-  };
   const insightBadgeTone = { RED: "danger", YELLOW: "warning", BLUE: "info", GRAY: "muted" } as const;
-  const demandProfileLabel: Record<DemandProfile, string> = {
-    LOW: "Rotacion baja",
-    MEDIUM: "Rotacion media",
-    HIGH: "Rotacion alta",
-  };
 
   const alerts = useMemo(() => buildStockInsights(stockRows), [stockRows]);
   const alertsSignature = useMemo(
@@ -365,8 +343,6 @@ export default function StockPage() {
                 pageSize={stockPageSize}
                 formatCoverage={formatCoverage}
                 formatQuantity={formatStockQuantity}
-                healthLabel={healthLabel}
-                demandProfileLabel={demandProfileLabel}
               />
             </Card>
             <DataTablePagination
@@ -406,8 +382,6 @@ export default function StockPage() {
                 isLoading={loadingMovements}
                 pageSize={movementsPageSize}
                 formatQuantity={formatStockQuantity}
-                typeIcon={typeIcon}
-                typeLabel={typeLabel}
               />
             </Card>
             <DataTablePagination

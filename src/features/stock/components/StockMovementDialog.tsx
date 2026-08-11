@@ -10,10 +10,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EntityDialog } from "@/components/common/EntityDialog";
+import { getStockLevelBadge } from "@/features/stock/presentation";
 import { buildItemDisplayName } from "@/lib/item-display";
-import { formatStockQuantity } from "@/lib/stock-quantity";
 import { cn } from "@/lib/utils";
-import { Loader2, Package, Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import type { MovementType, SearchableItem, StockMovementForm } from "@/features/stock/types";
 
 type StockMovementDialogProps = {
@@ -32,12 +32,6 @@ type StockMovementDialogProps = {
   onSelectedItemChange: (item: SearchableItem | null) => void;
 };
 
-function stockTone(stock: number) {
-  if (stock <= 0) return "danger";
-  if (stock <= 5) return "warning";
-  return "success";
-}
-
 export function StockMovementDialog({
   open,
   form,
@@ -54,7 +48,7 @@ export function StockMovementDialog({
   onSelectedItemChange,
 }: StockMovementDialogProps) {
   const selectedStock = selectedItem ? stockByItemId.get(selectedItem.id) : undefined;
-  const selectedTone = selectedStock === undefined ? null : stockTone(selectedStock);
+  const selectedPresentation = getStockLevelBadge(selectedStock, selectedItem?.unit ?? null);
   const hasSearch = itemSearch.trim().length > 0;
 
   return (
@@ -89,7 +83,7 @@ export function StockMovementDialog({
                 ) : (
                   availableItems.map((item) => {
                     const itemStock = stockByItemId.get(item.id);
-                    const tone = itemStock === undefined ? null : stockTone(itemStock);
+                    const presentation = getStockLevelBadge(itemStock, item.unit);
 
                     return (
                       <button
@@ -113,8 +107,8 @@ export function StockMovementDialog({
                             attributes: item.attributes,
                           })}
                         </span>
-                        <StatusBadge tone={tone ?? "muted"} className="shrink-0 tabular-nums">
-                          {itemStock === undefined ? "Stock no disponible" : formatStockQuantity(itemStock, item.unit)}
+                        <StatusBadge tone={presentation.tone} className="shrink-0 tabular-nums">
+                          {presentation.label}
                         </StatusBadge>
                       </button>
                     );
@@ -134,11 +128,8 @@ export function StockMovementDialog({
                     })}
                   </p>
                 </div>
-                <StatusBadge tone={selectedTone ?? "muted"} className="flex items-center gap-1.5 tabular-nums">
-                  <Package className="h-4 w-4" />
-                  {selectedStock === undefined
-                    ? "Stock no disponible"
-                    : formatStockQuantity(selectedStock, selectedItem.unit)}
+                <StatusBadge tone={selectedPresentation.tone} className="tabular-nums">
+                  {selectedPresentation.label}
                 </StatusBadge>
               </div>
             ) : null}

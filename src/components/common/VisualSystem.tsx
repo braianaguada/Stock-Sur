@@ -139,6 +139,19 @@ export function MetricGrid({
   return <div className={cn("grid gap-3", metricGridColumnClasses[columns], className)}>{children}</div>;
 }
 
+export type BadgeTone = MetricTone;
+
+const badgeToneClassNames: Record<BadgeTone, string> = {
+  default: "border-border/70 bg-muted/55 text-foreground",
+  success: "border-success/20 bg-success/10 text-success",
+  warning: "border-warning/20 bg-warning/12 text-warning",
+  danger: "border-destructive/20 bg-destructive/10 text-destructive",
+  info: "border-info/20 bg-info/10 text-info",
+  muted: "border-border/70 bg-muted/60 text-muted-foreground",
+};
+
+const categoryBadgeClassName = "border-primary/20 bg-primary/8 text-primary";
+
 export function StatusBadge({
   children,
   tone = "default",
@@ -146,26 +159,19 @@ export function StatusBadge({
   className,
 }: {
   children: ReactNode;
-  tone?: MetricTone;
+  tone?: BadgeTone;
   announce?: boolean;
   className?: string;
 }) {
-  const badgeToneClassName: Record<MetricTone, string> = {
-    default: "",
-    success: "border-success/18 bg-success/10 text-success",
-    warning: "border-warning/18 bg-warning/12 text-warning",
-    danger: "border-destructive/18 bg-destructive/12 text-destructive",
-    info: "border-primary/15 bg-primary/8 text-primary",
-    muted: "border-border/70 bg-muted/60 text-muted-foreground",
-  };
-
   return (
     <Badge
       variant="outline"
       role={announce ? "status" : undefined}
+      data-badge-kind="status"
+      data-badge-tone={tone}
       className={cn(
-        "min-h-6 w-fit max-w-full whitespace-nowrap px-2 py-0 text-xs font-semibold normal-case leading-4 tracking-normal",
-        badgeToneClassName[tone],
+        "w-fit",
+        badgeToneClassNames[tone],
         className,
       )}
     >
@@ -175,11 +181,27 @@ export function StatusBadge({
 }
 
 export function CountBadge({ children, className }: { children: ReactNode; className?: string }) {
-  return <StatusBadge tone="muted" className={className}>{children}</StatusBadge>;
+  return (
+    <Badge
+      variant="outline"
+      data-badge-kind="count"
+      className={cn("w-fit border-border/70 bg-muted/60 text-muted-foreground tabular-nums", className)}
+    >
+      {children}
+    </Badge>
+  );
 }
 
 export function InfoBadge({ children, className }: { children: ReactNode; className?: string }) {
-  return <StatusBadge tone="info" className={className}>{children}</StatusBadge>;
+  return (
+    <Badge
+      variant="outline"
+      data-badge-kind="info"
+      className={cn("w-fit", badgeToneClassNames.info, className)}
+    >
+      {children}
+    </Badge>
+  );
 }
 
 export function HealthBadge({
@@ -190,13 +212,30 @@ export function HealthBadge({
 }: {
   children: ReactNode;
   healthy?: boolean;
-  tone?: Extract<MetricTone, "success" | "warning" | "danger" | "muted">;
+  tone?: Extract<BadgeTone, "success" | "warning" | "danger" | "muted">;
   className?: string;
 }) {
   const resolvedTone = tone ?? (healthy === false ? "warning" : "success");
-  return <StatusBadge tone={resolvedTone} className={className}>{children}</StatusBadge>;
+  return (
+    <Badge
+      variant="outline"
+      data-badge-kind="health"
+      data-badge-tone={resolvedTone}
+      className={cn("w-fit", badgeToneClassNames[resolvedTone], className)}
+    >
+      {children}
+    </Badge>
+  );
 }
 
 export function CategoryBadge({ children, className }: { children: ReactNode; className?: string }) {
-  return <StatusBadge tone="info" className={className}>{children}</StatusBadge>;
+  return (
+    <Badge
+      variant="outline"
+      data-badge-kind="category"
+      className={cn("w-fit", categoryBadgeClassName, className)}
+    >
+      {children}
+    </Badge>
+  );
 }

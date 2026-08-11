@@ -28,12 +28,12 @@ import {
   useSupplierPurchaseOrders,
 } from "@/features/purchase-orders/hooks";
 import {
-  PURCHASE_ORDER_STATUS_LABELS,
   purchaseOrderActions,
   type PurchaseOrderStatus,
   type SupplierPurchaseOrder,
   type SupplierPurchaseOrderLine,
 } from "@/features/purchase-orders/types";
+import { PURCHASE_ORDER_STATUS_LABELS, PURCHASE_ORDER_STATUS_TONES } from "@/features/purchase-orders/presentation";
 import { useToast } from "@/hooks/use-toast";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 
@@ -130,7 +130,7 @@ export default function PurchaseOrders() {
     {
       accessorKey: "status",
       header: () => "Estado",
-      cell: ({ row }) => <StatusBadge tone={row.original.status === "SENT" ? "success" : row.original.status === "CANCELLED" ? "muted" : "warning"}>{PURCHASE_ORDER_STATUS_LABELS[row.original.status]}</StatusBadge>,
+      cell: ({ row }) => <StatusBadge tone={PURCHASE_ORDER_STATUS_TONES[row.original.status]}>{PURCHASE_ORDER_STATUS_LABELS[row.original.status]}</StatusBadge>,
       meta: { className: "hidden sm:table-cell", cellClassName: "hidden sm:table-cell" },
     },
     {
@@ -244,7 +244,7 @@ export default function PurchaseOrders() {
         footer={selected?.status === "DRAFT" ? <Button disabled={!draftIsValid || saveMutation.isPending || linesQuery.isLoading} onClick={() => saveMutation.mutate()}>{saveMutation.isPending ? "Guardando..." : "Guardar cambios"}</Button> : undefined}
       >
         {selected ? <div className="grid gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-2"><StatusBadge tone={selected.status === "SENT" ? "success" : selected.status === "CANCELLED" ? "muted" : "warning"}>{PURCHASE_ORDER_STATUS_LABELS[selected.status]}</StatusBadge><span className="text-sm text-muted-foreground">{new Date(selected.created_at).toLocaleString("es-AR")}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2"><StatusBadge tone={PURCHASE_ORDER_STATUS_TONES[selected.status]}>{PURCHASE_ORDER_STATUS_LABELS[selected.status]}</StatusBadge><span className="text-sm text-muted-foreground">{new Date(selected.created_at).toLocaleString("es-AR")}</span></div>
           {selected.status === "DRAFT" ? <p className="text-sm text-muted-foreground">Podés ajustar cantidades y notas mientras la orden siga en borrador. Los precios conservan la lista que originó la orden.</p> : null}
           <Input value={draftNotes} disabled={selected.status !== "DRAFT"} placeholder="Notas de la orden" onChange={(event) => setDraftNotes(event.target.value)} />
           <div className="rounded-xl border">
