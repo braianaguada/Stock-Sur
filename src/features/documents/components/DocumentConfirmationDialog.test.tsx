@@ -18,6 +18,8 @@ describe("DocumentConfirmationDialog", () => {
     );
 
     expect(screen.getByText("Se registrara la salida de stock de todas las lineas.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Emitir remito" })).toHaveClass("text-foreground");
+    expect(screen.getByText("Se registrara la salida de stock de todas las lineas.")).toHaveClass("text-muted-foreground");
     expect(onConfirm).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Emitir remito" }));
