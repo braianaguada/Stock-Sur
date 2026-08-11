@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Bot, Camera, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ClearableSearchInput } from "@/components/common/ClearableSearchInput";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -33,16 +33,18 @@ import {
   revokeServiceDocumentShareLink,
 } from "@/features/services/api";
 import { ServiceQuoteAiAssistantDialog } from "@/features/services/components/ServiceQuoteAiAssistantDialog";
+import { ServiceRemitoImportDialog } from "@/features/services/components/ServiceRemitoImportDialog";
 import { ServiceDocumentPreviewDialog } from "@/features/services/components/ServiceDocumentPreviewDialog";
 import { EMPTY_SERVICE_LINE, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
 import { applyAiSuggestionToServiceDraft } from "@/features/services/aiAssistant";
-import { buildInitialServiceDocumentForm, canTransitionServiceDocument } from "@/features/services/logic";
+import { appendServiceDocumentLine, buildInitialServiceDocumentForm, canTransitionServiceDocument } from "@/features/services/logic";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
 import { useServiceDocuments } from "@/features/services/hooks/useServiceDocuments";
 import { buildServiceDocumentPrintHtml } from "@/features/services/print";
 import { fetchBnaOfficialUsdRate, getManualExchangeRateSnapshot } from "@/features/services/exchangeRateProvider";
 import { buildMailtoUrl, buildPublicServiceDocumentUrl, buildServiceDocumentShareMessage, buildWhatsAppUrl } from "@/features/services/share";
 import type { ServiceQuoteAiApplyMode, ServiceQuoteAiSuggestion } from "@/features/services/aiAssistant";
+import type { ServiceRemitoImport } from "@/features/services/remitoOcr";
 import type { ServiceDocument, ServiceDocumentAttachmentDraft, ServiceDocumentEvent, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentShareLink, ServiceDocumentStatus } from "@/features/services/types";
 
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
@@ -94,6 +96,7 @@ export default function ServiceDocumentsPage() {
   const [shareLinkLoading, setShareLinkLoading] = useState(false);
   const [downloadingDocumentId, setDownloadingDocumentId] = useState<string | null>(null);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
+  const [remitoImportOpen, setRemitoImportOpen] = useState(false);
   const [pendingAiSuggestionId, setPendingAiSuggestionId] = useState<string | null>(null);
   const [actionDocument, setActionDocument] = useState<ServiceDocument | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
@@ -343,6 +346,23 @@ export default function ServiceDocumentsPage() {
       return;
     }
     applyConfirmedAiSuggestion(params, true);
+  };
+
+  const importRemitoDraft = (draft: ServiceRemitoImport) => {
+    const hasItemPrices = draft.lines.some((line) => Number(line.unit_price ?? 0) > 0);
+    setEditingDocumentId(null);
+    setForm((current) => ({
+      ...current,
+      reference: draft.reference || current.reference,
+      issue_date: draft.issueDate || current.issue_date,
+      pricing_mode: draft.globalTotal != null && !hasItemPrices ? "GLOBAL_TOTAL" : "DETAILED",
+      global_total: draft.globalTotal != null && !hasItemPrices ? String(draft.globalTotal) : "",
+      hide_line_prices: draft.globalTotal != null && !hasItemPrices,
+    }));
+    setLines(draft.lines);
+    setAttachments([]);
+    setDialogOpen(true);
+    toast({ title: "Remito copiado a un borrador", description: "Revisá número, fecha, trabajos y precios antes de guardarlo." });
   };
 
   const confirmPendingAction = () => {
@@ -626,6 +646,9 @@ export default function ServiceDocumentsPage() {
           subtitle="Presupuestos de servicio manuales, separados de stock, caja e items."
           actions={
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setRemitoImportOpen(true)} disabled={!canManageServiceDocuments}>
+                <Camera className="mr-2 h-4 w-4" /> Importar remito
+              </Button>
               <Button variant="outline" onClick={openAiAssistantForNewDocument} disabled={!canManageServiceDocuments}>
                 <Bot className="mr-2 h-4 w-4" /> Crear con IA
               </Button>
@@ -681,6 +704,9 @@ export default function ServiceDocumentsPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => setRemitoImportOpen(true)} disabled={!canManageServiceDocuments}>
+                    <Camera className="mr-2 h-4 w-4" /> Importar remito
+                  </Button>
                   <Button variant="outline" onClick={openAiAssistantForNewDocument} disabled={!canManageServiceDocuments}>
                     <Bot className="mr-2 h-4 w-4" /> Crear con IA
                   </Button>
@@ -820,10 +846,10 @@ export default function ServiceDocumentsPage() {
             <section className="rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm">
               <div className="grid gap-2.5 md:grid-cols-5">
                 <div className="space-y-1 md:col-span-2">
-                  <Label className="text-xs">Cliente</Label>
-                  <Select value={form.customer_id} onValueChange={(value) => setForm((current) => ({ ...current, customer_id: value }))}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
-                    <SelectContent>{customers.map((customer) => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}</SelectContent>
+                  <Label className="text-xs">Cliente <span className="font-normal text-muted-foreground">(podés asignarlo después)</span></Label>
+                  <Select value={form.customer_id || "none"} onValueChange={(value) => setForm((current) => ({ ...current, customer_id: value === "none" ? "" : value }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Sin cliente todavía" /></SelectTrigger>
+                    <SelectContent><SelectItem value="none">Sin cliente todavía</SelectItem>{customers.map((customer) => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1 md:col-span-1"><Label className="text-xs">Referencia</Label><Input className="h-9" value={form.reference} onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))} /></div>
@@ -893,7 +919,7 @@ export default function ServiceDocumentsPage() {
                   <div key={index} className="rounded-lg border bg-background p-3 shadow-sm">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trabajo {index + 1}</p>
-                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={`Eliminar trabajo ${index + 1}`} onClick={() => removeLine(index)} disabled={lines.length === 1}><Trash2 className="h-4 w-4" /></Button>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={`Eliminar trabajo ${index + 1}`} onClick={() => removeLine(index)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                     <div className="grid gap-3">
                       <div className="space-y-1"><Label className="text-xs">Tipo de contenido</Label><Select value={line.line_type ?? "ITEM"} onValueChange={(value) => updateLine(index, { line_type: value as ServiceDocumentLine["line_type"] })}><SelectTrigger className="h-10"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ITEM">Trabajo / ítem</SelectItem><SelectItem value="TITLE">Título de sección</SelectItem><SelectItem value="SUBTITLE">Subtítulo</SelectItem></SelectContent></Select></div>
@@ -916,18 +942,18 @@ export default function ServiceDocumentsPage() {
                 <Table>
                   <TableHeader><TableRow className="h-9"><TableHead>Descripción</TableHead><TableHead className="w-24">Cantidad</TableHead><TableHead className="w-24">Unidad</TableHead>{form.pricing_mode === "DETAILED" ? <TableHead className="w-32">Precio</TableHead> : null}{form.pricing_mode === "DETAILED" ? <TableHead className="w-32 text-right">Total</TableHead> : null}<TableHead className="w-10" /></TableRow></TableHeader>
                   <TableBody>{lines.map((line, index) => (
-                    <TableRow key={index} className="h-12">
+                    <TableRow key={index} className={(line.line_type ?? "ITEM") === "ITEM" ? "h-12" : "h-9"}>
                       <TableCell className="space-y-1 py-1.5">{(line.line_type ?? "ITEM") !== "ITEM" ? <p className="text-xs font-semibold uppercase tracking-wide text-primary">{line.line_type === "TITLE" ? "Título de sección" : "Subtítulo"}</p> : null}<Textarea className="min-h-12 resize-none text-sm" rows={2} placeholder={(line.line_type ?? "ITEM") === "ITEM" ? "Describí el trabajo o ítem" : "Texto de la sección"} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
                       <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /> : null}</TableCell>
                       <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /> : null}</TableCell>
                       {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /> : null}</TableCell> : null}
                       {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5 text-right text-sm font-semibold">{(line.line_type ?? "ITEM") === "ITEM" ? formatMoney(calculateServiceLineTotal(line), form.currency) : null}</TableCell> : null}
-                      <TableCell className="py-1.5"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeLine(index)} disabled={lines.length === 1}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                      <TableCell className="py-1.5"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeLine(index)}><Trash2 className="h-4 w-4" /></Button></TableCell>
                     </TableRow>
                   ))}</TableBody>
                 </Table>
               </div>
-              <div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="h-9" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, line_type: "ITEM", sort_order: current.length + 1 }])}><Plus className="mr-2 h-4 w-4" /> Agregar ítem</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, line_type: "TITLE", quantity: null, unit: null, unit_price: null, sort_order: current.length + 1 }])}>Agregar título</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, line_type: "SUBTITLE", quantity: null, unit: null, unit_price: null, sort_order: current.length + 1 }])}>Agregar subtítulo</Button></div>
+              <div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "ITEM" }))}><Plus className="mr-2 h-4 w-4" /> Agregar ítem</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "TITLE", quantity: null, unit: null, unit_price: null }))}>Agregar título</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "SUBTITLE", quantity: null, unit: null, unit_price: null }))}>Agregar subtítulo</Button></div>
             </section>
 
             <section className="grid gap-2.5 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm md:grid-cols-3">
@@ -1086,6 +1112,7 @@ export default function ServiceDocumentsPage() {
         selectedCustomerId={form.customer_id}
         onApply={applyAiSuggestion}
       />
+      <ServiceRemitoImportDialog open={remitoImportOpen} onOpenChange={setRemitoImportOpen} onImport={importRemitoDraft} />
     </AppLayout>
   );
 }

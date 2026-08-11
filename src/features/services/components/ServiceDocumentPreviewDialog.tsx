@@ -241,11 +241,11 @@ export function ServiceDocumentPreviewDialog({
                           {previewLines.length > 0 ? (
                             previewLines.map((line, index) => (line.line_type ?? "ITEM") !== "ITEM" ? (
                               <TableRow key={line.id ?? `${line.sort_order}-${line.description}`} className="border-slate-200 bg-slate-50">
-                                <TableCell colSpan={showLinePrices ? 6 : 4} className={(line.line_type ?? "ITEM") === "TITLE" ? "py-3 text-base font-black uppercase tracking-wide text-slate-950" : "py-2 text-sm font-bold text-slate-700"}>{line.description}</TableCell>
+                                <TableCell colSpan={showLinePrices ? 6 : 4} className={(line.line_type ?? "ITEM") === "TITLE" ? "py-2 text-sm font-bold text-slate-950" : "py-1.5 text-xs font-semibold text-slate-700"}>{line.description}</TableCell>
                               </TableRow>
                             ) : (
                               <TableRow key={line.id ?? `${line.sort_order}-${line.description}`} className="border-slate-200">
-                                <TableCell className="py-2 text-xs font-semibold text-slate-500">{index + 1}</TableCell>
+                                <TableCell className="py-2 text-xs font-semibold text-slate-500">{previewLines.slice(0, index + 1).filter((candidate) => (candidate.line_type ?? "ITEM") === "ITEM").length}</TableCell>
                                 <TableCell className="py-2 text-sm font-semibold leading-5 text-slate-950">{line.description || "-"}</TableCell>
                                 <TableCell className="py-2 text-right text-sm text-slate-700">{line.quantity ?? "-"}</TableCell>
                                 <TableCell className="py-2 text-sm text-slate-700">{line.unit || "-"}</TableCell>

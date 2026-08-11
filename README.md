@@ -1337,6 +1337,8 @@ git pull origin staging
 - Los presupuestos de servicio conservan el ítem con cantidad, unidad y precio como renglón principal; títulos y subtítulos son separadores opcionales sin importe.
 - El asistente de servicios permite fotografiar o subir un remito, extraer el texto localmente mediante OCR y preparar una propuesta editable. Nunca guarda, emite ni genera movimientos sin revisión y confirmación del usuario.
 - El dashboard permite filtrar por día, semana o mes y suma venta, costo, ganancia, margen bruto, cantidad, precio promedio, evolución y rentabilidad por producto sin quitar los indicadores existentes.
+- Un presupuesto de servicio puede guardarse como borrador sin cliente para no perder la carga; el cliente se asigna después antes de continuar el circuito comercial.
+- La importación de remitos es independiente del asistente IA: transcribe referencia, fecha, renglones y precios legibles desde una foto, descarta fragmentos dudosos y abre un borrador para revisión.
 
 - El modo claro y oscuro usa superficies opacas y tokens semánticos en selects, diálogos y confirmaciones. Los colores de marca principal/secundario calculan automáticamente un foreground legible, y los badges de dominio quedan centralizados en `VisualSystem` con tamaño, casing y paleta consistentes.
 - La tarjeta de lectura ejecutiva conserva padding superior en escritorio, sin depender del reset de `CardContent` pensado para cards con encabezado separado.

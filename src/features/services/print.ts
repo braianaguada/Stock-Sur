@@ -24,7 +24,7 @@ function buildServiceRows(lines: ServiceDocumentLine[], showLinePrices: boolean,
         </tr>
       ` : `
         <tr>
-          <td class="c-index">${index + 1}</td>
+          <td class="c-index">${lines.slice(0, index + 1).filter((candidate) => (candidate.line_type ?? "ITEM") === "ITEM").length}</td>
           <td class="c-desc">${escapeHtml(line.description)}</td>
           <td class="c-qty">${Number(line.quantity ?? 0).toLocaleString("es-AR", { maximumFractionDigits: 2 })}</td>
           <td class="c-unit">${escapeHtml(line.unit ?? "-")}</td>
@@ -155,9 +155,9 @@ export function buildServiceDocumentPrintHtml({
     .density-dense td{height:4.55mm;font-size:7.45px;line-height:1.08;padding:.8mm 1mm}
     tbody tr:nth-child(even){background:#fbfcfe}
     tbody tr:last-child td{border-bottom:0}
-    .section-row td{background:#f1f5f9;border-top:1.5px solid #94a3b8;color:#0f172a}
-    .section-title td{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;padding-top:9px;padding-bottom:9px}
-    .section-subtitle td{font-size:11px;font-weight:750;padding-top:7px;padding-bottom:7px}
+    .section-row td{background:transparent;color:#0f172a}
+    .section-title td{border-top:1px solid #cbd5e1;font-size:9px;font-weight:850;padding-top:5px;padding-bottom:4px}
+    .section-subtitle td{font-size:8.2px;font-weight:750;padding-top:3px;padding-bottom:3px}
     tr{break-inside:avoid;page-break-inside:avoid}
     thead{display:table-header-group}
     .c-index{width:8mm;text-align:center;color:#64748b}
