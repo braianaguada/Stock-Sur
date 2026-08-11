@@ -61,6 +61,7 @@ describe("buildServiceDocumentPrintHtml", () => {
     });
 
     expect(html).toContain('class="section-row section-title"');
+    expect(html).toContain('<td class="c-index"></td>');
     expect(html).toContain("Mano de obra");
     expect(html).not.toContain('class="c-qty">1');
   });

@@ -1357,4 +1357,5 @@ git pull origin staging
 - Al crear se selecciona el cliente ocasional de la empresa cuando existe; enviar o aprobar exige cliente también en base de datos.
 - La vista previa invalida líneas, adjuntos y eventos después de guardar para mostrar inmediatamente la última versión.
 - La importación de remitos usa extracción visual estructurada en `service-remito-extractor`, orientada a manuscritos y sin reescritura comercial. Requiere desplegar la función y configurar `GEMINI_API_KEY`; el resultado siempre queda editable antes de guardar.
+- La foto se envía junto con una copia en escala de grises, ampliada y con contraste normalizado; los errores seguros de la función se muestran en lugar del estado HTTP genérico. Títulos y subtítulos quedan alineados con la descripción de los ítems en vista previa e impresión.
 - Migración: `20260811090000_service_document_transition_customer_guard.sql`.

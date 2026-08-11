@@ -31,8 +31,10 @@ Deno.serve(async (req) => {
     const companyId = typeof body.companyId === "string" ? body.companyId : "";
     const mimeType = typeof body.mimeType === "string" ? body.mimeType : "";
     const imageBase64 = typeof body.imageBase64 === "string" ? body.imageBase64 : "";
+    const enhancedImageBase64 = typeof body.enhancedImageBase64 === "string" ? body.enhancedImageBase64 : "";
     if (!companyId || !["image/jpeg", "image/png", "image/webp"].includes(mimeType) || !imageBase64) return json({ error: "La imagen o la empresa no son validas." }, 400);
-    const { data: membership } = await client.from("company_users").select("id, companies!inner(id)").eq("company_id", companyId).eq("user_id", user.id).eq("status", "ACTIVE").eq("companies.is_active", true).maybeSingle();
+    const { data: membership, error: membershipError } = await client.from("company_users").select("id, companies!inner(id)").eq("company_id", companyId).eq("user_id", user.id).eq("status", "ACTIVE").eq("companies.status", "ACTIVE").maybeSingle();
+    if (membershipError) throw membershipError;
     if (!membership) return json({ error: "No tenes acceso activo a esta empresa." }, 403);
 
     const prompt = [
@@ -51,7 +53,11 @@ Deno.serve(async (req) => {
     try {
       response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType, data: imageBase64 } }] }], generationConfig: { temperature: 0, responseMimeType: "application/json", responseSchema } }),
+        body: JSON.stringify({ contents: [{ role: "user", parts: [
+          { text: enhancedImageBase64 ? `${prompt}\nSe adjuntan la foto original y una copia mejorada en contraste. Comparalas y conserva solo datos respaldados por ambas.` : prompt },
+          { inlineData: { mimeType, data: imageBase64 } },
+          ...(enhancedImageBase64 ? [{ inlineData: { mimeType: "image/jpeg", data: enhancedImageBase64 } }] : []),
+        ] }], generationConfig: { temperature: 0, responseMimeType: "application/json", responseSchema } }),
       });
     } finally { clearTimeout(timeout); }
     const payload = await response.json().catch(() => ({}));
