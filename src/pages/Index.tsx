@@ -65,7 +65,7 @@ export default function Dashboard() {
           <>
             <PageHeader
               eyebrow="Inicio · período actual"
-              title="Pulso del negocio"
+              title="Dashboard"
               subtitle={`Ventas, inventario y operación de ${settings.app_name} en una sola lectura.`}
               variant="analytical"
               meta={(
