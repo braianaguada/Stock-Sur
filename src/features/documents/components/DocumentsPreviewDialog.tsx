@@ -174,13 +174,13 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex h-[min(94vh,960px)] max-w-[min(98vw,1560px)] flex-col overflow-hidden border-slate-200 bg-slate-200/95 p-0 shadow-2xl backdrop-blur-xl [&>button]:right-5 [&>button]:top-5 [&>button]:z-20 [&>button]:flex [&>button]:h-9 [&>button]:w-9 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-slate-300 [&>button]:bg-white [&>button]:text-slate-700 [&>button]:opacity-100 [&>button]:shadow-sm [&>button]:transition [&>button]:hover:border-slate-400 [&>button]:hover:bg-slate-100 [&>button]:hover:text-slate-950 [&>button]:focus:ring-slate-400 [&>button]:focus:ring-offset-slate-200 [&>button_svg]:h-4 [&>button_svg]:w-4">
-        <DialogHeader className="shrink-0 border-b border-slate-300/70 bg-white px-6 py-4">
-          <DialogTitle className="text-lg font-semibold tracking-tight text-slate-950">Vista previa del documento</DialogTitle>
+        <DialogContent className="flex h-[min(94vh,960px)] max-w-[min(98vw,1560px)] flex-col overflow-hidden border-border bg-muted/95 p-0 shadow-2xl backdrop-blur-xl [&>button]:right-5 [&>button]:top-5 [&>button]:z-20 [&>button]:flex [&>button]:h-9 [&>button]:w-9 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-border [&>button]:bg-card [&>button]:text-muted-foreground [&>button]:opacity-100 [&>button]:shadow-sm [&>button]:transition [&>button]:hover:bg-muted [&>button]:hover:text-foreground [&>button]:focus:ring-ring [&>button]:focus:ring-offset-background [&>button_svg]:h-4 [&>button_svg]:w-4">
+        <DialogHeader className="shrink-0 border-b border-border bg-card px-6 py-4">
+          <DialogTitle className="text-lg font-semibold tracking-tight text-foreground">Vista previa del documento</DialogTitle>
           <DialogDescription>Revision comercial, productos y trazabilidad.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid shrink-0 grid-cols-2 gap-1 border-b border-slate-300 bg-white p-2 2xl:hidden" role="tablist" aria-label="Contenido de la vista previa">
+        <div className="grid shrink-0 grid-cols-2 gap-1 border-b border-border bg-card p-2 2xl:hidden" role="tablist" aria-label="Contenido de la vista previa">
           <Button type="button" variant={mobilePanel === "document" ? "default" : "ghost"} role="tab" aria-selected={mobilePanel === "document"} onClick={() => setMobilePanel("document")}>Documento</Button>
           <Button type="button" variant={mobilePanel === "history" ? "default" : "ghost"} role="tab" aria-selected={mobilePanel === "history"} onClick={() => setMobilePanel("history")}>Historial ({selectedEvents.length})</Button>
         </div>
@@ -384,12 +384,12 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
             </div>
 
             <aside className={`${mobilePanel === "history" ? "block" : "hidden"} min-h-0 overflow-y-auto [scrollbar-gutter:stable] 2xl:block 2xl:min-w-[360px] 2xl:pr-1`}>
-              <section className="overflow-hidden rounded-[22px] border border-slate-300 bg-white shadow-sm">
-                <div className="border-b border-slate-200 p-5">
+              <section className="overflow-hidden rounded-[22px] border border-border bg-card shadow-sm">
+                <div className="border-b border-border p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Historial</p>
-                      <p className="mt-1 text-sm text-slate-500">Trazabilidad del documento.</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-muted-foreground">Historial</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Trazabilidad del documento.</p>
                     </div>
                     <CountBadge>
                       {selectedEvents.length} evento{selectedEvents.length === 1 ? "" : "s"}
@@ -397,15 +397,15 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                   </div>
                 </div>
 
-                <div className="space-y-3 border-b border-slate-200 bg-slate-50/80 p-5">
+                <div className="space-y-3 border-b border-border bg-muted/40 p-5">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="rounded-2xl border border-border bg-card p-3">
                       <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Estado actual</p>
-                      <p className="mt-2 text-sm font-black text-slate-950">{STATUS_LABEL[selectedDocument.status]}</p>
+                      <p className="mt-2 text-sm font-black text-foreground">{STATUS_LABEL[selectedDocument.status]}</p>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="rounded-2xl border border-border bg-card p-3">
                       <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Creado</p>
-                      <p className="mt-2 text-sm font-black text-slate-950">{formatTimestampDate(selectedDocument.created_at)}</p>
+                      <p className="mt-2 text-sm font-black text-foreground">{formatTimestampDate(selectedDocument.created_at)}</p>
                       <p className="mt-1 font-mono text-xs text-slate-500">{formatTimestampTime(selectedDocument.created_at)}</p>
                     </div>
                   </div>
@@ -460,14 +460,14 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                               <Icon className={`h-4 w-4 ${toneColors.text}`} strokeWidth={2.5} />
                             </div>
                           </div>
-                          <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                          <div className="min-w-0 rounded-2xl border border-border bg-muted/40 p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <p className="text-sm font-black leading-5 text-slate-950">{described.title}</p>
+                                  <p className="text-sm font-black leading-5 text-foreground">{described.title}</p>
                                   {index === 0 ? <InfoBadge>Reciente</InfoBadge> : null}
                                 </div>
-                                <p className="mt-1 text-sm leading-5 text-slate-600">{described.detail}</p>
+                                <p className="mt-1 text-sm leading-5 text-muted-foreground">{described.detail}</p>
                               </div>
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-200 pt-3 text-xs text-slate-500">
@@ -486,7 +486,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
           </div>
         ) : null}
 
-        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-300/70 bg-white px-3 py-3 sm:px-5 sm:py-4">
+        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border bg-card px-3 py-3 sm:px-5 sm:py-4">
           <Button
             type="button"
             onClick={() => {
