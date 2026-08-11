@@ -87,7 +87,7 @@ describe("useServiceDocumentMutations", () => {
         p_intro_text: "intro",
         p_closing_text: "cierre",
         p_pricing_mode: "DETAILED",
-        p_lines: [{ description: "Trabajo", line_type: "ITEM", quantity: 2, unit: "u", unit_price: 10, line_total: 20 }],
+        p_lines: [{ description: "Trabajo", line_type: "ITEM", quantity: 2, unit: "u", unit_price: 10, line_total: 20, is_bold: false, is_underlined: false }],
       }),
     );
   });
@@ -132,7 +132,7 @@ describe("useServiceDocumentMutations", () => {
         p_pricing_mode: "GLOBAL_TOTAL",
         p_global_total: 1500,
         p_hide_line_prices: true,
-        p_lines: [{ description: "Trabajo descriptivo", line_type: "ITEM", quantity: 1, unit: "u", unit_price: null, line_total: 0 }],
+        p_lines: [{ description: "Trabajo descriptivo", line_type: "ITEM", quantity: 1, unit: "u", unit_price: null, line_total: 0, is_bold: false, is_underlined: false }],
       }),
     );
   });

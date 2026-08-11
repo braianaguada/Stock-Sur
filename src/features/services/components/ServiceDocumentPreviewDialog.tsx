@@ -242,7 +242,7 @@ export function ServiceDocumentPreviewDialog({
                             previewLines.map((line, index) => (line.line_type ?? "ITEM") !== "ITEM" ? (
                               <TableRow key={line.id ?? `${line.sort_order}-${line.description}`} className="border-slate-200 bg-white">
                                 <TableCell aria-hidden="true" className="w-10 py-1" />
-                                <TableCell colSpan={showLinePrices ? 5 : 3} className={(line.line_type ?? "ITEM") === "TITLE" ? "py-1.5 text-sm font-bold text-slate-950" : "py-1 text-xs font-semibold text-slate-700"}>{line.description}</TableCell>
+                                <TableCell colSpan={showLinePrices ? 5 : 3} className={`${(line.line_type ?? "ITEM") === "TITLE" ? "py-1.5 text-sm text-slate-950" : "py-1 text-xs text-slate-700"} ${line.is_bold ? "font-bold" : "font-normal"} ${line.is_underlined ? "underline underline-offset-2" : ""}`}>{line.description}</TableCell>
                               </TableRow>
                             ) : (
                               <TableRow key={line.id ?? `${line.sort_order}-${line.description}`} className="border-slate-200">
@@ -288,11 +288,11 @@ export function ServiceDocumentPreviewDialog({
                         <span className="font-semibold text-slate-950">{formatMoney(previewDocument.subtotal ?? previewDocument.total ?? 0, previewDocument.currency)}</span>
                       </div>
                       <div className="flex items-center justify-between border-b border-slate-200 py-2 text-sm text-slate-600">
-                        <span>IVA</span>
-                        <span className="font-semibold text-slate-500">No incluido</span>
+                        <span>{previewDocument.include_tax ? `IVA (${Number(previewDocument.tax_rate ?? 0).toLocaleString("es-AR")}%)` : "IVA"}</span>
+                        <span className="font-semibold text-slate-500">{previewDocument.include_tax ? formatMoney(previewDocument.tax_total ?? 0, previewDocument.currency) : "No incluido"}</span>
                       </div>
                       <div className="pt-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Total sin IVA</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">{previewDocument.include_tax ? "Total con IVA" : "Total sin IVA"}</p>
                         <p className="mt-1 text-3xl font-black tracking-tight text-slate-950">{formatMoney(previewDocument.total ?? 0, previewDocument.currency)}</p>
                         {previewDocument.currency === "USD" && previewDocument.exchange_rate ? (
                           <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">

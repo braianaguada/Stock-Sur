@@ -5,6 +5,9 @@ export type ServiceRemitoImport = {
   issueDate: string | null;
   lines: ServiceDocumentLine[];
   globalTotal: number | null;
+  netTotal: number | null;
+  taxRate: number | null;
+  taxTotal: number | null;
 };
 
 export function parseStructuredServiceRemito(value: unknown): ServiceRemitoImport {
@@ -24,6 +27,9 @@ export function parseStructuredServiceRemito(value: unknown): ServiceRemitoImpor
     issueDate: typeof input.issueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.issueDate) ? input.issueDate : null,
     lines,
     globalTotal: typeof input.globalTotal === "number" && input.globalTotal > 0 ? input.globalTotal : null,
+    netTotal: typeof input.netTotal === "number" && input.netTotal > 0 ? input.netTotal : null,
+    taxRate: typeof input.taxRate === "number" && input.taxRate >= 0 ? input.taxRate : null,
+    taxTotal: typeof input.taxTotal === "number" && input.taxTotal > 0 ? input.taxTotal : null,
   };
 }
 
@@ -76,5 +82,8 @@ export function parseServiceRemitoText(text: string): ServiceRemitoImport {
     issueDate: dateMatch ? isoDate(dateMatch[1], dateMatch[2], dateMatch[3]) : null,
     lines,
     globalTotal,
+    netTotal: null,
+    taxRate: null,
+    taxTotal: null,
   };
 }

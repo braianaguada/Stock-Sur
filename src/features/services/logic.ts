@@ -48,6 +48,8 @@ export function buildInitialServiceDocumentForm(settings: {
     pricing_mode: "DETAILED",
     global_total: "",
     hide_line_prices: false,
+    include_tax: false,
+    tax_rate: "21",
   };
 }
 

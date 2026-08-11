@@ -112,9 +112,9 @@ export default function ServiceDocumentsPage() {
   });
 
   const total = useMemo(() => {
-    if (form.pricing_mode === "GLOBAL_TOTAL") return Number(form.global_total || 0);
-    return lines.reduce((sum, line) => sum + calculateServiceLineTotal(line), 0);
-  }, [form.global_total, form.pricing_mode, lines]);
+    const subtotal = form.pricing_mode === "GLOBAL_TOTAL" ? Number(form.global_total || 0) : lines.reduce((sum, line) => sum + calculateServiceLineTotal(line), 0);
+    return form.include_tax ? subtotal * (1 + Number(form.tax_rate || 0) / 100) : subtotal;
+  }, [form.global_total, form.include_tax, form.pricing_mode, form.tax_rate, lines]);
   const occasionalCustomerId = useMemo(
     () => customers.find((customer) => customer.is_occasional)?.id ?? "",
     [customers],
@@ -153,6 +153,8 @@ export default function ServiceDocumentsPage() {
       pricing_mode: selectedDocument.pricing_mode ?? "DETAILED",
       global_total: selectedDocument.global_total != null ? String(selectedDocument.global_total) : "",
       hide_line_prices: selectedDocument.hide_line_prices ?? false,
+      include_tax: selectedDocument.include_tax ?? false,
+      tax_rate: selectedDocument.tax_rate != null ? String(selectedDocument.tax_rate) : "21",
     });
     setLines(selectedLines.length > 0 ? selectedLines : [{ ...EMPTY_SERVICE_LINE }]);
   }, [editingDocumentId, selectedDocument, selectedLines]);
@@ -371,6 +373,9 @@ export default function ServiceDocumentsPage() {
       pricing_mode: draft.globalTotal != null && !hasItemPrices ? "GLOBAL_TOTAL" : "DETAILED",
       global_total: draft.globalTotal != null && !hasItemPrices ? String(draft.globalTotal) : "",
       hide_line_prices: draft.globalTotal != null && !hasItemPrices,
+      include_tax: draft.taxRate != null || draft.taxTotal != null,
+      tax_rate: draft.taxRate != null ? String(draft.taxRate) : draft.taxTotal != null && draft.netTotal ? String((draft.taxTotal / draft.netTotal) * 100) : "21",
+      ...(draft.netTotal != null && !hasItemPrices ? { global_total: String(draft.netTotal) } : {}),
     }));
     setLines(draft.lines);
     setAttachments([]);
@@ -900,6 +905,11 @@ export default function ServiceDocumentsPage() {
                     <p className="text-xs text-muted-foreground">Usalo para detallar trabajos sin desglosar precios por item.</p>
                   </div>
                 ) : null}
+                <label className="flex items-center gap-2 self-end rounded-md border bg-background px-3 py-2 text-sm font-medium">
+                  <input type="checkbox" checked={form.include_tax} onChange={(event) => setForm((current) => ({ ...current, include_tax: event.target.checked }))} />
+                  Incluir IVA sobre el subtotal
+                </label>
+                {form.include_tax ? <div className="space-y-1"><Label className="text-xs">Alícuota IVA (%)</Label><Input className="h-9" type="number" min="0" max="100" step="0.01" value={form.tax_rate} onChange={(event) => setForm((current) => ({ ...current, tax_rate: event.target.value }))} /></div> : null}
               </div>
 
               {form.currency === "USD" ? (
@@ -936,7 +946,8 @@ export default function ServiceDocumentsPage() {
                     </div>
                     <div className="grid gap-3">
                       <div className="space-y-1"><Label className="text-xs">Tipo de contenido</Label><Select value={line.line_type ?? "ITEM"} onValueChange={(value) => updateLine(index, { line_type: value as ServiceDocumentLine["line_type"] })}><SelectTrigger className="h-10"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ITEM">Trabajo / ítem</SelectItem><SelectItem value="TITLE">Título de sección</SelectItem><SelectItem value="SUBTITLE">Subtítulo</SelectItem></SelectContent></Select></div>
-                      <div className="space-y-1"><Label className="text-xs">Descripción</Label><Textarea className="min-h-20 resize-y text-sm" rows={3} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></div>
+                      <div className="space-y-1"><Label className="text-xs">Descripción</Label><Textarea className={`min-h-20 resize-y text-sm ${line.is_bold ? "font-bold" : ""} ${line.is_underlined ? "underline underline-offset-2" : ""}`} rows={3} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></div>
+                      {(line.line_type ?? "ITEM") !== "ITEM" ? <div className="flex gap-4 text-xs"><label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(line.is_bold)} onChange={(event) => updateLine(index, { is_bold: event.target.checked })} />Negrita</label><label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(line.is_underlined)} onChange={(event) => updateLine(index, { is_underlined: event.target.checked })} />Subrayado</label></div> : null}
                       {(line.line_type ?? "ITEM") === "ITEM" ? <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1"><Label className="text-xs">Cantidad</Label><Input className="h-10" inputMode="decimal" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /></div>
                         <div className="space-y-1"><Label className="text-xs">Unidad</Label><Input className="h-10" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /></div>
@@ -956,7 +967,7 @@ export default function ServiceDocumentsPage() {
                   <TableHeader><TableRow className="h-9"><TableHead>Descripción</TableHead><TableHead className="w-24">Cantidad</TableHead><TableHead className="w-24">Unidad</TableHead>{form.pricing_mode === "DETAILED" ? <TableHead className="w-32">Precio</TableHead> : null}{form.pricing_mode === "DETAILED" ? <TableHead className="w-32 text-right">Total</TableHead> : null}<TableHead className="w-10" /></TableRow></TableHeader>
                   <TableBody>{lines.map((line, index) => (
                     <TableRow key={index} className={(line.line_type ?? "ITEM") === "ITEM" ? "h-12" : "h-9"}>
-                      <TableCell className="space-y-1 py-1.5">{(line.line_type ?? "ITEM") !== "ITEM" ? <p className="text-xs font-semibold uppercase tracking-wide text-primary">{line.line_type === "TITLE" ? "Título de sección" : "Subtítulo"}</p> : null}<Textarea className="min-h-12 resize-none text-sm" rows={2} placeholder={(line.line_type ?? "ITEM") === "ITEM" ? "Describí el trabajo o ítem" : "Texto de la sección"} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
+                      <TableCell className="space-y-1 py-1.5">{(line.line_type ?? "ITEM") !== "ITEM" ? <div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-wide text-primary">{line.line_type === "TITLE" ? "Título de sección" : "Subtítulo"}</p><div className="flex gap-3 text-xs"><label className="flex items-center gap-1"><input type="checkbox" checked={Boolean(line.is_bold)} onChange={(event) => updateLine(index, { is_bold: event.target.checked })} />Negrita</label><label className="flex items-center gap-1"><input type="checkbox" checked={Boolean(line.is_underlined)} onChange={(event) => updateLine(index, { is_underlined: event.target.checked })} />Subrayado</label></div></div> : null}<Textarea className={`min-h-12 resize-none text-sm ${line.is_bold ? "font-bold" : ""} ${line.is_underlined ? "underline underline-offset-2" : ""}`} rows={2} placeholder={(line.line_type ?? "ITEM") === "ITEM" ? "Describí el trabajo o ítem" : "Texto de la sección"} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
                       <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /> : null}</TableCell>
                       <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /> : null}</TableCell>
                       {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /> : null}</TableCell> : null}
@@ -966,7 +977,7 @@ export default function ServiceDocumentsPage() {
                   ))}</TableBody>
                 </Table>
               </div>
-              <div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "ITEM" }))}><Plus className="mr-2 h-4 w-4" /> Agregar ítem</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "TITLE", quantity: null, unit: null, unit_price: null }))}>Agregar título</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "SUBTITLE", quantity: null, unit: null, unit_price: null }))}>Agregar subtítulo</Button></div>
+              <div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "ITEM" }))}><Plus className="mr-2 h-4 w-4" /> Agregar ítem</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "TITLE", quantity: null, unit: null, unit_price: null, is_bold: true }))}>Agregar título</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "SUBTITLE", quantity: null, unit: null, unit_price: null }))}>Agregar subtítulo</Button></div>
             </section>
 
             <section className="grid gap-2.5 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm md:grid-cols-3">

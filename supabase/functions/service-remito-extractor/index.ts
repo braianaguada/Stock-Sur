@@ -9,9 +9,12 @@ const responseSchema = {
     issueDate: { type: "STRING" },
     items: { type: "ARRAY", items: { type: "OBJECT", properties: { description: { type: "STRING" }, quantity: { type: "NUMBER" }, unit: { type: "STRING" }, unitPrice: { type: "NUMBER" } }, required: ["description", "quantity", "unit", "unitPrice"] } },
     globalTotal: { type: "NUMBER" },
+    netTotal: { type: "NUMBER" },
+    taxRate: { type: "NUMBER" },
+    taxTotal: { type: "NUMBER" },
     warnings: { type: "ARRAY", items: { type: "STRING" } },
   },
-  required: ["reference", "issueDate", "items", "globalTotal", "warnings"],
+  required: ["reference", "issueDate", "items", "globalTotal", "netTotal", "taxRate", "taxTotal", "warnings"],
 };
 
 Deno.serve(async (req) => {
@@ -45,6 +48,7 @@ Deno.serve(async (req) => {
       "reference lleva solo el numero visible con prefijo Remito; issueDate usa YYYY-MM-DD o queda vacia.",
       "Crea items solo con trabajos o materiales. No conviertas cada renglon visual en un item.",
       "Extrae precios por item si existen. Si solo hay total final, usa globalTotal y unitPrice 0.",
+      "Si hay subtotal/neto e IVA/ITBMS/impuesto, extrae netTotal, taxRate y taxTotal; globalTotal es el total final con impuesto. Usa 0 cuando un campo no exista.",
       "Devuelve exclusivamente el JSON solicitado.",
     ].join("\n");
     const controller = new AbortController();
