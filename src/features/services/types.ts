@@ -9,6 +9,7 @@ export type ServiceCustomer = {
   cuit: string | null;
   email?: string | null;
   phone?: string | null;
+  is_occasional?: boolean;
 };
 
 export type ServiceDocument = {
@@ -29,6 +30,9 @@ export type ServiceDocument = {
   closing_text: string | null;
   subtotal: number | string;
   total: number | string;
+  include_tax?: boolean;
+  tax_rate?: number | string;
+  tax_total?: number | string;
   currency: ServiceDocumentCurrency;
   exchange_rate_source: ServiceDocumentExchangeRateSource;
   exchange_rate: number | string | null;
@@ -52,6 +56,9 @@ export type ServiceDocumentLine = {
   unit_price: number | null;
   line_total: number;
   sort_order: number;
+  line_type?: "ITEM" | "TITLE" | "SUBTITLE";
+  is_bold?: boolean;
+  is_underlined?: boolean;
 };
 
 export type ServiceDocumentForm = {
@@ -75,6 +82,8 @@ export type ServiceDocumentForm = {
   pricing_mode: ServiceDocumentPricingMode;
   global_total: string;
   hide_line_prices: boolean;
+  include_tax: boolean;
+  tax_rate: string;
 };
 
 export type ServiceDocumentEvent = {

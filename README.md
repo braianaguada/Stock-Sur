@@ -4,6 +4,14 @@ Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, d
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
 
+## Documentos mobile y métricas por período
+
+- Las vistas previas comerciales y de servicio separan Documento e Historial en pestañas mobile; los editores evitan tablas horizontales en pantallas chicas.
+- Documentos permite descargar el PDF autenticado directamente y los buscadores principales incorporan una acción para limpiar el texto completo.
+- Los presupuestos de servicio admiten líneas de título y subtítulo, conservadas al guardar, duplicar, visualizar y generar el PDF mediante `20260810123000_service_document_line_sections.sql`.
+- El Dashboard conserva sus métricas actuales y agrega filtros Hoy/semana/mes, serie temporal y productos vendidos con cantidad/unidad, venta, costo y ganancia. La RPC multitenant se incorpora en `20260810120000_dashboard_period_product_insights.sql`.
+- No se modifica producción. La captura OCR de remitos manuscritos queda deliberadamente fuera de este corte y se diseñará como una segunda fase con revisión humana antes de crear el borrador.
+
 ## Presentacion operativa del Dashboard
 
 - La composicion de cobros presenta etiquetas legibles y consistentes aun cuando el origen entregue identificadores tecnicos en minusculas, como `servicios_remito`.
@@ -1322,6 +1330,18 @@ git pull origin staging
 
 ## Operational UX remediation
 
+### Documentos y servicios responsive (agosto 2026)
+
+- Documentos y presupuestos de servicio usan tarjetas de acciones en mobile y tablas con ancho controlado en sus vistas previas, evitando columnas y botones superpuestos.
+- La vista previa separa documento e historial mediante pestañas en pantallas angostas. Las acciones de impresión, descarga, duplicado y Caja se muestran con un criterio visual consistente.
+- Los presupuestos de servicio conservan el ítem con cantidad, unidad y precio como renglón principal; títulos y subtítulos son separadores opcionales sin importe.
+- El asistente de servicios permite fotografiar o subir un remito, extraer el texto localmente mediante OCR y preparar una propuesta editable. Nunca guarda, emite ni genera movimientos sin revisión y confirmación del usuario.
+- El dashboard permite filtrar por día, semana o mes y suma venta, costo, ganancia, margen bruto, cantidad, precio promedio, evolución y rentabilidad por producto sin quitar los indicadores existentes.
+- Un presupuesto de servicio puede guardarse como borrador sin cliente para no perder la carga; el cliente se asigna después antes de continuar el circuito comercial.
+- La importación de remitos es independiente del asistente IA: transcribe referencia, fecha, renglones y precios legibles desde una foto, descarta fragmentos dudosos y abre un borrador para revisión.
+
+- El tema oscuro aplica superficies, bordes, fondos ambientales y acentos de dominio con contraste consistente en la estructura compartida. El color secundario configurado participa en acciones secundarias, navegación activa y ambientación visual, mientras las hojas imprimibles conservan su apariencia de papel.
+- El marco, las pestañas, las acciones y el historial de las vistas previas de Documentos y Servicios respetan el tema activo; únicamente la hoja imprimible conserva el fondo blanco.
 - El modo claro y oscuro usa superficies opacas y tokens semánticos en selects, diálogos y confirmaciones. Los colores de marca principal/secundario calculan automáticamente un foreground legible, y los badges de dominio quedan centralizados en `VisualSystem` con tamaño, casing y paleta consistentes.
 - La tarjeta de lectura ejecutiva conserva padding superior en escritorio, sin depender del reset de `CardContent` pensado para cards con encabezado separado.
 
@@ -1333,3 +1353,13 @@ git pull origin staging
 - El detalle de Cliente ocasional conserva sólo el contexto operativo necesario. Los catálogos de proveedores muestran las órdenes de compra aun cuando no existan renglones en la versión seleccionada.
 - Configuración ofrece una selección visual acotada a modo claro u oscuro y colores principal/secundario; las preferencias heredadas se normalizan sin borrar datos ni modificar reglas de negocio.
 - La migración `20260803120000_allow_commercial_remito_returns.sql` reemplaza de forma compatible `issue_document` para aceptar devoluciones comerciales sin técnico y conserva la igualdad null-safe con el documento origen. No fue aplicada a producción desde esta rama.
+### Ajustes de presupuestos de servicio y lectura de remitos (2026-08-11)
+
+- Los títulos y subtítulos organizan el presupuesto, pero no permiten guardarlo sin al menos un ítem real.
+- Al crear se selecciona el cliente ocasional de la empresa cuando existe; enviar o aprobar exige cliente también en base de datos.
+- La vista previa invalida líneas, adjuntos y eventos después de guardar para mostrar inmediatamente la última versión.
+- La importación de remitos usa extracción visual estructurada en `service-remito-extractor`, orientada a manuscritos y sin reescritura comercial. Requiere desplegar la función y configurar `GEMINI_API_KEY`; el resultado siempre queda editable antes de guardar.
+- La foto se envía junto con una copia en escala de grises, ampliada y con contraste normalizado; los errores seguros de la función se muestran en lugar del estado HTTP genérico. Títulos y subtítulos quedan alineados con la descripción de los ítems en vista previa e impresión.
+- Los presupuestos de servicio pueden incluir IVA con alícuota editable; subtotal, impuesto y total se calculan y persisten en base de datos. El importador reconoce neto, IVA/ITBMS y total, y títulos/subtítulos admiten negrita y subrayado conservados al duplicar, previsualizar e imprimir.
+- Migración: `20260811193000_service_document_tax_and_section_style.sql`.
+- Migración: `20260811090000_service_document_transition_customer_guard.sql`.

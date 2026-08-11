@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { AlertTriangle, BrainCircuit, RefreshCw, Sparkles } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -9,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { DashboardHero } from "@/features/index/components/DashboardHero";
 import { DashboardHighlights } from "@/features/index/components/DashboardHighlights";
+import { DashboardPeriodInsights } from "@/features/index/components/DashboardPeriodInsights";
 import { DashboardLoading } from "@/features/index/components/DashboardLoading";
 import { OperationalAttention } from "@/features/index/components/OperationalAttention";
 import type { DashboardInsights } from "@/features/index/dashboard-insights";
@@ -43,7 +45,16 @@ export function DashboardAiInsight({ companyName, dashboard }: { companyName: st
 export default function Dashboard() {
   const { settings } = useCompanyBrand();
   const { currentCompany } = useAuth();
-  const { dashboard, isLoading, isFetching, error, hasData, dataUpdatedAt, refetch } = useDashboardStats({ companyId: currentCompany?.id });
+  const [periodPreset, setPeriodPreset] = useState<"day" | "week" | "month">("month");
+  const period = useMemo(() => {
+    const today = new Date();
+    const from = new Date(today);
+    if (periodPreset === "week") from.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    if (periodPreset === "month") from.setDate(1);
+    const iso = (value: Date) => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+    return { granularity: "day" as const, from: iso(from), to: iso(today) };
+  }, [periodPreset]);
+  const { dashboard, isLoading, isFetching, error, hasData, dataUpdatedAt, refetch, periodData, isPeriodLoading } = useDashboardStats({ companyId: currentCompany?.id, period });
 
   return (
     <AppLayout>
@@ -54,7 +65,7 @@ export default function Dashboard() {
           <>
             <PageHeader
               eyebrow="Inicio · período actual"
-              title="Pulso del negocio"
+              title="Dashboard"
               subtitle={`Ventas, inventario y operación de ${settings.app_name} en una sola lectura.`}
               variant="analytical"
               meta={(
@@ -81,6 +92,13 @@ export default function Dashboard() {
                   <div className="min-w-0 xl:col-span-4"><OperationalAttention actions={dashboard.actions} /></div>
                 </div>
                 <DashboardHighlights dashboard={dashboard} />
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                  <div><h2 className="text-lg font-semibold">Análisis por período</h2><p className="text-sm text-muted-foreground">Ventas, costos, ganancia y productos del intervalo seleccionado.</p></div>
+                  <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Período del análisis">
+                    {(["day", "week", "month"] as const).map((preset) => <Button key={preset} type="button" size="sm" variant={periodPreset === preset ? "default" : "outline"} onClick={() => setPeriodPreset(preset)}>{preset === "day" ? "Hoy" : preset === "week" ? "Esta semana" : "Este mes"}</Button>)}
+                  </div>
+                </div>
+                <DashboardPeriodInsights data={periodData} loading={isPeriodLoading} />
                 <DashboardAiInsight key={currentCompany.id} companyName={settings.app_name} dashboard={dashboard} />
               </>
             )}

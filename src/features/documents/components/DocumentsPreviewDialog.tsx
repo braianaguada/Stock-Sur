@@ -2,7 +2,6 @@ import { useState, type ReactNode } from "react";
 import {
   ArrowRightCircle,
   ArrowRightLeft,
-  Banknote,
   CheckCircle2,
   Clock,
   Copy,
@@ -51,6 +50,8 @@ interface DocumentsPreviewDialogProps {
   isUpdatingExternalInvoice: boolean;
   canPrintDocument: boolean;
   onOpenPrint: (document: DocRow) => void;
+  onDownloadPdf?: (document: DocRow) => void;
+  downloadingDocumentId?: string | null;
   onDuplicateDocument: (document: DocRow) => void;
   isDuplicatingDocument: boolean;
   canDuplicateDocument: boolean;
@@ -145,18 +146,18 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     isUpdatingExternalInvoice,
     canPrintDocument,
     onOpenPrint,
+    onDownloadPdf,
+    downloadingDocumentId,
     onDuplicateDocument,
     isDuplicatingDocument,
     canDuplicateDocument,
-    canRegisterInCash,
-    isRegisteredInCash,
-    onRegisterInCash,
     serviceLinkLabel,
     onOpenService,
   } = props;
   const [externalInvoiceDialogOpen, setExternalInvoiceDialogOpen] = useState(false);
   const [externalInvoiceNumber, setExternalInvoiceNumber] = useState("");
   const [clearExternalInvoiceOpen, setClearExternalInvoiceOpen] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<"document" | "history">("document");
 
   const handleSetExternalInvoice = () => {
     if (!selectedDocument) return;
@@ -173,22 +174,27 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex h-[min(94vh,960px)] max-w-[min(98vw,1560px)] flex-col overflow-hidden border-slate-200 bg-slate-200/95 p-0 shadow-2xl backdrop-blur-xl [&>button]:right-5 [&>button]:top-5 [&>button]:z-20 [&>button]:flex [&>button]:h-9 [&>button]:w-9 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-slate-300 [&>button]:bg-white [&>button]:text-slate-700 [&>button]:opacity-100 [&>button]:shadow-sm [&>button]:transition [&>button]:hover:border-slate-400 [&>button]:hover:bg-slate-100 [&>button]:hover:text-slate-950 [&>button]:focus:ring-slate-400 [&>button]:focus:ring-offset-slate-200 [&>button_svg]:h-4 [&>button_svg]:w-4">
-        <DialogHeader className="shrink-0 border-b border-slate-300/70 bg-white px-6 py-4">
-          <DialogTitle className="text-lg font-semibold tracking-tight text-slate-950">Vista previa del documento</DialogTitle>
+        <DialogContent className="flex h-[min(94vh,960px)] max-w-[min(98vw,1560px)] flex-col overflow-hidden border-border bg-muted/95 p-0 shadow-2xl backdrop-blur-xl [&>button]:right-5 [&>button]:top-5 [&>button]:z-20 [&>button]:flex [&>button]:h-9 [&>button]:w-9 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-border [&>button]:bg-card [&>button]:text-muted-foreground [&>button]:opacity-100 [&>button]:shadow-sm [&>button]:transition [&>button]:hover:bg-muted [&>button]:hover:text-foreground [&>button]:focus:ring-ring [&>button]:focus:ring-offset-background [&>button_svg]:h-4 [&>button_svg]:w-4">
+        <DialogHeader className="shrink-0 border-b border-border bg-card px-6 py-4">
+          <DialogTitle className="text-lg font-semibold tracking-tight text-foreground">Vista previa del documento</DialogTitle>
           <DialogDescription>Revision comercial, productos y trazabilidad.</DialogDescription>
         </DialogHeader>
 
+        <div className="grid shrink-0 grid-cols-2 gap-1 border-b border-border bg-card p-2 2xl:hidden" role="tablist" aria-label="Contenido de la vista previa">
+          <Button type="button" variant={mobilePanel === "document" ? "default" : "ghost"} role="tab" aria-selected={mobilePanel === "document"} onClick={() => setMobilePanel("document")}>Documento</Button>
+          <Button type="button" variant={mobilePanel === "history" ? "default" : "ghost"} role="tab" aria-selected={mobilePanel === "history"} onClick={() => setMobilePanel("history")}>Historial ({selectedEvents.length})</Button>
+        </div>
+
         {selectedDocument ? (
-          <div className="grid min-h-0 flex-1 gap-4 p-4 2xl:grid-cols-[minmax(0,1.9fr)_minmax(360px,440px)]">
-            <div className="min-h-0 min-w-0 overflow-y-auto pr-1 [scrollbar-gutter:stable]">
-              <div className="mx-auto max-w-[1040px] rounded-[22px] border border-slate-300 bg-white p-5 shadow-sm">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden p-2 sm:p-4 2xl:grid-cols-[minmax(0,1.9fr)_minmax(360px,440px)]">
+            <div className={`${mobilePanel === "document" ? "block" : "hidden"} min-h-0 min-w-0 overflow-y-auto [scrollbar-gutter:stable] 2xl:block 2xl:pr-1`}>
+              <div className="mx-auto max-w-[1040px] rounded-[22px] border border-slate-300 bg-white p-3 shadow-sm sm:p-5">
                 <div className="overflow-hidden rounded-[18px] border border-slate-200">
                   <div className={`h-1.5 w-full bg-gradient-to-r ${DOC_ACCENT_CLASS[selectedDocument.doc_type]}`} />
 
                   <header className="grid gap-5 border-b border-slate-200 p-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-                    <div className="flex min-w-0 items-center gap-5">
-                      <div className="flex h-24 w-44 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-2">
+                    <div className="flex min-w-0 flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-5">
+                      <div className="flex h-20 w-36 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-2 sm:h-24 sm:w-44">
                         {companySettings.logo_url ? (
                           <img src={companySettings.logo_url} alt={companySettings.app_name} className="max-h-full w-auto max-w-full object-contain" />
                         ) : (
@@ -313,8 +319,8 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       </div>
                     </div>
 
-                    <div className="overflow-hidden rounded-2xl border border-slate-200">
-                      <table className="w-full table-fixed border-collapse text-sm">
+                    <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                      <table className="w-full min-w-[680px] table-fixed border-collapse text-sm">
                         <thead className="bg-slate-950 text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">
                           <tr className="border-slate-800">
                             <th className="w-12 px-3 py-3 text-left">#</th>
@@ -377,13 +383,13 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
               </div>
             </div>
 
-            <aside className="min-h-0 overflow-y-auto pr-1 [scrollbar-gutter:stable] 2xl:min-w-[360px]">
-              <section className="overflow-hidden rounded-[22px] border border-slate-300 bg-white shadow-sm">
-                <div className="border-b border-slate-200 p-5">
+            <aside className={`${mobilePanel === "history" ? "block" : "hidden"} min-h-0 overflow-y-auto [scrollbar-gutter:stable] 2xl:block 2xl:min-w-[360px] 2xl:pr-1`}>
+              <section className="overflow-hidden rounded-[22px] border border-border bg-card shadow-sm">
+                <div className="border-b border-border p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Historial</p>
-                      <p className="mt-1 text-sm text-slate-500">Trazabilidad del documento.</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-muted-foreground">Historial</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Trazabilidad del documento.</p>
                     </div>
                     <CountBadge>
                       {selectedEvents.length} evento{selectedEvents.length === 1 ? "" : "s"}
@@ -391,15 +397,15 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                   </div>
                 </div>
 
-                <div className="space-y-3 border-b border-slate-200 bg-slate-50/80 p-5">
+                <div className="space-y-3 border-b border-border bg-muted/40 p-5">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="rounded-2xl border border-border bg-card p-3">
                       <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Estado actual</p>
-                      <p className="mt-2 text-sm font-black text-slate-950">{STATUS_LABEL[selectedDocument.status]}</p>
+                      <p className="mt-2 text-sm font-black text-foreground">{STATUS_LABEL[selectedDocument.status]}</p>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="rounded-2xl border border-border bg-card p-3">
                       <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Creado</p>
-                      <p className="mt-2 text-sm font-black text-slate-950">{formatTimestampDate(selectedDocument.created_at)}</p>
+                      <p className="mt-2 text-sm font-black text-foreground">{formatTimestampDate(selectedDocument.created_at)}</p>
                       <p className="mt-1 font-mono text-xs text-slate-500">{formatTimestampTime(selectedDocument.created_at)}</p>
                     </div>
                   </div>
@@ -454,14 +460,14 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                               <Icon className={`h-4 w-4 ${toneColors.text}`} strokeWidth={2.5} />
                             </div>
                           </div>
-                          <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                          <div className="min-w-0 rounded-2xl border border-border bg-muted/40 p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <p className="text-sm font-black leading-5 text-slate-950">{described.title}</p>
+                                  <p className="text-sm font-black leading-5 text-foreground">{described.title}</p>
                                   {index === 0 ? <InfoBadge>Reciente</InfoBadge> : null}
                                 </div>
-                                <p className="mt-1 text-sm leading-5 text-slate-600">{described.detail}</p>
+                                <p className="mt-1 text-sm leading-5 text-muted-foreground">{described.detail}</p>
                               </div>
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-200 pt-3 text-xs text-slate-500">
@@ -480,32 +486,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
           </div>
         ) : null}
 
-        <div className="flex shrink-0 justify-end gap-2 border-t border-slate-300/70 bg-white px-5 py-4">
-          {selectedDocument?.doc_type === "REMITO" && selectedDocument.status === "EMITIDO" ? (
-            isRegisteredInCash ? (
-              <StatusBadge tone="success" className="self-center">
-                Registrado en Caja
-              </StatusBadge>
-            ) : canRegisterInCash ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                onClick={() => onRegisterInCash(selectedDocument)}
-              >
-                <Banknote className="h-4 w-4" />
-                Registrar en Caja
-              </Button>
-            ) : null
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            className="border-slate-400 bg-white text-slate-800 hover:border-slate-500 hover:bg-slate-100 hover:text-slate-950"
-            onClick={() => onOpenChange(false)}
-          >
-            Cerrar
-          </Button>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border bg-card px-3 py-3 sm:px-5 sm:py-4">
           <Button
             type="button"
             onClick={() => {
@@ -515,6 +496,11 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
           >
             Abrir impresion
           </Button>
+          {onDownloadPdf && selectedDocument ? (
+            <Button type="button" variant="outline" onClick={() => onDownloadPdf(selectedDocument)} disabled={!canPrintDocument || downloadingDocumentId === selectedDocument.id}>
+              {downloadingDocumentId === selectedDocument.id ? "Descargando..." : "Descargar PDF"}
+            </Button>
+          ) : null}
           {selectedDocument && canDuplicateDocumentType(selectedDocument.doc_type) ? (
             <Button
               type="button"

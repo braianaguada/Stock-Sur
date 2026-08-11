@@ -1,7 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, Ban, Bot, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Bot, Camera, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Send, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { ClearableSearchInput } from "@/components/common/ClearableSearchInput";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { CountBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
@@ -32,16 +33,18 @@ import {
   revokeServiceDocumentShareLink,
 } from "@/features/services/api";
 import { ServiceQuoteAiAssistantDialog } from "@/features/services/components/ServiceQuoteAiAssistantDialog";
+import { ServiceRemitoImportDialog } from "@/features/services/components/ServiceRemitoImportDialog";
 import { ServiceDocumentPreviewDialog } from "@/features/services/components/ServiceDocumentPreviewDialog";
 import { EMPTY_SERVICE_LINE, SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
 import { applyAiSuggestionToServiceDraft } from "@/features/services/aiAssistant";
-import { buildInitialServiceDocumentForm, canTransitionServiceDocument } from "@/features/services/logic";
+import { appendServiceDocumentLine, buildInitialServiceDocumentForm, canTransitionServiceDocument } from "@/features/services/logic";
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
 import { useServiceDocuments } from "@/features/services/hooks/useServiceDocuments";
 import { buildServiceDocumentPrintHtml } from "@/features/services/print";
 import { fetchBnaOfficialUsdRate, getManualExchangeRateSnapshot } from "@/features/services/exchangeRateProvider";
 import { buildMailtoUrl, buildPublicServiceDocumentUrl, buildServiceDocumentShareMessage, buildWhatsAppUrl } from "@/features/services/share";
 import type { ServiceQuoteAiApplyMode, ServiceQuoteAiSuggestion } from "@/features/services/aiAssistant";
+import type { ServiceRemitoImport } from "@/features/services/remitoOcr";
 import type { ServiceDocument, ServiceDocumentAttachmentDraft, ServiceDocumentEvent, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentShareLink, ServiceDocumentStatus } from "@/features/services/types";
 
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
@@ -93,6 +96,7 @@ export default function ServiceDocumentsPage() {
   const [shareLinkLoading, setShareLinkLoading] = useState(false);
   const [downloadingDocumentId, setDownloadingDocumentId] = useState<string | null>(null);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
+  const [remitoImportOpen, setRemitoImportOpen] = useState(false);
   const [pendingAiSuggestionId, setPendingAiSuggestionId] = useState<string | null>(null);
   const [actionDocument, setActionDocument] = useState<ServiceDocument | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
@@ -108,9 +112,13 @@ export default function ServiceDocumentsPage() {
   });
 
   const total = useMemo(() => {
-    if (form.pricing_mode === "GLOBAL_TOTAL") return Number(form.global_total || 0);
-    return lines.reduce((sum, line) => sum + calculateServiceLineTotal(line), 0);
-  }, [form.global_total, form.pricing_mode, lines]);
+    const subtotal = form.pricing_mode === "GLOBAL_TOTAL" ? Number(form.global_total || 0) : lines.reduce((sum, line) => sum + calculateServiceLineTotal(line), 0);
+    return form.include_tax ? subtotal * (1 + Number(form.tax_rate || 0) / 100) : subtotal;
+  }, [form.global_total, form.include_tax, form.pricing_mode, form.tax_rate, lines]);
+  const occasionalCustomerId = useMemo(
+    () => customers.find((customer) => customer.is_occasional)?.id ?? "",
+    [customers],
+  );
   const totalPages = Math.max(1, Math.ceil(documents.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const pagedDocuments = useMemo(
@@ -145,6 +153,8 @@ export default function ServiceDocumentsPage() {
       pricing_mode: selectedDocument.pricing_mode ?? "DETAILED",
       global_total: selectedDocument.global_total != null ? String(selectedDocument.global_total) : "",
       hide_line_prices: selectedDocument.hide_line_prices ?? false,
+      include_tax: selectedDocument.include_tax ?? false,
+      tax_rate: selectedDocument.tax_rate != null ? String(selectedDocument.tax_rate) : "21",
     });
     setLines(selectedLines.length > 0 ? selectedLines : [{ ...EMPTY_SERVICE_LINE }]);
   }, [editingDocumentId, selectedDocument, selectedLines]);
@@ -167,7 +177,7 @@ export default function ServiceDocumentsPage() {
 
   const resetForm = () => {
     setEditingDocumentId(null);
-    setForm(buildInitialServiceDocumentForm(settings));
+    setForm({ ...buildInitialServiceDocumentForm(settings), customer_id: occasionalCustomerId });
     setLines([{ ...EMPTY_SERVICE_LINE }]);
     setAttachments([]);
     setPendingAiSuggestionId(null);
@@ -290,6 +300,14 @@ export default function ServiceDocumentsPage() {
   };
 
   const triggerTransition = (document: ServiceDocument, targetStatus: ServiceDocumentStatus) => {
+    if ((targetStatus === "SENT" || targetStatus === "APPROVED") && !document.customer_id) {
+      toast({
+        title: "Falta seleccionar un cliente",
+        description: "Selecciona un cliente, incluido Cliente ocasional, antes de enviar o aprobar el presupuesto.",
+        variant: "destructive",
+      });
+      return;
+    }
     setActionDocument(null);
     setPendingConfirmation({ kind: "transition", document, targetStatus });
   };
@@ -342,6 +360,27 @@ export default function ServiceDocumentsPage() {
       return;
     }
     applyConfirmedAiSuggestion(params, true);
+  };
+
+  const importRemitoDraft = (draft: ServiceRemitoImport) => {
+    const hasItemPrices = draft.lines.some((line) => Number(line.unit_price ?? 0) > 0);
+    setEditingDocumentId(null);
+    setForm((current) => ({
+      ...current,
+      customer_id: current.customer_id || occasionalCustomerId,
+      reference: draft.reference || current.reference,
+      issue_date: draft.issueDate || current.issue_date,
+      pricing_mode: draft.globalTotal != null && !hasItemPrices ? "GLOBAL_TOTAL" : "DETAILED",
+      global_total: draft.globalTotal != null && !hasItemPrices ? String(draft.globalTotal) : "",
+      hide_line_prices: draft.globalTotal != null && !hasItemPrices,
+      include_tax: draft.taxRate != null || draft.taxTotal != null,
+      tax_rate: draft.taxRate != null ? String(draft.taxRate) : draft.taxTotal != null && draft.netTotal ? String((draft.taxTotal / draft.netTotal) * 100) : "21",
+      ...(draft.netTotal != null && !hasItemPrices ? { global_total: String(draft.netTotal) } : {}),
+    }));
+    setLines(draft.lines);
+    setAttachments([]);
+    setDialogOpen(true);
+    toast({ title: "Remito copiado a un borrador", description: "Revisá número, fecha, trabajos y precios antes de guardarlo." });
   };
 
   const confirmPendingAction = () => {
@@ -625,6 +664,9 @@ export default function ServiceDocumentsPage() {
           subtitle="Presupuestos de servicio manuales, separados de stock, caja e items."
           actions={
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setRemitoImportOpen(true)} disabled={!canManageServiceDocuments}>
+                <Camera className="mr-2 h-4 w-4" /> Importar remito
+              </Button>
               <Button variant="outline" onClick={openAiAssistantForNewDocument} disabled={!canManageServiceDocuments}>
                 <Bot className="mr-2 h-4 w-4" /> Crear con IA
               </Button>
@@ -636,10 +678,7 @@ export default function ServiceDocumentsPage() {
         />
 
         <FilterToolbar>
-          <div className="relative w-full md:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar cliente, numero o referencia..." className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} />
-          </div>
+          <div className="w-full md:max-w-sm"><ClearableSearchInput placeholder="Buscar cliente, numero o referencia..." value={search} onValueChange={setSearch} /></div>
           <div className="w-full md:w-56">
             <Select value={status} onValueChange={(value) => setStatus(value as ServiceDocumentStatus | "ALL")}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -683,6 +722,9 @@ export default function ServiceDocumentsPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => setRemitoImportOpen(true)} disabled={!canManageServiceDocuments}>
+                    <Camera className="mr-2 h-4 w-4" /> Importar remito
+                  </Button>
                   <Button variant="outline" onClick={openAiAssistantForNewDocument} disabled={!canManageServiceDocuments}>
                     <Bot className="mr-2 h-4 w-4" /> Crear con IA
                   </Button>
@@ -693,7 +735,17 @@ export default function ServiceDocumentsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="overflow-x-auto">
+            <div>
+              <div className="grid gap-3 p-4 md:hidden">
+                {pagedDocuments.map((document) => (
+                  <Card key={document.id} className="space-y-3 border-border/70 p-4 shadow-none">
+                    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-mono text-sm font-semibold">{SERVICE_DOCUMENT_PREFIX}-{String(document.number).padStart(6, "0")}</p><p className="truncate text-sm text-muted-foreground">{document.customers?.name ?? "Sin cliente"}</p></div><StatusBadge tone={SERVICE_STATUS_TONE[document.status]}>{SERVICE_STATUS_LABEL[document.status]}</StatusBadge></div>
+                    <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-xs text-muted-foreground">Fecha</p><p>{formatBusinessDate(document.issue_date)}</p></div><div className="text-right"><p className="text-xs text-muted-foreground">Total</p><p className="font-semibold">{formatMoney(document.total ?? 0, document.currency)}</p></div></div>
+                    <div className="flex flex-wrap justify-end gap-1 border-t border-border/60 pt-3"><RowActionButton label="Vista previa" tone="view" onClick={() => openPreview(document)}><Eye className="h-4 w-4" /></RowActionButton>{canPrintServiceDocuments ? <RowActionButton label="Guardar PDF" onClick={() => void downloadServicePdf(document)} disabled={downloadingDocumentId === document.id}><Download className="h-4 w-4" /></RowActionButton> : null}<RowActionButton label="Compartir" onClick={() => void openShare(document)}><Link2 className="h-4 w-4" /></RowActionButton><RowActionButton label="Más acciones" onClick={() => setActionDocument(document)}><MoreHorizontal className="h-4 w-4" /></RowActionButton></div>
+                  </Card>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
               <DataTable
                 columns={documentColumns}
                 data={pagedDocuments}
@@ -704,6 +756,7 @@ export default function ServiceDocumentsPage() {
                 reserveEmptyRows={pageSize}
                 className="min-w-[820px]"
               />
+              </div>
             </div>
           )}
           </CardContent>
@@ -811,10 +864,10 @@ export default function ServiceDocumentsPage() {
             <section className="rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm">
               <div className="grid gap-2.5 md:grid-cols-5">
                 <div className="space-y-1 md:col-span-2">
-                  <Label className="text-xs">Cliente</Label>
-                  <Select value={form.customer_id} onValueChange={(value) => setForm((current) => ({ ...current, customer_id: value }))}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
-                    <SelectContent>{customers.map((customer) => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}</SelectContent>
+                  <Label className="text-xs">Cliente <span className="font-normal text-muted-foreground">(podés asignarlo después)</span></Label>
+                  <Select value={form.customer_id || "none"} onValueChange={(value) => setForm((current) => ({ ...current, customer_id: value === "none" ? "" : value }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Sin cliente todavía" /></SelectTrigger>
+                    <SelectContent><SelectItem value="none">Sin cliente todavía</SelectItem>{customers.map((customer) => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1 md:col-span-1"><Label className="text-xs">Referencia</Label><Input className="h-9" value={form.reference} onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))} /></div>
@@ -852,6 +905,11 @@ export default function ServiceDocumentsPage() {
                     <p className="text-xs text-muted-foreground">Usalo para detallar trabajos sin desglosar precios por item.</p>
                   </div>
                 ) : null}
+                <label className="flex items-center gap-2 self-end rounded-md border bg-background px-3 py-2 text-sm font-medium">
+                  <input type="checkbox" checked={form.include_tax} onChange={(event) => setForm((current) => ({ ...current, include_tax: event.target.checked }))} />
+                  Incluir IVA sobre el subtotal
+                </label>
+                {form.include_tax ? <div className="space-y-1"><Label className="text-xs">Alícuota IVA (%)</Label><Input className="h-9" type="number" min="0" max="100" step="0.01" value={form.tax_rate} onChange={(event) => setForm((current) => ({ ...current, tax_rate: event.target.value }))} /></div> : null}
               </div>
 
               {form.currency === "USD" ? (
@@ -879,24 +937,47 @@ export default function ServiceDocumentsPage() {
             <section className="grid gap-2 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm">
               <Label className="text-xs">Texto introductorio</Label>
               <Textarea className="min-h-14 resize-none text-sm" rows={2} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
-              <div className="overflow-x-auto rounded-lg border bg-background">
+              <div className="grid gap-3 md:hidden">
+                {lines.map((line, index) => (
+                  <div key={index} className="rounded-lg border bg-background p-3 shadow-sm">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trabajo {index + 1}</p>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={`Eliminar trabajo ${index + 1}`} onClick={() => removeLine(index)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                    <div className="grid gap-3">
+                      <div className="space-y-1"><Label className="text-xs">Tipo de contenido</Label><Select value={line.line_type ?? "ITEM"} onValueChange={(value) => updateLine(index, { line_type: value as ServiceDocumentLine["line_type"] })}><SelectTrigger className="h-10"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ITEM">Trabajo / ítem</SelectItem><SelectItem value="TITLE">Título de sección</SelectItem><SelectItem value="SUBTITLE">Subtítulo</SelectItem></SelectContent></Select></div>
+                      <div className="space-y-1"><Label className="text-xs">Descripción</Label><Textarea className={`min-h-20 resize-y text-sm ${line.is_bold ? "font-bold" : ""} ${line.is_underlined ? "underline underline-offset-2" : ""}`} rows={3} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></div>
+                      {(line.line_type ?? "ITEM") !== "ITEM" ? <div className="flex gap-4 text-xs"><label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(line.is_bold)} onChange={(event) => updateLine(index, { is_bold: event.target.checked })} />Negrita</label><label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(line.is_underlined)} onChange={(event) => updateLine(index, { is_underlined: event.target.checked })} />Subrayado</label></div> : null}
+                      {(line.line_type ?? "ITEM") === "ITEM" ? <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1"><Label className="text-xs">Cantidad</Label><Input className="h-10" inputMode="decimal" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /></div>
+                        <div className="space-y-1"><Label className="text-xs">Unidad</Label><Input className="h-10" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /></div>
+                      </div> : null}
+                      {form.pricing_mode === "DETAILED" && (line.line_type ?? "ITEM") === "ITEM" ? (
+                        <div className="grid grid-cols-2 items-end gap-3">
+                          <div className="space-y-1"><Label className="text-xs">Precio unitario</Label><Input className="h-10" inputMode="decimal" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /></div>
+                          <div className="rounded-md bg-muted/50 px-3 py-2"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total</p><p className="font-semibold">{formatMoney(calculateServiceLineTotal(line), form.currency)}</p></div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto rounded-lg border bg-background md:block">
                 <Table>
                   <TableHeader><TableRow className="h-9"><TableHead>Descripción</TableHead><TableHead className="w-24">Cantidad</TableHead><TableHead className="w-24">Unidad</TableHead>{form.pricing_mode === "DETAILED" ? <TableHead className="w-32">Precio</TableHead> : null}{form.pricing_mode === "DETAILED" ? <TableHead className="w-32 text-right">Total</TableHead> : null}<TableHead className="w-10" /></TableRow></TableHeader>
                   <TableBody>{lines.map((line, index) => (
-                    <TableRow key={index} className="h-12">
-                      <TableCell className="py-1.5"><Textarea className="min-h-12 resize-none text-sm" rows={2} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
-                      <TableCell className="py-1.5"><Input className="h-9" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /></TableCell>
-                      <TableCell className="py-1.5"><Input className="h-9" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /></TableCell>
-                      {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5"><Input className="h-9" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /></TableCell> : null}
-                      {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5 text-right text-sm font-semibold">{formatMoney(calculateServiceLineTotal(line), form.currency)}</TableCell> : null}
-                      <TableCell className="py-1.5"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeLine(index)} disabled={lines.length === 1}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                    <TableRow key={index} className={(line.line_type ?? "ITEM") === "ITEM" ? "h-12" : "h-9"}>
+                      <TableCell className="space-y-1 py-1.5">{(line.line_type ?? "ITEM") !== "ITEM" ? <div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-wide text-primary">{line.line_type === "TITLE" ? "Título de sección" : "Subtítulo"}</p><div className="flex gap-3 text-xs"><label className="flex items-center gap-1"><input type="checkbox" checked={Boolean(line.is_bold)} onChange={(event) => updateLine(index, { is_bold: event.target.checked })} />Negrita</label><label className="flex items-center gap-1"><input type="checkbox" checked={Boolean(line.is_underlined)} onChange={(event) => updateLine(index, { is_underlined: event.target.checked })} />Subrayado</label></div></div> : null}<Textarea className={`min-h-12 resize-none text-sm ${line.is_bold ? "font-bold" : ""} ${line.is_underlined ? "underline underline-offset-2" : ""}`} rows={2} placeholder={(line.line_type ?? "ITEM") === "ITEM" ? "Describí el trabajo o ítem" : "Texto de la sección"} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
+                      <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /> : null}</TableCell>
+                      <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /> : null}</TableCell>
+                      {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /> : null}</TableCell> : null}
+                      {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5 text-right text-sm font-semibold">{(line.line_type ?? "ITEM") === "ITEM" ? formatMoney(calculateServiceLineTotal(line), form.currency) : null}</TableCell> : null}
+                      <TableCell className="py-1.5"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeLine(index)}><Trash2 className="h-4 w-4" /></Button></TableCell>
                     </TableRow>
                   ))}</TableBody>
                 </Table>
               </div>
-              <Button type="button" variant="outline" size="sm" className="h-9 w-fit" onClick={() => setLines((current) => [...current, { ...EMPTY_SERVICE_LINE, sort_order: current.length + 1 }])}>
-                <Plus className="mr-2 h-4 w-4" /> Agregar línea
-              </Button>
+              <div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "ITEM" }))}><Plus className="mr-2 h-4 w-4" /> Agregar ítem</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "TITLE", quantity: null, unit: null, unit_price: null, is_bold: true }))}>Agregar título</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "SUBTITLE", quantity: null, unit: null, unit_price: null }))}>Agregar subtítulo</Button></div>
             </section>
 
             <section className="grid gap-2.5 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm md:grid-cols-3">
@@ -1055,6 +1136,7 @@ export default function ServiceDocumentsPage() {
         selectedCustomerId={form.customer_id}
         onApply={applyAiSuggestion}
       />
+      <ServiceRemitoImportDialog companyId={currentCompany?.id ?? null} open={remitoImportOpen} onOpenChange={setRemitoImportOpen} onImport={importRemitoDraft} />
     </AppLayout>
   );
 }

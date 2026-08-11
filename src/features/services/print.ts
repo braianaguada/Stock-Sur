@@ -18,9 +18,14 @@ function buildServiceRows(lines: ServiceDocumentLine[], showLinePrices: boolean,
 
   return lines
     .map(
-      (line, index) => `
+      (line, index) => (line.line_type ?? "ITEM") !== "ITEM" ? `
+        <tr class="section-row ${(line.line_type ?? "ITEM") === "TITLE" ? "section-title" : "section-subtitle"}">
+          <td class="c-index"></td>
+          <td colspan="${showLinePrices ? 4 : 3}" class="${line.is_bold ? "line-bold" : ""} ${line.is_underlined ? "line-underlined" : ""}">${escapeHtml(line.description)}</td>
+        </tr>
+      ` : `
         <tr>
-          <td class="c-index">${index + 1}</td>
+          <td class="c-index">${lines.slice(0, index + 1).filter((candidate) => (candidate.line_type ?? "ITEM") === "ITEM").length}</td>
           <td class="c-desc">${escapeHtml(line.description)}</td>
           <td class="c-qty">${Number(line.quantity ?? 0).toLocaleString("es-AR", { maximumFractionDigits: 2 })}</td>
           <td class="c-unit">${escapeHtml(line.unit ?? "-")}</td>
@@ -84,7 +89,7 @@ export function buildServiceDocumentPrintHtml({
   const legalName = companySettings.legal_name ?? companySettings.app_name ?? "Stock Sur";
   const appName = companySettings.app_name ?? legalName;
   const densityClass = getDensityClass(lines.length);
-  const totalLabel = isRemito ? "Total servicio sin IVA" : "Total presupuesto sin IVA";
+  const totalLabel = document.include_tax ? (isRemito ? "Total servicio con IVA" : "Total presupuesto con IVA") : (isRemito ? "Total servicio sin IVA" : "Total presupuesto sin IVA");
   const showLinePrices = document.pricing_mode !== "GLOBAL_TOTAL" && !document.hide_line_prices;
   const currencyCode = document.currency ?? "ARS";
   const logoMarkup = companySettings.logo_url
@@ -151,6 +156,10 @@ export function buildServiceDocumentPrintHtml({
     .density-dense td{height:4.55mm;font-size:7.45px;line-height:1.08;padding:.8mm 1mm}
     tbody tr:nth-child(even){background:#fbfcfe}
     tbody tr:last-child td{border-bottom:0}
+    .section-row td{background:transparent;color:#0f172a}
+    .section-title td{border-top:1px solid #cbd5e1;font-size:8.6px;font-weight:500;padding-top:4px;padding-bottom:3px}
+    .section-subtitle td{font-size:8px;font-weight:400;padding-top:2px;padding-bottom:2px}
+    .section-row td.line-bold{font-weight:850}.section-row td.line-underlined{text-decoration:underline;text-underline-offset:2px}
     tr{break-inside:avoid;page-break-inside:avoid}
     thead{display:table-header-group}
     .c-index{width:8mm;text-align:center;color:#64748b}
@@ -278,7 +287,7 @@ export function buildServiceDocumentPrintHtml({
           </div>
           <div class="totals">
             <div class="totals-line"><span>Subtotal sin IVA</span><strong>${formatMoney(document.subtotal ?? 0, currencyCode)}</strong></div>
-            <div class="totals-line"><span>IVA</span><strong>No incluido</strong></div>
+            <div class="totals-line"><span>${document.include_tax ? `IVA (${Number(document.tax_rate ?? 0).toLocaleString("es-AR")}%)` : "IVA"}</span><strong>${document.include_tax ? formatMoney(document.tax_total ?? 0, currencyCode) : "No incluido"}</strong></div>
             <div class="grand-total"><span>${escapeHtml(totalLabel)}</span><strong>${formatMoney(document.total ?? 0, currencyCode)}</strong></div>
             ${buildExchangeRateNote(document)}
           </div>

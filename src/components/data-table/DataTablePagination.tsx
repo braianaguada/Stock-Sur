@@ -35,7 +35,7 @@ export function DataTablePagination({
   itemLabel = "registros",
 }: DataTablePaginationProps) {
   return (
-    <div className="flex flex-col gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-white/70 bg-card/90 px-4 py-3 shadow-[var(--shadow-xs)] md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-3 rounded-[calc(var(--radius)+0.15rem)] border border-border/65 bg-card/90 px-4 py-3 shadow-[var(--shadow-xs)] md:flex-row md:items-center md:justify-between">
       <p className="text-sm text-muted-foreground">
         Mostrando {rangeStart}-{rangeEnd} de {totalItems} {itemLabel}
       </p>

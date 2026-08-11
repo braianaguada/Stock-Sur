@@ -83,9 +83,17 @@
     font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
     background-image:
-      linear-gradient(135deg, hsl(var(--primary-soft) / 0.28), transparent 28%),
-      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(220 35% 98%) 100%);
+      radial-gradient(circle at 8% 0%, hsl(var(--primary) / 0.12), transparent 28%),
+      radial-gradient(circle at 92% 5%, hsl(var(--secondary) / 0.09), transparent 24%),
+      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--panel)) 100%);
     background-attachment: fixed;
+  }
+
+  .dark body {
+    background-image:
+      radial-gradient(circle at 8% 0%, hsl(var(--primary) / 0.16), transparent 30%),
+      radial-gradient(circle at 92% 4%, hsl(var(--secondary) / 0.12), transparent 26%),
+      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--panel) / 0.72) 100%);
   }
 
   #root {
@@ -209,6 +217,20 @@
     --domain-secondary: 190 58% 38%;
   }
 
+  .dark .domain-core,
+  .dark .domain-inventory,
+  .dark .domain-commercial,
+  .dark .domain-cash,
+  .dark .domain-purchases,
+  .dark .domain-services,
+  .dark .domain-settlements,
+  .dark .domain-admin {
+    --domain-accent: var(--primary);
+    --domain-accent-soft: var(--panel);
+    --domain-accent-strong: var(--primary);
+    --domain-secondary: var(--secondary);
+  }
+
   .page-hero {
     @apply relative overflow-hidden rounded-[calc(var(--radius)+0.35rem)] border px-5 py-5 sm:px-6;
     border-color: hsl(var(--domain-accent) / 0.16);
@@ -224,6 +246,16 @@
       hsl(var(--card));
   }
 
+  .dark .page-hero,
+  .dark .page-hero-analytical {
+    border-color: hsl(var(--border));
+    background:
+      radial-gradient(circle at 100% 0%, hsl(var(--secondary) / 0.08), transparent 26%),
+      radial-gradient(circle at 0% 100%, hsl(var(--primary) / 0.07), transparent 30%),
+      hsl(var(--card));
+    box-shadow: var(--shadow-xs);
+  }
+
   .page-hero::before {
     content: "";
     @apply pointer-events-none absolute inset-y-0 left-0 w-1;
@@ -235,6 +267,12 @@
     border-color: hsl(var(--domain-accent) / 0.22);
     background-color: hsl(var(--domain-accent) / 0.09);
     color: hsl(var(--domain-accent-strong));
+  }
+
+  .dark .page-eyebrow {
+    border-color: hsl(var(--primary) / 0.32);
+    background-color: hsl(var(--primary) / 0.12);
+    color: hsl(var(--foreground));
   }
 
   .page-title {
@@ -266,6 +304,13 @@
     background:
       radial-gradient(circle at 8% 0%, hsl(var(--domain-secondary) / 0.14), transparent 34%),
       linear-gradient(125deg, hsl(var(--domain-accent-soft) / 0.94), hsl(var(--card)) 62%);
+  }
+
+  .dark .cash-signal-surface {
+    border-color: hsl(var(--border));
+    background:
+      radial-gradient(circle at 100% 0%, hsl(var(--secondary) / 0.08), transparent 28%),
+      hsl(var(--card));
   }
 
   .domain-icon-tile {

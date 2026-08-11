@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { CountBadge, InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
 import {
   ArrowRightCircle,
@@ -121,6 +121,7 @@ export function ServiceDocumentPreviewDialog({
   settings,
   onOpenPrint,
 }: ServiceDocumentPreviewDialogProps) {
+  const [mobilePanel, setMobilePanel] = useState<"document" | "history">("document");
   const documentTitle = previewDocument?.type === "REMITO" ? "Remito de servicio" : "Presupuesto de servicio";
   const previewTitle = previewDocument?.type === "REMITO"
     ? "Vista previa del remito de servicio"
@@ -131,21 +132,26 @@ export function ServiceDocumentPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
-      <DialogContent className="flex h-[min(94vh,960px)] max-w-[min(97vw,1540px)] flex-col overflow-hidden border-slate-300/80 bg-slate-200/95 p-0 shadow-2xl backdrop-blur-xl [&>button]:right-5 [&>button]:top-5 [&>button]:z-20 [&>button]:flex [&>button]:h-9 [&>button]:w-9 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-slate-300 [&>button]:bg-white [&>button]:text-slate-700 [&>button]:opacity-100 [&>button]:shadow-sm [&>button]:transition [&>button]:hover:border-slate-400 [&>button]:hover:bg-slate-100 [&>button]:hover:text-slate-950 [&>button]:focus:ring-slate-400 [&>button]:focus:ring-offset-slate-200 [&>button_svg]:h-4 [&>button_svg]:w-4">
-        <DialogHeader className="border-b border-slate-300/70 bg-white px-5 py-4">
-          <DialogTitle className="text-xl font-semibold tracking-tight text-slate-950">{previewTitle}</DialogTitle>
-          <DialogDescription className="text-slate-500">Revision visual antes de imprimir o guardar el PDF.</DialogDescription>
+      <DialogContent className="flex h-[min(94vh,960px)] max-w-[min(97vw,1540px)] flex-col overflow-hidden border-border bg-muted/95 p-0 shadow-2xl backdrop-blur-xl [&>button]:right-5 [&>button]:top-5 [&>button]:z-20 [&>button]:flex [&>button]:h-9 [&>button]:w-9 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-border [&>button]:bg-card [&>button]:text-muted-foreground [&>button]:opacity-100 [&>button]:shadow-sm [&>button]:transition [&>button]:hover:bg-muted [&>button]:hover:text-foreground [&>button]:focus:ring-ring [&>button]:focus:ring-offset-background [&>button_svg]:h-4 [&>button_svg]:w-4">
+        <DialogHeader className="border-b border-border bg-card px-5 py-4">
+          <DialogTitle className="text-xl font-semibold tracking-tight text-foreground">{previewTitle}</DialogTitle>
+          <DialogDescription>Revision visual antes de imprimir o guardar el PDF.</DialogDescription>
         </DialogHeader>
 
+        <div className="grid shrink-0 grid-cols-2 gap-1 border-b border-border bg-card p-2 xl:hidden" role="tablist" aria-label="Contenido de la vista previa">
+          <Button type="button" variant={mobilePanel === "document" ? "default" : "ghost"} role="tab" aria-selected={mobilePanel === "document"} onClick={() => setMobilePanel("document")}>Documento</Button>
+          <Button type="button" variant={mobilePanel === "history" ? "default" : "ghost"} role="tab" aria-selected={mobilePanel === "history"} onClick={() => setMobilePanel("history")}>Historial ({selectedEvents.length})</Button>
+        </div>
+
         {previewDocument ? (
-          <div className="grid flex-1 min-h-0 gap-4 overflow-hidden p-4 xl:grid-cols-[minmax(0,1.85fr)_minmax(330px,390px)]">
-            <div className="min-h-0 min-w-0 overflow-y-auto pr-1 [scrollbar-gutter:stable]">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden p-2 sm:p-4 xl:grid-cols-[minmax(0,1.85fr)_minmax(330px,390px)]">
+            <div className={`${mobilePanel === "document" ? "block" : "hidden"} min-h-0 min-w-0 overflow-y-auto [scrollbar-gutter:stable] xl:block xl:pr-1`}>
               <section className="mx-auto min-h-full max-w-[1050px] overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-xl">
                 <div className={`h-2 bg-gradient-to-r ${SERVICE_PREVIEW_ACCENT_CLASS[previewDocument.type]}`} />
 
-                <div className="grid gap-5 border-b border-slate-200 px-6 py-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(310px,.8fr)]">
-                  <div className="flex min-w-0 items-center gap-5">
-                    <div className="flex h-24 w-44 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-2">
+                <div className="grid gap-5 border-b border-slate-200 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(310px,.8fr)]">
+                  <div className="flex min-w-0 flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-5">
+                    <div className="flex h-20 w-36 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-2 sm:h-24 sm:w-44">
                       {settings.logo_url ? (
                         <img src={settings.logo_url} alt={brandName} className="max-h-full max-w-full object-contain" />
                       ) : (
@@ -208,7 +214,7 @@ export function ServiceDocumentPreviewDialog({
                   </PreviewPanel>
                 </div>
 
-                <div className="space-y-4 px-6 py-5">
+                <div className="space-y-4 px-4 py-5 sm:px-6">
                   <PreviewTextSection title="Introduccion" value={previewDocument.intro_text} />
 
                   <section>
@@ -219,8 +225,8 @@ export function ServiceDocumentPreviewDialog({
                       </div>
                       <p className="text-xs font-semibold text-slate-500">{previewLines.length} item{previewLines.length === 1 ? "" : "s"}</p>
                     </div>
-                    <div className="overflow-hidden rounded-xl border border-slate-200">
-                      <Table>
+                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                      <Table className="min-w-[680px]">
                         <TableHeader className="bg-slate-950">
                           <TableRow className="border-slate-800 hover:bg-slate-950">
                             <TableHead className="h-9 w-10 text-xs font-black uppercase tracking-[0.18em] text-slate-300">#</TableHead>
@@ -233,9 +239,14 @@ export function ServiceDocumentPreviewDialog({
                         </TableHeader>
                         <TableBody>
                           {previewLines.length > 0 ? (
-                            previewLines.map((line, index) => (
+                            previewLines.map((line, index) => (line.line_type ?? "ITEM") !== "ITEM" ? (
+                              <TableRow key={line.id ?? `${line.sort_order}-${line.description}`} className="border-slate-200 bg-white">
+                                <TableCell aria-hidden="true" className="w-10 py-1" />
+                                <TableCell colSpan={showLinePrices ? 5 : 3} className={`${(line.line_type ?? "ITEM") === "TITLE" ? "py-1.5 text-sm text-slate-950" : "py-1 text-xs text-slate-700"} ${line.is_bold ? "font-bold" : "font-normal"} ${line.is_underlined ? "underline underline-offset-2" : ""}`}>{line.description}</TableCell>
+                              </TableRow>
+                            ) : (
                               <TableRow key={line.id ?? `${line.sort_order}-${line.description}`} className="border-slate-200">
-                                <TableCell className="py-2 text-xs font-semibold text-slate-500">{index + 1}</TableCell>
+                                <TableCell className="py-2 text-xs font-semibold text-slate-500">{previewLines.slice(0, index + 1).filter((candidate) => (candidate.line_type ?? "ITEM") === "ITEM").length}</TableCell>
                                 <TableCell className="py-2 text-sm font-semibold leading-5 text-slate-950">{line.description || "-"}</TableCell>
                                 <TableCell className="py-2 text-right text-sm text-slate-700">{line.quantity ?? "-"}</TableCell>
                                 <TableCell className="py-2 text-sm text-slate-700">{line.unit || "-"}</TableCell>
@@ -277,11 +288,11 @@ export function ServiceDocumentPreviewDialog({
                         <span className="font-semibold text-slate-950">{formatMoney(previewDocument.subtotal ?? previewDocument.total ?? 0, previewDocument.currency)}</span>
                       </div>
                       <div className="flex items-center justify-between border-b border-slate-200 py-2 text-sm text-slate-600">
-                        <span>IVA</span>
-                        <span className="font-semibold text-slate-500">No incluido</span>
+                        <span>{previewDocument.include_tax ? `IVA (${Number(previewDocument.tax_rate ?? 0).toLocaleString("es-AR")}%)` : "IVA"}</span>
+                        <span className="font-semibold text-slate-500">{previewDocument.include_tax ? formatMoney(previewDocument.tax_total ?? 0, previewDocument.currency) : "No incluido"}</span>
                       </div>
                       <div className="pt-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Total sin IVA</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">{previewDocument.include_tax ? "Total con IVA" : "Total sin IVA"}</p>
                         <p className="mt-1 text-3xl font-black tracking-tight text-slate-950">{formatMoney(previewDocument.total ?? 0, previewDocument.currency)}</p>
                         {previewDocument.currency === "USD" && previewDocument.exchange_rate ? (
                           <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">
@@ -295,13 +306,13 @@ export function ServiceDocumentPreviewDialog({
               </section>
             </div>
 
-            <aside className="min-h-0 overflow-y-auto pr-1 [scrollbar-gutter:stable]">
-              <section className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
-                <div className="border-b border-slate-200 p-4">
+            <aside className={`${mobilePanel === "history" ? "block" : "hidden"} min-h-0 overflow-y-auto [scrollbar-gutter:stable] xl:block xl:pr-1`}>
+              <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <div className="border-b border-border p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.26em] text-slate-400">Historial</p>
-                      <p className="mt-1 text-sm text-slate-500">Trazabilidad del documento.</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.26em] text-muted-foreground">Historial</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Trazabilidad del documento.</p>
                     </div>
                     <CountBadge>
                       {selectedEvents.length} evento{selectedEvents.length === 1 ? "" : "s"}
@@ -309,14 +320,14 @@ export function ServiceDocumentPreviewDialog({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 border-b border-slate-200 bg-slate-50/80 p-4">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                <div className="grid grid-cols-2 gap-3 border-b border-border bg-muted/40 p-4">
+                  <div className="rounded-2xl border border-border bg-card p-3">
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Estado actual</p>
-                    <p className="mt-2 text-sm font-black text-slate-950">{SERVICE_STATUS_LABEL[previewDocument.status]}</p>
+                    <p className="mt-2 text-sm font-black text-foreground">{SERVICE_STATUS_LABEL[previewDocument.status]}</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <div className="rounded-2xl border border-border bg-card p-3">
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Creado</p>
-                    <p className="mt-2 text-sm font-black text-slate-950">{formatTimestampDate(previewDocument.created_at)}</p>
+                    <p className="mt-2 text-sm font-black text-foreground">{formatTimestampDate(previewDocument.created_at)}</p>
                     <p className="mt-1 font-mono text-xs text-slate-500">{formatTimestampTime(previewDocument.created_at)}</p>
                   </div>
                 </div>
@@ -342,12 +353,12 @@ export function ServiceDocumentPreviewDialog({
                               <Icon className={`h-4 w-4 ${toneColors.text}`} strokeWidth={2.5} />
                             </div>
                           </div>
-                          <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                          <div className="min-w-0 rounded-2xl border border-border bg-muted/40 p-4">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm font-black leading-5 text-slate-950">{described.title}</p>
+                              <p className="text-sm font-black leading-5 text-foreground">{described.title}</p>
                               {index === 0 ? <InfoBadge>Reciente</InfoBadge> : null}
                             </div>
-                            <p className="mt-1 text-sm leading-5 text-slate-600">{described.detail}</p>
+                            <p className="mt-1 text-sm leading-5 text-muted-foreground">{described.detail}</p>
                             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-200 pt-3 text-xs text-slate-500">
                               <span className="font-semibold text-slate-700">{actorName}</span>
                               <span>{formatTimestampDate(event.created_at)}</span>
@@ -366,14 +377,7 @@ export function ServiceDocumentPreviewDialog({
           <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-slate-500">No se pudo cargar la vista previa.</div>
         )}
 
-        <div className="flex shrink-0 justify-end gap-2 border-t border-slate-300/70 bg-white px-5 py-4">
-          <Button
-            variant="outline"
-            className="border-slate-400 bg-white text-slate-800 hover:border-slate-500 hover:bg-slate-100 hover:text-slate-950"
-            onClick={onClose}
-          >
-            Cerrar
-          </Button>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border bg-card px-3 py-3 sm:px-5 sm:py-4">
           <Button type="button" onClick={() => { if (previewDocument) onOpenPrint(previewDocument); }} disabled={!previewDocument}>
             Abrir impresión
           </Button>

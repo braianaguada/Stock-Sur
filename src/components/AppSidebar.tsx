@@ -141,14 +141,14 @@ export function AppSidebar() {
 
   return (
     <>
-    <aside className="fixed inset-y-0 left-0 z-50 hidden w-24 flex-col items-center border-r border-border/55 bg-background/78 py-5 backdrop-blur-2xl lg:flex" aria-label="Accesos principales">
+    <aside className="fixed inset-y-0 left-0 z-50 hidden w-24 flex-col items-center border-r border-border/55 bg-background/78 py-5 shadow-[inset_-1px_0_hsl(var(--secondary)/0.12)] backdrop-blur-2xl lg:flex" aria-label="Accesos principales">
       <StockSurMark className="h-10 w-10" />
       <nav className="mt-8 flex w-full flex-col items-center gap-2">
         <Link to="/" aria-label="Inicio" title="Inicio" aria-current={location.pathname === "/" ? "page" : undefined} className={cn("flex h-11 w-11 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground", location.pathname === "/" && "bg-primary/10 text-primary")}><Home className="h-5 w-5" /></Link>
         {visibleGroups.map((group) => {
           const Icon = groupIcons[group.id];
           const groupActive = activeItem?.group === group.id;
-          return <button key={group.id} type="button" onClick={(event) => openGroup(group.id, event.currentTarget)} aria-label={group.title} title={group.title} className={cn("flex h-11 w-11 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground", groupActive && "bg-primary/10 text-primary")}><Icon className="h-5 w-5" /></button>;
+          return <button key={group.id} type="button" onClick={(event) => openGroup(group.id, event.currentTarget)} aria-label={group.title} title={group.title} className={cn("relative flex h-11 w-11 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground", groupActive && "bg-primary/10 text-primary after:absolute after:-right-1 after:h-2 after:w-2 after:rounded-full after:bg-secondary after:shadow-[0_0_0_3px_hsl(var(--background))]")}><Icon className="h-5 w-5" /></button>;
         })}
       </nav>
       <button type="button" onClick={(event) => openGroup(null, event.currentTarget)} className="mt-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-border/60 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Todos los módulos" title="Todos los módulos"><LayoutGrid className="h-5 w-5" /></button>

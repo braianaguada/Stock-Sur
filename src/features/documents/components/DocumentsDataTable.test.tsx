@@ -44,6 +44,7 @@ function renderTable(documents: DocRow[], overrides: Partial<ComponentProps<type
     pageSize: 10,
     onOpenDetail: vi.fn(),
     onPrint: vi.fn(),
+    onDownloadPdf: vi.fn(),
     onShare: vi.fn(),
     onEditDraft: vi.fn(),
     onTransition: vi.fn(),
@@ -72,8 +73,8 @@ describe("DocumentsDataTable duplicate action", () => {
   it("keeps frequent actions visible and groups secondary actions", () => {
     renderTable([baseDocument]);
 
-    expect(screen.getByRole("button", { name: "Ver detalle" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Imprimir / PDF" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Ver detalle" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Descargar PDF" }).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /acciones/i })).toBeInTheDocument();
   });
 
@@ -125,6 +126,7 @@ describe("DocumentsDataTable cash registration", () => {
   it("offers Registrar en Caja for an emitted remito and calls the handler", () => {
     const props = renderTable([emittedRemito]);
 
+    fireEvent.click(screen.getByRole("button", { name: /acciones/i }));
     fireEvent.click(screen.getByRole("button", { name: "Registrar en Caja" }));
 
     expect(props.onRegisterInCash).toHaveBeenCalledWith(emittedRemito);
@@ -133,7 +135,8 @@ describe("DocumentsDataTable cash registration", () => {
   it("shows the registered state and prevents another registration", () => {
     renderTable([emittedRemito], { cashRegisteredDocumentIds: new Set([emittedRemito.id]) });
 
-    expect(screen.getByText("Registrado en Caja")).toHaveClass("sr-only");
+    fireEvent.click(screen.getByRole("button", { name: /acciones/i }));
+    expect(screen.getByText("Registrado en Caja")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
   });
 

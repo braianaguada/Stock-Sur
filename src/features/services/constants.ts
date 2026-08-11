@@ -27,4 +27,7 @@ export const EMPTY_SERVICE_LINE: ServiceDocumentLine = {
   unit_price: 0,
   line_total: 0,
   sort_order: 1,
+  line_type: "ITEM",
+  is_bold: false,
+  is_underlined: false,
 };

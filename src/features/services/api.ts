@@ -47,8 +47,7 @@ export async function fetchServiceDocumentPrintResources(
   const [linesResult, attachmentsResult] = await Promise.all([
     serviceDb
       .from("service_document_lines")
-      .select("id, document_id, description, quantity, unit, unit_price, line_total, sort_order")
-      .eq("company_id", companyId)
+      .select("id, document_id, description, quantity, unit, unit_price, line_total, sort_order, line_type, is_bold, is_underlined")
       .eq("document_id", documentId)
       .order("sort_order"),
     serviceDb

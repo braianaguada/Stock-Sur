@@ -1,5 +1,10 @@
 import { DEFAULT_SERVICE_TEXTS } from "./constants";
-import type { ServiceDocument, ServiceDocumentForm, ServiceDocumentStatus } from "./types";
+import type { ServiceDocument, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentStatus } from "./types";
+
+export function appendServiceDocumentLine(lines: ServiceDocumentLine[], line: ServiceDocumentLine) {
+  const onlyBlankStarter = lines.length === 1 && !lines[0].description.trim();
+  return onlyBlankStarter ? [{ ...line, sort_order: 1 }] : [...lines, { ...line, sort_order: lines.length + 1 }];
+}
 
 function toLocalDateInputValue(date: Date) {
   const year = date.getFullYear();
@@ -43,6 +48,8 @@ export function buildInitialServiceDocumentForm(settings: {
     pricing_mode: "DETAILED",
     global_total: "",
     hide_line_prices: false,
+    include_tax: false,
+    tax_rate: "21",
   };
 }
 

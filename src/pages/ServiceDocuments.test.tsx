@@ -48,6 +48,7 @@ vi.mock("@/features/services/hooks/useServiceDocuments", () => ({
     documents: [
       {
         id: "doc-1",
+        customer_id: "cust-1",
         number: 12,
         issue_date: "2026-04-29",
         status: "DRAFT",
@@ -57,6 +58,7 @@ vi.mock("@/features/services/hooks/useServiceDocuments", () => ({
     ],
     selectedDocument: {
       id: "doc-1",
+      customer_id: "cust-1",
       number: 12,
       issue_date: "2026-04-29",
       status: "DRAFT",
@@ -118,14 +120,14 @@ describe("ServiceDocumentsPage", () => {
     render(<ServiceDocumentsPage />);
 
     expect(screen.getByText("Documentos")).toBeInTheDocument();
-    expect(screen.getByTitle("Vista previa")).toBeInTheDocument();
-    expect(screen.getByTitle("Guardar PDF")).toBeInTheDocument();
-    expect(screen.getByTitle("Compartir")).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle("Mas acciones"));
+    expect(screen.getAllByTitle("Vista previa").length).toBeGreaterThan(0);
+    expect(screen.getAllByTitle("Guardar PDF").length).toBeGreaterThan(0);
+    expect(screen.getAllByTitle("Compartir").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getAllByTitle("Mas acciones")[0]);
     expect(screen.getByTitle("Imprimir")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
-    fireEvent.click(screen.getByTitle("Vista previa"));
+    fireEvent.click(screen.getAllByTitle("Vista previa")[0]);
     expect(screen.getByText("Vista previa del presupuesto de servicio")).toBeInTheDocument();
     expect(screen.getAllByText("Cliente Demo").length).toBeGreaterThan(0);
 
@@ -133,7 +135,7 @@ describe("ServiceDocumentsPage", () => {
     await waitFor(() => expect(window.open).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    fireEvent.click(screen.getByTitle("Guardar PDF"));
+    fireEvent.click(screen.getAllByTitle("Guardar PDF")[0]);
     await waitFor(() => expect(savePrintHtmlAsPdfMock).toHaveBeenCalledWith(expect.objectContaining({
       html: expect.stringContaining("Presupuesto de servicio"),
       fileName: "Presupuesto-Servicio-SERV-000012.pdf",
@@ -147,7 +149,7 @@ describe("ServiceDocumentsPage", () => {
 
     render(<ServiceDocumentsPage />);
 
-    fireEvent.click(screen.getByTitle("Mas acciones"));
+    fireEvent.click(screen.getAllByTitle("Mas acciones")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Enviar al cliente" }));
 
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();

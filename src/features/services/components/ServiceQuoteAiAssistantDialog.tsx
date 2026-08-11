@@ -120,8 +120,8 @@ export function ServiceQuoteAiAssistantDialog(props: {
     setLoading(false);
   };
 
-  const generate = async () => {
-    const description = form.description.trim();
+  const generate = async (descriptionOverride?: string) => {
+    const description = (descriptionOverride ?? form.description).trim();
     if (description.length < 10) {
       setError("Describi el servicio con un poco mas de detalle.");
       return;

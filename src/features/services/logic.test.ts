@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildInitialServiceDocumentForm, canTransitionServiceDocument } from "./logic";
+import { appendServiceDocumentLine, buildInitialServiceDocumentForm, canTransitionServiceDocument } from "./logic";
+import { EMPTY_SERVICE_LINE } from "./constants";
 
 describe("service document logic", () => {
   afterEach(() => {
@@ -53,6 +54,12 @@ describe("service document logic", () => {
     expect(canTransitionServiceDocument({ status: "APPROVED" }, "SENT")).toBe(false);
     expect(canTransitionServiceDocument({ status: "REJECTED" }, "APPROVED")).toBe(false);
     expect(canTransitionServiceDocument({ status: "CANCELLED" }, "DRAFT")).toBe(false);
+  });
+
+  it("replaces the untouched starter item when the first row is a section", () => {
+    const title = { ...EMPTY_SERVICE_LINE, description: "Mano de obra", line_type: "TITLE" as const };
+    expect(appendServiceDocumentLine([{ ...EMPTY_SERVICE_LINE }], title)).toEqual([{ ...title, sort_order: 1 }]);
+    expect(appendServiceDocumentLine([{ ...EMPTY_SERVICE_LINE, description: "Trabajo" }], title)).toHaveLength(2);
   });
 
 });

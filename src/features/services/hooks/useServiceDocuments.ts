@@ -21,7 +21,7 @@ export function useServiceDocuments(params: {
     queryFn: async () => {
       const { data, error } = await serviceDb
         .from("customers")
-        .select("id, name, cuit, email, phone")
+        .select("id, name, cuit, email, phone, is_occasional")
         .eq("company_id", companyId)
         .order("name");
       if (error) throw error;
@@ -77,7 +77,6 @@ export function useServiceDocuments(params: {
       const { data, error } = await serviceDb
         .from("service_document_lines")
         .select("*")
-        .eq("company_id", companyId)
         .eq("document_id", documentId)
         .order("sort_order");
       if (error) throw error;
