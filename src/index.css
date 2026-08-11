@@ -83,9 +83,17 @@
     font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
     background-image:
-      linear-gradient(135deg, hsl(var(--primary-soft) / 0.28), transparent 28%),
-      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(220 35% 98%) 100%);
+      radial-gradient(circle at 8% 0%, hsl(var(--primary) / 0.12), transparent 28%),
+      radial-gradient(circle at 92% 5%, hsl(var(--secondary) / 0.09), transparent 24%),
+      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--panel)) 100%);
     background-attachment: fixed;
+  }
+
+  .dark body {
+    background-image:
+      radial-gradient(circle at 8% 0%, hsl(var(--primary) / 0.16), transparent 30%),
+      radial-gradient(circle at 92% 4%, hsl(var(--secondary) / 0.12), transparent 26%),
+      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--panel) / 0.72) 100%);
   }
 
   #root {
@@ -207,6 +215,18 @@
     --domain-accent-strong: 217 33% 30%;
     --domain-accent-soft: 214 25% 95%;
     --domain-secondary: 190 58% 38%;
+  }
+
+  .dark .domain-core,
+  .dark .domain-inventory,
+  .dark .domain-commercial,
+  .dark .domain-cash,
+  .dark .domain-purchases,
+  .dark .domain-services,
+  .dark .domain-settlements,
+  .dark .domain-admin {
+    --domain-accent-soft: var(--panel);
+    --domain-accent-strong: var(--domain-accent);
   }
 
   .page-hero {
