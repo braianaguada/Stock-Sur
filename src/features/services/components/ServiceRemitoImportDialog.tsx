@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
 import { parseStructuredServiceRemito, type ServiceRemitoImport } from "../remitoOcr";
-import { enhanceRemitoImage, readFunctionError } from "../remitoImage";
+import { enhanceRemitoImage, isRetryableFunctionError, readFunctionError } from "../remitoImage";
 
 export function ServiceRemitoImportDialog(props: { companyId: string | null; open: boolean; onOpenChange: (open: boolean) => void; onImport: (draft: ServiceRemitoImport) => void }) {
   const [loading, setLoading] = useState(false);
@@ -22,13 +22,27 @@ export function ServiceRemitoImportDialog(props: { companyId: string | null; ope
       let binary = "";
       for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
       const enhancedImageBase64 = await enhanceRemitoImage(file).catch(() => null);
-      const { data, error: invokeError } = await supabase.functions.invoke("service-remito-extractor", {
-        body: { companyId: props.companyId, mimeType: file.type, imageBase64: btoa(binary), enhancedImageBase64 },
-      });
-      if (invokeError) throw new Error(await readFunctionError(invokeError));
-      if (data?.error) throw new Error(data.error);
-      const draft = parseStructuredServiceRemito(data?.extraction);
-      if (!draft.lines.length) throw new Error("No se reconocieron trabajos legibles en el remito.");
+      const imageBase64 = btoa(binary);
+      let draft: ServiceRemitoImport | null = null;
+      let lastError: Error | null = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const { data, error: invokeError } = await supabase.functions.invoke("service-remito-extractor", {
+          body: { companyId: props.companyId, mimeType: file.type, imageBase64, enhancedImageBase64 },
+        });
+        if (invokeError) {
+          lastError = new Error(await readFunctionError(invokeError));
+          if (attempt === 0 && isRetryableFunctionError(invokeError)) continue;
+          throw lastError;
+        }
+        if (data?.error) throw new Error(data.error);
+        const parsed = parseStructuredServiceRemito(data?.extraction);
+        if (parsed.lines.length) {
+          draft = parsed;
+          break;
+        }
+        lastError = new Error("No se reconocieron trabajos legibles en el remito.");
+      }
+      if (!draft) throw lastError ?? new Error("No se pudo interpretar el remito.");
       props.onImport(draft);
       props.onOpenChange(false);
     } catch (caught) {

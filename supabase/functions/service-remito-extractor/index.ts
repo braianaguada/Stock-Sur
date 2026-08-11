@@ -7,14 +7,15 @@ const responseSchema = {
   properties: {
     reference: { type: "STRING" },
     issueDate: { type: "STRING" },
-    items: { type: "ARRAY", items: { type: "OBJECT", properties: { description: { type: "STRING" }, quantity: { type: "NUMBER" }, unit: { type: "STRING" }, unitPrice: { type: "NUMBER" } }, required: ["description", "quantity", "unit", "unitPrice"] } },
+    customerName: { type: "STRING" },
+    items: { type: "ARRAY", items: { type: "OBJECT", properties: { description: { type: "STRING" }, lineType: { type: "STRING", enum: ["TITLE", "SUBTITLE", "ITEM"] }, quantity: { type: "NUMBER" }, unit: { type: "STRING" }, unitPrice: { type: "NUMBER" } }, required: ["description", "lineType", "quantity", "unit", "unitPrice"] } },
     globalTotal: { type: "NUMBER" },
     netTotal: { type: "NUMBER" },
     taxRate: { type: "NUMBER" },
     taxTotal: { type: "NUMBER" },
     warnings: { type: "ARRAY", items: { type: "STRING" } },
   },
-  required: ["reference", "issueDate", "items", "globalTotal", "netTotal", "taxRate", "taxTotal", "warnings"],
+  required: ["reference", "issueDate", "customerName", "items", "globalTotal", "netTotal", "taxRate", "taxTotal", "warnings"],
 };
 
 Deno.serve(async (req) => {
@@ -46,9 +47,13 @@ Deno.serve(async (req) => {
       "Ignora membretes, etiquetas impresas, sellos, firmas, identificacion fiscal, telefono y ruido visual.",
       "No inventes palabras dudosas: omitelas y agrega una advertencia.",
       "reference lleva solo el numero visible con prefijo Remito; issueDate usa YYYY-MM-DD o queda vacia.",
-      "Crea items solo con trabajos o materiales. No conviertas cada renglon visual en un item.",
+      "customerName lleva solo el destinatario escrito en Senor(es) o Cliente. Nunca uses el emisor, membrete o logo.",
+      "Clasifica cada linea como TITLE, SUBTITLE o ITEM. Un encabezado breve del trabajo es TITLE; contexto intermedio es SUBTITLE; acciones, tareas y materiales son ITEM.",
+      "Normaliza mayusculas, minusculas, acentos, comas y puntos para lectura natural. Conserva siglas, codigos y expresiones tecnicas como AA/CC, UPC, R410 y 3/8. Toda descripcion termina en punto.",
+      "Crea items solo con trabajos o materiales. Separa acciones u oraciones distintas en ITEM diferentes aunque esten manuscritas como un bloque. No conviertas cada renglon visual en un item.",
       "Extrae precios por item si existen. Si solo hay total final, usa globalTotal y unitPrice 0.",
-      "Si hay subtotal/neto e IVA/ITBMS/impuesto, extrae netTotal, taxRate y taxTotal; globalTotal es el total final con impuesto. Usa 0 cuando un campo no exista.",
+      "Si hay un unico importe monetario, es globalTotal y netTotal, taxRate y taxTotal deben ser 0.",
+      "Solo extrae IVA/ITBMS/impuesto si el documento muestra subtotal/neto e impuesto separados. La condicion fiscal impresa del emisor no implica IVA en este documento. Usa 0 cuando un campo no exista.",
       "Devuelve exclusivamente el JSON solicitado.",
     ].join("\n");
     const controller = new AbortController();

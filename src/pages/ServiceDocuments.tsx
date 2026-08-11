@@ -44,7 +44,7 @@ import { buildServiceDocumentPrintHtml } from "@/features/services/print";
 import { fetchBnaOfficialUsdRate, getManualExchangeRateSnapshot } from "@/features/services/exchangeRateProvider";
 import { buildMailtoUrl, buildPublicServiceDocumentUrl, buildServiceDocumentShareMessage, buildWhatsAppUrl } from "@/features/services/share";
 import type { ServiceQuoteAiApplyMode, ServiceQuoteAiSuggestion } from "@/features/services/aiAssistant";
-import type { ServiceRemitoImport } from "@/features/services/remitoOcr";
+import { findImportedCustomerId, type ServiceRemitoImport } from "@/features/services/remitoOcr";
 import type { ServiceDocument, ServiceDocumentAttachmentDraft, ServiceDocumentEvent, ServiceDocumentForm, ServiceDocumentLine, ServiceDocumentShareLink, ServiceDocumentStatus } from "@/features/services/types";
 
 const STATUS_OPTIONS: Array<ServiceDocumentStatus | "ALL"> = ["ALL", "DRAFT", "SENT", "APPROVED", "REJECTED", "CANCELLED"];
@@ -364,18 +364,27 @@ export default function ServiceDocumentsPage() {
 
   const importRemitoDraft = (draft: ServiceRemitoImport) => {
     const hasItemPrices = draft.lines.some((line) => Number(line.unit_price ?? 0) > 0);
+    const hasExplicitTax = Number(draft.taxRate ?? 0) > 0 || Number(draft.taxTotal ?? 0) > 0;
+    const importedGlobalTotal = draft.globalTotal ?? (!hasExplicitTax ? draft.netTotal : null);
+    const usesGlobalPrice = importedGlobalTotal != null && !hasItemPrices;
+    const importedCustomerId = findImportedCustomerId(draft.customerName, customers);
     setEditingDocumentId(null);
     setForm((current) => ({
       ...current,
-      customer_id: current.customer_id || occasionalCustomerId,
+      customer_id: importedCustomerId && (!current.customer_id || current.customer_id === occasionalCustomerId)
+        ? importedCustomerId
+        : current.customer_id || occasionalCustomerId,
       reference: draft.reference || current.reference,
       issue_date: draft.issueDate || current.issue_date,
-      pricing_mode: draft.globalTotal != null && !hasItemPrices ? "GLOBAL_TOTAL" : "DETAILED",
-      global_total: draft.globalTotal != null && !hasItemPrices ? String(draft.globalTotal) : "",
-      hide_line_prices: draft.globalTotal != null && !hasItemPrices,
-      include_tax: draft.taxRate != null || draft.taxTotal != null,
-      tax_rate: draft.taxRate != null ? String(draft.taxRate) : draft.taxTotal != null && draft.netTotal ? String((draft.taxTotal / draft.netTotal) * 100) : "21",
-      ...(draft.netTotal != null && !hasItemPrices ? { global_total: String(draft.netTotal) } : {}),
+      pricing_mode: usesGlobalPrice ? "GLOBAL_TOTAL" : "DETAILED",
+      global_total: usesGlobalPrice ? String(importedGlobalTotal) : "",
+      hide_line_prices: usesGlobalPrice,
+      include_tax: hasExplicitTax,
+      tax_rate: draft.taxRate != null
+        ? String(draft.taxRate)
+        : hasExplicitTax && draft.taxTotal != null && draft.netTotal
+          ? String((draft.taxTotal / draft.netTotal) * 100)
+          : current.tax_rate,
     }));
     setLines(draft.lines);
     setAttachments([]);

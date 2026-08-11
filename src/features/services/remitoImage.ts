@@ -44,3 +44,8 @@ export async function readFunctionError(error: unknown): Promise<string> {
   }
   return error instanceof Error ? error.message : "No se pudo importar el remito.";
 }
+
+export function isRetryableFunctionError(error: unknown) {
+  const status = (error as { context?: { status?: unknown } } | null)?.context?.status;
+  return typeof status !== "number" || status === 408 || status === 429 || status >= 500;
+}
