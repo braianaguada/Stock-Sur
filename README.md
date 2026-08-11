@@ -1358,4 +1358,6 @@ git pull origin staging
 - La vista previa invalida líneas, adjuntos y eventos después de guardar para mostrar inmediatamente la última versión.
 - La importación de remitos usa extracción visual estructurada en `service-remito-extractor`, orientada a manuscritos y sin reescritura comercial. Requiere desplegar la función y configurar `GEMINI_API_KEY`; el resultado siempre queda editable antes de guardar.
 - La foto se envía junto con una copia en escala de grises, ampliada y con contraste normalizado; los errores seguros de la función se muestran en lugar del estado HTTP genérico. Títulos y subtítulos quedan alineados con la descripción de los ítems en vista previa e impresión.
+- Los presupuestos de servicio pueden incluir IVA con alícuota editable; subtotal, impuesto y total se calculan y persisten en base de datos. El importador reconoce neto, IVA/ITBMS y total, y títulos/subtítulos admiten negrita y subrayado conservados al duplicar, previsualizar e imprimir.
+- Migración: `20260811193000_service_document_tax_and_section_style.sql`.
 - Migración: `20260811090000_service_document_transition_customer_guard.sql`.

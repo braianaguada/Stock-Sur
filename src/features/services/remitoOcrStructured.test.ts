@@ -21,6 +21,11 @@ describe("parseStructuredServiceRemito", () => {
 
   it("drops malformed provider fields instead of inventing values", () => {
     expect(parseStructuredServiceRemito({ reference: 3, issueDate: "26/11/2014", globalTotal: "128400", items: [{ description: null }] }))
-      .toEqual({ reference: "", issueDate: null, globalTotal: null, lines: [] });
+      .toEqual({ reference: "", issueDate: null, globalTotal: null, netTotal: null, taxRate: null, taxTotal: null, lines: [] });
+  });
+
+  it("preserves a detected net amount and tax breakdown", () => {
+    expect(parseStructuredServiceRemito({ netTotal: 120000, taxRate: 7, taxTotal: 8400, globalTotal: 128400, items: [] }))
+      .toMatchObject({ netTotal: 120000, taxRate: 7, taxTotal: 8400, globalTotal: 128400 });
   });
 });

@@ -37,7 +37,9 @@ export function useServiceDocumentMutations(params: {
 
       const isGlobalTotal = form.pricing_mode === "GLOBAL_TOTAL";
       const globalTotal = parseOptionalNumber(form.global_total);
+      const taxRate = parseOptionalNumber(form.tax_rate);
       if (isGlobalTotal && (globalTotal == null || globalTotal < 0)) throw new Error("Carga un precio final global valido");
+      if (form.include_tax && (taxRate == null || taxRate < 0 || taxRate > 100)) throw new Error("Carga una alicuota de IVA entre 0 y 100");
       if (form.currency === "USD" && !parseOptionalNumber(form.exchange_rate)) throw new Error("Carga la cotizacion USD antes de guardar");
 
       const validLines = lines
@@ -75,6 +77,8 @@ export function useServiceDocumentMutations(params: {
           unit: line.line_type && line.line_type !== "ITEM" ? null : line.unit?.trim() || null,
           unit_price: line.line_type && line.line_type !== "ITEM" ? null : line.unit_price,
           line_total: line.line_type && line.line_type !== "ITEM" ? 0 : line.line_total,
+          is_bold: Boolean(line.is_bold),
+          is_underlined: Boolean(line.is_underlined),
         })),
         p_exchange_rate_source: form.currency === "USD" ? form.exchange_rate_source : null,
         p_exchange_rate: form.currency === "USD" ? parseOptionalNumber(form.exchange_rate) : null,
@@ -85,6 +89,8 @@ export function useServiceDocumentMutations(params: {
         p_pricing_mode: form.pricing_mode,
         p_global_total: isGlobalTotal ? globalTotal : null,
         p_hide_line_prices: form.hide_line_prices || isGlobalTotal,
+        p_include_tax: Boolean(form.include_tax),
+        p_tax_rate: taxRate ?? 21,
       });
       if (error) throw error;
       const savedDocument = data as ServiceDocument | null;
