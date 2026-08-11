@@ -7,6 +7,26 @@ export type ServiceRemitoImport = {
   globalTotal: number | null;
 };
 
+export function parseStructuredServiceRemito(value: unknown): ServiceRemitoImport {
+  const input = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+  const rawItems = Array.isArray(input.items) ? input.items : [];
+  const lines = rawItems.flatMap((rawItem, index) => {
+    if (!rawItem || typeof rawItem !== "object") return [];
+    const item = rawItem as Record<string, unknown>;
+    const description = typeof item.description === "string" ? item.description.trim() : "";
+    if (description.length < 3) return [];
+    const quantity = typeof item.quantity === "number" && item.quantity > 0 ? item.quantity : 1;
+    const unitPrice = typeof item.unitPrice === "number" && item.unitPrice >= 0 ? item.unitPrice : 0;
+    return [{ description, quantity, unit: typeof item.unit === "string" && item.unit.trim() ? item.unit.trim() : "serv", unit_price: unitPrice, line_total: quantity * unitPrice, sort_order: index + 1, line_type: "ITEM" as const }];
+  });
+  return {
+    reference: typeof input.reference === "string" ? input.reference.trim() : "",
+    issueDate: typeof input.issueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.issueDate) ? input.issueDate : null,
+    lines,
+    globalTotal: typeof input.globalTotal === "number" && input.globalTotal > 0 ? input.globalTotal : null,
+  };
+}
+
 function parseMoney(raw: string) {
   const normalized = raw.replace(/\s/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".");
   const value = Number(normalized);

@@ -13,7 +13,13 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@/lib/query-keys", () => ({
-  queryKeys: { serviceDocuments: { all: () => ["service-documents"] } },
+  queryKeys: { serviceDocuments: {
+    company: () => ["service-documents"],
+    detail: (_companyId: string, id: string) => ["service-document", id],
+    lines: (_companyId: string, id: string) => ["service-document-lines", id],
+    attachments: (_companyId: string, id: string) => ["service-document-attachments", id],
+    events: (_companyId: string, id: string) => ["service-document-events", id],
+  } },
 }));
 
 vi.mock("@/features/services/db", () => ({
@@ -129,6 +135,25 @@ describe("useServiceDocumentMutations", () => {
         p_lines: [{ description: "Trabajo descriptivo", line_type: "ITEM", quantity: 1, unit: "u", unit_price: null, line_total: 0 }],
       }),
     );
+  });
+
+  it("rejects drafts that only contain titles or subtitles", async () => {
+    const mutations = useServiceDocumentMutations({
+      companyId: "company-1",
+      editingDocumentId: null,
+      form: {
+        customer_id: "cust-1", status: "DRAFT", reference: "", issue_date: "2026-04-29", valid_until: "",
+        intro_text: "", delivery_time: "", payment_terms: "", delivery_location: "", closing_text: "", currency: "ARS",
+        exchange_rate_source: "BNA", exchange_rate: "", exchange_rate_date: "", exchange_rate_fetched_at: "",
+        exchange_rate_snapshot_label: "", show_exchange_rate_note: true, pricing_mode: "DETAILED", global_total: "", hide_line_prices: false,
+      },
+      lines: [{ description: "Mano de obra", quantity: null, unit: null, unit_price: null, line_total: 0, sort_order: 1, line_type: "TITLE" }],
+      toast,
+      onDone: vi.fn(),
+    });
+
+    await expect(mutations.upsertMutation.mutationFn()).rejects.toThrow("al menos un item");
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("calls transition and copy rpcs for remito and duplicate flows", async () => {

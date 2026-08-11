@@ -1351,3 +1351,10 @@ git pull origin staging
 - El detalle de Cliente ocasional conserva sólo el contexto operativo necesario. Los catálogos de proveedores muestran las órdenes de compra aun cuando no existan renglones en la versión seleccionada.
 - Configuración ofrece una selección visual acotada a modo claro u oscuro y colores principal/secundario; las preferencias heredadas se normalizan sin borrar datos ni modificar reglas de negocio.
 - La migración `20260803120000_allow_commercial_remito_returns.sql` reemplaza de forma compatible `issue_document` para aceptar devoluciones comerciales sin técnico y conserva la igualdad null-safe con el documento origen. No fue aplicada a producción desde esta rama.
+### Ajustes de presupuestos de servicio y lectura de remitos (2026-08-11)
+
+- Los títulos y subtítulos organizan el presupuesto, pero no permiten guardarlo sin al menos un ítem real.
+- Al crear se selecciona el cliente ocasional de la empresa cuando existe; enviar o aprobar exige cliente también en base de datos.
+- La vista previa invalida líneas, adjuntos y eventos después de guardar para mostrar inmediatamente la última versión.
+- La importación de remitos usa extracción visual estructurada en `service-remito-extractor`, orientada a manuscritos y sin reescritura comercial. Requiere desplegar la función y configurar `GEMINI_API_KEY`; el resultado siempre queda editable antes de guardar.
+- Migración: `20260811090000_service_document_transition_customer_guard.sql`.

@@ -115,6 +115,10 @@ export default function ServiceDocumentsPage() {
     if (form.pricing_mode === "GLOBAL_TOTAL") return Number(form.global_total || 0);
     return lines.reduce((sum, line) => sum + calculateServiceLineTotal(line), 0);
   }, [form.global_total, form.pricing_mode, lines]);
+  const occasionalCustomerId = useMemo(
+    () => customers.find((customer) => customer.is_occasional)?.id ?? "",
+    [customers],
+  );
   const totalPages = Math.max(1, Math.ceil(documents.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const pagedDocuments = useMemo(
@@ -171,7 +175,7 @@ export default function ServiceDocumentsPage() {
 
   const resetForm = () => {
     setEditingDocumentId(null);
-    setForm(buildInitialServiceDocumentForm(settings));
+    setForm({ ...buildInitialServiceDocumentForm(settings), customer_id: occasionalCustomerId });
     setLines([{ ...EMPTY_SERVICE_LINE }]);
     setAttachments([]);
     setPendingAiSuggestionId(null);
@@ -294,6 +298,14 @@ export default function ServiceDocumentsPage() {
   };
 
   const triggerTransition = (document: ServiceDocument, targetStatus: ServiceDocumentStatus) => {
+    if ((targetStatus === "SENT" || targetStatus === "APPROVED") && !document.customer_id) {
+      toast({
+        title: "Falta seleccionar un cliente",
+        description: "Selecciona un cliente, incluido Cliente ocasional, antes de enviar o aprobar el presupuesto.",
+        variant: "destructive",
+      });
+      return;
+    }
     setActionDocument(null);
     setPendingConfirmation({ kind: "transition", document, targetStatus });
   };
@@ -353,6 +365,7 @@ export default function ServiceDocumentsPage() {
     setEditingDocumentId(null);
     setForm((current) => ({
       ...current,
+      customer_id: current.customer_id || occasionalCustomerId,
       reference: draft.reference || current.reference,
       issue_date: draft.issueDate || current.issue_date,
       pricing_mode: draft.globalTotal != null && !hasItemPrices ? "GLOBAL_TOTAL" : "DETAILED",
@@ -1112,7 +1125,7 @@ export default function ServiceDocumentsPage() {
         selectedCustomerId={form.customer_id}
         onApply={applyAiSuggestion}
       />
-      <ServiceRemitoImportDialog open={remitoImportOpen} onOpenChange={setRemitoImportOpen} onImport={importRemitoDraft} />
+      <ServiceRemitoImportDialog companyId={currentCompany?.id ?? null} open={remitoImportOpen} onOpenChange={setRemitoImportOpen} onImport={importRemitoDraft} />
     </AppLayout>
   );
 }

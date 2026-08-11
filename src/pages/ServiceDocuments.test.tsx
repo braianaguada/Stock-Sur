@@ -48,6 +48,7 @@ vi.mock("@/features/services/hooks/useServiceDocuments", () => ({
     documents: [
       {
         id: "doc-1",
+        customer_id: "cust-1",
         number: 12,
         issue_date: "2026-04-29",
         status: "DRAFT",
@@ -57,6 +58,7 @@ vi.mock("@/features/services/hooks/useServiceDocuments", () => ({
     ],
     selectedDocument: {
       id: "doc-1",
+      customer_id: "cust-1",
       number: 12,
       issue_date: "2026-04-29",
       status: "DRAFT",
