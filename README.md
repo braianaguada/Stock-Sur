@@ -1340,6 +1340,7 @@ git pull origin staging
 - Un presupuesto de servicio puede guardarse como borrador sin cliente para no perder la carga; el cliente se asigna después antes de continuar el circuito comercial.
 - La importación de remitos es independiente del asistente IA: transcribe referencia, fecha, renglones y precios legibles desde una foto, descarta fragmentos dudosos y abre un borrador para revisión.
 
+- El tema oscuro aplica superficies, bordes, fondos ambientales y acentos de dominio con contraste consistente en la estructura compartida. El color secundario configurado participa en acciones secundarias, navegación activa y ambientación visual, mientras las hojas imprimibles conservan su apariencia de papel.
 - El modo claro y oscuro usa superficies opacas y tokens semánticos en selects, diálogos y confirmaciones. Los colores de marca principal/secundario calculan automáticamente un foreground legible, y los badges de dominio quedan centralizados en `VisualSystem` con tamaño, casing y paleta consistentes.
 - La tarjeta de lectura ejecutiva conserva padding superior en escritorio, sin depender del reset de `CardContent` pensado para cards con encabezado separado.
 
