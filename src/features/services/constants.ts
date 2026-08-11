@@ -1,3 +1,4 @@
+import type { BadgeTone } from "@/components/common/VisualSystem";
 import type { ServiceDocumentLine, ServiceDocumentStatus } from "./types";
 
 export const SERVICE_STATUS_LABEL: Record<ServiceDocumentStatus, string> = {
@@ -7,6 +8,14 @@ export const SERVICE_STATUS_LABEL: Record<ServiceDocumentStatus, string> = {
   REJECTED: "Rechazado",
   CANCELLED: "Anulado",
 };
+
+export const SERVICE_STATUS_TONE = {
+  DRAFT: "muted",
+  SENT: "info",
+  APPROVED: "success",
+  REJECTED: "danger",
+  CANCELLED: "danger",
+} satisfies Record<ServiceDocumentStatus, BadgeTone>;
 
 export const DEFAULT_SERVICE_TEXTS = {
   intro_text:

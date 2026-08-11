@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PageContainer, PageHeader } from "@/components/ui/page";
-import { InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
+import { StatusBadge } from "@/components/common/VisualSystem";
 import { canManageBillingSettings, canViewSettings } from "@/lib/permissions";
 import { useToast } from "@/hooks/use-toast";
 import { useSettingsManagement } from "@/features/settings/hooks/useSettingsManagement";
@@ -96,7 +96,7 @@ export default function SettingsPage() {
           subtitle={`Administrá los datos operativos y la identidad visual de ${form.app_name || currentCompany.name}.`}
           meta={(
             <>
-              <InfoBadge>{currentCompany.name}</InfoBadge>
+              <span className="text-sm font-medium text-muted-foreground">{currentCompany.name}</span>
               <StatusBadge tone={canManage ? "success" : "muted"}>{canManage ? "Edición habilitada" : "Solo lectura"}</StatusBadge>
             </>
           )}

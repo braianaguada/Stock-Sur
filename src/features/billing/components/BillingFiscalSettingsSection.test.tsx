@@ -109,7 +109,7 @@ describe("BillingFiscalSettingsSection", () => {
     renderSection();
 
     expect(screen.getByText("Interna activa")).toHaveClass(
-      "min-h-6",
+      "h-6",
       "text-xs",
       "font-semibold",
       "normal-case",
@@ -117,7 +117,7 @@ describe("BillingFiscalSettingsSection", () => {
       "text-success",
     );
     expect(
-      screen.getAllByText("Provider AFIPSDK").some((element) => element.classList.contains("text-primary")),
+      screen.getAllByText("Provider AFIPSDK").some((element) => element.classList.contains("text-info")),
     ).toBe(true);
     expect(screen.getByText("Edge OK")).toHaveClass("text-success");
     for (const badge of screen.getAllByText("OK")) {

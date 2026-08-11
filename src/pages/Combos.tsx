@@ -308,7 +308,7 @@ export default function CombosPage() {
                 <CardTitle className="flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Catálogo de combos</CardTitle>
                 <CardDescription>Seleccioná una plantilla para revisar sus productos.</CardDescription>
               </div>
-              <StatusBadge tone="success">{activeComboCount} activos</StatusBadge>
+              <CountBadge>{activeComboCount} activos</CountBadge>
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

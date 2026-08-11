@@ -105,7 +105,7 @@ describe("visual system components", () => {
       </div>,
     );
 
-    expect(screen.getByText("Remito")).toHaveClass("border-primary/15", "bg-primary/8");
+    expect(screen.getByText("Remito")).toHaveClass("border-primary/20", "bg-primary/8");
     expect(screen.getByText("$ 1.250,50")).toHaveClass("text-right", "tabular-nums");
   });
 
@@ -118,9 +118,12 @@ describe("visual system components", () => {
       </>,
     );
 
-    expect(screen.getByText("Enviado")).toHaveClass("text-primary", "normal-case", "tracking-normal");
+    expect(screen.getByText("Enviado")).toHaveClass("text-info", "normal-case", "tracking-normal");
     expect(screen.getByText("Salida")).toHaveClass("text-primary");
     expect(screen.getByText("Sin stock")).toHaveClass("text-destructive");
+    expect(screen.getByText("Enviado")).toHaveAttribute("data-badge-kind", "status");
+    expect(screen.getByText("Enviado")).toHaveAttribute("data-badge-tone", "info");
+    expect(screen.getByText("Salida")).toHaveAttribute("data-badge-kind", "category");
   });
 
   it("preserves the boolean health shorthand", () => {

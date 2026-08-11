@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { CompanySettings } from "@/contexts/company-brand-context";
-import { SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL } from "@/features/services/constants";
+import { SERVICE_DOCUMENT_PREFIX, SERVICE_STATUS_LABEL, SERVICE_STATUS_TONE } from "@/features/services/constants";
 import type { ServiceDocument, ServiceDocumentEvent, ServiceDocumentLine, ServiceDocumentStatus } from "@/features/services/types";
 import { formatBusinessDate, formatMoney, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 
@@ -30,14 +30,6 @@ type ServiceDocumentPreviewDialogProps = {
   eventUserNamesById: Map<string, string>;
   settings: CompanySettings;
   onOpenPrint: (document: ServiceDocument) => void;
-};
-
-const SERVICE_PREVIEW_STATUS_TONE: Record<ServiceDocumentStatus, "muted" | "info" | "success" | "danger"> = {
-  DRAFT: "muted",
-  SENT: "info",
-  APPROVED: "success",
-  REJECTED: "danger",
-  CANCELLED: "muted",
 };
 
 const SERVICE_PREVIEW_ACCENT_CLASS: Record<ServiceDocument["type"], string> = {
@@ -176,7 +168,7 @@ export function ServiceDocumentPreviewDialog({
                         <p className="text-[10px] font-bold uppercase tracking-[0.26em] text-slate-400">Servicio</p>
                         <h4 className="mt-2 text-2xl font-black tracking-tight">{documentTitle}</h4>
                       </div>
-                      <StatusBadge tone={SERVICE_PREVIEW_STATUS_TONE[previewDocument.status]}>
+                      <StatusBadge tone={SERVICE_STATUS_TONE[previewDocument.status]}>
                         {SERVICE_STATUS_LABEL[previewDocument.status]}
                       </StatusBadge>
                     </div>
