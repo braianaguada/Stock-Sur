@@ -27,17 +27,17 @@ interface DocumentConfirmationDialogProps {
 const toneStyles = {
   info: {
     icon: Info,
-    iconClassName: "border-sky-200 bg-sky-50 text-sky-700",
+    iconClassName: "border-info/30 bg-info/10 text-info",
     actionClassName: "bg-sky-700 text-white hover:bg-sky-800",
   },
   warning: {
     icon: TriangleAlert,
-    iconClassName: "border-amber-200 bg-amber-50 text-amber-700",
+    iconClassName: "border-warning/35 bg-warning/10 text-warning",
     actionClassName: "bg-amber-600 text-white hover:bg-amber-700",
   },
   danger: {
     icon: CircleAlert,
-    iconClassName: "border-rose-200 bg-rose-50 text-rose-700",
+    iconClassName: "border-destructive/30 bg-destructive/10 text-destructive",
     actionClassName: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
   },
 } satisfies Record<
@@ -60,7 +60,7 @@ export function DocumentConfirmationDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-md border-slate-200 p-0 shadow-2xl">
+      <AlertDialogContent className="max-w-md gap-0 overflow-hidden border-border bg-card p-0 text-card-foreground shadow-2xl">
         <div className="flex gap-4 p-6">
           <div
             className={cn(
@@ -71,13 +71,13 @@ export function DocumentConfirmationDialog({
             <Icon className="h-5 w-5" aria-hidden="true" />
           </div>
           <AlertDialogHeader className="min-w-0 flex-1 pt-0.5 text-left">
-            <AlertDialogTitle className="text-lg text-slate-950">{title}</AlertDialogTitle>
-            <AlertDialogDescription className="leading-6 text-slate-600">
+            <AlertDialogTitle className="text-lg text-foreground">{title}</AlertDialogTitle>
+            <AlertDialogDescription className="leading-6 text-muted-foreground">
               {description}
             </AlertDialogDescription>
           </AlertDialogHeader>
         </div>
-        <AlertDialogFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4">
+        <AlertDialogFooter className="border-t border-border bg-muted/35 px-6 py-4">
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
           <AlertDialogAction
             disabled={isPending}
