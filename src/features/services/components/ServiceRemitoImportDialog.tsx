@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
 import { parseStructuredServiceRemito, type ServiceRemitoImport } from "../remitoOcr";
+import { enhanceRemitoImage, readFunctionError } from "../remitoImage";
 
 export function ServiceRemitoImportDialog(props: { companyId: string | null; open: boolean; onOpenChange: (open: boolean) => void; onImport: (draft: ServiceRemitoImport) => void }) {
   const [loading, setLoading] = useState(false);
@@ -20,10 +21,11 @@ export function ServiceRemitoImportDialog(props: { companyId: string | null; ope
       const bytes = new Uint8Array(await file.arrayBuffer());
       let binary = "";
       for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+      const enhancedImageBase64 = await enhanceRemitoImage(file).catch(() => null);
       const { data, error: invokeError } = await supabase.functions.invoke("service-remito-extractor", {
-        body: { companyId: props.companyId, mimeType: file.type, imageBase64: btoa(binary) },
+        body: { companyId: props.companyId, mimeType: file.type, imageBase64: btoa(binary), enhancedImageBase64 },
       });
-      if (invokeError) throw invokeError;
+      if (invokeError) throw new Error(await readFunctionError(invokeError));
       if (data?.error) throw new Error(data.error);
       const draft = parseStructuredServiceRemito(data?.extraction);
       if (!draft.lines.length) throw new Error("No se reconocieron trabajos legibles en el remito.");

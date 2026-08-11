@@ -20,7 +20,8 @@ function buildServiceRows(lines: ServiceDocumentLine[], showLinePrices: boolean,
     .map(
       (line, index) => (line.line_type ?? "ITEM") !== "ITEM" ? `
         <tr class="section-row ${(line.line_type ?? "ITEM") === "TITLE" ? "section-title" : "section-subtitle"}">
-          <td colspan="${showLinePrices ? 5 : 4}">${escapeHtml(line.description)}</td>
+          <td class="c-index"></td>
+          <td colspan="${showLinePrices ? 4 : 3}">${escapeHtml(line.description)}</td>
         </tr>
       ` : `
         <tr>
@@ -156,8 +157,8 @@ export function buildServiceDocumentPrintHtml({
     tbody tr:nth-child(even){background:#fbfcfe}
     tbody tr:last-child td{border-bottom:0}
     .section-row td{background:transparent;color:#0f172a}
-    .section-title td{border-top:1px solid #cbd5e1;font-size:9px;font-weight:850;padding-top:5px;padding-bottom:4px}
-    .section-subtitle td{font-size:8.2px;font-weight:750;padding-top:3px;padding-bottom:3px}
+    .section-title td{border-top:1px solid #cbd5e1;font-size:8.6px;font-weight:850;padding-top:4px;padding-bottom:3px}
+    .section-subtitle td{font-size:8px;font-weight:750;padding-top:2px;padding-bottom:2px}
     tr{break-inside:avoid;page-break-inside:avoid}
     thead{display:table-header-group}
     .c-index{width:8mm;text-align:center;color:#64748b}

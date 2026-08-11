@@ -240,8 +240,9 @@ export function ServiceDocumentPreviewDialog({
                         <TableBody>
                           {previewLines.length > 0 ? (
                             previewLines.map((line, index) => (line.line_type ?? "ITEM") !== "ITEM" ? (
-                              <TableRow key={line.id ?? `${line.sort_order}-${line.description}`} className="border-slate-200 bg-slate-50">
-                                <TableCell colSpan={showLinePrices ? 6 : 4} className={(line.line_type ?? "ITEM") === "TITLE" ? "py-2 text-sm font-bold text-slate-950" : "py-1.5 text-xs font-semibold text-slate-700"}>{line.description}</TableCell>
+                              <TableRow key={line.id ?? `${line.sort_order}-${line.description}`} className="border-slate-200 bg-white">
+                                <TableCell aria-hidden="true" className="w-10 py-1" />
+                                <TableCell colSpan={showLinePrices ? 5 : 3} className={(line.line_type ?? "ITEM") === "TITLE" ? "py-1.5 text-sm font-bold text-slate-950" : "py-1 text-xs font-semibold text-slate-700"}>{line.description}</TableCell>
                               </TableRow>
                             ) : (
                               <TableRow key={line.id ?? `${line.sort_order}-${line.description}`} className="border-slate-200">

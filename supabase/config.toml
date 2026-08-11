@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.bna-exchange-rate]
 verify_jwt = false
+
+[functions.service-remito-extractor]
+verify_jwt = false
