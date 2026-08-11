@@ -9,6 +9,7 @@ export type ServiceCustomer = {
   cuit: string | null;
   email?: string | null;
   phone?: string | null;
+  is_occasional?: boolean;
 };
 
 export type ServiceDocument = {

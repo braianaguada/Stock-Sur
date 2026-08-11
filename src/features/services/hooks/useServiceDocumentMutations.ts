@@ -50,7 +50,9 @@ export function useServiceDocumentMutations(params: {
         }))
         .filter((line) => line.description);
 
-      if (validLines.length === 0) throw new Error("Agrega al menos una linea de servicio");
+      if (!validLines.some((line) => (line.line_type ?? "ITEM") === "ITEM")) {
+        throw new Error("Agrega al menos un item de servicio; los titulos y subtitulos no cuentan como items");
+      }
 
       const { data, error } = await serviceDb.rpc("save_service_document_with_sections", {
         p_document_id: editingDocumentId,
@@ -146,6 +148,14 @@ export function useServiceDocumentMutations(params: {
     },
     onSuccess: async (savedDocument) => {
       await qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.company(companyId) });
+      if (savedDocument?.id) {
+        await Promise.all([
+          qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.detail(companyId, savedDocument.id) }),
+          qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.lines(companyId, savedDocument.id) }),
+          qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.attachments(companyId, savedDocument.id) }),
+          qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.events(companyId, savedDocument.id) }),
+        ]);
+      }
       await onDone(savedDocument);
       toast({ title: editingDocumentId ? "Presupuesto actualizado" : "Presupuesto creado" });
     },
