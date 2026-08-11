@@ -34,7 +34,6 @@ export function useServiceDocumentMutations(params: {
   const upsertMutation = useMutation({
     mutationFn: async () => {
       if (!companyId) throw new Error("Selecciona una empresa antes de crear presupuestos de servicio");
-      if (!form.customer_id) throw new Error("Selecciona un cliente");
 
       const isGlobalTotal = form.pricing_mode === "GLOBAL_TOTAL";
       const globalTotal = parseOptionalNumber(form.global_total);
@@ -56,7 +55,7 @@ export function useServiceDocumentMutations(params: {
       const { data, error } = await serviceDb.rpc("save_service_document_with_sections", {
         p_document_id: editingDocumentId,
         p_company_id: companyId,
-        p_customer_id: form.customer_id,
+        p_customer_id: form.customer_id || null,
         p_status: "DRAFT",
         p_reference: form.reference.trim() || null,
         p_issue_date: form.issue_date,

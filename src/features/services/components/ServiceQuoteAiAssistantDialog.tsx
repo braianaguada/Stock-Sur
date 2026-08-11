@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Bot, Camera, Check, Loader2, Sparkles, X } from "lucide-react";
+import { Bot, Check, Loader2, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/formatters";
 import { getErrorMessage } from "@/lib/errors";
-import { loadTesseract } from "@/lib/lazy-vendors";
 import { supabase } from "@/integrations/supabase/client";
 import { serviceQuoteAiSchema } from "../aiAssistant";
 import type { ServiceDocumentCurrency, ServiceDocumentLine } from "../types";
@@ -107,8 +106,6 @@ export function ServiceQuoteAiAssistantDialog(props: {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [response, setResponse] = useState<ServiceQuoteAiResponse | null>(null);
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrFileName, setOcrFileName] = useState("");
 
   const activeCustomerId = form.customerId || props.selectedCustomerId || "";
   const selectedCustomer = useMemo(
@@ -169,34 +166,6 @@ export function ServiceQuoteAiAssistantDialog(props: {
     }
   };
 
-  const scanRemito = async (file: File | undefined) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Seleccioná una imagen JPG, PNG o WEBP del remito.");
-      return;
-    }
-    setOcrLoading(true);
-    setOcrFileName(file.name);
-    setError("");
-    try {
-      const { createWorker } = await loadTesseract();
-      const worker = await createWorker("spa+eng");
-      try {
-        const result = await worker.recognize(file);
-        const extracted = result.data.text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).join("\n");
-        if (extracted.length < 10) throw new Error("No se pudo leer suficiente texto del remito.");
-        setForm((current) => ({ ...current, description: extracted }));
-        await generate(extracted);
-      } finally {
-        await worker.terminate();
-      }
-    } catch (caught) {
-      setError(`${getErrorMessage(caught)} Probá con una foto más nítida, tomada de frente y con buena luz.`);
-    } finally {
-      setOcrLoading(false);
-    }
-  };
-
   const apply = (mode: ServiceQuoteAiApplyMode) => {
     if (!response) return;
     props.onApply({
@@ -230,16 +199,6 @@ export function ServiceQuoteAiAssistantDialog(props: {
 
         <div className="grid gap-4 lg:grid-cols-[1fr_1.05fr]">
           <section className="grid gap-3 rounded-lg border bg-muted/10 p-3">
-            <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3">
-              <p className="text-sm font-semibold">Crear desde un remito escaneado</p>
-              <p className="mt-1 text-xs text-muted-foreground">Tomá una foto o cargá una imagen. Se extraerá el texto y se generará una propuesta editable; nada se guarda ni se emite sin tu revisión.</p>
-              <label className="mt-3 inline-flex cursor-pointer items-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
-                {ocrLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
-                {ocrLoading ? "Leyendo remito..." : "Escanear o subir remito"}
-                <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={ocrLoading || loading} onChange={(event) => { void scanRemito(event.target.files?.[0]); event.currentTarget.value = ""; }} />
-              </label>
-              {ocrFileName ? <p className="mt-2 truncate text-xs text-muted-foreground">{ocrFileName}</p> : null}
-            </div>
             <div className="space-y-1">
               <Label>Describi el servicio</Label>
               <Textarea
