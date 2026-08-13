@@ -108,6 +108,8 @@ export function buildStockInsights(rows: StockRow[]): StockInsight[] {
 
   rows.forEach((row) => {
     if (row.total <= 0) {
+      if (!hasDemandSignal(row)) return;
+
       insights.push({
         id: `stockout-${row.item_id}`,
         itemId: row.item_id,

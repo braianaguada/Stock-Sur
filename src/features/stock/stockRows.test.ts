@@ -57,16 +57,30 @@ describe("buildStockRows", () => {
     expect(rows[0].avg_daily_out_30d).toBeCloseTo(0.1);
   });
 
-  it("uses manual monthly demand and the existing health thresholds", () => {
+  it("calculates demand from actual outbound movements instead of the manual estimate", () => {
     const [row] = buildStockRows(
       [stockItem({ demand_profile: "HIGH", demand_monthly_estimate: 30 })],
+      [movement({ quantity: 10 }), movement({ type: "OUT", quantity: 3 })],
+      NOW,
+    );
+
+    expect(row.demand_daily).toBeCloseTo(
+      (3 / 30) * 0.5 + (3 / 90) * 0.3 + (3 / 365) * 0.2,
+    );
+    expect(row.days_of_cover).toBeCloseTo(113.55, 1);
+    expect(row.health).toBe("GREEN");
+  });
+
+  it("does not create demand when an item only has a manual estimate", () => {
+    const [row] = buildStockRows(
+      [stockItem({ demand_monthly_estimate: 30 })],
       [movement({ quantity: 10 })],
       NOW,
     );
 
-    expect(row.demand_daily).toBe(1);
-    expect(row.days_of_cover).toBe(10);
-    expect(row.health).toBe("RED");
+    expect(row.demand_daily).toBe(0);
+    expect(row.days_of_cover).toBeNull();
+    expect(row.months_of_cover_low_rotation).toBeNull();
   });
 
   it("keeps movement-only items visible and sorts the resulting rows by name", () => {

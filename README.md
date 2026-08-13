@@ -1330,6 +1330,9 @@ git pull origin staging
 
 ## Operational UX remediation
 
+- Las alertas de Stock priorizan faltantes con salidas reales registradas y omiten artículos en cero sin rotación. La cobertura se calcula desde movimientos `OUT` (incluidos los generados al emitir remitos), sin depender de la estimación manual de consumo ni duplicar datos de ventas vinculadas.
+- El alta manual de movimientos abre con la indicación de seleccionar un producto y ya no interpreta el evento del botón como un ítem vacío.
+
 ### Documentos y servicios responsive (agosto 2026)
 
 - Documentos y presupuestos de servicio usan tarjetas de acciones en mobile y tablas con ancho controlado en sus vistas previas, evitando columnas y botones superpuestos.
