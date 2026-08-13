@@ -20,8 +20,10 @@ import {
   fetchSupplierCatalogLines,
   fetchSupplierCatalogVersions,
   fetchSupplierCatalogs,
+  fetchSupplierReorderContext,
   fetchSuppliers,
 } from "@/features/suppliers/queries";
+import { buildSupplierReorderSuggestions } from "@/features/suppliers/reorderSuggestions";
 import {
   buildSupplierFormState,
   createCatalogDialogState,
@@ -169,6 +171,14 @@ export function useSuppliersPage({
       search: trimmedDeferredCatalogSearch,
     }),
   });
+  const reorderContextQuery = useQuery({
+    queryKey: queryKeys.suppliers.reorderSuggestions(companyId ?? null, activeVersionId),
+    enabled: Boolean(companyId && activeVersionId && catalogDialogOpen),
+    queryFn: () => fetchSupplierReorderContext({
+      companyId: companyId!,
+      versionId: activeVersionId!,
+    }),
+  });
   const purchaseOrdersQuery = useSupplierPurchaseOrders(
     selectedSupplier ? companyId ?? null : null,
     selectedSupplier?.id,
@@ -179,6 +189,15 @@ export function useSuppliersPage({
   const catalogs = catalogsQuery.data ?? EMPTY_CATALOGS;
   const catalogVersions = catalogVersionsQuery.data ?? EMPTY_CATALOG_VERSIONS;
   const activeCatalogLines = activeCatalogLinesQuery.data ?? EMPTY_CATALOG_LINES;
+  const reorderSuggestions = useMemo(
+    () => reorderContextQuery.data
+      ? buildSupplierReorderSuggestions(
+        reorderContextQuery.data.lines,
+        reorderContextQuery.data.stockRows,
+      )
+      : [],
+    [reorderContextQuery.data],
+  );
 
   const catalogsById = useMemo(
     () => new Map(catalogs.map((catalog) => [catalog.id, catalog])),
@@ -258,6 +277,7 @@ export function useSuppliersPage({
 
   const {
     addToOrder,
+    addSuggestionsToOrder,
     copyOrderMessage,
     emailLink,
     goToPurchaseOrder,
@@ -414,6 +434,7 @@ export function useSuppliersPage({
     activeVersion,
     activeVersionId,
     addToOrder,
+    addSuggestionsToOrder,
     catalogDialogOpen,
     catalogSearch,
     catalogTitleById,
@@ -433,6 +454,7 @@ export function useSuppliersPage({
     goToPurchaseOrder,
     goToPurchaseOrders,
     isCatalogLoading: activeCatalogLinesQuery.isLoading,
+    isReorderSuggestionsLoading: reorderContextQuery.isLoading,
     isHistoryLoading: catalogVersionsQuery.isLoading,
     isLoading: suppliersQuery.isLoading,
     lastDiagnostics,
@@ -460,6 +482,7 @@ export function useSuppliersPage({
     orderLines,
     orderTotalsByCurrency,
     purchaseOrders: purchaseOrdersQuery.data ?? [],
+    reorderSuggestions,
     isPurchaseOrdersLoading: purchaseOrdersQuery.isLoading,
     isCreatingPurchaseOrder: createPurchaseOrderMutation.isPending,
     lastPurchaseOrder,

@@ -12,9 +12,11 @@ export type UntypedQueryBuilder = {
   gte: (column: string, value: unknown) => UntypedQueryBuilder;
   lte: (column: string, value: unknown) => UntypedQueryBuilder;
   order: (column: string, options?: Record<string, unknown>) => UntypedQueryBuilder;
+  range: (from: number, to: number) => QueryResult<unknown[]>;
   limit: (count: number) => QueryResult<unknown[]>;
   single: () => QueryResult<unknown>;
   insert: (payload: unknown) => UntypedQueryBuilder;
+  upsert: (payload: unknown, options?: Record<string, unknown>) => UntypedQueryBuilder;
   update: (payload: unknown) => UntypedQueryBuilder;
   delete: () => UntypedQueryBuilder;
 };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_DASHBOARD, type DashboardInsights } from "@/features/index/dashboard-insights";
-import { buildDashboardViews } from "@/features/index/dashboard-view-model";
+import { buildDashboardOperationalKpis, buildDashboardViews } from "@/features/index/dashboard-view-model";
 
 function dashboardWith(overrides: Partial<DashboardInsights>): DashboardInsights {
   return {
@@ -110,5 +110,58 @@ describe("dashboard view model", () => {
         points: [{ label: "2026-07", value: 3_100_000 }],
       },
     ]);
+  });
+});
+
+describe("dashboard operational KPIs", () => {
+  it("derives actionable KPIs without inventing new business data", () => {
+    const kpis = buildDashboardOperationalKpis(dashboardWith({
+      metrics: {
+        ...EMPTY_DASHBOARD.metrics,
+        accountsReceivable: 850_000,
+        salesGrowthPct: -12.5,
+        inventoryValue: 10_000_000,
+        slowStockValue: 2_500_000,
+        slowStockItems: 18,
+        valuedItemsShare: 92,
+        itemsWithoutCost: 7,
+      },
+    }));
+
+    expect(kpis).toEqual([
+      expect.objectContaining({ key: "receivables", value: 850_000, tone: "warning", href: "/customer-account" }),
+      expect.objectContaining({ key: "sales-growth", value: -12.5, tone: "danger" }),
+      expect.objectContaining({ key: "valued-stock", value: 92, tone: "warning" }),
+      expect.objectContaining({ key: "slow-stock", value: 25, tone: "warning" }),
+    ]);
+  });
+
+  it("does not expose stock-derived KPIs without stock.view", () => {
+    const kpis = buildDashboardOperationalKpis(dashboardWith({
+      capabilities: { stock: false },
+      metrics: {
+        ...EMPTY_DASHBOARD.metrics,
+        inventoryValue: 10_000_000,
+        slowStockValue: 8_000_000,
+        valuedItemsShare: 40,
+      },
+    }));
+
+    expect(kpis.map(({ key }) => key)).toEqual(["receivables", "sales-growth"]);
+    expect(kpis.some(({ href }) => href === "/stock")).toBe(false);
+  });
+
+  it("keeps stock ratios bounded when upstream values are inconsistent", () => {
+    const kpis = buildDashboardOperationalKpis(dashboardWith({
+      metrics: {
+        ...EMPTY_DASHBOARD.metrics,
+        inventoryValue: 100,
+        slowStockValue: 250,
+        valuedItemsShare: 130,
+      },
+    }));
+
+    expect(kpis.find(({ key }) => key === "slow-stock")?.value).toBe(100);
+    expect(kpis.find(({ key }) => key === "valued-stock")?.value).toBe(100);
   });
 });

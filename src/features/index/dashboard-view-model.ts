@@ -32,6 +32,16 @@ export type DashboardView = {
   series: DashboardViewSeries[];
 };
 
+export type DashboardOperationalKpi = {
+  key: "receivables" | "sales-growth" | "valued-stock" | "slow-stock";
+  label: string;
+  value: number;
+  format: DashboardValueFormat;
+  detail: string;
+  href: string;
+  tone: "default" | "positive" | "warning" | "danger";
+};
+
 /**
  * Maps the dashboard response to presentation-ready, locale-independent values.
  * Formatting and chart rendering remain responsibilities of the UI.
@@ -115,6 +125,62 @@ export function buildDashboardViews(insights: DashboardInsights): DashboardView[
   return insights.capabilities.stock
     ? views
     : views.filter(({ key }) => key !== "inventory");
+}
+
+/**
+ * Builds a compact operational reading from metrics already calculated by the
+ * dashboard RPCs. Stock indicators remain fail-closed when stock.view is absent.
+ */
+export function buildDashboardOperationalKpis(insights: DashboardInsights): DashboardOperationalKpi[] {
+  const { metrics } = insights;
+  const kpis: DashboardOperationalKpi[] = [
+    {
+      key: "receivables",
+      label: "Pendiente de cobro",
+      value: metrics.accountsReceivable,
+      format: "currency",
+      detail: "Saldo positivo total de clientes",
+      href: "/customer-account",
+      tone: metrics.accountsReceivable > 0 ? "warning" : "positive",
+    },
+    {
+      key: "sales-growth",
+      label: "Variación de ventas",
+      value: metrics.salesGrowthPct,
+      format: "percent",
+      detail: "Contra el mismo tramo del mes anterior",
+      href: "/documents",
+      tone: metrics.salesGrowthPct < 0 ? "danger" : metrics.salesGrowthPct > 0 ? "positive" : "default",
+    },
+  ];
+
+  if (!insights.capabilities.stock) return kpis;
+
+  const slowStockShare = metrics.inventoryValue > 0
+    ? Math.min(100, Math.max(0, metrics.slowStockValue / metrics.inventoryValue * 100))
+    : 0;
+
+  return [
+    ...kpis,
+    {
+      key: "valued-stock",
+      label: "Stock valorizado",
+      value: Math.min(100, Math.max(0, metrics.valuedItemsShare)),
+      format: "percent",
+      detail: `${metrics.itemsWithoutCost} items con stock sin costo base`,
+      href: "/price-lists?tab=base",
+      tone: metrics.itemsWithoutCost > 0 ? "warning" : "positive",
+    },
+    {
+      key: "slow-stock",
+      label: "Capital sin rotación",
+      value: slowStockShare,
+      format: "percent",
+      detail: `${metrics.slowStockItems} items · proporción del inventario valorizado`,
+      href: "/stock",
+      tone: slowStockShare >= 30 ? "danger" : slowStockShare > 0 ? "warning" : "positive",
+    },
+  ];
 }
 
 function metric(

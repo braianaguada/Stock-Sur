@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PdfDocumentPreview } from "@/features/suppliers/components/PdfDocumentPreview";
 import type { ExtractionReviewLine, NormalizeDiagnostics } from "@/features/suppliers/types";
+import { validateSupplierImportLines } from "@/features/suppliers/importValidation";
 
 export function SupplierExtractionReviewDialog({ open, onOpenChange, fileName, file, lines, diagnostics, isImporting, onLineChange, onRemoveLine, onConfirm, onCancel }: {
   open: boolean;
@@ -22,13 +23,13 @@ export function SupplierExtractionReviewDialog({ open, onOpenChange, fileName, f
 }) {
   const arsCount = lines.filter((line) => line.currency === "ARS").length;
   const usdCount = lines.filter((line) => line.currency === "USD").length;
-  const warningCount = lines.filter((line) => ["AMBIGUOUS", "UNSUPPORTED"].includes(line.currency_detection?.status ?? "")).length;
+  const validation = validateSupplierImportLines(lines);
   const presentationCount = lines.filter((line) => line.presentation_raw).length;
   const unknownTaxCount = lines.filter((line) => line.tax_treatment === "UNKNOWN").length;
   const isPdf = file?.type === "application/pdf" || fileName?.toLowerCase().endsWith(".pdf");
 
   return (
-    <EntityDialog open={open} onOpenChange={onOpenChange} title="Revisar importación" description={fileName ? `Verificá los productos detectados en ${fileName}.` : "Verificá el listado antes de importarlo."} contentClassName="max-h-[calc(100dvh-1rem)] max-w-7xl" footer={<><Button variant="outline" onClick={onCancel} disabled={isImporting}>Cancelar</Button><Button onClick={onConfirm} disabled={isImporting || lines.length === 0 || warningCount > 0}>{isImporting ? "Importando…" : "Confirmar importación"}</Button></>}>
+    <EntityDialog open={open} onOpenChange={onOpenChange} title="Revisar importación" description={fileName ? `Verificá los productos detectados en ${fileName}.` : "Verificá el listado antes de importarlo."} contentClassName="max-h-[calc(100dvh-1rem)] max-w-7xl" footer={<><Button variant="outline" onClick={onCancel} disabled={isImporting}>Cancelar</Button><Button onClick={onConfirm} disabled={isImporting || !validation.canImport}>{isImporting ? "Importando…" : `Importar ${lines.length} productos`}</Button></>}>
       <div className={isPdf && file ? "grid gap-4 xl:grid-cols-[minmax(20rem,0.85fr)_minmax(0,1.4fr)]" : "space-y-4"}>
         {isPdf && file ? <PdfDocumentPreview file={file} /> : null}
         <div className="min-w-0 space-y-4">
@@ -45,12 +46,13 @@ export function SupplierExtractionReviewDialog({ open, onOpenChange, fileName, f
               <span><strong>{diagnostics.dropped_priceLE0}</strong> con precio cero</span>
             </div>
           )}
-          {warningCount > 0 && <div className="flex gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>Revisá la moneda de {warningCount} {warningCount === 1 ? "fila marcada" : "filas marcadas"} para continuar.</span></div>}
+          {!validation.canImport && lines.length > 0 && <div className="flex gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>Corregí antes de importar: {validation.invalidDescriptionCount} sin nombre, {validation.invalidPriceCount} con precio inválido y {validation.unresolvedCurrencyCount} con moneda pendiente.</span></div>}
+          {validation.duplicateCodeCount > 0 && <div className="flex gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>Hay {validation.duplicateCodeCount} {validation.duplicateCodeCount === 1 ? "código repetido" : "códigos repetidos"}. Podés continuar si representan presentaciones distintas.</span></div>}
           <div className="max-h-[62vh] divide-y overflow-y-auto rounded-xl border">
             {lines.map((line, index) => {
               const needsReview = ["AMBIGUOUS", "UNSUPPORTED"].includes(line.currency_detection?.status ?? "");
               return (
-                <article key={line.id} className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_11rem_10rem_10rem_auto] lg:items-end">
+                <article key={line.id} className={`grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_11rem_10rem_10rem_auto] lg:items-end ${validation.invalidLineIds.has(line.id) ? "bg-destructive/5" : ""}`}>
                   <div className="min-w-0 space-y-2">
                     <Label htmlFor={`description-${line.id}`}>Producto {index + 1}</Label>
                     <Input id={`description-${line.id}`} value={line.product_name ?? line.raw_description} onChange={(event) => onLineChange(line.id, { product_name: event.target.value })} placeholder="Nombre del producto" />

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  addCatalogLineToOrder,
   buildSupplierFormState,
   buildSupplierOrderMessage,
   createEmptySupplierForm,
   selectSupplierCatalogVersionId,
 } from "@/features/suppliers/state";
-import type { SupplierCatalogVersion } from "@/features/suppliers/types";
+import type { CatalogLine, SupplierCatalogVersion } from "@/features/suppliers/types";
 
 describe("supplier form state", () => {
   it("keeps phone and WhatsApp as independent values", () => {
@@ -133,5 +134,24 @@ describe("selectSupplierCatalogVersionId", () => {
       version("version-b", importedAt),
     ], null)).toBe("version-b");
     expect(selectSupplierCatalogVersionId([], "version-old")).toBeNull();
+  });
+});
+
+describe("addCatalogLineToOrder", () => {
+  it("uses the reviewed reorder quantity and accumulates later additions", () => {
+    const line = {
+      id: "line-1",
+      version_id: "version-1",
+      supplier_code: "A1",
+      raw_description: "Cable HDMI",
+      cost: 100,
+      currency: "ARS",
+    } as CatalogLine;
+
+    const suggested = addCatalogLineToOrder({}, {}, line, 7);
+    const accumulated = addCatalogLineToOrder(suggested, {}, line, 3);
+
+    expect(suggested["line-1"].quantity).toBe(7);
+    expect(accumulated["line-1"].quantity).toBe(10);
   });
 });

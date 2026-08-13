@@ -201,7 +201,7 @@ export default function StockPage() {
           onTabChange={setTab}
           variant="workspace"
           actions={(
-            <Button onClick={openCreateMovement}>
+            <Button onClick={() => openCreateMovement()}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo movimiento
             </Button>
           )}
@@ -244,7 +244,7 @@ export default function StockPage() {
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">
                   {currentAiSummary?.summary ??
-                    "Alertas calculadas con reglas operativas sobre cobertura, consumo, sobrestock y stock inmovilizado."}
+                    "Alertas calculadas con salidas reales, cobertura, sobrestock y stock inmovilizado."}
                 </p>
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                   <span>Fuente: reglas operativas</span>
