@@ -1338,8 +1338,16 @@ git pull origin staging
 
 ## Operational UX remediation
 
-- Las alertas de Stock priorizan faltantes con salidas reales registradas y omiten artículos en cero sin rotación. La cobertura se calcula desde movimientos `OUT` (incluidos los generados al emitir remitos), sin depender de la estimación manual de consumo ni duplicar datos de ventas vinculadas.
-- El alta manual de movimientos abre con la indicación de seleccionar un producto y ya no interpreta el evento del botón como un ítem vacío.
+### Seguimiento comercial de presupuestos (agosto 2026)
+
+- La nueva vista `Seguimiento presupuestos` ordena la agenda por contactos vencidos, presupuestos fuera de validez, próximos contactos y presupuestos sin agenda, siempre dentro de la empresa activa.
+- Cada presupuesto puede guardar prioridad, próxima fecha y notas, además de registrar la fecha y cantidad de contactos. Este seguimiento no modifica el estado documental ni genera movimientos de stock, caja o cuenta corriente.
+- La migración `20260813190000_budget_follow_ups.sql` incorpora almacenamiento aislado por `company_id`, validación estricta del presupuesto y políticas RLS basadas en `documents.view` y `documents.edit`.
+
+### Alertas de stock por rotación real (agosto 2026)
+
+ - Las alertas de Stock priorizan faltantes con salidas reales registradas y omiten artículos en cero sin rotación. La cobertura se calcula desde movimientos `OUT` (incluidos los generados al emitir remitos), sin depender de la estimación manual de consumo ni duplicar datos de ventas vinculadas.
+ - El alta manual de movimientos abre con la indicación de seleccionar un producto y ya no interpreta el evento del botón como un ítem vacío.
 
 ### Documentos y servicios responsive (agosto 2026)
 

@@ -28,6 +28,7 @@ export const appNavItems = [
   { title: "Ordenes de compra", url: "/purchase-orders", group: "purchases" },
   { title: "Precios", url: "/price-lists", group: "inventory" },
   { title: "Documentos", url: "/documents", group: "commercial" },
+  { title: "Seguimiento presupuestos", url: "/documents/follow-up", group: "commercial" },
   { title: "Servicios", url: "/services/documents", group: "services" },
   { title: "Trabajos", url: "/service-jobs", group: "services" },
   { title: "Tecnicos", url: "/technicians", group: "services" },
