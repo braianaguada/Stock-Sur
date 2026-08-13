@@ -1338,6 +1338,12 @@ git pull origin staging
 
 ## Operational UX remediation
 
+### Centro de alertas operativas (agosto 2026)
+
+- La barra superior incorpora una campana por empresa con pendientes reales del dashboard y acceso directo al módulo donde se resuelven.
+- Las categorías se filtran por permisos efectivos de caja, clientes/trabajos, documentos y facturación. Los conteos en cero y alertas masivas sin acción concreta, como ítems sin costo, no generan notificaciones.
+- El centro no persiste estados de “leído”: el indicador representa pendientes actuales y se puede actualizar manualmente sin crear ni modificar operaciones.
+
 ### Seguimiento comercial de presupuestos (agosto 2026)
 
 - La nueva vista `Seguimiento presupuestos` ordena la agenda por contactos vencidos, presupuestos fuera de validez, próximos contactos y presupuestos sin agenda, siempre dentro de la empresa activa.
