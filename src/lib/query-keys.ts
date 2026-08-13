@@ -244,8 +244,10 @@ export const queryKeys = {
     catalogVersionsAll: () => ["supplier-catalog-versions"] as const,
     catalogLines: (companyId: string | null, versionId: string | null, search: string) =>
       ["supplier-catalog-lines", companyId ?? "no-company", versionId, search] as const,
-    catalogLinesVersion: (companyId: string | null, versionId: string | null) =>
-      ["supplier-catalog-lines", companyId ?? "no-company", versionId] as const,
+      catalogLinesVersion: (companyId: string | null, versionId: string | null) =>
+        ["supplier-catalog-lines", companyId ?? "no-company", versionId] as const,
+      reorderSuggestions: (companyId: string | null, versionId: string | null) =>
+        ["supplier-reorder-suggestions", companyId ?? "no-company", versionId ?? "no-version"] as const,
     catalogLinesAll: () => ["supplier-catalog-lines"] as const,
   },
 };

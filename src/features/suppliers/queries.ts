@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { searchIncludes } from "@/lib/search";
+import { fetchAllPages } from "@/lib/supabase-pagination";
+import { buildStockRows, type StockItemSource, type StockMovementSource } from "@/features/stock/stockRows";
 import type {
   CatalogLine,
   Supplier,
@@ -98,7 +100,7 @@ export async function fetchSupplierCatalogLines(params: {
 }) {
   const query = supabase
     .from("supplier_catalog_lines")
-    .select("id, supplier_code, raw_description, product_name, additional_description, presentation_raw, package_quantity, content_value, content_unit, semantic_detection, cost, currency, tax_treatment")
+    .select("id, supplier_code, raw_description, product_name, additional_description, presentation_raw, package_quantity, content_value, content_unit, semantic_detection, cost, currency, tax_treatment, matched_item_id")
     .eq("company_id", params.companyId)
     .eq("supplier_catalog_version_id", params.versionId)
     .order("row_index", { ascending: true, nullsFirst: false })
@@ -111,4 +113,38 @@ export async function fetchSupplierCatalogLines(params: {
   return rows.filter((line) =>
     searchIncludes([line.product_name, line.raw_description, line.presentation_raw, line.supplier_code].filter(Boolean).join(" "), params.search),
   );
+}
+
+export async function fetchSupplierReorderContext(params: {
+  companyId: string;
+  versionId: string;
+}) {
+  const [lines, items, movements] = await Promise.all([
+    fetchAllPages(() =>
+      supabase
+        .from("supplier_catalog_lines")
+        .select("id, supplier_code, raw_description, product_name, additional_description, presentation_raw, package_quantity, content_value, content_unit, semantic_detection, cost, currency, tax_treatment, matched_item_id")
+        .eq("company_id", params.companyId)
+        .eq("supplier_catalog_version_id", params.versionId)
+        .order("row_index", { ascending: true, nullsFirst: false }),
+    ),
+    fetchAllPages(() =>
+      supabase
+        .from("items")
+        .select("id, name, sku, unit, supplier, brand, model, attributes, category, demand_profile, demand_monthly_estimate")
+        .eq("company_id", params.companyId)
+        .eq("is_active", true),
+    ),
+    fetchAllPages(() =>
+      supabase
+        .from("stock_movements")
+        .select("item_id, type, quantity, created_at, items(name, sku, unit, brand, model, attributes, demand_profile, demand_monthly_estimate)")
+        .eq("company_id", params.companyId),
+    ),
+  ]);
+
+  return {
+    lines: lines as CatalogLine[],
+    stockRows: buildStockRows(items as StockItemSource[], movements as StockMovementSource[]),
+  };
 }

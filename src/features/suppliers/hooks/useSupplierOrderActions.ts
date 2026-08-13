@@ -9,7 +9,7 @@ import {
   removeOrderItemFromState,
   updateOrderItemQuantity,
 } from "@/features/suppliers/state";
-import type { CatalogLine, OrderLine, Supplier, SupplierCatalogVersion } from "@/features/suppliers/types";
+import type { CatalogLine, OrderLine, Supplier, SupplierCatalogVersion, SupplierReorderSuggestion } from "@/features/suppliers/types";
 
 type ToastFn = (params: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
 
@@ -66,8 +66,24 @@ export function useSupplierOrderActions(params: {
     [emailSubject, orderMessage, selectedSupplier?.email],
   );
 
-  const addToOrder = (line: CatalogLine) => {
-    setOrderItems((prev) => addCatalogLineToOrder(prev, lineQuantities, line));
+  const addToOrder = (line: CatalogLine, quantity?: number) => {
+    setOrderItems((prev) => addCatalogLineToOrder(prev, lineQuantities, line, quantity));
+  };
+
+  const addSuggestionsToOrder = (suggestions: SupplierReorderSuggestion[]) => {
+    setOrderItems((previous) => suggestions.reduce(
+      (next, suggestion) => addCatalogLineToOrder(
+        next,
+        lineQuantities,
+        suggestion.line,
+        suggestion.suggestedQuantity,
+      ),
+      previous,
+    ));
+    toast({
+      title: "Sugerencias agregadas",
+      description: `${suggestions.length} productos quedaron listos para revisar en el pedido.`,
+    });
   };
 
   const updateLineQuantity = (lineId: string, value: string) => {
@@ -126,6 +142,7 @@ export function useSupplierOrderActions(params: {
 
   return {
     addToOrder,
+    addSuggestionsToOrder,
     copyOrderMessage,
     emailLink,
     goToPurchaseOrder: (orderId: string) => navigate(`/purchase-orders?order=${orderId}`),

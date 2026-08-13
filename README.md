@@ -1339,6 +1339,12 @@ git pull origin staging
 
 ## Operational UX remediation
 
+### Reposicion sugerida por proveedor (agosto 2026)
+
+- El catalogo activo del proveedor propone reposicion para 30 dias usando exclusivamente salidas reales de stock; los remitos emitidos ya alimentan esos movimientos y una venta asociada no se cuenta por separado.
+- Solo se recomiendan renglones vinculados expresamente a un item o con coincidencia exacta y unica por SKU o nombre. Los productos sin rotacion comprobada y las coincidencias ambiguas quedan fuera.
+- Cada sugerencia muestra stock, salida mensual, cobertura y cantidad editable al incorporarla al pedido. Es una ayuda de preparacion: no genera orden, movimiento ni compra sin confirmacion del usuario.
+
 ### Consulta rápida de precios (agosto 2026)
 
 - El módulo Precios permite abrir una consulta rápida desde cualquier pestaña, elegir una lista y buscar productos por código, nombre, marca, modelo o atributos.

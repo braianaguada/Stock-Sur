@@ -74,6 +74,7 @@ export default function SuppliersPage() {
     activeVersion,
     activeVersionId,
     addToOrder,
+    addSuggestionsToOrder,
     catalogDialogOpen,
     catalogSearch,
     catalogTitleById,
@@ -98,6 +99,7 @@ export default function SuppliersPage() {
     isCatalogLoading,
     isHistoryLoading,
     isLoading,
+    isReorderSuggestionsLoading,
     lastDiagnostics,
     lineQuantities,
     mappingModalColumns,
@@ -123,6 +125,7 @@ export default function SuppliersPage() {
     orderLines,
     orderTotalsByCurrency,
     purchaseOrders,
+    reorderSuggestions,
     isPurchaseOrdersLoading,
     isCreatingPurchaseOrder,
     lastPurchaseOrder,
@@ -277,6 +280,9 @@ export default function SuppliersPage() {
             lineQuantities={lineQuantities}
             onLineQuantityChange={onUpdateLineQuantity}
             onAddToOrder={addToOrder}
+            reorderSuggestions={reorderSuggestions}
+            isReorderSuggestionsLoading={isReorderSuggestionsLoading}
+            onAddReorderSuggestions={addSuggestionsToOrder}
             onViewPurchaseOrder={goToPurchaseOrder}
             onGoToPurchaseOrders={goToPurchaseOrders}
             orderLines={orderLines}
