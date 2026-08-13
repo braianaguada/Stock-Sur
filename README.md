@@ -12,6 +12,12 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 - El Dashboard conserva sus métricas actuales y agrega filtros Hoy/semana/mes, serie temporal y productos vendidos con cantidad/unidad, venta, costo y ganancia. La RPC multitenant se incorpora en `20260810120000_dashboard_period_product_insights.sql`.
 - No se modifica producción. La captura OCR de remitos manuscritos queda deliberadamente fuera de este corte y se diseñará como una segunda fase con revisión humana antes de crear el borrador.
 
+## Pulso operativo del Dashboard
+
+- El Dashboard conserva todos sus indicadores y agrega accesos accionables para deuda de clientes, variación de ventas contra el mismo tramo del mes anterior, cobertura de costos y capital sin rotación.
+- Los porcentajes se derivan de las métricas multitenant ya disponibles; no se agregan consultas ni estimaciones externas.
+- Los indicadores de inventario se ocultan por completo si el usuario no cuenta con `stock.view`. No requiere migraciones y no modifica producción.
+
 ## Presentacion operativa del Dashboard
 
 - La composicion de cobros presenta etiquetas legibles y consistentes aun cuando el origen entregue identificadores tecnicos en minusculas, como `servicios_remito`.
