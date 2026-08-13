@@ -69,6 +69,21 @@ export interface CatalogLine {
   reference_price_basis?: string | null;
   semantic_detection?: SemanticDetection;
   tax_treatment: TaxTreatment;
+  matched_item_id?: string | null;
+}
+
+export type SupplierReorderMatchReason = "CONFIRMED" | "SKU" | "EXACT_NAME";
+
+export interface SupplierReorderSuggestion {
+  line: CatalogLine;
+  itemId: string;
+  itemName: string;
+  itemSku: string;
+  stock: number;
+  averageMonthlyOut: number;
+  daysOfCover: number;
+  suggestedQuantity: number;
+  matchReason: SupplierReorderMatchReason;
 }
 
 export interface ExtractionReviewLine {
