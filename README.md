@@ -1330,6 +1330,12 @@ git pull origin staging
 
 ## Operational UX remediation
 
+### Consulta rápida de precios (agosto 2026)
+
+- El módulo Precios permite abrir una consulta rápida desde cualquier pestaña, elegir una lista y buscar productos por código, nombre, marca, modelo o atributos.
+- La respuesta muestra precio operativo, origen del precio, stock actual y estado de recálculo, sin modificar costos ni listas.
+- La lista elegida se recuerda por usuario y empresa para evitar mezclar preferencias entre compañías.
+
 ### Documentos y servicios responsive (agosto 2026)
 
 - Documentos y presupuestos de servicio usan tarjetas de acciones en mobile y tablas con ancho controlado en sus vistas previas, evitando columnas y botones superpuestos.

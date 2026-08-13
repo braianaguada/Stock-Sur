@@ -12,6 +12,7 @@ import type {
   PriceListFormState,
   PriceListHistoryRow,
   PriceListProductRow,
+  PriceListSnapshot,
   PriceListSummary,
 } from "@/features/price-lists/types";
 import { parseNonNegative } from "@/features/price-lists/utils";
@@ -57,21 +58,6 @@ type PriceListDbRow = {
   updated_by: string | null;
   created_at: string;
   created_by: string | null;
-};
-
-type PriceListSnapshotDbRow = {
-  price_list_id: string;
-  item_id: string;
-  base_cost: number;
-  calculated_price: number;
-  final_price_override: number | null;
-  manual_price_enabled: boolean;
-  manual_price_note: string | null;
-  manual_price_updated_at: string | null;
-  manual_price_updated_by: string | null;
-  needs_recalculation: boolean;
-  last_calculated_at: string | null;
-  last_calculated_by: string | null;
 };
 
 type UsePriceListsDataParams = {
@@ -183,7 +169,7 @@ export function usePriceListsData({
         .eq("price_list_id", selectedListId!)
         .eq("is_active", true);
       if (error) throw error;
-      return (data ?? []) as PriceListSnapshotDbRow[];
+      return (data ?? []) as PriceListSnapshot[];
     },
   });
 
@@ -198,7 +184,7 @@ export function usePriceListsData({
         .eq("company_id", currentCompany!.id)
         .eq("is_active", true);
       if (error) throw error;
-      return (data ?? []) as PriceListSnapshotDbRow[];
+      return (data ?? []) as PriceListSnapshot[];
     },
   });
 
@@ -319,9 +305,7 @@ export function usePriceListsData({
     return map;
   }, [priceListCounts]);
 
-  const priceLists = useMemo<PriceListSummary[]>(() => {
-    const term = listSearch.trim().toLowerCase();
-
+  const allPriceLists = useMemo<PriceListSummary[]>(() => {
     return priceListsRaw
       .map((row) => {
         const counts = countsByListId.get(row.id) ?? { total: 0, pending: 0 };
@@ -331,13 +315,19 @@ export function usePriceListsData({
           pending_items_count: counts.pending,
           total_items_count: counts.total,
         };
-      })
+      });
+  }, [countsByListId, priceListsRaw]);
+
+  const priceLists = useMemo<PriceListSummary[]>(() => {
+    const term = listSearch.trim().toLowerCase();
+
+    return allPriceLists
       .filter((row) =>
         !term
           || row.name.toLowerCase().includes(term)
           || (row.description ?? "").toLowerCase().includes(term),
       );
-  }, [countsByListId, listSearch, priceListsRaw]);
+  }, [allPriceLists, listSearch]);
 
   const selectedList = useMemo(
     () => priceLists.find((priceList) => priceList.id === selectedListId) ?? null,
@@ -350,9 +340,9 @@ export function usePriceListsData({
   );
 
   const snapshotsByListAndItemId = useMemo(() => {
-    const map = new Map<string, Map<string, PriceListSnapshotDbRow>>();
+    const map = new Map<string, Map<string, PriceListSnapshot>>();
     for (const row of allListSnapshots) {
-      const listMap = map.get(row.price_list_id) ?? new Map<string, PriceListSnapshotDbRow>();
+      const listMap = map.get(row.price_list_id) ?? new Map<string, PriceListSnapshot>();
       listMap.set(row.item_id, row);
       map.set(row.price_list_id, listMap);
     }
@@ -568,6 +558,7 @@ export function usePriceListsData({
   return {
     baseRows,
     pagedBaseRows: basePagination.pagedItems,
+    allPriceLists,
     priceLists,
     profileNameByUserId,
     snapshotsByListAndItemId,

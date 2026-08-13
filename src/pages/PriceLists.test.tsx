@@ -9,6 +9,25 @@ const { setSearchParams, recalculateMutate, priceListsData } = vi.hoisted(() => 
   priceListsData: {
     baseRows: [],
     pagedBaseRows: [],
+    allPriceLists: [
+      {
+        id: "list-1",
+        name: "Mayorista",
+        description: "Lista principal",
+        flete_pct: 5,
+        utilidad_pct: 10,
+        impuesto_pct: 21,
+        status: "UPDATED",
+        last_recalculated_at: "2026-05-12T00:00:00.000Z",
+        last_recalculated_by: "user-1",
+        updated_at: "2026-05-12T00:00:00.000Z",
+        updated_by: "user-1",
+        created_at: "2026-05-12T00:00:00.000Z",
+        created_by: "user-1",
+        pending_items_count: 1,
+        total_items_count: 25,
+      },
+    ],
     priceLists: [
       {
         id: "list-1",
@@ -116,6 +135,10 @@ vi.mock("@/features/price-lists/components/PriceListDetailDialog", () => ({
     open ? <div>Detalle de {selectedList?.name ?? "lista"}</div> : null,
 }));
 
+vi.mock("@/features/price-lists/components/QuickPriceConsultationDialog", () => ({
+  QuickPriceConsultationDialog: ({ open }: { open: boolean }) => open ? <div>Consulta rápida de precios abierta</div> : null,
+}));
+
 vi.mock("@/components/common/ConfirmDeleteDialog", () => ({
   ConfirmDeleteDialog: () => null,
 }));
@@ -170,12 +193,13 @@ describe("PriceListsPage", () => {
     setSearchParams.mockClear();
   });
 
-  it("renders configured lists without the quick consultation table", () => {
+  it("opens the quick price consultation without replacing configured lists", () => {
     render(<PriceListsPage />);
 
     expect(screen.getByText("Listas configuradas")).toBeInTheDocument();
     expect(screen.getByText("Mayorista")).toBeInTheDocument();
-    expect(screen.queryByText("Consulta rapida de precios")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Consulta rápida" }));
+    expect(screen.getByText("Consulta rápida de precios abierta")).toBeInTheDocument();
   });
 
   it("keeps view and recalculate actions available", () => {
