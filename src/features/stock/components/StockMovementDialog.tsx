@@ -141,7 +141,11 @@ export function StockMovementDialog({
                     : formatStockQuantity(selectedStock, selectedItem.unit)}
                 </StatusBadge>
               </div>
-            ) : null}
+            ) : (
+              <p className="border-t border-border/70 px-3 py-2.5 text-sm text-muted-foreground">
+                Seleccioná un producto para registrar el movimiento.
+              </p>
+            )}
           </div>
         </div>
 

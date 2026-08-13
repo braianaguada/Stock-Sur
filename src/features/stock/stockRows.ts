@@ -149,11 +149,7 @@ export function buildStockRows(
         avgDailyOut365,
         avgDailyOut30 * 0.5 + avgDailyOut90 * 0.3 + avgDailyOut365 * 0.2,
       );
-      const manualDemandDaily =
-        (row.demand_monthly_estimate ?? 0) > 0
-          ? (row.demand_monthly_estimate as number) / 30
-          : 0;
-      const demandDaily = manualDemandDaily > 0 ? manualDemandDaily : demandDailyAuto;
+      const demandDaily = demandDailyAuto;
       const monthlyDemand365 = row.out_365d / 12;
       const monthlyDemand90 = row.out_90d / 3;
       const daysOfCover = demandDaily > 0 ? row.total / demandDaily : null;
@@ -167,10 +163,7 @@ export function buildStockRows(
       ].filter((value) => value > 0);
       const monthlyDemandLowRotationAuto =
         lowRotationCandidates.length > 0 ? Math.min(...lowRotationCandidates) : 0;
-      const monthlyDemandLowRotation =
-        (row.demand_monthly_estimate ?? 0) > 0
-          ? (row.demand_monthly_estimate as number)
-          : monthlyDemandLowRotationAuto;
+      const monthlyDemandLowRotation = monthlyDemandLowRotationAuto;
 
       return {
         item_id: row.item_id,
