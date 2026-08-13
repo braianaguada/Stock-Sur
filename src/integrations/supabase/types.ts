@@ -2764,6 +2764,21 @@ export type Database = {
         }
         Returns: Json
       }
+      create_supplier_catalog_import_atomic: {
+        Args: {
+          p_catalog_id?: string
+          p_catalog_notes?: string
+          p_catalog_title?: string
+          p_document_notes?: string
+          p_document_title: string
+          p_file_name: string
+          p_file_type: string
+          p_lines?: Json
+          p_supplier_id: string
+          p_version_title?: string
+        }
+        Returns: Json
+      }
       get_or_create_cash_closure: {
         Args: { p_business_date: string; p_company_id: string }
         Returns: {

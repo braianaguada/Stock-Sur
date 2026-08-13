@@ -67,6 +67,8 @@ export function toSupplierCatalogRpcLinePayload(line: CatalogImportLine): Suppli
     content_value: line.content_value ?? null,
     content_unit: line.content_unit ?? null,
     semantic_detection: line.semantic_detection ?? {},
+    reference_unit_price: line.reference_unit_price ?? null,
+    reference_price_basis: line.reference_price_basis ?? null,
     cost: line.cost,
     currency: line.currency || "ARS",
     tax_treatment: line.tax_treatment || "UNKNOWN",
