@@ -1,6 +1,13 @@
 const MAX_EDGE = 2200;
 
+export const SERVICE_REMITO_FILE_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
+
+export function isSupportedServiceRemitoFile(file: File): boolean {
+  return SERVICE_REMITO_FILE_TYPES.includes(file.type as (typeof SERVICE_REMITO_FILE_TYPES)[number]);
+}
+
 export async function enhanceRemitoImage(file: File): Promise<string | null> {
+  if (!file.type.startsWith("image/")) return null;
   if (typeof createImageBitmap !== "function") return null;
   const bitmap = await createImageBitmap(file);
   try {

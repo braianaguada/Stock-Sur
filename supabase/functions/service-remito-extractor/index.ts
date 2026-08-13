@@ -35,13 +35,13 @@ Deno.serve(async (req) => {
     const mimeType = typeof body.mimeType === "string" ? body.mimeType : "";
     const imageBase64 = typeof body.imageBase64 === "string" ? body.imageBase64 : "";
     const enhancedImageBase64 = typeof body.enhancedImageBase64 === "string" ? body.enhancedImageBase64 : "";
-    if (!companyId || !["image/jpeg", "image/png", "image/webp"].includes(mimeType) || !imageBase64) return json({ error: "La imagen o la empresa no son validas." }, 400);
+    if (!companyId || !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(mimeType) || !imageBase64) return json({ error: "El archivo o la empresa no son validos." }, 400);
     const { data: membership, error: membershipError } = await client.from("company_users").select("id, companies!inner(id)").eq("company_id", companyId).eq("user_id", user.id).eq("status", "ACTIVE").eq("companies.status", "ACTIVE").maybeSingle();
     if (membershipError) throw membershipError;
     if (!membership) return json({ error: "No tenes acceso activo a esta empresa." }, 403);
 
     const prompt = [
-      "Extrae datos del remito fotografiado. Es transcripcion estructurada, no redaccion comercial.",
+      "Extrae datos de la imagen o PDF del remito. Es transcripcion estructurada, no redaccion comercial.",
       "Lee escritura manuscrita cuando sea posible y une renglones consecutivos de una misma descripcion.",
       "Ignora membretes, etiquetas impresas, sellos, firmas, identificacion fiscal, telefono y ruido visual.",
       "No inventes palabras dudosas: omitelas y agrega una advertencia.",
