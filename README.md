@@ -1338,6 +1338,12 @@ git pull origin staging
 
 ## Operational UX remediation
 
+### Consulta rápida de precios (agosto 2026)
+
+- El módulo Precios permite abrir una consulta rápida desde cualquier pestaña, elegir una lista y buscar productos por código, nombre, marca, modelo o atributos.
+- La respuesta muestra precio operativo, origen del precio, stock actual y estado de recálculo, sin modificar costos ni listas.
+- La lista elegida se recuerda por usuario y empresa para evitar mezclar preferencias entre compañías.
+
 ### Centro de alertas operativas (agosto 2026)
 
 - La barra superior incorpora una campana por empresa con pendientes reales del dashboard y acceso directo al módulo donde se resuelven.
@@ -1352,8 +1358,8 @@ git pull origin staging
 
 ### Alertas de stock por rotación real (agosto 2026)
 
- - Las alertas de Stock priorizan faltantes con salidas reales registradas y omiten artículos en cero sin rotación. La cobertura se calcula desde movimientos `OUT` (incluidos los generados al emitir remitos), sin depender de la estimación manual de consumo ni duplicar datos de ventas vinculadas.
- - El alta manual de movimientos abre con la indicación de seleccionar un producto y ya no interpreta el evento del botón como un ítem vacío.
+- Las alertas de Stock priorizan faltantes con salidas reales registradas y omiten artículos en cero sin rotación. La cobertura se calcula desde movimientos `OUT` (incluidos los generados al emitir remitos), sin depender de la estimación manual de consumo ni duplicar datos de ventas vinculadas.
+- El alta manual de movimientos abre con la indicación de seleccionar un producto y ya no interpreta el evento del botón como un ítem vacío.
 
 ### Documentos y servicios responsive (agosto 2026)
 
