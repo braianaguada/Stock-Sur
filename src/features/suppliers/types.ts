@@ -125,6 +125,8 @@ export interface SupplierCatalogLinePayload {
   content_value?: number | null;
   content_unit?: ContentUnit | null;
   semantic_detection?: SemanticDetection;
+  reference_unit_price?: number | null;
+  reference_price_basis?: string | null;
   tax_treatment: TaxTreatment;
   row_index: number;
   matched_item_id: string | null;

@@ -75,8 +75,8 @@ function readStoredDraft(storageKey: string | null) {
   }
 }
 
-function normalizeItem(item: SearchableItem | null | undefined) {
-  return item
+export function normalizeStockMovementItem(item: SearchableItem | null | undefined) {
+  return item && typeof item.id === "string" && item.id.length > 0
     ? {
         id: item.id,
         name: item.name,
@@ -130,7 +130,7 @@ export function useStockPage() {
       setDialogOpen(draft.open === true);
       setForm(normalizeMovementForm(draft.form));
       setItemSearch(draft.itemSearch);
-      setSelectedItem(normalizeItem(draft.selectedItem));
+      setSelectedItem(normalizeStockMovementItem(draft.selectedItem));
     }
     setHydratedDraftKey(draftStorageKey);
   }, [draftStorageKey]);
@@ -139,7 +139,7 @@ export function useStockPage() {
     open: dialogOpen,
     form,
     itemSearch,
-    selectedItem: normalizeItem(selectedItem),
+    selectedItem: normalizeStockMovementItem(selectedItem),
   }), [dialogOpen, form, itemSearch, selectedItem]);
 
   useSessionDraft({
@@ -162,7 +162,7 @@ export function useStockPage() {
     setDialogOpen(true);
     setForm({ ...DEFAULT_STOCK_MOVEMENT_FORM, item_id: item?.id ?? "" });
     setItemSearch("");
-    setSelectedItem(normalizeItem(item));
+    setSelectedItem(normalizeStockMovementItem(item));
   }, [draftStorageKey]);
 
   const { data: searchedItems = [], isFetching: searchingItems } = useQuery({

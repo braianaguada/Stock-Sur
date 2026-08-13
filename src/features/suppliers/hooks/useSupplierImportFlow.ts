@@ -14,6 +14,7 @@ import {
   toSupplierCatalogRpcLinePayload,
 } from "@/features/suppliers/importPersistence";
 import { logSupplierImportError } from "@/features/suppliers/logging";
+import { validateSupplierImportLines } from "@/features/suppliers/importValidation";
 import type {
   MappingColumnOption,
   MappingPreviewRow,
@@ -469,6 +470,13 @@ export function useSupplierImportFlow(params: {
       if (!selectedFile) throw new Error("Selecciona un archivo");
       if (reviewLines.length === 0) throw new Error("No hay lineas para importar");
 
+      const validation = validateSupplierImportLines(reviewLines);
+      if (!validation.canImport) {
+        throw new Error(
+          `Revisa la lista: ${validation.invalidDescriptionCount} sin nombre, ${validation.invalidPriceCount} con precio invalido y ${validation.unresolvedCurrencyCount} con moneda pendiente`,
+        );
+      }
+
       const extension = selectedFile.name.split(".").pop()?.toLowerCase();
       const isXlsx = ["xlsx", "xls"].includes(extension ?? "");
       const isPdf = extension === "pdf";
@@ -478,32 +486,11 @@ export function useSupplierImportFlow(params: {
 
       const title = documentTitle.trim() || selectedFile.name;
       const requestedCatalogId = selectedCatalogId === "new" ? null : selectedCatalogId;
-      const { data: authData } = await supabase.auth.getUser();
-      const userId = authData.user?.id ?? null;
-
-      const { data: document, error: documentError } = await supabase
-        .from("supplier_documents")
-        .insert({
-          company_id: currentCompanyId,
-          supplier_id: selectedSupplier.id,
-          title,
-          file_name: selectedFile.name,
-          file_type: fileType,
-          notes: documentNotes.trim() || null,
-        })
-        .select("id")
-        .single();
-      if (documentError) {
-        logSupplierImportError("insert_document", documentError, { userId, requestedCatalogId });
-        throw documentError;
-      }
-
-      const supplierDocumentId = document.id;
       const rpcLines = reviewLines.map((line) =>
         toSupplierCatalogRpcLinePayload({
           supplier_code: line.supplier_code,
-          raw_description: line.raw_description.trim(),
-          normalized_description: line.raw_description.trim().toLowerCase(),
+          raw_description: (line.product_name ?? line.raw_description).trim(),
+          normalized_description: (line.product_name ?? line.raw_description).trim().toLowerCase(),
           cost: line.cost,
           currency: line.currency || "ARS",
           tax_treatment: line.tax_treatment || "UNKNOWN",
@@ -520,9 +507,12 @@ export function useSupplierImportFlow(params: {
         }),
       );
 
-      const { data: rpcResult, error: rpcError } = await supabase.rpc("create_supplier_catalog_import", {
+      const { data: rpcResult, error: rpcError } = await supabase.rpc("create_supplier_catalog_import_atomic", {
         p_supplier_id: selectedSupplier.id,
-        p_supplier_document_id: supplierDocumentId,
+        p_document_title: title,
+        p_file_name: selectedFile.name,
+        p_file_type: fileType,
+        p_document_notes: documentNotes.trim() || null,
         p_catalog_id: requestedCatalogId,
         p_catalog_title: requestedCatalogId ? null : title,
         p_catalog_notes: documentNotes.trim() || null,
@@ -530,16 +520,17 @@ export function useSupplierImportFlow(params: {
         p_lines: rpcLines,
       });
       if (rpcError) {
-        logSupplierImportError("create_supplier_catalog_import", rpcError, {
-          userId,
+        logSupplierImportError("create_supplier_catalog_import_atomic", rpcError, {
           requestedCatalogId,
-          supplierDocumentId,
           lineCount: rpcLines.length,
         });
         throw rpcError;
       }
 
       const response = (rpcResult ?? {}) as { version_id?: string; inserted_count?: number };
+      if (response.inserted_count !== rpcLines.length) {
+        throw new Error(`La base confirmo ${response.inserted_count ?? 0} de ${rpcLines.length} items. No se considero completa la importacion`);
+      }
       return {
         total: response.inserted_count ?? rpcLines.length,
         versionId: response.version_id ?? null,

@@ -26,6 +26,16 @@ vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => authState,
 }));
 
+vi.mock("@/features/index/hooks/useDashboardStats", () => ({
+  useDashboardStats: () => ({
+    dashboard: { actions: [] },
+    error: null,
+    isLoading: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  }),
+}));
+
 vi.mock("@/contexts/company-brand-context", () => ({
   useCompanyBrand: () => ({
     settings: {
@@ -80,6 +90,7 @@ describe("AppLayout", () => {
     expect(screen.getByRole("button", { name: /Cerrar sesi/ })).toBeInTheDocument();
     expect(screen.getByRole("combobox")).toBeInTheDocument();
     expect(screen.getByText("contenido demo")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Alertas operativas: sin pendientes" })).toBeInTheDocument();
 
     const navigation = screen.getByRole("navigation", { name: /Navegación principal/i });
     expect(navigation).not.toHaveClass("overflow-x-auto");
