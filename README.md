@@ -346,6 +346,7 @@ Estado de cuenta lee `account_due_days` del cliente para calcular vencimientos c
 - La importacion PDF permite revisar el documento real junto a las lineas detectadas, navegar paginas y zoom, y confirmar por linea si el costo incluye IVA, no lo incluye o no fue informado.
 - El tratamiento de IVA se conserva en `supplier_catalog_lines.tax_treatment`; las leyendas ambiguas quedan como `UNKNOWN` para evitar recalculos implicitos.
 - La migracion `20260713220000_supplier_catalog_line_tax_treatment.sql` agrega el dato impositivo y lo valida dentro del RPC de importacion, manteniendo los controles de empresa y permisos existentes.
+- La carga de listas ahora valida nombres, precios y monedas antes de confirmar, advierte codigos de proveedor repetidos y muestra la cantidad exacta a importar. La migracion `20260813133000_supplier_catalog_import_atomic.sql` guarda documento, version y lineas en una unica transaccion, conserva presentacion/IVA/precio de referencia y evita documentos huerfanos ante un error.
 - Abastecimiento incluye comparacion de ofertas y ordenes de compra persistidas. La confirmacion de una orden no genera por si sola movimientos de stock, Caja ni cuenta corriente.
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
