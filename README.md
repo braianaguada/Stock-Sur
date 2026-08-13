@@ -1345,6 +1345,13 @@ git pull origin staging
 
 ## Operational UX remediation
 
+### Diagnostico de margenes de listas (agosto 2026)
+
+- Las listas distinguen el recargo sobre costo configurado del margen bruto real sobre venta neta.
+- El margen bruto descuenta el IVA del precio operativo, incorpora el flete al costo y respeta precios personalizados y el redondeo operativo de la empresa.
+- El detalle resume margen promedio, productos bajo el objetivo, perdidas y productos sin costo o precio evaluable. Es informativo: no modifica precios automaticamente.
+- No requiere migraciones ni servicios externos.
+
 ### Reposicion sugerida por proveedor (agosto 2026)
 
 - El catalogo activo del proveedor propone reposicion para 30 dias usando exclusivamente salidas reales de stock; los remitos emitidos ya alimentan esos movimientos y una venta asociada no se cuenta por separado.
