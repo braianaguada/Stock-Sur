@@ -573,6 +573,7 @@ export function usePriceListsData({
     snapshotsByListAndItemId,
     selectedList,
     selectedListHistory,
+    selectedListProducts,
     pagedSelectedListProducts: detailPagination.pagedItems,
     updateBaseCostMutation,
     createListMutation,

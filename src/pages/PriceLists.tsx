@@ -157,6 +157,7 @@ export default function PriceListsPage() {
     profileNameByUserId,
     selectedList,
     selectedListHistory,
+    selectedListProducts,
     pagedSelectedListProducts,
     snapshotsByListAndItemId,
     updateBaseCostMutation,
@@ -376,7 +377,7 @@ export default function PriceListsPage() {
         Flete {values.flete_pct ?? 0}%
       </CategoryBadge>
       <CategoryBadge>
-        Margen {values.utilidad_pct ?? 0}%
+        Recargo {values.utilidad_pct ?? 0}%
       </CategoryBadge>
       <CategoryBadge>
         IVA {values.impuesto_pct ?? 0}%
@@ -650,6 +651,7 @@ export default function PriceListsPage() {
         open={detailDialogOpen}
         selectedList={selectedList}
         selectedListHistory={selectedListHistory}
+        allProducts={selectedListProducts}
         pagedProducts={pagedSelectedListProducts}
         detailSearch={detailSearch}
         detailTab={detailTab}

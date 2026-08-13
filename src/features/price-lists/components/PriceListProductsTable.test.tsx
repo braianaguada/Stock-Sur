@@ -77,4 +77,21 @@ describe("PriceListProductsTable", () => {
     expect(screen.getByText("Personalizado")).toBeInTheDocument();
     expect(screen.getByText("Formula: $1.256,35")).toBeInTheDocument();
   });
+
+  it("shows gross margin over net sales instead of markup including tax", () => {
+    render(
+      <TooltipProvider>
+        <PriceListProductsTable
+          rows={[{ ...row, base_cost: 1000, calculated_price: 1452 }]}
+          columnVisibility={{}}
+          freightPct={10}
+          taxPct={10}
+          priceRoundingConfig={{ enabled: false, increment: null }}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(screen.getByText("Margen bruto")).toBeInTheDocument();
+    expect(screen.getByText("16,7%")).toBeInTheDocument();
+  });
 });
