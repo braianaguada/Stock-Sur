@@ -28,6 +28,7 @@ const AuthPage = lazy(() => import("./pages/Auth"));
 const ItemsPage = lazy(() => import("./pages/Items"));
 const CombosPage = lazy(() => import("./pages/Combos"));
 const StockPage = lazy(() => import("./pages/Stock"));
+const MarketRadarPage = lazy(() => import("./pages/MarketRadar"));
 const SuppliersPage = lazy(() => import("./pages/Suppliers"));
 const PurchaseOrdersPage = lazy(() => import("./pages/PurchaseOrders"));
 const PriceListsPage = lazy(() => import("./pages/PriceLists"));
@@ -117,6 +118,7 @@ const App = () => (
                   <Route path="/items" element={<ProtectedRoute><ItemsPage /></ProtectedRoute>} />
                   <Route path="/combos" element={<ProtectedRoute><CombosPage /></ProtectedRoute>} />
                   <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
+                  <Route path="/market-radar" element={<ProtectedRoute><MarketRadarPage /></ProtectedRoute>} />
                   <Route path="/suppliers" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
                   <Route path="/purchase-orders" element={<ProtectedRoute><PurchaseOrdersPage /></ProtectedRoute>} />
                   <Route path="/price-lists" element={<ProtectedRoute><PriceListsPage /></ProtectedRoute>} />

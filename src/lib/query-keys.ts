@@ -206,6 +206,11 @@ export const queryKeys = {
     allRecentItems: () => ["stock-recent-items"] as const,
     allItemSearch: () => ["stock-item-search"] as const,
   },
+  marketRadar: {
+    trends: (companyId: string | null) => ["market-radar", "trends", companyId ?? "no-company"] as const,
+    signals: (companyId: string | null) => ["market-radar", "signals", companyId ?? "no-company"] as const,
+    items: (companyId: string | null) => ["market-radar", "items", companyId ?? "no-company"] as const,
+  },
   pricing: {
     catalogItems: (companyId: string | null) => ["pricing-catalog-items", companyId ?? "no-company"] as const,
     catalogItemsAll: () => ["pricing-catalog-items"] as const,

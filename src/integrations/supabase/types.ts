@@ -1430,6 +1430,75 @@ export type Database = {
           },
         ]
       }
+      market_watch_signals: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          currency: string
+          id: string
+          is_active: boolean
+          item_id: string | null
+          notes: string | null
+          observed_at: string
+          observed_price: number | null
+          signal_type: string
+          source_name: string
+          source_url: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          item_id?: string | null
+          notes?: string | null
+          observed_at?: string
+          observed_price?: number | null
+          signal_type?: string
+          source_name: string
+          source_url: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          item_id?: string | null
+          notes?: string | null
+          observed_at?: string
+          observed_price?: number | null
+          signal_type?: string
+          source_name?: string
+          source_url?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_watch_signals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_watch_signals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permissions: {
         Row: {
           action: string
