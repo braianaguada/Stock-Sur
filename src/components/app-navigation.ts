@@ -24,6 +24,7 @@ export const appNavItems = [
   { title: "Items", url: "/items", group: "inventory" },
   { title: "Combos", url: "/combos", group: "inventory" },
   { title: "Stock", url: "/stock", group: "inventory" },
+  { title: "Radar de mercado", url: "/market-radar", group: "inventory" },
   { title: "Proveedores", url: "/suppliers", group: "purchases" },
   { title: "Ordenes de compra", url: "/purchase-orders", group: "purchases" },
   { title: "Precios", url: "/price-lists", group: "inventory" },

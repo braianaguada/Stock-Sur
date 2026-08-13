@@ -1363,3 +1363,10 @@ git pull origin staging
 - Los presupuestos de servicio pueden incluir IVA con alícuota editable; subtotal, impuesto y total se calculan y persisten en base de datos. El importador reconoce neto, IVA/ITBMS y total, y títulos/subtítulos admiten negrita y subrayado conservados al duplicar, previsualizar e imprimir.
 - Migración: `20260811193000_service_document_tax_and_section_style.sql`.
 - Migración: `20260811090000_service_document_transition_customer_guard.sql`.
+
+### Radar de mercado (2026-08-13)
+
+- Inventario incorpora un radar que compara las salidas reales de cada producto en los últimos 30 días contra los 30 anteriores. Exige volumen relevante y una variación mínima del 25% para marcar alzas o bajas, evitando alertas por movimientos aislados.
+- Cada empresa puede registrar señales externas manuales con tipo, fecha, precio opcional, producto relacionado y enlace verificable. No se hace scraping ni se generan compras o recomendaciones automáticas.
+- La lectura requiere `stock.view`; crear y archivar señales requiere `stock.edit`. La tabla aplica RLS, conserva `company_id` y valida que los productos vinculados pertenezcan a la misma empresa.
+- Migración: `20260813160000_market_watch_signals.sql`.
