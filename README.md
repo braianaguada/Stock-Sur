@@ -1330,6 +1330,12 @@ git pull origin staging
 
 ## Operational UX remediation
 
+### Seguimiento comercial de presupuestos (agosto 2026)
+
+- La nueva vista `Seguimiento presupuestos` ordena la agenda por contactos vencidos, presupuestos fuera de validez, próximos contactos y presupuestos sin agenda, siempre dentro de la empresa activa.
+- Cada presupuesto puede guardar prioridad, próxima fecha y notas, además de registrar la fecha y cantidad de contactos. Este seguimiento no modifica el estado documental ni genera movimientos de stock, caja o cuenta corriente.
+- La migración `20260813190000_budget_follow_ups.sql` incorpora almacenamiento aislado por `company_id`, validación estricta del presupuesto y políticas RLS basadas en `documents.view` y `documents.edit`.
+
 ### Documentos y servicios responsive (agosto 2026)
 
 - Documentos y presupuestos de servicio usan tarjetas de acciones en mobile y tablas con ancho controlado en sus vistas previas, evitando columnas y botones superpuestos.
