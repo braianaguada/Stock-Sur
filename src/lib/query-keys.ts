@@ -171,6 +171,8 @@ export const queryKeys = {
   },
   technicians: {
     company: (companyId: string | null) => ["technicians", companyId ?? "no-company"] as const,
+    dailyBoard: (companyId: string | null, businessDate: string) =>
+      ["technicians", companyId ?? "no-company", "daily-board", businessDate] as const,
     list: (
       companyId: string | null,
       search: string,
