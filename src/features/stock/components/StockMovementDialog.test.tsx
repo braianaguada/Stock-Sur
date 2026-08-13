@@ -25,7 +25,7 @@ const item: SearchableItem = {
 };
 
 describe("StockMovementDialog", () => {
-  it("starts with only the product search control", () => {
+  it("starts with the product search control and no selected-product fallback", () => {
     render(
       <StockMovementDialog
         open
@@ -45,6 +45,9 @@ describe("StockMovementDialog", () => {
     );
 
     expect(screen.getByPlaceholderText(/Buscar por nombre/)).toBeInTheDocument();
+    expect(screen.getByText("Seleccioná un producto para registrar el movimiento.")).toBeInTheDocument();
+    expect(screen.queryByText("Producto seleccionado")).not.toBeInTheDocument();
+    expect(screen.queryByText("Item sin nombre")).not.toBeInTheDocument();
     expect(screen.queryByText(/Escribe para buscar/)).not.toBeInTheDocument();
     expect(screen.queryByText(/No hay ítems/)).not.toBeInTheDocument();
   });

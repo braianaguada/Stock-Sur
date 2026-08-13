@@ -1081,6 +1081,66 @@ export type Database = {
           },
         ]
       }
+      budget_follow_ups: {
+        Row: {
+          company_id: string
+          contact_count: number
+          created_at: string
+          created_by: string
+          document_id: string
+          id: string
+          last_contacted_at: string | null
+          next_contact_on: string | null
+          notes: string | null
+          priority: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          company_id: string
+          contact_count?: number
+          created_at?: string
+          created_by?: string
+          document_id: string
+          id?: string
+          last_contacted_at?: string | null
+          next_contact_on?: string | null
+          notes?: string | null
+          priority?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Update: {
+          company_id?: string
+          contact_count?: number
+          created_at?: string
+          created_by?: string
+          document_id?: string
+          id?: string
+          last_contacted_at?: string | null
+          next_contact_on?: string | null
+          notes?: string | null
+          priority?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_follow_ups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_follow_ups_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           company_id: string

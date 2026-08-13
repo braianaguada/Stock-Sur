@@ -123,6 +123,8 @@ export const queryKeys = {
       ["documents", "cash-usage", companyId ?? "no-company"] as const,
     cashClosure: (companyId: string | null, businessDate: string | null) =>
       ["documents", "cash-closure", companyId ?? "no-company", businessDate ?? "no-date"] as const,
+    budgetFollowUps: (companyId: string | null) =>
+      ["documents", "budget-follow-ups", companyId ?? "no-company"] as const,
   },
   combos: {
     list: (companyId: string | null) => ["product-combos", companyId ?? "no-company"] as const,
@@ -171,6 +173,8 @@ export const queryKeys = {
   },
   technicians: {
     company: (companyId: string | null) => ["technicians", companyId ?? "no-company"] as const,
+    dailyBoard: (companyId: string | null, businessDate: string) =>
+      ["technicians", companyId ?? "no-company", "daily-board", businessDate] as const,
     list: (
       companyId: string | null,
       search: string,
