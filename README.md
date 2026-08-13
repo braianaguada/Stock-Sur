@@ -270,6 +270,14 @@ Proxima fase para CUIT reales y Factura A de homologacion:
 
 ## Tecnicos: Control de materiales
 
+### Tablero diario de tecnicos
+
+- `Tecnicos / Tablero diario` organiza a los tecnicos activos por jornada en Disponible, Asignado, En camino, Trabajando, Pausado, Finalizado o Ausente.
+- Cada tarjeta se puede arrastrar entre estados y completar con trabajo/servicio real, actividad, ubicacion y una nota interna.
+- Si el tecnico ya esta asignado a un servicio pendiente o en curso, el tablero lo propone como Asignado hasta que se guarde un estado explicito para ese dia.
+- El tablero es operativo: no emite documentos, no mueve stock y no cambia automaticamente el estado del trabajo o servicio.
+- La migracion `20260813180000_technician_daily_board.sql` agrega el estado diario con unicidad por empresa, tecnico y fecha, validacion cruzada de empresa y RLS basada en permisos de Tecnicos.
+
 La vista `/technicians` incluye la tab **Control de materiales** para cierre operativo de servicios. Es un informe de solo lectura sobre remitos y devoluciones vinculados a tecnicos; no representa deuda, cobranza ni cuenta corriente del tecnico.
 
 - Los tecnicos tienen estado **Activo/Inactivo**. Los inactivos se mantienen visibles en reportes historicos, pero no aparecen como opcion principal para nuevos remitos o servicios.
