@@ -270,6 +270,14 @@ Proxima fase para CUIT reales y Factura A de homologacion:
 
 ## Tecnicos: Control de materiales
 
+### Tablero diario de tecnicos
+
+- `Tecnicos / Tablero diario` organiza a los tecnicos activos por jornada en Disponible, Asignado, En camino, Trabajando, Pausado, Finalizado o Ausente.
+- Cada tarjeta se puede arrastrar entre estados y completar con trabajo/servicio real, actividad, ubicacion y una nota interna.
+- Si el tecnico ya esta asignado a un servicio pendiente o en curso, el tablero lo propone como Asignado hasta que se guarde un estado explicito para ese dia.
+- El tablero es operativo: no emite documentos, no mueve stock y no cambia automaticamente el estado del trabajo o servicio.
+- La migracion `20260813180000_technician_daily_board.sql` agrega el estado diario con unicidad por empresa, tecnico y fecha, validacion cruzada de empresa y RLS basada en permisos de Tecnicos.
+
 La vista `/technicians` incluye la tab **Control de materiales** para cierre operativo de servicios. Es un informe de solo lectura sobre remitos y devoluciones vinculados a tecnicos; no representa deuda, cobranza ni cuenta corriente del tecnico.
 
 - Los tecnicos tienen estado **Activo/Inactivo**. Los inactivos se mantienen visibles en reportes historicos, pero no aparecen como opcion principal para nuevos remitos o servicios.
@@ -1335,6 +1343,17 @@ git pull origin staging
 - La barra superior incorpora una campana por empresa con pendientes reales del dashboard y acceso directo al módulo donde se resuelven.
 - Las categorías se filtran por permisos efectivos de caja, clientes/trabajos, documentos y facturación. Los conteos en cero y alertas masivas sin acción concreta, como ítems sin costo, no generan notificaciones.
 - El centro no persiste estados de “leído”: el indicador representa pendientes actuales y se puede actualizar manualmente sin crear ni modificar operaciones.
+
+### Seguimiento comercial de presupuestos (agosto 2026)
+
+- La nueva vista `Seguimiento presupuestos` ordena la agenda por contactos vencidos, presupuestos fuera de validez, próximos contactos y presupuestos sin agenda, siempre dentro de la empresa activa.
+- Cada presupuesto puede guardar prioridad, próxima fecha y notas, además de registrar la fecha y cantidad de contactos. Este seguimiento no modifica el estado documental ni genera movimientos de stock, caja o cuenta corriente.
+- La migración `20260813190000_budget_follow_ups.sql` incorpora almacenamiento aislado por `company_id`, validación estricta del presupuesto y políticas RLS basadas en `documents.view` y `documents.edit`.
+
+### Alertas de stock por rotación real (agosto 2026)
+
+ - Las alertas de Stock priorizan faltantes con salidas reales registradas y omiten artículos en cero sin rotación. La cobertura se calcula desde movimientos `OUT` (incluidos los generados al emitir remitos), sin depender de la estimación manual de consumo ni duplicar datos de ventas vinculadas.
+ - El alta manual de movimientos abre con la indicación de seleccionar un producto y ya no interpreta el evento del botón como un ítem vacío.
 
 ### Documentos y servicios responsive (agosto 2026)
 
