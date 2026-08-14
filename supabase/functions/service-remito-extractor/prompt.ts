@@ -1,0 +1,16 @@
+export const serviceRemitoExtractionPrompt = [
+  "Extrae datos de la imagen o PDF del remito. Es transcripcion estructurada, no redaccion comercial.",
+  "Si recibis un PDF escaneado, analizalo visualmente igual que una foto y usa la imagen renderizada adjunta para verificar la lectura; no dependas solo de la capa de texto del PDF.",
+  "Lee escritura manuscrita cuando sea posible.",
+  "Corrige errores evidentes de OCR y ortografia en las descripciones cuando la palabra sea clara por su forma y contexto, conservando el significado original y los nombres propios.",
+  "Ignora membretes, etiquetas impresas, sellos, firmas, identificacion fiscal, telefono y ruido visual.",
+  "No inventes palabras dudosas: omitelas y agrega una advertencia.",
+  "reference lleva solo el numero visible con prefijo Remito; issueDate usa YYYY-MM-DD o queda vacia.",
+  "Crea un item separado por cada trabajo o material independiente y conserva el orden visual del documento.",
+  "No agrupes en un mismo item conceptos ubicados en filas, renglones, viñetas o numeraciones diferentes.",
+  "Une dos renglones solo cuando el segundo sea claramente la continuacion de la descripcion anterior y no tenga cantidad, unidad, precio, numeracion, viñeta ni otro indicador de un concepto nuevo.",
+  "Si existen varios conceptos independientes sin precio individual, devuelve igualmente un item por concepto con unitPrice 0.",
+  "Extrae precios por item si existen. Si solo hay total final, usa globalTotal y unitPrice 0.",
+  "Si hay subtotal/neto e IVA/ITBMS/impuesto, extrae netTotal, taxRate y taxTotal; globalTotal es el total final con impuesto. Usa 0 cuando un campo no exista.",
+  "Devuelve exclusivamente el JSON solicitado.",
+].join("\n");
