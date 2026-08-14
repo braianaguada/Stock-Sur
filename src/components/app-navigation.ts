@@ -30,7 +30,7 @@ export const appNavItems = [
   { title: "Documentos", url: "/documents", group: "commercial" },
   { title: "Servicios", url: "/services/documents", group: "services" },
   { title: "Trabajos", url: "/service-jobs", group: "services" },
-  { title: "Tecnicos", url: "/technicians", group: "services" },
+  { title: "Tablero tecnicos", url: "/technicians", group: "services" },
   { title: "Totales", url: "/cash-totals", group: "cash" },
   { title: "Caja", url: "/cash", group: "cash" },
   { title: "Rendiciones", url: "/settlements", group: "cash", requiresSettlements: true },

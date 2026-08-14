@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
 import { parseStructuredServiceRemito, type ServiceRemitoImport } from "../remitoOcr";
-import { enhanceRemitoImage, isSupportedServiceRemitoFile, readFunctionError } from "../remitoImage";
+import { enhanceRemitoImage, readFunctionError, resolveServiceRemitoFileType } from "../remitoImage";
 
 export function ServiceRemitoImportDialog(props: { companyId: string | null; open: boolean; onOpenChange: (open: boolean) => void; onImport: (draft: ServiceRemitoImport) => void }) {
   const [loading, setLoading] = useState(false);
@@ -12,7 +12,8 @@ export function ServiceRemitoImportDialog(props: { companyId: string | null; ope
 
   const scan = async (file?: File) => {
     if (!file) return;
-    if (!isSupportedServiceRemitoFile(file)) return setError("Seleccioná un archivo JPG, PNG, WEBP o PDF del remito.");
+    const mimeType = resolveServiceRemitoFileType(file);
+    if (!mimeType) return setError("Seleccioná un archivo JPG, PNG, WEBP o PDF del remito.");
     if (!props.companyId) return setError("Seleccioná una empresa antes de importar el remito.");
     if (file.size > 8 * 1024 * 1024) return setError("El archivo supera el máximo de 8 MB.");
     setLoading(true);
@@ -23,7 +24,7 @@ export function ServiceRemitoImportDialog(props: { companyId: string | null; ope
       for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
       const enhancedImageBase64 = await enhanceRemitoImage(file).catch(() => null);
       const { data, error: invokeError } = await supabase.functions.invoke("service-remito-extractor", {
-        body: { companyId: props.companyId, mimeType: file.type, imageBase64: btoa(binary), enhancedImageBase64 },
+        body: { companyId: props.companyId, mimeType, imageBase64: btoa(binary), enhancedImageBase64 },
       });
       if (invokeError) throw new Error(await readFunctionError(invokeError));
       if (data?.error) throw new Error(data.error);
@@ -32,7 +33,10 @@ export function ServiceRemitoImportDialog(props: { companyId: string | null; ope
       props.onImport(draft);
       props.onOpenChange(false);
     } catch (caught) {
-      setError(`${getErrorMessage(caught)} Probá con una foto de frente, nítida y con buena luz.`);
+      const retryHint = mimeType === "application/pdf"
+        ? "Verificá que el PDF no esté protegido ni dañado."
+        : "Probá con una foto de frente, nítida y con buena luz.";
+      setError(`${getErrorMessage(caught)} ${retryHint}`);
     } finally {
       setLoading(false);
     }

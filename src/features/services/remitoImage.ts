@@ -1,9 +1,27 @@
 const MAX_EDGE = 2200;
 
 const SERVICE_REMITO_FILE_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
+type ServiceRemitoFileType = (typeof SERVICE_REMITO_FILE_TYPES)[number];
+
+const SERVICE_REMITO_EXTENSION_TYPES: Record<string, ServiceRemitoFileType> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  pdf: "application/pdf",
+};
+
+export function resolveServiceRemitoFileType(file: Pick<File, "name" | "type">): ServiceRemitoFileType | null {
+  const reportedType = file.type.trim().toLowerCase();
+  if (SERVICE_REMITO_FILE_TYPES.includes(reportedType as ServiceRemitoFileType)) {
+    return reportedType as ServiceRemitoFileType;
+  }
+  const extension = file.name.split(".").pop()?.trim().toLowerCase() ?? "";
+  return SERVICE_REMITO_EXTENSION_TYPES[extension] ?? null;
+}
 
 export function isSupportedServiceRemitoFile(file: File): boolean {
-  return SERVICE_REMITO_FILE_TYPES.includes(file.type as (typeof SERVICE_REMITO_FILE_TYPES)[number]);
+  return resolveServiceRemitoFileType(file) !== null;
 }
 
 export async function enhanceRemitoImage(file: File): Promise<string | null> {

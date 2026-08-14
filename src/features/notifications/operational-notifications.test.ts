@@ -41,7 +41,7 @@ describe("operational notifications", () => {
 
     expect(result).toEqual([expect.objectContaining({
       key: "sent-quotes",
-      href: "/services/documents",
+      href: "/services/documents?status=SENT",
       count: 4,
     })]);
   });
