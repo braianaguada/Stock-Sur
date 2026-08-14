@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serviceRemitoExtractionPrompt } from "./prompt.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -40,19 +41,7 @@ Deno.serve(async (req) => {
     if (membershipError) throw membershipError;
     if (!membership) return json({ error: "No tenes acceso activo a esta empresa." }, 403);
 
-    const prompt = [
-      "Extrae datos de la imagen o PDF del remito. Es transcripcion estructurada, no redaccion comercial.",
-      "Si recibis un PDF escaneado, analizalo visualmente igual que una foto y usa la imagen renderizada adjunta para verificar la lectura; no dependas solo de la capa de texto del PDF.",
-      "Lee escritura manuscrita cuando sea posible y une renglones consecutivos de una misma descripcion.",
-      "Corrige errores evidentes de OCR y ortografia en las descripciones cuando la palabra sea clara por su forma y contexto, conservando el significado original y los nombres propios.",
-      "Ignora membretes, etiquetas impresas, sellos, firmas, identificacion fiscal, telefono y ruido visual.",
-      "No inventes palabras dudosas: omitelas y agrega una advertencia.",
-      "reference lleva solo el numero visible con prefijo Remito; issueDate usa YYYY-MM-DD o queda vacia.",
-      "Crea items solo con trabajos o materiales. No conviertas cada renglon visual en un item.",
-      "Extrae precios por item si existen. Si solo hay total final, usa globalTotal y unitPrice 0.",
-      "Si hay subtotal/neto e IVA/ITBMS/impuesto, extrae netTotal, taxRate y taxTotal; globalTotal es el total final con impuesto. Usa 0 cuando un campo no exista.",
-      "Devuelve exclusivamente el JSON solicitado.",
-    ].join("\n");
+    const prompt = serviceRemitoExtractionPrompt;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
     let response: Response;
