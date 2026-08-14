@@ -22,6 +22,7 @@ const RESULT_LIMIT = 30;
 
 type QuickPriceConsultationDialogProps = {
   open: boolean;
+  isLoading?: boolean;
   priceLists: PriceListSummary[];
   selectedListId: string | null;
   products: PriceListProductRow[];
@@ -33,6 +34,7 @@ type QuickPriceConsultationDialogProps = {
 
 export function QuickPriceConsultationDialog({
   open,
+  isLoading = false,
   priceLists,
   selectedListId,
   products,
@@ -62,7 +64,11 @@ export function QuickPriceConsultationDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {priceLists.length === 0 ? (
+        {isLoading ? (
+          <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+            Cargando listas y productos...
+          </div>
+        ) : priceLists.length === 0 ? (
           <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
             Primero necesitás crear una lista de precios.
           </div>

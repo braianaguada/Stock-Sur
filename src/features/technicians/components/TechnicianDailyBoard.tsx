@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, CalendarDays, GripVertical, MapPin, Pencil, UserRound } from "lucide-react";
+import { BriefcaseBusiness, GripVertical, MapPin, Pencil, UserRound } from "lucide-react";
 import { useState, type DragEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,11 +30,10 @@ export function TechnicianDailyBoard({
   onOpenService: (serviceId: string) => void;
 }) {
   const today = getLocalBusinessDate();
-  const [businessDate, setBusinessDate] = useState(today);
   const [draggedTechnicianId, setDraggedTechnicianId] = useState<string | null>(null);
   const [editingCard, setEditingCard] = useState<TechnicianDailyCard | null>(null);
   const [form, setForm] = useState<EditForm | null>(null);
-  const board = useTechnicianDailyBoard({ companyId, userId, businessDate, toast });
+  const board = useTechnicianDailyBoard({ companyId, userId, businessDate: today, toast });
 
   const openEdit = (card: TechnicianDailyCard) => {
     setEditingCard(card);
@@ -63,21 +62,10 @@ export function TechnicianDailyBoard({
       <Card className="border-border/70 shadow-none">
         <CardHeader className="gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <CardTitle>Jornada de tecnicos</CardTitle>
-            <CardDescription>Arrastra cada tecnico para reflejar donde esta y que esta haciendo durante el dia.</CardDescription>
+            <CardTitle>Estado actual de tecnicos</CardTitle>
+            <CardDescription>Arrastra cada tecnico para actualizar su situacion. El estado se conserva hasta que alguien lo cambie.</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                aria-label="Fecha del tablero"
-                type="date"
-                className="w-44 pl-9"
-                value={businessDate}
-                onChange={(event) => setBusinessDate(event.target.value)}
-              />
-            </div>
-            {businessDate !== today ? <Button variant="outline" onClick={() => setBusinessDate(today)}>Volver a hoy</Button> : null}
             <CountBadge>{board.cards.length} tecnicos activos</CountBadge>
           </div>
         </CardHeader>
@@ -92,15 +80,15 @@ export function TechnicianDailyBoard({
           <p className="text-sm text-muted-foreground">Activa o crea un tecnico para comenzar a organizar la jornada.</p>
         </Card>
       ) : (
-        <div className="overflow-x-auto pb-2" role="region" aria-label="Tablero diario de tecnicos" tabIndex={0}>
-          <div className="grid min-w-[1960px] grid-cols-7 gap-3">
+        <div role="region" aria-label="Estado actual de tecnicos">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {DAILY_TECHNICIAN_STATUSES.map((status) => {
               const cards = board.cards.filter((card) => card.status === status);
               const config = DAILY_STATUS_CONFIG[status];
               return (
                 <section
                   key={status}
-                  className={`min-h-[420px] rounded-xl border p-3 ${config.tone}`}
+                  className={`min-w-0 min-h-[220px] rounded-xl border p-3 ${config.tone}`}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => handleDrop(event, status)}
                 >
@@ -119,12 +107,12 @@ export function TechnicianDailyBoard({
                           event.dataTransfer.effectAllowed = "move";
                         }}
                         onDragEnd={() => setDraggedTechnicianId(null)}
-                        className="rounded-lg border bg-background p-3 shadow-sm"
+                        className="min-w-0 overflow-hidden rounded-lg border bg-background p-3 shadow-sm"
                       >
                         <div className="flex items-start gap-2">
                           <GripVertical className="mt-0.5 h-4 w-4 shrink-0 cursor-grab text-muted-foreground" aria-hidden="true" />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold">{card.technician.name}</p>
+                            <p className="break-words text-sm font-semibold">{card.technician.name}</p>
                             {card.service ? (
                               <button type="button" className="mt-2 block w-full text-left text-xs hover:underline" onClick={() => onOpenService(card.service!.id)}>
                                 <span className="flex items-start gap-1.5"><BriefcaseBusiness className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span><strong>{card.service.jobTitle}</strong><br />{card.service.title}</span></span>

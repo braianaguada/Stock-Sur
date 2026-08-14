@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { OperationalNotificationCenter } from "@/features/notifications/components/OperationalNotificationCenter";
+import { GlobalQuickPriceConsultation } from "@/features/price-lists/components/GlobalQuickPriceConsultation";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -52,6 +53,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           ) : children}
         </div>
       </main>
+      {!hasNoActiveCompanyAccess ? <GlobalQuickPriceConsultation /> : null}
     </div>
   );
 }
