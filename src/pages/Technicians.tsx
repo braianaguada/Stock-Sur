@@ -101,7 +101,7 @@ export default function TechniciansPage() {
   const { currentCompany, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("technicians");
+  const [activeTab, setActiveTab] = useState("daily");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [technicianToDelete, setTechnicianToDelete] = useState<Technician | null>(null);

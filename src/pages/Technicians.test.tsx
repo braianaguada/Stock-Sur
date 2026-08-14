@@ -30,6 +30,10 @@ vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
 
+vi.mock("@/features/technicians/components/TechnicianDailyBoard", () => ({
+  TechnicianDailyBoard: () => <div>Estado actual de tecnicos</div>,
+}));
+
 const mockTechnicians = [
   { id: "tech-1", name: "Juan Tecnico", phone: "111", notes: "Turno manana", is_active: true, created_at: "2026-05-01" },
   { id: "tech-2", name: "Ana Inactiva", phone: "222", notes: "Historico", is_active: false, created_at: "2026-05-01" },
@@ -161,15 +165,28 @@ function renderPage() {
   );
 }
 
-function openFirstMaterialControl() {
+async function openTechniciansTab() {
+  await userEvent.setup().click(screen.getByRole("tab", { name: "Tecnicos" }));
+}
+
+async function openFirstMaterialControl() {
+  await openTechniciansTab();
   fireEvent.click(screen.getAllByRole("button", { name: /Ver control/i })[0]);
 }
 
 describe("TechniciansPage", () => {
-  it("renders the technicians tab with list and create action", () => {
+  it("opens the daily board by default", () => {
     renderPage();
 
     expect(screen.getByRole("heading", { level: 1, name: "Tecnicos" })).toBeInTheDocument();
+    expect(screen.getByText("Estado actual de tecnicos")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Tablero diario" })).toHaveAttribute("data-state", "active");
+  });
+
+  it("renders the technicians tab with list and create action", async () => {
+    renderPage();
+    await openTechniciansTab();
+
     expect(screen.getByRole("button", { name: /Nuevo tecnico/i })).toBeInTheDocument();
     expect(screen.getByText("Juan Tecnico")).toBeInTheDocument();
     expect(screen.getByText("Ana Inactiva")).toBeInTheDocument();
@@ -177,8 +194,9 @@ describe("TechniciansPage", () => {
     expect(screen.getAllByRole("button", { name: /Ver control/i })).toHaveLength(2);
   });
 
-  it("allows toggling technician active state from the technicians tab", () => {
+  it("allows toggling technician active state from the technicians tab", async () => {
     renderPage();
+    await openTechniciansTab();
 
     fireEvent.click(screen.getByRole("button", { name: /Marcar inactivo/i }));
 
@@ -188,7 +206,7 @@ describe("TechniciansPage", () => {
   it("renders material control tab with this month as default date range", async () => {
     renderPage();
 
-    openFirstMaterialControl();
+    await openFirstMaterialControl();
 
     expect(screen.getAllByText("Balance de materiales").length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("2026-05-01")).toBeInTheDocument();
@@ -201,7 +219,7 @@ describe("TechniciansPage", () => {
     const user = userEvent.setup();
     renderPage();
 
-    openFirstMaterialControl();
+    await openFirstMaterialControl();
     expect(screen.getByLabelText("Fecha desde")).toBeDisabled();
 
     await user.click(screen.getByRole("combobox", { name: "Rango" }));
@@ -216,10 +234,10 @@ describe("TechniciansPage", () => {
     });
   });
 
-  it("renders printable material control summary and movements", () => {
+  it("renders printable material control summary and movements", async () => {
     renderPage();
 
-    openFirstMaterialControl();
+    await openFirstMaterialControl();
 
     expect(screen.getByLabelText("Vista imprimible de movimientos")).toBeInTheDocument();
     expect(screen.getByText("Control de materiales por tecnico")).toBeInTheDocument();
@@ -229,7 +247,7 @@ describe("TechniciansPage", () => {
   it("does not use financial account language in the page", async () => {
     const { container } = renderPage();
 
-    openFirstMaterialControl();
+    await openFirstMaterialControl();
 
     const text = container.textContent?.toLowerCase() ?? "";
     expect(text).not.toContain("deuda");

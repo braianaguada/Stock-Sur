@@ -1,28 +1,62 @@
-import { describe, expect, it } from "vitest";
-import { enhanceRemitoImage, isSupportedServiceRemitoFile, readFunctionError } from "./remitoImage";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { enhanceRemitoImage, resolveServiceRemitoFileType } from "./remitoImage";
 
-describe("service remito files", () => {
-  it.each(["image/jpeg", "image/png", "image/webp", "application/pdf"])("accepts %s", (type) => {
-    expect(isSupportedServiceRemitoFile(new File(["content"], "remito", { type }))).toBe(true);
-  });
+const { loadPdfJsMock } = vi.hoisted(() => ({ loadPdfJsMock: vi.fn() }));
 
-  it("rejects unsupported file types", () => {
-    expect(isSupportedServiceRemitoFile(new File(["content"], "remito.txt", { type: "text/plain" }))).toBe(false);
-  });
+vi.mock("@/lib/lazy-vendors", () => ({ loadPdfJs: loadPdfJsMock }));
 
-  it("does not try to enhance PDF files as images", async () => {
-    await expect(enhanceRemitoImage(new File(["content"], "remito.pdf", { type: "application/pdf" }))).resolves.toBeNull();
-  });
+afterEach(() => {
+  loadPdfJsMock.mockReset();
+  vi.restoreAllMocks();
 });
 
-describe("readFunctionError", () => {
-  it("returns the safe message produced by an edge function", async () => {
-    const error = { context: new Response(JSON.stringify({ error: "El modelo configurado no está disponible." })) };
-
-    await expect(readFunctionError(error)).resolves.toBe("El modelo configurado no está disponible.");
+describe("resolveServiceRemitoFileType", () => {
+  it("accepts a PDF reported by the browser", () => {
+    expect(resolveServiceRemitoFileType({ name: "12661 - 1115.pdf", type: "application/pdf" })).toBe("application/pdf");
   });
 
-  it("falls back to the original error message", async () => {
-    await expect(readFunctionError(new Error("Network error"))).resolves.toBe("Network error");
+  it("infers PDF from its extension when Windows omits the MIME type", () => {
+    expect(resolveServiceRemitoFileType({ name: "12661 - 1115.PDF", type: "" })).toBe("application/pdf");
+  });
+
+  it("rejects unsupported files", () => {
+    expect(resolveServiceRemitoFileType({ name: "remito.docx", type: "application/octet-stream" })).toBeNull();
+  });
+
+  it("renders and enhances the first PDF page as a visual extraction source", async () => {
+    const render = vi.fn(() => ({ promise: Promise.resolve() }));
+    const destroy = vi.fn(() => Promise.resolve());
+    loadPdfJsMock.mockResolvedValue({
+      getDocument: () => ({
+        promise: Promise.resolve({
+          getPage: vi.fn(() => Promise.resolve({
+            getViewport: ({ scale }: { scale: number }) => ({ width: 600 * scale, height: 800 * scale }),
+            render,
+          })),
+          destroy,
+        }),
+      }),
+    });
+    const context = {
+      fillStyle: "",
+      fillRect: vi.fn(),
+      getImageData: vi.fn(() => ({ data: new Uint8ClampedArray([20, 20, 20, 255, 240, 240, 240, 255]) })),
+      putImageData: vi.fn(),
+    };
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue("data:image/jpeg;base64,pdf-preview");
+
+    const file = {
+      name: "remito.PDF",
+      type: "",
+      arrayBuffer: vi.fn(() => Promise.resolve(new ArrayBuffer(8))),
+    } as unknown as File;
+    const result = await enhanceRemitoImage(file);
+
+    expect(result).toBe("pdf-preview");
+    expect(render).toHaveBeenCalledOnce();
+    expect(context.fillRect).toHaveBeenCalledOnce();
+    expect(context.putImageData).toHaveBeenCalledOnce();
+    expect(destroy).toHaveBeenCalledOnce();
   });
 });

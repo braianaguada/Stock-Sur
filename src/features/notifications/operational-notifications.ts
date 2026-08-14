@@ -15,6 +15,10 @@ const ACTION_PERMISSIONS: Record<string, string> = {
   "draft-documents": "documents.view",
 };
 
+const ACTION_HREFS: Partial<Record<string, string>> = {
+  "sent-quotes": "/services/documents?status=SENT",
+};
+
 const TONE_PRIORITY: Record<DashboardAction["tone"], number> = {
   danger: 4,
   warning: 3,
@@ -35,6 +39,10 @@ export function buildOperationalNotifications(actions: DashboardAction[], access
       const permission = ACTION_PERMISSIONS[action.key];
       return Boolean(permission) && action.count > 0 && hasPermission(access, permission);
     })
+    .map((action) => ({
+      ...action,
+      href: ACTION_HREFS[action.key] ?? action.href,
+    }))
     .sort((left, right) => {
       const toneDifference = TONE_PRIORITY[right.tone] - TONE_PRIORITY[left.tone];
       return toneDifference || right.count - left.count || left.label.localeCompare(right.label);

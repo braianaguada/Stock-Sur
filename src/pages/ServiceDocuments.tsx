@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
@@ -52,6 +53,13 @@ const ATTACHMENT_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const SERVICE_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 
+function getStatusFilter(searchParams: URLSearchParams): ServiceDocumentStatus | "ALL" {
+  const requestedStatus = searchParams.get("status");
+  return STATUS_OPTIONS.includes(requestedStatus as ServiceDocumentStatus | "ALL")
+    ? requestedStatus as ServiceDocumentStatus | "ALL"
+    : "ALL";
+}
+
 const SERVICE_STATUS_TONE: Record<ServiceDocumentStatus, "muted" | "info" | "success" | "danger" | "warning"> = {
   DRAFT: "muted",
   SENT: "info",
@@ -76,9 +84,10 @@ export default function ServiceDocumentsPage() {
   const { currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
   const { settings } = useCompanyBrand();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
-  const [status, setStatus] = useState<ServiceDocumentStatus | "ALL">("ALL");
+  const status = getStatusFilter(searchParams);
   const [customerFilter, setCustomerFilter] = useState("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(null);
@@ -680,8 +689,13 @@ export default function ServiceDocumentsPage() {
         <FilterToolbar>
           <div className="w-full md:max-w-sm"><ClearableSearchInput placeholder="Buscar cliente, numero o referencia..." value={search} onValueChange={setSearch} /></div>
           <div className="w-full md:w-56">
-            <Select value={status} onValueChange={(value) => setStatus(value as ServiceDocumentStatus | "ALL")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select value={status} onValueChange={(value) => {
+              const next = new URLSearchParams(searchParams);
+              if (value === "ALL") next.delete("status");
+              else next.set("status", value);
+              setSearchParams(next, { replace: true });
+            }}>
+              <SelectTrigger aria-label="Estado"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((option) => (
                   <SelectItem key={option} value={option}>
