@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDailyCards, type DailyServiceOption, type TechnicianDailyStatusRow } from "./dailyBoard";
+import { buildDailyCards, selectLatestTechnicianStatusRows, type DailyServiceOption, type TechnicianDailyStatusRow } from "./dailyBoard";
 import type { Technician } from "./types";
 
 const technicians = [
@@ -26,5 +26,16 @@ describe("buildDailyCards", () => {
     }] as TechnicianDailyStatusRow[];
     const [card] = buildDailyCards(technicians, rows, services, "company-1", "2026-08-13");
     expect(card).toMatchObject({ status: "PAUSED", service_id: null, activity: "Esperando repuesto", persisted: true });
+  });
+});
+
+describe("selectLatestTechnicianStatusRows", () => {
+  it("keeps the latest saved state across business days", () => {
+    const rows = [
+      { technician_id: "tech-1", business_date: "2026-08-14", updated_at: "2026-08-14T09:00:00Z", status: "WORKING" },
+      { technician_id: "tech-1", business_date: "2026-08-13", updated_at: "2026-08-13T18:00:00Z", status: "DONE" },
+    ] as TechnicianDailyStatusRow[];
+    expect(selectLatestTechnicianStatusRows(rows)).toHaveLength(1);
+    expect(selectLatestTechnicianStatusRows(rows)[0].status).toBe("WORKING");
   });
 });

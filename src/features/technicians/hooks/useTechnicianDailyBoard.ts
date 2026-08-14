@@ -5,6 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { fetchAllPages, fetchAllPagesByChunks } from "@/lib/supabase-pagination";
 import {
   buildDailyCards,
+  selectLatestTechnicianStatusRows,
   type DailyServiceOption,
   type DailyTechnicianStatus,
   type TechnicianDailyCard,
@@ -39,7 +40,7 @@ export function useTechnicianDailyBoard({
   toast: ToastFn;
 }) {
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.technicians.dailyBoard(companyId ?? null, businessDate);
+  const queryKey = queryKeys.technicians.dailyBoard(companyId ?? null);
 
   const boardQuery = useQuery({
     queryKey,
@@ -47,7 +48,7 @@ export function useTechnicianDailyBoard({
     queryFn: async () => {
       const [technicianRows, statusRows, serviceRows] = await Promise.all([
         fetchAllPages(() => serviceDb.from("technicians").select("*").eq("company_id", companyId).eq("is_active", true).order("name").order("id")),
-        fetchAllPages(() => serviceDb.from("technician_daily_statuses").select("*").eq("company_id", companyId).eq("business_date", businessDate).order("position").order("updated_at")),
+        fetchAllPages(() => serviceDb.from("technician_daily_statuses").select("*").eq("company_id", companyId).lte("business_date", businessDate).order("business_date", { ascending: false }).order("updated_at", { ascending: false })),
         fetchAllPages(() => serviceDb.from("service_job_services").select("id, job_id, title, status, scheduled_at").eq("company_id", companyId).in("status", ["PENDING", "IN_PROGRESS"]).order("scheduled_at").order("id")),
       ]);
 
@@ -79,7 +80,7 @@ export function useTechnicianDailyBoard({
 
       return {
         technicians: technicianRows as Technician[],
-        rows: statusRows as TechnicianDailyStatusRow[],
+        rows: selectLatestTechnicianStatusRows(statusRows as TechnicianDailyStatusRow[]),
         services: serviceOptions,
       };
     },

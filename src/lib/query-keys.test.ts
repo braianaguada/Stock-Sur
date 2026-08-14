@@ -45,8 +45,8 @@ describe("company scoped query keys", () => {
   });
 
   it("scopes technician lists and material control dependencies by company", () => {
-    expect(queryKeys.technicians.dailyBoard("company-1", "2026-08-13")).toEqual([
-      "technicians", "company-1", "daily-board", "2026-08-13",
+    expect(queryKeys.technicians.dailyBoard("company-1")).toEqual([
+      "technicians", "company-1", "daily-board-current",
     ]);
     expect(queryKeys.technicians.list("company-1", "ana", "active")).toEqual([
       "technicians",

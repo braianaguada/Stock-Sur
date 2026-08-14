@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { FilterToolbar, PageTabs } from "@/components/ui/page";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, CircleDollarSign, RefreshCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, CircleDollarSign, RefreshCcw, Search, Trash2 } from "lucide-react";
 import { PriceListProductsTable } from "@/features/price-lists/components/PriceListProductsTable";
 import { PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
 import type { PriceListFormState, PriceListHistoryRow, PriceListProductRow, PriceListSummary } from "@/features/price-lists/types";
@@ -201,33 +201,19 @@ export function PriceListDetailDialog({
                   </div>
                 </div>
                 {marginSummary ? (
-                  <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/70 p-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="flex items-start gap-3 sm:col-span-2">
-                      <CircleDollarSign className="mt-0.5 h-5 w-5 text-primary" />
-                      <div>
-                        <p className="text-sm font-semibold">Salud de margenes</p>
-                        <p className="text-xs text-muted-foreground">
-                          El recargo configurado de {selectedList.utilidad_pct.toLocaleString("es-AR")}% equivale a un margen bruto objetivo de {targetMarginPct.toLocaleString("es-AR", { maximumFractionDigits: 1 })}% sobre la venta neta. Se descuenta IVA y se suma flete al costo.
-                        </p>
-                      </div>
+                  <Collapsible className="rounded-xl border border-border/60 bg-card/70 px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
+                      <span className="flex items-center gap-2 font-semibold"><CircleDollarSign className="h-4 w-4 text-primary" /> Salud de margenes</span>
+                      <span>Promedio <strong>{marginSummary.averageMarginPct === null ? "-" : `${marginSummary.averageMarginPct.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%`}</strong> ({marginSummary.evaluableCount} evaluados)</span>
+                      <span className={marginSummary.belowTargetCount > 0 ? "flex items-center gap-1 text-amber-700 dark:text-amber-300" : ""}>
+                        {marginSummary.belowTargetCount > 0 ? <AlertTriangle className="h-3.5 w-3.5" /> : null}<strong>{marginSummary.belowTargetCount}</strong> bajo objetivo · {marginSummary.missingCostCount} sin datos evaluables
+                      </span>
+                      <CollapsibleTrigger asChild><Button type="button" variant="ghost" size="sm" className="ml-auto h-7">Detalle <ChevronDown className="ml-1 h-3.5 w-3.5" /></Button></CollapsibleTrigger>
                     </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Margen promedio</p>
-                      <p className="mt-1 text-lg font-semibold">
-                        {marginSummary.averageMarginPct === null ? "-" : `${marginSummary.averageMarginPct.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%`}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{marginSummary.evaluableCount} productos evaluados</p>
-                    </div>
-                    <div className={marginSummary.belowTargetCount > 0 ? "text-amber-700 dark:text-amber-300" : ""}>
-                      <p className="flex items-center gap-1 text-xs uppercase tracking-wide text-muted-foreground">
-                        {marginSummary.belowTargetCount > 0 ? <AlertTriangle className="h-3.5 w-3.5" /> : null} Bajo objetivo
-                      </p>
-                      <p className="mt-1 text-lg font-semibold">{marginSummary.belowTargetCount}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {marginSummary.negativeMarginCount > 0 ? `${marginSummary.negativeMarginCount} con perdida; ` : ""}{marginSummary.missingCostCount} sin costo/precio evaluable
-                      </p>
-                    </div>
-                  </div>
+                    <CollapsibleContent className="pt-2 text-xs text-muted-foreground">
+                      El recargo de {selectedList.utilidad_pct.toLocaleString("es-AR")}% equivale a un margen bruto objetivo de {targetMarginPct.toLocaleString("es-AR", { maximumFractionDigits: 1 })}% sobre la venta neta. Se descuenta IVA y se suma flete al costo.{marginSummary.negativeMarginCount > 0 ? ` ${marginSummary.negativeMarginCount} productos tienen margen negativo.` : ""}
+                    </CollapsibleContent>
+                  </Collapsible>
                 ) : null}
                 <Collapsible open={productColumnsOpen} onOpenChange={onProductColumnsOpenChange}>
                   <FilterToolbar>

@@ -579,6 +579,7 @@ export type Database = {
           phone: string | null
           price_rounding_enabled: boolean
           price_rounding_increment: number | null
+          quick_price_floating_enabled: boolean
           primary_color: string
           secondary_color: string
           tax_id: string | null
@@ -604,6 +605,7 @@ export type Database = {
           phone?: string | null
           price_rounding_enabled?: boolean
           price_rounding_increment?: number | null
+          quick_price_floating_enabled?: boolean
           primary_color?: string
           secondary_color?: string
           tax_id?: string | null
@@ -629,6 +631,7 @@ export type Database = {
           phone?: string | null
           price_rounding_enabled?: boolean
           price_rounding_increment?: number | null
+          quick_price_floating_enabled?: boolean
           primary_color?: string
           secondary_color?: string
           tax_id?: string | null

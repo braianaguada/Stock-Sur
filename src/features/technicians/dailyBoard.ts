@@ -53,6 +53,14 @@ export type TechnicianDailyCard = TechnicianDailyStatusRow & {
   persisted: boolean;
 };
 
+export function selectLatestTechnicianStatusRows(rows: TechnicianDailyStatusRow[]) {
+  const latestByTechnician = new Map<string, TechnicianDailyStatusRow>();
+  for (const row of rows) {
+    if (!latestByTechnician.has(row.technician_id)) latestByTechnician.set(row.technician_id, row);
+  }
+  return Array.from(latestByTechnician.values());
+}
+
 export function buildDailyCards(
   technicians: Technician[],
   rows: TechnicianDailyStatusRow[],

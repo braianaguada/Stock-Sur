@@ -57,6 +57,7 @@ export function useSettingsManagement({
     auto_close_cash_time: "",
     price_rounding_enabled: false,
     price_rounding_increment: "",
+    quick_price_floating_enabled: true,
   });
 
   useEffect(() => {
@@ -93,6 +94,7 @@ export function useSettingsManagement({
       auto_close_cash_time: settings.auto_close_cash_time ?? "",
       price_rounding_enabled: settings.price_rounding_enabled ?? false,
       price_rounding_increment: settings.price_rounding_increment ? String(settings.price_rounding_increment) : "",
+      quick_price_floating_enabled: settings.quick_price_floating_enabled ?? true,
     });
     setLogoPreview(settings.logo_url ?? "");
   }, [settings]);
@@ -148,6 +150,7 @@ export function useSettingsManagement({
         auto_close_cash_time: form.auto_close_cash_enabled ? (form.auto_close_cash_time || null) : null,
         price_rounding_enabled: form.price_rounding_enabled,
         price_rounding_increment: form.price_rounding_enabled ? Number(form.price_rounding_increment) || null : null,
+        quick_price_floating_enabled: form.quick_price_floating_enabled,
       };
 
       const { error } = await supabase

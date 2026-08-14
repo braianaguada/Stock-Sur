@@ -278,9 +278,11 @@ Proxima fase para CUIT reales y Factura A de homologacion:
 
 ### Tablero diario de tecnicos
 
-- `Tecnicos / Tablero diario` organiza a los tecnicos activos por jornada en Disponible, Asignado, En camino, Trabajando, Pausado, Finalizado o Ausente.
+- `Tecnicos / Tablero diario` organiza a los tecnicos activos por su estado operativo actual: Disponible, Asignado, En camino, Trabajando, Pausado, Finalizado o Ausente.
 - Cada tarjeta se puede arrastrar entre estados y completar con trabajo/servicio real, actividad, ubicacion y una nota interna.
-- Si el tecnico ya esta asignado a un servicio pendiente o en curso, el tablero lo propone como Asignado hasta que se guarde un estado explicito para ese dia.
+- El ultimo estado guardado se mantiene entre dias hasta que una persona lo cambie; el cambio crea el registro de la fecha actual sin borrar el historial previo.
+- Si el tecnico nunca tuvo un estado explicito y esta asignado a un servicio pendiente o en curso, el tablero lo propone inicialmente como Asignado.
+- Las columnas se adaptan al ancho disponible y las tarjetas ajustan los textos largos sin superponerse ni quedar cortadas.
 - El tablero es operativo: no emite documentos, no mueve stock y no cambia automaticamente el estado del trabajo o servicio.
 - La migracion `20260813180000_technician_daily_board.sql` agrega el estado diario con unicidad por empresa, tecnico y fecha, validacion cruzada de empresa y RLS basada en permisos de Tecnicos.
 
@@ -1349,7 +1351,7 @@ git pull origin staging
 
 - Las listas distinguen el recargo sobre costo configurado del margen bruto real sobre venta neta.
 - El margen bruto descuenta el IVA del precio operativo, incorpora el flete al costo y respeta precios personalizados y el redondeo operativo de la empresa.
-- El detalle resume margen promedio, productos bajo el objetivo, perdidas y productos sin costo o precio evaluable. Es informativo: no modifica precios automaticamente.
+- El detalle resume margen promedio, productos bajo el objetivo, perdidas y productos sin costo o precio evaluable en una fila compacta; la explicacion ampliada se despliega solo cuando se necesita para no quitar espacio al listado. Es informativo: no modifica precios automaticamente.
 - No requiere migraciones ni servicios externos.
 
 ### Reposicion sugerida por proveedor (agosto 2026)
@@ -1360,9 +1362,10 @@ git pull origin staging
 
 ### Consulta rápida de precios (agosto 2026)
 
-- El módulo Precios permite abrir una consulta rápida desde cualquier pestaña, elegir una lista y buscar productos por código, nombre, marca, modelo o atributos.
+- Un boton flotante en la esquina inferior derecha permite abrir la consulta rápida desde cualquier pantalla de la aplicación, elegir una lista y buscar productos por código, nombre, marca, modelo o atributos.
 - La respuesta muestra precio operativo, origen del precio, stock actual y estado de recálculo, sin modificar costos ni listas.
 - La lista elegida se recuerda por usuario y empresa para evitar mezclar preferencias entre compañías.
+- Cada empresa puede habilitar u ocultar el acceso flotante desde Configuración. La migración `20260814120000_quick_price_floating_setting.sql` incorpora la preferencia con valor inicial habilitado y conserva el aislamiento por empresa existente.
 
 ### Centro de alertas operativas (agosto 2026)
 
@@ -1372,9 +1375,9 @@ git pull origin staging
 
 ### Seguimiento comercial de presupuestos (agosto 2026)
 
-- La nueva vista `Seguimiento presupuestos` ordena la agenda por contactos vencidos, presupuestos fuera de validez, próximos contactos y presupuestos sin agenda, siempre dentro de la empresa activa.
-- Cada presupuesto puede guardar prioridad, próxima fecha y notas, además de registrar la fecha y cantidad de contactos. Este seguimiento no modifica el estado documental ni genera movimientos de stock, caja o cuenta corriente.
-- La migración `20260813190000_budget_follow_ups.sql` incorpora almacenamiento aislado por `company_id`, validación estricta del presupuesto y políticas RLS basadas en `documents.view` y `documents.edit`.
+- La campana muestra los presupuestos de servicio enviados que esperan aprobación o rechazo y enlaza directamente al listado de documentos de Servicios.
+- La alerta se calcula desde el estado real de los presupuestos, respeta `documents.view` y no requiere completar una agenda paralela ni una sección adicional.
+- La vista independiente se retiró de la navegación; su ruta anterior redirige a Documentos de Servicios. No se modifican estados documentales ni se generan movimientos de stock, caja o cuenta corriente.
 
 ### Alertas de stock por rotación real (agosto 2026)
 
@@ -1417,7 +1420,6 @@ git pull origin staging
 
 ### Radar de mercado (2026-08-13)
 
-- Inventario incorpora un radar que compara las salidas reales de cada producto en los últimos 30 días contra los 30 anteriores. Exige volumen relevante y una variación mínima del 25% para marcar alzas o bajas, evitando alertas por movimientos aislados.
-- Cada empresa puede registrar señales externas manuales con tipo, fecha, precio opcional, producto relacionado y enlace verificable. No se hace scraping ni se generan compras o recomendaciones automáticas.
-- La lectura requiere `stock.view`; crear y archivar señales requiere `stock.edit`. La tabla aplica RLS, conserva `company_id` y valida que los productos vinculados pertenezcan a la misma empresa.
-- Migración: `20260813160000_market_watch_signals.sql`.
+- Se retiró de la navegación el radar manual porque no representa el objetivo de analizar de forma orgánica precios, demanda y tendencias externas del rubro; la ruta anterior redirige a Stock.
+- La versión automática queda pendiente de integrar fuentes de Internet verificables, un proveedor de IA/búsqueda, ejecución programada y controles de costo, frecuencia y trazabilidad. La aplicación no presenta señales manuales como si fueran inteligencia de mercado automática.
+- La tabla introducida por `20260813160000_market_watch_signals.sql` se conserva sin uso visible para evitar una eliminación destructiva de esquema; no afecta stock ni genera compras.
