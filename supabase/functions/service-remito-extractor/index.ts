@@ -42,7 +42,9 @@ Deno.serve(async (req) => {
 
     const prompt = [
       "Extrae datos de la imagen o PDF del remito. Es transcripcion estructurada, no redaccion comercial.",
+      "Si recibis un PDF escaneado, analizalo visualmente igual que una foto y usa la imagen renderizada adjunta para verificar la lectura; no dependas solo de la capa de texto del PDF.",
       "Lee escritura manuscrita cuando sea posible y une renglones consecutivos de una misma descripcion.",
+      "Corrige errores evidentes de OCR y ortografia en las descripciones cuando la palabra sea clara por su forma y contexto, conservando el significado original y los nombres propios.",
       "Ignora membretes, etiquetas impresas, sellos, firmas, identificacion fiscal, telefono y ruido visual.",
       "No inventes palabras dudosas: omitelas y agrega una advertencia.",
       "reference lleva solo el numero visible con prefijo Remito; issueDate usa YYYY-MM-DD o queda vacia.",
@@ -58,7 +60,7 @@ Deno.serve(async (req) => {
       response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contents: [{ role: "user", parts: [
-          { text: enhancedImageBase64 ? `${prompt}\nSe adjuntan la foto original y una copia mejorada en contraste. Comparalas y conserva solo datos respaldados por ambas.` : prompt },
+          { text: enhancedImageBase64 ? `${prompt}\nSe adjuntan el archivo original y una vista visual mejorada en contraste. Comparalas, aplica el mismo criterio de correccion a ambos formatos y conserva solo datos respaldados por el documento.` : prompt },
           { inlineData: { mimeType, data: imageBase64 } },
           ...(enhancedImageBase64 ? [{ inlineData: { mimeType: "image/jpeg", data: enhancedImageBase64 } }] : []),
         ] }], generationConfig: { temperature: 0, responseMimeType: "application/json", responseSchema } }),

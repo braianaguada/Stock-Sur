@@ -98,7 +98,7 @@ describe("AppLayout", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Abrir módulos/i }));
     expect(screen.getByRole("link", { name: "Items" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Tablero tecnicos" })).toHaveAttribute("href", "/technicians");
+    expect(screen.getByRole("link", { name: "Tecnicos" })).toHaveAttribute("href", "/technicians");
     expect(screen.getByRole("link", { name: "Rendiciones" })).toHaveAttribute("href", "/settlements");
     expect(screen.getByRole("link", { name: /Configuraci/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Usuarios" })).not.toBeInTheDocument();
