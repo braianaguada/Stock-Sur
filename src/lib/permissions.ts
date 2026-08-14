@@ -134,14 +134,6 @@ export function canManageBillingSettings(roles: AppRole[], context?: CompanyAcce
   return hasCompanyPermission(roles, context, "billing.settings");
 }
 
-export function canViewStock(roles: AppRole[], context?: CompanyAccessContext) {
-  return hasCompanyPermission(roles, context, "stock.view");
-}
-
-export function canEditStock(roles: AppRole[], context?: CompanyAccessContext) {
-  return hasCompanyPermission(roles, context, "stock.edit");
-}
-
 export function canViewSettlements(roles: AppRole[], context?: CompanyAccessContext) {
   return hasCompanyPermission(roles, context, "settlements.view");
 }
