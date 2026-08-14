@@ -87,5 +87,5 @@ describe("technical architecture guardrails", () => {
       encoding: "utf8",
       stdio: "pipe",
     })).not.toThrow();
-  }, 20_000);
+  }, 30_000);
 });

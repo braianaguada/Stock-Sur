@@ -20,10 +20,6 @@ export function resolveServiceRemitoFileType(file: Pick<File, "name" | "type">):
   return SERVICE_REMITO_EXTENSION_TYPES[extension] ?? null;
 }
 
-export function isSupportedServiceRemitoFile(file: File): boolean {
-  return resolveServiceRemitoFileType(file) !== null;
-}
-
 export async function enhanceRemitoImage(file: File): Promise<string | null> {
   if (!file.type.startsWith("image/")) return null;
   if (typeof createImageBitmap !== "function") return null;
