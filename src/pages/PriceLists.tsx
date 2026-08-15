@@ -23,14 +23,15 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
-import { Plus, RefreshCcw, Search, X } from "lucide-react";
+import { Plus, RefreshCcw, Search, Tags, X } from "lucide-react";
 import { BasePricesTable } from "@/features/price-lists/components/BasePricesTable";
 import { PriceListCreateDialog } from "@/features/price-lists/components/PriceListCreateDialog";
 import { PriceListDetailDialog } from "@/features/price-lists/components/PriceListDetailDialog";
+import { QuickPriceConsultationDialog } from "@/features/price-lists/components/QuickPriceConsultationDialog";
 import { DEFAULT_PRICE_LIST_FORM, PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
 import { resolveConsultListIdForQuery } from "@/features/price-lists/lib/consultation";
 import { resolvePriceListsNavigation, type PersistedPriceListsNavigation } from "@/features/price-lists/lib/navigation";
-import type { PriceListFormState } from "@/features/price-lists/types";
+import type { PriceListFormState, PriceListProductRow } from "@/features/price-lists/types";
 import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
 import { formatDateTime } from "@/features/price-lists/utils";
 import { CategoryBadge, InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
@@ -40,6 +41,7 @@ const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const PRICE_LISTS_UI_STATE_KEY = "price-lists:ui-state";
 const PRICE_BASE_COLUMNS_KEY = "price-lists:base-columns";
 const PRICE_DETAIL_COLUMNS_KEY = "price-lists:detail-columns";
+const QUICK_PRICE_LIST_KEY = "price-lists:quick-list";
 const DEFAULT_BASE_COLUMN_VISIBILITY: VisibilityState = {
   sku: true,
   name: true,
@@ -89,6 +91,7 @@ export default function PriceListsPage() {
     : null;
   const baseColumnsStorageKey = `${PRICE_BASE_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
   const detailColumnsStorageKey = `${PRICE_DETAIL_COLUMNS_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
+  const quickListStorageKey = `${QUICK_PRICE_LIST_KEY}:${user?.id ?? "anonymous"}:${currentCompany?.id ?? "no-company"}`;
 
   const [moduleTab, setModuleTab] = useState("base");
   const [baseSearch, setBaseSearch] = useState("");
@@ -99,6 +102,9 @@ export default function PriceListsPage() {
   const [detailPage, setDetailPage] = useState(1);
   const [detailPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [quickDialogOpen, setQuickDialogOpen] = useState(false);
+  const [quickListId, setQuickListId] = useState<string | null>(null);
+  const [quickListHydratedKey, setQuickListHydratedKey] = useState<string | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
@@ -153,10 +159,12 @@ export default function PriceListsPage() {
   const {
     baseRows,
     pagedBaseRows,
+    allPriceLists,
     priceLists,
     profileNameByUserId,
     selectedList,
     selectedListHistory,
+    selectedListProducts,
     pagedSelectedListProducts,
     snapshotsByListAndItemId,
     updateBaseCostMutation,
@@ -307,15 +315,51 @@ export default function PriceListsPage() {
       resolveConsultListIdForQuery({
         currentListId: null,
         itemIdFromQuery,
-        priceLists,
+        priceLists: allPriceLists,
         snapshotsByListAndItemId,
       }),
-    [itemIdFromQuery, priceLists, snapshotsByListAndItemId],
+    [allPriceLists, itemIdFromQuery, snapshotsByListAndItemId],
   );
   const highlightedList = useMemo(
-    () => priceLists.find((list) => list.id === highlightedListId) ?? null,
-    [highlightedListId, priceLists],
+    () => allPriceLists.find((list) => list.id === highlightedListId) ?? null,
+    [allPriceLists, highlightedListId],
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setQuickListHydratedKey(null);
+    const persistedListId = localStorage.getItem(quickListStorageKey);
+    setQuickListId(persistedListId);
+    setQuickListHydratedKey(quickListStorageKey);
+  }, [quickListStorageKey]);
+
+  useEffect(() => {
+    if (quickListHydratedKey !== quickListStorageKey) return;
+    const resolvedListId = resolveConsultListIdForQuery({
+      currentListId: quickListId,
+      itemIdFromQuery,
+      priceLists: allPriceLists,
+      snapshotsByListAndItemId,
+    });
+    if (resolvedListId !== quickListId) setQuickListId(resolvedListId);
+  }, [allPriceLists, itemIdFromQuery, quickListHydratedKey, quickListId, quickListStorageKey, snapshotsByListAndItemId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || quickListHydratedKey !== quickListStorageKey) return;
+    if (quickListId) localStorage.setItem(quickListStorageKey, quickListId);
+    else localStorage.removeItem(quickListStorageKey);
+  }, [quickListHydratedKey, quickListId, quickListStorageKey]);
+
+  const quickListProducts = useMemo<PriceListProductRow[]>(() => {
+    if (!quickListId) return [];
+    const snapshots = snapshotsByListAndItemId.get(quickListId);
+    if (!snapshots) return [];
+
+    return baseRows.flatMap((row) => {
+      const snapshot = snapshots.get(row.item_id);
+      return snapshot ? [{ ...row, ...snapshot }] : [];
+    });
+  }, [baseRows, quickListId, snapshotsByListAndItemId]);
 
   const openListDetail = (priceListId: string) => {
     setSelectedListId(priceListId);
@@ -376,7 +420,7 @@ export default function PriceListsPage() {
         Flete {values.flete_pct ?? 0}%
       </CategoryBadge>
       <CategoryBadge>
-        Margen {values.utilidad_pct ?? 0}%
+        Recargo {values.utilidad_pct ?? 0}%
       </CategoryBadge>
       <CategoryBadge>
         IVA {values.impuesto_pct ?? 0}%
@@ -408,18 +452,23 @@ export default function PriceListsPage() {
           ]}
           activeTab={moduleTab}
           onTabChange={setModuleTab}
-          actions={
-            moduleTab === "lists" ? (
-              <Button
-                onClick={() => {
-                  setCreateForm(DEFAULT_PRICE_LIST_FORM);
-                  setCreateDialogOpen(true);
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" /> Nueva lista
+          actions={(
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => setQuickDialogOpen(true)} disabled={allPriceLists.length === 0}>
+                <Tags className="mr-2 h-4 w-4" /> Consulta rápida
               </Button>
-            ) : undefined
-          }
+              {moduleTab === "lists" ? (
+                <Button
+                  onClick={() => {
+                    setCreateForm(DEFAULT_PRICE_LIST_FORM);
+                    setCreateDialogOpen(true);
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Nueva lista
+                </Button>
+              ) : null}
+            </div>
+          )}
         />
 
         <Tabs value={moduleTab} onValueChange={setModuleTab}>
@@ -646,10 +695,22 @@ export default function PriceListsPage() {
         }
       />
 
+      <QuickPriceConsultationDialog
+        open={quickDialogOpen}
+        priceLists={allPriceLists}
+        selectedListId={quickListId}
+        products={quickListProducts}
+        stockByItemId={stockByItemId}
+        priceRoundingConfig={priceRoundingConfig}
+        onOpenChange={setQuickDialogOpen}
+        onSelectedListIdChange={setQuickListId}
+      />
+
       <PriceListDetailDialog
         open={detailDialogOpen}
         selectedList={selectedList}
         selectedListHistory={selectedListHistory}
+        allProducts={selectedListProducts}
         pagedProducts={pagedSelectedListProducts}
         detailSearch={detailSearch}
         detailTab={detailTab}

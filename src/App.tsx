@@ -116,12 +116,14 @@ const App = () => (
                   <Route path="/items" element={<ProtectedRoute><ItemsPage /></ProtectedRoute>} />
                   <Route path="/combos" element={<ProtectedRoute><CombosPage /></ProtectedRoute>} />
                   <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
+                  <Route path="/market-radar" element={<Navigate to="/stock" replace />} />
                   <Route path="/suppliers" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
                   <Route path="/purchase-orders" element={<ProtectedRoute><PurchaseOrdersPage /></ProtectedRoute>} />
                   <Route path="/price-lists" element={<ProtectedRoute><PriceListsPage /></ProtectedRoute>} />
                   <Route path="/imports" element={<ProtectedRoute><ImportsPage /></ProtectedRoute>} />
                   <Route path="/quotes" element={<ProtectedRoute><QuotesPage /></ProtectedRoute>} />
                   <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
+                  <Route path="/documents/follow-up" element={<Navigate to="/services/documents" replace />} />
                   <Route path="/services/documents" element={<ProtectedRoute><ServiceDocumentsPage /></ProtectedRoute>} />
                   <Route path="/service-jobs" element={<ProtectedRoute><ServiceJobsPage /></ProtectedRoute>} />
                   <Route path="/print/service-document/:id" element={<ProtectedRoute><PrintServiceDocumentPage /></ProtectedRoute>} />

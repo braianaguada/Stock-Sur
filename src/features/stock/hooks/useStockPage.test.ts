@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildStockByItemId, getStockMovementDraftKey, sanitizeStockMovementItemSearch } from "./useStockPage";
+import {
+  buildStockByItemId,
+  getStockMovementDraftKey,
+  normalizeStockMovementItem,
+  sanitizeStockMovementItemSearch,
+} from "./useStockPage";
 
 describe("sanitizeStockMovementItemSearch", () => {
   it("removes invalid fallback labels from stored stock movement drafts", () => {
@@ -30,5 +35,9 @@ describe("stock movement tenant state", () => {
 
     expect(stock.get("item-filtered")).toBe(17);
     expect(stock.has("missing-item")).toBe(false);
+  });
+
+  it("rejects click events accidentally passed as selected items", () => {
+    expect(normalizeStockMovementItem({} as never)).toBeNull();
   });
 });

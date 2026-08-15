@@ -216,6 +216,19 @@ export default function SettingsPage() {
                 <div className="space-y-3 rounded-2xl border border-border/60 bg-card/80 p-4 md:col-span-2">
                   <div className="flex items-start gap-3">
                     <Checkbox
+                      id="quick_price_floating_enabled"
+                      checked={form.quick_price_floating_enabled}
+                      onCheckedChange={(checked) => setForm((prev) => ({ ...prev, quick_price_floating_enabled: checked === true }))}
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="quick_price_floating_enabled" className="cursor-pointer">Consulta rapida siempre visible</Label>
+                      <p className="text-sm text-muted-foreground">Muestra un boton flotante para consultar precios y stock desde cualquier pantalla.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3 rounded-2xl border border-border/60 bg-card/80 p-4 md:col-span-2">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
                       id="price_rounding_enabled"
                       checked={form.price_rounding_enabled}
                       onCheckedChange={(checked) =>

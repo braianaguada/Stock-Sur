@@ -1,10 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router-dom";
 
 const supabaseInvokeMock = vi.hoisted(() => vi.fn());
 const choosePdfSaveTargetMock = vi.hoisted(() => vi.fn());
 const savePrintHtmlAsPdfMock = vi.hoisted(() => vi.fn());
+const serviceDocumentsParamsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/AppLayout", () => ({ AppLayout: ({ children }: { children: ReactNode }) => <>{children}</> }));
 vi.mock("@/components/common/CompanyAccessNotice", () => ({ CompanyAccessNotice: ({ description }: { description: string }) => <div>{description}</div> }));
@@ -43,7 +45,9 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 vi.mock("@/features/services/hooks/useServiceDocuments", () => ({
-  useServiceDocuments: () => ({
+  useServiceDocuments: (params: unknown) => {
+    serviceDocumentsParamsMock(params);
+    return ({
     customers: [{ id: "cust-1", name: "Cliente Demo" }],
     documents: [
       {
@@ -70,7 +74,8 @@ vi.mock("@/features/services/hooks/useServiceDocuments", () => ({
     selectedLines: [{ id: "line-1", description: "Trabajo", quantity: 1, unit: "u", line_total: 1500, sort_order: 1 }],
     selectedEvents: [],
     isLoading: false,
-  }),
+    });
+  },
 }));
 vi.mock("@/features/services/hooks/useServiceDocumentMutations", () => ({
   calculateServiceLineTotal: () => 1500,
@@ -100,6 +105,14 @@ vi.mock("@/features/services/db", () => ({
 
 import ServiceDocumentsPage from "./ServiceDocuments";
 
+function renderPage(initialEntry = "/services/documents") {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <ServiceDocumentsPage />
+    </MemoryRouter>,
+  );
+}
+
 describe("ServiceDocumentsPage", () => {
   afterEach(() => {
     cleanup();
@@ -107,6 +120,7 @@ describe("ServiceDocumentsPage", () => {
     supabaseInvokeMock.mockReset();
     choosePdfSaveTargetMock.mockReset();
     savePrintHtmlAsPdfMock.mockReset();
+    serviceDocumentsParamsMock.mockReset();
   });
 
   it("keeps preview, PDF and share visible and groups secondary actions", async () => {
@@ -117,7 +131,7 @@ describe("ServiceDocumentsPage", () => {
     choosePdfSaveTargetMock.mockResolvedValue(target);
     savePrintHtmlAsPdfMock.mockResolvedValue(undefined);
 
-    render(<ServiceDocumentsPage />);
+    renderPage();
 
     expect(screen.getByText("Documentos")).toBeInTheDocument();
     expect(screen.getAllByTitle("Vista previa").length).toBeGreaterThan(0);
@@ -147,7 +161,7 @@ describe("ServiceDocumentsPage", () => {
   it("uses an in-app confirmation before changing document status", () => {
     const nativeConfirm = vi.spyOn(window, "confirm");
 
-    render(<ServiceDocumentsPage />);
+    renderPage();
 
     fireEvent.click(screen.getAllByTitle("Mas acciones")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Enviar al cliente" }));
@@ -159,7 +173,7 @@ describe("ServiceDocumentsPage", () => {
   });
 
   it("keeps status transitions outside the service document form", () => {
-    render(<ServiceDocumentsPage />);
+    renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: "Nuevo presupuesto" }));
 
@@ -218,7 +232,7 @@ describe("ServiceDocumentsPage", () => {
       error: null,
     });
 
-    render(<ServiceDocumentsPage />);
+    renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: /crear con ia/i }));
     expect(screen.getByText("Asistente IA para presupuestar servicios")).toBeInTheDocument();
@@ -242,5 +256,12 @@ describe("ServiceDocumentsPage", () => {
     expect(screen.getByText("Referencias externas: no disponibles")).toBeInTheDocument();
     expect(screen.getByText("Recomendado")).toBeInTheDocument();
     expect(screen.getByText("Limpieza y prueba del equipo (1 servicio)")).toBeInTheDocument();
+  });
+
+  it("opens service budget notifications already filtered to sent", () => {
+    renderPage("/services/documents?status=SENT");
+
+    expect(serviceDocumentsParamsMock).toHaveBeenLastCalledWith(expect.objectContaining({ status: "SENT" }));
+    expect(screen.getByRole("combobox", { name: "Estado" })).toHaveTextContent("Enviado");
   });
 });

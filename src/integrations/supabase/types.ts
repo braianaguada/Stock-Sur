@@ -579,6 +579,7 @@ export type Database = {
           phone: string | null
           price_rounding_enabled: boolean
           price_rounding_increment: number | null
+          quick_price_floating_enabled: boolean
           primary_color: string
           secondary_color: string
           tax_id: string | null
@@ -604,6 +605,7 @@ export type Database = {
           phone?: string | null
           price_rounding_enabled?: boolean
           price_rounding_increment?: number | null
+          quick_price_floating_enabled?: boolean
           primary_color?: string
           secondary_color?: string
           tax_id?: string | null
@@ -629,6 +631,7 @@ export type Database = {
           phone?: string | null
           price_rounding_enabled?: boolean
           price_rounding_increment?: number | null
+          quick_price_floating_enabled?: boolean
           primary_color?: string
           secondary_color?: string
           tax_id?: string | null
@@ -1081,6 +1084,66 @@ export type Database = {
           },
         ]
       }
+      budget_follow_ups: {
+        Row: {
+          company_id: string
+          contact_count: number
+          created_at: string
+          created_by: string
+          document_id: string
+          id: string
+          last_contacted_at: string | null
+          next_contact_on: string | null
+          notes: string | null
+          priority: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          company_id: string
+          contact_count?: number
+          created_at?: string
+          created_by?: string
+          document_id: string
+          id?: string
+          last_contacted_at?: string | null
+          next_contact_on?: string | null
+          notes?: string | null
+          priority?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Update: {
+          company_id?: string
+          contact_count?: number
+          created_at?: string
+          created_by?: string
+          document_id?: string
+          id?: string
+          last_contacted_at?: string | null
+          next_contact_on?: string | null
+          notes?: string | null
+          priority?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_follow_ups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_follow_ups_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           company_id: string
@@ -1366,6 +1429,75 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_watch_signals: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          currency: string
+          id: string
+          is_active: boolean
+          item_id: string | null
+          notes: string | null
+          observed_at: string
+          observed_price: number | null
+          signal_type: string
+          source_name: string
+          source_url: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          item_id?: string | null
+          notes?: string | null
+          observed_at?: string
+          observed_price?: number | null
+          signal_type?: string
+          source_name: string
+          source_url: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          item_id?: string | null
+          notes?: string | null
+          observed_at?: string
+          observed_price?: number | null
+          signal_type?: string
+          source_name?: string
+          source_url?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_watch_signals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_watch_signals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
             referencedColumns: ["id"]
           },
         ]
@@ -2699,6 +2831,21 @@ export type Database = {
           p_catalog_title?: string
           p_lines?: Json
           p_supplier_document_id: string
+          p_supplier_id: string
+          p_version_title?: string
+        }
+        Returns: Json
+      }
+      create_supplier_catalog_import_atomic: {
+        Args: {
+          p_catalog_id?: string
+          p_catalog_notes?: string
+          p_catalog_title?: string
+          p_document_notes?: string
+          p_document_title: string
+          p_file_name: string
+          p_file_type: string
+          p_lines?: Json
           p_supplier_id: string
           p_version_title?: string
         }

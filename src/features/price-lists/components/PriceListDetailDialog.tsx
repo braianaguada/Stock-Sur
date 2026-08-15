@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { VisibilityState } from "@tanstack/react-table";
 import { StatusBadge } from "@/components/common/VisualSystem";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
@@ -12,18 +12,21 @@ import { Label } from "@/components/ui/label";
 import { FilterToolbar, PageTabs } from "@/components/ui/page";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { RefreshCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, CircleDollarSign, RefreshCcw, Search, Trash2 } from "lucide-react";
 import { PriceListProductsTable } from "@/features/price-lists/components/PriceListProductsTable";
 import { PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
 import type { PriceListFormState, PriceListHistoryRow, PriceListProductRow, PriceListSummary } from "@/features/price-lists/types";
 import { formatDateTime } from "@/features/price-lists/utils";
 import type { PriceRoundingConfig } from "@/features/pricing/rounding";
+import { markupToGrossMargin, summarizePriceListMargins } from "@/features/price-lists/margin";
+import { getOperationalPrice } from "@/features/pricing/operational-price";
 
 type PriceListDetailDialogProps = {
   open: boolean;
   selectedList: PriceListSummary | null;
   selectedListHistory: PriceListHistoryRow[];
   pagedProducts: PriceListProductRow[];
+  allProducts: PriceListProductRow[];
   detailSearch: string;
   detailTab: string;
   detailPage: number;
@@ -71,6 +74,7 @@ export function PriceListDetailDialog({
   selectedList,
   selectedListHistory,
   pagedProducts,
+  allProducts,
   detailSearch,
   detailTab,
   detailPage,
@@ -105,6 +109,21 @@ export function PriceListDetailDialog({
   const [overrideRow, setOverrideRow] = useState<PriceListProductRow | null>(null);
   const [overrideEnabled, setOverrideEnabled] = useState(false);
   const [overridePrice, setOverridePrice] = useState("");
+  const targetMarginPct = markupToGrossMargin(selectedList?.utilidad_pct);
+  const marginSummary = useMemo(() => selectedList
+    ? summarizePriceListMargins({
+        rows: allProducts,
+        freightPct: selectedList.flete_pct,
+        taxPct: selectedList.impuesto_pct,
+        targetMarginPct,
+        resolveOperationalPrice: (row) => getOperationalPrice({
+          calculatedPrice: row.calculated_price,
+          manualOverridePrice: row.final_price_override,
+          manualPriceEnabled: row.manual_price_enabled,
+          config: priceRoundingConfig,
+        }).price,
+      })
+    : null, [allProducts, priceRoundingConfig, selectedList, targetMarginPct]);
 
   const scrollActiveTabToTop = useCallback(() => {
     if (detailTab === "config") {
@@ -181,6 +200,21 @@ export function PriceListDetailDialog({
                     Ultimo recalculo: {formatDateTime(selectedList.last_recalculated_at)} - {renderUserName(selectedList.last_recalculated_by)}
                   </div>
                 </div>
+                {marginSummary ? (
+                  <Collapsible className="rounded-xl border border-border/60 bg-card/70 px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
+                      <span className="flex items-center gap-2 font-semibold"><CircleDollarSign className="h-4 w-4 text-primary" /> Salud de margenes</span>
+                      <span>Promedio <strong>{marginSummary.averageMarginPct === null ? "-" : `${marginSummary.averageMarginPct.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%`}</strong> ({marginSummary.evaluableCount} evaluados)</span>
+                      <span className={marginSummary.belowTargetCount > 0 ? "flex items-center gap-1 text-amber-700 dark:text-amber-300" : ""}>
+                        {marginSummary.belowTargetCount > 0 ? <AlertTriangle className="h-3.5 w-3.5" /> : null}<strong>{marginSummary.belowTargetCount}</strong> bajo objetivo · {marginSummary.missingCostCount} sin datos evaluables
+                      </span>
+                      <CollapsibleTrigger asChild><Button type="button" variant="ghost" size="sm" className="ml-auto h-7">Detalle <ChevronDown className="ml-1 h-3.5 w-3.5" /></Button></CollapsibleTrigger>
+                    </div>
+                    <CollapsibleContent className="pt-2 text-xs text-muted-foreground">
+                      El recargo de {selectedList.utilidad_pct.toLocaleString("es-AR")}% equivale a un margen bruto objetivo de {targetMarginPct.toLocaleString("es-AR", { maximumFractionDigits: 1 })}% sobre la venta neta. Se descuenta IVA y se suma flete al costo.{marginSummary.negativeMarginCount > 0 ? ` ${marginSummary.negativeMarginCount} productos tienen margen negativo.` : ""}
+                    </CollapsibleContent>
+                  </Collapsible>
+                ) : null}
                 <Collapsible open={productColumnsOpen} onOpenChange={onProductColumnsOpenChange}>
                   <FilterToolbar>
                     <div className="relative max-w-sm flex-1 min-w-[260px]">
@@ -233,6 +267,8 @@ export function PriceListDetailDialog({
                     columnVisibility={productColumnVisibility}
                     stockByItemId={stockByItemId}
                     priceRoundingConfig={priceRoundingConfig}
+                    freightPct={selectedList.flete_pct}
+                    taxPct={selectedList.impuesto_pct}
                     onEditProductOverride={openOverrideDialog}
                   />
                 </div>
@@ -267,7 +303,7 @@ export function PriceListDetailDialog({
                       <Input type="number" min={0} step="any" value={configDraft.flete_pct} onChange={(event) => onConfigDraftChange((prev) => (prev ? { ...prev, flete_pct: event.target.value } : prev))} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Margen %</Label>
+                      <Label>Recargo sobre costo %</Label>
                       <Input type="number" min={0} step="any" value={configDraft.utilidad_pct} onChange={(event) => onConfigDraftChange((prev) => (prev ? { ...prev, utilidad_pct: event.target.value } : prev))} />
                     </div>
                     <div className="space-y-2">

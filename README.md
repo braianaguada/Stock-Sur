@@ -12,6 +12,12 @@ Plataforma de gestion comercial y operativa para catalogo, stock, documentos, se
 - El Dashboard conserva sus métricas actuales y agrega filtros Hoy/semana/mes, serie temporal y productos vendidos con cantidad/unidad, venta, costo y ganancia. La RPC multitenant se incorpora en `20260810120000_dashboard_period_product_insights.sql`.
 - No se modifica producción. La captura OCR de remitos manuscritos queda deliberadamente fuera de este corte y se diseñará como una segunda fase con revisión humana antes de crear el borrador.
 
+## Pulso operativo del Dashboard
+
+- El Dashboard conserva todos sus indicadores y agrega accesos accionables para deuda de clientes, variación de ventas contra el mismo tramo del mes anterior, cobertura de costos y capital sin rotación.
+- Los porcentajes se derivan de las métricas multitenant ya disponibles; no se agregan consultas ni estimaciones externas.
+- Los indicadores de inventario se ocultan por completo si el usuario no cuenta con `stock.view`. No requiere migraciones y no modifica producción.
+
 ## Presentacion operativa del Dashboard
 
 - La composicion de cobros presenta etiquetas legibles y consistentes aun cuando el origen entregue identificadores tecnicos en minusculas, como `servicios_remito`.
@@ -270,6 +276,16 @@ Proxima fase para CUIT reales y Factura A de homologacion:
 
 ## Tecnicos: Control de materiales
 
+### Tablero diario de tecnicos
+
+- `Tecnicos / Tablero diario` organiza a los tecnicos activos por su estado operativo actual: Disponible, Asignado, En camino, Trabajando, Pausado, Finalizado o Ausente.
+- Cada tarjeta se puede arrastrar entre estados y completar con trabajo/servicio real, actividad, ubicacion y una nota interna.
+- El ultimo estado guardado se mantiene entre dias hasta que una persona lo cambie; el cambio crea el registro de la fecha actual sin borrar el historial previo.
+- Si el tecnico nunca tuvo un estado explicito y esta asignado a un servicio pendiente o en curso, el tablero lo propone inicialmente como Asignado.
+- Las columnas se adaptan al ancho disponible y las tarjetas ajustan los textos largos sin superponerse ni quedar cortadas.
+- El tablero es operativo: no emite documentos, no mueve stock y no cambia automaticamente el estado del trabajo o servicio.
+- La migracion `20260813180000_technician_daily_board.sql` agrega el estado diario con unicidad por empresa, tecnico y fecha, validacion cruzada de empresa y RLS basada en permisos de Tecnicos.
+
 La vista `/technicians` incluye la tab **Control de materiales** para cierre operativo de servicios. Es un informe de solo lectura sobre remitos y devoluciones vinculados a tecnicos; no representa deuda, cobranza ni cuenta corriente del tecnico.
 
 - Los tecnicos tienen estado **Activo/Inactivo**. Los inactivos se mantienen visibles en reportes historicos, pero no aparecen como opcion principal para nuevos remitos o servicios.
@@ -346,6 +362,7 @@ Estado de cuenta lee `account_due_days` del cliente para calcular vencimientos c
 - La importacion PDF permite revisar el documento real junto a las lineas detectadas, navegar paginas y zoom, y confirmar por linea si el costo incluye IVA, no lo incluye o no fue informado.
 - El tratamiento de IVA se conserva en `supplier_catalog_lines.tax_treatment`; las leyendas ambiguas quedan como `UNKNOWN` para evitar recalculos implicitos.
 - La migracion `20260713220000_supplier_catalog_line_tax_treatment.sql` agrega el dato impositivo y lo valida dentro del RPC de importacion, manteniendo los controles de empresa y permisos existentes.
+- La carga de listas ahora valida nombres, precios y monedas antes de confirmar, advierte codigos de proveedor repetidos y muestra la cantidad exacta a importar. La migracion `20260813133000_supplier_catalog_import_atomic.sql` guarda documento, version y lineas en una unica transaccion, conserva presentacion/IVA/precio de referencia y evita documentos huerfanos ante un error.
 - Abastecimiento incluye comparacion de ofertas y ordenes de compra persistidas. La confirmacion de una orden no genera por si sola movimientos de stock, Caja ni cuenta corriente.
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
@@ -1330,6 +1347,43 @@ git pull origin staging
 
 ## Operational UX remediation
 
+### Diagnostico de margenes de listas (agosto 2026)
+
+- Las listas distinguen el recargo sobre costo configurado del margen bruto real sobre venta neta.
+- El margen bruto descuenta el IVA del precio operativo, incorpora el flete al costo y respeta precios personalizados y el redondeo operativo de la empresa.
+- El detalle resume margen promedio, productos bajo el objetivo, perdidas y productos sin costo o precio evaluable en una fila compacta; la explicacion ampliada se despliega solo cuando se necesita para no quitar espacio al listado. Es informativo: no modifica precios automaticamente.
+- No requiere migraciones ni servicios externos.
+
+### Reposicion sugerida por proveedor (agosto 2026)
+
+- El catalogo activo del proveedor propone reposicion para 30 dias usando exclusivamente salidas reales de stock; los remitos emitidos ya alimentan esos movimientos y una venta asociada no se cuenta por separado.
+- Solo se recomiendan renglones vinculados expresamente a un item o con coincidencia exacta y unica por SKU o nombre. Los productos sin rotacion comprobada y las coincidencias ambiguas quedan fuera.
+- Cada sugerencia muestra stock, salida mensual, cobertura y cantidad editable al incorporarla al pedido. Es una ayuda de preparacion: no genera orden, movimiento ni compra sin confirmacion del usuario.
+
+### Consulta rápida de precios (agosto 2026)
+
+- Un boton flotante en la esquina inferior derecha permite abrir la consulta rápida desde cualquier pantalla de la aplicación, elegir una lista y buscar productos por código, nombre, marca, modelo o atributos.
+- La respuesta muestra precio operativo, origen del precio, stock actual y estado de recálculo, sin modificar costos ni listas.
+- La lista elegida se recuerda por usuario y empresa para evitar mezclar preferencias entre compañías.
+- Cada empresa puede habilitar u ocultar el acceso flotante desde Configuración. La migración `20260814120000_quick_price_floating_setting.sql` incorpora la preferencia con valor inicial habilitado y conserva el aislamiento por empresa existente.
+
+### Centro de alertas operativas (agosto 2026)
+
+- La barra superior incorpora una campana por empresa con pendientes reales del dashboard y acceso directo al módulo donde se resuelven.
+- Las categorías se filtran por permisos efectivos de caja, clientes/trabajos, documentos y facturación. Los conteos en cero y alertas masivas sin acción concreta, como ítems sin costo, no generan notificaciones.
+- El centro no persiste estados de “leído”: el indicador representa pendientes actuales y se puede actualizar manualmente sin crear ni modificar operaciones.
+
+### Seguimiento comercial de presupuestos (agosto 2026)
+
+- La campana muestra los presupuestos de servicio enviados que esperan aprobación o rechazo y abre Documentos de Servicios ya filtrado por estado `Enviado`.
+- La alerta se calcula desde el estado real de los presupuestos, respeta `documents.view` y no requiere completar una agenda paralela ni una sección adicional.
+- La vista independiente se retiró de la navegación; su ruta anterior redirige a Documentos de Servicios. No se modifican estados documentales ni se generan movimientos de stock, caja o cuenta corriente.
+
+### Alertas de stock por rotación real (agosto 2026)
+
+- Las alertas de Stock priorizan faltantes con salidas reales registradas y omiten artículos en cero sin rotación. La cobertura se calcula desde movimientos `OUT` (incluidos los generados al emitir remitos), sin depender de la estimación manual de consumo ni duplicar datos de ventas vinculadas.
+- El alta manual de movimientos abre con la indicación de seleccionar un producto y ya no interpreta el evento del botón como un ítem vacío.
+
 ### Documentos y servicios responsive (agosto 2026)
 
 - Documentos y presupuestos de servicio usan tarjetas de acciones en mobile y tablas con ancho controlado en sus vistas previas, evitando columnas y botones superpuestos.
@@ -1358,8 +1412,15 @@ git pull origin staging
 - Los títulos y subtítulos organizan el presupuesto, pero no permiten guardarlo sin al menos un ítem real.
 - Al crear se selecciona el cliente ocasional de la empresa cuando existe; enviar o aprobar exige cliente también en base de datos.
 - La vista previa invalida líneas, adjuntos y eventos después de guardar para mostrar inmediatamente la última versión.
-- La importación de remitos usa extracción visual estructurada en `service-remito-extractor`, orientada a manuscritos y sin reescritura comercial. Requiere desplegar la función y configurar `GEMINI_API_KEY`; el resultado siempre queda editable antes de guardar.
+- La importación de remitos acepta imágenes JPG, PNG y WEBP, además de archivos PDF de hasta 8 MB. Los PDF se contrastan contra una vista renderizada de su primera página para aplicar la misma corrección de OCR y ortografía que a las fotos, sin inventar fragmentos dudosos. Cada trabajo o material independiente se devuelve como un ítem separado; solo se unen renglones cuando son una continuación inequívoca de la misma descripción. Usa extracción visual estructurada en `service-remito-extractor`, orientada a manuscritos y sin reescritura comercial. Requiere desplegar la función y configurar `GEMINI_API_KEY`; el resultado siempre queda editable antes de guardar.
+- Los PDF seleccionados desde Windows se reconocen también por extensión cuando el navegador no informa su tipo MIME; el mensaje de reintento distingue archivos PDF de fotografías.
 - La foto se envía junto con una copia en escala de grises, ampliada y con contraste normalizado; los errores seguros de la función se muestran en lugar del estado HTTP genérico. Títulos y subtítulos quedan alineados con la descripción de los ítems en vista previa e impresión.
 - Los presupuestos de servicio pueden incluir IVA con alícuota editable; subtotal, impuesto y total se calculan y persisten en base de datos. El importador reconoce neto, IVA/ITBMS y total, y títulos/subtítulos admiten negrita y subrayado conservados al duplicar, previsualizar e imprimir.
 - Migración: `20260811193000_service_document_tax_and_section_style.sql`.
 - Migración: `20260811090000_service_document_transition_customer_guard.sql`.
+
+### Radar de mercado (2026-08-13)
+
+- Se retiró de la navegación el radar manual porque no representa el objetivo de analizar de forma orgánica precios, demanda y tendencias externas del rubro; la ruta anterior redirige a Stock.
+- La versión automática queda pendiente de integrar fuentes de Internet verificables, un proveedor de IA/búsqueda, ejecución programada y controles de costo, frecuencia y trazabilidad. La aplicación no presenta señales manuales como si fueran inteligencia de mercado automática.
+- La tabla introducida por `20260813160000_market_watch_signals.sql` se conserva sin uso visible para evitar una eliminación destructiva de esquema; no afecta stock ni genera compras.

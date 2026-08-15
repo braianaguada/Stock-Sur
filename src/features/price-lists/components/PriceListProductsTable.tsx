@@ -11,6 +11,7 @@ import { formatMoney } from "@/features/price-lists/utils";
 import { OperationalPriceDisplay } from "@/features/pricing/OperationalPriceDisplay";
 import { getOperationalPrice } from "@/features/pricing/operational-price";
 import type { PriceRoundingConfig } from "@/features/pricing/rounding";
+import { calculateGrossMargin } from "@/features/price-lists/margin";
 
 type PriceListProductsTableProps = {
   rows: PriceListProductRow[];
@@ -18,10 +19,12 @@ type PriceListProductsTableProps = {
   /** Map item_id → total stock qty */
   stockByItemId?: Map<string, number>;
   priceRoundingConfig?: PriceRoundingConfig | null;
+  freightPct?: number;
+  taxPct?: number;
   onEditProductOverride?: (row: PriceListProductRow) => void;
 };
 
-export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, priceRoundingConfig, onEditProductOverride }: PriceListProductsTableProps) {
+export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, priceRoundingConfig, freightPct = 0, taxPct = 0, onEditProductOverride }: PriceListProductsTableProps) {
   const showAttributesInline = columnVisibility.attributes === false;
 
   const columns = useMemo<ColumnDef<PriceListProductRow, unknown>[]>(() => [
@@ -113,7 +116,7 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, 
     },
     {
       id: "estimated_margin",
-      header: () => <div className="text-right">Margen est.</div>,
+      header: () => <div className="text-right">Margen bruto</div>,
       cell: ({ row }) => {
         const operationalPrice = getOperationalPrice({
           calculatedPrice: row.original.calculated_price,
@@ -121,8 +124,12 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, 
           manualPriceEnabled: row.original.manual_price_enabled,
           config: priceRoundingConfig,
         });
-        const baseCost = Number(row.original.base_cost) || 0;
-        const margin = baseCost > 0 ? ((operationalPrice.price - baseCost) / baseCost) * 100 : null;
+        const margin = calculateGrossMargin({
+          baseCost: Number(row.original.base_cost),
+          grossPrice: operationalPrice.price,
+          freightPct,
+          taxPct,
+        });
         return (
           <div className="text-right font-mono text-xs">
             {margin === null ? "-" : `${margin.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%`}
@@ -159,7 +166,7 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, 
         className: "w-[110px]",
       },
     },
-  ], [onEditProductOverride, priceRoundingConfig, showAttributesInline, stockByItemId]);
+  ], [freightPct, onEditProductOverride, priceRoundingConfig, showAttributesInline, stockByItemId, taxPct]);
 
   return (
     <DataTable

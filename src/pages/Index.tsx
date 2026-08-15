@@ -12,6 +12,7 @@ import { DashboardHero } from "@/features/index/components/DashboardHero";
 import { DashboardHighlights } from "@/features/index/components/DashboardHighlights";
 import { DashboardPeriodInsights } from "@/features/index/components/DashboardPeriodInsights";
 import { DashboardLoading } from "@/features/index/components/DashboardLoading";
+import { DashboardOperationalPulse } from "@/features/index/components/DashboardOperationalPulse";
 import { OperationalAttention } from "@/features/index/components/OperationalAttention";
 import type { DashboardInsights } from "@/features/index/dashboard-insights";
 import { useDashboardAiSummary } from "@/features/index/hooks/useDashboardAiSummary";
@@ -91,7 +92,10 @@ export default function Dashboard() {
                   <div className="min-w-0 xl:col-span-8"><DashboardHero key={currentCompany.id} dashboard={dashboard} /></div>
                   <div className="min-w-0 xl:col-span-4"><OperationalAttention actions={dashboard.actions} /></div>
                 </div>
-                <DashboardHighlights dashboard={dashboard} />
+                <div className="mt-5 grid gap-5 xl:grid-cols-12">
+                  <div className="min-w-0 xl:col-span-8"><DashboardOperationalPulse dashboard={dashboard} /></div>
+                  <div className="min-w-0 xl:col-span-4"><DashboardHighlights dashboard={dashboard} /></div>
+                </div>
                 <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
                   <div><h2 className="text-lg font-semibold">Análisis por período</h2><p className="text-sm text-muted-foreground">Ventas, costos, ganancia y productos del intervalo seleccionado.</p></div>
                   <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Período del análisis">

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serviceRemitoExtractionPrompt } from "./prompt.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -35,22 +36,12 @@ Deno.serve(async (req) => {
     const mimeType = typeof body.mimeType === "string" ? body.mimeType : "";
     const imageBase64 = typeof body.imageBase64 === "string" ? body.imageBase64 : "";
     const enhancedImageBase64 = typeof body.enhancedImageBase64 === "string" ? body.enhancedImageBase64 : "";
-    if (!companyId || !["image/jpeg", "image/png", "image/webp"].includes(mimeType) || !imageBase64) return json({ error: "La imagen o la empresa no son validas." }, 400);
+    if (!companyId || !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(mimeType) || !imageBase64) return json({ error: "El archivo o la empresa no son validos." }, 400);
     const { data: membership, error: membershipError } = await client.from("company_users").select("id, companies!inner(id)").eq("company_id", companyId).eq("user_id", user.id).eq("status", "ACTIVE").eq("companies.status", "ACTIVE").maybeSingle();
     if (membershipError) throw membershipError;
     if (!membership) return json({ error: "No tenes acceso activo a esta empresa." }, 403);
 
-    const prompt = [
-      "Extrae datos del remito fotografiado. Es transcripcion estructurada, no redaccion comercial.",
-      "Lee escritura manuscrita cuando sea posible y une renglones consecutivos de una misma descripcion.",
-      "Ignora membretes, etiquetas impresas, sellos, firmas, identificacion fiscal, telefono y ruido visual.",
-      "No inventes palabras dudosas: omitelas y agrega una advertencia.",
-      "reference lleva solo el numero visible con prefijo Remito; issueDate usa YYYY-MM-DD o queda vacia.",
-      "Crea items solo con trabajos o materiales. No conviertas cada renglon visual en un item.",
-      "Extrae precios por item si existen. Si solo hay total final, usa globalTotal y unitPrice 0.",
-      "Si hay subtotal/neto e IVA/ITBMS/impuesto, extrae netTotal, taxRate y taxTotal; globalTotal es el total final con impuesto. Usa 0 cuando un campo no exista.",
-      "Devuelve exclusivamente el JSON solicitado.",
-    ].join("\n");
+    const prompt = serviceRemitoExtractionPrompt;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
     let response: Response;
@@ -58,7 +49,7 @@ Deno.serve(async (req) => {
       response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contents: [{ role: "user", parts: [
-          { text: enhancedImageBase64 ? `${prompt}\nSe adjuntan la foto original y una copia mejorada en contraste. Comparalas y conserva solo datos respaldados por ambas.` : prompt },
+          { text: enhancedImageBase64 ? `${prompt}\nSe adjuntan el archivo original y una vista visual mejorada en contraste. Comparalas, aplica el mismo criterio de correccion a ambos formatos y conserva solo datos respaldados por el documento.` : prompt },
           { inlineData: { mimeType, data: imageBase64 } },
           ...(enhancedImageBase64 ? [{ inlineData: { mimeType: "image/jpeg", data: enhancedImageBase64 } }] : []),
         ] }], generationConfig: { temperature: 0, responseMimeType: "application/json", responseSchema } }),

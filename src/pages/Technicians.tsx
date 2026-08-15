@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { TechnicianFormDialog } from "@/features/technicians/components/TechnicianFormDialog";
+import { TechnicianDailyBoard } from "@/features/technicians/components/TechnicianDailyBoard";
 import { useTechnicianMaterialControl, getDefaultMaterialControlState, getRangeDates, type TechnicianMaterialControlState } from "@/features/technicians/hooks/useTechnicianMaterialControl";
 import { useTechniciansPage } from "@/features/technicians/hooks/useTechniciansPage";
 import type { MaterialSummaryRow, TechnicianMaterialSummary } from "@/features/technicians/materialControl";
@@ -27,6 +28,7 @@ import { formatBusinessDate } from "@/lib/formatters";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 
 const MAIN_TABS = [
+  { label: "Tablero diario", value: "daily" },
   { label: "Tecnicos", value: "technicians" },
   { label: "Control de materiales", value: "materials" },
 ];
@@ -99,7 +101,7 @@ export default function TechniciansPage() {
   const { currentCompany, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("technicians");
+  const [activeTab, setActiveTab] = useState("daily");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [technicianToDelete, setTechnicianToDelete] = useState<Technician | null>(null);
@@ -238,18 +240,25 @@ export default function TechniciansPage() {
               <Button onClick={openCreate}>
                 <Plus className="mr-2 h-4 w-4" /> Nuevo tecnico
               </Button>
-            ) : (
+            ) : activeTab === "materials" ? (
               <div className="flex flex-wrap items-center gap-2">
                 <InfoBadge>{RANGE_LABELS[controlState.range]}</InfoBadge>
                 <Button variant="outline" onClick={printMovements}>
                   <Printer className="mr-2 h-4 w-4" /> Imprimir movimientos
                 </Button>
               </div>
-            )
+            ) : null
           }
         />
 
-        {activeTab === "technicians" ? (
+        {activeTab === "daily" ? (
+          <TechnicianDailyBoard
+            companyId={currentCompany?.id}
+            userId={user?.id}
+            toast={toast}
+            onOpenService={(serviceId) => openService(serviceId)}
+          />
+        ) : activeTab === "technicians" ? (
           <div className="grid gap-4">
             <FilterToolbar>
               <div className="relative w-full md:max-w-sm">

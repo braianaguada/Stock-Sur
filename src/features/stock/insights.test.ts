@@ -51,6 +51,25 @@ describe("stock insights", () => {
     expect(insights[1]?.kind).toBe("LOW_COVERAGE");
   });
 
+  it("suppresses stockout alerts for items without actual outbound movement", () => {
+    const insights = buildStockInsights([
+      makeRow({
+        item_id: "inactive",
+        item_name: "Repuesto sin rotacion",
+        total: 0,
+        avg_daily_out_30d: 0,
+        avg_daily_out_90d: 0,
+        avg_daily_out_365d: 0,
+        demand_daily: 0,
+        days_of_cover: null,
+        health: "RED",
+        demand_monthly_estimate: 30,
+      }),
+    ]);
+
+    expect(insights).toEqual([]);
+  });
+
   it("detects demand spikes and low rotation overstock", () => {
     const insights = buildStockInsights([
       makeRow({

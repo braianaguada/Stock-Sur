@@ -109,8 +109,9 @@ export function addCatalogLineToOrder(
   orderItems: Record<string, OrderLine>,
   lineQuantities: Record<string, number>,
   line: CatalogLine,
+  explicitQuantity?: number,
 ) {
-  const quantityToAdd = Math.max(1, Math.trunc(lineQuantities[line.id] ?? 1));
+  const quantityToAdd = Math.max(1, Math.trunc(explicitQuantity ?? lineQuantities[line.id] ?? 1));
   const current = orderItems[line.id];
   const quantity = current ? current.quantity + quantityToAdd : quantityToAdd;
 

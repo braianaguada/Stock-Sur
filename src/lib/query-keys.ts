@@ -123,6 +123,8 @@ export const queryKeys = {
       ["documents", "cash-usage", companyId ?? "no-company"] as const,
     cashClosure: (companyId: string | null, businessDate: string | null) =>
       ["documents", "cash-closure", companyId ?? "no-company", businessDate ?? "no-date"] as const,
+    budgetFollowUps: (companyId: string | null) =>
+      ["documents", "budget-follow-ups", companyId ?? "no-company"] as const,
   },
   combos: {
     list: (companyId: string | null) => ["product-combos", companyId ?? "no-company"] as const,
@@ -171,6 +173,8 @@ export const queryKeys = {
   },
   technicians: {
     company: (companyId: string | null) => ["technicians", companyId ?? "no-company"] as const,
+    dailyBoard: (companyId: string | null) =>
+      ["technicians", companyId ?? "no-company", "daily-board-current"] as const,
     list: (
       companyId: string | null,
       search: string,
@@ -201,6 +205,11 @@ export const queryKeys = {
     allMovements: () => ["stock-movements"] as const,
     allRecentItems: () => ["stock-recent-items"] as const,
     allItemSearch: () => ["stock-item-search"] as const,
+  },
+  marketRadar: {
+    trends: (companyId: string | null) => ["market-radar", "trends", companyId ?? "no-company"] as const,
+    signals: (companyId: string | null) => ["market-radar", "signals", companyId ?? "no-company"] as const,
+    items: (companyId: string | null) => ["market-radar", "items", companyId ?? "no-company"] as const,
   },
   pricing: {
     catalogItems: (companyId: string | null) => ["pricing-catalog-items", companyId ?? "no-company"] as const,
@@ -240,8 +249,10 @@ export const queryKeys = {
     catalogVersionsAll: () => ["supplier-catalog-versions"] as const,
     catalogLines: (companyId: string | null, versionId: string | null, search: string) =>
       ["supplier-catalog-lines", companyId ?? "no-company", versionId, search] as const,
-    catalogLinesVersion: (companyId: string | null, versionId: string | null) =>
-      ["supplier-catalog-lines", companyId ?? "no-company", versionId] as const,
+      catalogLinesVersion: (companyId: string | null, versionId: string | null) =>
+        ["supplier-catalog-lines", companyId ?? "no-company", versionId] as const,
+      reorderSuggestions: (companyId: string | null, versionId: string | null) =>
+        ["supplier-reorder-suggestions", companyId ?? "no-company", versionId ?? "no-version"] as const,
     catalogLinesAll: () => ["supplier-catalog-lines"] as const,
   },
 };

@@ -57,6 +57,21 @@ export interface PriceListProductRow {
   last_calculated_by: string | null;
 }
 
+export interface PriceListSnapshot {
+  price_list_id: string;
+  item_id: string;
+  base_cost: number;
+  calculated_price: number;
+  final_price_override: number | null;
+  manual_price_enabled: boolean;
+  manual_price_note: string | null;
+  manual_price_updated_at: string | null;
+  manual_price_updated_by: string | null;
+  needs_recalculation: boolean;
+  last_calculated_at: string | null;
+  last_calculated_by: string | null;
+}
+
 export interface PriceListHistoryRow {
   id: string;
   event_type: string;

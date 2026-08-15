@@ -1,4 +1,4 @@
-import { Copy, Mail, MessageCircle, Search, Upload } from "lucide-react";
+import { Copy, Mail, MessageCircle, PackagePlus, Search, Upload } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { CountBadge, InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import type {
   Supplier,
   SupplierCatalog,
   SupplierCatalogVersion,
+  SupplierReorderSuggestion,
 } from "@/features/suppliers/types";
 import { formatDateTime } from "@/lib/formatters";
 
@@ -56,7 +57,10 @@ type SupplierCatalogDialogProps = {
   activeCatalogLines: CatalogLine[];
   lineQuantities: Record<string, number>;
   onLineQuantityChange: (lineId: string, value: string) => void;
-  onAddToOrder: (line: CatalogLine) => void;
+  onAddToOrder: (line: CatalogLine, quantity?: number) => void;
+  reorderSuggestions: SupplierReorderSuggestion[];
+  isReorderSuggestionsLoading: boolean;
+  onAddReorderSuggestions: (suggestions: SupplierReorderSuggestion[]) => void;
   onViewPurchaseOrder: (orderId: string) => void;
   onGoToPurchaseOrders: () => void;
   orderLines: OrderLine[];
@@ -121,6 +125,9 @@ export function SupplierCatalogDialog({
   lineQuantities,
   onLineQuantityChange,
   onAddToOrder,
+  reorderSuggestions,
+  isReorderSuggestionsLoading,
+  onAddReorderSuggestions,
   onViewPurchaseOrder,
   onGoToPurchaseOrders,
   orderLines,
@@ -381,6 +388,59 @@ export function SupplierCatalogDialog({
                       ) : null}
                     </div>
                   </div>
+                  {activeVersionId ? (
+                    <div className="rounded-xl border bg-muted/20 p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 text-sm font-medium">
+                            <PackagePlus className="h-4 w-4" />
+                            Reposicion sugerida
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Cobertura objetivo de 30 dias segun salidas reales. Solo usa vinculos confirmados o coincidencias exactas y unicas.
+                          </p>
+                        </div>
+                        {reorderSuggestions.length > 0 ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onAddReorderSuggestions(reorderSuggestions)}
+                          >
+                            Agregar las {reorderSuggestions.length}
+                          </Button>
+                        ) : null}
+                      </div>
+                      <div className="mt-3 max-h-44 space-y-2 overflow-y-auto">
+                        {isReorderSuggestionsLoading ? (
+                          <div className="text-sm text-muted-foreground">Calculando con movimientos de stock...</div>
+                        ) : reorderSuggestions.length === 0 ? (
+                          <div className="text-sm text-muted-foreground">
+                            No hay faltantes con rotacion comprobada que puedan vincularse de forma segura a esta lista.
+                          </div>
+                        ) : reorderSuggestions.map((suggestion) => (
+                          <div key={suggestion.line.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background p-2.5">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium">{suggestion.itemName}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {suggestion.itemSku || "Sin SKU"} · stock {suggestion.stock.toLocaleString("es-AR")} · salida mensual {suggestion.averageMonthlyOut.toLocaleString("es-AR", { maximumFractionDigits: 1 })} · cobertura {suggestion.daysOfCover.toLocaleString("es-AR", { maximumFractionDigits: 0 })} dias
+                              </div>
+                              <div className="mt-1 text-[11px] text-muted-foreground">
+                                Vinculo: {suggestion.matchReason === "CONFIRMED" ? "confirmado" : suggestion.matchReason === "SKU" ? "SKU exacto" : "nombre exacto"}
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => onAddToOrder(suggestion.line, suggestion.suggestedQuantity)}
+                            >
+                              Agregar {suggestion.suggestedQuantity}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                   <FilterToolbar className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input

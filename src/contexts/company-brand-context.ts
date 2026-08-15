@@ -28,6 +28,7 @@ export interface CompanySettings {
   auto_close_cash_time: string | null;
   price_rounding_enabled: boolean;
   price_rounding_increment: number | null;
+  quick_price_floating_enabled: boolean;
 }
 
 export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
@@ -58,6 +59,7 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   auto_close_cash_time: null,
   price_rounding_enabled: false,
   price_rounding_increment: null,
+  quick_price_floating_enabled: true,
 };
 
 interface CompanyBrandContextValue {
