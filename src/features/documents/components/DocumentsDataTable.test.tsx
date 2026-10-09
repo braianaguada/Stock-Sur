@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DocumentsDataTable } from "./DocumentsDataTable";
@@ -136,8 +136,30 @@ describe("DocumentsDataTable cash registration", () => {
     renderTable([emittedRemito], { cashRegisteredDocumentIds: new Set([emittedRemito.id]) });
 
     fireEvent.click(screen.getByRole("button", { name: /acciones/i }));
-    expect(screen.getByText("Registrado en Caja")).toBeVisible();
+    expect(within(screen.getByRole("dialog")).getByText("Registrado en Caja")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
+  });
+
+  it.each([true, false])("shows the cash mark in both layouts without opening actions (create permission: %s)", (canRegisterInCash) => {
+    renderTable([emittedRemito], {
+      cashRegisteredDocumentIds: new Set([emittedRemito.id]),
+      canRegisterInCash,
+    });
+    expect(screen.getAllByText("Registrado en Caja")).toHaveLength(2);
+    expect(within(screen.getByRole("table")).getByText("Registrado en Caja")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { ...emittedRemito, id: "unregistered" },
+    { ...emittedRemito, status: "ANULADO" as const },
+    { ...emittedRemito, status: "BORRADOR" as const },
+    { ...emittedRemito, doc_type: "PRESUPUESTO" as const },
+    { ...emittedRemito, doc_type: "REMITO_DEVOLUCION" as const },
+  ])("does not mark ineligible documents: $id / $doc_type / $status", (document) => {
+    renderTable([document], { cashRegisteredDocumentIds: new Set([emittedRemito.id]) });
+    expect(screen.queryByText("Registrado en Caja")).not.toBeInTheDocument();
   });
 
   it("hides the action without cash.create permission", () => {

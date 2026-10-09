@@ -1,5 +1,11 @@
 # Stock Sur
 
+## Marca de registro en Caja en Documentos
+
+- Los remitos emitidos registrados en Caja muestran la marca en la columna Estado y en la tarjeta mobile, sin abrir Mas acciones. Visible tambien sin permiso de crear ventas.
+- Cambio de presentacion; sin migraciones ni cambios en movimientos, permisos o consultas. Tests de regresion para ambas vistas y documentos no elegibles.
+- QA visual autenticada pendiente en staging: consultar un remito ya registrado y otro sin registrar, en computadora y celular, sin emitir ni cobrar documentos.
+
 ## Historial completo de Documentos
 
 - El listado y la busqueda recuperan todas las paginas de documentos de la empresa, sin el tope de 300 registros (30 paginas de 10). Se conserva el orden por fecha de creacion con desempate por ID.
