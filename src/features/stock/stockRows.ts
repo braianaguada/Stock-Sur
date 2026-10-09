@@ -36,6 +36,14 @@ export type StockMovementSource = {
   } | null;
 };
 
+export type StockSummarySource = Omit<StockRow, "total" | "avg_daily_out_30d" | "avg_daily_out_90d" | "avg_daily_out_365d" | "demand_daily" | "days_of_cover" | "months_of_cover_low_rotation" | "health" | "low_rotation"> & {
+  total: number;
+  out_30d: number;
+  out_90d: number;
+  out_365d: number;
+  out_month_buckets_12m: number[];
+};
+
 type AccumulatedStockRow = StockRow & {
   out_30d: number;
   out_90d: number;
@@ -84,6 +92,37 @@ function calculateHealth(row: AccumulatedStockRow, daysOfCover: number | null): 
   if (daysOfCover !== null && daysOfCover < redThreshold) return "RED";
   if (daysOfCover !== null && daysOfCover < yellowThreshold) return "YELLOW";
   return "GREEN";
+}
+
+function finalizeStockRows(rowsByItem: Map<string, AccumulatedStockRow>): StockRow[] {
+  return Array.from(rowsByItem.values())
+    .map((row): StockRow => {
+      const avgDailyOut30 = row.out_30d / 30;
+      const avgDailyOut90 = row.out_90d / 90;
+      const avgDailyOut365 = row.out_365d / 365;
+      const demandDaily = Math.max(
+        avgDailyOut365,
+        avgDailyOut30 * 0.5 + avgDailyOut90 * 0.3 + avgDailyOut365 * 0.2,
+      );
+      const monthlyDemand365 = row.out_365d / 12;
+      const monthlyDemand90 = row.out_90d / 3;
+      const daysOfCover = demandDaily > 0 ? row.total / demandDaily : null;
+      const sortedMonthlyDemand = [...row.out_month_buckets_12m].sort((a, b) => a - b);
+      const lowSeasonMonthlyDemand = sortedMonthlyDemand[Math.floor((sortedMonthlyDemand.length - 1) * 0.35)] ?? 0;
+      const lowRotationCandidates = [lowSeasonMonthlyDemand, monthlyDemand365, monthlyDemand90].filter((value) => value > 0);
+      const monthlyDemandLowRotation = lowRotationCandidates.length > 0 ? Math.min(...lowRotationCandidates) : 0;
+      return {
+        item_id: row.item_id, item_name: row.item_name, item_sku: row.item_sku, item_unit: row.item_unit,
+        item_supplier: row.item_supplier, item_brand: row.item_brand, item_model: row.item_model,
+        item_attributes: row.item_attributes, item_category: row.item_category, total: row.total,
+        avg_daily_out_30d: avgDailyOut30, avg_daily_out_90d: avgDailyOut90, avg_daily_out_365d: avgDailyOut365,
+        demand_daily: demandDaily, days_of_cover: daysOfCover,
+        months_of_cover_low_rotation: monthlyDemandLowRotation > 0 ? row.total / monthlyDemandLowRotation : null,
+        health: calculateHealth(row, daysOfCover), low_rotation: row.demand_profile === "LOW",
+        demand_profile: row.demand_profile, demand_monthly_estimate: row.demand_monthly_estimate,
+      };
+    })
+    .sort((a, b) => a.item_name.localeCompare(b.item_name));
 }
 
 export function buildStockRows(
@@ -140,54 +179,18 @@ export function buildStockRows(
     }
   }
 
-  return Array.from(rowsByItem.values())
-    .map((row): StockRow => {
-      const avgDailyOut30 = row.out_30d / 30;
-      const avgDailyOut90 = row.out_90d / 90;
-      const avgDailyOut365 = row.out_365d / 365;
-      const demandDailyAuto = Math.max(
-        avgDailyOut365,
-        avgDailyOut30 * 0.5 + avgDailyOut90 * 0.3 + avgDailyOut365 * 0.2,
-      );
-      const demandDaily = demandDailyAuto;
-      const monthlyDemand365 = row.out_365d / 12;
-      const monthlyDemand90 = row.out_90d / 3;
-      const daysOfCover = demandDaily > 0 ? row.total / demandDaily : null;
-      const sortedMonthlyDemand = [...row.out_month_buckets_12m].sort((a, b) => a - b);
-      const lowSeasonIndex = Math.floor((sortedMonthlyDemand.length - 1) * 0.35);
-      const lowSeasonMonthlyDemand = sortedMonthlyDemand[lowSeasonIndex] ?? 0;
-      const lowRotationCandidates = [
-        lowSeasonMonthlyDemand,
-        monthlyDemand365,
-        monthlyDemand90,
-      ].filter((value) => value > 0);
-      const monthlyDemandLowRotationAuto =
-        lowRotationCandidates.length > 0 ? Math.min(...lowRotationCandidates) : 0;
-      const monthlyDemandLowRotation = monthlyDemandLowRotationAuto;
+  return finalizeStockRows(rowsByItem);
+}
 
-      return {
-        item_id: row.item_id,
-        item_name: row.item_name,
-        item_sku: row.item_sku,
-        item_unit: row.item_unit,
-        item_supplier: row.item_supplier,
-        item_brand: row.item_brand,
-        item_model: row.item_model,
-        item_attributes: row.item_attributes,
-        item_category: row.item_category,
-        total: row.total,
-        avg_daily_out_30d: avgDailyOut30,
-        avg_daily_out_90d: avgDailyOut90,
-        avg_daily_out_365d: avgDailyOut365,
-        demand_daily: demandDaily,
-        days_of_cover: daysOfCover,
-        months_of_cover_low_rotation:
-          monthlyDemandLowRotation > 0 ? row.total / monthlyDemandLowRotation : null,
-        health: calculateHealth(row, daysOfCover),
-        low_rotation: row.demand_profile === "LOW",
-        demand_profile: row.demand_profile,
-        demand_monthly_estimate: row.demand_monthly_estimate,
-      };
-    })
-    .sort((a, b) => a.item_name.localeCompare(b.item_name));
+export function buildStockRowsFromSummary(summaries: StockSummarySource[]): StockRow[] {
+  const rowsByItem = new Map<string, AccumulatedStockRow>();
+  for (const summary of summaries) {
+    rowsByItem.set(summary.item_id, {
+      ...createAccumulatedRow(summary.item_id, summary),
+      total: Number(summary.total),
+      out_30d: Number(summary.out_30d), out_90d: Number(summary.out_90d), out_365d: Number(summary.out_365d),
+      out_month_buckets_12m: summary.out_month_buckets_12m.map(Number),
+    });
+  }
+  return finalizeStockRows(rowsByItem);
 }

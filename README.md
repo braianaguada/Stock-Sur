@@ -1438,3 +1438,8 @@ git pull origin staging
 - Se retir贸 de la navegaci贸n el radar manual porque no representa el objetivo de analizar de forma org谩nica precios, demanda y tendencias externas del rubro; la ruta anterior redirige a Stock.
 - La versi贸n autom谩tica queda pendiente de integrar fuentes de Internet verificables, un proveedor de IA/b煤squeda, ejecuci贸n programada y controles de costo, frecuencia y trazabilidad. La aplicaci贸n no presenta se帽ales manuales como si fueran inteligencia de mercado autom谩tica.
 - La tabla introducida por `20260813160000_market_watch_signals.sql` se conserva sin uso visible para evitar una eliminaci贸n destructiva de esquema; no afecta stock ni genera compras.
+
+### Resumen de stock en staging (2026-10-09)
+
+- Stock e Items consultan el resumen agregado `get_stock_summary` en PostgreSQL, evitando descargar todo el historial de movimientos al navegador.
+- La migraci髇 `20261009120000_stock_summary_rpc.sql` agrega el 韓dice por empresa, 韙em y fecha. Debe aplicarse 鷑icamente en staging durante QA.
