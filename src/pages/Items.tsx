@@ -27,7 +27,6 @@ import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { invalidateItemQueries, invalidatePricingQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
-import { fetchAllPages } from "@/lib/supabase-pagination";
 import { getItemSearchTokens, rankNaturalItemSearch, type ItemSearchAliasRecord } from "@/features/items/search";
 import { type Item, type ItemAlias, type ItemOperationalMeta } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
@@ -328,22 +327,11 @@ export default function ItemsPage() {
     enabled: Boolean(currentCompany),
     staleTime: 60_000,
     queryFn: async () => {
-      const data = await fetchAllPages(() =>
-        supabase
-          .from("stock_movements")
-          .select("item_id, type, quantity")
-          .eq("company_id", currentCompany!.id),
-      );
-
-      const totals = new Map<string, number>();
-      for (const row of data) {
-        const prev = totals.get(row.item_id) ?? 0;
-        const qty = Number(row.quantity);
-        if (row.type === "IN") totals.set(row.item_id, prev + qty);
-        else if (row.type === "OUT") totals.set(row.item_id, prev - qty);
-        else totals.set(row.item_id, prev + qty);
-      }
-      return totals;
+      const { data, error } = await supabase.rpc("get_stock_summary", {
+        p_company_id: currentCompany!.id,
+      });
+      if (error) throw error;
+      return new Map((data ?? []).map((row) => [row.item_id, Number(row.total)]));
     },
   });
 

@@ -7,12 +7,10 @@ import { clearSessionDraft, useSessionDraft } from "@/hooks/use-session-draft";
 import { invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import { isIntegerOnlyStockUnit } from "@/lib/stock-quantity";
-import { fetchAllPages } from "@/lib/supabase-pagination";
 import { matchesNaturalItemSearch } from "@/features/items/search";
 import {
-  buildStockRows,
-  type StockItemSource,
-  type StockMovementSource,
+  buildStockRowsFromSummary,
+  type StockSummarySource,
 } from "@/features/stock/stockRows";
 import type {
   Movement,
@@ -195,25 +193,11 @@ export function useStockPage() {
     queryKey: queryKeys.stock.current(currentCompany?.id ?? null, ""),
     enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const [{ data: items, error: itemsError }, movements] = await Promise.all([
-        supabase
-          .from("items")
-          .select("id, name, sku, unit, supplier, brand, model, attributes, category, demand_profile, demand_monthly_estimate")
-          .eq("company_id", currentCompany!.id)
-          .eq("is_active", true),
-        fetchAllPages(() =>
-          supabase
-            .from("stock_movements")
-            .select("item_id, type, quantity, created_at, items(name, sku, unit, brand, model, attributes, demand_profile, demand_monthly_estimate)")
-            .eq("company_id", currentCompany!.id),
-        ),
-      ]);
-      if (itemsError) throw itemsError;
-
-      return buildStockRows(
-        (items ?? []) as StockItemSource[],
-        movements as StockMovementSource[],
-      );
+      const { data, error } = await supabase.rpc("get_stock_summary", {
+        p_company_id: currentCompany!.id,
+      });
+      if (error) throw error;
+      return buildStockRowsFromSummary((data ?? []) as StockSummarySource[]);
     },
   });
 
