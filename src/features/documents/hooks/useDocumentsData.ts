@@ -243,18 +243,19 @@ export function useDocumentsData({
     queryKey: queryKeys.documents.list(currentCompanyId, trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
-      let q = supabase
-        .from("documents")
-        .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, service_id, origin_document_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
-        .eq("company_id", currentCompanyId!)
-        .order("created_at", { ascending: false });
-      if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
-      if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
-      if (customerFilter !== "ALL") q = q.eq("customer_id", customerFilter);
-      if (technicianFilter !== "ALL") q = q.eq("technician_id", technicianFilter);
-      const { data, error } = await q.limit(300);
-      if (error) throw error;
-      const rows = (data ?? []) as DocRow[];
+      const rows = await fetchAllPages(() => {
+        let q = supabase
+          .from("documents")
+          .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, service_id, origin_document_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
+          .eq("company_id", currentCompanyId!)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false });
+        if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
+        if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
+        if (customerFilter !== "ALL") q = q.eq("customer_id", customerFilter);
+        if (technicianFilter !== "ALL") q = q.eq("technician_id", technicianFilter);
+        return q;
+      }) as DocRow[];
       if (!trimmedSearch) return rows;
       const numberQuery = Number.parseInt(trimmedSearch, 10);
       return rows.filter((document) =>
@@ -356,14 +357,12 @@ export function useDocumentsData({
     queryKey: queryKeys.documents.cashUsage(currentCompanyId),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
-      const { data, error } = await supabase
+      return fetchAllPages(() => supabase
         .from("cash_sales")
         .select("document_id, receipt_kind, receipt_reference")
         .eq("company_id", currentCompanyId!)
         .neq("status", "ANULADA")
-        .limit(2000);
-      if (error) throw error;
-      return data ?? [];
+        .order("id"));
     },
   });
 
