@@ -1,5 +1,13 @@
 # Stock Sur
 
+## Historial completo de Documentos
+
+- El listado y la busqueda recuperan todas las paginas de documentos de la empresa, sin el tope de 300 registros (30 paginas de 10). Se conserva el orden por fecha de creacion con desempate por ID.
+- La consulta de registros en caja tambien recupera todas sus paginas para conservar la identificacion de remitos antiguos ya registrados. No genera movimientos ni modifica documentos.
+- Sin migraciones ni cambios en RLS. Tests de regresion con mas de 1000 documentos y aislamiento por empresa.
+- QA manual pendiente: en staging, con una empresa de prueba con mas de 1000 documentos, navegar mas alla de la pagina 30, buscar un remito antiguo por numero/cliente, verificar filtros y cambiar de empresa. No emitir documentos.
+- Limitacion: la carga inicial crece con el historial; se mantiene la paginacion visual existente.
+
 Los remitos internos exigen tecnico y tipo/motivo interno, no admiten cliente, datos fiscales, condicion de venta ni servicio, y nunca generan cuenta corriente ni comprobantes fiscales. Al emitirse mantienen la salida normal de stock.
 
 Plataforma de gestion comercial y operativa para catalogo, stock, documentos, servicios, caja y facturacion.
