@@ -131,6 +131,9 @@ export function DocumentsDataTable({
           <StatusBadge tone={STATUS_TONE[row.original.status]}>
             {STATUS_LABEL[row.original.status]}
           </StatusBadge>
+          {row.original.doc_type === "REMITO" && row.original.status === "EMITIDO" && cashRegisteredDocumentIds.has(row.original.id) ? (
+            <div><StatusBadge tone="success">Registrado en Caja</StatusBadge></div>
+          ) : null}
           {row.original.doc_type === "REMITO" && row.original.external_invoice_status === "ACTIVE" ? (
             <p className="truncate font-mono text-[11px] text-muted-foreground">
               Factura: {row.original.external_invoice_number}
@@ -323,6 +326,9 @@ export function DocumentsDataTable({
                 <div className="min-w-0"><p className="font-mono text-sm font-semibold">{formatNumber(doc.document_number, doc.point_of_sale)}</p><p className="truncate text-sm text-muted-foreground">{recipient.primaryName}</p></div>
                 <StatusBadge tone={STATUS_TONE[doc.status]}>{STATUS_LABEL[doc.status]}</StatusBadge>
               </div>
+              {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && cashRegisteredDocumentIds.has(doc.id) ? (
+                <StatusBadge tone="success">Registrado en Caja</StatusBadge>
+              ) : null}
               <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-xs text-muted-foreground">Fecha</p><p>{formatBusinessDate(doc.issue_date)}</p></div><div className="text-right"><p className="text-xs text-muted-foreground">Total</p><MoneyCell value={Number(doc.total)} /></div></div>
               <div className="flex flex-wrap justify-end gap-1 border-t border-border/60 pt-3">
                 <RowActionButton label="Ver detalle" tone="view" onClick={() => onOpenDetail(doc.id)}><Eye className="h-4 w-4" /></RowActionButton>
