@@ -254,7 +254,7 @@ export function useDocumentsData({
         if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
         if (customerFilter !== "ALL") q = q.eq("customer_id", customerFilter);
         if (technicianFilter !== "ALL") q = q.eq("technician_id", technicianFilter);
-        return q;
+        return { range: async (from: number, to: number) => await q.range(from, to) };
       }) as DocRow[];
       if (!trimmedSearch) return rows;
       const numberQuery = Number.parseInt(trimmedSearch, 10);
@@ -357,12 +357,15 @@ export function useDocumentsData({
     queryKey: queryKeys.documents.cashUsage(currentCompanyId),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
-      return fetchAllPages(() => supabase
-        .from("cash_sales")
-        .select("document_id, receipt_kind, receipt_reference")
-        .eq("company_id", currentCompanyId!)
-        .neq("status", "ANULADA")
-        .order("id"));
+      return fetchAllPages(() => ({
+        range: async (from: number, to: number) => await supabase
+          .from("cash_sales")
+          .select("document_id, receipt_kind, receipt_reference")
+          .eq("company_id", currentCompanyId!)
+          .neq("status", "ANULADA")
+          .order("id")
+          .range(from, to),
+      }));
     },
   });
 
