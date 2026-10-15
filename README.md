@@ -1,5 +1,7 @@
 # Stock Sur
 
+Formulario de items: codigo, nombre, proveedor, unidad, categoria y descripcion a primera vista; marca, modelo, aliases, demanda y datos fisicos/tecnicos en seccion desplegable. Costos y stock continuan en el asistente existente. Cambio visual sin migraciones.
+
 Unidades: validacion compartida de cantidades en stock y documentos, normalizacion compatible en importacion. Migracion 20261015220000_sale_quantity_validation.sql: controles DB por empresa, unidades enteras y medidas decimales; historicos conservados.
 
 Productos: proveedor asociado por empresa, codigos por proveedor, descripcion completa, caracteristicas estructuradas, notas tecnicas, peso y medidas. Migracion 20261015210000; campos antiguos conservados para importaciones.
