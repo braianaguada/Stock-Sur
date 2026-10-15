@@ -14,6 +14,9 @@ import type { PriceRoundingConfig } from "@/features/pricing/rounding";
 import { calculateGrossMargin } from "@/features/price-lists/margin";
 
 type PriceListProductsTableProps = {
+  isLoading?: boolean;
+  errorMessage?: string;
+  onRetry?: () => void;
   rows: PriceListProductRow[];
   columnVisibility: VisibilityState;
   /** Map item_id → total stock qty */
@@ -24,7 +27,7 @@ type PriceListProductsTableProps = {
   onEditProductOverride?: (row: PriceListProductRow) => void;
 };
 
-export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, priceRoundingConfig, freightPct = 0, taxPct = 0, onEditProductOverride }: PriceListProductsTableProps) {
+export function PriceListProductsTable({ rows, isLoading, errorMessage, onRetry, columnVisibility, stockByItemId, priceRoundingConfig, freightPct = 0, taxPct = 0, onEditProductOverride }: PriceListProductsTableProps) {
   const showAttributesInline = columnVisibility.attributes === false;
 
   const columns = useMemo<ColumnDef<PriceListProductRow, unknown>[]>(() => [
@@ -170,6 +173,7 @@ export function PriceListProductsTable({ rows, columnVisibility, stockByItemId, 
 
   return (
     <DataTable
+        isLoading={isLoading} errorMessage={errorMessage} onRetry={onRetry}
         columns={columns}
         data={rows}
         emptyMessage="No hay productos para mostrar."

@@ -1,5 +1,7 @@
 # Stock Sur
 
+Listas de precios: costos y productos por pagina desde SQL, filtros de stock/busqueda antes de paginar, metricas de la lista en servidor e historial acotado. Migracion 20261015200000 aplicada en staging; QA transaccional: scripts/pricing-pages-qa.sql. Produccion sin cambios.
+
 Numeric product codes: existing alphanumeric codes migrate to company sequences starting at 12440345903; old codes remain searchable aliases. New products get their code atomically on save. Staging migration 20261015190000.
 
 Consulta rapida (staging): busqueda en servidor por empresa y lista, paginas de 30 y stock solo de resultados visibles. Migracion 20261015180000; QA reversible: scripts/quick-prices-qa.sql. Sin cambios en produccion.

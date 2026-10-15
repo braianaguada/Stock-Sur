@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { fetchAllPages } from "@/lib/supabase-pagination";
 import type { VisibilityState } from "@tanstack/react-table";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -33,6 +30,7 @@ import { resolveConsultListIdForQuery } from "@/features/price-lists/lib/consult
 import { resolvePriceListsNavigation, type PersistedPriceListsNavigation } from "@/features/price-lists/lib/navigation";
 import type { PriceListFormState } from "@/features/price-lists/types";
 import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
+import { getErrorMessage } from "@/lib/errors";
 import { formatDateTime } from "@/features/price-lists/utils";
 import { CategoryBadge, InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
@@ -130,34 +128,8 @@ export default function PriceListsPage() {
     [companySettings.price_rounding_enabled, companySettings.price_rounding_increment],
   );
 
-  const stockQuery = useQuery({
-    queryKey: ["items-stock-totals", currentCompany?.id ?? null],
-    enabled: Boolean(currentCompany),
-    staleTime: 60_000,
-    queryFn: async () => {
-      const data = await fetchAllPages(() =>
-        supabase
-          .from("stock_movements")
-          .select("item_id, type, quantity")
-          .eq("company_id", currentCompany!.id),
-      );
-
-      const totals = new Map<string, number>();
-      for (const row of data) {
-        const prev = totals.get(row.item_id) ?? 0;
-        const qty = Number(row.quantity);
-        if (row.type === "IN") totals.set(row.item_id, prev + qty);
-        else if (row.type === "OUT") totals.set(row.item_id, prev - qty);
-        else totals.set(row.item_id, prev + qty);
-      }
-      return totals;
-    },
-  });
-
-  const stockByItemId = useMemo(() => stockQuery.data ?? new Map<string, number>(), [stockQuery.data]);
-
   const {
-    baseRows,
+    itemIdentity, stockByItemId, marginSummary, baseQuery, detailQuery, metricsQuery,
     pagedBaseRows,
     allPriceLists,
     priceLists,
@@ -183,7 +155,7 @@ export default function PriceListsPage() {
     detailPageSize,
     detailSearch,
     listSearch,
-    selectedListId,
+    selectedListId, stockFilter, baseEnabled: moduleTab === "base", detailEnabled: detailDialogOpen, itemIdFromQuery, priceRoundingConfig,
   });
 
   useEffect(() => {
@@ -207,14 +179,14 @@ export default function PriceListsPage() {
       persisted: persistedState,
     });
     const selectedSku = itemIdFromQuery && tabFromQuery === "base"
-      ? baseRows.find((row) => row.item_id === itemIdFromQuery)?.sku
+      ? itemIdentity?.sku
       : null;
 
     setBaseSearch(selectedSku ?? resolved.baseSearch);
     setListSearch(resolved.listSearch);
     setModuleTab(resolved.moduleTab);
     setUiStateHydratedKey(storageKey);
-  }, [baseRows, itemIdFromQuery, storageKey, tabFromQuery]);
+  }, [itemIdentity?.sku, itemIdFromQuery, storageKey, tabFromQuery]);
 
   useEffect(() => {
     if (!storageKey || uiStateHydratedKey !== storageKey || typeof window === "undefined") return;
@@ -541,11 +513,10 @@ export default function PriceListsPage() {
             </Collapsible>
             <Card className="shadow-none">
               <BasePricesTable
-                rows={pagedBaseRows.filter((row) => {
-                  if (stockFilter === "all") return true;
-                  const total = stockByItemId.get(row.item_id) ?? 0;
-                  return stockFilter === "in_stock" ? total > 0 : total <= 0;
-                })}
+                rows={pagedBaseRows}
+                isLoading={baseQuery.isLoading}
+                errorMessage={baseQuery.error ? getErrorMessage(baseQuery.error) : undefined}
+                onRetry={() => void baseQuery.refetch()}
                 isSaving={updateBaseCostMutation.isPending}
                 pageSize={basePageSize}
                 columnVisibility={baseColumnVisibility}
@@ -698,6 +669,10 @@ export default function PriceListsPage() {
         selectedList={selectedList}
         selectedListHistory={selectedListHistory}
         allProducts={selectedListProducts}
+        serverMarginSummary={marginSummary}
+        isLoading={detailQuery.isLoading}
+        errorMessage={detailQuery.error || metricsQuery.error ? getErrorMessage(detailQuery.error ?? metricsQuery.error) : undefined}
+        onRetry={() => { void detailQuery.refetch(); void metricsQuery.refetch(); }}
         pagedProducts={pagedSelectedListProducts}
         detailSearch={detailSearch}
         detailTab={detailTab}
