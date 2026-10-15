@@ -2630,6 +2630,14 @@ export type Database = {
         Args: { p_company_id: string; p_search?: string; p_page?: number; p_page_size?: number }
         Returns: Json
       }
+      list_pricing_items_page: {
+        Args: { p_company_id: string; p_list_id?: string | null; p_search?: string; p_page?: number; p_page_size?: number; p_stock_filter?: string };
+        Returns: Json;
+      };
+      get_price_list_metrics: {
+        Args: { p_company_id: string; p_list_id?: string | null; p_round_enabled?: boolean; p_round_increment?: number };
+        Returns: Json;
+      };
       search_quick_prices: {
         Args: { p_company_id: string; p_price_list_id: string; p_search: string; p_page?: number }
         Returns: Json

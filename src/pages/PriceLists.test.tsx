@@ -8,6 +8,12 @@ const { setSearchParams, recalculateMutate, priceListsData } = vi.hoisted(() => 
   recalculateMutate: vi.fn(),
   priceListsData: {
     baseRows: [],
+    itemIdentity: { id: "item-1", sku: "123456" },
+    stockByItemId: new Map<string, number>(),
+    marginSummary: null,
+    baseQuery: { isLoading: false, error: null, refetch: vi.fn() },
+    detailQuery: { isLoading: false, error: null, refetch: vi.fn() },
+    metricsQuery: { isLoading: false, error: null, refetch: vi.fn() },
     pagedBaseRows: [],
     allPriceLists: [
       {

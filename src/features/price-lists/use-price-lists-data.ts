@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { getErrorMessage } from "@/lib/errors";
 import { invalidatePricingQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
@@ -16,32 +15,14 @@ import type {
   PriceListSummary,
 } from "@/features/price-lists/types";
 import { parseNonNegative } from "@/features/price-lists/utils";
-import { matchesNaturalItemSearch } from "@/features/items/search";
+import type { PriceRoundingConfig } from "@/features/pricing/rounding";
+import type { summarizePriceListMargins } from "@/features/price-lists/margin";
 
-type BaseCatalogRow = {
-  id: string;
-  sku: string | null;
-  name: string;
-  attributes: string | null;
-  brand: string | null;
-  model: string | null;
-  category: string | null;
-  unit: string | null;
-};
-
-type PricingBaseDbRow = {
-  item_id: string;
-  base_cost: number;
-  updated_at: string;
-  updated_by: string | null;
-};
-
-type PricingBaseHistoryDbRow = {
-  item_id: string;
-  previous_base_cost: number;
-  new_base_cost: number;
-  changed_at: string;
-  changed_by: string | null;
+type PricingPageRow = BasePriceRow & PriceListProductRow & { stock: number };
+type PricingPage = { items: PricingPageRow[]; page: number; totalItems: number; totalPages: number };
+type PricingMetrics = {
+ counts: { price_list_id: string; total: number; pending: number }[];
+ marginSummary: ReturnType<typeof summarizePriceListMargins> | null;
 };
 
 type PriceListDbRow = {
@@ -69,6 +50,11 @@ type UsePriceListsDataParams = {
   detailSearch: string;
   listSearch: string;
   selectedListId: string | null;
+  stockFilter: "all" | "in_stock" | "no_stock";
+  baseEnabled: boolean;
+  detailEnabled: boolean;
+  itemIdFromQuery: string | null;
+  priceRoundingConfig: PriceRoundingConfig;
 };
 
 export function usePriceListsData({
@@ -79,7 +65,7 @@ export function usePriceListsData({
   detailPageSize,
   detailSearch,
   listSearch,
-  selectedListId,
+  selectedListId, stockFilter, baseEnabled, detailEnabled, itemIdFromQuery, priceRoundingConfig,
 }: UsePriceListsDataParams) {
   const deferredBaseSearch = useDeferredValue(baseSearch);
   const deferredDetailSearch = useDeferredValue(detailSearch);
@@ -87,49 +73,37 @@ export function usePriceListsData({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: catalogItems = [] } = useQuery({
-    queryKey: queryKeys.pricing.catalogItems(currentCompany?.id ?? null),
-    enabled: Boolean(currentCompany),
+  const companyId = currentCompany?.id ?? null;
+  const loadPage = async (listId: string | null, search: string, page: number, pageSize: number, stock: string) => {
+    const { data, error } = await supabase.rpc("list_pricing_items_page", {
+      p_company_id: companyId!, p_list_id: listId, p_search: search, p_page: page,
+      p_page_size: pageSize, p_stock_filter: stock,
+    });
+    if (error) throw error;
+    return data as unknown as PricingPage;
+  };
+  const baseQuery = useQuery({
+    queryKey: [...queryKeys.pricing.base(companyId), deferredBaseSearch, basePage, basePageSize, stockFilter],
+    enabled: Boolean(companyId && baseEnabled),
+    queryFn: () => loadPage(null, deferredBaseSearch, basePage, basePageSize, stockFilter),
+  });
+  const detailQuery = useQuery({
+    queryKey: [...queryKeys.pricing.listProducts(companyId, selectedListId), deferredDetailSearch, detailPage, detailPageSize],
+    enabled: Boolean(companyId && selectedListId && detailEnabled),
+    queryFn: () => loadPage(selectedListId, deferredDetailSearch, detailPage, detailPageSize, "all"),
+  });
+  const baseRows = useMemo(() => baseQuery.data?.items ?? [], [baseQuery.data]);
+  const selectedListProducts = useMemo(() => detailQuery.data?.items ?? [], [detailQuery.data]);
+  const itemIdentityQuery = useQuery({
+    queryKey: ["pricing-item-identity", companyId, itemIdFromQuery],
+    enabled: Boolean(companyId && itemIdFromQuery),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("items")
-        .select("id, sku, name, attributes, brand, model, category, unit")
-        .eq("company_id", currentCompany!.id)
-        .eq("is_active", true)
-        .order("name")
-        .limit(5000);
+      const { data, error } = await supabase.from("items").select("id,sku").eq("company_id",companyId!).eq("id",itemIdFromQuery!).maybeSingle();
       if (error) throw error;
-      return (data ?? []) as BaseCatalogRow[];
+      return data;
     },
   });
-
-  const { data: pricingBaseRows = [] } = useQuery({
-    queryKey: queryKeys.pricing.base(currentCompany?.id ?? null),
-    enabled: Boolean(currentCompany),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("item_pricing_base")
-        .select("item_id, base_cost, updated_at, updated_by")
-        .eq("company_id", currentCompany!.id);
-      if (error) throw error;
-      return (data ?? []) as PricingBaseDbRow[];
-    },
-  });
-
-  const { data: pricingBaseHistoryRows = [] } = useQuery({
-    queryKey: queryKeys.pricing.baseHistory(currentCompany?.id ?? null),
-    enabled: Boolean(currentCompany),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("item_pricing_base_history")
-        .select("item_id, previous_base_cost, new_base_cost, changed_at, changed_by")
-        .eq("company_id", currentCompany!.id)
-        .order("changed_at", { ascending: false })
-        .limit(5000);
-      if (error) throw error;
-      return (data ?? []) as PricingBaseHistoryDbRow[];
-    },
-  });
+  const stockByItemId = useMemo(() => new Map([...baseRows,...selectedListProducts].map(row => [row.item_id,Number(row.stock)])), [baseRows,selectedListProducts]);
 
   const { data: priceListsRaw = [] } = useQuery({
     queryKey: queryKeys.pricing.lists(currentCompany?.id ?? null),
@@ -145,44 +119,30 @@ export function usePriceListsData({
     },
   });
 
-  const { data: priceListCounts = [] } = useQuery({
-    queryKey: queryKeys.pricing.listCounts(currentCompany?.id ?? null),
-    enabled: Boolean(currentCompany),
+  const metricsQuery = useQuery({
+    queryKey: [...queryKeys.pricing.listCounts(companyId), detailEnabled ? selectedListId : null, priceRoundingConfig],
+    enabled: Boolean(companyId),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("price_list_items")
-        .select("price_list_id, needs_recalculation, is_active")
-        .eq("company_id", currentCompany!.id);
+      const { data, error } = await supabase.rpc("get_price_list_metrics", {
+        p_company_id: companyId!,p_list_id: detailEnabled ? selectedListId : null,
+        p_round_enabled: Boolean(priceRoundingConfig.enabled),p_round_increment: priceRoundingConfig.increment ?? 0,
+      });
       if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const { data: selectedListSnapshots = [] } = useQuery({
-    queryKey: queryKeys.pricing.listProducts(currentCompany?.id ?? null, selectedListId),
-    enabled: Boolean(currentCompany && selectedListId),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("price_list_items")
-        .select("price_list_id, item_id, base_cost, calculated_price, final_price_override, manual_price_enabled, manual_price_note, manual_price_updated_at, manual_price_updated_by, needs_recalculation, last_calculated_at, last_calculated_by")
-        .eq("company_id", currentCompany!.id)
-        .eq("price_list_id", selectedListId!)
-        .eq("is_active", true);
-      if (error) throw error;
-      return (data ?? []) as PriceListSnapshot[];
+      return data as unknown as PricingMetrics;
     },
   });
 
   const { data: allListSnapshots = [] } = useQuery({
-    queryKey: ["price-list-items", currentCompany?.id ?? null],
-    enabled: Boolean(currentCompany),
+    queryKey: ["price-list-items", companyId, itemIdFromQuery],
+    enabled: Boolean(companyId && itemIdFromQuery),
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
         .select("price_list_id, item_id, base_cost, calculated_price, final_price_override, manual_price_enabled, manual_price_note, manual_price_updated_at, manual_price_updated_by, needs_recalculation, last_calculated_at, last_calculated_by")
         .eq("company_id", currentCompany!.id)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .eq("item_id", itemIdFromQuery!);
       if (error) throw error;
       return (data ?? []) as PriceListSnapshot[];
     },
@@ -190,7 +150,7 @@ export function usePriceListsData({
 
   const { data: selectedListHistory = [] } = useQuery({
     queryKey: queryKeys.pricing.listHistory(currentCompany?.id ?? null, selectedListId),
-    enabled: Boolean(currentCompany && selectedListId),
+    enabled: Boolean(currentCompany && selectedListId && detailEnabled),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_history")
@@ -206,20 +166,19 @@ export function usePriceListsData({
 
   const userIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const row of pricingBaseRows) if (row.updated_by) ids.add(row.updated_by);
-    for (const row of pricingBaseHistoryRows) if (row.changed_by) ids.add(row.changed_by);
+    for (const row of baseRows) if (row.updated_by) ids.add(row.updated_by);
     for (const row of priceListsRaw) {
       if (row.created_by) ids.add(row.created_by);
       if (row.updated_by) ids.add(row.updated_by);
       if (row.last_recalculated_by) ids.add(row.last_recalculated_by);
     }
-    for (const row of selectedListSnapshots) if (row.last_calculated_by) ids.add(row.last_calculated_by);
+    for (const row of selectedListProducts) if (row.last_calculated_by) ids.add(row.last_calculated_by);
     for (const row of selectedListHistory) if (row.created_by) ids.add(row.created_by);
     return Array.from(ids);
-  }, [priceListsRaw, pricingBaseHistoryRows, pricingBaseRows, selectedListHistory, selectedListSnapshots]);
+  }, [priceListsRaw, baseRows, selectedListHistory, selectedListProducts]);
 
   const { data: profiles = [] } = useQuery({
-    queryKey: queryKeys.pricing.userProfiles(userIds),
+    queryKey: [...queryKeys.pricing.userProfiles(userIds), companyId],
     enabled: userIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -236,74 +195,7 @@ export function usePriceListsData({
     [profiles],
   );
 
-  const basePricingByItemId = useMemo(
-    () => new Map(pricingBaseRows.map((row) => [row.item_id, row])),
-    [pricingBaseRows],
-  );
-
-  const latestHistoryByItemId = useMemo(() => {
-    const map = new Map<string, PricingBaseHistoryDbRow>();
-    for (const row of pricingBaseHistoryRows) {
-      if (!map.has(row.item_id)) {
-        map.set(row.item_id, row);
-      }
-    }
-    return map;
-  }, [pricingBaseHistoryRows]);
-
-  const baseRows = useMemo<BasePriceRow[]>(() => {
-    return catalogItems.map((item) => {
-      const base = basePricingByItemId.get(item.id);
-      const latestHistory = latestHistoryByItemId.get(item.id);
-      const previousBaseCost = latestHistory?.previous_base_cost ?? null;
-      const currentBaseCost = base?.base_cost ?? 0;
-      const costVariationPct =
-        previousBaseCost !== null && previousBaseCost > 0
-          ? ((currentBaseCost - previousBaseCost) / previousBaseCost) * 100
-          : null;
-
-      return {
-        item_id: item.id,
-        sku: item.sku,
-        name: item.name,
-        attributes: item.attributes,
-        brand: item.brand,
-        model: item.model,
-        category: item.category,
-        unit: item.unit,
-        previous_base_cost: previousBaseCost,
-        base_cost: currentBaseCost,
-        cost_variation_pct: costVariationPct,
-        updated_at: base?.updated_at ?? null,
-        updated_by: base?.updated_by ?? null,
-      };
-    });
-  }, [basePricingByItemId, catalogItems, latestHistoryByItemId]);
-
-  const filteredBaseRows = useMemo(() => {
-    const term = deferredBaseSearch.trim();
-    if (!term) return baseRows;
-
-    return baseRows.filter((row) => matchesNaturalItemSearch({ id: row.item_id, ...row }, term));
-  }, [baseRows, deferredBaseSearch]);
-
-  const basePagination = usePaginationSlice({
-    items: filteredBaseRows,
-    page: basePage,
-    pageSize: basePageSize,
-  });
-
-  const countsByListId = useMemo(() => {
-    const map = new Map<string, { total: number; pending: number }>();
-    for (const row of priceListCounts) {
-      if (!row.is_active) continue;
-      const entry = map.get(row.price_list_id) ?? { total: 0, pending: 0 };
-      entry.total += 1;
-      if (row.needs_recalculation) entry.pending += 1;
-      map.set(row.price_list_id, entry);
-    }
-    return map;
-  }, [priceListCounts]);
+  const countsByListId = useMemo(() => new Map((metricsQuery.data?.counts ?? []).map(row => [row.price_list_id,row])), [metricsQuery.data]);
 
   const allPriceLists = useMemo<PriceListSummary[]>(() => {
     return priceListsRaw
@@ -330,13 +222,8 @@ export function usePriceListsData({
   }, [allPriceLists, listSearch]);
 
   const selectedList = useMemo(
-    () => priceLists.find((priceList) => priceList.id === selectedListId) ?? null,
-    [priceLists, selectedListId],
-  );
-
-  const selectedSnapshotsByItemId = useMemo(
-    () => new Map(selectedListSnapshots.map((row) => [row.item_id, row])),
-    [selectedListSnapshots],
+    () => allPriceLists.find((priceList) => priceList.id === selectedListId) ?? null,
+    [allPriceLists, selectedListId],
   );
 
   const snapshotsByListAndItemId = useMemo(() => {
@@ -348,47 +235,6 @@ export function usePriceListsData({
     }
     return map;
   }, [allListSnapshots]);
-
-  const selectedListProducts = useMemo<PriceListProductRow[]>(() => {
-    return baseRows.map((row) => {
-      const snapshot = selectedSnapshotsByItemId.get(row.item_id);
-      return {
-        item_id: row.item_id,
-        sku: row.sku,
-        name: row.name,
-        attributes: row.attributes,
-        brand: row.brand,
-        model: row.model,
-        category: row.category,
-        unit: row.unit,
-        previous_base_cost: row.previous_base_cost,
-        base_cost: row.base_cost,
-        cost_variation_pct: row.cost_variation_pct,
-        calculated_price: snapshot?.calculated_price ?? 0,
-        final_price_override: snapshot?.final_price_override ?? null,
-        manual_price_enabled: snapshot?.manual_price_enabled ?? false,
-        manual_price_note: snapshot?.manual_price_note ?? null,
-        manual_price_updated_at: snapshot?.manual_price_updated_at ?? null,
-        manual_price_updated_by: snapshot?.manual_price_updated_by ?? null,
-        needs_recalculation: snapshot?.needs_recalculation ?? true,
-        last_calculated_at: snapshot?.last_calculated_at ?? null,
-        last_calculated_by: snapshot?.last_calculated_by ?? null,
-      };
-    });
-  }, [baseRows, selectedSnapshotsByItemId]);
-
-  const filteredSelectedListProducts = useMemo(() => {
-    const term = deferredDetailSearch.trim();
-    if (!term) return selectedListProducts;
-
-    return selectedListProducts.filter((row) => matchesNaturalItemSearch({ id: row.item_id, ...row }, term));
-  }, [deferredDetailSearch, selectedListProducts]);
-
-  const detailPagination = usePaginationSlice({
-    items: filteredSelectedListProducts,
-    page: detailPage,
-    pageSize: detailPageSize,
-  });
 
   const updateBaseCostMutation = useMutation({
     mutationFn: async ({ baseCost, itemId }: { baseCost: number; itemId: string }) => {
@@ -557,7 +403,7 @@ export function usePriceListsData({
 
   return {
     baseRows,
-    pagedBaseRows: basePagination.pagedItems,
+    pagedBaseRows: baseRows,
     allPriceLists,
     priceLists,
     profileNameByUserId,
@@ -565,22 +411,18 @@ export function usePriceListsData({
     selectedList,
     selectedListHistory,
     selectedListProducts,
-    pagedSelectedListProducts: detailPagination.pagedItems,
+    pagedSelectedListProducts: selectedListProducts,
     updateBaseCostMutation,
     createListMutation,
     updateListConfigMutation,
     recalculateMutation,
     updateProductOverrideMutation,
     deleteListMutation,
-    basePagination: {
-      page: basePagination.page,
-      totalItems: filteredBaseRows.length,
-      totalPages: basePagination.totalPages,
-    },
-    detailPagination: {
-      page: detailPagination.page,
-      totalItems: filteredSelectedListProducts.length,
-      totalPages: detailPagination.totalPages,
-    },
+    itemIdentity: itemIdentityQuery.data,
+    stockByItemId,
+    marginSummary: metricsQuery.data?.marginSummary ?? null,
+    baseQuery, detailQuery, metricsQuery,
+    basePagination: { page: baseQuery.data?.page ?? basePage, totalItems: baseQuery.data?.totalItems ?? 0, totalPages: baseQuery.data?.totalPages ?? 1 },
+    detailPagination: { page: detailQuery.data?.page ?? detailPage, totalItems: detailQuery.data?.totalItems ?? 0, totalPages: detailQuery.data?.totalPages ?? 1 },
   };
 }
