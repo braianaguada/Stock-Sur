@@ -1,5 +1,7 @@
 # Stock Sur
 
+Consulta rapida (staging): busqueda en servidor por empresa y lista, paginas de 30 y stock solo de resultados visibles. Migracion 20261015180000; QA reversible: scripts/quick-prices-qa.sql. Sin cambios en produccion.
+
 Stock: resumen de consumo/cobertura en DB sin limite de filas y movimientos paginados al abrir la pesta?a. Migracion 20261015170000; QA transaccional: scripts/stock-pages-qa.sql.
 
 ### Catalogo paginado en staging (2026-10-15)

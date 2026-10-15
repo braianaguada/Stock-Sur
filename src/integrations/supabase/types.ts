@@ -2630,6 +2630,10 @@ export type Database = {
         Args: { p_company_id: string; p_search?: string; p_page?: number; p_page_size?: number }
         Returns: Json
       }
+      search_quick_prices: {
+        Args: { p_company_id: string; p_price_list_id: string; p_search: string; p_page?: number }
+        Returns: Json
+      }
       list_items_page: {
         Args: {
           p_company_id: string
