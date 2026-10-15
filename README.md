@@ -1,5 +1,7 @@
 # Stock Sur
 
+Impresión de órdenes: se corrige el acceso de superadmin sin permiso explícito de proveedores ni membresía local. Migración `20261015230000_superadmin_purchase_order_print.sql`; conserva empresa activa, aislamiento y numeración idempotente. QA: tests del botón y casos DB transaccionales en `criticalDb.test.ts` (requieren conexión staging).
+
 Consulta rápida: acceso flotante circular de 44 px, solo con ícono, nombre accesible y ayuda al pasar el cursor. Mantiene la apertura de la consulta y ocupa menos espacio en escritorio y móvil. Cambio visual sin migraciones.
 
 - Staging: acceso visible "Imprimir órdenes de compra" en Documentos y Compras > Órdenes de compra; dos modelos en blanco por A4. Sin permiso `suppliers.edit`, se muestra la acción deshabilitada con explicación. Sin cambios de base de datos.
