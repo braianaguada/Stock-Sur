@@ -27,13 +27,9 @@ import { cleanText, normalizeAlias } from "@/lib/clean";
 import { deleteByStrategy } from "@/lib/deleteStrategy";
 import { invalidateItemQueries, invalidatePricingQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
-import { getItemSearchTokens, rankNaturalItemSearch, type ItemSearchAliasRecord } from "@/features/items/search";
+import { catalogPageKey, fetchCatalogPage } from "@/features/items/catalog-page";
 import { type Item, type ItemAlias, type ItemOperationalMeta } from "@/features/items/types";
 import { generateItemSku } from "@/features/items/utils";
-import {
-  optimisticallyUpdateDemandProfile,
-  rollbackItemsCatalog,
-} from "@/features/items/catalog-cache";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { Card } from "@/components/ui/card";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
@@ -51,23 +47,6 @@ const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 const NEW_ITEM_DRAFT_KEY = "items:new-item-draft";
 const ITEM_TABLE_COLUMNS_KEY = "items:table-columns";
 
-type PricingBaseRow = {
-  item_id: string;
-  base_cost: number;
-};
-
-type PriceListRow = {
-  id: string;
-  name: string;
-  status: string | null;
-};
-
-type PriceListItemRow = {
-  item_id: string;
-  price_list_id: string;
-  calculated_price: number;
-  is_active: boolean;
-};
 const DEFAULT_ITEM_COLUMN_VISIBILITY: VisibilityState = {
   sku: true,
   name: true,
@@ -102,80 +81,6 @@ const ITEM_COLUMN_OPTIONS: Array<{ id: keyof typeof DEFAULT_ITEM_COLUMN_VISIBILI
   { id: "demand_profile", label: "Demanda" },
   { id: "is_active", label: "Estado" },
 ];
-
-function getNullableSortValue(item: Item, sortBy: ItemSortField) {
-  switch (sortBy) {
-    case "sku":
-      return item.sku;
-    case "name":
-      return item.name;
-    case "supplier":
-      return item.supplier;
-    case "brand":
-      return item.brand;
-    case "model":
-      return item.model;
-    case "attributes":
-      return item.attributes;
-    case "category":
-      return item.category;
-    default:
-      return null;
-  }
-}
-
-function sortItemsByStock(items: Item[], stockByItemId: Map<string, number>, direction: "asc" | "desc") {
-  return [...items].sort((a, b) => {
-    const aStock = stockByItemId.get(a.id) ?? -1;
-    const bStock = stockByItemId.get(b.id) ?? -1;
-    return direction === "asc" ? aStock - bStock : bStock - aStock;
-  });
-}
-
-function compareItemValues(left: Item, right: Item, sortBy: ItemSortField) {
-  const getStringValue = (value: string | null | undefined) => cleanText(value ?? "").toLocaleLowerCase("es");
-  const compareNullableStrings = (leftValue: string | null | undefined, rightValue: string | null | undefined) => {
-    return getStringValue(leftValue).localeCompare(getStringValue(rightValue), "es");
-  };
-
-  switch (sortBy) {
-    case "sku":
-      return compareNullableStrings(left.sku, right.sku);
-    case "name":
-      return compareNullableStrings(left.name, right.name);
-    case "supplier":
-      return compareNullableStrings(left.supplier, right.supplier);
-    case "brand":
-      return compareNullableStrings(left.brand, right.brand);
-    case "model":
-      return compareNullableStrings(left.model, right.model);
-    case "attributes":
-      return compareNullableStrings(left.attributes, right.attributes);
-    case "category":
-      return compareNullableStrings(left.category, right.category);
-    case "is_active":
-      return Number(left.is_active) - Number(right.is_active);
-    case "created_at":
-    default:
-      return compareNullableStrings(left.name, right.name);
-  }
-}
-
-function sortItems(items: Item[], sortBy: ItemSortField, sortDirection: SortDirection) {
-  const direction = sortDirection === "asc" ? 1 : -1;
-  return [...items].sort((left, right) => {
-    const leftNullableValue = getNullableSortValue(left, sortBy);
-    const rightNullableValue = getNullableSortValue(right, sortBy);
-    const leftEmpty = typeof leftNullableValue === "string" ? cleanText(leftNullableValue).length === 0 : leftNullableValue == null;
-    const rightEmpty = typeof rightNullableValue === "string" ? cleanText(rightNullableValue).length === 0 : rightNullableValue == null;
-
-    if (leftEmpty !== rightEmpty) return leftEmpty ? 1 : -1;
-
-    const primary = compareItemValues(left, right, sortBy) * direction;
-    if (primary !== 0) return primary;
-    return left.name.localeCompare(right.name, "es");
-  });
-}
 
 export default function ItemsPage() {
   const { currentCompany, user } = useAuth();
@@ -229,7 +134,7 @@ export default function ItemsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [trimmedSearch, categoryFilter, supplierFilter, statusFilter, stockFilter, pageSize, sortBy, sortDirection]);
+  }, [currentCompany?.id, trimmedSearch, categoryFilter, supplierFilter, statusFilter, stockFilter, pageSize, sortBy, sortDirection]);
 
   useEffect(() => {
     setDraftHydratedKey(null);
@@ -292,157 +197,36 @@ export default function ItemsPage() {
     }));
   }, [columnVisibility, columnsHydrated, itemTableColumnsStorageKey]);
 
-  const itemsCatalogQueryKey = queryKeys.items.catalog(
-    currentCompany?.id ?? null,
-    categoryFilter,
-    statusFilter,
-  );
+  const catalogFilters = {
+    search: trimmedSearch, status: statusFilter, category: categoryFilter,
+    supplier: supplierFilter, stock: stockFilter, sort: sortBy, direction: sortDirection, page, pageSize,
+  };
   const itemsQuery = useQuery({
-    queryKey: itemsCatalogQueryKey,
+    queryKey: catalogPageKey(currentCompany?.id ?? null, catalogFilters),
     enabled: Boolean(currentCompany),
-    queryFn: async () => {
-      let q = supabase
-        .from("items")
-        .select("*")
-        .eq("company_id", currentCompany!.id);
-      if (statusFilter === "active") q = q.eq("is_active", true);
-      if (statusFilter === "inactive") q = q.eq("is_active", false);
-
-      if (categoryFilter !== "all") {
-        q = q.eq("category", categoryFilter);
-      }
-
-      const { data, error } = await q.order("name", {
-        ascending: true,
-        nullsFirst: false,
-      });
-      if (error) throw error;
-      return (data ?? []) as Item[];
-    },
+    queryFn: () => fetchCatalogPage(currentCompany!.id, catalogFilters),
   });
-
-  // Fetch stock totals per item from stock_movements
-  const stockQuery = useQuery({
-    queryKey: ["items-stock-totals", currentCompany?.id ?? null],
-    enabled: Boolean(currentCompany),
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_stock_summary", {
-        p_company_id: currentCompany!.id,
-      });
-      if (error) throw error;
-      return new Map((data ?? []).map((row) => [row.item_id, Number(row.total)]));
-    },
-  });
-
-  const stockByItemId = useMemo(() => stockQuery.data ?? new Map<string, number>(), [stockQuery.data]);
-
-  const pricingBaseQuery = useQuery({
-    queryKey: ["items-operational-pricing-base", currentCompany?.id ?? null],
-    enabled: Boolean(currentCompany),
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("item_pricing_base")
-        .select("item_id, base_cost")
-        .eq("company_id", currentCompany!.id);
-      if (error) throw error;
-      return (data ?? []) as PricingBaseRow[];
-    },
-  });
-
-  const priceListsQuery = useQuery({
-    queryKey: ["items-operational-price-lists", currentCompany?.id ?? null],
-    enabled: Boolean(currentCompany),
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("price_lists")
-        .select("id, name, status")
-        .eq("company_id", currentCompany!.id)
-        .order("name");
-      if (error) throw error;
-      return (data ?? []) as PriceListRow[];
-    },
-  });
-
-  const priceListItemsQuery = useQuery({
-    queryKey: ["items-operational-price-list-items", currentCompany?.id ?? null],
-    enabled: Boolean(currentCompany),
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("price_list_items")
-        .select("item_id, price_list_id, calculated_price, is_active")
-        .eq("company_id", currentCompany!.id)
-        .eq("is_active", true);
-      if (error) throw error;
-      return (data ?? []) as PriceListItemRow[];
-    },
-  });
-
+  useEffect(() => {
+    if (itemsQuery.data && itemsQuery.data.page !== page) setPage(itemsQuery.data.page);
+  }, [itemsQuery.data, page]);
+  useEffect(() => {
+    setSelectedItemIds([]);
+  }, [currentCompany?.id, page, pageSize, trimmedSearch, statusFilter, categoryFilter, supplierFilter, stockFilter]);
+  const stockByItemId = useMemo(() => new Map((itemsQuery.data?.items ?? []).map(item => [item.id, item.stock])), [itemsQuery.data]);
   const operationalMetaByItemId = useMemo(() => {
-    const baseCostByItemId = new Map(
-      (pricingBaseQuery.data ?? []).map((row) => [row.item_id, Number(row.base_cost) || 0]),
-    );
-    const priceListById = new Map((priceListsQuery.data ?? []).map((row) => [row.id, row]));
-    const preferredPriceListIds = (priceListsQuery.data ?? [])
-      .filter((row) => row.status === "UPDATED")
-      .map((row) => row.id);
-    const fallbackPriceListIds = (priceListsQuery.data ?? []).map((row) => row.id);
-    const orderedPriceListIds = preferredPriceListIds.length > 0 ? preferredPriceListIds : fallbackPriceListIds;
-    const priceRowsByItemId = new Map<string, PriceListItemRow[]>();
-
-    for (const row of priceListItemsQuery.data ?? []) {
-      const rows = priceRowsByItemId.get(row.item_id) ?? [];
-      rows.push(row);
-      priceRowsByItemId.set(row.item_id, rows);
-    }
-
     const map = new Map<string, ItemOperationalMeta>();
-    for (const item of itemsQuery.data ?? []) {
-      const baseCost = baseCostByItemId.get(item.id) ?? null;
-      const priceRows = priceRowsByItemId.get(item.id) ?? [];
-      const mainPriceRow =
-        orderedPriceListIds
-          .map((priceListId) => priceRows.find((row) => row.price_list_id === priceListId))
-          .find(Boolean) ?? priceRows[0] ?? null;
-      const mainPriceOriginal = mainPriceRow ? Number(mainPriceRow.calculated_price) || 0 : null;
-      const { operationalPrice: mainPrice } = getOperationalPrice(mainPriceOriginal, priceRoundingConfig);
-      const marginPct =
-        baseCost && baseCost > 0 && mainPrice && mainPrice > 0
-          ? ((mainPrice - baseCost) / mainPrice) * 100
-          : null;
-
+    for (const item of itemsQuery.data?.items ?? []) {
+      const { operationalPrice: mainPrice } = getOperationalPrice(item.main_price_original, priceRoundingConfig);
       map.set(item.id, {
-        stock: stockByItemId.get(item.id) ?? null,
-        base_cost: baseCost,
-        main_price: mainPrice,
-        main_price_original: mainPriceOriginal,
-        main_price_list_name: mainPriceRow ? priceListById.get(mainPriceRow.price_list_id)?.name ?? null : null,
-        margin_pct: marginPct,
+        stock: item.stock, base_cost: item.base_cost, main_price: mainPrice,
+        main_price_original: item.main_price_original, main_price_list_name: item.main_price_list_name,
+        margin_pct: item.base_cost && item.base_cost > 0 && mainPrice && mainPrice > 0
+          ? ((mainPrice - item.base_cost) / mainPrice) * 100 : null,
       });
     }
-
     return map;
-  }, [itemsQuery.data, priceListItemsQuery.data, priceListsQuery.data, priceRoundingConfig, pricingBaseQuery.data, stockByItemId]);
-
-  const stockStats = useMemo(() => {
-    const all = itemsQuery.data ?? [];
-    const stats = {
-      total: all.length,
-      active: all.filter(i => i.is_active).length,
-      noStock: 0,
-      inStock: 0,
-    };
-    all.forEach(item => {
-      if (!item.is_active) return;
-      const s = stockByItemId.get(item.id) ?? 0;
-      if (s <= 0) stats.noStock++;
-      else stats.inStock++;
-    });
-    return stats;
-  }, [itemsQuery.data, stockByItemId]);
+  }, [itemsQuery.data, priceRoundingConfig]);
+  const stockStats = itemsQuery.data?.stats ?? { total: 0, active: 0, inStock: 0, noStock: 0 };
 
   const hasActiveFilters = search.trim().length > 0
     || statusFilter !== "active"
@@ -458,100 +242,14 @@ export default function ItemsPage() {
     setSupplierFilter("all");
   };
 
-  const hasActiveSearch = deferredSearch.trim().length > 0;
-  const aliasesSearchQuery = useQuery({
-    queryKey: queryKeys.items.searchAliases(currentCompany?.id ?? null, trimmedSearch),
-    enabled: Boolean(currentCompany) && hasActiveSearch,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const tokens = getItemSearchTokens(trimmedSearch);
-      let query = supabase
-        .from("item_aliases")
-        .select("item_id, alias, is_supplier_code")
-        .eq("company_id", currentCompany!.id);
-      if (tokens.length > 0) {
-        query = query.or(tokens.map((token) => `alias.ilike.%${token}%`).join(","));
-      }
-      const { data, error } = await query.limit(1000);
-      if (error) throw error;
-      return (data ?? []) as ItemSearchAliasRecord[];
-    },
-  });
-
-  const items = useMemo(() => {
-    const allItems = itemsQuery.data ?? [];
-    const searchTerm = trimmedSearch;
-    const baseItems = searchTerm
-      ? rankNaturalItemSearch({
-        items: allItems,
-        aliases: aliasesSearchQuery.data ?? [],
-        query: searchTerm,
-      })
-      : allItems;
-
-    let sorted = sortBy === "stock"
-      ? sortItemsByStock(baseItems, stockByItemId, sortDirection)
-      : sortItems(baseItems, sortBy, sortDirection);
-
-    // Apply supplier filter
-    if (supplierFilter !== "all") {
-      sorted = sorted.filter((item) => (item.supplier ?? "") === supplierFilter);
-    }
-
-    // Apply stock filter
-    if (stockFilter === "no_stock") {
-      sorted = sorted.filter((item) => {
-        const s = stockByItemId.get(item.id);
-        return s === undefined || s <= 0;
-      });
-    } else if (stockFilter === "in_stock") {
-      sorted = sorted.filter((item) => {
-        const s = stockByItemId.get(item.id);
-        return s !== undefined && s > 0;
-      });
-    }
-
-    return sorted;
-  }, [aliasesSearchQuery.data, itemsQuery.data, sortBy, sortDirection, stockByItemId, supplierFilter, stockFilter, trimmedSearch]);
-
-  const totalItems = items.length;
-  const paginatedItems = useMemo(() => {
-    const from = (page - 1) * pageSize;
-    return items.slice(from, from + pageSize);
-  }, [items, page, pageSize]);
   const isSearchSyncing = search.trim() !== deferredSearch.trim();
-  const shouldHideResults =
-    isSearchSyncing ||
-    itemsQuery.isLoading ||
-    stockQuery.isLoading ||
-    pricingBaseQuery.isLoading ||
-    priceListsQuery.isLoading ||
-    priceListItemsQuery.isLoading ||
-    (hasActiveSearch && aliasesSearchQuery.isLoading);
-  const visibleItems = shouldHideResults ? [] : paginatedItems;
-  const visibleTotalItems = shouldHideResults ? 0 : totalItems;
+  const shouldHideResults = isSearchSyncing || itemsQuery.isLoading;
+  const visibleItems = shouldHideResults ? [] : itemsQuery.data?.items ?? [];
+  const visibleTotalItems = shouldHideResults ? 0 : itemsQuery.data?.total ?? 0;
   const visibleTotalPages = Math.max(1, Math.ceil(visibleTotalItems / pageSize));
   const isLoading = shouldHideResults;
-
-  const { data: categories = [] } = useQuery({
-    queryKey: queryKeys.items.categories(currentCompany?.id ?? null, statusFilter),
-    enabled: Boolean(currentCompany),
-    queryFn: async () => {
-      let q = supabase.from("items").select("category").eq("company_id", currentCompany!.id).not("category", "is", null);
-      if (statusFilter === "active") q = q.eq("is_active", true);
-      if (statusFilter === "inactive") q = q.eq("is_active", false);
-      const { data, error } = await q;
-      if (error) throw error;
-
-      return Array.from(new Set((data ?? []).map((item) => item.category).filter(Boolean))) as string[];
-    },
-  });
-
-  // Unique supplier list derived from current filtered-less item list
-  const suppliers = useMemo(() => {
-    const all = itemsQuery.data ?? [];
-    return Array.from(new Set(all.map((i) => i.supplier).filter(Boolean))) as string[];
-  }, [itemsQuery.data]);
+  const categories = itemsQuery.data?.categories ?? [];
+  const suppliers = itemsQuery.data?.suppliers ?? [];
 
   const { data: aliases = [] } = useQuery({
     queryKey: aliasQueryKey,
@@ -559,7 +257,7 @@ export default function ItemsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("item_aliases")
-        .select("*")
+        .select("id, company_id, item_id, alias, is_supplier_code, created_at")
         .eq("company_id", currentCompany!.id)
         .eq("item_id", editingItem!.id)
         .order("created_at");
@@ -653,22 +351,6 @@ export default function ItemsPage() {
     },
     onSuccess: async (savedItem) => {
       const wasCreating = !editingItem;
-      if (currentCompany) {
-        const currentCatalogKey = queryKeys.items.catalog(currentCompany.id, categoryFilter, statusFilter);
-        qc.setQueryData<Item[]>(currentCatalogKey, (current = []) => {
-          const matchesStatus =
-            statusFilter === "all" ||
-            (statusFilter === "active" && savedItem.is_active) ||
-            (statusFilter === "inactive" && !savedItem.is_active);
-          const matchesCategory = categoryFilter === "all" || savedItem.category === categoryFilter;
-          const shouldInclude = matchesStatus && matchesCategory;
-          const withoutSavedItem = current.filter((item) => item.id !== savedItem.id);
-
-          if (!shouldInclude) return withoutSavedItem;
-          return sortItems([...withoutSavedItem, savedItem], sortBy, sortDirection);
-        });
-      }
-
       await Promise.all([invalidateItemQueries(qc), invalidateStockQueries(qc), invalidatePricingQueries(qc)]);
       if (newItemDraftStorageKey && !editingItem) {
         sessionStorage.removeItem(newItemDraftStorageKey);
@@ -761,20 +443,12 @@ export default function ItemsPage() {
         .in("id", selectedItemIds);
       if (error) throw error;
     },
-    onMutate: () =>
-      optimisticallyUpdateDemandProfile(
-        qc,
-        itemsCatalogQueryKey,
-        selectedItemIds,
-        bulkDemandProfile,
-      ),
-    onSuccess: async (_, __, snapshot) => {
-      await qc.invalidateQueries({ queryKey: snapshot.queryKey, exact: true });
+    onSuccess: async () => {
+      await invalidateItemQueries(qc);
       setSelectedItemIds([]);
       toast({ title: "Tipo de demanda actualizado" });
     },
-    onError: (e: Error, _, snapshot) => {
-      rollbackItemsCatalog(qc, snapshot);
+    onError: (e: Error) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     },
   });
@@ -785,7 +459,7 @@ export default function ItemsPage() {
       // Filter only selected items that have stock <= 0 or not registered
       const toDeactivate = selectedItemIds.filter((id) => {
         const s = stockByItemId.get(id);
-        return s === undefined || s <= 0;
+        return s !== undefined && s <= 0;
       });
       if (toDeactivate.length === 0) throw new Error("Ninguno de los seleccionados tiene stock = 0");
       const { error } = await supabase
@@ -809,7 +483,7 @@ export default function ItemsPage() {
 
   const noStockSelectedCount = selectedItemIds.filter((id) => {
     const s = stockByItemId.get(id);
-    return s === undefined || s <= 0;
+    return s !== undefined && s <= 0;
   }).length;
 
   const deleteAliasMutation = useMutation({
@@ -1101,6 +775,12 @@ export default function ItemsPage() {
           </CollapsibleContent>
         </Collapsible>
 
+        {itemsQuery.isError && (
+          <div role="alert" className="flex items-center gap-3 text-destructive">
+            <span>No se pudieron cargar los ?tems: {itemsQuery.error.message}</span>
+            <Button variant="outline" onClick={() => itemsQuery.refetch()}>Reintentar</Button>
+          </div>
+        )}
         <Card className="min-w-0 border-border/70 shadow-none">
           <ItemsDataTable
             items={visibleItems}
