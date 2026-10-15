@@ -23,6 +23,14 @@ const RESULT_LIMIT = 30;
 type QuickPriceConsultationDialogProps = {
   open: boolean;
   isLoading?: boolean;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  resultsLoading?: boolean;
+  resultsError?: string | null;
+  onRetry?: () => void;
+  page?: number;
+  hasMore?: boolean;
+  onPageChange?: (page: number) => void;
   priceLists: PriceListSummary[];
   selectedListId: string | null;
   products: PriceListProductRow[];
@@ -35,6 +43,14 @@ type QuickPriceConsultationDialogProps = {
 export function QuickPriceConsultationDialog({
   open,
   isLoading = false,
+  searchValue,
+  onSearchChange,
+  resultsLoading = false,
+  resultsError,
+  onRetry,
+  page = 1,
+  hasMore = false,
+  onPageChange,
   priceLists,
   selectedListId,
   products,
@@ -43,15 +59,17 @@ export function QuickPriceConsultationDialog({
   onOpenChange,
   onSelectedListIdChange,
 }: QuickPriceConsultationDialogProps) {
-  const [search, setSearch] = useState("");
+  const [localSearch, setLocalSearch] = useState("");
+  const search = searchValue ?? localSearch;
+  const setSearch = onSearchChange ?? setLocalSearch;
   const normalizedSearch = search.trim();
   const matchingProducts = useMemo(
-    () => normalizedSearch
+    () => searchValue !== undefined ? products : normalizedSearch
       ? products
         .filter((row) => matchesNaturalItemSearch({ id: row.item_id, ...row }, normalizedSearch))
         .slice(0, RESULT_LIMIT)
       : [],
-    [normalizedSearch, products],
+    [normalizedSearch, products, searchValue],
   );
 
   return (
@@ -98,7 +116,14 @@ export function QuickPriceConsultationDialog({
               </div>
             </div>
 
-            {!normalizedSearch ? (
+            {resultsError ? (
+              <div role="alert" className="space-y-2 text-sm text-destructive">
+                <p>{resultsError}</p>
+                <Button type="button" variant="outline" onClick={onRetry}>Reintentar</Button>
+              </div>
+            ) : resultsLoading ? (
+              <p role="status" className="py-8 text-center text-sm text-muted-foreground">Buscando precios...</p>
+            ) : !normalizedSearch ? (
               <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
                 Escribí al menos parte del código o nombre del producto.
               </div>
@@ -137,12 +162,19 @@ export function QuickPriceConsultationDialog({
                     </div>
                   );
                 })}
-                {matchingProducts.length === RESULT_LIMIT ? (
+                {onPageChange === undefined && matchingProducts.length === RESULT_LIMIT ? (
                   <p className="py-2 text-center text-xs text-muted-foreground">Mostrando los primeros {RESULT_LIMIT} resultados. Afiná la búsqueda para reducirlos.</p>
                 ) : null}
               </div>
             )}
 
+            {onPageChange && normalizedSearch && !resultsError ? (
+              <div className="flex items-center justify-between gap-2" aria-label="Paginas de precios">
+                <Button type="button" variant="outline" disabled={page <= 1 || resultsLoading} onClick={() => onPageChange(page - 1)}>Anterior</Button>
+                <span className="text-sm">Pagina {page}</span>
+                <Button type="button" variant="outline" disabled={!hasMore || resultsLoading} onClick={() => onPageChange(page + 1)}>Siguiente</Button>
+              </div>
+            ) : null}
             <div className="flex justify-end">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
             </div>

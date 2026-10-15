@@ -27,11 +27,11 @@ import { Plus, RefreshCcw, Search, Tags, X } from "lucide-react";
 import { BasePricesTable } from "@/features/price-lists/components/BasePricesTable";
 import { PriceListCreateDialog } from "@/features/price-lists/components/PriceListCreateDialog";
 import { PriceListDetailDialog } from "@/features/price-lists/components/PriceListDetailDialog";
-import { QuickPriceConsultationDialog } from "@/features/price-lists/components/QuickPriceConsultationDialog";
+import { ServerQuickPriceConsultation } from "@/features/price-lists/components/ServerQuickPriceConsultation";
 import { DEFAULT_PRICE_LIST_FORM, PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
 import { resolveConsultListIdForQuery } from "@/features/price-lists/lib/consultation";
 import { resolvePriceListsNavigation, type PersistedPriceListsNavigation } from "@/features/price-lists/lib/navigation";
-import type { PriceListFormState, PriceListProductRow } from "@/features/price-lists/types";
+import type { PriceListFormState } from "@/features/price-lists/types";
 import { usePriceListsData } from "@/features/price-lists/use-price-lists-data";
 import { formatDateTime } from "@/features/price-lists/utils";
 import { CategoryBadge, InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
@@ -349,17 +349,6 @@ export default function PriceListsPage() {
     if (quickListId) localStorage.setItem(quickListStorageKey, quickListId);
     else localStorage.removeItem(quickListStorageKey);
   }, [quickListHydratedKey, quickListId, quickListStorageKey]);
-
-  const quickListProducts = useMemo<PriceListProductRow[]>(() => {
-    if (!quickListId) return [];
-    const snapshots = snapshotsByListAndItemId.get(quickListId);
-    if (!snapshots) return [];
-
-    return baseRows.flatMap((row) => {
-      const snapshot = snapshots.get(row.item_id);
-      return snapshot ? [{ ...row, ...snapshot }] : [];
-    });
-  }, [baseRows, quickListId, snapshotsByListAndItemId]);
 
   const openListDetail = (priceListId: string) => {
     setSelectedListId(priceListId);
@@ -695,12 +684,10 @@ export default function PriceListsPage() {
         }
       />
 
-      <QuickPriceConsultationDialog
+      <ServerQuickPriceConsultation
         open={quickDialogOpen}
         priceLists={allPriceLists}
         selectedListId={quickListId}
-        products={quickListProducts}
-        stockByItemId={stockByItemId}
         priceRoundingConfig={priceRoundingConfig}
         onOpenChange={setQuickDialogOpen}
         onSelectedListIdChange={setQuickListId}

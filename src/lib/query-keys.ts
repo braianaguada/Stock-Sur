@@ -218,6 +218,7 @@ export const queryKeys = {
     items: (companyId: string | null) => ["market-radar", "items", companyId ?? "no-company"] as const,
   },
   pricing: {
+    quickSearchAll: () => ["quick-price-search"] as const,
     catalogItems: (companyId: string | null) => ["pricing-catalog-items", companyId ?? "no-company"] as const,
     catalogItemsAll: () => ["pricing-catalog-items"] as const,
     base: (companyId: string | null) => ["pricing-base", companyId ?? "no-company"] as const,
