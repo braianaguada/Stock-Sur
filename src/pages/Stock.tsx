@@ -65,6 +65,9 @@ export default function StockPage() {
     stockRows,
     loadingStock,
     filteredMovements,
+    movementTotal,
+    movementPage,
+    stockError, retryStock, movementsError, retryMovements,
     loadingMovements,
     search,
     setSearch,
@@ -77,7 +80,7 @@ export default function StockPage() {
     handleItemSearchChange,
     handleSelectedItemChange,
     submitMovement,
-  } = useStockPage();
+  } = useStockPage({ movementsEnabled: tab === "movements", movementsPage, movementsPageSize });
 
   const typeIcon = (type: MovementType) => {
     if (type === "IN") return <ArrowDownCircle className="h-4 w-4 text-green-500" />;
@@ -176,11 +179,12 @@ export default function StockPage() {
     page: stockPage,
     pageSize: stockPageSize,
   });
-  const movementsPagination = usePaginationSlice({
-    items: filteredMovements,
-    page: movementsPage,
-    pageSize: movementsPageSize,
-  });
+  const movementsPagination = {
+    page: movementPage,
+    totalPages: Math.max(1, Math.ceil(movementTotal / movementsPageSize)),
+    rangeStart: movementTotal ? (movementPage - 1) * movementsPageSize + 1 : 0,
+    rangeEnd: Math.min(movementPage * movementsPageSize, movementTotal),
+  };
 
   return (
     <AppLayout>
@@ -206,6 +210,7 @@ export default function StockPage() {
             </Button>
           )}
         />
+        {stockError ? <div role="alert">No se pudo cargar el stock. <Button variant="outline" onClick={() => void retryStock()}>Reintentar</Button></div> : null}
         {setupItemId ? (
           <Card className="flex flex-col gap-3 border-primary/25 bg-primary/5 p-4 shadow-none sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -401,8 +406,9 @@ export default function StockPage() {
               />
             </div></FilterToolbar>
             <Card className="min-w-0 border-border/70 shadow-none">
+              {movementsError ? <div role="alert">No se pudieron cargar los movimientos. <Button variant="outline" onClick={() => void retryMovements()}>Reintentar</Button></div> : null}
               <StockMovementsTable
-                movements={movementsPagination.pagedItems}
+                movements={filteredMovements}
                 isLoading={loadingMovements}
                 pageSize={movementsPageSize}
                 formatQuantity={formatStockQuantity}
@@ -413,7 +419,7 @@ export default function StockPage() {
             <DataTablePagination
               page={movementsPagination.page}
               totalPages={movementsPagination.totalPages}
-              totalItems={filteredMovements.length}
+              totalItems={movementTotal}
               rangeStart={movementsPagination.rangeStart}
               rangeEnd={movementsPagination.rangeEnd}
               pageSize={movementsPageSize}

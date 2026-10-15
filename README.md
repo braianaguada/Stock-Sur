@@ -1,5 +1,7 @@
 # Stock Sur
 
+Stock: resumen de consumo/cobertura en DB sin limite de filas y movimientos paginados al abrir la pesta?a. Migracion 20261015170000; QA transaccional: scripts/stock-pages-qa.sql.
+
 ### Catalogo paginado en staging (2026-10-15)
 
 - Items consulta una pagina desde PostgreSQL con busqueda natural, aliases, filtros y orden. Costos y precios se traen solo para los productos visibles. No descarga el catalogo completo ni sus movimientos.
