@@ -1,5 +1,7 @@
 # Stock Sur
 
+Impresión de órdenes: A4 apaisado sin márgenes, con dos mitades exactas de 148,5 × 210 mm y marco hasta el borde. Imprimir al 100 %, sin encabezados ni pies del navegador; el borde físico requiere impresora compatible con impresión sin bordes. Sin migraciones. Regresión de dimensiones incluida.
+
 Documentos: se elimina el ícono de registrado en caja del listado; se conserva el fondo suave de filas y tarjetas, el estado accesible y el detalle en acciones. Sin migraciones. Regresión cubierta en escritorio y móvil.
 
 Impresión de órdenes: se corrige el acceso de superadmin sin permiso explícito de proveedores ni membresía local. Migración `20261015230000_superadmin_purchase_order_print.sql`; conserva empresa activa, aislamiento y numeración idempotente. QA: tests del botón y casos DB transaccionales en `criticalDb.test.ts` (requieren conexión staging).
