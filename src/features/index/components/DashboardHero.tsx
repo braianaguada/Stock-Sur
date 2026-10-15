@@ -35,8 +35,8 @@ function DashboardChartFallback() {
   );
 }
 
-export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
-  const views = useMemo(() => buildDashboardViews(dashboard), [dashboard]);
+export function DashboardHero({ dashboard, periodViews }: { dashboard: DashboardInsights; periodViews?: DashboardView[] }) {
+  const views = useMemo(() => periodViews ?? buildDashboardViews(dashboard), [dashboard, periodViews]);
   const [selected, setSelected] = useState(0);
   const view = views[Math.min(selected, views.length - 1)];
   const Icon = icons[view.key];
@@ -66,7 +66,7 @@ export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
             </span>
             <div>
               <h2 id="dashboard-hero-title" className="text-lg font-semibold">Territorio del negocio</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">Indicadores verificables del período actual</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{view.key === "inventory" ? "Inventario actual" : "Intervalo seleccionado"}</p>
             </div>
           </div>
           <div className="hidden items-center gap-1 sm:flex">

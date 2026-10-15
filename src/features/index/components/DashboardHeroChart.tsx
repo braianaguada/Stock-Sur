@@ -22,6 +22,7 @@ const month = new Intl.DateTimeFormat("es-AR", { month: "short", timeZone: "UTC"
 const seriesColors = ["hsl(var(--brand-indigo))", "hsl(var(--brand-cyan))"];
 
 function formatMonthLabel(label: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(label)) return new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", timeZone: "UTC" }).format(new Date(`${label}T00:00:00Z`));
   const match = /^(\d{4})-(\d{2})$/.exec(label);
   if (!match) return label;
 

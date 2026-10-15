@@ -23,10 +23,13 @@ vi.mock("@/integrations/supabase/client", () => ({
       const filters: [string, unknown][] = [];
       const orders: string[] = [];
       const excluded: [string, unknown][] = [];
+      const bounds: [string, string, "gte" | "lte"][] = [];
       const builder = {
         select: () => builder,
         eq: (field: string, value: unknown) => { filters.push([field, value]); return builder; },
         neq: (field: string, value: unknown) => { excluded.push([field, value]); return builder; },
+        gte: (field: string, value: string) => { bounds.push([field, value, "gte"]); return builder; },
+        lte: (field: string, value: string) => { bounds.push([field, value, "lte"]); return builder; },
         order: (field: string) => { orders.push(field); return builder; },
         limit: (count: number) => builder.range(0, count - 1),
         range: async (from: number, to: number) => {
@@ -34,7 +37,8 @@ vi.mock("@/integrations/supabase/client", () => ({
           if (from >= state.failFrom) return { data: null, error: new Error("Fallo de pagina") };
           const rows = (state.rows[table] ?? []).filter(row =>
             filters.every(([field, value]) => row[field] === value)
-            && excluded.every(([field, value]) => row[field] !== value));
+            && excluded.every(([field, value]) => row[field] !== value)
+            && bounds.every(([field, value, op]) => op === "gte" ? String(row[field]) >= value : String(row[field]) <= value));
           return { data: rows.slice(from, Math.min(to + 1, from + 1000)), error: null };
         },
       };
@@ -43,10 +47,11 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-function getQuery(search = "", companyId: string | null = "company-a", filtered = false) {
+function getQuery(search = "", companyId: string | null = "company-a", filtered = false, dateFrom = "", dateTo = "") {
   state.queries = [];
   renderHook(() => useDocumentsData({
     search,
+    dateFrom, dateTo,
     currentCompanyId: companyId,
     typeFilter: filtered ? "REMITO" : "ALL",
     statusFilter: filtered ? "EMITIDO" : "ALL",
@@ -57,7 +62,7 @@ function getQuery(search = "", companyId: string | null = "company-a", filtered 
   }));
   return state.queries.find(query => JSON.stringify(query.queryKey) === JSON.stringify(
     queryKeys.documents.list(companyId, search, filtered ? "REMITO" : "ALL", filtered ? "EMITIDO" : "ALL",
-      filtered ? "customer-a" : "ALL", filtered ? "technician-a" : "ALL"),
+      filtered ? "customer-a" : "ALL", filtered ? "technician-a" : "ALL", dateFrom, dateTo),
   ))!;
 }
 
@@ -74,6 +79,21 @@ beforeEach(() => {
 });
 
 describe("historial completo de documentos", () => {
+  it("filters inclusive document dates before pagination and separates cached ranges", async () => {
+    state.rows.documents = Array.from({ length: 1005 }, (_, index) => ({
+      id: `dated-${index}`, company_id: "company-a", issue_date: index % 2 ? "2026-09-01" : "2026-09-30",
+    }));
+    state.rows.documents.push(
+      { id: "old", company_id: "company-a", issue_date: "2026-08-31" },
+      { id: "new", company_id: "company-a", issue_date: "2026-10-01" },
+      { id: "foreign", company_id: "company-b", issue_date: "2026-09-15" },
+    );
+    const query = getQuery("", "company-a", false, "2026-09-01", "2026-09-30");
+    expect(await query.queryFn()).toHaveLength(1005);
+    expect(state.calls.map(call => call.from)).toEqual([0, 1000]);
+    expect(getQuery().queryKey).not.toEqual(query.queryKey);
+    expect(await getQuery("", "company-a", false, "2026-10-01").queryFn()).toEqual([state.rows.documents[1006]]);
+  });
   it("recupera mas de 300 y 1000 documentos con filtros y orden estable en cada pagina", async () => {
     state.rows.documents.push({ id: "foreign", company_id: "company-b" });
     const rows = await getQuery("", "company-a", true).queryFn();
