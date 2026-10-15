@@ -250,6 +250,63 @@ describeCriticalDb("critical database rules", () => {
     await client?.end();
   });
 
+  it("lets superadmins reserve print numbers without membership and preserves company isolation", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      const otherCompanyId = crypto.randomUUID();
+      const requestId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedGlobalRole(userId, "superadmin");
+      await seedCompany(companyId);
+      await seedCompany(otherCompanyId);
+      await setActor(userId);
+      await client.query("set local role authenticated");
+      const reserve = async (company: string, request: string) => (await client.query(
+        "select public.reserve_purchase_order_print_batch($1, $2) as batch", [company, request],
+      )).rows[0].batch;
+      const first = await reserve(companyId, requestId);
+      expect(first).toEqual({ firstNumber: 1, secondNumber: 2 });
+      expect(await reserve(companyId, requestId)).toEqual(first);
+      expect(await reserve(companyId, crypto.randomUUID())).toEqual({ firstNumber: 3, secondNumber: 4 });
+      expect(await reserve(otherCompanyId, requestId)).toEqual(first);
+    });
+  });
+
+  it("rejects superadmin purchase-order printing for inactive companies", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedGlobalRole(userId, "superadmin");
+      await seedCompany(companyId, "INACTIVE");
+      await setActor(userId);
+      await client.query("set local role authenticated");
+      await expectDbRejection("select public.reserve_purchase_order_print_batch($1, $2)", [companyId, crypto.randomUUID()]);
+    });
+  });
+
+  it("requires both membership and supplier permission for ordinary purchase-order printing", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      const foreignCompanyId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      await seedCompany(foreignCompanyId);
+      const memberId = await seedActor(companyId, userId);
+      await setActor(userId);
+      await client.query("set local role authenticated");
+      await expectDbRejection("select public.reserve_purchase_order_print_batch($1, $2)", [companyId, crypto.randomUUID()]);
+      await client.query("reset role");
+      await seedPermission(memberId, "suppliers.edit");
+      await client.query("set local role authenticated");
+      await expectDbRejection("select public.reserve_purchase_order_print_batch($1, $2)", [foreignCompanyId, crypto.randomUUID()]);
+      const result = await client.query("select public.reserve_purchase_order_print_batch($1, $2) as batch", [companyId, crypto.randomUUID()]);
+      expect(result.rows[0].batch).toEqual({ firstNumber: 1, secondNumber: 2 });
+    });
+  });
+
   it("mantiene RLS habilitado en todas las tablas con company_id", async () => {
     const result = await client.query(
       `

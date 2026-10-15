@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PrintModelButton } from "./PrintModelButton";
 
-const mocks = vi.hoisted(() => ({ rpc: vi.fn(), toast: vi.fn(), brandCompany: "company-1", permissions: ["suppliers.edit"] as string[] }));
+const mocks = vi.hoisted(() => ({ rpc: vi.fn(), toast: vi.fn(), brandCompany: "company-1", permissions: ["suppliers.edit"] as string[], roles: ["user"] as string[] }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.rpc } }));
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentCompany: { id: "company-1" }, companyPermissionCodes: mocks.permissions }) }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentCompany: { id: "company-1" }, companyPermissionCodes: mocks.permissions, roles: mocks.roles }) }));
 vi.mock("@/contexts/company-brand-context", () => ({ useCompanyBrand: () => ({ isLoading: false, settings: { company_id: mocks.brandCompany, app_name: "QA" } }) }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: mocks.toast }) }));
 
@@ -14,7 +14,7 @@ function popup() {
 }
 
 describe("PrintModelButton", () => {
-  beforeEach(() => { mocks.rpc.mockReset(); mocks.toast.mockReset(); mocks.brandCompany = "company-1"; mocks.permissions = ["suppliers.edit"]; });
+  beforeEach(() => { mocks.rpc.mockReset(); mocks.toast.mockReset(); mocks.brandCompany = "company-1"; mocks.permissions = ["suppliers.edit"]; mocks.roles = ["user"]; });
   afterEach(() => vi.restoreAllMocks());
 
   it("provides the print action in both Documents and Purchase Orders headers", () => {
@@ -32,6 +32,18 @@ describe("PrintModelButton", () => {
     expect(screen.getByText(/Necesitás permiso para editar proveedores/)).toBeVisible();
     fireEvent.click(button);
     expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it("allows an effective superadmin without explicit supplier permissions", async () => {
+    mocks.roles = ["user", "superadmin"];
+    mocks.permissions = [];
+    const win = popup();
+    vi.spyOn(window, "open").mockReturnValue(win as unknown as Window);
+    mocks.rpc.mockResolvedValue({ data: { firstNumber: 1, secondNumber: 2 }, error: null });
+    render(<PrintModelButton />);
+    fireEvent.click(screen.getByRole("button", { name: /Imprimir/ }));
+    await waitFor(() => expect(win.print).toHaveBeenCalledTimes(1));
+    expect(mocks.rpc).toHaveBeenCalledWith("reserve_purchase_order_print_batch", { p_company_id: "company-1", p_request_id: expect.any(String) });
   });
 
   it("does not reserve numbers using another company's branding", () => {

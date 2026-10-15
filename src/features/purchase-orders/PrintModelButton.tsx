@@ -10,7 +10,7 @@ import { buildPurchaseOrderModelHtml, type PrintBatch } from "./print-model";
 type PrintClient = { rpc: (name: "reserve_purchase_order_print_batch", args: { p_company_id: string; p_request_id: string }) => PromiseLike<{ data: PrintBatch | null; error: { message: string } | null }> };
 
 export function PrintModelButton() {
-  const { currentCompany, companyPermissionCodes } = useAuth();
+  const { currentCompany, companyPermissionCodes, roles } = useAuth();
   const { settings, isLoading } = useCompanyBrand();
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
@@ -21,7 +21,7 @@ export function PrintModelButton() {
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   activeCompany.current = companyId;
   if (!companyId) return null;
-  const canPrint = companyPermissionCodes.includes("suppliers.edit");
+  const canPrint = roles.includes("superadmin") || companyPermissionCodes.includes("suppliers.edit");
 
   const print = async (reuse: boolean) => {
     if (!canPrint || busy || isLoading || settings.company_id !== companyId) return;
