@@ -16,7 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
-import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { getErrorMessage } from "@/lib/errors";
 import {
   canCloneBudgetToRemito,
@@ -179,6 +178,9 @@ export default function DocumentsPage() {
     priceByItem,
     priceListItemByItemId,
     documents,
+    documentsPagination,
+    documentsError,
+    refetchDocuments,
     isLoading,
     selectedLines,
     selectedEvents,
@@ -188,9 +190,13 @@ export default function DocumentsPage() {
     selectedDocumentClosureClosed,
     selectedDocument,
     sourceDocumentLabel,
+    sourceDocument,
     combos,
     comboLinesByComboId,
   } = useDocumentsData({
+    page: documentsPage,
+    pageSize: documentsPageSize,
+    editorOpen: dialogOpen,
     search: trimmedSearch,
     typeFilter,
     statusFilter,
@@ -204,8 +210,8 @@ export default function DocumentsPage() {
   });
 
   const documentsById = useMemo(
-    () => new Map(documents.map((document) => [document.id, document])),
-    [documents],
+    () => new Map([...documents, ...(sourceDocument ? [sourceDocument] : []), ...(selectedDocument ? [selectedDocument] : [])].map((document) => [document.id, document])),
+    [documents, selectedDocument, sourceDocument],
   );
   const editingSourceDocumentLabel = useMemo(() => {
     if (!editingDocId) return null;
@@ -237,11 +243,11 @@ export default function DocumentsPage() {
     },
     [draftForm.price_list_id, priceLists, priceRoundingConfig],
   );
-  const documentsPagination = usePaginationSlice({
-    items: documents,
-    page: documentsPage,
-    pageSize: documentsPageSize,
-  });
+  useEffect(() => {
+    if (!isLoading && !documentsError && documentsPagination.page !== documentsPage) {
+      setDocumentsPage(documentsPagination.page);
+    }
+  }, [isLoading, documentsError, documentsPagination.page, documentsPage]);
   const linkedDocumentId = searchParams.get("document_id");
   const serviceOptionsById = useMemo(
     () => new Map(serviceOptions.map((service) => [service.id, service])),
@@ -258,7 +264,7 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     setDocumentsPage(1);
-  }, [trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter, dateFrom, dateTo, documentsPageSize]);
+  }, [trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter, dateFrom, dateTo, documentsPageSize, currentCompany?.id]);
 
   useEffect(() => {
     if (draftForm.price_list_id || priceLists.length === 0) return;
@@ -306,7 +312,7 @@ export default function DocumentsPage() {
     setLines([]);
   };
 
-  const loadDraftForEditing = useDocumentDraftLoader({ documentsById });
+  const loadDraftForEditing = useDocumentDraftLoader({ documentsById, currentCompanyId: currentCompany?.id ?? null });
 
   const openCreateDialog = (docType: "PRESUPUESTO" | "REMITO") => {
     if (!canCreateDocumentDraft(roles)) return;
@@ -320,6 +326,7 @@ export default function DocumentsPage() {
 
     try {
       const draft = await loadDraftForEditing(documentId);
+      setSelectedDocId(documentId);
       setEditingDocId(draft.editingDocId);
       setDraftForm(draft.form);
       setLines(draft.lines);
@@ -341,7 +348,7 @@ export default function DocumentsPage() {
   } = useDocumentsMutations({
     currentCompanyId: currentCompany?.id ?? null,
     userId: user?.id,
-    documents,
+    documents: Array.from(documentsById.values()),
     customers,
     technicians,
     serviceOptions,
@@ -890,8 +897,10 @@ export default function DocumentsPage() {
         </FilterToolbar>
 
           <DocumentsDataTable
-          documents={documentsPagination.pagedItems}
+          documents={documents}
           isLoading={isLoading}
+          errorMessage={documentsError ? getErrorMessage(documentsError, "No se pudieron cargar los documentos") : undefined}
+          onRetry={() => void refetchDocuments()}
           pageSize={documentsPageSize}
           technicianNamesById={new Map(allTechnicians.map((technician) => [technician.id, technician.name]))}
           onOpenDetail={(documentId) => {
@@ -954,10 +963,10 @@ export default function DocumentsPage() {
           }
         />
 
-        <DataTablePagination
+        {!isLoading && !documentsError ? <DataTablePagination
           page={documentsPagination.page}
           totalPages={documentsPagination.totalPages}
-          totalItems={documents.length}
+          totalItems={documentsPagination.totalItems}
           rangeStart={documentsPagination.rangeStart}
           rangeEnd={documentsPagination.rangeEnd}
           pageSize={documentsPageSize}
@@ -965,7 +974,7 @@ export default function DocumentsPage() {
           onPageChange={setDocumentsPage}
           onPageSizeChange={(value) => setDocumentsPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
           itemLabel="documentos"
-        />
+        /> : null}
       </PageContainer>
 
       {dialogOpen ? (

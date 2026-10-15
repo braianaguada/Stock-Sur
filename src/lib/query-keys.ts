@@ -115,7 +115,9 @@ export const queryKeys = {
       technicianFilter = "ALL",
       from = "",
       to = "",
-    ) => ["documents", companyId ?? "no-company", search, typeFilter, statusFilter, customerFilter, technicianFilter, from, to] as const,
+      page = 1,
+      pageSize = 10,
+    ) => ["documents", companyId ?? "no-company", search, typeFilter, statusFilter, customerFilter, technicianFilter, from, to, page, pageSize] as const,
     all: () => ["documents"] as const,
     detail: (companyId: string | null, documentId: string | null) =>
       ["documents", "detail", companyId ?? "no-company", documentId ?? "no-document"] as const,

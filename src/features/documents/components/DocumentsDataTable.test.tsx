@@ -70,6 +70,18 @@ function renderTable(documents: DocRow[], overrides: Partial<ComponentProps<type
 }
 
 describe("DocumentsDataTable duplicate action", () => {
+  it("offers retry on page errors instead of reporting an empty history", () => {
+    const onRetry = vi.fn();
+    renderTable([], { errorMessage: "Error de conexion", onRetry });
+    expect(screen.queryByText("No hay documentos para mostrar")).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Reintentar" })[0]);
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+  it("shows loading on mobile while the requested page is being fetched", () => {
+    renderTable([], { isLoading: true });
+    expect(screen.getByText("Cargando documentos")).toBeInTheDocument();
+    expect(screen.queryByText("No hay documentos para mostrar")).not.toBeInTheDocument();
+  });
   it("keeps frequent actions visible and groups secondary actions", () => {
     const props = renderTable([baseDocument]);
     fireEvent.click(within(screen.getByRole("table")).getByRole("button", { name: "Imprimir" }));

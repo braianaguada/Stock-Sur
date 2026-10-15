@@ -1480,3 +1480,10 @@ git pull origin staging
 
 - Stock e Items consultan el resumen agregado `get_stock_summary` en PostgreSQL, evitando descargar todo el historial de movimientos al navegador.
 - La migración `20261009120000_stock_summary_rpc.sql` agrega el índice por empresa, ítem y fecha. Debe aplicarse únicamente en staging durante QA.
+
+### Documentos: historial paginado en staging (2026-10-15)
+
+- El listado consulta una pagina desde PostgreSQL, con total exacto y filtros/busqueda sobre todo el historial; no descarga todos los documentos ni toda la caja. El catalogo y stock del editor se cargan al abrirlo.
+- Migracion: 20261015150000_documents_server_pagination.sql, aplicada solo en staging; RPC con permisos, RLS y aislamiento por empresa. No cambia emision, stock ni movimientos contables.
+- QA DB: scripts/documents-pagination-qa.sql, ejecutado en staging con 1.205 borradores temporales y rollback completo; valida paginas, filtros, busqueda y aislamiento. Repetir con npx supabase db query --linked --file scripts/documents-pagination-qa.sql.
+- Regresiones automatizadas: carga por pagina, errores/reintento, carga diferida, detalle/origen fuera de pagina y contexto de empresa. QA visual interactivo pendiente.

@@ -2625,6 +2625,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      list_documents_page: {
+        Args: {
+          p_company_id: string
+          p_search?: string
+          p_type?: string
+          p_status?: string
+          p_customer_id?: string | null
+          p_technician_id?: string | null
+          p_date_from?: string | null
+          p_date_to?: string | null
+          p_page?: number
+          p_page_size?: number
+        }
+        Returns: Json
+      }
+      documents_page_cash_usage: {
+        Args: { p_company_id: string; p_document_ids: string[] }
+        Returns: { document_id: string }[]
+      }
+      normalize_document_search: {
+        Args: { p_value: string }
+        Returns: string
+      }
       create_company: {
         Args: { p_name: string; p_slug: string }
         Returns: Database["public"]["Tables"]["companies"]["Row"]
