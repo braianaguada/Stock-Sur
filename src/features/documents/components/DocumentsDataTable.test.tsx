@@ -155,13 +155,17 @@ describe("DocumentsDataTable cash registration", () => {
     expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
   });
 
-  it.each([true, false])("shows the cash mark in both layouts without opening actions (create permission: %s)", (canRegisterInCash) => {
+  it.each([true, false])("keeps only the row highlight and accessible cash state in both layouts (create permission: %s)", (canRegisterInCash) => {
     renderTable([emittedRemito], {
       cashRegisteredDocumentIds: new Set([emittedRemito.id]),
       canRegisterInCash,
     });
-    expect(screen.getAllByRole("img", { name: "Registrado en Caja" })).toHaveLength(2);
-    expect(within(screen.getByRole("table")).getByRole("img", { name: "Registrado en Caja" })).toBeInTheDocument();
+    const cashStates = screen.getAllByText("Registrado en Caja");
+    expect(cashStates).toHaveLength(2);
+    cashStates.forEach((state) => expect(state).toHaveClass("sr-only"));
+    expect(screen.queryByRole("img", { name: "Registrado en Caja" })).not.toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("Registrado en Caja").closest("tr")).toHaveClass("bg-emerald-500/5");
+    expect(cashStates.find((state) => !state.closest("table"))?.parentElement).toHaveClass("bg-emerald-500/5");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
   });
