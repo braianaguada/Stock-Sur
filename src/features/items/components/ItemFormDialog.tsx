@@ -81,16 +81,16 @@ export function ItemFormDialog({
       >
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label>SKU{isDuplicating ? " *" : ""}</Label>
-            <Button type="button" variant="outline" size="sm" onClick={onGenerateSku}>
+            <Label>Codigo</Label>
+            {!editingItem && <Button type="button" variant="outline" size="sm" onClick={onGenerateSku}>
               Autogenerar
-            </Button>
+            </Button>}
           </div>
           <Input
             value={form.sku}
             onChange={(event) => onFormChange({ ...form, sku: event.target.value })}
-            placeholder="Ej: BOMBA-001"
-            required={isDuplicating}
+            placeholder="Automatico al guardar"
+            inputMode="numeric"
           />
         </div>
         <div className="space-y-2">
