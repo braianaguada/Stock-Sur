@@ -29,7 +29,7 @@ import { invalidateItemQueries, invalidatePricingQueries, invalidateStockQueries
 import { queryKeys } from "@/lib/query-keys";
 import { catalogPageKey, fetchCatalogPage } from "@/features/items/catalog-page";
 import { type Item, type ItemAlias, type ItemOperationalMeta } from "@/features/items/types";
-import { generateItemSku } from "@/features/items/utils";
+import { validateItemCode } from "@/features/items/utils";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { Card } from "@/components/ui/card";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
@@ -291,7 +291,7 @@ export default function ItemsPage() {
     mutationFn: async () => {
       if (!currentCompany) throw new Error("Seleccioná una empresa para gestionar ítems");
       const name = cleanText(form.name);
-      const sku = cleanText(form.sku).toUpperCase();
+      const sku = validateItemCode(form.sku);
       const supplier = cleanText(form.supplier) || null;
       const brand = cleanText(form.brand) || null;
       const model = cleanText(form.model) || null;
@@ -303,7 +303,7 @@ export default function ItemsPage() {
       }
       if (
         duplicatingSourceSku !== null
-        && (!sku || sku === cleanText(duplicatingSourceSku).toUpperCase())
+        && sku !== "" && sku === cleanText(duplicatingSourceSku).toUpperCase()
       ) {
         throw new Error("Ingresá un SKU nuevo para duplicar el ítem");
       }
@@ -340,7 +340,7 @@ export default function ItemsPage() {
           .insert({
             company_id: currentCompany.id,
             ...payload,
-            sku: sku || generateItemSku(name),
+            sku,
             is_active: true,
           })
           .select("*")
@@ -832,7 +832,7 @@ export default function ItemsPage() {
         }}
         onSubmit={() => saveMutation.mutate()}
         onFormChange={setForm}
-        onGenerateSku={() => setForm((prev) => ({ ...prev, sku: generateItemSku(prev.name || "item") }))}
+        onGenerateSku={() => setForm((prev) => ({ ...prev, sku: "" }))}
         onNewAliasChange={setNewAlias}
         onSupplierCodeChange={setIsSupplierCode}
         onAddAlias={addAlias}
