@@ -1,3 +1,4 @@
+import { normalizeSaleUnit } from "@/lib/stock-quantity";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -287,7 +288,7 @@ export default function ItemsPage() {
       const brand = cleanText(form.brand) || null;
       const model = cleanText(form.model) || null;
       const attributes = cleanText(form.attributes) || null;
-      const unit = cleanText(form.unit) || "un";
+      const unit = normalizeSaleUnit(form.unit) || "un";
 
       if (!name) {
         throw new Error("Nombre obligatorio");
