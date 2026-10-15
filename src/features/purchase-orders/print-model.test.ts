@@ -51,4 +51,23 @@ describe("purchase order blank print model", () => {
     const html = buildPurchaseOrderModelHtml({ ...DEFAULT_COMPANY_SETTINGS, logo_url: "https://example.test/logo.png" }, { firstNumber: 1, secondNumber: 2 }, "15/10/2026");
     expect(new DOMParser().parseFromString(html, "text/html").querySelectorAll('img[src="https://example.test/logo.png"]')).toHaveLength(2);
   });
+
+  it("prints consecutive pairs across three sheets", () => {
+    const html = buildPurchaseOrderModelHtml(DEFAULT_COMPANY_SETTINGS, { firstNumber: 31, secondNumber: 32, sheetCount: 3, lastNumber: 36 }, "15/10/2026");
+    const dom = new DOMParser().parseFromString(html, "text/html");
+    const pages = [...dom.querySelectorAll("main.page")];
+    expect(pages).toHaveLength(3);
+    pages.forEach((page, index) => {
+      expect(page.querySelectorAll("article.order")).toHaveLength(2);
+      expect(page.textContent).toContain(String(31 + index * 2).padStart(8, "0"));
+      expect(page.textContent).toContain(String(32 + index * 2).padStart(8, "0"));
+    });
+    expect(dom.title).toContain("36");
+  });
+  it.each([0, -1, 1.5, 101, NaN])("rejects invalid sheet count %s", sheetCount => {
+    expect(() => buildPurchaseOrderModelHtml(DEFAULT_COMPANY_SETTINGS, { firstNumber: 1, secondNumber: 2, sheetCount }, "15/10/2026")).toThrow();
+  });
+  it("rejects inconsistent numbering", () => {
+    expect(() => buildPurchaseOrderModelHtml(DEFAULT_COMPANY_SETTINGS, { firstNumber: 1, secondNumber: 2, sheetCount: 3, lastNumber: 4 }, "15/10/2026")).toThrow();
+  });
 });

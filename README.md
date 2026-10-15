@@ -1,5 +1,12 @@
 # Stock Sur
 
+### Staging: lotes de hojas para ordenes de compra
+
+- Documentos y Ordenes de compra: selector Hojas A4 (1 a 100), dos ordenes numeradas consecutivas por hoja. Reimprimir mismo lote conserva cantidad y numeros; Imprimir reserva un lote nuevo. Los numeros reservados no se recuperan al cancelar el dialogo de impresion.
+- Migracion `20261016000000_purchase_order_print_sheets.sql`: reserva atomica e idempotente por empresa, contador compartido con clientes anteriores, permisos e aislamiento existentes conservados. Aplicada solamente en staging.
+- QA: pruebas de interfaz y generador; PDF en Chrome de 1, 3 y 100 hojas con dos mitades A4 y numeracion comprobadas. QA DB transaccional pendiente de credenciales: ejecutar `npx vitest run src/features/db/criticalDb.test.ts` con `DATABASE_URL` o `PGPASSWORD` configurada interactivamente para staging. Impresion fisica pendiente; bordes al limite del papel requieren impresora sin margenes y escala 100%.
+
+
 Impresión de órdenes: A4 apaisado sin márgenes, con dos mitades exactas de 148,5 × 210 mm y marco hasta el borde. Imprimir al 100 %, sin encabezados ni pies del navegador; el borde físico requiere impresora compatible con impresión sin bordes. Sin migraciones. Regresión de dimensiones incluida.
 
 Documentos: se elimina el ícono de registrado en caja del listado; se conserva el fondo suave de filas y tarjetas, el estado accesible y el detalle en acciones. Sin migraciones. Regresión cubierta en escritorio y móvil.
