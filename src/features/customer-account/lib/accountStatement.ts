@@ -50,6 +50,7 @@ export type AccountStatementRow = AccountStatementSource & {
   debit: number;
   credit: number;
   running_balance: number;
+  outstanding: number;
   status: AccountStatementStatus;
 };
 
@@ -123,29 +124,43 @@ export function buildAccountStatement(
   const validEntries = entries
     .filter((entry) => entry.customer_id && !entry.customer_is_occasional)
     .filter((entry) => !filters.customerId || entry.customer_id === filters.customerId)
+    .filter((entry) => !filters.to || entry.business_date <= filters.to)
     .sort((a, b) => {
       const byDate = a.business_date.localeCompare(b.business_date);
       if (byDate !== 0) return byDate;
       return a.id.localeCompare(b.id);
     });
 
-  const totalCredits = validEntries.reduce((sum, entry) => sum + (entry.entry_type === "CREDIT" ? entry.amount : 0), 0);
-  let runningBalance = 0;
+  // Credits settle the oldest debt of the same company/customer, including advances.
+  const credits = new Map<string, number>();
+  const balances = new Map<string, number>();
+  const accountKey = (entry: AccountStatementSource) => `${entry.company_id}:${entry.customer_id}`;
+  for (const entry of validEntries) {
+    if (entry.entry_type === "CREDIT") {
+      const key = accountKey(entry);
+      credits.set(key, (credits.get(key) ?? 0) + entry.amount);
+    }
+  }
   const rows = validEntries.map<AccountStatementRow>((entry) => {
     const debit = entry.entry_type === "DEBIT" ? entry.amount : 0;
     const credit = entry.entry_type === "CREDIT" ? entry.amount : 0;
-    runningBalance += debit - credit;
+    const key = accountKey(entry);
+    const runningBalance = (balances.get(key) ?? 0) + debit - credit;
+    balances.set(key, runningBalance);
+    const applied = Math.min(debit, credits.get(key) ?? 0);
+    if (debit > 0) credits.set(key, (credits.get(key) ?? 0) - applied);
+    const outstanding = Math.round((debit - applied) * 100) / 100;
     const dueDate = resolveDueDate(entry);
     const originLabel = entry.origin_type === "DOCUMENT" ? "Documento" : entry.origin_type === "CASH_SALE" ? "Caja" : "Manual";
     const reference = resolveReference(entry);
     const status =
       entry.entry_type === "CREDIT"
         ? "payment"
-        : runningBalance <= 0
+        : outstanding <= 0
           ? "paid"
           : dueDate && dueDate < today
             ? "overdue"
-            : totalCredits > 0
+            : applied > 0
             ? "partial"
             : "pending";
 
@@ -157,6 +172,7 @@ export function buildAccountStatement(
       debit,
       credit,
       running_balance: runningBalance,
+      outstanding,
       status,
     };
   });
@@ -176,13 +192,12 @@ export function buildAccountStatement(
     return true;
   });
 
-  const balance = rows.at(-1)?.running_balance ?? 0;
-  const hasDebt = balance > 0;
+  const balance = [...balances.values()].reduce((sum, amount) => sum + amount, 0);
   const summary = filteredRows.reduce<AccountStatementSummary>(
     (current, row) => ({
       balance,
-      overdueDebt: current.overdueDebt + (hasDebt && row.status === "overdue" ? row.debit : 0),
-      notDueDebt: current.notDueDebt + (hasDebt && row.entry_type === "DEBIT" && row.status !== "overdue" && row.status !== "paid" ? row.debit : 0),
+      overdueDebt: current.overdueDebt + (row.status === "overdue" ? row.outstanding : 0),
+      notDueDebt: current.notDueDebt + (row.entry_type === "DEBIT" && row.status !== "overdue" ? row.outstanding : 0),
       periodPayments: current.periodPayments + row.credit,
       movementsCount: current.movementsCount + 1,
     }),

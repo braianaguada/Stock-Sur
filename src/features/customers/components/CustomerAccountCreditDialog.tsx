@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
+import { todayBusinessDateInputValue } from "@/lib/formatters";
 
 type Props = {
   open: boolean;
@@ -28,20 +29,20 @@ export function CustomerAccountCreditDialog({
   onToast,
 }: Props) {
   const [amount, setAmount] = useState("");
-  const [businessDate, setBusinessDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [businessDate, setBusinessDate] = useState(todayBusinessDateInputValue);
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const reset = () => {
     setAmount("");
-    setBusinessDate(new Date().toISOString().slice(0, 10));
+    setBusinessDate(todayBusinessDateInputValue());
     setDescription("");
     setNotes("");
   };
 
   const submit = async () => {
-    if (!companyId || !customerId) return;
+    if (isSaving || !companyId || !customerId || !Number.isFinite(Number(amount)) || Number(amount) <= 0 || !businessDate) return;
     setIsSaving(true);
     try {
       const { error } = await supabase.rpc("register_customer_account_credit_manual", {
@@ -49,7 +50,7 @@ export function CustomerAccountCreditDialog({
         p_customer_id: customerId,
         p_amount: Number(amount),
         p_business_date: businessDate,
-        p_description: description || null,
+        p_description: description.trim() || "Cobro manual de cuenta corriente",
         p_notes: notes || null,
         p_metadata: { source: "customers-ui" },
       });
@@ -92,7 +93,7 @@ export function CustomerAccountCreditDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancelar</Button>
-          <Button onClick={submit} disabled={isSaving || !amount}>
+          <Button onClick={submit} disabled={isSaving || !Number.isFinite(Number(amount)) || Number(amount) <= 0 || !businessDate}>
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Registrar
           </Button>

@@ -10,6 +10,13 @@
 - Validaciones: typecheck, lint, build y regresiones focalizadas aprobados; QA SQL de solo lectura aprobada en staging con rollback (`npx supabase db query --linked --file scripts/dashboard-period-qa.sql`). Migracion aplicada solo en staging. El chequeo ampliado de tsconfig.app mantiene los mismos 242 diagnosticos preexistentes de origin/staging.
 - Suite completa: 694 tests aprobados y 46 DB omitidos por credenciales ausentes (`npm run test -- --maxWorkers=2 --testTimeout=15000`); limite ampliado para el control estatico visual.
 - QA visual autenticada pendiente en staging: cambiar empresa y periodo, contrastar importes y variantes, filtrar Documentos y cerrar una notificacion con un borrador abierto, en escritorio y celular.
+### Cuenta corriente: pagos y vencimientos (staging)
+
+- Acciones para registrar pagos y configurar el plazo por cliente (permiso customers.edit).
+- Estados y deuda pendiente calculados por empresa/cliente, aplicando pagos a la deuda mas antigua hasta la fecha de corte.
+- Los cobros manuales no generan movimientos de caja. Migracion 20261015130000 limita el RPC a usuarios autorizados.
+- QA: regresiones de saldos, anticipos, pagos parciales y aislamiento; verificar flujo visual con sesion en staging.
+
 
 ## Marca de registro en Caja en Documentos
 
