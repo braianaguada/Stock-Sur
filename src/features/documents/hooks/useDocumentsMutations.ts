@@ -1,3 +1,4 @@
+import { validateSaleQuantity, normalizeSaleUnit } from '@/lib/stock-quantity';
 import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -200,6 +201,7 @@ export function useDocumentsMutations({
       }
 
       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
+      valid.forEach(line => validateSaleQuantity(line.quantity, line.unit));
       if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
       if (totalDraft <= 0) throw new Error("El documento no puede guardarse con total cero");
       if (!draftForm.price_list_id) throw new Error("Selecciona una lista de precios para cargar productos");
@@ -282,7 +284,7 @@ export function useDocumentsMutations({
         item_id: line.item_id,
         sku_snapshot: line.sku_snapshot || null,
         description: line.description,
-        unit: line.unit || null,
+        unit: normalizeSaleUnit(line.unit) || null,
         quantity: line.quantity,
         unit_price: line.unit_price,
         pricing_mode: line.pricing_mode,

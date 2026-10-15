@@ -1,3 +1,4 @@
+import { validateSaleQuantity } from '@/lib/stock-quantity';
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { clearSessionDraft, useSessionDraft } from "@/hooks/use-session-draft";
 import { invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
-import { isIntegerOnlyStockUnit } from "@/lib/stock-quantity";
+
 import { matchesNaturalItemSearch } from "@/features/items/search";
 import type {
   Movement,
@@ -251,9 +252,7 @@ export function useStockPage({ movementsEnabled = false, movementsPage = 1, move
       if (Number.isNaN(quantity) || !Number.isFinite(quantity) || quantity <= 0) {
         throw new Error("La cantidad debe ser mayor a 0");
       }
-      if (isIntegerOnlyStockUnit(selected.unit) && !Number.isInteger(quantity)) {
-        throw new Error("Este producto se mueve por unidad entera. Ingresa una cantidad sin decimales.");
-      }
+      validateSaleQuantity(quantity, selected.unit);
 
       const signedQuantity = form.type === "ADJUSTMENT" && form.adjustment_direction === "REMOVE" ? -quantity : quantity;
 

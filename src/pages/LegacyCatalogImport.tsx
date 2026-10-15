@@ -1,3 +1,4 @@
+import { normalizeSaleUnit } from '@/lib/stock-quantity';
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Upload } from "lucide-react";
@@ -167,7 +168,7 @@ async function importSelectedRows(
     const itemsPayload = batch.map((row) => ({
       company_id: companyId,
       name: cleanText(row.articulo),
-      unit: cleanText(row.medida) || "un",
+      unit: normalizeSaleUnit(cleanText(row.medida)) || "un",
       category: cleanText(row.rubro) || null,
       brand: cleanText(row.marca) || null,
       is_active: true,

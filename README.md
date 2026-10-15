@@ -1,5 +1,7 @@
 # Stock Sur
 
+Unidades: validacion compartida de cantidades en stock y documentos, normalizacion compatible en importacion. Migracion 20261015220000_sale_quantity_validation.sql: controles DB por empresa, unidades enteras y medidas decimales; historicos conservados.
+
 Productos: proveedor asociado por empresa, codigos por proveedor, descripcion completa, caracteristicas estructuradas, notas tecnicas, peso y medidas. Migracion 20261015210000; campos antiguos conservados para importaciones.
 
 Listas de precios: costos y productos por pagina desde SQL, filtros de stock/busqueda antes de paginar, metricas de la lista en servidor e historial acotado. Migracion 20261015200000 aplicada en staging; QA transaccional: scripts/pricing-pages-qa.sql. Produccion sin cambios.

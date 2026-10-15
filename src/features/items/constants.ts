@@ -1,1 +1,1 @@
-export const ITEM_UNIT_OPTIONS = ["un", "kg", "g", "lt", "ml", "m", "cm"] as const;
+export { SALE_UNIT_OPTIONS as ITEM_UNIT_OPTIONS } from '@/lib/stock-quantity';

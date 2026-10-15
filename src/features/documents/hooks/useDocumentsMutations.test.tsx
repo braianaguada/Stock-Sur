@@ -198,3 +198,16 @@ describe("normalizeDraftLine", () => {
     expect(line.unit_price).toBe(2100);
   });
 });
+
+
+describe("sale unit validation", () => {
+  it("rejects fractions of whole units before saving a document", async () => {
+    const { result } = renderHook(() => useDocumentsMutations({
+      currentCompanyId: "company-1", userId: "user-1", documents: [], customers: [], technicians: [], serviceOptions: [],
+      lines: [{ ...baseLine, quantity: 1.5 }], draftForm: { ...baseDraftForm, recipient_type: "OCCASIONAL", customer_name: "Cliente" },
+      totalDraft: 1, editingDocId: null, priceByItem: new Map(), priceListItemByItemId: new Map(),
+      priceRoundingConfig: { enabled: false, increment: null }, resetDraftForm: vi.fn(), setDialogOpen: vi.fn(), toast: vi.fn(),
+    }));
+    await expect(result.current.upsertDraftMutation.mutateAsync("SAVE_DRAFT")).rejects.toThrow("unidad entera");
+  });
+});
