@@ -20,8 +20,8 @@ export function buildPurchaseOrderModelHtml(settings: CompanySettings, batch: Pr
     <div class="signatures"><div>Autorizado por:<span></span></div><div>Preparado por:<span></span></div></div>
     <footer>${e(settings.document_footer || "Formulario para completar manualmente")}</footer></article>`;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Órdenes de compra ${batch.firstNumber}-${batch.secondNumber}</title>
-    <style>@page{size:A4 landscape;margin:8mm}*{box-sizing:border-box}body{margin:0;font:10px Arial,sans-serif;color:#172033;background:white}
-    .page{display:grid;grid-template-columns:1fr 1fr;gap:6mm;width:281mm}.order{height:193mm;border:1px solid #334155;padding:4mm;display:flex;flex-direction:column;break-inside:avoid}
+    <style>@page{size:A4 landscape;margin:0}*{box-sizing:border-box}body{margin:0;font:10px Arial,sans-serif;color:#172033;background:white}
+    .page{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:minmax(0,1fr);gap:0;width:297mm;height:210mm}.order{width:148.5mm;height:210mm;min-width:0;min-height:0;border:1px solid #334155;padding:4mm;display:flex;flex-direction:column;break-inside:avoid}.order+.order{border-left:0}
     header{display:grid;grid-template-columns:1fr 1fr;gap:3mm;min-height:34mm;border-bottom:2px solid #334155;padding-bottom:3mm}
     h1{font-size:14px;margin:0 0 2mm}h2{font-size:13px;margin:0 0 3mm}p{margin:1mm 0;overflow-wrap:anywhere}.brand img{float:left;max-width:20mm;max-height:15mm;object-fit:contain;margin:0 2mm 2mm 0}.identity{text-align:right}.identity strong{font-size:16px}
     .field{display:flex;align-items:end;gap:2mm;min-height:7mm;border-bottom:1px solid #cbd5e1;font-weight:bold}.field span{flex:1}.field b{font-size:11px;white-space:nowrap}
