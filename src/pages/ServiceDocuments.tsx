@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { formatBusinessDate, formatMoney } from "@/lib/formatters";
 import { openPrintWindow } from "@/lib/print";
+import { usePdfDownloadFeedback } from "@/components/common/PdfDownloadFeedback";
 import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "@/lib/pdf-download";
 import {
   acceptServiceDocumentAiSuggestion,
@@ -103,6 +104,7 @@ export default function ServiceDocumentsPage() {
   const [shareSubject, setShareSubject] = useState("");
   const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
   const [shareLinkLoading, setShareLinkLoading] = useState(false);
+  const { feedback: downloadFeedback, onSaved: onPdfSaved } = usePdfDownloadFeedback(currentCompany?.id ?? null);
   const [downloadingDocumentId, setDownloadingDocumentId] = useState<string | null>(null);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const [remitoImportOpen, setRemitoImportOpen] = useState(false);
@@ -293,13 +295,14 @@ export default function ServiceDocumentsPage() {
         ...resources,
         companySettings: settings,
       });
-      await savePrintHtmlAsPdf({
+      const saved = await savePrintHtmlAsPdf({
         html,
         fileName,
         proof: { mode: "authenticated", kind: "service", documentId: document.id },
         target,
       });
-      toast({ title: "PDF guardado" });
+      onPdfSaved(saved);
+      toast({ title: saved?.method === "downloaded" ? "Descarga iniciada" : "PDF guardado" });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       toast({ title: "No se pudo descargar el PDF", description: getErrorMessage(error), variant: "destructive" });
@@ -667,6 +670,7 @@ export default function ServiceDocumentsPage() {
       <PageContainer archetype="workspace" className="page-shell">
         {!currentCompany ? <CompanyAccessNotice description="Necesitas una empresa activa para crear presupuestos de servicio." /> : null}
 
+        {downloadFeedback}
         <PageHeader
           eyebrow="Servicios"
           title="Documentos"

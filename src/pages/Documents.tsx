@@ -29,6 +29,7 @@ import {
 } from "@/lib/permissions";
 import { queryKeys } from "@/lib/query-keys";
 import { openPrintWindow, writePrintWindow } from "@/lib/print";
+import { usePdfDownloadFeedback } from "@/components/common/PdfDownloadFeedback";
 import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "@/lib/pdf-download";
 import { Copy, Link2, MessageCircle, Plus, Unlink } from "lucide-react";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
@@ -160,6 +161,7 @@ export default function DocumentsPage() {
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [documentsPage, setDocumentsPage] = useState(1);
   const [documentsPageSize, setDocumentsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+  const { feedback: downloadFeedback, onSaved: onPdfSaved } = usePdfDownloadFeedback(currentCompany?.id ?? null);
   const [downloadingDocumentId, setDownloadingDocumentId] = useState<string | null>(null);
   const [draftForm, setDraftForm] = useState<DocumentFormState>(() =>
     buildEmptyDocumentForm(defaultPointOfSale),
@@ -306,9 +308,10 @@ export default function DocumentsPage() {
 
   const loadDraftForEditing = useDocumentDraftLoader({ documentsById });
 
-  const openCreateDialog = () => {
+  const openCreateDialog = (docType: "PRESUPUESTO" | "REMITO") => {
     if (!canCreateDocumentDraft(roles)) return;
     resetDraftForm();
+    setDraftForm({ ...buildEmptyDocumentForm(defaultPointOfSale), doc_type: docType });
     setDialogOpen(true);
   };
 
@@ -692,8 +695,9 @@ export default function DocumentsPage() {
         companySettings,
         technicianName,
       });
-      await savePrintHtmlAsPdf({ html, fileName, proof: { mode: "authenticated", kind: "document", documentId: document.id }, target });
-      toast({ title: "PDF guardado" });
+      const saved = await savePrintHtmlAsPdf({ html, fileName, proof: { mode: "authenticated", kind: "document", documentId: document.id }, target });
+      onPdfSaved(saved);
+      toast({ title: saved?.method === "downloaded" ? "Descarga iniciada" : "PDF guardado" });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       toast({ title: "No se pudo descargar el PDF", description: getErrorMessage(error), variant: "destructive" });
@@ -782,14 +786,20 @@ export default function DocumentsPage() {
           <CompanyAccessNotice description="Necesitas una empresa activa para crear documentos, emitir remitos y revisar su historial." />
         ) : null}
 
+        {downloadFeedback}
         <PageHeader
           eyebrow="Presupuestos y remitos"
           title="Documentos"
           subtitle="Crea, emite y da seguimiento a presupuestos, remitos y devoluciones."
           actions={(
-            <Button onClick={openCreateDialog} disabled={!canCreateDocumentDraft(roles)}>
-              <Plus className="mr-2 h-4 w-4" /> Nuevo documento
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => openCreateDialog("PRESUPUESTO")} disabled={!canCreateDocumentDraft(roles)}>
+                <Plus className="mr-2 h-4 w-4" /> Presupuesto
+              </Button>
+              <Button onClick={() => openCreateDialog("REMITO")} disabled={!canCreateDocumentDraft(roles)}>
+                <Plus className="mr-2 h-4 w-4" /> Remito
+              </Button>
+            </>
           )}
         />
 
@@ -981,6 +991,7 @@ export default function DocumentsPage() {
             removeLine={removeLine}
             onSubmit={(intent) => upsertDraftMutation.mutate(intent)}
             canIssueOnCreate={canIssueRemito(roles)}
+            canSendBudget={canTransitionDocumentTo(roles, "ENVIADO")}
             onResetDraftForm={resetDraftForm}
             isSubmitting={upsertDraftMutation.isPending || !canCreateDocumentDraft(roles)}
             sourceDocumentLabel={editingSourceDocumentLabel}

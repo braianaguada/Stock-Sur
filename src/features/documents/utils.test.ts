@@ -10,6 +10,12 @@ import {
 } from "./utils";
 
 describe("document customer helpers", () => {
+  it("allows the original technician on an internal return without requiring a customer", () => {
+    const draft = { doc_type: "REMITO_DEVOLUCION", recipient_type: "OCCASIONAL", customer_kind: "GENERAL", customer_id: "", technician_id: "original-tech", service_id: "" } as Parameters<typeof validateDocumentRecipientDraft>[0];
+    expect(() => validateDocumentRecipientDraft(draft, [])).not.toThrow();
+    expect(() => validateDocumentRecipientDraft({ ...draft, doc_type: "REMITO" }, [])).toThrow("no puede tener tecnico");
+  });
+
   it("uses customer_id null as the occasional customer rule", () => {
     expect(getCustomerDisplayName({ customer_id: null, customer_name: "Snapshot viejo" })).toBe(
       OCCASIONAL_CUSTOMER_DISPLAY_NAME,

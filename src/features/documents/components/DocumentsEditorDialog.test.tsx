@@ -74,6 +74,7 @@ function renderDialog(
     setLines?: React.Dispatch<React.SetStateAction<LineDraft[]>>;
     editingDocId?: string | null;
     canIssueOnCreate?: boolean;
+    canSendBudget?: boolean;
     priceLists?: PriceListRow[];
   } = {},
 ) {
@@ -109,6 +110,7 @@ function renderDialog(
       removeLine={vi.fn()}
       onSubmit={onSubmit}
       canIssueOnCreate={options.canIssueOnCreate}
+      canSendBudget={options.canSendBudget}
       onResetDraftForm={vi.fn()}
       isSubmitting={false}
     />,
@@ -118,6 +120,13 @@ function renderDialog(
 }
 
 describe("DocumentsEditorDialog", () => {
+  it("offers budget emission without a document type selector", () => {
+    const onSubmit = vi.fn();
+    renderDialog({ ...baseForm, doc_type: "PRESUPUESTO" }, onSubmit, { canSendBudget: true, priceLists: [{ id: "list-1", name: "General" } as PriceListRow] });
+    fireEvent.click(screen.getByRole("button", { name: "Emitir presupuesto" }));
+    expect(onSubmit).toHaveBeenCalledWith("SEND_BUDGET");
+    expect(screen.queryByRole("button", { name: "Emitir remito" })).not.toBeInTheDocument();
+  });
   it("offers direct issue only while creating a remito and preserves draft saving", () => {
     const onSubmit = vi.fn<(intent: DocumentDraftSubmissionIntent) => void>();
     const priceLists: PriceListRow[] = [{

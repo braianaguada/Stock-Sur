@@ -13,7 +13,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { PRICING_MODE_LABEL } from "@/features/documents/constants";
 import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type {
-  DocType,
   DocumentFormState,
   DocumentDraftSubmissionIntent,
   DocumentServiceOption,
@@ -76,6 +75,7 @@ interface DocumentsEditorDialogProps {
   removeLine: (idx: number) => void;
   onSubmit: (intent: DocumentDraftSubmissionIntent) => void;
   canIssueOnCreate?: boolean;
+  canSendBudget?: boolean;
   onResetDraftForm: () => void;
   isSubmitting: boolean;
   sourceDocumentLabel?: string | null;
@@ -150,6 +150,7 @@ export function DocumentsEditorDialog({
   removeLine,
   onSubmit,
   canIssueOnCreate = false,
+  canSendBudget = false,
   onResetDraftForm,
   isSubmitting,
   sourceDocumentLabel,
@@ -268,7 +269,7 @@ export function DocumentsEditorDialog({
           onResetDraftForm();
         }
       }}
-      title={editingDocId ? (isReturn ? "Editar devolucion" : "Editar borrador") : "Nuevo documento"}
+      title={editingDocId ? (isReturn ? "Editar devolucion" : "Editar borrador") : documentForm.doc_type === "PRESUPUESTO" ? "Nuevo presupuesto" : "Nuevo remito"}
       contentClassName="!w-[min(98vw,1680px)] sm:!w-[min(98vw,1680px)] !max-w-[1680px] sm:!max-w-[1680px] max-h-[92vh] overflow-x-hidden"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -283,46 +284,7 @@ export function DocumentsEditorDialog({
             <div className="p-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 items-start">
               <div className="space-y-2">
                 <Label>Tipo *</Label>
-                {isReturn ? (
-                  <Input value="Devolucion de remito" disabled />
-                ) : (
-                <Select
-                  value={documentForm.doc_type}
-                  onValueChange={(value) =>
-                    setDraftForm((previousForm) => {
-                      const nextDocType = value as DocType;
-                      const nextCustomerKind =
-                        nextDocType === "PRESUPUESTO" && previousForm.customer_kind === "INTERNO"
-                          ? "GENERAL"
-                          : previousForm.customer_kind;
-                      return {
-                        ...previousForm,
-                        doc_type: nextDocType,
-                        customer_kind: nextCustomerKind,
-                        recipient_type:
-                          nextDocType !== "REMITO" && previousForm.customer_kind === "INTERNO"
-                            ? "OCCASIONAL"
-                            : previousForm.recipient_type,
-                        customer_name:
-                          nextDocType !== "REMITO" && previousForm.customer_kind === "INTERNO"
-                            ? "Cliente ocasional"
-                            : previousForm.customer_name,
-                        internal_remito_type:
-                          nextDocType === "REMITO" && nextCustomerKind === "INTERNO"
-                            ? previousForm.internal_remito_type
-                            : "",
-                        service_id: nextDocType === "REMITO" ? previousForm.service_id : "",
-                      };
-                    })
-                  }
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PRESUPUESTO">Presupuesto</SelectItem>
-                    <SelectItem value="REMITO">Remito</SelectItem>
-                  </SelectContent>
-                </Select>
-                )}
+                <Input value={isReturn ? "Devolucion de remito" : documentForm.doc_type === "PRESUPUESTO" ? "Presupuesto" : "Remito"} readOnly />
               </div>
 
               <div className="space-y-2 lg:hidden xl:block">
@@ -973,6 +935,9 @@ export function DocumentsEditorDialog({
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {isSubmitting ? "Procesando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
             </Button>
+            {!editingDocId && documentForm.doc_type === "PRESUPUESTO" && canSendBudget ? (
+              <Button type="button" disabled={isSubmitting || priceLists.length === 0} onClick={() => submitWithIntent("SEND_BUDGET")}>Emitir presupuesto</Button>
+            ) : null}
             {!editingDocId && documentForm.doc_type === "REMITO" && canIssueOnCreate ? (
               <Button
                 type="button"

@@ -1,5 +1,12 @@
 # Stock Sur
 
+### Documentos y descargas en staging
+- Alta separada de Presupuesto y Remito, con borrador y emision (presupuesto pasa a ENVIADO sin stock). Impresion visible junto a Ver.
+- Marca de caja con icono y fondo suave; devoluciones internas conservan el tecnico original sin exigir cliente.
+- PDF: selector de carpeta cuando el navegador lo permite; aviso persistente con nombre y acceso a repetir descarga.
+- Productos impresos con aproximadamente 2 puntos mas de letra. Sin migraciones de base de datos en esta rama.
+- QA automatizada y checks de compilacion; pendiente comprobacion visual autenticada y dialogo nativo de guardado en staging.
+
 ## Correcciones operativas y filtros de fechas
 
 - Stock recupera nombre, SKU, unidad y atributos del resumen. Interactuar con notificaciones conserva el editor y su borrador.
