@@ -283,6 +283,7 @@ describeCriticalDb("critical database rules", () => {
       await setActor(userId);
       await client.query("set local role authenticated");
       await expectDbRejection("select public.reserve_purchase_order_print_batch($1, $2)", [companyId, crypto.randomUUID()]);
+      await expectDbRejection("select public.reserve_purchase_order_print_sheets($1, $2, 3)", [companyId, crypto.randomUUID()]);
     });
   });
 
@@ -298,10 +299,12 @@ describeCriticalDb("critical database rules", () => {
       await setActor(userId);
       await client.query("set local role authenticated");
       await expectDbRejection("select public.reserve_purchase_order_print_batch($1, $2)", [companyId, crypto.randomUUID()]);
+      await expectDbRejection("select public.reserve_purchase_order_print_sheets($1, $2, 3)", [companyId, crypto.randomUUID()]);
       await client.query("reset role");
       await seedPermission(memberId, "suppliers.edit");
       await client.query("set local role authenticated");
       await expectDbRejection("select public.reserve_purchase_order_print_batch($1, $2)", [foreignCompanyId, crypto.randomUUID()]);
+      await expectDbRejection("select public.reserve_purchase_order_print_sheets($1, $2, 3)", [foreignCompanyId, crypto.randomUUID()]);
       const result = await client.query("select public.reserve_purchase_order_print_batch($1, $2) as batch", [companyId, crypto.randomUUID()]);
       expect(result.rows[0].batch).toEqual({ firstNumber: 1, secondNumber: 2 });
     });
@@ -2288,6 +2291,35 @@ describeCriticalDb("critical database rules", () => {
       expect(closed.rows[0].status).toBe("CERRADO");
       expect(Number(closed.rows[0].expected_cash_to_render)).toBe(120);
       expect(Number(closed.rows[0].cash_difference)).toBe(0);
+    });
+  });
+
+  it("reserves print sheets atomically, idempotently and with legacy numbering compatibility", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      const otherCompanyId = crypto.randomUUID();
+      const requestId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedGlobalRole(userId, "superadmin");
+      await seedCompany(companyId);
+      await seedCompany(otherCompanyId);
+      await setActor(userId);
+      await client.query("set local role authenticated");
+      const reserve = async (company: string, request: string, count: number) => (await client.query(
+        "select public.reserve_purchase_order_print_sheets($1, $2, $3) as batch", [company, request, count],
+      )).rows[0].batch;
+      const first = await reserve(companyId, requestId, 3);
+      expect(first).toEqual({ firstNumber: 1, secondNumber: 2, lastNumber: 6, sheetCount: 3 });
+      expect(await reserve(companyId, requestId, 3)).toEqual(first);
+      await expectDbRejection("select public.reserve_purchase_order_print_sheets($1, $2, $3)", [companyId, requestId, 2]);
+      for (const count of [0, -1, 101, null]) {
+        await expectDbRejection("select public.reserve_purchase_order_print_sheets($1, $2, $3)", [companyId, crypto.randomUUID(), count]);
+      }
+      const legacy = await client.query("select public.reserve_purchase_order_print_batch($1, $2) as batch", [companyId, crypto.randomUUID()]);
+      expect(legacy.rows[0].batch).toEqual({ firstNumber: 7, secondNumber: 8 });
+      expect(await reserve(companyId, crypto.randomUUID(), 2)).toEqual({ firstNumber: 9, secondNumber: 10, lastNumber: 12, sheetCount: 2 });
+      expect(await reserve(otherCompanyId, requestId, 2)).toEqual({ firstNumber: 1, secondNumber: 2, lastNumber: 4, sheetCount: 2 });
     });
   });
 });
