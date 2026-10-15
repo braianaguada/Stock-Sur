@@ -37,6 +37,7 @@ export async function invalidateDocumentQueries(queryClient: QueryClient) {
 
 export async function invalidateStockQueries(queryClient: QueryClient) {
   await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["items-catalog"] }),
     queryClient.invalidateQueries({ queryKey: queryKeys.stock.allCurrent() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.stock.allMovements() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.stock.allRecentItems() }),
@@ -47,6 +48,7 @@ export async function invalidateStockQueries(queryClient: QueryClient) {
 
 export async function invalidatePricingQueries(queryClient: QueryClient) {
   await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["items-catalog"] }),
     queryClient.invalidateQueries({ queryKey: queryKeys.pricing.catalogItemsAll() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.pricing.baseAll() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.pricing.baseHistoryAll() }),

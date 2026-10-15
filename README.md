@@ -1,5 +1,12 @@
 # Stock Sur
 
+### Catalogo paginado en staging (2026-10-15)
+
+- Items consulta una pagina desde PostgreSQL con busqueda natural, aliases, filtros y orden. Costos y precios se traen solo para los productos visibles. No descarga el catalogo completo ni sus movimientos.
+- Stock e Items comparten el signo de movimientos en la base. Cambios de stock y precios invalidan tambien el catalogo paginado.
+- Migracion `20261015160000_items_server_pagination.sql` aplicada solo en staging. QA SQL con 1.205 productos temporales, aislamiento, limites y consistencia de saldos: `npx supabase db query --linked --file scripts/catalog-pagination-qa.sql` (rollback).
+- Pendiente QA visual autenticada y bloques de precios, campos, proveedores y numeracion nueva. Este cambio conserva los codigos existentes.
+
 ### Tipos de cuentas corrientes en staging (2026-10-15)
 
 - Se sincroniza el campo existente account_due_days en los tipos Supabase y se adapta la consulta paginada para conservar el tipo de cliente y plazo. Sin migraciones ni cambios de comportamiento.
