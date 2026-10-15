@@ -34,6 +34,7 @@ import { Copy, Link2, MessageCircle, Plus, Unlink } from "lucide-react";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { EMPTY_LINE } from "@/features/documents/constants";
 import { DocumentsDataTable } from "@/features/documents/components/DocumentsDataTable";
+import { PrintModelButton } from "@/features/purchase-orders/PrintModelButton";
 import {
   DocumentConfirmationDialog,
   type DocumentConfirmationTone,
@@ -800,6 +801,7 @@ export default function DocumentsPage() {
           subtitle="Crea, emite y da seguimiento a presupuestos, remitos y devoluciones."
           actions={(
             <>
+              <PrintModelButton key={currentCompany?.id} />
               <Button variant="outline" onClick={() => openCreateDialog("PRESUPUESTO")} disabled={!canCreateDocumentDraft(roles)}>
                 <Plus className="mr-2 h-4 w-4" /> Presupuesto
               </Button>

@@ -20,10 +20,11 @@ export function PrintModelButton() {
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   activeCompany.current = companyId;
-  if (!companyId || !companyPermissionCodes.includes("suppliers.edit")) return null;
+  if (!companyId) return null;
+  const canPrint = companyPermissionCodes.includes("suppliers.edit");
 
   const print = async (reuse: boolean) => {
-    if (busy || isLoading || settings.company_id !== companyId) return;
+    if (!canPrint || busy || isLoading || settings.company_id !== companyId) return;
     const popup = window.open("", "_blank");
     if (!popup) { toast({ title: "Permití las ventanas emergentes para imprimir", variant: "destructive" }); return; }
     popup.opener = null;
@@ -49,5 +50,15 @@ export function PrintModelButton() {
     } finally { setBusy(false); }
   };
   const canRetry = request.current?.companyId === companyId;
-  return <div className="flex flex-wrap gap-2"><Button variant="outline" disabled={busy || isLoading || settings.company_id !== companyId} onClick={() => void print(false)}><Printer className="mr-2 h-4 w-4" />{busy ? "Preparando…" : "Imprimir 2 órdenes en blanco"}</Button>{canRetry ? <Button variant="ghost" disabled={busy} onClick={() => void print(true)}>Reimprimir misma hoja</Button> : null}</div>;
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" disabled={!canPrint || busy || isLoading || settings.company_id !== companyId} onClick={() => void print(false)}>
+          <Printer className="mr-2 h-4 w-4" />{busy ? "Preparando…" : "Imprimir órdenes de compra"}
+        </Button>
+        {canRetry ? <Button variant="ghost" disabled={!canPrint || busy} onClick={() => void print(true)}>Reimprimir misma hoja</Button> : null}
+      </div>
+      <p className="text-xs text-muted-foreground">{canPrint ? "2 órdenes en blanco por hoja A4." : "Necesitás permiso para editar proveedores para imprimir órdenes."}</p>
+    </div>
+  );
 }
