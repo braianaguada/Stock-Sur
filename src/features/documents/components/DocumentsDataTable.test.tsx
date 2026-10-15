@@ -71,7 +71,10 @@ function renderTable(documents: DocRow[], overrides: Partial<ComponentProps<type
 
 describe("DocumentsDataTable duplicate action", () => {
   it("keeps frequent actions visible and groups secondary actions", () => {
-    renderTable([baseDocument]);
+    const props = renderTable([baseDocument]);
+    fireEvent.click(within(screen.getByRole("table")).getByRole("button", { name: "Imprimir" }));
+    expect(props.onPrint).toHaveBeenCalledWith(baseDocument);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     expect(screen.getAllByRole("button", { name: "Ver detalle" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Descargar PDF" }).length).toBeGreaterThan(0);
@@ -145,8 +148,8 @@ describe("DocumentsDataTable cash registration", () => {
       cashRegisteredDocumentIds: new Set([emittedRemito.id]),
       canRegisterInCash,
     });
-    expect(screen.getAllByText("Registrado en Caja")).toHaveLength(2);
-    expect(within(screen.getByRole("table")).getByText("Registrado en Caja")).toBeInTheDocument();
+    expect(screen.getAllByRole("img", { name: "Registrado en Caja" })).toHaveLength(2);
+    expect(within(screen.getByRole("table")).getByRole("img", { name: "Registrado en Caja" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
   });

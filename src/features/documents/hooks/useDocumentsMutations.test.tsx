@@ -2,7 +2,8 @@ import { renderHook, act } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { PropsWithChildren } from "react";
 import { normalizeDraftLine, useDocumentsMutations } from "./useDocumentsMutations";
-import type { DocumentFormState, LineDraft, PriceListItemRow } from "../types";
+import type { DocumentDraftSubmissionIntent, DocumentFormState, LineDraft, PriceListItemRow } from "../types";
+import { supabase } from "@/integrations/supabase/client";
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -18,7 +19,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({}),
-  useMutation: (options: { mutationFn: () => Promise<unknown> }) => ({
+  useMutation: (options: { mutationFn: (intent?: DocumentDraftSubmissionIntent) => Promise<unknown> }) => ({
     mutateAsync: options.mutationFn,
     isPending: false,
   }),
@@ -121,6 +122,28 @@ const basePriceRow: PriceListItemRow = {
   manual_price_note: null,
   items: null,
 };
+
+describe("document submission intents", () => {
+  it.each([
+    ["SAVE_DRAFT", "PRESUPUESTO", null],
+    ["SEND_BUDGET", "PRESUPUESTO", "transition_document_status"],
+    ["ISSUE_REMITO", "REMITO", "issue_document"],
+  ] as const)("routes %s through the correct operation", async (intent, docType, rpcName) => {
+    vi.mocked(supabase.rpc).mockReset().mockResolvedValue({ data: null, error: null, count: null, status: 200, statusText: "OK" });
+    const { result } = renderHook(() => useDocumentsMutations({
+      currentCompanyId: "company-1", userId: "user-1", documents: [], customers: [], technicians: [],
+      lines: [baseLine], draftForm: { ...baseDraftForm, doc_type: docType, recipient_type: "OCCASIONAL", customer_name: "Cliente ocasional" },
+      totalDraft: 2512.7, editingDocId: null, priceByItem: new Map([["item-1", 1256.35]]),
+      priceListItemByItemId: new Map([["item-1", basePriceRow]]), priceRoundingConfig: { enabled: false, increment: null },
+      resetDraftForm: vi.fn(), setDialogOpen: vi.fn(), toast: vi.fn(),
+    }));
+    let outcome: unknown;
+    await act(async () => { outcome = await result.current.upsertDraftMutation.mutateAsync(intent); });
+    expect(outcome).toEqual({ intent, issued: intent === "ISSUE_REMITO", issueError: null });
+    if (rpcName) expect(supabase.rpc).toHaveBeenCalledWith(rpcName, intent === "SEND_BUDGET" ? { p_document_id: "doc-1", p_target_status: "ENVIADO" } : { p_document_id: "doc-1" });
+    else expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+});
 
 describe("normalizeDraftLine", () => {
   it("keeps base cost unchanged and uses rounded suggested price as initial list price", () => {

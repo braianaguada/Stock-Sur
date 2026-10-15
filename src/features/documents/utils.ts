@@ -176,7 +176,7 @@ export function validateDocumentRecipientDraft(
     throw new Error("Cliente registrado requiere seleccionar un cliente");
   }
 
-  if (draft.recipient_type === "OCCASIONAL" && draft.technician_id) {
+  if (draft.doc_type !== "REMITO_DEVOLUCION" && draft.recipient_type === "OCCASIONAL" && draft.technician_id) {
     throw new Error("Cliente ocasional no puede tener tecnico asociado");
   }
 

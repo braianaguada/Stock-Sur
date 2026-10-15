@@ -138,7 +138,7 @@ export interface PriceListRow {
   round_to: number | null;
 }
 
-export type DocumentDraftSubmissionIntent = "SAVE_DRAFT" | "ISSUE_REMITO";
+export type DocumentDraftSubmissionIntent = "SAVE_DRAFT" | "ISSUE_REMITO" | "SEND_BUDGET";
 
 export interface PriceListItemRow {
   item_id: string;

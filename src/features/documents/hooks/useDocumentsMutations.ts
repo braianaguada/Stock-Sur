@@ -180,6 +180,9 @@ export function useDocumentsMutations({
       if (intent === "ISSUE_REMITO" && (editingDocId || draftForm.doc_type !== "REMITO")) {
         throw new Error("La emision directa solo esta disponible al crear un remito nuevo");
       }
+      if (intent === "SEND_BUDGET" && (editingDocId || draftForm.doc_type !== "PRESUPUESTO")) {
+        throw new Error("La emision directa solo esta disponible al crear un presupuesto nuevo");
+      }
       if (draftForm.customer_id && !customersById.has(draftForm.customer_id)) {
         throw new Error("El cliente seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
       }
@@ -304,8 +307,10 @@ export function useDocumentsMutations({
         created_by: userId,
       });
 
-      if (intent === "ISSUE_REMITO") {
-        const { error: issueError } = await supabase.rpc("issue_document", { p_document_id: documentId! });
+      if (intent === "ISSUE_REMITO" || intent === "SEND_BUDGET") {
+        const { error: issueError } = intent === "ISSUE_REMITO"
+          ? await supabase.rpc("issue_document", { p_document_id: documentId! })
+          : await supabase.rpc("transition_document_status", { p_document_id: documentId!, p_target_status: "ENVIADO" });
         if (issueError) {
           return {
             intent,
@@ -313,7 +318,7 @@ export function useDocumentsMutations({
             issueError: getErrorMessage(issueError),
           };
         }
-        return { intent, issued: true, issueError: null };
+        return { intent, issued: intent === "ISSUE_REMITO", issueError: null };
       }
 
       return { intent, issued: false, issueError: null };
@@ -327,14 +332,14 @@ export function useDocumentsMutations({
       resetDraftForm();
       if (result.issueError) {
         toast({
-          title: "Remito guardado como borrador",
+          title: result.intent === "SEND_BUDGET" ? "Presupuesto guardado como borrador" : "Remito guardado como borrador",
           description: `No se pudo emitir: ${result.issueError}`,
           variant: "destructive",
         });
         return;
       }
       toast({
-        title: result.issued
+        title: result.intent === "SEND_BUDGET" ? "Presupuesto emitido" : result.issued
           ? "Remito emitido"
           : editingDocId
             ? "Borrador actualizado"

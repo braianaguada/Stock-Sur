@@ -148,11 +148,12 @@ export function buildDocumentPrintHtml({
     .line-count{color:#64748b;font-size:8px}
     table{width:100%;border-collapse:collapse;table-layout:fixed;border-top:1.5px solid #cfd8e5;border-bottom:1px solid #d8e0ea}
     th{height:5mm;background:#f5f7fa;color:#334155;font-size:7px;font-weight:850;letter-spacing:.08em;text-align:left;text-transform:uppercase;border-bottom:1px solid #d8e0ea;padding:1.2mm 1.4mm}
-    td{height:5.5mm;color:#111827;font-size:8px;line-height:1.12;vertical-align:top;border-bottom:1px solid #e6ebf2;padding:1.2mm 1.4mm}
+    td{height:6mm;color:#111827;font-size:10.67px;line-height:1.2;vertical-align:top;border-bottom:1px solid #e6ebf2;padding:1.2mm 1.4mm}
     .density-compact th{height:4.6mm;padding:1mm 1.25mm}
-    .density-compact td{height:5mm;font-size:7.8px;padding:1mm 1.25mm}
+    .density-compact td{height:5.5mm;font-size:10.47px;padding:1mm 1.25mm}
     .density-dense th{height:4.2mm;font-size:6.7px;padding:.8mm 1mm}
-    .density-dense td{height:4.55mm;font-size:7.45px;line-height:1.08;padding:.8mm 1mm}
+    .density-dense td{height:5.2mm;font-size:10.12px;line-height:1.2;padding:.8mm 1mm}
+    thead{display:table-header-group} tbody tr{break-inside:avoid;page-break-inside:avoid}
     tbody tr:nth-child(even){background:#fbfcfe}
     tbody tr:last-child td{border-bottom:0}
     tr{break-inside:avoid;page-break-inside:avoid}

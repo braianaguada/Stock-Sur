@@ -31,7 +31,7 @@ type DataTableProps<TData> = {
   onSortingChange?: (sorting: SortingState) => void;
   columnVisibility?: VisibilityState;
   getRowId?: (originalRow: TData, index: number, parent?: Row<TData>) => string;
-  rowClassName?: string;
+  rowClassName?: string | ((row: TData) => string);
   cellClassName?: string;
   reserveEmptyRows?: number;
   density?: "comfortable" | "compact";
@@ -118,7 +118,7 @@ export function DataTable<TData>({
         ) : rows.length === 0 ? (
           <TableEmptyState colSpan={visibleColumnCount} variant="empty" title={emptyMessage} />
         ) : rows.map((row) => (
-          <TableRow key={row.id} className={rowClassName}>
+          <TableRow key={row.id} className={typeof rowClassName === "function" ? rowClassName(row.original) : rowClassName}>
             {row.getVisibleCells().map((cell) => (
               <TableCell
                 key={cell.id}
@@ -133,7 +133,7 @@ export function DataTable<TData>({
           <TableRow
             key={`filler-row-${index}`}
             aria-hidden="true"
-            className={cn("pointer-events-none hover:bg-transparent", rowClassName)}
+            className={cn("pointer-events-none hover:bg-transparent", typeof rowClassName === "string" ? rowClassName : undefined)}
           >
             {table.getVisibleLeafColumns().map((column, cellIndex) => (
               <TableCell

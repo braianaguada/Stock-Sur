@@ -10,6 +10,14 @@ vi.mock("@/integrations/supabase/client", () => ({
 import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "./pdf-download";
 
 describe("PDF download", () => {
+  it("falls back when the browser blocks the native picker, but respects cancellation", async () => {
+    const picker = vi.fn().mockRejectedValue(new DOMException("Blocked", "SecurityError"));
+    (window as Window & { showSaveFilePicker?: typeof picker }).showSaveFilePicker = picker;
+    await expect(choosePdfSaveTarget("remito")).resolves.toEqual({ fileName: "remito.pdf", handle: null });
+    picker.mockRejectedValue(new DOMException("Cancel", "AbortError"));
+    await expect(choosePdfSaveTarget("remito")).rejects.toMatchObject({ name: "AbortError" });
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -59,7 +67,7 @@ describe("PDF download", () => {
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
 
-    await savePrintHtmlAsPdf({
+    const result = await savePrintHtmlAsPdf({
       html: "<html><body>Documento</body></html>",
       fileName: "documento.pdf",
       proof: { mode: "authenticated", kind: "service", documentId: "document-1" },
@@ -70,5 +78,8 @@ describe("PDF download", () => {
       headers: expect.objectContaining({ authorization: "Bearer access-token" }),
     }));
     expect(getSessionMock).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ fileName: "documento.pdf", method: "downloaded" });
+    expect(document.querySelector("a[download] ")).toBeNull();
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
   });
 });

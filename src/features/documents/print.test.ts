@@ -82,6 +82,9 @@ describe("buildDocumentPrintHtml", () => {
     expect(html).toContain(".brand-logo{width:100%;height:100%");
     expect(html).toContain("table-layout:fixed");
     expect(html).toContain("height:5.5mm");
+    expect(html).toContain("font-size:10.67px");
+    expect(html).toContain("font-size:10.47px");
+    expect(html).toContain("font-size:10.12px");
     expect(html).toContain(".density-compact");
     expect(html).toContain(".tone-remito");
     expect(html).toContain("Productos");
