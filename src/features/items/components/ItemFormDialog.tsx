@@ -95,40 +95,13 @@ export function ItemFormDialog({
             required
           />
         </div>
-        <div className="space-y-2">
-          <Label>Descripcion completa</Label>
-          <Textarea value={form.description} onChange={event => onFormChange({ ...form, description: event.target.value })} rows={3} />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-1">
           <div className="space-y-2">
             <Label>Proveedor</Label>
             <ItemSupplierSelect companyId={companyId} value={form.supplier_id}
               onChange={(id,name) => onFormChange({ ...form, supplier_id: id, supplier: name })} />
             {!form.supplier_id && form.supplier && <p className="text-xs text-muted-foreground">Dato anterior: {form.supplier}. Selecciona un proveedor para asociarlo.</p>}
           </div>
-          <div className="space-y-2">
-            <Label>Marca</Label>
-            <Input
-              value={form.brand}
-              onChange={(event) => onFormChange({ ...form, brand: event.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Modelo</Label>
-            <Input
-              value={form.model}
-              onChange={(event) => onFormChange({ ...form, model: event.target.value })}
-            />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label>Atributos anteriores (compatibilidad)</Label>
-          <Textarea
-            value={form.attributes}
-            onChange={(event) => onFormChange({ ...form, attributes: event.target.value })}
-            placeholder="Ej: 18 x 21 MM x 2 M | CON ADHESIVO"
-            rows={3}
-          />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -153,6 +126,38 @@ export function ItemFormDialog({
               onChange={(event) => onFormChange({ ...form, category: event.target.value })}
             />
           </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Descripcion completa</Label>
+          <Textarea value={form.description} onChange={event => onFormChange({ ...form, description: event.target.value })} rows={3} />
+        </div>
+        <details className="rounded-md border p-3">
+          <summary className="cursor-pointer text-sm font-semibold">Datos tecnicos y codigos alternativos</summary>
+          <div className="mt-4 space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Marca</Label>
+            <Input
+              value={form.brand}
+              onChange={(event) => onFormChange({ ...form, brand: event.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Modelo</Label>
+            <Input
+              value={form.model}
+              onChange={(event) => onFormChange({ ...form, model: event.target.value })}
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Atributos anteriores (compatibilidad)</Label>
+          <Textarea
+            value={form.attributes}
+            onChange={(event) => onFormChange({ ...form, attributes: event.target.value })}
+            placeholder="Ej: 18 x 21 MM x 2 M | CON ADHESIVO"
+            rows={3}
+          />
         </div>
         <div className="space-y-2">
           <Label>Tipo de demanda *</Label>
@@ -248,6 +253,8 @@ export function ItemFormDialog({
             </div>
           </div>
         ) : null}
+          </div>
+        </details>
         <div className="flex justify-end">
           <Button type="submit" disabled={isSaving}>
             {isSaving ? "Guardando..." : "Guardar"}
