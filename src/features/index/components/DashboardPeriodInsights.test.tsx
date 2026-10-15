@@ -12,7 +12,10 @@ describe("DashboardPeriodInsights", () => {
     } }} />);
     expect(screen.getByText("CAÑO COBRE - 1/4")).toBeInTheDocument();
     expect(screen.getByText("CAÑO COBRE - 3/8")).toBeInTheDocument();
-    expect(screen.getByText("ITM-1 · 2 m")).toBeInTheDocument();
+    expect(screen.getByText("ITM-1")).toBeInTheDocument();
+    expect(screen.getByText("2 m")).toBeInTheDocument();
+    expect(screen.getByText("1 m")).toBeInTheDocument();
+    expect(screen.getAllByText("Cantidad vendida")).toHaveLength(3);
     expect(screen.getByText("Sin movimientos en el período.")).toBeInTheDocument();
   });
 });

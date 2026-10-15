@@ -7,6 +7,9 @@
 - Productos impresos con aproximadamente 2 puntos mas de letra. Sin migraciones de base de datos en esta rama.
 - QA automatizada y checks de compilacion; pendiente comprobacion visual autenticada y dialogo nativo de guardado en staging.
 
+### Cantidades en productos vendidos
+Cada producto muestra Cantidad vendida con su unidad junto a venta, costo y ganancia para el período seleccionado. Sin migraciones. Validación: suite, typecheck, lint y build.
+
 ## Correcciones operativas y filtros de fechas
 
 - Stock recupera nombre, SKU, unidad y atributos del resumen. Interactuar con notificaciones conserva el editor y su borrador.
