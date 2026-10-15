@@ -1,5 +1,7 @@
 # Stock Sur
 
+Documentos: se elimina el ícono de registrado en caja del listado; se conserva el fondo suave de filas y tarjetas, el estado accesible y el detalle en acciones. Sin migraciones. Regresión cubierta en escritorio y móvil.
+
 Impresión de órdenes: se corrige el acceso de superadmin sin permiso explícito de proveedores ni membresía local. Migración `20261015230000_superadmin_purchase_order_print.sql`; conserva empresa activa, aislamiento y numeración idempotente. QA: tests del botón y casos DB transaccionales en `criticalDb.test.ts` (requieren conexión staging).
 
 Consulta rápida: acceso flotante circular de 44 px, solo con ícono, nombre accesible y ayuda al pasar el cursor. Mantiene la apertura de la consulta y ocupa menos espacio en escritorio y móvil. Cambio visual sin migraciones.
