@@ -31,7 +31,16 @@ describe("purchase order blank print model", () => {
       expect(order.width).toBe("148.5mm");
       expect(order.height).toBe("210mm");
       expect(order.border).toBe("1px solid #334155");
-      expect(order.padding).toBe("4mm");
+      expect(order.padding).toBe("0");
+      // Lines reach the sheet edges and the centre seam; only text has an inset.
+      const table = rules.find(rule => rule.selectorText === "table")!.style;
+      const field = rules.find(rule => rule.selectorText === ".field")!.style;
+      expect(table.width).toBe("100%");
+      expect(table.margin).toBe("0");
+      expect(table.flex).toBe("1");
+      expect(field.padding).toBe("0 2mm");
+      expect(rules.find(rule => rule.selectorText.replaceAll(" ", "") === "tr>:first-child")!.style.getPropertyValue("border-left")).toBe("0");
+      expect(rules.find(rule => rule.selectorText.replaceAll(" ", "") === "tr>:last-child")!.style.getPropertyValue("border-right")).toBe("0");
       expect(rules.find(rule => rule.selectorText === "*")!.style.getPropertyValue("box-sizing")).toBe("border-box");
     } finally {
       style.remove();
