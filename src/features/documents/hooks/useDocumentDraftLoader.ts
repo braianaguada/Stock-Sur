@@ -4,6 +4,7 @@ import type { DocRow, DocumentFormState, LineDraft } from "../types";
 
 type UseDocumentDraftLoaderParams = {
   documentsById: Map<string, DocRow>;
+  currentCompanyId: string | null;
 };
 
 type LoadedDocumentDraft = {
@@ -12,13 +13,15 @@ type LoadedDocumentDraft = {
   lines: LineDraft[];
 };
 
-export function useDocumentDraftLoader({ documentsById }: UseDocumentDraftLoaderParams) {
+export function useDocumentDraftLoader({ documentsById, currentCompanyId }: UseDocumentDraftLoaderParams) {
   return useCallback(async (docId: string): Promise<LoadedDocumentDraft> => {
+    if (!currentCompanyId) throw new Error("Selecciona una empresa antes de editar documentos");
     let target = documentsById.get(docId);
     if (!target) {
       const { data, error } = await supabase
         .from("documents")
         .select("*")
+        .eq("company_id", currentCompanyId)
         .eq("id", docId)
         .maybeSingle();
       if (error) throw error;
@@ -79,5 +82,5 @@ export function useDocumentDraftLoader({ documentsById }: UseDocumentDraftLoader
       },
       lines: draftLines,
     };
-  }, [documentsById]);
+  }, [documentsById, currentCompanyId]);
 }

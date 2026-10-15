@@ -4,6 +4,7 @@ import { Ban, Banknote, Check, Copy, Download, Eye, FileText, Loader2, MessageCi
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { CategoryBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { DataTable } from "@/components/data-table/DataTable";
+import { DataState } from "@/components/common/DataState";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogActionGrid, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -25,6 +26,8 @@ const STATUS_TONE: Record<DocStatus, "muted" | "info" | "success" | "danger"> = 
 interface DocumentsDataTableProps {
   documents: DocRow[];
   isLoading: boolean;
+  errorMessage?: string;
+  onRetry?: () => void;
   pageSize: number;
   technicianNamesById?: Map<string, string>;
   onOpenDetail: (documentId: string) => void;
@@ -52,6 +55,8 @@ interface DocumentsDataTableProps {
 export function DocumentsDataTable({
   documents,
   isLoading,
+  errorMessage,
+  onRetry,
   pageSize,
   technicianNamesById = new Map(),
   onOpenDetail,
@@ -314,7 +319,7 @@ export function DocumentsDataTable({
   return (
     <>
       <div className="grid gap-3 md:hidden">
-        {documents.map((doc) => {
+        {!isLoading && !errorMessage && documents.map((doc) => {
           const recipient = resolveDocumentRecipient(doc);
           return (
             <Card key={doc.id} className={`space-y-3 border-border/70 p-4 shadow-none ${cashRegisteredDocumentIds.has(doc.id) ? "bg-emerald-500/5" : ""}`}>
@@ -336,10 +341,10 @@ export function DocumentsDataTable({
             </Card>
           );
         })}
-        {!isLoading && documents.length === 0 ? <Card className="border-dashed p-6 text-center text-sm text-muted-foreground">No hay documentos para mostrar</Card> : null}
+        {isLoading ? <DataState variant="loading" title="Cargando documentos" /> : errorMessage ? <DataState variant="error" title="No se pudieron cargar los documentos" description={errorMessage} actionLabel="Reintentar" onAction={onRetry} /> : documents.length === 0 ? <Card className="border-dashed p-6 text-center text-sm text-muted-foreground">No hay documentos para mostrar</Card> : null}
       </div>
       <Card className="hidden min-w-0 overflow-x-auto border-border/70 shadow-none md:block">
-        <DataTable columns={columns} data={documents} isLoading={isLoading} emptyMessage="No hay documentos para mostrar" className="min-w-[940px] table-fixed" rowClassName={(doc) => `h-11 ${cashRegisteredDocumentIds.has(doc.id) ? "bg-emerald-500/5 hover:bg-emerald-500/10" : ""}`} cellClassName="h-11 py-0" reserveEmptyRows={pageSize} />
+        <DataTable columns={columns} data={documents} isLoading={isLoading} errorMessage={errorMessage} onRetry={onRetry} emptyMessage="No hay documentos para mostrar" className="min-w-[940px] table-fixed" rowClassName={(doc) => `h-11 ${cashRegisteredDocumentIds.has(doc.id) ? "bg-emerald-500/5 hover:bg-emerald-500/10" : ""}`} cellClassName="h-11 py-0" reserveEmptyRows={pageSize} />
       </Card>
     </>
   );
