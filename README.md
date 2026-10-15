@@ -1,5 +1,7 @@
 # Stock Sur
 
+Consulta rápida: acceso flotante circular de 44 px, solo con ícono, nombre accesible y ayuda al pasar el cursor. Mantiene la apertura de la consulta y ocupa menos espacio en escritorio y móvil. Cambio visual sin migraciones.
+
 - Staging: acceso visible "Imprimir órdenes de compra" en Documentos y Compras > Órdenes de compra; dos modelos en blanco por A4. Sin permiso `suppliers.edit`, se muestra la acción deshabilitada con explicación. Sin cambios de base de datos.
 
 Formulario de items: codigo, nombre, proveedor, unidad, categoria y descripcion a primera vista; marca, modelo, aliases, demanda y datos fisicos/tecnicos en seccion desplegable. Costos y stock continuan en el asistente existente. Cambio visual sin migraciones.

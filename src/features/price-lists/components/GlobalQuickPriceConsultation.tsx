@@ -69,13 +69,13 @@ export function GlobalQuickPriceConsultation() {
     <>
       <Button
         type="button"
-        className="fixed bottom-5 right-5 z-40 h-12 rounded-full px-4 shadow-lg sm:bottom-6 sm:right-6"
+        size="icon"
+        className="fixed bottom-5 right-5 z-40 h-11 w-11 rounded-full shadow-lg sm:bottom-6 sm:right-6"
         onClick={() => setOpen(true)}
         aria-label="Abrir consulta rapida de precios"
         title="Consulta rapida de precios"
       >
-        <Tags className="h-5 w-5 sm:mr-2" />
-        <span className="hidden sm:inline">Consulta rapida</span>
+        <Tags aria-hidden="true" />
       </Button>
       <ServerQuickPriceConsultation
         open={open}
