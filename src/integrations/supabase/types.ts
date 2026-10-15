@@ -2625,6 +2625,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_stock_overview: { Args: { p_company_id: string }; Returns: Json }
+      list_stock_movements_page: {
+        Args: { p_company_id: string; p_search?: string; p_page?: number; p_page_size?: number }
+        Returns: Json
+      }
       list_items_page: {
         Args: {
           p_company_id: string

@@ -8,10 +8,6 @@ import { invalidateStockQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import { isIntegerOnlyStockUnit } from "@/lib/stock-quantity";
 import { matchesNaturalItemSearch } from "@/features/items/search";
-import {
-  buildStockRowsFromSummary,
-  type StockSummarySource,
-} from "@/features/stock/stockRows";
 import type {
   Movement,
   SearchableItem,
@@ -97,7 +93,7 @@ function normalizeMovementForm(form: Partial<StockMovementForm> | null | undefin
   };
 }
 
-export function useStockPage() {
+export function useStockPage({ movementsEnabled = false, movementsPage = 1, movementsPageSize = 10 } = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user, currentCompany } = useAuth();
@@ -117,6 +113,8 @@ export function useStockPage() {
   );
 
   useEffect(() => {
+    setSearch("");
+    setMovementSearch("");
     setHydratedDraftKey(null);
     setDialogOpen(false);
     setForm(DEFAULT_STOCK_MOVEMENT_FORM);
@@ -189,15 +187,15 @@ export function useStockPage() {
     [availableItems, selectedItem],
   );
 
-  const { data: allStockRows = [], isLoading: loadingStock } = useQuery({
+  const { data: allStockRows = [], isLoading: loadingStock, error: stockError, refetch: retryStock } = useQuery({
     queryKey: queryKeys.stock.current(currentCompany?.id ?? null, ""),
     enabled: Boolean(currentCompany),
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_stock_summary", {
+      const { data, error } = await supabase.rpc("get_stock_overview", {
         p_company_id: currentCompany!.id,
       });
       if (error) throw error;
-      return buildStockRowsFromSummary((data ?? []) as StockSummarySource[]);
+      return (data ?? []) as unknown as StockRow[];
     },
   });
 
@@ -220,65 +218,24 @@ export function useStockPage() {
     );
   }, [allStockRows, deferredSearch]);
 
-  const { data: movements = [], isLoading: loadingMovements } = useQuery({
-    queryKey: queryKeys.stock.movements(currentCompany?.id ?? null),
-    enabled: Boolean(currentCompany),
+  const { data: movementPage, isFetching: loadingMovements, error: movementsError, refetch: retryMovements } = useQuery({
+    queryKey: [...queryKeys.stock.movements(currentCompany?.id ?? null), deferredMovementSearch, movementsPage, movementsPageSize],
+    enabled: Boolean(currentCompany) && movementsEnabled,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stock_movements")
-        .select("id, item_id, type, quantity, reference, created_at, created_by, items(name, sku, unit, brand, model, attributes)")
-        .eq("company_id", currentCompany!.id)
-        .order("created_at", { ascending: false })
-        .limit(5000);
+      const { data, error } = await supabase.rpc("list_stock_movements_page", {
+        p_company_id: currentCompany!.id, p_search: deferredMovementSearch,
+        p_page: movementsPage, p_page_size: movementsPageSize,
+      });
       if (error) throw error;
-
-      const userIds = Array.from(
-        new Set((data ?? []).map((movement) => movement.created_by).filter(Boolean)),
-      ) as string[];
-      const namesByUserId = new Map<string, string>();
-
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("user_id, full_name")
-          .in("user_id", userIds);
-
-        for (const profile of profiles ?? []) {
-          namesByUserId.set(profile.user_id, profile.full_name || profile.user_id.slice(0, 8));
-        }
-      }
-
-      return ((data ?? []) as Movement[]).map((movement) => ({
-        ...movement,
-        created_by_name: movement.created_by
-          ? (namesByUserId.get(movement.created_by) ?? movement.created_by.slice(0, 8))
-          : "Sistema",
-      }));
+      return data as unknown as { items: Movement[]; total: number; page: number };
     },
   });
+  const filteredMovements = movementPage?.items ?? [];
 
   const stockByItemId = useMemo(
     () => buildStockByItemId(allStockRows),
     [allStockRows],
   );
-
-  const filteredMovements = useMemo(() => {
-    const normalizedSearch = deferredMovementSearch.trim().toLowerCase();
-    if (!normalizedSearch) return movements;
-
-    return movements.filter((movement) => {
-      const item = movement.items;
-      return (
-        movement.reference?.toLowerCase().includes(normalizedSearch) ||
-        movement.created_by_name?.toLowerCase().includes(normalizedSearch) ||
-        item?.name?.toLowerCase().includes(normalizedSearch) ||
-        item?.sku?.toLowerCase().includes(normalizedSearch) ||
-        item?.brand?.toLowerCase().includes(normalizedSearch) ||
-        item?.model?.toLowerCase().includes(normalizedSearch) ||
-        item?.attributes?.toLowerCase().includes(normalizedSearch)
-      );
-    });
-  }, [deferredMovementSearch, movements]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -359,7 +316,12 @@ export function useStockPage() {
     allStockRows,
     stockRows,
     loadingStock,
-    movements,
+    movementTotal: movementPage?.total ?? 0,
+    movementPage: movementPage?.page ?? 1,
+    stockError,
+    retryStock,
+    movementsError,
+    retryMovements,
     filteredMovements,
     loadingMovements,
     search,
