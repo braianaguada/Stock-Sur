@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildStockRows,
+  buildStockRowsFromSummary,
   type StockItemSource,
   type StockMovementSource,
 } from "./stockRows";
@@ -35,6 +36,18 @@ function movement(overrides: Partial<StockMovementSource> = {}): StockMovementSo
 }
 
 describe("buildStockRows", () => {
+  it("preserves prefixed RPC metadata, sorting and demand in summary rows", () => {
+    const source = {
+      item_id: "copper", item_name: "Caño cobre", item_sku: "COB-1", item_unit: "m",
+      item_supplier: "Proveedor", item_brand: "Marca", item_model: "Modelo",
+      item_attributes: "3/8", item_category: "Cobre", demand_profile: "HIGH" as const,
+      demand_monthly_estimate: 30, total: 25, out_30d: 30, out_90d: 90,
+      out_365d: 365, out_month_buckets_12m: Array(12).fill(30),
+    };
+    const rows = buildStockRowsFromSummary([source, { ...source, item_id: "a", item_name: "Aceite" }]);
+    expect(rows.map(row => row.item_name)).toEqual(["Aceite", "Caño cobre"]);
+    expect(rows[1]).toMatchObject({ ...Object.fromEntries(Object.entries(source).filter(([key]) => key.startsWith("item_") || key.startsWith("demand_"))), total: 25, demand_daily: 1, days_of_cover: 25, health: "YELLOW" });
+  });
   it("combines catalog items and signed movements without losing tenant-scoped item metadata", () => {
     const rows = buildStockRows(
       [stockItem()],

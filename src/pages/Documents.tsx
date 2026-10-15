@@ -143,6 +143,8 @@ export default function DocumentsPage() {
   const [statusFilter, setStatusFilter] = useState<DocStatus | "ALL">("ALL");
   const [customerFilter, setCustomerFilter] = useState("ALL");
   const [technicianFilter, setTechnicianFilter] = useState("ALL");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -192,6 +194,8 @@ export default function DocumentsPage() {
     statusFilter,
     customerFilter,
     technicianFilter,
+    dateFrom,
+    dateTo,
     selectedDocId,
     selectedPriceListId: draftForm.price_list_id,
     currentCompanyId: currentCompany?.id ?? null,
@@ -252,7 +256,7 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     setDocumentsPage(1);
-  }, [trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter, documentsPageSize]);
+  }, [trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter, dateFrom, dateTo, documentsPageSize]);
 
   useEffect(() => {
     if (draftForm.price_list_id || priceLists.length === 0) return;
@@ -864,6 +868,15 @@ export default function DocumentsPage() {
               </SelectContent>
             </Select>
           </div>
+          <div className="w-full space-y-1 md:w-44">
+            <Label htmlFor="documents-from" className="text-xs text-muted-foreground">Fecha documento desde</Label>
+            <Input id="documents-from" type="date" value={dateFrom} max={dateTo || undefined} onChange={(event) => { setDateFrom(event.target.value); if (dateTo && event.target.value > dateTo) setDateTo(event.target.value); }} />
+          </div>
+          <div className="w-full space-y-1 md:w-44">
+            <Label htmlFor="documents-to" className="text-xs text-muted-foreground">Fecha documento hasta</Label>
+            <Input id="documents-to" type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => { setDateTo(event.target.value); if (dateFrom && event.target.value && event.target.value < dateFrom) setDateFrom(event.target.value); }} />
+          </div>
+          {dateFrom || dateTo ? <Button variant="ghost" onClick={() => { setDateFrom(""); setDateTo(""); }}>Todas las fechas</Button> : null}
         </FilterToolbar>
 
           <DocumentsDataTable

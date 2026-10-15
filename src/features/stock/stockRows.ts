@@ -186,7 +186,13 @@ export function buildStockRowsFromSummary(summaries: StockSummarySource[]): Stoc
   const rowsByItem = new Map<string, AccumulatedStockRow>();
   for (const summary of summaries) {
     rowsByItem.set(summary.item_id, {
-      ...createAccumulatedRow(summary.item_id, summary),
+      ...createAccumulatedRow(summary.item_id, {
+        name: summary.item_name, sku: summary.item_sku, unit: summary.item_unit,
+        supplier: summary.item_supplier, brand: summary.item_brand, model: summary.item_model,
+        attributes: summary.item_attributes, category: summary.item_category,
+        demand_profile: summary.demand_profile,
+        demand_monthly_estimate: summary.demand_monthly_estimate,
+      }),
       total: Number(summary.total),
       out_30d: Number(summary.out_30d), out_90d: Number(summary.out_90d), out_365d: Number(summary.out_365d),
       out_month_buckets_12m: summary.out_month_buckets_12m.map(Number),

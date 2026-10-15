@@ -25,6 +25,8 @@ type UseDocumentsDataParams = {
   statusFilter: DocStatus | "ALL";
   customerFilter: string;
   technicianFilter: string;
+  dateFrom?: string;
+  dateTo?: string;
   selectedDocId: string | null;
   selectedPriceListId: string;
   currentCompanyId: string | null;
@@ -36,6 +38,8 @@ export function useDocumentsData({
   statusFilter,
   customerFilter,
   technicianFilter,
+  dateFrom = "",
+  dateTo = "",
   selectedDocId,
   selectedPriceListId,
   currentCompanyId,
@@ -240,7 +244,7 @@ export function useDocumentsData({
   );
 
   const { data: documents = [], isLoading } = useQuery({
-    queryKey: queryKeys.documents.list(currentCompanyId, trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter),
+    queryKey: queryKeys.documents.list(currentCompanyId, trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter, dateFrom, dateTo),
     enabled: Boolean(currentCompanyId),
     queryFn: async () => {
       const rows = await fetchAllPages(() => {
@@ -254,6 +258,8 @@ export function useDocumentsData({
         if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
         if (customerFilter !== "ALL") q = q.eq("customer_id", customerFilter);
         if (technicianFilter !== "ALL") q = q.eq("technician_id", technicianFilter);
+        if (dateFrom) q = q.gte("issue_date", dateFrom);
+        if (dateTo) q = q.lte("issue_date", dateTo);
         return { range: async (from: number, to: number) => await q.range(from, to) };
       }) as DocRow[];
       if (!trimmedSearch) return rows;

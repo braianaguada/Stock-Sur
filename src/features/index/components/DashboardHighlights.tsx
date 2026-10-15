@@ -6,15 +6,15 @@ import { formatDashboardPaymentMethod } from "@/features/index/payment-method-la
 
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 
-export function DashboardHighlights({ dashboard }: { dashboard: DashboardInsights }) {
-  const payments = dashboard.paymentMethods.slice(0, 4);
+export function DashboardHighlights({ dashboard, periodMethods }: { dashboard: DashboardInsights; periodMethods?: DashboardInsights["paymentMethods"] }) {
+  const payments = (periodMethods ?? dashboard.paymentMethods).slice(0, 4);
   const max = Math.max(...payments.map((item) => item.total), 1);
 
   return (
     <Card className="flex h-full flex-col border-border/70 shadow-none" aria-labelledby="dashboard-highlights-title">
       <div className="flex items-center gap-3 border-b border-border/60 px-5 py-5">
         <Banknote className="h-5 w-5" aria-hidden="true" />
-        <div><h2 id="dashboard-highlights-title" className="text-base font-semibold">Composición de cobros</h2><p className="text-xs text-muted-foreground">Medios registrados este mes</p></div>
+        <div><h2 id="dashboard-highlights-title" className="text-base font-semibold">Composición de cobros</h2><p className="text-xs text-muted-foreground">{periodMethods ? "Medios del intervalo seleccionado" : "Medios registrados este mes"}</p></div>
       </div>
       <div className="flex flex-1 flex-col gap-4 p-5">
         {payments.length ? payments.map((item) => (

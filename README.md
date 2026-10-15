@@ -1,5 +1,16 @@
 # Stock Sur
 
+## Correcciones operativas y filtros de fechas
+
+- Stock recupera nombre, SKU, unidad y atributos del resumen. Interactuar con notificaciones conserva el editor y su borrador.
+- Dashboard comparte Hoy/semana/mes/mes anterior/rango personalizado (hasta 366 dias) entre caja, rentabilidad, medios de pago y productos. Inventario, alertas, pulso operativo y lectura ejecutiva indican su alcance actual.
+- Los productos vendidos incluyen atributos; la evolucion de venta neta muestra fechas, escala monetaria, detalle y devoluciones negativas, sin estirar el panel al alto de la lista.
+- Documentos filtra por fecha de documento desde/hasta antes de paginar, con cache por empresa e intervalo.
+- Migracion: `20261015120000_dashboard_period_details.sql`; agrega atributos y medios de pago por periodo a las RPC existentes, conservando permisos y aislamiento. No genera movimientos ni emite comprobantes; no se toca produccion.
+- Validaciones: typecheck, lint, build y regresiones focalizadas aprobados; QA SQL de solo lectura aprobada en staging con rollback (`npx supabase db query --linked --file scripts/dashboard-period-qa.sql`). Migracion aplicada solo en staging. El chequeo ampliado de tsconfig.app mantiene los mismos 242 diagnosticos preexistentes de origin/staging.
+- Suite completa: 694 tests aprobados y 46 DB omitidos por credenciales ausentes (`npm run test -- --maxWorkers=2 --testTimeout=15000`); limite ampliado para el control estatico visual.
+- QA visual autenticada pendiente en staging: cambiar empresa y periodo, contrastar importes y variantes, filtrar Documentos y cerrar una notificacion con un borrador abierto, en escritorio y celular.
+
 ## Marca de registro en Caja en Documentos
 
 - Los remitos emitidos registrados en Caja muestran la marca en la columna Estado y en la tarjeta mobile, sin abrir Mas acciones. Visible tambien sin permiso de crear ventas.
