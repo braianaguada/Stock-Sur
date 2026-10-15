@@ -10,6 +10,9 @@
 ### Cantidades en productos vendidos
 Cada producto muestra Cantidad vendida con su unidad junto a venta, costo y ganancia para el período seleccionado. Sin migraciones. Validación: suite, typecheck, lint y build.
 
+### Modelo de orden de compra
+Compras > Órdenes de compra permite imprimir dos formularios en blanco en A4 horizontal, con logo y datos de la empresa y CUIT fijo 30-71158289-0. Numeración propia correlativa e idempotente por empresa; Reimprimir misma hoja conserva los números. Cancelar la impresión puede dejar números reservados. No genera compras ni movimientos. Migración 20261015140000_purchase_order_print_numbers.sql aplicada en staging. QA SQL: npx supabase db query --linked --file scripts/purchase-order-print-qa.sql (rollback). Pendiente impresión física.
+
 ## Correcciones operativas y filtros de fechas
 
 - Stock recupera nombre, SKU, unidad y atributos del resumen. Interactuar con notificaciones conserva el editor y su borrador.

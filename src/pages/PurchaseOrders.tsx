@@ -34,6 +34,7 @@ import {
   type SupplierPurchaseOrder,
   type SupplierPurchaseOrderLine,
 } from "@/features/purchase-orders/types";
+import { PrintModelButton } from "@/features/purchase-orders/PrintModelButton";
 import { useToast } from "@/hooks/use-toast";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 
@@ -197,7 +198,7 @@ export default function PurchaseOrders() {
           eyebrow="Compras"
           title="Órdenes de compra"
           description="Documentos generados desde catálogos de proveedores. Los borradores se pueden editar o eliminar; las órdenes enviadas se conservan en el historial."
-          actions={<Button variant="outline" onClick={() => navigate("/suppliers")}><ShoppingCart className="mr-2 h-4 w-4" /> Armar desde catálogos</Button>}
+          actions={<div className="flex flex-wrap gap-2"><PrintModelButton key={companyId} /><Button variant="outline" onClick={() => navigate("/suppliers")}><ShoppingCart className="mr-2 h-4 w-4" /> Armar desde catálogos</Button></div>}
         />
         <FilterToolbar>
           <div className="relative w-full md:max-w-sm">
