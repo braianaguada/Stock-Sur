@@ -1,21 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
+import { fetchAllPages } from "@/lib/supabase-pagination";
 
 export function useCustomerAccountCustomers(companyId: string | null | undefined) {
   return useQuery({
     queryKey: queryKeys.customers.list(companyId ?? null, "account-statement"),
     enabled: Boolean(companyId),
     queryFn: async () => {
-      const { data, error } = await supabase
+      return fetchAllPages(() => supabase
         .from("customers")
-        .select("id, name")
+        .select("id, name, account_due_days")
         .eq("company_id", companyId!)
         .eq("is_occasional", false)
-        .order("name");
-
-      if (error) throw error;
-      return data ?? [];
+        .order("name").order("id"));
     },
   });
 }
