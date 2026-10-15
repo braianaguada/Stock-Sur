@@ -1,5 +1,8 @@
 # Stock Sur
 
+Impresion de ordenes: se elimina el margen interno de 4 mm de cada mitad; las lineas de campos y tabla llegan al marco exterior y a la division central. La tabla aprovecha el alto disponible. QA Chrome/PDF: 1, 3 y 100 hojas A4 al 100%, numeracion y ausencia de paginas extra verificadas. Sin migraciones. Escala personalizada guardada por el navegador e impresion fisica sin bordes dependen de su configuracion y de la impresora.
+
+
 ### Staging: lotes de hojas para ordenes de compra
 
 - Documentos y Ordenes de compra: selector Hojas A4 (1 a 100), dos ordenes numeradas consecutivas por hoja. Reimprimir mismo lote conserva cantidad y numeros; Imprimir reserva un lote nuevo. Los numeros reservados no se recuperan al cancelar el dialogo de impresion.

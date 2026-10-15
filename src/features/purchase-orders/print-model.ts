@@ -26,12 +26,12 @@ export function buildPurchaseOrderModelHtml(settings: CompanySettings, batch: Pr
     <footer>${e(settings.document_footer || "Formulario para completar manualmente")}</footer></article>`;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Órdenes de compra ${batch.firstNumber}-${lastNumber}</title>
     <style>@page{size:A4 landscape;margin:0}*{box-sizing:border-box}body{margin:0;font:10px Arial,sans-serif;color:#172033;background:white}
-    .page{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:minmax(0,1fr);gap:0;width:297mm;height:210mm}.order{width:148.5mm;height:210mm;min-width:0;min-height:0;border:1px solid #334155;padding:4mm;display:flex;flex-direction:column;break-inside:avoid}.order+.order{border-left:0}
-    header{display:grid;grid-template-columns:1fr 1fr;gap:3mm;min-height:34mm;border-bottom:2px solid #334155;padding-bottom:3mm}
+    .page{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:minmax(0,1fr);gap:0;width:297mm;height:210mm}.order{width:148.5mm;height:210mm;min-width:0;min-height:0;border:1px solid #334155;padding:0;display:flex;flex-direction:column;break-inside:avoid}.order+.order{border-left:0}
+    header{display:grid;grid-template-columns:1fr 1fr;gap:3mm;min-height:34mm;flex-shrink:0;border-bottom:2px solid #334155;padding:3mm 2mm}
     h1{font-size:14px;margin:0 0 2mm}h2{font-size:13px;margin:0 0 3mm}p{margin:1mm 0;overflow-wrap:anywhere}.brand img{float:left;max-width:20mm;max-height:15mm;object-fit:contain;margin:0 2mm 2mm 0}.identity{text-align:right}.identity strong{font-size:16px}
-    .field{display:flex;align-items:end;gap:2mm;min-height:7mm;border-bottom:1px solid #cbd5e1;font-weight:bold}.field span{flex:1}.field b{font-size:11px;white-space:nowrap}
-    table{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:3mm}th{background:#edf2f7;font-size:10px;text-align:left;height:7mm}td{height:7mm}td,th{border:1px solid #94a3b8;padding:1mm}.qty{width:13mm}.price{width:22mm}
-    .signatures{display:grid;grid-template-columns:1fr 1fr;gap:5mm;padding-top:4mm;flex:1;min-height:13mm}.signatures span{display:block;border-bottom:1px solid #94a3b8;margin-top:7mm}footer{font-size:8px;color:#64748b;margin-top:3mm;overflow-wrap:anywhere}
+    .field{display:flex;align-items:end;gap:2mm;min-height:7mm;flex-shrink:0;padding:0 2mm;border-bottom:1px solid #cbd5e1;font-weight:bold}.field span{flex:1}.field b{font-size:11px;white-space:nowrap}
+    table{width:100%;border-collapse:collapse;table-layout:fixed;margin:0;flex:1;min-height:91mm}th{background:#edf2f7;font-size:10px;text-align:left;height:7mm}td{height:7mm}td,th{border:1px solid #94a3b8;padding:1mm}tr>:first-child{border-left:0}tr>:last-child{border-right:0}.qty{width:13mm}.price{width:22mm}
+    .signatures{display:grid;grid-template-columns:1fr 1fr;gap:5mm;padding:3mm 2mm;flex-shrink:0;min-height:20mm}.signatures span{display:block;border-bottom:1px solid #94a3b8;margin-top:7mm}footer{font-size:8px;color:#64748b;padding:2mm;margin:0;overflow-wrap:anywhere}
     .page{break-inside:avoid}.page:not(:last-child){break-after:page}
     @media screen{body{padding:8mm;background:#e2e8f0}.page{margin:0 auto 8mm}.order{background:white}}
     </style></head><body>${Array.from({ length: sheets }, (_, index) => `<main class="page">${form(batch.firstNumber + index * 2)}${form(batch.firstNumber + index * 2 + 1)}</main>`).join("")}</body></html>`;
