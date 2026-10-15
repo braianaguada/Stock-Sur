@@ -131,7 +131,7 @@ describe("document submission intents", () => {
   ] as const)("routes %s through the correct operation", async (intent, docType, rpcName) => {
     vi.mocked(supabase.rpc).mockReset().mockResolvedValue({ data: null, error: null, count: null, status: 200, statusText: "OK" });
     const { result } = renderHook(() => useDocumentsMutations({
-      currentCompanyId: "company-1", userId: "user-1", documents: [], customers: [], technicians: [],
+      currentCompanyId: "company-1", userId: "user-1", documents: [], customers: [], technicians: [], serviceOptions: [],
       lines: [baseLine], draftForm: { ...baseDraftForm, doc_type: docType, recipient_type: "OCCASIONAL", customer_name: "Cliente ocasional" },
       totalDraft: 2512.7, editingDocId: null, priceByItem: new Map([["item-1", 1256.35]]),
       priceListItemByItemId: new Map([["item-1", basePriceRow]]), priceRoundingConfig: { enabled: false, increment: null },
