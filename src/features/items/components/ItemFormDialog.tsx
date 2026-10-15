@@ -12,23 +12,16 @@ import {
 import { CategoryBadge } from "@/components/common/VisualSystem";
 import { Trash2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
+import type { ItemFormState } from "@/features/items/form";
+import { ItemSupplierSelect } from "./ItemSupplierSelect";
+import { ProductPhysicalFields } from "./ProductPhysicalFields";
 import { ITEM_UNIT_OPTIONS } from "@/features/items/constants";
 import type { Item, ItemAlias } from "@/features/items/types";
 
-type ItemFormState = {
-  sku: string;
-  name: string;
-  supplier: string;
-  brand: string;
-  model: string;
-  attributes: string;
-  unit: string;
-  category: string;
-  demand_profile: Item["demand_profile"];
-  demand_monthly_estimate: string;
-};
-
 type ItemFormDialogProps = {
+  companyId: string;
+  aliasSupplierId: string;
+  onAliasSupplierChange: (id: string) => void;
   open: boolean;
   editingItem: Item | null;
   isDuplicating?: boolean;
@@ -48,6 +41,7 @@ type ItemFormDialogProps = {
 };
 
 export function ItemFormDialog({
+  companyId, aliasSupplierId, onAliasSupplierChange,
   open,
   editingItem,
   isDuplicating = false,
@@ -101,14 +95,16 @@ export function ItemFormDialog({
             required
           />
         </div>
+        <div className="space-y-2">
+          <Label>Descripcion completa</Label>
+          <Textarea value={form.description} onChange={event => onFormChange({ ...form, description: event.target.value })} rows={3} />
+        </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
             <Label>Proveedor</Label>
-            <Input
-              value={form.supplier}
-              onChange={(event) => onFormChange({ ...form, supplier: event.target.value })}
-              placeholder="Ej: StockSur"
-            />
+            <ItemSupplierSelect companyId={companyId} value={form.supplier_id}
+              onChange={(id,name) => onFormChange({ ...form, supplier_id: id, supplier: name })} />
+            {!form.supplier_id && form.supplier && <p className="text-xs text-muted-foreground">Dato anterior: {form.supplier}. Selecciona un proveedor para asociarlo.</p>}
           </div>
           <div className="space-y-2">
             <Label>Marca</Label>
@@ -126,7 +122,7 @@ export function ItemFormDialog({
           </div>
         </div>
         <div className="space-y-2">
-          <Label>Atributos</Label>
+          <Label>Atributos anteriores (compatibilidad)</Label>
           <Textarea
             value={form.attributes}
             onChange={(event) => onFormChange({ ...form, attributes: event.target.value })}
@@ -185,6 +181,15 @@ export function ItemFormDialog({
             onChange={(event) => onFormChange({ ...form, demand_monthly_estimate: event.target.value })}
           />
         </div>
+        <div className="space-y-2">
+          <Label>Caracteristicas (una por linea, nombre: valor)</Label>
+          <Textarea value={form.structured_attributes} onChange={event => onFormChange({ ...form, structured_attributes: event.target.value })} placeholder="Material: cobre" rows={3} />
+        </div>
+        <div className="space-y-2">
+          <Label>Observaciones tecnicas</Label>
+          <Textarea value={form.technical_notes} onChange={event => onFormChange({ ...form, technical_notes: event.target.value })} rows={2} />
+        </div>
+        <ProductPhysicalFields form={form} onChange={onFormChange} />
         {editingItem ? (
           <div className="space-y-3 rounded-md border p-3">
             <div>
@@ -211,6 +216,8 @@ export function ItemFormDialog({
                 Agregar
               </Button>
             </div>
+            {isSupplierCode && <ItemSupplierSelect companyId={companyId} value={aliasSupplierId}
+              onChange={id => onAliasSupplierChange(id)} />}
             <div className="space-y-1">
               {aliases.length === 0 ? (
                 <p className="py-2 text-center text-sm text-muted-foreground">Sin alias</p>
@@ -218,6 +225,7 @@ export function ItemFormDialog({
                 <div key={alias.id} className="flex items-center justify-between rounded px-2 py-1.5 hover:bg-muted">
                   <div className="flex items-center gap-2">
                     <span className="text-sm">{alias.alias}</span>
+                    {alias.supplier_id && <span className="text-xs text-muted-foreground">Proveedor asociado</span>}
                     {alias.is_supplier_code ? (
                       <CategoryBadge>
                         código
