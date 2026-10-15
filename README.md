@@ -1,5 +1,11 @@
 # Stock Sur
 
+### Tipos de cuentas corrientes en staging (2026-10-15)
+
+- Se sincroniza el campo existente account_due_days en los tipos Supabase y se adapta la consulta paginada para conservar el tipo de cliente y plazo. Sin migraciones ni cambios de comportamiento.
+- Validacion adicional: tsconfig.app.json conserva 241 diagnosticos previos frente a 242 en la base, sin nuevos errores; se completa tambien el fixture de servicios del test de emision. La compilacion ampliada aun requiere resolver deuda previa.
+
+
 ### Documentos y descargas en staging
 - Alta separada de Presupuesto y Remito, con borrador y emision (presupuesto pasa a ENVIADO sin stock). Impresion visible junto a Ver.
 - Marca de caja con icono y fondo suave; devoluciones internas conservan el tecnico original sin exigir cliente.

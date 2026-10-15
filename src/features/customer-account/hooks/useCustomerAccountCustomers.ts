@@ -8,12 +8,12 @@ export function useCustomerAccountCustomers(companyId: string | null | undefined
     queryKey: queryKeys.customers.list(companyId ?? null, "account-statement"),
     enabled: Boolean(companyId),
     queryFn: async () => {
-      return fetchAllPages(() => supabase
+      return fetchAllPages(() => ({ range: async (from, to) => await supabase
         .from("customers")
         .select("id, name, account_due_days")
         .eq("company_id", companyId!)
         .eq("is_occasional", false)
-        .order("name").order("id"));
+        .order("name").order("id").range(from, to) }));
     },
   });
 }
