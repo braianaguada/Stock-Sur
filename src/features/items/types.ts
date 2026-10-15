@@ -3,6 +3,16 @@ export interface Item {
   sku: string;
   name: string;
   supplier: string | null;
+  supplier_id?: string | null;
+  description?: string | null;
+  technical_notes?: string | null;
+  structured_attributes?: Record<string, string>;
+  weight?: number | null;
+  weight_unit?: string;
+  length?: number | null;
+  width?: number | null;
+  height?: number | null;
+  dimension_unit?: string;
   brand: string | null;
   model: string | null;
   attributes: string | null;
@@ -18,6 +28,7 @@ export interface ItemAlias {
   item_id: string;
   alias: string;
   is_supplier_code: boolean;
+  supplier_id?: string | null;
 }
 
 export interface ItemOperationalMeta {

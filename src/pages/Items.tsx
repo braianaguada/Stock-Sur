@@ -29,6 +29,7 @@ import { invalidateItemQueries, invalidatePricingQueries, invalidateStockQueries
 import { queryKeys } from "@/lib/query-keys";
 import { catalogPageKey, fetchCatalogPage } from "@/features/items/catalog-page";
 import { type Item, type ItemAlias, type ItemOperationalMeta } from "@/features/items/types";
+import { createItemForm, productDetailsPayload } from "@/features/items/form";
 import { validateItemCode } from "@/features/items/utils";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { Card } from "@/components/ui/card";
@@ -104,18 +105,8 @@ export default function ItemsPage() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(DEFAULT_ITEM_COLUMN_VISIBILITY);
   const [columnsHydrated, setColumnsHydrated] = useState(false);
   const [draftHydratedKey, setDraftHydratedKey] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    sku: "",
-    name: "",
-    supplier: "",
-    brand: "",
-    model: "",
-    attributes: "",
-    unit: "un",
-    category: "",
-    demand_profile: "LOW" as Item["demand_profile"],
-    demand_monthly_estimate: "",
-  });
+  const [form, setForm] = useState(createItemForm);
+  const [aliasSupplierId, setAliasSupplierId] = useState("");
   const [newAlias, setNewAlias] = useState("");
   const [isSupplierCode, setIsSupplierCode] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
@@ -145,7 +136,7 @@ export default function ItemsPage() {
     if (raw) {
       try {
         const draft = JSON.parse(raw) as { open?: boolean; form?: typeof form };
-        if (draft.form) setForm(draft.form);
+        if (draft.form) setForm({ ...createItemForm(), ...draft.form });
         if (draft.open) setDialogOpen(true);
       } catch {
         sessionStorage.removeItem(newItemDraftStorageKey);
@@ -257,7 +248,7 @@ export default function ItemsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("item_aliases")
-        .select("id, company_id, item_id, alias, is_supplier_code, created_at")
+        .select("id, company_id, item_id, alias, is_supplier_code, supplier_id, created_at")
         .eq("company_id", currentCompany!.id)
         .eq("item_id", editingItem!.id)
         .order("created_at");
@@ -310,6 +301,7 @@ export default function ItemsPage() {
 
       const monthlyEstimate = form.demand_monthly_estimate.trim() === "" ? null : Number(form.demand_monthly_estimate);
       const payload = {
+        ...productDetailsPayload(form),
         name,
         supplier,
         brand,
@@ -360,6 +352,7 @@ export default function ItemsPage() {
       setEditingItem(null);
       setNewAlias("");
       setIsSupplierCode(false);
+    setAliasSupplierId("");
       if (wasCreating) setCreatedItem(savedItem);
       toast({ title: editingItem ? "Ítem actualizado" : "Ítem creado" });
     },
@@ -407,7 +400,7 @@ export default function ItemsPage() {
 
       const { data, error } = await supabase
         .from("item_aliases")
-        .insert({ company_id: currentCompany!.id, item_id: editingItem.id, alias, is_supplier_code: isSupplierCode })
+        .insert({ company_id: currentCompany!.id, item_id: editingItem.id, alias, is_supplier_code: isSupplierCode, supplier_id: isSupplierCode ? aliasSupplierId || null : null })
         .select("*")
         .single();
       if (error) throw error;
@@ -419,6 +412,7 @@ export default function ItemsPage() {
       qc.invalidateQueries({ queryKey: queryKeys.items.all() });
       setNewAlias("");
       setIsSupplierCode(false);
+    setAliasSupplierId("");
     },
     onError: (e: Error) => {
       const lowerMessage = e.message.toLowerCase();
@@ -508,18 +502,8 @@ export default function ItemsPage() {
     setDuplicatingSourceSku(null);
     setNewAlias("");
     setIsSupplierCode(false);
-    setForm({
-      sku: "",
-      name: "",
-      supplier: "",
-      brand: "",
-      model: "",
-      attributes: "",
-      unit: "un",
-      category: "",
-      demand_profile: "LOW",
-      demand_monthly_estimate: "",
-    });
+    setAliasSupplierId("");
+    setForm(createItemForm());
     setDialogOpen(true);
   };
 
@@ -531,18 +515,8 @@ export default function ItemsPage() {
     setDuplicatingSourceSku(null);
     setNewAlias("");
     setIsSupplierCode(false);
-    setForm({
-      sku: item.sku ?? "",
-      name: item.name,
-      supplier: item.supplier ?? "",
-      brand: item.brand ?? "",
-      model: item.model ?? "",
-      attributes: item.attributes ?? "",
-      unit: item.unit || "un",
-      category: item.category ?? "",
-      demand_profile: item.demand_profile ?? "LOW",
-      demand_monthly_estimate: item.demand_monthly_estimate?.toString() ?? "",
-    });
+    setAliasSupplierId("");
+    setForm(createItemForm(item));
     setDialogOpen(true);
   };
 
@@ -554,18 +528,8 @@ export default function ItemsPage() {
     setDuplicatingSourceSku(item.sku ?? "");
     setNewAlias("");
     setIsSupplierCode(false);
-    setForm({
-      sku: "",
-      name: item.name,
-      supplier: item.supplier ?? "",
-      brand: item.brand ?? "",
-      model: item.model ?? "",
-      attributes: item.attributes ?? "",
-      unit: item.unit || "un",
-      category: item.category ?? "",
-      demand_profile: item.demand_profile ?? "LOW",
-      demand_monthly_estimate: item.demand_monthly_estimate?.toString() ?? "",
-    });
+    setAliasSupplierId("");
+    setForm({ ...createItemForm(item), sku: "" });
     setDialogOpen(true);
   };
 
@@ -815,6 +779,9 @@ export default function ItemsPage() {
       </PageContainer>
 
       <ItemFormDialog
+        companyId={currentCompany?.id ?? ""}
+        aliasSupplierId={aliasSupplierId}
+        onAliasSupplierChange={setAliasSupplierId}
         open={dialogOpen}
         editingItem={editingItem}
         isDuplicating={duplicatingSourceSku !== null}

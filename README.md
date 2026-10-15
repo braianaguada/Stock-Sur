@@ -1,5 +1,7 @@
 # Stock Sur
 
+Productos: proveedor asociado por empresa, codigos por proveedor, descripcion completa, caracteristicas estructuradas, notas tecnicas, peso y medidas. Migracion 20261015210000; campos antiguos conservados para importaciones.
+
 Listas de precios: costos y productos por pagina desde SQL, filtros de stock/busqueda antes de paginar, metricas de la lista en servidor e historial acotado. Migracion 20261015200000 aplicada en staging; QA transaccional: scripts/pricing-pages-qa.sql. Produccion sin cambios.
 
 Numeric product codes: existing alphanumeric codes migrate to company sequences starting at 12440345903; old codes remain searchable aliases. New products get their code atomically on save. Staging migration 20261015190000.

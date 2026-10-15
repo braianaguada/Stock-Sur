@@ -1333,6 +1333,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          supplier_id: string | null
           is_supplier_code: boolean
           item_id: string
         }
@@ -1342,6 +1343,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          supplier_id?: string | null
           is_supplier_code?: boolean
           item_id: string
         }
@@ -1351,6 +1353,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          supplier_id?: string | null
           is_supplier_code?: boolean
           item_id?: string
         }
@@ -1379,6 +1382,16 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          supplier_id: string | null
+          description: string | null
+          technical_notes: string | null
+          structured_attributes: Json
+          weight: number | null
+          weight_unit: string
+          length: number | null
+          width: number | null
+          height: number | null
+          dimension_unit: string
           demand_monthly_estimate: number | null
           demand_profile: Database["public"]["Enums"]["item_demand_profile"]
           id: string
@@ -1397,6 +1410,16 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
+          supplier_id?: string | null
+          description?: string | null
+          technical_notes?: string | null
+          structured_attributes?: Json
+          weight?: number | null
+          weight_unit?: string
+          length?: number | null
+          width?: number | null
+          height?: number | null
+          dimension_unit?: string
           demand_monthly_estimate?: number | null
           demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
           id?: string
@@ -1415,6 +1438,16 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          supplier_id?: string | null
+          description?: string | null
+          technical_notes?: string | null
+          structured_attributes?: Json
+          weight?: number | null
+          weight_unit?: string
+          length?: number | null
+          width?: number | null
+          height?: number | null
+          dimension_unit?: string
           demand_monthly_estimate?: number | null
           demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
           id?: string
