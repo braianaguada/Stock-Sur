@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -74,12 +73,9 @@ export function QuickPriceConsultationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent variant="form" className="sm:max-w-3xl">
+      <DialogContent aria-describedby={undefined} variant="form" className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Consulta rápida de precios</DialogTitle>
-          <DialogDescription>
-            Consultá el precio operativo y el stock sin modificar la lista seleccionada.
-          </DialogDescription>
         </DialogHeader>
 
         {isLoading ? (

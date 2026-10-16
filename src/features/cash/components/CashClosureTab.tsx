@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AmountDisplay, StatusBadge } from "@/components/common/VisualSystem";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -51,14 +51,13 @@ export function CashClosureTab({
   const statusLabel = effectiveClosure?.status === "CERRADO" ? "Cerrado" : "Abierto";
   const statusDescription = effectiveClosure?.status === "CERRADO"
     ? `Cerrado el ${formatDateTime(effectiveClosure.closed_at ?? null)}`
-    : "Listo para revisar y cerrar cuando los movimientos esten controlados.";
+    : null;
 
   return (
     <Card className="border-border/70 shadow-none">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <CardTitle>Cierre diario</CardTitle>
-          <CardDescription>Decision final del dia: que efectivo deberia haber, que componentes se controlan y si la caja queda bloqueada.</CardDescription>
         </div>
         <StatusBadge tone={effectiveClosure?.status === "CERRADO" ? "success" : "warning"}>
           {statusLabel}
@@ -96,7 +95,7 @@ export function CashClosureTab({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold">Estado del cierre</p>
-                <p className="mt-1 text-sm text-muted-foreground">{statusDescription}</p>
+                {statusDescription ? <p className="mt-1 text-sm text-muted-foreground">{statusDescription}</p> : null}
               </div>
               <StatusBadge tone={effectiveClosure?.status === "CERRADO" ? "success" : "warning"}>
                 {statusLabel}
@@ -113,9 +112,6 @@ export function CashClosureTab({
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <div className="space-y-4">
-            <div className="rounded-2xl border border-border/60 bg-[hsl(var(--panel))]/40 p-4 text-sm leading-7 text-muted-foreground">
-              Usa esta vista para confirmar la rendicion. El conteo fisico y cualquier diferencia quedan controlados con el resumen del cierre.
-            </div>
             <div className="space-y-2">
               <Label htmlFor="close-notes">Observaciones del cierre</Label>
               <Textarea

@@ -1,7 +1,7 @@
 import { CategoryBadge, InfoBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { LineItemsTable } from "@/components/common/LineItemsTable";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { currency, formatBusinessDate, formatDocumentNumber, formatTimestampDate, formatTimestampTime } from "@/lib/formatters";
 import { getCustomerDisplayName } from "@/features/documents/utils";
 import { DOC_STATUS_LABEL, PAYMENT_LABEL, RECEIPT_LABEL } from "../constants";
@@ -34,10 +34,9 @@ export function CashDocumentPreviewDialog(props: CashDocumentPreviewDialogProps)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
+      <DialogContent aria-describedby={undefined} className="flex flex-col h-[min(92vh,920px)] max-w-[min(97vw,1520px)] overflow-hidden border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl font-semibold tracking-tight text-foreground/90">Vista previa del documento</DialogTitle>
-          <DialogDescription>Documento asociado al movimiento y su trazabilidad.</DialogDescription>
         </DialogHeader>
 
         {detailSale && linkedDocument ? (

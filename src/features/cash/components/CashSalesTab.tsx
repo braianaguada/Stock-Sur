@@ -6,8 +6,8 @@ import { DataTablePagination } from "@/components/data-table/DataTablePagination
 import { CountBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogActionGrid, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogActionGrid, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatTime } from "@/lib/formatters";
 import { PAYMENT_LABEL, RECEIPT_LABEL, STATUS_LABEL } from "../constants";
@@ -150,10 +150,9 @@ export function CashSalesTab({
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-sm">
+              <DialogContent aria-describedby={undefined} className="sm:max-w-sm">
                 <DialogHeader>
                   <DialogTitle>Acciones del movimiento</DialogTitle>
-                  <DialogDescription>Elegí una acción para esta venta.</DialogDescription>
                 </DialogHeader>
                 <DialogActionGrid>
           {canDraft ? (
@@ -228,7 +227,6 @@ export function CashSalesTab({
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <CardTitle>Movimientos del día</CardTitle>
-          <CardDescription>Control principal de ventas cargadas, medio de pago y situación de cierre.</CardDescription>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <CountBadge>{totalItems} {totalItems === 1 ? "movimiento" : "movimientos"}</CountBadge>
@@ -265,9 +263,6 @@ export function CashSalesTab({
       ) : (
         <div className="rounded-2xl border border-dashed border-border/70 bg-[hsl(var(--panel))]/32 p-8 text-center">
           <p className="text-base font-semibold text-foreground">Sin movimientos cargados</p>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-            Cuando registres una venta para esta fecha, va a aparecer aca con su importe, medio de pago y estado de cierre.
-          </p>
         </div>
       )}
       {filteredSales.length > 0 ? (

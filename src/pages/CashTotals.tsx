@@ -148,14 +148,14 @@ export default function CashTotalsPage() {
 
         <MetricGrid>
           <MetricCard label="Total vendido" value={report.summary.grossSalesTotal} helper={`${report.summary.salesCount} movimientos · ${report.days.length} día${report.days.length === 1 ? "" : "s"}`} tone="info" />
-          <MetricCard label="Efectivo neto" value={report.summary.netCashTotal} helper="Efectivo menos gastos de caja" tone="success" />
-          <MetricCard label="Cuenta corriente" value={report.summary.accountCurrentTotal} helper="Separado del efectivo" tone="muted" />
-          <MetricCard label="Gastos totales" value={report.summary.expensesTotal} helper="Efectivo + no efectivo" tone="danger" />
+          <MetricCard label="Efectivo neto" value={report.summary.netCashTotal} tone="success" />
+          <MetricCard label="Cuenta corriente" value={report.summary.accountCurrentTotal} tone="muted" />
+          <MetricCard label="Gastos totales" value={report.summary.expensesTotal} tone="danger" />
         </MetricGrid>
         <MetricGrid columns={3}>
-          <MetricCard label="Efectivo bruto" value={report.summary.cashTotal} helper="Remito + facturable" />
-          <MetricCard label="Gastos efectivo" value={report.summary.expensesCashTotal} helper="Resta caja física" tone="warning" />
-          <MetricCard label="Devoluciones" value={-report.summary.returnsTotal} helper="Servicios / remito" tone="danger" />
+          <MetricCard label="Efectivo bruto" value={report.summary.cashTotal} />
+          <MetricCard label="Gastos efectivo" value={report.summary.expensesCashTotal} tone="warning" />
+          <MetricCard label="Devoluciones" value={-report.summary.returnsTotal} tone="danger" />
         </MetricGrid>
 
         <Card className="min-w-0 border-border/70 shadow-none">
@@ -187,7 +187,7 @@ export default function CashTotalsPage() {
             <CardHeader>
               <CardTitle>Detalle rápido</CardTitle>
               <CardDescription>
-                Último día con datos: {formatBusinessDate(selectedDay.businessDate)}. El desglose transaccional queda para una fase posterior.
+                Último día con datos: {formatBusinessDate(selectedDay.businessDate)}.
               </CardDescription>
             </CardHeader>
             <CardContent>

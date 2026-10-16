@@ -42,7 +42,6 @@ export function CashClosurePreviewDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Resumen del cierre"
-      description="Vista previa del cierre diario guardado para control e impresion."
       contentClassName="flex max-h-[90vh] max-w-5xl flex-col overflow-hidden"
       footer={(
         <>

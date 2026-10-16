@@ -3,7 +3,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -597,9 +597,6 @@ export default function CashPage() {
                 >
                   <CardHeader>
                     <CardTitle>{receiptKind === "REMITO_DEVOLUCION" ? "Nueva devolución" : "Nueva venta"}</CardTitle>
-                    <CardDescription>
-                      Registrá una operación y controlá su impacto antes de guardarla.
-                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <form
@@ -735,7 +732,6 @@ export default function CashPage() {
                           <SelectContent>
                             <SelectItem value="EFECTIVO_REMITO">Efectivo remito</SelectItem>
                             <SelectItem value="EFECTIVO_FACTURABLE">Efectivo facturable</SelectItem>
-                            <SelectItem value="SERVICIOS_REMITO">Servicios / remito</SelectItem>
                             <SelectItem value="POINT">Point</SelectItem>
                             <SelectItem value="TRANSFERENCIA">Transferencia</SelectItem>
                             <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>

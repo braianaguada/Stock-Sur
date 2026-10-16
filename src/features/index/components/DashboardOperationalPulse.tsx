@@ -35,7 +35,7 @@ export function DashboardOperationalPulse({ dashboard }: { dashboard: DashboardI
     <Card className="h-full border-border/70 shadow-none" aria-labelledby="dashboard-operational-pulse-title">
       <div className="border-b border-border/60 px-5 py-5">
         <h2 id="dashboard-operational-pulse-title" className="text-base font-semibold">Pulso operativo</h2>
-        <p className="text-xs text-muted-foreground">Estado actual y variación del mes en curso; independiente del filtro de fechas</p>
+        <p className="text-xs text-muted-foreground">Estado actual · mes en curso</p>
       </div>
       <div className={cn("grid gap-3 p-5", kpis.length > 2 && "sm:grid-cols-2")}>
         {kpis.map((kpi) => {

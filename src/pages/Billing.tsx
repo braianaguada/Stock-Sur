@@ -303,7 +303,7 @@ export default function BillingPage() {
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
               <Card className="min-w-0 border-border/70 shadow-none">
                 <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div><CardTitle>Comprobantes fiscales</CardTitle><CardDescription>Seleccioná un comprobante para revisar sus datos y operar desde el panel de detalle.</CardDescription></div>
+                  <div><CardTitle>Comprobantes fiscales</CardTitle></div>
                   <CountBadge>{filteredDocuments.length} {filteredDocuments.length === 1 ? "comprobante" : "comprobantes"}</CountBadge>
                 </CardHeader>
                 <CardContent>

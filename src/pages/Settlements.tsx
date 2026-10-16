@@ -460,7 +460,7 @@ export default function SettlementsPage() {
                   <MetricGrid columns={3}>
                     <MetricCard label="Ingresos" value={displayedTotals.income_total} helper={`Efectivo ${currency.format(displayedTotals.income_cash_total)}`} />
                     <MetricCard label="Egresos" value={displayedTotals.expense_total} helper={`Efectivo ${currency.format(displayedTotals.expense_cash_total)}`} tone="warning" />
-                    <MetricCard label="Total a rendir" value={displayedTotals.settlement_total} helper="Ingresos menos egresos" tone={displayedTotals.settlement_total < 0 ? "danger" : "success"} />
+                    <MetricCard label="Total a rendir" value={displayedTotals.settlement_total} tone={displayedTotals.settlement_total < 0 ? "danger" : "success"} />
                   </MetricGrid>
 
                   <FilterToolbar className="flex flex-col gap-3 lg:flex-row lg:items-end">
@@ -491,9 +491,6 @@ export default function SettlementsPage() {
                           <CardTitle id="settlement-income-title">Ingresos</CardTitle>
                           <CountBadge>{visibleIncomeLines.length}</CountBadge>
                         </div>
-                        <CardDescription>
-                          Agrega un ingreso por cada cobro o entrada de dinero.
-                        </CardDescription>
                       </div>
                       {canEditSelectedDraft ? (
                         <Button type="button" onClick={openIncomeDialog} disabled={!editable}>
@@ -575,9 +572,6 @@ export default function SettlementsPage() {
                           <CardTitle id="settlement-expense-title">Egresos</CardTitle>
                           <CountBadge>{visibleExpenseLines.length}</CountBadge>
                         </div>
-                        <CardDescription>
-                          Agrega un egreso por cada pago o salida de dinero.
-                        </CardDescription>
                       </div>
                       {canEditSelectedDraft ? (
                         <Button type="button" onClick={openExpenseDialog} disabled={!editable}>
@@ -704,10 +698,9 @@ export default function SettlementsPage() {
       </Dialog>
 
       <Dialog open={incomeDialogOpen} onOpenChange={setIncomeDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent aria-describedby={undefined} className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Nuevo ingreso</DialogTitle>
-            <DialogDescription>Completa los datos del cobro. Los campos marcados son obligatorios.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2"><Label>Fecha cobro *</Label><Input aria-label="Fecha cobro ingreso" type="date" value={incomeDraft.line_date} onChange={(event) => setIncomeDraft((line) => ({ ...line, line_date: event.target.value }))} /></div>
@@ -728,10 +721,9 @@ export default function SettlementsPage() {
       </Dialog>
 
       <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent aria-describedby={undefined} className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Nuevo egreso</DialogTitle>
-            <DialogDescription>Completa los datos del pago. Los campos marcados son obligatorios.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2"><Label>Fecha *</Label><Input aria-label="Fecha egreso" type="date" value={expenseDraft.line_date} onChange={(event) => setExpenseDraft((line) => ({ ...line, line_date: event.target.value }))} /></div>

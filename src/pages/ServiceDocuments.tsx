@@ -734,9 +734,6 @@ export default function ServiceDocumentsPage() {
               <CardContent className="flex flex-col items-start gap-3 p-6 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
                   <h3 className="text-base font-semibold">Todavía no hay presupuestos de servicio</h3>
-                  <p className="max-w-2xl text-sm text-muted-foreground">
-                    Creá el primero para empezar a registrar trabajos manuales sin tocar stock, caja ni cuenta corriente.
-                  </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={() => setRemitoImportOpen(true)} disabled={!canManageServiceDocuments}>
@@ -870,7 +867,6 @@ export default function ServiceDocumentsPage() {
             <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5">
               <div>
                 <DialogTitle>{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle>
-                <DialogDescription>Formulario de presupuesto de servicio manual.</DialogDescription>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={() => setAiAssistantOpen(true)} disabled={!canManageServiceDocuments}>
                 <Bot className="mr-2 h-4 w-4" /> Asistente IA

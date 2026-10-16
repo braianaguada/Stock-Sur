@@ -4,7 +4,7 @@ import { Pencil, RotateCcw, Trash2, Upload } from "lucide-react";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { CountBadge, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { normalizeWhatsappNumber } from "@/lib/whatsapp";
 import type { Supplier } from "@/features/suppliers/types";
 
@@ -85,7 +85,6 @@ export function SuppliersTable(props: {
       <CardHeader className="flex flex-row items-start justify-between gap-3">
         <div className="space-y-1">
           <CardTitle>Directorio de proveedores</CardTitle>
-          <CardDescription>Contactos y acceso a sus catálogos vigentes.</CardDescription>
         </div>
         <CountBadge>{suppliers.length} {suppliers.length === 1 ? "registro" : "registros"}</CountBadge>
       </CardHeader>

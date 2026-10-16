@@ -40,7 +40,6 @@ export function SupplierComparison({
     <section className="space-y-5" aria-labelledby="supplier-comparison-title">
       <header>
         <h2 id="supplier-comparison-title" className="text-lg font-semibold">Comparar ofertas</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Elegí listas de distintos proveedores y compará coincidencias exactas sin perder el precio original.</p>
       </header>
 
       <div className="rounded-xl border bg-card p-4">
@@ -118,7 +117,6 @@ function ComparisonTray({ offers, onRemove, onClear }: {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 id="comparison-tray-title" className="flex items-center gap-2 font-semibold"><ShoppingCart className="size-4" />Bandeja de compra</h3>
-          <p className="mt-1 text-xs text-muted-foreground">La selección se conserva mientras seguís buscando y se agrupa por proveedor.</p>
         </div>
         <Button type="button" variant="ghost" size="sm" onClick={onClear}>Vaciar bandeja</Button>
       </div>

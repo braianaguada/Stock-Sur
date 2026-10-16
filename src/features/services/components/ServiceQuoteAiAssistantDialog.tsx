@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Bot, Check, Loader2, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -187,14 +187,11 @@ export function ServiceQuoteAiAssistantDialog(props: {
         if (!open) reset();
       }}
     >
-      <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
+      <DialogContent aria-describedby={undefined} className="max-h-[92vh] max-w-5xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5" /> Asistente IA para presupuestar servicios
           </DialogTitle>
-          <DialogDescription>
-            La IA sugiere una propuesta editable. El presupuesto final sigue siendo un documento normal en borrador.
-          </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 lg:grid-cols-[1fr_1.05fr]">

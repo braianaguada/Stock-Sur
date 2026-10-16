@@ -574,8 +574,8 @@ export default function ItemsPage() {
         />
 
         <MetricGrid className="mb-6" columns={4}>
-          <MetricCard label="Total ítems" value={stockStats.total} format="plain" helper="Registrados en el catálogo" />
-          <MetricCard label="Activos en venta" value={stockStats.active} format="plain" helper="Disponibles para operar" tone="success" />
+          <MetricCard label="Total ítems" value={stockStats.total} format="plain" />
+          <MetricCard label="Activos en venta" value={stockStats.active} format="plain" tone="success" />
           <button
             type="button"
             className={cn(
@@ -585,7 +585,7 @@ export default function ItemsPage() {
             onClick={() => setStockFilter("in_stock")}
             aria-pressed={stockFilter === "in_stock"}
           >
-            <MetricCard label="Con stock" value={stockStats.inStock} format="plain" helper="Filtrar ítems disponibles" tone="info" />
+            <MetricCard label="Con stock" value={stockStats.inStock} format="plain" tone="info" />
           </button>
           <button
             type="button"
@@ -596,7 +596,7 @@ export default function ItemsPage() {
             onClick={() => setStockFilter("no_stock")}
             aria-pressed={stockFilter === "no_stock"}
           >
-            <MetricCard label="Sin stock" value={stockStats.noStock} format="plain" helper="Filtrar ítems sin existencias" tone="danger" />
+            <MetricCard label="Sin stock" value={stockStats.noStock} format="plain" tone="danger" />
           </button>
         </MetricGrid>
 

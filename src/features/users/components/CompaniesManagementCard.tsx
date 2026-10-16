@@ -5,8 +5,8 @@ import { Pencil, Power, RotateCcw } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,7 +118,6 @@ export function CompaniesManagementCard() {
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
             <CardTitle>Empresas</CardTitle>
-            <CardDescription>Editar identidad operativa o desactivar empresas sin borrar su historial.</CardDescription>
           </div>
           <CountBadge>{companiesQuery.data?.length ?? 0} {(companiesQuery.data?.length ?? 0) === 1 ? "empresa" : "empresas"}</CountBadge>
         </CardHeader>
@@ -134,10 +133,9 @@ export function CompaniesManagementCard() {
       </Card>
 
       <Dialog open={Boolean(editingCompany)} onOpenChange={(open) => !open && setEditingCompany(null)}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Editar empresa</DialogTitle>
-            <DialogDescription>Los cambios se reflejan en los selectores y accesos de usuarios.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label htmlFor="edit-company-name">Nombre</Label><Input id="edit-company-name" value={name} onChange={(event) => setName(event.target.value)} /></div>

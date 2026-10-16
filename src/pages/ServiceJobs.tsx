@@ -7,7 +7,7 @@ import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { CountBadge, InfoBadge, MetricCard, MetricGrid, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -307,7 +307,7 @@ export default function ServiceJobsPage() {
         <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
           <Card className="min-w-0 border-border/70 shadow-none">
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div><CardTitle>Bandeja de trabajos</CardTitle><CardDescription>Seleccioná un trabajo para consultar y operar sus servicios.</CardDescription></div>
+              <div><CardTitle>Bandeja de trabajos</CardTitle></div>
               <CountBadge>{jobs.length} {jobs.length === 1 ? "registro" : "registros"}</CountBadge>
             </CardHeader>
             <CardContent>
@@ -580,7 +580,6 @@ export default function ServiceJobsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingJob ? "Editar trabajo" : "Nuevo trabajo"}</DialogTitle>
-            <DialogDescription>Datos generales del caso. Los materiales se controlan desde remitos vinculados a sus servicios.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="space-y-1"><Label>Titulo</Label><Input value={jobForm.title} onChange={(event) => setJobForm((current) => ({ ...current, title: event.target.value }))} /></div>
@@ -611,7 +610,6 @@ export default function ServiceJobsPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingService ? "Editar servicio" : "Agregar servicio"}</DialogTitle>
-            <DialogDescription>Intervencion concreta dentro del trabajo, con tecnicos asignados y remitos de materiales asociados.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="space-y-1"><Label>Titulo</Label><Input value={serviceForm.title} onChange={(event) => setServiceForm((current) => ({ ...current, title: event.target.value }))} /></div>

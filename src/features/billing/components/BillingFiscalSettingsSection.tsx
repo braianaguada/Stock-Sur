@@ -221,9 +221,6 @@ export function BillingFiscalSettingsSection({
           <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h3 className="font-semibold">Estado de configuracion</h3>
-              <p className="text-sm text-muted-foreground">
-                Diagnostico seguro: muestra presencia/estado, nunca valores de secretos.
-              </p>
             </div>
             <StatusBadge
               tone={diagnosticsLoading ? "info" : diagnostics?.edgeFunctionAvailable ? "success" : "warning"}

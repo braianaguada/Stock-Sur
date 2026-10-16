@@ -150,7 +150,6 @@ export function SupplierCatalogDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={selectedSupplier?.name ? `Proveedor: ${selectedSupplier.name}` : "Proveedor"}
-      description="Workspace de carga, consolidacion y pedido."
       contentClassName="grid h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[1500px] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-2rem)]"
       headerClassName="border-b px-5 py-4 pr-12 text-left"
       bodyClassName="min-h-0 overflow-hidden"
@@ -173,7 +172,7 @@ export function SupplierCatalogDialog({
                 <CardHeader>
                   <CardTitle className="text-base">Nueva fuente del proveedor</CardTitle>
                   <CardDescription>
-                    Subi una lista en PDF, Excel o CSV. El sistema usa parser nativo e IA cuando el archivo lo necesita.
+                    PDF, Excel o CSV.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4">
@@ -254,15 +253,8 @@ export function SupplierCatalogDialog({
               <Card className="h-fit">
                 <CardHeader>
                   <CardTitle className="text-base">Control de calidad</CardTitle>
-                  <CardDescription>Senales utiles despues del parseo.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
-                  <div className="rounded-lg border p-3">
-                    <div className="font-medium">Estrategia</div>
-                    <div className="mt-1 text-muted-foreground">
-                      Excel/CSV va por parser logico. PDF pasa por parser estructural y, si hace falta, por motores externos como Mistral OCR o Gemini antes de la revision final.
-                    </div>
-                  </div>
                   {lastDiagnostics ? (
                     <div className="rounded-lg border p-3">
                       <div className="font-medium">Ultima importacion tabular</div>
@@ -294,7 +286,7 @@ export function SupplierCatalogDialog({
                 <CardHeader>
                   <CardTitle className="text-base">Fuentes y versiones</CardTitle>
                   <CardDescription>
-                    Cada listado puede tener varias versiones o archivos asociados. Elegi la version activa para trabajar.
+                    Elegí la versión activa.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -469,7 +461,6 @@ export function SupplierCatalogDialog({
               {orderLines.length > 0 ? <Card className="min-h-[24rem] min-w-0 flex flex-col xl:min-h-0">
                 <CardHeader>
                   <CardTitle className="text-base">Pedido al proveedor</CardTitle>
-                  <CardDescription>Selecciona productos, cantidades y genera el mensaje.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
                   {lastPurchaseOrder ? <PurchaseOrderConfirmation order={lastPurchaseOrder} /> : null}
@@ -534,7 +525,6 @@ export function SupplierCatalogDialog({
                 <Card className="min-h-[20rem] min-w-0 xl:min-h-0 xl:overflow-auto">
                   <CardHeader>
                     <CardTitle className="text-base">Órdenes de compra</CardTitle>
-                    <CardDescription>Órdenes generadas para este proveedor.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {lastPurchaseOrder ? <PurchaseOrderConfirmation order={lastPurchaseOrder} /> : null}
