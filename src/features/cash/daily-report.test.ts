@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildDailyReport, dailyReportTsv, loadDailyReport } from "./daily-report";
+import { buildDailyReport, dailyReportHtml, dailyReportTsv, loadDailyReport } from "./daily-report";
 
 const { from } = vi.hoisted(() => ({ from: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from } }));
@@ -14,6 +14,28 @@ describe("daily cash report", () => {
   it("exports registered A references and negative expenses and returns, excluding cancellations", () => {
     const rows = buildDailyReport([{ ...sale, payment_method: "CUENTA_CORRIENTE", receipt_kind: "FACTURA" }, { ...sale, status: "ANULADA" }], [{ id: "expense", spent_at: "2026-10-16T11:00:00Z", amount_total: 100, expense_kind: "CAJA", cancelled_at: null }], [{ id: "return", occurred_at: "2026-10-16T12:00:00Z", document_id: "doc", signed_amount: -200, cancelled_at: null }], [{ id: "doc", document_number: 1550, external_invoice_number: "0009-00002044", external_invoice_status: "ACTIVE" }]);
     expect(rows).toEqual([["FACTURA", "A", 9, 2044, 270000, "CTA CTE"], ["GASTO", "", "", "", -100, "EFECT REM"], ["REMITO", "X", 7, 1550, -200, "SERVICIOS /REMITO"]]);
+  });
+
+  it.each(["EFECTIVO", "EFECTIVO_REMITO", "EFECTIVO_FACTURABLE", "SERVICIOS_REMITO", "POINT", "TRANSFERENCIA", "CUENTA_CORRIENTE"] as const)("uses the active invoice for %s even when the cash receipt was a remito", (payment_method) => {
+    const rows = buildDailyReport([{ ...sale, payment_method }], [], [], [{ id: "doc", document_number: 1550, external_invoice_number: "0009-00002044", external_invoice_status: "ACTIVE" }]);
+    expect(rows[0].slice(0, 5)).toEqual(["FACTURA", "A", 9, 2044, 270000]);
+  });
+
+  it("does not export a cancelled invoice number", () => {
+    const rows = buildDailyReport([{ ...sale, payment_method: "EFECTIVO_FACTURABLE", receipt_kind: "FACTURA", receipt_reference: "0009-00002044" }], [], [], [{ id: "doc", document_number: 1550, external_invoice_number: "0009-00002044", external_invoice_status: "VOIDED" }]);
+    expect(rows[0].slice(0, 4)).toEqual(["FACTURA", "B", 9, ""]);
+  });
+
+  it("copies a bordered table with empty cells and escaped text", () => {
+    const html = dailyReportHtml([["FACTURA", "B", 9, "", 270000, "<Point & efectivo>"]]);
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const cells = container.querySelectorAll("td");
+    expect(cells).toHaveLength(6);
+    expect(cells[3].textContent).toBe("");
+    expect(cells[5].textContent).toBe("<Point & efectivo>");
+    expect(container.querySelector("point")).toBeNull();
+    for (const cell of cells) expect(cell.style.border).toBe("1px solid #000");
   });
 
   it("reads every page and scopes all queries to the company and selected day", async () => {

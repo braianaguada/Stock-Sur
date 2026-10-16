@@ -3,7 +3,7 @@ import { fetchAllPages, fetchAllPagesByChunks } from "@/lib/supabase-pagination"
 import type { CashSaleRow, PaymentMethod } from "./types";
 
 export const DAILY_REPORT_HEADERS = ["TIPO", "LETRA", "P.VTA", "N°", "IMPORTE", "F.PAGO"];
-type ReportRow = [string, string, number | "", number | "", number, string];
+export type ReportRow = [string, string, number | "", number | "", number, string];
 type Sale = Pick<CashSaleRow, "id" | "document_id" | "sold_at" | "amount_total" | "payment_method" | "receipt_kind" | "receipt_reference" | "status">;
 type Document = { id: string; document_number: number | null; external_invoice_number: string | null; external_invoice_status: string | null };
 type Expense = { id: string; spent_at: string; amount_total: number; expense_kind: string; cancelled_at: string | null };
@@ -19,8 +19,8 @@ export function buildDailyReport(sales: Sale[], expenses: Expense[], adjustments
   for (const sale of sales) {
     if (sale.status === "ANULADA") continue;
     const doc = byId.get(sale.document_id ?? "");
-    const remito = ["EFECTIVO", "EFECTIVO_REMITO", "SERVICIOS_REMITO"].includes(sale.payment_method);
-    const invoiceA = !remito && sale.receipt_kind === "FACTURA" && doc?.external_invoice_status === "ACTIVE" && Boolean(doc.external_invoice_number);
+    const invoiceA = doc?.external_invoice_status === "ACTIVE" && Boolean(doc.external_invoice_number);
+    const remito = !invoiceA && ["EFECTIVO", "EFECTIVO_REMITO", "SERVICIOS_REMITO"].includes(sale.payment_method);
     const invoiceNumber = invoiceA ? Number(doc?.external_invoice_number?.split(/[-\s]/).at(-1)) : NaN;
     entries.push({ at: sale.sold_at, id: sale.id, row: [remito ? "REMITO" : "FACTURA", remito ? "X" : invoiceA ? "A" : "B", remito ? 7 : 9,
       remito ? doc?.document_number ?? "" : Number.isFinite(invoiceNumber) ? invoiceNumber : "", Number(sale.amount_total), paymentLabels[sale.payment_method]] });
@@ -36,6 +36,11 @@ export function buildDailyReport(sales: Sale[], expenses: Expense[], adjustments
 
 export function dailyReportTsv(rows: ReportRow[]) {
   return rows.map((row) => row.map((value, index) => index === 4 ? Number(value).toFixed(2).replace(".", ",") : value).join("\t")).join("\n");
+}
+
+export function dailyReportHtml(rows: ReportRow[]) {
+  const escape = (value: string) => value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]!);
+  return `<table style="border-collapse:collapse">${dailyReportTsv(rows).split("\n").map((row) => `<tr>${row.split("\t").map((value) => `<td style="border:1px solid #000">${escape(value)}</td>`).join("")}</tr>`).join("")}</table>`;
 }
 
 export async function loadDailyReport(companyId: string, date: string) {

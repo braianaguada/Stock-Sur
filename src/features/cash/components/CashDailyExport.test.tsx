@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CashDailyExport } from "./CashDailyExport";
 import { loadDailyReport } from "../daily-report";
 
@@ -8,6 +8,7 @@ vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
 vi.mock("../daily-report", async (original) => ({ ...await original<typeof import("../daily-report")>(), loadDailyReport: vi.fn() }));
 
 describe("CashDailyExport", () => {
+  afterEach(() => vi.unstubAllGlobals());
   beforeEach(() => {
     vi.clearAllMocks();
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
@@ -21,6 +22,22 @@ describe("CashDailyExport", () => {
     fireEvent.click(screen.getByRole("button", { name: "Copiar para Excel" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("REMITO\tX\t7\t1550\t36000,00\tEFECT REM"));
     expect(loadDailyReport).toHaveBeenCalledWith("company-1", "2026-10-16");
+  });
+
+  it("copies HTML borders alongside plain cells when rich clipboard is available", async () => {
+    const write = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("ClipboardItem", class {
+      constructor(public data: Record<string, Blob>) {}
+    });
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { write, writeText } });
+    vi.mocked(loadDailyReport).mockResolvedValue([["FACTURA", "A", 9, 2044, 270000, "CTA CTE"]]);
+    render(<CashDailyExport companyId="company-1" date="2026-10-16" />);
+    fireEvent.click(screen.getByRole("button", { name: "Copiar para Excel" }));
+    await waitFor(() => expect(write).toHaveBeenCalledOnce());
+    const item = write.mock.calls[0][0][0];
+    expect(item.data["text/html"].type).toBe("text/html");
+    expect(item.data["text/plain"].type).toBe("text/plain");
+    expect(writeText).not.toHaveBeenCalled();
   });
 
   it("discards a pending report after the company or date changes", async () => {
