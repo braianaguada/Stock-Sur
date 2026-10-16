@@ -11,6 +11,7 @@ type QueryResult<T> = PromiseLike<{ data: T | null; error: { message: string } |
 type PurchaseOrderClient = {
   rpc: (
     name:
+      | "save_manual_purchase_order"
       | "create_supplier_purchase_order"
       | "update_supplier_purchase_order_draft"
       | "transition_supplier_purchase_order"
@@ -99,4 +100,16 @@ export async function deleteSupplierPurchaseOrderDraft(companyId: string, orderI
     p_order_id: orderId,
   });
   if (error) throw new Error(error.message);
+}
+
+export interface ManualPurchaseOrderInput {
+  companyId: string; requestId: string; orderId: string | null; supplierId: string;
+  form: Record<string, string>;
+  lines: Array<{ description: string; code: string; quantity: number; unit_cost: number; currency: "ARS" | "USD" }>;
+}
+export async function saveManualPurchaseOrder(input: ManualPurchaseOrderInput) {
+  const { data, error } = await client.rpc("save_manual_purchase_order", { p_company_id: input.companyId, p_request_id: input.requestId, p_order_id: input.orderId, p_supplier_id: input.supplierId, p_form: input.form, p_lines: input.lines });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("No se pudo guardar la orden de compra");
+  return data;
 }

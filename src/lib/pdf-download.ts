@@ -1,7 +1,7 @@
 import { supabaseAuth, IMPERSONATION_ACCESS_TOKEN_STORAGE_KEY } from "@/integrations/supabase/client";
 
 type PdfProof =
-  | { mode: "authenticated"; kind: "document" | "service"; documentId: string }
+  | { mode: "authenticated"; kind: "document" | "service" | "purchase_order"; documentId: string }
   | { mode: "public"; kind: "document" | "service"; token: string };
 
 type SaveFilePickerWindow = Window & {

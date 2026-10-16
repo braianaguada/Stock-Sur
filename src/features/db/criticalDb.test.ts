@@ -270,6 +270,66 @@ describeCriticalDb("critical database rules", () => {
     await client?.end();
   });
 
+  it("saves manual orders atomically and shares numbering with blank forms", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      const supplierId = crypto.randomUUID();
+      const requestId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedGlobalRole(userId, "superadmin");
+      await seedCompany(companyId);
+      await client.query("insert into public.suppliers(id, company_id, name, is_active) values($1, $2, 'Proveedor QA', true)", [supplierId, companyId]);
+      await setActor(userId);
+      await client.query("set local role authenticated");
+      const lines = [{ description: "Producto QA", quantity: 2, currency: "ARS", unit_cost: 120.5 }];
+      const saveSql = "select * from public.save_manual_purchase_order($1, $2, $3, $4, $5, $6)";
+      const params = [companyId, requestId, null, supplierId, JSON.stringify({ reference: "QA" }), JSON.stringify(lines)];
+      const order = (await client.query(saveSql, params)).rows[0];
+      expect(Number(order.order_number)).toBe(1);
+      expect(order.totals_by_currency).toEqual({ ARS: 241 });
+      expect((await client.query(saveSql, params)).rows[0].id).toBe(order.id);
+      const batch = (await client.query("select public.reserve_purchase_order_print_sheets($1, $2, 1) as batch", [companyId, crypto.randomUUID()])).rows[0].batch;
+      expect(batch.firstNumber).toBe(2);
+      const next = (await client.query(saveSql, [companyId, crypto.randomUUID(), null, supplierId, "{}", JSON.stringify(lines)])).rows[0];
+      expect(Number(next.order_number)).toBe(4);
+      await expectDbRejection(saveSql, [companyId, requestId, order.id, supplierId, "{}", JSON.stringify([{ ...lines[0], quantity: 1.5 }])]);
+      expect((await client.query("select quantity from public.supplier_purchase_order_lines where purchase_order_id = $1", [order.id])).rows[0].quantity).toBe(2);
+      await client.query("select public.transition_supplier_purchase_order($1, $2, 'SENT')", [companyId, order.id]);
+      await expectDbRejection(saveSql, [companyId, requestId, order.id, supplierId, "{}", JSON.stringify(lines)]);
+    });
+  });
+
+  it("rejects foreign suppliers, missing permission and inactive companies for manual orders", async () => {
+    await withRollback(async () => {
+      const userId = crypto.randomUUID();
+      const companyId = crypto.randomUUID();
+      const otherCompany = crypto.randomUUID();
+      const supplierId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      await seedCompany(otherCompany);
+      const memberId = await seedActor(companyId, userId);
+      await client.query("insert into public.suppliers(id, company_id, name, is_active) values($1, $2, 'Proveedor QA', true)", [supplierId, otherCompany]);
+      await setActor(userId);
+      await client.query("set local role authenticated");
+      const sql = "select public.save_manual_purchase_order($1, $2, null, $3, '{}'::jsonb, $4)";
+      const params = [companyId, crypto.randomUUID(), supplierId, JSON.stringify([{ description: "QA", quantity: 1, currency: "ARS", unit_cost: 1 }])];
+      await expectDbRejection(sql, params);
+      await client.query("reset role");
+      await seedPermission(memberId, "suppliers.edit");
+      await client.query("set local role authenticated");
+      await expectDbRejection(sql, params);
+      await client.query("reset role");
+      const localSupplierId = crypto.randomUUID();
+      await client.query("insert into public.suppliers(id, company_id, name, is_active) values($1, $2, 'Proveedor local QA', true)", [localSupplierId, companyId]);
+      params[2] = localSupplierId;
+      await client.query("update public.companies set status = 'INACTIVE' where id = $1", [companyId]);
+      await client.query("set local role authenticated");
+      await expectDbRejection(sql, params);
+    });
+  });
+
   it("lets superadmins reserve print numbers without membership and preserves company isolation", async () => {
     await withRollback(async () => {
       const userId = crypto.randomUUID();

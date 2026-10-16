@@ -5,6 +5,7 @@ const MAX_HTML_BYTES = 1_500_000;
 const DOCUMENT_TABLES = {
   document: "documents",
   service: "service_documents",
+  purchase_order: "supplier_purchase_orders",
 } as const;
 const PUBLIC_PAYLOAD_FUNCTIONS = {
   document: "get_public_document_payload",
@@ -14,7 +15,7 @@ const PUBLIC_PAYLOAD_FUNCTIONS = {
 type DocumentKind = keyof typeof DOCUMENT_TABLES;
 type RenderProof =
   | { mode: "authenticated"; kind: DocumentKind; documentId: string }
-  | { mode: "public"; kind: DocumentKind; token: string };
+  | { mode: "public"; kind: keyof typeof PUBLIC_PAYLOAD_FUNCTIONS; token: string };
 
 type RenderPdfBody = {
   html?: unknown;
@@ -43,7 +44,7 @@ function getSupabaseConfig() {
 }
 
 function isDocumentKind(value: unknown): value is DocumentKind {
-  return value === "document" || value === "service";
+  return value === "document" || value === "service" || value === "purchase_order";
 }
 
 function parseProof(value: unknown): RenderProof | null {
@@ -53,7 +54,7 @@ function parseProof(value: unknown): RenderProof | null {
   if (proof.mode === "authenticated" && typeof proof.documentId === "string" && proof.documentId.length > 0) {
     return { mode: "authenticated", kind: proof.kind, documentId: proof.documentId };
   }
-  if (proof.mode === "public" && typeof proof.token === "string" && proof.token.length >= 20) {
+  if (proof.mode === "public" && proof.kind !== "purchase_order" && typeof proof.token === "string" && proof.token.length >= 20) {
     return { mode: "public", kind: proof.kind, token: proof.token };
   }
   return null;

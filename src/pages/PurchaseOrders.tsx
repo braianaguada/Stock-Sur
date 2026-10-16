@@ -34,6 +34,7 @@ import {
   type SupplierPurchaseOrder,
   type SupplierPurchaseOrderLine,
 } from "@/features/purchase-orders/types";
+import { PurchaseOrderOutput } from "@/features/purchase-orders/PurchaseOrderOutput";
 import { PrintModelButton } from "@/features/purchase-orders/PrintModelButton";
 import { useToast } from "@/hooks/use-toast";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
@@ -197,8 +198,8 @@ export default function PurchaseOrders() {
         <PageHeader
           eyebrow="Compras"
           title="Órdenes de compra"
-          description="Documentos generados desde catálogos de proveedores. Los borradores se pueden editar o eliminar; las órdenes enviadas se conservan en el historial."
-          actions={<div className="flex flex-wrap gap-2"><PrintModelButton key={companyId} /><Button variant="outline" onClick={() => navigate("/suppliers")}><ShoppingCart className="mr-2 h-4 w-4" /> Armar desde catálogos</Button></div>}
+          description="Órdenes cargadas manualmente o desde catálogos de proveedores. Los borradores se pueden editar o eliminar; las órdenes enviadas se conservan en el historial."
+          actions={<div className="flex flex-wrap gap-2"><Button onClick={() => navigate("/purchase-orders/new")}>Nueva orden de compra</Button><PrintModelButton key={companyId} /><Button variant="outline" onClick={() => navigate("/suppliers")}><ShoppingCart className="mr-2 h-4 w-4" /> Armar desde catálogos</Button></div>}
         />
         <FilterToolbar>
           <div className="relative w-full md:max-w-sm">
@@ -244,9 +245,9 @@ export default function PurchaseOrders() {
         description={selected?.supplier_name_snapshot}
         footer={selected?.status === "DRAFT" ? <Button disabled={!draftIsValid || saveMutation.isPending || linesQuery.isLoading} onClick={() => saveMutation.mutate()}>{saveMutation.isPending ? "Guardando..." : "Guardar cambios"}</Button> : undefined}
       >
-        {selected ? <div className="grid gap-4">
+        {selected ? <div className="grid gap-4"><div className="flex flex-wrap gap-2"><PurchaseOrderOutput key={`${selected.company_id}:${selected.id}:${selected.updated_at}`} order={selected} lines={lines} loading={linesQuery.isLoading || Boolean(linesQuery.error)} />{selected.status === "DRAFT" && !selected.source_catalog_version_id && <Button variant="outline" onClick={() => navigate(`/purchase-orders/${selected.id}/edit`)}>Editar orden completa</Button>}</div>
           <div className="flex flex-wrap items-center justify-between gap-2"><StatusBadge tone={selected.status === "SENT" ? "success" : selected.status === "CANCELLED" ? "muted" : "warning"}>{PURCHASE_ORDER_STATUS_LABELS[selected.status]}</StatusBadge><span className="text-sm text-muted-foreground">{new Date(selected.created_at).toLocaleString("es-AR")}</span></div>
-          {selected.status === "DRAFT" ? <p className="text-sm text-muted-foreground">Podés ajustar cantidades y notas mientras la orden siga en borrador. Los precios conservan la lista que originó la orden.</p> : null}
+          {selected.status === "DRAFT" ? <p className="text-sm text-muted-foreground">Podés ajustar cantidades y notas mientras la orden siga en borrador. Imprimir y descargar utiliza los datos guardados.</p> : null}
           <Input value={draftNotes} disabled={selected.status !== "DRAFT"} placeholder="Notas de la orden" onChange={(event) => setDraftNotes(event.target.value)} />
           <div className="rounded-xl border">
             <DataTable

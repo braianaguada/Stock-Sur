@@ -80,3 +80,19 @@ describe("purchase order blank print model", () => {
     expect(() => buildPurchaseOrderModelHtml(DEFAULT_COMPANY_SETTINGS, { firstNumber: 1, secondNumber: 2, sheetCount: 3, lastNumber: 4 }, "15/10/2026")).toThrow();
   });
 });
+
+ describe("filled purchase orders", () => {
+  it("keeps the saved number on both copies and paginates every product without duplication", () => {
+    const lines = Array.from({ length: 9 }, (_, i) => ({ description: 'Producto ' + i, quantity: 2, currency: 'ARS', unitCost: 100, total: 200 }));
+    const html = buildPurchaseOrderModelHtml(DEFAULT_COMPANY_SETTINGS, { firstNumber: 31, secondNumber: 32 }, '16/10/2026', { number: 31, supplier: 'Proveedor registrado', form: { address: 'Direccion', notes: '<script>mal</script>' }, totals: { ARS: 1800 }, lines });
+    const dom = new DOMParser().parseFromString(html, 'text/html');
+    expect(dom.querySelectorAll('main.page')).toHaveLength(3);
+    expect(dom.querySelectorAll('article.order')).toHaveLength(6);
+    expect(dom.title).toBe('Órdenes de compra 31');
+    for (const line of lines) expect(dom.body.textContent!.split(line.description)).toHaveLength(3);
+    expect(dom.body.textContent).not.toContain('00000032');
+    expect(dom.querySelector('script')).toBeNull();
+    expect(dom.body.textContent).toContain('ARS 1.800,00');
+    expect(dom.querySelectorAll('article.order')[4].textContent).toContain('Pag. 3/3');
+  });
+});
