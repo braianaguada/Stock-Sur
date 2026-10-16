@@ -3,7 +3,7 @@ import { Copy, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
-import { DAILY_REPORT_HEADERS, dailyReportTsv, loadDailyReport } from "../daily-report";
+import { dailyReportHtml, dailyReportTsv, loadDailyReport } from "../daily-report";
 
 type SaveHandle = { createWritable: () => Promise<{ write: (blob: Blob) => Promise<void>; close: () => Promise<void>; abort: () => Promise<void> }> };
 type PickerWindow = Window & { showSaveFilePicker?: (options: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<SaveHandle> };
@@ -26,15 +26,19 @@ export function CashDailyExport({ companyId, date }: { companyId: string; date: 
       if (!mounted.current || context.current.companyId !== companyId || context.current.date !== date) return;
       if (!rows.length) { toast({ title: "No hay movimientos para exportar" }); return; }
       if (mode === "copy") {
-        await navigator.clipboard.writeText(dailyReportTsv(rows));
+        if (typeof ClipboardItem !== "undefined" && navigator.clipboard.write) {
+          await navigator.clipboard.write([new ClipboardItem({
+            "text/plain": new Blob([dailyReportTsv(rows)], { type: "text/plain" }),
+            "text/html": new Blob([dailyReportHtml(rows)], { type: "text/html" }),
+          })]);
+        } else {
+          await navigator.clipboard.writeText(dailyReportTsv(rows));
+        }
         toast({ title: `${rows.length} movimientos copiados`, description: "Pegalos en la primera celda vacía de tu Excel." });
       } else {
-        const XLSX = await import("xlsx");
-        const book = XLSX.utils.book_new();
-        const sheet = XLSX.utils.aoa_to_sheet([DAILY_REPORT_HEADERS, ...rows]);
-        sheet["!cols"] = [14, 8, 9, 14, 18, 24].map((wch) => ({ wch }));
-        XLSX.utils.book_append_sheet(book, sheet, "Caja");
-        const blob = new Blob([XLSX.write(book, { bookType: "xlsx", type: "array" })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const { dailyReportWorkbook } = await import("../daily-report-workbook");
+        const bytes = await dailyReportWorkbook(rows);
+        const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
         if (!mounted.current || context.current.companyId !== companyId || context.current.date !== date) return;
         if (handle) {
           writable = await handle.createWritable(); await writable.write(blob); await writable.close(); writable = undefined;

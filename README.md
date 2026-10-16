@@ -1,3 +1,6 @@
+## Excel diario de caja
+Las facturas activas asociadas se exportan como A con su numero, cualquiera sea el medio de pago. El XLSX incluye bordes en todas las celdas; copiar para Excel incluye una tabla HTML con bordes cuando el navegador lo permite y conserva TSV como alternativa. Sin migraciones. QA manual de pegado en Excel pendiente.
+
 ## Remitos convertidos desde presupuestos
 
 El editor permite guardar el borrador existente o emitir el remito, sin crear otro documento. La actualizaci?n exige que siga siendo borrador y pertenezca a la empresa activa. Sin migraciones; QA automatizada, emisi?n real pendiente en staging.
