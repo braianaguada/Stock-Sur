@@ -45,6 +45,10 @@ vi.mock("@/features/settlements/api", async (importActual) => ({
   saveSettlementDraft: mocks.saveSettlementDraft,
 }));
 
+vi.mock("@/features/suppliers/components/SupplierSelect", () => ({
+  SupplierSelect: ({ value, onChange }: { value: string; onChange: (id: string, name: string) => void }) => <select aria-label="Proveedor asociado" value={value} onChange={event => onChange(event.target.value, event.target.value ? "Proveedor registrado" : "")}><option value="">Sin proveedor asociado</option><option value="supplier-1">Proveedor registrado</option></select>,
+}));
+
 function settlement(id: string, number: number, preparedByName: string) {
   return {
     id,
@@ -331,4 +335,16 @@ describe("SettlementsPage", () => {
     finishSave?.();
     await waitFor(() => expect(screen.queryByText("Guardando cambios...")).not.toBeInTheDocument());
   });
+  it("saves the registered supplier and resets selection for the next expense", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: /Nuevo egreso/i }));
+    fireEvent.change(screen.getByLabelText("Proveedor asociado"), { target: { value: "supplier-1" } });
+    fireEvent.change(screen.getByLabelText("Detalle egreso"), { target: { value: "Compra registrada" } });
+    fireEvent.change(screen.getByLabelText("Efectivo egreso"), { target: { value: "125" } });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar egreso" }));
+    await waitFor(() => expect(mocks.saveSettlementDraft).toHaveBeenCalledWith(expect.objectContaining({ expenseLines: [expect.objectContaining({ supplier_name: "Proveedor registrado" })] })), { timeout: 2000 });
+    fireEvent.click(screen.getByRole("button", { name: /Nuevo egreso/i }));
+    expect(screen.getByLabelText("Proveedor asociado")).toHaveValue("");
+  });
+
 });
