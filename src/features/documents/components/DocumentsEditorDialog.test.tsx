@@ -127,7 +127,7 @@ describe("DocumentsEditorDialog", () => {
     expect(onSubmit).toHaveBeenCalledWith("SEND_BUDGET");
     expect(screen.queryByRole("button", { name: "Emitir remito" })).not.toBeInTheDocument();
   });
-  it("offers direct issue only while creating a remito and preserves draft saving", () => {
+  it.each([null, "converted-remito-id"])("offers save and issue for a remito with editing id %s", (editingDocId) => {
     const onSubmit = vi.fn<(intent: DocumentDraftSubmissionIntent) => void>();
     const priceLists: PriceListRow[] = [{
       id: "price-list-1",
@@ -141,7 +141,7 @@ describe("DocumentsEditorDialog", () => {
     renderDialog(
       { ...baseForm, price_list_id: "price-list-1" },
       onSubmit,
-      { canIssueOnCreate: true, priceLists },
+      { canIssueOnCreate: true, priceLists, editingDocId },
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Emitir remito" }));

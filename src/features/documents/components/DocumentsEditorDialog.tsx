@@ -935,12 +935,12 @@ export function DocumentsEditorDialog({
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button type="submit" disabled={isSubmitting || priceLists.length === 0} variant="outline" className="h-11 rounded-full px-8">
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {isSubmitting ? "Procesando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
+              {isSubmitting ? "Procesando..." : "Guardar borrador"}
             </Button>
             {!editingDocId && documentForm.doc_type === "PRESUPUESTO" && canSendBudget ? (
               <Button type="button" disabled={isSubmitting || priceLists.length === 0} onClick={() => submitWithIntent("SEND_BUDGET")}>Emitir presupuesto</Button>
             ) : null}
-            {!editingDocId && documentForm.doc_type === "REMITO" && canIssueOnCreate ? (
+            {documentForm.doc_type === "REMITO" && canIssueOnCreate ? (
               <Button
                 type="button"
                 disabled={isSubmitting || priceLists.length === 0}

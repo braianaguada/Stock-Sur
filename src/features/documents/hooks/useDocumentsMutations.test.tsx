@@ -9,7 +9,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: () => ({
       insert: () => ({ select: () => ({ single: async () => ({ data: { id: "doc-1" }, error: null }) }) }),
-      update: () => ({ eq: () => ({ eq: () => ({}) }) }),
+      update: () => ({ eq: () => ({ eq: () => ({ eq: () => ({ select: () => ({ single: async () => ({ data: { id: "converted-remito" }, error: null }) }) }) }) }) }),
       delete: () => ({ eq: () => ({}) }),
       select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
     }),
@@ -124,6 +124,43 @@ const basePriceRow: PriceListItemRow = {
 };
 
 describe("document submission intents", () => {
+  it.each(["SAVE_DRAFT", "ISSUE_REMITO"] as const)("%s reuses the remito converted from a budget", async (intent) => {
+    vi.mocked(supabase.rpc).mockReset().mockResolvedValue({ data: null, error: null, count: null, status: 200, statusText: "OK" });
+    const onRemitoIssued = vi.fn();
+    const { result } = renderHook(() => useDocumentsMutations({
+      currentCompanyId: "company-1", userId: "user-1",
+      documents: [{ id: "converted-remito", doc_type: "REMITO", status: "BORRADOR", origin_document_id: "budget-1" } as DocRow],
+      customers: [], technicians: [], serviceOptions: [], lines: [baseLine],
+      draftForm: { ...baseDraftForm, doc_type: "REMITO", recipient_type: "OCCASIONAL", customer_name: "Cliente ocasional" },
+      totalDraft: 2512.7, editingDocId: "converted-remito", priceByItem: new Map([["item-1", 1256.35]]),
+      priceListItemByItemId: new Map([["item-1", basePriceRow]]), priceRoundingConfig: { enabled: false, increment: null },
+      resetDraftForm: vi.fn(), setDialogOpen: vi.fn(), toast: vi.fn(), onRemitoIssued,
+    }));
+    let outcome: unknown;
+    await act(async () => { outcome = await result.current.upsertDraftMutation.mutateAsync(intent); });
+    expect(outcome).toEqual({ intent, documentId: "converted-remito", issued: intent === "ISSUE_REMITO", issueError: null });
+    if (intent === "ISSUE_REMITO") {
+      expect(supabase.rpc).toHaveBeenCalledExactlyOnceWith("issue_document", { p_document_id: "converted-remito" });
+      expect(onRemitoIssued).toHaveBeenCalledExactlyOnceWith("converted-remito");
+    } else {
+      expect(supabase.rpc).not.toHaveBeenCalled();
+      expect(onRemitoIssued).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each(["EMITIDO", "ANULADO"] as const)("does not edit or issue an existing %s remito", async (status) => {
+    vi.mocked(supabase.rpc).mockReset();
+    const { result } = renderHook(() => useDocumentsMutations({
+      currentCompanyId: "company-1", userId: "user-1",
+      documents: [{ id: "converted-remito", doc_type: "REMITO", status } as DocRow],
+      customers: [], technicians: [], lines: [baseLine], draftForm: { ...baseDraftForm, doc_type: "REMITO" },
+      totalDraft: 2512.7, editingDocId: "converted-remito", priceByItem: new Map(), priceListItemByItemId: new Map(),
+      resetDraftForm: vi.fn(), setDialogOpen: vi.fn(), toast: vi.fn(),
+    }));
+    await expect(result.current.upsertDraftMutation.mutateAsync("ISSUE_REMITO")).rejects.toThrow("ya no es un borrador editable");
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["SAVE_DRAFT", "PRESUPUESTO", null],
     ["SEND_BUDGET", "PRESUPUESTO", "transition_document_status"],

@@ -1,3 +1,7 @@
+## Remitos convertidos desde presupuestos
+
+El editor permite guardar el borrador existente o emitir el remito, sin crear otro documento. La actualizaci?n exige que siga siendo borrador y pertenezca a la empresa activa. Sin migraciones; QA automatizada, emisi?n real pendiente en staging.
+
 ## Staging: reporte diario de Caja
 
 Copiar para Excel pega seis columnas sin encabezado; Excel del dia descarga XLSX con encabezado. Consulta todos los movimientos del dia por paginas, excluyendo anulados. Remitos: X/7; facturas: 9, A con referencia externa activa registrada, B sin numeracion. Gastos como GASTO con importe negativo y devoluciones negativas. Sin migraciones ni movimientos nuevos. QA operativa del formato con el Excel principal pendiente.
