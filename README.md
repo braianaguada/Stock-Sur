@@ -1,3 +1,7 @@
+## Proveedores registrados (2026-10-16)
+
+Selector unico con busqueda y seleccion en el mismo campo. Las ordenes completan la direccion del proveedor cuando existe; sigue siendo opcional. Los textos antiguos de productos se conservan y las asociaciones exactas por empresa mantienen la migracion existente. Sin migraciones nuevas. QA: pruebas de selector, direccion y aislamiento por empresa.
+
 ## Ajustes operativos de interfaz (2026-10-16)
 
 Impresion de ordenes en A4 apaisado con margen exterior de 5 mm y dos mitades sin separacion. Plantillas disponibles solo en Compras; alertas agrupadas con identificacion de productos y textos de interfaz reducidos. Sin migraciones ni cambios contables. QA: typecheck, lint y build; impresion comprobada en Chrome, pendiente impresora fisica.
