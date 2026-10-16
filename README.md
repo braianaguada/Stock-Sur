@@ -1,3 +1,7 @@
+## Staging: aprobacion de presupuestos
+
+Aprobar y crear remito es atomico e idempotente; crea un borrador y ofrece Caja al emitirlo, sin ingresos automaticos. Conserva estados historicos. Migraciones: 20261016130000 y 20261016133000 (bloqueo compatible con RLS). Aplicadas solo en staging. QA DB autenticada de concurrencia, permisos y aislamiento pendiente; no se emitieron documentos reales.
+
 ## Proveedores registrados (2026-10-16)
 
 Selector unico con busqueda y seleccion en el mismo campo. Las ordenes completan la direccion del proveedor cuando existe; sigue siendo opcional. Los textos antiguos de productos se conservan y las asociaciones exactas por empresa mantienen la migracion existente. Sin migraciones nuevas. QA: pruebas de selector, direccion y aislamiento por empresa.

@@ -2,7 +2,7 @@ import { renderHook, act } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { PropsWithChildren } from "react";
 import { normalizeDraftLine, useDocumentsMutations } from "./useDocumentsMutations";
-import type { DocumentDraftSubmissionIntent, DocumentFormState, LineDraft, PriceListItemRow } from "../types";
+import type { DocRow, DocumentFormState, LineDraft, PriceListItemRow } from "../types";
 import { supabase } from "@/integrations/supabase/client";
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -18,9 +18,9 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({}),
-  useMutation: (options: { mutationFn: (intent?: DocumentDraftSubmissionIntent) => Promise<unknown> }) => ({
-    mutateAsync: options.mutationFn,
+  useQueryClient: () => ({ invalidateQueries: vi.fn().mockResolvedValue(undefined) }),
+  useMutation: (options: { mutationFn: (arg?: unknown) => Promise<unknown>; onSuccess?: (data: unknown, arg?: unknown) => unknown }) => ({
+    mutateAsync: async (arg?: unknown) => { const data = await options.mutationFn(arg); await options.onSuccess?.(data, arg); return data; },
     isPending: false,
   }),
 }));
@@ -139,7 +139,7 @@ describe("document submission intents", () => {
     }));
     let outcome: unknown;
     await act(async () => { outcome = await result.current.upsertDraftMutation.mutateAsync(intent); });
-    expect(outcome).toEqual({ intent, issued: intent === "ISSUE_REMITO", issueError: null });
+    expect(outcome).toEqual({ intent, documentId: "doc-1", issued: intent === "ISSUE_REMITO", issueError: null });
     if (rpcName) expect(supabase.rpc).toHaveBeenCalledWith(rpcName, intent === "SEND_BUDGET" ? { p_document_id: "doc-1", p_target_status: "ENVIADO" } : { p_document_id: "doc-1" });
     else expect(supabase.rpc).not.toHaveBeenCalled();
   });
@@ -209,5 +209,40 @@ describe("sale unit validation", () => {
       priceRoundingConfig: { enabled: false, increment: null }, resetDraftForm: vi.fn(), setDialogOpen: vi.fn(), toast: vi.fn(),
     }));
     await expect(result.current.upsertDraftMutation.mutateAsync("SAVE_DRAFT")).rejects.toThrow("unidad entera");
+  });
+});
+
+
+describe("budget approval and conversion", () => {
+  it("creates the draft through one atomic RPC and propagates errors", async () => {
+    const onRemitoCreated = vi.fn();
+    const { result } = renderHook(() => useDocumentsMutations({
+      currentCompanyId: "company-1", userId: "user-1", documents: [{ id: "budget-1" } as DocRow],
+      customers: [], technicians: [], serviceOptions: [], lines: [], draftForm: baseDraftForm,
+      totalDraft: 0, editingDocId: null, priceByItem: new Map(), priceListItemByItemId: new Map(),
+      resetDraftForm: vi.fn(), setDialogOpen: vi.fn(), toast: vi.fn(), onRemitoCreated,
+    }));
+    vi.mocked(supabase.rpc).mockReset().mockResolvedValueOnce({ data: "remito-1", error: null, count: null, status: 200, statusText: "OK" });
+    await expect(result.current.cloneAsRemitoMutation.mutateAsync("budget-1")).resolves.toBe("remito-1");
+    expect(supabase.rpc).toHaveBeenCalledWith("approve_budget_create_remito", { p_document_id: "budget-1" });
+    expect(onRemitoCreated).toHaveBeenCalledExactlyOnceWith("remito-1");
+    vi.mocked(supabase.rpc).mockRejectedValueOnce(new Error("Sin permiso"));
+    await expect(result.current.cloneAsRemitoMutation.mutateAsync("budget-1")).rejects.toThrow("Sin permiso");
+    await expect(result.current.cloneAsRemitoMutation.mutateAsync("other-company-budget")).rejects.toThrow("ya no esta disponible");
+    expect(supabase.rpc).toHaveBeenCalledTimes(2);
+    expect(onRemitoCreated).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["REMITO", "REMITO_DEVOLUCION"] as const)("offers Cash after issuing %s only when it is a sale", async (doc_type) => {
+    const onRemitoIssued = vi.fn();
+    const { result } = renderHook(() => useDocumentsMutations({
+      currentCompanyId: "company-1", userId: "user-1", documents: [{ id: "doc-1", doc_type, total: 1, origin_document_id: "original" } as DocRow],
+      customers: [], technicians: [], serviceOptions: [], lines: [], draftForm: baseDraftForm,
+      totalDraft: 0, editingDocId: null, priceByItem: new Map(), priceListItemByItemId: new Map(),
+      resetDraftForm: vi.fn(), setDialogOpen: vi.fn(), toast: vi.fn(), onRemitoIssued,
+    }));
+    vi.mocked(supabase.rpc).mockReset().mockResolvedValueOnce({ data: null, error: null, count: null, status: 200, statusText: "OK" });
+    await act(async () => { await result.current.issueMutation.mutateAsync("doc-1"); });
+    expect(onRemitoIssued).toHaveBeenCalledTimes(doc_type === "REMITO" ? 1 : 0);
   });
 });

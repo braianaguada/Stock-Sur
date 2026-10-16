@@ -3013,6 +3013,7 @@ export type Database = {
         }
         Returns: string
       }
+      approve_budget_create_remito: { Args: { p_document_id: string }; Returns: string }
       duplicate_document: {
         Args: { p_document_id: string }
         Returns: {
