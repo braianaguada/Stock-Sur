@@ -182,8 +182,8 @@ export function useDocumentsMutations({
   const upsertDraftMutation = useMutation({
     mutationFn: async (intent: DocumentDraftSubmissionIntent = "SAVE_DRAFT") => {
       if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
-      if (intent === "ISSUE_REMITO" && (editingDocId || draftForm.doc_type !== "REMITO")) {
-        throw new Error("La emision directa solo esta disponible al crear un remito nuevo");
+      if (intent === "ISSUE_REMITO" && draftForm.doc_type !== "REMITO") {
+        throw new Error("Solo se puede emitir un remito desde este formulario");
       }
       if (intent === "SEND_BUDGET" && (editingDocId || draftForm.doc_type !== "PRESUPUESTO")) {
         throw new Error("La emision directa solo esta disponible al crear un presupuesto nuevo");
@@ -202,6 +202,12 @@ export function useDocumentsMutations({
       }
       if (editingDocId && !documentsById.has(editingDocId)) {
         throw new Error("El borrador que intentas editar ya no esta disponible. Recarga Documentos e intenta de nuevo");
+      }
+      if (editingDocId) {
+        const existingDocument = documentsById.get(editingDocId)!;
+        if (existingDocument.status !== "BORRADOR" || existingDocument.doc_type !== draftForm.doc_type) {
+          throw new Error("El documento ya no es un borrador editable. Recarga Documentos e intenta de nuevo");
+        }
       }
 
       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
@@ -272,7 +278,10 @@ export function useDocumentsMutations({
             updated_at: nowIso,
           })
           .eq("id", documentId)
-          .eq("status", "BORRADOR");
+          .eq("status", "BORRADOR")
+          .eq("company_id", currentCompanyId)
+          .select("id")
+          .single();
         if (updErr) throw updErr;
 
         const { error: delErr } = await supabase
