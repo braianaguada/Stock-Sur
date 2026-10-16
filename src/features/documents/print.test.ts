@@ -50,6 +50,14 @@ const line: Pick<
 };
 
 describe("buildDocumentPrintHtml", () => {
+  it("muestra el neto e IVA incluidos sin aumentar el total manual", () => {
+    const html = buildDocumentPrintHtml({ document: { ...document, subtotal: 223140.50, tax_total: 46859.50, total: 270000 }, lines: [], companySettings: DEFAULT_COMPANY_SETTINGS });
+    expect(html).toContain("Subtotal neto");
+    expect(html).toContain("IVA incluido (21%)");
+    for (const amount of [223140.50, 46859.50, 270000]) {
+      expect(html).toContain(new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount));
+    }
+  });
   it("destaca visualmente las notas para impresión", () => {
     const html = buildDocumentPrintHtml({
       document: { ...document, notes: "Entregar únicamente por la mañana" },

@@ -277,8 +277,8 @@ export function buildDocumentPrintHtml({
             <div class="signature-line">Documento</div>
           </div>
           <div class="totals">
-            <div class="totals-line"><span>Subtotal</span><strong>${moneyFormatter.format(Number(document.subtotal ?? 0))}</strong></div>
-            <div class="totals-line"><span>IVA / Imp.</span><strong>${moneyFormatter.format(Number(document.tax_total ?? 0))}</strong></div>
+            <div class="totals-line"><span>Subtotal neto</span><strong>${moneyFormatter.format(Number(document.subtotal ?? 0))}</strong></div>
+            <div class="totals-line"><span>IVA incluido (21%)</span><strong>${moneyFormatter.format(Number(document.tax_total ?? 0))}</strong></div>
             <div class="grand-total"><span>${escapeHtml(totalLabel)}</span><strong>${moneyFormatter.format(Number(document.total ?? 0))}</strong></div>
           </div>
         </section>

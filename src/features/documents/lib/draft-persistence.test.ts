@@ -54,8 +54,8 @@ describe("buildDocumentDraftPersistencePayload", () => {
       valid_until: "2026-08-31",
       price_list_id: "list-1",
       notes: "Entregar por la mañana",
-      subtotal: 1250,
-      tax_total: 0,
+      subtotal: 1033.06,
+      tax_total: 216.94,
       total: 1250,
     });
   });

@@ -364,11 +364,11 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       <div className="overflow-hidden rounded-2xl border border-slate-200">
                         <div className="space-y-2 bg-slate-50 p-4 text-sm">
                           <div className="flex justify-between gap-4 text-slate-600">
-                            <span>Subtotal</span>
+                            <span>Subtotal neto</span>
                             <span className="font-mono">{formatMoney(selectedDocument.subtotal)}</span>
                           </div>
                           <div className={`flex justify-between gap-4 border-b pb-3 text-slate-600 ${DOC_TOTAL_ACCENT_CLASS[selectedDocument.doc_type]}`}>
-                            <span>IVA / imp.</span>
+                            <span>IVA incluido (21%)</span>
                             <span className="font-mono">{formatMoney(selectedDocument.tax_total)}</span>
                           </div>
                         </div>
