@@ -1,4 +1,5 @@
-﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { CashDailyExport } from "@/features/cash/components/CashDailyExport";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
@@ -493,6 +494,7 @@ export default function CashPage() {
           }}
           actions={(
             <>
+              {currentCompany && <CashDailyExport key={currentCompany.id} companyId={currentCompany.id} date={businessDate} />}
               <Button
                 onClick={() => {
                   setSecondaryView(null);
