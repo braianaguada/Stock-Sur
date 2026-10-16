@@ -187,3 +187,16 @@ describe("DocumentsDataTable cash registration", () => {
     expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
   });
 });
+
+
+describe("budget simplified workflow", () => {
+  it("offers approval with a draft remito and removes the separate rejected state action", () => {
+    const props = renderTable([{ ...baseDocument, status: "ENVIADO" }]);
+    fireEvent.click(screen.getByRole("button", { name: /acciones/i }));
+    expect(screen.queryByRole("button", { name: "Rechazar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aprobar" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Aprobar y crear remito" }));
+    expect(props.onCloneAsRemito).toHaveBeenCalledWith("doc-1");
+    expect(props.onTransition).not.toHaveBeenCalled();
+  });
+});

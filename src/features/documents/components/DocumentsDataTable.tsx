@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Banknote, Check, Copy, Download, Eye, FileText, Loader2, MessageCircle, MoreHorizontal, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
+import { Ban, Banknote, Check, Copy, Download, Eye, FileText, Loader2, MessageCircle, MoreHorizontal, Pencil, Printer, RotateCcw, Send } from "lucide-react";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { CategoryBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { DataTable } from "@/components/data-table/DataTable";
@@ -225,12 +225,6 @@ export function DocumentsDataTable({
                 <Button variant="ghost" className="text-[hsl(var(--domain-accent-strong))] hover:bg-[hsl(var(--domain-accent))]/10 hover:text-[hsl(var(--domain-accent-strong))]" onClick={() => onTransition(doc.id, "ENVIADO")} title="Marcar como enviado" disabled={!canTransitionDocumentTo("ENVIADO")}>
                   <Send className="h-4 w-4" /><span>Marcar enviado</span>
                 </Button>
-                <Button variant="ghost" className="text-success hover:bg-success/10 hover:text-success" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
-                  <Check className="h-4 w-4" /><span>Aprobar</span>
-                </Button>
-                <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
-                  <X className="h-4 w-4" /><span>Rechazar</span>
-                </Button>
                 <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" /><span>Anular</span>
                 </Button>
@@ -238,11 +232,8 @@ export function DocumentsDataTable({
             ) : null}
             {doc.doc_type === "PRESUPUESTO" && doc.status === "ENVIADO" ? (
               <>
-                <Button variant="ghost" className="text-success hover:bg-success/10 hover:text-success" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
-                  <Check className="h-4 w-4" /><span>Aprobar</span>
-                </Button>
-                <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
-                  <X className="h-4 w-4" /><span>Rechazar</span>
+                <Button variant="ghost" onClick={() => onCloneAsRemito(doc.id)} disabled={!canCloneBudgetToRemito || !canTransitionDocumentTo("APROBADO")}>
+                  <Check className="h-4 w-4" /><span>Aprobar y crear remito</span>
                 </Button>
                 <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" /><span>Anular</span>
