@@ -32,15 +32,15 @@ export function DashboardAiInsight({ companyName, dashboard }: { companyName: st
         <div className="flex min-w-0 items-start gap-4">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><BrainCircuit className="h-5 w-5" aria-hidden="true" /></span>
           <div className="min-w-0 flex-1">
-            <h2 id="dashboard-ai-title" className="font-semibold">Lectura ejecutiva bajo demanda</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">{summary.data?.summary ?? "Generá una lectura complementaria del estado operativo actual y las tendencias mensuales."}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Esta lectura usa el resumen operativo actual; no aplica el filtro de fechas.</p>
+            <h2 id="dashboard-ai-title" className="font-semibold">Resumen automático</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{summary.data?.summary ?? "Generá un resumen de los datos actuales."}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Datos actuales, sin filtro de fechas.</p>
             {summary.data?.fallback ? <p className="mt-2 text-xs text-warning">Se utilizó la lectura local porque el servicio de IA no estaba disponible.</p> : null}
           </div>
         </div>
         <Button type="button" variant="outline" className="w-full shrink-0 justify-center rounded-full sm:w-auto lg:ml-auto lg:self-center" disabled={summary.isPending} onClick={() => summary.mutate({ companyName, dashboard })}>
           {summary.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-          {summary.data ? "Actualizar lectura" : "Generar lectura"}
+          {summary.data ? "Actualizar resumen" : "Generar resumen"}
         </Button>
       </CardContent>
     </Card>
@@ -69,7 +69,6 @@ export default function Dashboard() {
             <PageHeader
               eyebrow="Inicio · análisis comercial"
               title="Dashboard"
-              subtitle={`Ventas, inventario y operación de ${settings.app_name} en una sola lectura.`}
               variant="analytical"
               meta={(
                 <>
@@ -81,7 +80,7 @@ export default function Dashboard() {
             />
 
             <section className="mb-5 space-y-3 rounded-xl border border-border/70 p-4" aria-label="Período del análisis">
-              <div><h2 className="font-semibold">Período del análisis</h2><p className="text-sm text-muted-foreground">Ventas, caja, rentabilidad y productos: {period.from} al {period.to}. Inventario y alertas: estado actual.</p></div>
+              <div><h2 className="font-semibold">Período del análisis</h2></div>
               <div className="flex flex-wrap gap-2">
                 {([["day", "Hoy"], ["week", "Esta semana"], ["month", "Este mes"], ["previous-month", "Mes anterior"], ["custom", "Personalizado"]] as const).map(([preset, label]) => <Button key={preset} type="button" size="sm" aria-pressed={periodPreset === preset} variant={periodPreset === preset ? "default" : "outline"} onClick={() => setPeriodPreset(preset)}>{label}</Button>)}
               </div>
@@ -113,7 +112,7 @@ export default function Dashboard() {
                   <div className="min-w-0 xl:col-span-4">{periodReady ? <DashboardHighlights dashboard={dashboard} periodMethods={periodPayments(periodData)} /> : null}</div>
                 </div>
                 <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                  <div><h2 className="text-lg font-semibold">Análisis por período</h2><p className="text-sm text-muted-foreground">Ventas, costos, ganancia y productos del intervalo seleccionado.</p></div>
+                  <div><h2 className="text-lg font-semibold">Ventas</h2></div>
                 </div>
                 {periodReady ? <DashboardPeriodInsights data={periodData} loading={false} /> : null}
                 <DashboardAiInsight key={currentCompany.id} companyName={settings.app_name} dashboard={dashboard} />

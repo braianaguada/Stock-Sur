@@ -17,17 +17,15 @@ describe("PrintModelButton", () => {
   beforeEach(() => { mocks.rpc.mockReset(); mocks.toast.mockReset(); mocks.brandCompany = "company-1"; mocks.permissions = ["suppliers.edit"]; mocks.roles = ["user"]; });
   afterEach(() => vi.restoreAllMocks());
 
-  it("provides the print action in both Documents and Purchase Orders headers", () => {
-    for (const page of ["Documents", "PurchaseOrders"]) {
-      const source = readFileSync(`src/pages/${page}.tsx`, "utf8");
-      expect(source).toMatch(/actions=\{[\s\S]*?<PrintModelButton key=\{/);
-    }
+  it("keeps purchase-order printing in its own section", () => {
+    expect(readFileSync("src/pages/Documents.tsx", "utf8")).not.toContain("PrintModelButton");
+    expect(readFileSync("src/pages/PurchaseOrders.tsx", "utf8")).toContain("<PrintModelButton");
   });
 
   it("keeps the action visible and explains missing permission without allocating numbers", () => {
     mocks.permissions = [];
     render(<PrintModelButton />);
-    const button = screen.getByRole("button", { name: "Imprimir órdenes de compra" });
+    const button = screen.getByRole("button", { name: "Imprimir plantillas" });
     expect(button).toBeDisabled();
     expect(screen.getByText(/Necesitás permiso para editar proveedores/)).toBeVisible();
     fireEvent.click(button);
@@ -49,7 +47,7 @@ describe("PrintModelButton", () => {
   it("does not reserve numbers using another company's branding", () => {
     mocks.brandCompany = "company-2";
     render(<PrintModelButton />);
-    expect(screen.getByRole("button", { name: "Imprimir órdenes de compra" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Imprimir plantillas" })).toBeDisabled();
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
@@ -58,7 +56,7 @@ describe("PrintModelButton", () => {
     vi.spyOn(window, "open").mockReturnValue(win as unknown as Window);
     mocks.rpc.mockResolvedValue({ data: { firstNumber: 1, secondNumber: 2, sheetCount: 1, lastNumber: 2 }, error: null });
     render(<PrintModelButton />);
-    fireEvent.click(screen.getByRole("button", { name: "Imprimir órdenes de compra" }));
+    fireEvent.click(screen.getByRole("button", { name: "Imprimir plantillas" }));
     await waitFor(() => expect(win.print).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole("button", { name: "Reimprimir mismo lote" }));
     await waitFor(() => expect(win.print).toHaveBeenCalledTimes(2));
@@ -72,7 +70,7 @@ describe("PrintModelButton", () => {
     let resolve!: (value: unknown) => void;
     mocks.rpc.mockReturnValue(new Promise(done => { resolve = done; }));
     const view = render(<PrintModelButton />);
-    fireEvent.click(screen.getByRole("button", { name: "Imprimir órdenes de compra" }));
+    fireEvent.click(screen.getByRole("button", { name: "Imprimir plantillas" }));
     view.unmount();
     await act(async () => { resolve({ data: { firstNumber: 1, secondNumber: 2, sheetCount: 1, lastNumber: 2 }, error: null }); });
     expect(win.close).toHaveBeenCalled();

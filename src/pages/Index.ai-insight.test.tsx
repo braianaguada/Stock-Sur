@@ -23,9 +23,9 @@ describe("DashboardAiInsight", () => {
   it("separa el bloque y adapta la acción entre mobile y escritorio", () => {
     render(<DashboardAiInsight companyName="Stock Sur" dashboard={EMPTY_DASHBOARD} />);
 
-    const title = screen.getByRole("heading", { name: "Lectura ejecutiva bajo demanda" });
+    const title = screen.getByRole("heading", { name: "Resumen automático" });
     const card = title.closest("[aria-labelledby='dashboard-ai-title']");
-    const action = screen.getByRole("button", { name: "Generar lectura" });
+    const action = screen.getByRole("button", { name: "Generar resumen" });
 
     expect(card).toHaveClass("mt-5");
     expect(title.parentElement?.parentElement?.parentElement).toHaveClass("lg:p-6");

@@ -71,7 +71,6 @@ export function OperationalNotificationCenter() {
         <div className="flex items-center justify-between gap-3 border-y py-3">
           <div>
             <p className="text-sm font-semibold">{pendingCount} pendientes en {notifications.length} categorías</p>
-            <p className="text-xs text-muted-foreground">Los avisos sin acción concreta no aparecen acá.</p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={() => void refetch()} disabled={isFetching}>
             {isFetching ? <Loader2 className="animate-spin" /> : <RefreshCw />}

@@ -52,7 +52,6 @@ export default function ImportsPage() {
         <PageHeader
           eyebrow="Carga masiva"
           title="Importaciones"
-          description="Importar listas de precios desde CSV o XLSX con una experiencia mas clara, manteniendo el mismo flujo por pasos."
           variant="workspace"
           meta={[
             "Archivo",

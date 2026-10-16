@@ -231,7 +231,6 @@ export default function TechniciansPage() {
         <PageHeader
           eyebrow="Servicios"
           title="Tecnicos"
-          subtitle="Gestion operativa de tecnicos y control mensual de materiales asociados a remitos y devoluciones."
           tabs={MAIN_TABS}
           activeTab={activeTab}
           onTabChange={setActiveTab}
@@ -277,7 +276,7 @@ export default function TechniciansPage() {
 
             <Card className="min-w-0 border-border/70 shadow-none">
               <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div><CardTitle>Tecnicos</CardTitle><CardDescription>Listado y mantenimiento de tecnicos propios.</CardDescription></div>
+                <div><CardTitle>Tecnicos</CardTitle></div>
                 <CountBadge>{technicians.length} {technicians.length === 1 ? "registro" : "registros"}</CountBadge>
               </CardHeader>
               <CardContent className="overflow-x-auto p-0" role="region" tabIndex={0} aria-label="Listado de tecnicos">

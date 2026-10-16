@@ -255,7 +255,6 @@ export default function ServiceJobsPage() {
         <PageHeader
           eyebrow="Trabajos"
           title="Trabajos y servicios"
-          subtitle="Base operativa para registrar casos de clientes, servicios internos, tecnicos asignados y remitos de materiales vinculados."
           actions={<Button onClick={openCreateJob}><Plus className="mr-2 h-4 w-4" /> Nuevo trabajo</Button>}
         />
 

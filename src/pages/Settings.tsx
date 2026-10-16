@@ -93,7 +93,6 @@ export default function SettingsPage() {
         <PageHeader
           eyebrow="Administración de empresa"
           title="Configuración"
-          subtitle={`Administrá los datos operativos y la identidad visual de ${form.app_name || currentCompany.name}.`}
           meta={(
             <>
               <InfoBadge>{currentCompany.name}</InfoBadge>

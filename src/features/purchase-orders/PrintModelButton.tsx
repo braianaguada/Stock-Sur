@@ -58,18 +58,18 @@ export function PrintModelButton() {
   };
   const canRetry = request.current?.companyId === companyId;
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex flex-wrap items-end gap-2">
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1">
           <Label htmlFor={quantityId}>Hojas A4</Label>
           <Input id={quantityId} className="w-24" type="number" min={1} max={100} step={1} value={sheetCount} disabled={!canPrint || busy} aria-invalid={!validQuantity} onChange={event => setSheetCount(event.target.value)} />
         </div>
         <Button variant="outline" disabled={!canPrint || busy || isLoading || !validQuantity || settings.company_id !== companyId} onClick={() => void print(false)}>
-          <Printer className="mr-2 h-4 w-4" />{busy ? "Preparando…" : "Imprimir órdenes de compra"}
+          <Printer className="mr-2 h-4 w-4" />{busy ? "Preparando…" : "Imprimir plantillas"}
         </Button>
         {canRetry ? <Button variant="ghost" disabled={!canPrint || busy} onClick={() => void print(true)}>Reimprimir mismo lote</Button> : null}
       </div>
-      <p className="text-xs text-muted-foreground">{canPrint ? validQuantity ? `${quantity} ${quantity === 1 ? "hoja" : "hojas"} · ${quantity * 2} órdenes consecutivas. 2 por hoja A4.` : "Ingresá entre 1 y 100 hojas enteras." : "Necesitás permiso para editar proveedores para imprimir órdenes."}</p>
+      <p className="text-xs text-muted-foreground">{canPrint ? validQuantity ? `${quantity} ${quantity === 1 ? "hoja" : "hojas"} · ${quantity * 2} órdenes numeradas · Margen de 5 mm.` : "Ingresá entre 1 y 100 hojas enteras." : "Necesitás permiso para editar proveedores para imprimir órdenes."}</p>
     </div>
   );
 }

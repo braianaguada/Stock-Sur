@@ -14,7 +14,7 @@ export function DashboardHighlights({ dashboard, periodMethods }: { dashboard: D
     <Card className="flex h-full flex-col border-border/70 shadow-none" aria-labelledby="dashboard-highlights-title">
       <div className="flex items-center gap-3 border-b border-border/60 px-5 py-5">
         <Banknote className="h-5 w-5" aria-hidden="true" />
-        <div><h2 id="dashboard-highlights-title" className="text-base font-semibold">Composición de cobros</h2><p className="text-xs text-muted-foreground">{periodMethods ? "Medios del intervalo seleccionado" : "Medios registrados este mes"}</p></div>
+        <div><h2 id="dashboard-highlights-title" className="text-base font-semibold">Medios de pago</h2></div>
       </div>
       <div className="flex flex-1 flex-col gap-4 p-5">
         {payments.length ? payments.map((item) => (
