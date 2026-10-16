@@ -1,3 +1,7 @@
+### Ordenes de compra completas (staging)
+
+La seccion Ordenes de compra permite guardar y editar borradores manuales con proveedor registrado, cabecera y productos; imprimir dos copias iguales por A4, descargar PDF y compartirlo cuando el navegador lo admite. Las plantillas en blanco conservan numeros diferentes. Migracion aplicada en staging: `20261016110000_manual_purchase_orders.sql`; numeracion compartida, guardado atomico e idempotente y permisos por empresa. Sin movimientos de stock, caja ni cuenta corriente. Cantidades enteras como el modelo de compras existente. Pruebas DB con rollback requieren credenciales; impresion fisica y envio por WhatsApp pendientes de QA del operador.
+
 ### IVA incluido en documentos (staging)
 
 Los precios finales de presupuestos y remitos incluyen IVA 21%; se desglosan neto e IVA sin aumentar el total, incluso con precios manuales. Migracion: `20261016100000_documents_included_vat.sql`; conserva fuentes fiscales existentes y corrige el traslado de nuevas ventas a borrador fiscal. Pruebas focalizadas: calculo, guardado, duplicado e impresion; prueba DB con rollback en `criticalDb.test.ts` (requiere credenciales de QA).

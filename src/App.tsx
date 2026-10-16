@@ -29,6 +29,7 @@ const ItemsPage = lazy(() => import("./pages/Items"));
 const CombosPage = lazy(() => import("./pages/Combos"));
 const StockPage = lazy(() => import("./pages/Stock"));
 const SuppliersPage = lazy(() => import("./pages/Suppliers"));
+const PurchaseOrderEditorPage = lazy(() => import("./pages/PurchaseOrderEditor"));
 const PurchaseOrdersPage = lazy(() => import("./pages/PurchaseOrders"));
 const PriceListsPage = lazy(() => import("./pages/PriceLists"));
 const ImportsPage = lazy(() => import("./pages/Imports"));
@@ -118,6 +119,8 @@ const App = () => (
                   <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
                   <Route path="/market-radar" element={<Navigate to="/stock" replace />} />
                   <Route path="/suppliers" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
+                  <Route path="/purchase-orders/new" element={<ProtectedRoute><PurchaseOrderEditorPage /></ProtectedRoute>} />
+                  <Route path="/purchase-orders/:orderId/edit" element={<ProtectedRoute><PurchaseOrderEditorPage /></ProtectedRoute>} />
                   <Route path="/purchase-orders" element={<ProtectedRoute><PurchaseOrdersPage /></ProtectedRoute>} />
                   <Route path="/price-lists" element={<ProtectedRoute><PriceListsPage /></ProtectedRoute>} />
                   <Route path="/imports" element={<ProtectedRoute><ImportsPage /></ProtectedRoute>} />

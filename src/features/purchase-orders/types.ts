@@ -5,7 +5,8 @@ export interface SupplierPurchaseOrder {
   id: string;
   company_id: string;
   supplier_id: string;
-  source_catalog_version_id: string;
+  source_catalog_version_id: string | null;
+  form_data?: Record<string, string>;
   order_number: number;
   status: PurchaseOrderStatus;
   supplier_name_snapshot: string;
