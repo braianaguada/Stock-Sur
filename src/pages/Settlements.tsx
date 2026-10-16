@@ -1,3 +1,4 @@
+import { SupplierSelect } from "@/features/suppliers/components/SupplierSelect";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Printer, Trash2, X } from "lucide-react";
@@ -134,10 +135,14 @@ export default function SettlementsPage() {
   const [incomePage, setIncomePage] = useState(1);
   const [expensePage, setExpensePage] = useState(1);
   const [incomeDraft, setIncomeDraft] = useState(() => makeIncomeLineDraft());
+  const [expenseSupplierId, setExpenseSupplierId] = useState("");
   const [expenseDraft, setExpenseDraft] = useState(() => makeExpenseLineDraft());
   const [pendingDeletion, setPendingDeletion] = useState<{ type: "income" | "expense"; id: string } | null>(null);
 
   useEffect(() => {
+    setExpenseDialogOpen(false);
+    setExpenseSupplierId("");
+    setExpenseDraft(makeExpenseLineDraft());
     setSelectedSettlementId(null);
     setHeaderForm(createHeaderForm());
     setIncomeLines([]);
@@ -336,6 +341,7 @@ export default function SettlementsPage() {
     setIncomeDialogOpen(true);
   };
   const openExpenseDialog = () => {
+    setExpenseSupplierId("");
     setExpenseDraft(makeExpenseLineDraft(headerForm.settlement_date));
     setExpenseDialogOpen(true);
   };
@@ -731,7 +737,7 @@ export default function SettlementsPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2"><Label>Fecha *</Label><Input aria-label="Fecha egreso" type="date" value={expenseDraft.line_date} onChange={(event) => setExpenseDraft((line) => ({ ...line, line_date: event.target.value }))} /></div>
             <div className="space-y-2"><Label>FC N°</Label><Input aria-label="FC egreso" value={expenseDraft.receipt} onChange={(event) => setExpenseDraft((line) => ({ ...line, receipt: event.target.value }))} /></div>
-            <div className="space-y-2"><Label>Proveedor</Label><Input aria-label="Proveedor egreso" value={expenseDraft.supplier_name} onChange={(event) => setExpenseDraft((line) => ({ ...line, supplier_name: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>Proveedor</Label><SupplierSelect key={companyId} companyId={companyId ?? ""} value={expenseSupplierId} onChange={(id, name) => { setExpenseSupplierId(id); setExpenseDraft((line) => ({ ...line, supplier_name: name })); }} /></div>
             <div className="space-y-2"><Label>O/C</Label><Input aria-label="OC egreso" value={expenseDraft.purchase_order} onChange={(event) => setExpenseDraft((line) => ({ ...line, purchase_order: event.target.value }))} /></div>
             <div className="space-y-2 sm:col-span-2"><Label>Detalle *</Label><Input aria-label="Detalle egreso" value={expenseDraft.detail} onChange={(event) => setExpenseDraft((line) => ({ ...line, detail: event.target.value }))} /></div>
             <div className="space-y-2"><Label>Efectivo *</Label>{moneyInput(expenseDraft.cash_amount, (value) => setExpenseDraft((line) => ({ ...line, cash_amount: value })), false, true, "Efectivo egreso")}</div>

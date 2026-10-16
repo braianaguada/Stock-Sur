@@ -2,6 +2,10 @@
 
 Los precios finales de presupuestos y remitos incluyen IVA 21%; se desglosan neto e IVA sin aumentar el total, incluso con precios manuales. Migracion: `20261016100000_documents_included_vat.sql`; conserva fuentes fiscales existentes y corrige el traslado de nuevas ventas a borrador fiscal. Pruebas focalizadas: calculo, guardado, duplicado e impresion; prueba DB con rollback en `criticalDb.test.ts` (requiere credenciales de QA).
 
+### Proveedores registrados
+
+Los egresos de rendiciones seleccionan proveedores activos del sistema mediante el mismo selector de Items, con busqueda y cache por empresa. El nombre se conserva como snapshot historico. Sin migraciones.
+
 # Stock Sur
 
 Impresion de ordenes: se elimina el margen interno de 4 mm de cada mitad; las lineas de campos y tabla llegan al marco exterior y a la division central. La tabla aprovecha el alto disponible. QA Chrome/PDF: 1, 3 y 100 hojas A4 al 100%, numeracion y ausencia de paginas extra verificadas. Sin migraciones. Escala personalizada guardada por el navegador e impresion fisica sin bordes dependen de su configuracion y de la impresora.
