@@ -61,7 +61,6 @@ export function UserAccessDialog(props: {
       open={open}
       onOpenChange={onOpenChange}
       title="Gestionar acceso por empresa"
-      description="Define la empresa, el rol base y el estado de la membresia para este usuario."
       contentClassName="max-w-xl"
       footer={(
         <>

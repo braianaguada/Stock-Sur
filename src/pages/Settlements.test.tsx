@@ -206,8 +206,8 @@ describe("SettlementsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     fireEvent.click(addExpense);
     expect(screen.getByRole("dialog", { name: "Nuevo egreso" })).toBeInTheDocument();
-    expect(screen.getByText("Agrega un ingreso por cada cobro o entrada de dinero.")).toBeInTheDocument();
-    expect(screen.getByText("Agrega un egreso por cada pago o salida de dinero.")).toBeInTheDocument();
+    expect(screen.queryByText("Agrega un ingreso por cada cobro o entrada de dinero.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Agrega un egreso por cada pago o salida de dinero.")).not.toBeInTheDocument();
   });
 
   it("opens print date selection from the operational toolbar", async () => {

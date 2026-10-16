@@ -247,7 +247,7 @@ export default function PurchaseOrders() {
       >
         {selected ? <div className="grid gap-4"><div className="flex flex-wrap gap-2"><PurchaseOrderOutput key={`${selected.company_id}:${selected.id}:${selected.updated_at}`} order={selected} lines={lines} loading={linesQuery.isLoading || Boolean(linesQuery.error)} />{selected.status === "DRAFT" && !selected.source_catalog_version_id && <Button variant="outline" onClick={() => navigate(`/purchase-orders/${selected.id}/edit`)}>Editar orden completa</Button>}</div>
           <div className="flex flex-wrap items-center justify-between gap-2"><StatusBadge tone={selected.status === "SENT" ? "success" : selected.status === "CANCELLED" ? "muted" : "warning"}>{PURCHASE_ORDER_STATUS_LABELS[selected.status]}</StatusBadge><span className="text-sm text-muted-foreground">{new Date(selected.created_at).toLocaleString("es-AR")}</span></div>
-          {selected.status === "DRAFT" ? <p className="text-sm text-muted-foreground">Podés ajustar cantidades y notas mientras la orden siga en borrador. Imprimir y descargar utiliza los datos guardados.</p> : null}
+          {selected.status === "DRAFT" ? <p className="text-sm text-muted-foreground">Guardá los cambios antes de imprimir o descargar.</p> : null}
           <Input value={draftNotes} disabled={selected.status !== "DRAFT"} placeholder="Notas de la orden" onChange={(event) => setDraftNotes(event.target.value)} />
           <div className="rounded-xl border">
             <DataTable

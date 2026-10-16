@@ -354,13 +354,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                       </table>
                     </div>
 
-                    <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Resumen</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
-                          Vista previa operativa del documento. La firma se reserva para la impresion o PDF final.
-                        </p>
-                      </div>
+                    <div className="mt-5 ml-auto w-full max-w-[320px]">
                       <div className="overflow-hidden rounded-2xl border border-slate-200">
                         <div className="space-y-2 bg-slate-50 p-4 text-sm">
                           <div className="flex justify-between gap-4 text-slate-600">
@@ -520,7 +514,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
       </Dialog>
 
       <Dialog open={externalInvoiceDialogOpen} onOpenChange={setExternalInvoiceDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-md">
           <form
             className="space-y-5"
             onSubmit={(event) => {
@@ -536,9 +530,6 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                   ? "Editar factura externa"
                   : "Registrar factura externa"}
               </DialogTitle>
-              <DialogDescription>
-                Esta referencia identifica el comprobante asociado al remito y se mostrara en su trazabilidad.
-              </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
               <Label htmlFor="external-invoice-number">Numero de factura</Label>

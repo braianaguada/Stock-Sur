@@ -9,7 +9,7 @@ import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
@@ -369,7 +369,6 @@ export default function TechniciansPage() {
             <MetricCard
               label="Margen bruto estimado"
               value={materialControl.report.totals.grossMargin}
-              helper={`Valor comercial menos costo estimado entre ${formatBusinessDate(controlState.dateFrom)} y ${formatBusinessDate(controlState.dateTo)}.`}
               icon={<PackageCheck className="h-6 w-6" />}
             />
             <MetricGrid>
@@ -389,7 +388,7 @@ export default function TechniciansPage() {
 
             <Card className="min-w-0 border-border/70 shadow-none">
               <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div><CardTitle>Movimientos por tecnico</CardTitle><CardDescription>Resumen principal para cierre mensual por balance de materiales.</CardDescription></div>
+                <div><CardTitle>Movimientos por tecnico</CardTitle></div>
                 <CountBadge>{materialControl.report.technicianSummaries.length} registros</CountBadge>
               </CardHeader>
               <CardContent className="overflow-x-auto p-0">
@@ -442,7 +441,7 @@ export default function TechniciansPage() {
 
             <Card className="min-w-0 border-border/70 shadow-none">
               <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div><CardTitle>Movimientos detallados</CardTitle><CardDescription>Remitos y devoluciones vinculados a tecnicos en el rango seleccionado.</CardDescription></div>
+                <div><CardTitle>Movimientos detallados</CardTitle></div>
                 <CountBadge>{materialControl.report.movements.length} registros</CountBadge>
               </CardHeader>
               <CardContent className="overflow-x-auto p-0">

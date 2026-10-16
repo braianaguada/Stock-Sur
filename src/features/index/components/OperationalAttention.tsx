@@ -51,7 +51,6 @@ export function OperationalAttention({ actions }: { actions: DashboardAction[] }
           <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-success/25 bg-success/[.04] px-5 py-10 text-center">
             <CheckCircle2 className="h-8 w-8 text-success" aria-hidden="true" />
             <p className="mt-3 font-semibold">Operación al día</p>
-            <p className="mt-1 max-w-xs text-sm text-muted-foreground">No detectamos pendientes en los indicadores disponibles.</p>
           </div>
         )}
       </div>

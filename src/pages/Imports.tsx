@@ -73,7 +73,6 @@ export default function ImportsPage() {
           <Card className="border-border/70 shadow-none">
             <CardHeader>
               <CardTitle>Archivo y destino</CardTitle>
-              <CardDescription>Selecciona la lista que recibira una nueva version y carga el archivo fuente.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
               <div className="space-y-5">

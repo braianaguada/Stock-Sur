@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -299,14 +299,13 @@ export default function CombosPage() {
   const activeComboCount = combos.filter((combo) => combo.is_active).length;
 
   return (
-    <AppLayout title="Combos" description="Plantillas reutilizables que agrupan productos reales con cantidades configuradas.">
+    <AppLayout title="Combos">
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
         <Card className="overflow-hidden border-border/70 shadow-none xl:sticky xl:top-4">
           <CardHeader className="space-y-4 border-b bg-muted/20">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <CardTitle className="flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Catálogo de combos</CardTitle>
-                <CardDescription>Seleccioná una plantilla para revisar sus productos.</CardDescription>
               </div>
               <StatusBadge tone="success">{activeComboCount} activos</StatusBadge>
             </div>
@@ -328,7 +327,7 @@ export default function CombosPage() {
               </div>
             ) : combos.length === 0 ? (
               <div className="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                No hay combos todavía. Creá el primero para reutilizar grupos de productos.
+                No hay combos.
               </div>
             ) : visibleComboSummaries.length === 0 ? (
               <div className="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">
@@ -381,9 +380,6 @@ export default function CombosPage() {
           <CardHeader className="flex flex-col gap-3 border-b bg-muted/20 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle>{form.id ? "Editar combo" : "Nuevo combo"}</CardTitle>
-              <CardDescription>
-                {form.id ? "Modificá la configuración y los productos del combo." : "Creá una plantilla reutilizable con varios productos."}
-              </CardDescription>
             </div>
             {form.id ? (
               <div className="flex flex-wrap items-center gap-2">
@@ -432,7 +428,6 @@ export default function CombosPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="font-medium">Productos del combo</div>
-                <div className="text-sm text-muted-foreground">Busca productos activos, agregalos una vez y ajusta cantidades/notas por linea.</div>
               </div>
             </div>
 

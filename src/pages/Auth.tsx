@@ -93,9 +93,6 @@ export default function AuthPage() {
               <h1 className="max-w-xl text-5xl font-extrabold leading-[1.05] tracking-[-0.055em] xl:text-6xl">
                 El control diario de tu negocio, sin perder tiempo.
               </h1>
-              <p className="max-w-lg text-base leading-7 text-slate-300">
-                Stock Sur conecta inventario, ventas, documentos y servicios para que cada movimiento tenga contexto.
-              </p>
             </div>
 
             <div className="grid gap-3 xl:grid-cols-3">
@@ -214,9 +211,6 @@ export default function AuthPage() {
               </Button>
             </form>
 
-            <p className="mt-6 text-center text-xs leading-5 text-slate-500">
-              Al continuar accedés a un entorno protegido para la gestión de tu empresa.
-            </p>
           </div>
         </section>
       </div>

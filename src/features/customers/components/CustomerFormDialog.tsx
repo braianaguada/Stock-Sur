@@ -129,7 +129,6 @@ export function CustomerFormDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={editingCustomer ? "Editar cliente" : "Nuevo cliente"}
-      description="Administra los datos comerciales y, si corresponde, el perfil fiscal para Factura A."
       contentClassName="sm:max-w-xl"
     >
       <form
@@ -182,7 +181,6 @@ export function CustomerFormDialog({
               Se aplica a los nuevos vencimientos del estado de cuenta de este cliente.
             </p>
           </div>
-          <p className="text-xs text-muted-foreground">Cliente ocasional no aplica: los clientes creados aqui son registrados.</p>
         </div>
 
         <div className="space-y-4 rounded-lg border p-4">

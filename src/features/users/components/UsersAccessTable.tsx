@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, LogIn, Pencil, User2 } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getErrorMessage } from "@/lib/errors";
 import type { UserAccessRow, UserCompanyAccess } from "@/features/users/types";
 import { CategoryBadge, CountBadge, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
@@ -129,7 +129,6 @@ export function UsersAccessTable(props: {
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div>
           <CardTitle>Accesos de usuarios</CardTitle>
-          <CardDescription>Roles globales, membresías y permisos efectivos por empresa.</CardDescription>
         </div>
         <CountBadge>{users.length} {users.length === 1 ? "usuario" : "usuarios"}</CountBadge>
       </CardHeader>

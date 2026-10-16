@@ -1,6 +1,6 @@
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatBusinessDate, formatDateTime } from "@/lib/formatters";
 import { AmountDisplay, CountBadge, StatusBadge } from "@/components/common/VisualSystem";
 import type { CashClosureHistoryRow } from "../types";
@@ -37,7 +37,6 @@ export function CashHistoryTab({
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <CardTitle>Historial de cierres</CardTitle>
-          <CardDescription>Resumenes diarios guardados para consulta e impresion.</CardDescription>
         </div>
         <CountBadge>
           {totalItems} registro{totalItems === 1 ? "" : "s"}

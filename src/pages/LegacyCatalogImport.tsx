@@ -386,7 +386,6 @@ export default function LegacyCatalogImportPage() {
         <PageHeader
           eyebrow="Compras / Catalogos"
           title="Importador de catalogo legacy"
-          description="Carga, valida y selecciona articulos antes de crear items y codigos de proveedor."
           variant="workspace"
           meta={(
             <>
@@ -420,7 +419,6 @@ export default function LegacyCatalogImportPage() {
             <CardHeader className="flex flex-row items-start justify-between gap-3">
               <div className="space-y-1">
                 <CardTitle>Preview y seleccion</CardTitle>
-                <CardDescription>Revisa las filas detectadas y limita la importacion a los articulos necesarios.</CardDescription>
               </div>
               <CountBadge>{selectedIds.size} de {rows.length}</CountBadge>
             </CardHeader>

@@ -1,3 +1,6 @@
+## Textos operativos
+Se retiraron descripciones redundantes de las pantallas y dialogos de gestion. Se conservan etiquetas, validaciones, advertencias e instrucciones necesarias. Sin migraciones ni cambios contables. QA visual final pendiente en staging.
+
 ## Excel diario de caja
 Las facturas activas asociadas se exportan como A con su numero, cualquiera sea el medio de pago. El XLSX incluye bordes en todas las celdas; copiar para Excel incluye una tabla HTML con bordes cuando el navegador lo permite y conserva TSV como alternativa. Sin migraciones. QA manual de pegado en Excel pendiente.
 
