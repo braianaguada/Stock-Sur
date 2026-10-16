@@ -18,7 +18,7 @@ vi.mock("@/features/purchase-orders/hooks", () => ({
   purchaseOrderKeys: { lines: (companyId: string, id: string) => ["supplier-purchase-order-lines", companyId, id] },
 }));
 vi.mock("@/features/items/components/ItemSupplierSelect", () => ({
-  ItemSupplierSelect: ({ value, onChange }: { value: string; onChange: (id: string) => void }) => <select aria-label="Proveedor registrado" value={value} onChange={event => onChange(event.target.value)}><option value="">Seleccionar</option><option value="supplier-1">Proveedor Uno</option></select>,
+  ItemSupplierSelect: ({ value, onChange }: { value: string; onChange: (id: string, name: string, address: string) => void }) => <select aria-label="Proveedor registrado" value={value} onChange={event => onChange(event.target.value, "Proveedor Uno", event.target.value ? "San Martin 123" : "")}><option value="">Seleccionar</option><option value="supplier-1">Proveedor Uno</option></select>,
 }));
 
 function setup() {
@@ -39,6 +39,7 @@ describe("manual purchase order editor", () => {
   it("saves the selected registered supplier and entered lines before opening the order", async () => {
     setup();
     fireEvent.change(screen.getByLabelText("Proveedor registrado"), { target: { value: "supplier-1" } });
+    expect(screen.getByLabelText("Domicilio del proveedor")).toHaveValue("San Martin 123");
     fireEvent.change(screen.getByLabelText("Descripción 1"), { target: { value: "Caño de cobre 3/8" } });
     fireEvent.change(screen.getByLabelText("Cantidad"), { target: { value: "2" } });
     fireEvent.change(screen.getByLabelText("Costo unitario"), { target: { value: "125.50" } });
