@@ -1,3 +1,7 @@
+## Staging: reporte diario de Caja
+
+Copiar para Excel pega seis columnas sin encabezado; Excel del dia descarga XLSX con encabezado. Consulta todos los movimientos del dia por paginas, excluyendo anulados. Remitos: X/7; facturas: 9, A con referencia externa activa registrada, B sin numeracion. Gastos como GASTO con importe negativo y devoluciones negativas. Sin migraciones ni movimientos nuevos. QA operativa del formato con el Excel principal pendiente.
+
 ## Staging: aprobacion de presupuestos
 
 Aprobar y crear remito es atomico e idempotente; crea un borrador y ofrece Caja al emitirlo, sin ingresos automaticos. Conserva estados historicos. Migraciones: 20261016130000 y 20261016133000 (bloqueo compatible con RLS). Aplicadas solo en staging. QA DB autenticada de concurrencia, permisos y aislamiento pendiente; no se emitieron documentos reales.
