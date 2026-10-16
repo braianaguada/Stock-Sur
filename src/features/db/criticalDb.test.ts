@@ -242,6 +242,26 @@ async function seedServiceJobWithService(companyId: string, userId: string, cust
 }
 
 describeCriticalDb("critical database rules", () => {
+  it("desglosa IVA incluido sin incrementar el precio final", async () => {
+    await withRollback(async () => {
+      const companyId = crypto.randomUUID();
+      const userId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const inserted = await client.query(
+        `insert into public.documents (company_id, doc_type, status, point_of_sale, issue_date, subtotal, tax_total, total, customer_kind, created_by)
+         values ($1, 'PRESUPUESTO', 'BORRADOR', 1, current_date, 270000, 0, 270000, 'GENERAL', $2) returning id, subtotal, tax_total, total`,
+        [companyId, userId],
+      );
+      expect(Number(inserted.rows[0].subtotal)).toBe(223140.50);
+      expect(Number(inserted.rows[0].tax_total)).toBe(46859.50);
+      expect(Number(inserted.rows[0].total)).toBe(270000);
+      const updated = await client.query("update public.documents set total = 121 where id = $1 returning subtotal, tax_total", [inserted.rows[0].id]);
+      expect(Number(updated.rows[0].subtotal)).toBe(100);
+      expect(Number(updated.rows[0].tax_total)).toBe(21);
+    });
+  });
+
   beforeAll(async () => {
     client = await createDbClient();
   });

@@ -6,6 +6,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { invalidateDocumentQueries, invalidateStockQueries } from "@/lib/invalidate";
 import { STATUS_LABEL } from "../constants";
 import { buildDocumentDraftPersistencePayload } from "../lib/draft-persistence";
+import { splitDocumentIncludedVat } from "../lib/included-vat";
 import { buildReturnDraftPayload } from "../lib/returns";
 import type {
   DocRow,
@@ -287,6 +288,7 @@ export function useDocumentsMutations({
         unit: normalizeSaleUnit(line.unit) || null,
         quantity: line.quantity,
         unit_price: line.unit_price,
+        tax_pct: 21,
         pricing_mode: line.pricing_mode,
         suggested_unit_price: line.suggested_unit_price,
         base_cost_snapshot: line.base_cost_snapshot,
@@ -488,9 +490,7 @@ export function useDocumentsMutations({
           source_document_type: src.doc_type,
           source_document_number_snapshot: formatNumber(src.document_number, src.point_of_sale),
           notes: src.notes,
-          subtotal: src.subtotal ?? 0,
-          tax_total: src.tax_total ?? 0,
-          total: src.total ?? 0,
+          ...splitDocumentIncludedVat(src.total ?? 0),
           created_by: userId,
         })
         .select("id")
@@ -506,6 +506,7 @@ export function useDocumentsMutations({
         unit: line.unit,
         quantity: line.quantity,
         unit_price: line.unit_price,
+        tax_pct: 21,
         pricing_mode: line.pricing_mode,
         suggested_unit_price: line.suggested_unit_price,
         base_cost_snapshot: line.base_cost_snapshot,
@@ -608,6 +609,7 @@ export function useDocumentsMutations({
         unit: line.unit,
         quantity: line.quantity,
         unit_price: line.unit_price,
+        tax_pct: 21,
         pricing_mode: line.pricing_mode,
         suggested_unit_price: line.suggested_unit_price,
         base_cost_snapshot: line.base_cost_snapshot,

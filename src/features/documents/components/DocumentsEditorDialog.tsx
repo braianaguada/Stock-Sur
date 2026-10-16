@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { splitDocumentIncludedVat } from "../lib/included-vat";
 import { PRICING_MODE_LABEL } from "@/features/documents/constants";
 import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type {
@@ -923,13 +924,14 @@ export function DocumentsEditorDialog({
           />
         </div>
 
-        <div className="sticky bottom-0 z-30 flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/95 px-5 py-4 shadow-[var(--shadow-md)] backdrop-blur-md">
+        <div className="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/95 px-5 py-4 shadow-[var(--shadow-md)] backdrop-blur-md">
           <div className="flex flex-col">
             <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-0.5">Total del documento</span>
             <span className="text-2xl font-extrabold tracking-tight text-foreground">
               {formatMoney(totalDraft)}
             </span>
           </div>
+          <p className="text-xs text-muted-foreground">Neto: {formatMoney(splitDocumentIncludedVat(totalDraft).subtotal)} ? IVA incluido (21%): {formatMoney(splitDocumentIncludedVat(totalDraft).tax_total)}</p>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button type="submit" disabled={isSubmitting || priceLists.length === 0} variant="outline" className="h-11 rounded-full px-8">
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

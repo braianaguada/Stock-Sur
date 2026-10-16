@@ -1,5 +1,6 @@
 import type { CustomerKind, DocStatus, DocType, InternalRemitoType, LinePricingMode } from "../types";
 import { formatNumber } from "../utils";
+import { splitDocumentIncludedVat } from "./included-vat";
 
 export const DUPLICATE_DOCUMENT_CONFIRMATION =
   "Se creara un borrador nuevo con las mismas lineas y datos principales.";
@@ -110,10 +111,8 @@ export function buildDuplicateDocumentPayload({
       source_document_type: sourceDocument.doc_type,
       source_document_number_snapshot: sourceNumber,
       notes: sourceDocument.notes,
-      subtotal: sourceDocument.subtotal,
       discount_total: sourceDocument.discount_total ?? 0,
-      tax_total: sourceDocument.tax_total,
-      total: sourceDocument.total,
+      ...splitDocumentIncludedVat(sourceDocument.total),
       external_invoice_number: null,
       external_invoice_date: null,
       external_invoice_status: null,
@@ -128,7 +127,7 @@ export function buildDuplicateDocumentPayload({
       quantity: line.quantity,
       unit_price: line.unit_price,
       discount_pct: line.discount_pct ?? 0,
-      tax_pct: line.tax_pct ?? 0,
+      tax_pct: 21,
       pricing_mode: line.pricing_mode,
       suggested_unit_price: line.suggested_unit_price,
       base_cost_snapshot: line.base_cost_snapshot,
