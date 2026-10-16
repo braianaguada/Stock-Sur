@@ -8,14 +8,14 @@ describe("purchase order blank print model", () => {
     const dom = new DOMParser().parseFromString(html, "text/html");
     expect(dom.querySelectorAll("article.order")).toHaveLength(2);
     expect(dom.querySelectorAll("tbody tr")).toHaveLength(24);
-    expect(html).toContain("@page{size:A4 landscape;margin:0}");
+    expect(html).toContain("@page{size:A4 landscape;margin:5mm}");
     expect(html).toContain("grid-template-columns:1fr 1fr");
     expect(html).toContain("N° 00000031");
     expect(html).toContain("N° 00000032");
     expect(dom.body.textContent).toContain("CUIT 30-71158289-0");
     for (const field of ["Proveedor", "Domicilio", "Condición de compra", "Retira", "Referencia", "Autorizado por", "Preparado por"]) expect(dom.body.textContent).toContain(field);
   });
-  it("fills the entire sheet with two equal bordered halves without outer margins or a gap", () => {
+  it("fits two equal bordered halves inside 5mm printer margins without a centre gap", () => {
     const html = buildPurchaseOrderModelHtml(DEFAULT_COMPANY_SETTINGS, { firstNumber: 1, secondNumber: 2 }, "15/10/2026");
     const dom = new DOMParser().parseFromString(html, "text/html");
     const style = document.createElement("style");
@@ -25,14 +25,14 @@ describe("purchase order blank print model", () => {
       const rules = Array.from(style.sheet!.cssRules) as CSSStyleRule[];
       const page = rules.find(rule => rule.selectorText === ".page")!.style;
       const order = rules.find(rule => rule.selectorText === ".order")!.style;
-      expect(page.width).toBe("297mm");
-      expect(page.height).toBe("210mm");
+      expect(page.width).toBe("287mm");
+      expect(page.height).toBe("200mm");
       expect(page.gap).toBe("0");
-      expect(order.width).toBe("148.5mm");
-      expect(order.height).toBe("210mm");
+      expect(order.width).toBe("143.5mm");
+      expect(order.height).toBe("200mm");
       expect(order.border).toBe("1px solid #334155");
       expect(order.padding).toBe("0");
-      // Lines reach the sheet edges and the centre seam; only text has an inset.
+      // Lines reach the printable area and the centre seam; only text has an inset.
       const table = rules.find(rule => rule.selectorText === "table")!.style;
       const field = rules.find(rule => rule.selectorText === ".field")!.style;
       expect(table.width).toBe("100%");

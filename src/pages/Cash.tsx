@@ -461,7 +461,6 @@ export default function CashPage() {
         <PageHeader
           eyebrow="Caja y cierre diario"
           title="Caja"
-          description="Control diario de ventas, gastos y rendición."
           variant="analytical"
           meta={(
             <>

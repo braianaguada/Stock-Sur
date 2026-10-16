@@ -25,6 +25,7 @@ import { StockMovementDialog } from "@/features/stock/components/StockMovementDi
 import { StockMovementsTable } from "@/features/stock/components/StockMovementsTable";
 import { useStockPage } from "@/features/stock/hooks/useStockPage";
 import { buildStockInsights, countStockInsightTones, getStockInsightKindLabel } from "@/features/stock/insights";
+import { groupStockAlerts } from "@/features/stock/alert-presentation";
 import { formatStockQuantity } from "@/lib/stock-quantity";
 import type { DemandProfile, MovementType, StockHealth } from "@/features/stock/types";
 
@@ -195,7 +196,6 @@ export default function StockPage() {
         <PageHeader
           eyebrow="Control de existencias"
           title="Stock"
-          subtitle="Control de existencias, cobertura y movimientos con la misma logica actual en una jerarquia mas clara."
           tabs={[
             { label: "Resumen", value: "summary" },
             { label: "Stock", value: "current" },
@@ -285,22 +285,19 @@ export default function StockPage() {
                 </CardHeader>
                 <CardContent className="pt-7">
                   <div className="space-y-2.5 pt-4">
-                    {alertsPagination.pagedItems.map((alert) => (
-                      <div
-                        key={alert.id}
-                        className="flex items-center justify-between gap-4 rounded-xl border border-border/70 px-4 py-4 text-sm"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-foreground">{alert.title}</p>
-                          <p className="mt-1 text-muted-foreground">{alert.detail}</p>
-                          <p className="mt-2 text-xs font-medium text-foreground/80">
-                            Sugerencia: {alert.suggestedAction}
-                          </p>
+                    {groupStockAlerts(alertsPagination.pagedItems, stockRows).map(group => (
+                      <section key={group.kind} className="overflow-hidden rounded-xl border border-border/70">
+                        <div className="flex flex-wrap items-center justify-between gap-2 bg-muted/30 px-4 py-2">
+                          <StatusBadge tone={insightBadgeTone[group.tone]}>{getStockInsightKindLabel(group.kind)} · {group.products.length}</StatusBadge>
+                          <span className="text-xs text-muted-foreground">{group.action}</span>
                         </div>
-                        <StatusBadge tone={insightBadgeTone[alert.tone]} className="shrink-0">
-                          {getStockInsightKindLabel(alert.kind)}
-                        </StatusBadge>
-                      </div>
+                        <ul className="divide-y divide-border/50">
+                          {group.products.map(product => <li key={product.id} className="px-4 py-2 text-sm">
+                            <p className="break-words font-semibold">{product.name}{product.detail ? <span className="font-normal"> · {product.detail}</span> : null}</p>
+                            {product.sku ? <p className="text-xs text-muted-foreground">{product.sku}</p> : null}
+                          </li>)}
+                        </ul>
+                      </section>
                     ))}
                   </div>
                   <div className="pt-4">

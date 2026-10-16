@@ -87,7 +87,6 @@ export default function CashTotalsPage() {
         <PageHeader
           eyebrow="Caja"
           title="Totales por período"
-          subtitle="Resumen diario, semanal, mensual o por rango para reemplazar el control manual en Excel."
           variant="analytical"
         />
 

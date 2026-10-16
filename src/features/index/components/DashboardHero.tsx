@@ -65,8 +65,8 @@ export function DashboardHero({ dashboard, periodViews }: { dashboard: Dashboard
               <Icon className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 id="dashboard-hero-title" className="text-lg font-semibold">Territorio del negocio</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">{view.key === "inventory" ? "Inventario actual" : "Intervalo seleccionado"}</p>
+              <h2 id="dashboard-hero-title" className="text-lg font-semibold">Indicadores</h2>
+              {view.key === "inventory" ? <p className="mt-0.5 text-xs text-muted-foreground">Stock actual</p> : null}
             </div>
           </div>
           <div className="hidden items-center gap-1 sm:flex">
@@ -99,7 +99,6 @@ export function DashboardHero({ dashboard, periodViews }: { dashboard: Dashboard
         <div className="flex flex-col justify-between gap-5">
           <div>
             <p className="text-sm font-medium text-primary">{view.title}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{view.description}</p>
           </div>
           <MetricGrid columns={3}>
             {view.metrics.map((metric, index) => (

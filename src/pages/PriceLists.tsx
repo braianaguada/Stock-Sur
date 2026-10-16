@@ -406,7 +406,6 @@ export default function PriceListsPage() {
           variant="workspace"
           eyebrow="Pricing operativo"
           title="Precios"
-          subtitle="Gestiona costos base y listas de precios derivadas con una lectura mas clara, manteniendo intactos calculos, recalculos e historial."
           tabs={[
             { label: "Precios base", value: "base" },
             { label: "Listas", value: "lists" },

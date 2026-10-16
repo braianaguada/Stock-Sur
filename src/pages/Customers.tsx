@@ -61,7 +61,6 @@ export default function CustomersPage() {
         <PageHeader
           eyebrow="Base comercial"
           title="Clientes"
-          description="Gestion de clientes con una lectura mas limpia para escritorio."
           actions={(
             <Button onClick={openCreate} disabled={!currentCompany}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo cliente

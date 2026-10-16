@@ -9,7 +9,7 @@ import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -674,7 +674,6 @@ export default function ServiceDocumentsPage() {
         <PageHeader
           eyebrow="Servicios"
           title="Documentos"
-          subtitle="Presupuestos de servicio manuales, separados de stock, caja e items."
           actions={
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => setRemitoImportOpen(true)} disabled={!canManageServiceDocuments}>
@@ -726,7 +725,7 @@ export default function ServiceDocumentsPage() {
 
         <Card className="min-w-0 border-border/70 shadow-none">
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div><CardTitle>Presupuestos de servicio</CardTitle><CardDescription>Seguimiento comercial, vista previa y acciones sobre cada presupuesto.</CardDescription></div>
+            <div><CardTitle>Presupuestos de servicio</CardTitle></div>
             <CountBadge>{documents.length} {documents.length === 1 ? "registro" : "registros"}</CountBadge>
           </CardHeader>
           <CardContent className="p-0">

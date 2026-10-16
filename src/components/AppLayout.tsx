@@ -29,7 +29,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <header className="sticky top-0 z-30 border-b border-border/70 bg-background/90 px-4 py-2 backdrop-blur sm:px-6 lg:px-8">
             <div className="mx-auto flex max-w-[var(--content-max)] items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Centro operativo</p>
                 <p className="truncate text-sm font-medium">{currentCompany?.name ?? "Stock Sur"}</p>
               </div>
               <OperationalNotificationCenter />

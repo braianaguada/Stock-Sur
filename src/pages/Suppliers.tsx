@@ -181,7 +181,6 @@ export default function SuppliersPage() {
         <PageHeader
           eyebrow="Compras y catalogos"
           title="Proveedores"
-          description="Administrá proveedores, consultá sus catálogos y prepará órdenes de compra."
           actions={(
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => setComparisonOpen(true)} disabled={!currentCompany}>

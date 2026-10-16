@@ -127,7 +127,7 @@ export default function UsersPage() {
     return (
       <AppLayout>
         <PageContainer className="page-shell">
-          <PageHeader eyebrow="Administración global" title="Usuarios" subtitle="Gestión restringida de identidades, empresas, roles y permisos." />
+          <PageHeader eyebrow="Administración global" title="Usuarios" />
           <Card className="max-w-2xl border-warning/25 bg-warning/10 shadow-none">
             <CardContent className="p-5 text-sm text-foreground">Solo el superadmin puede acceder al panel de usuarios y permisos.</CardContent>
           </Card>

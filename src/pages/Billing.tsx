@@ -262,7 +262,6 @@ export default function BillingPage() {
             <PageHeader
               eyebrow="Operación fiscal"
               title="Facturación"
-              subtitle="Revisá borradores, autorizá comprobantes habilitados y consultá el resultado fiscal desde un único espacio de trabajo."
               meta={
                 <>
                   <InfoBadge>Homologación / dev</InfoBadge>

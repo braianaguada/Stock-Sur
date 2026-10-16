@@ -425,7 +425,6 @@ export default function SettlementsPage() {
         <PageHeader
           eyebrow="Administracion"
           title="Rendiciones"
-          subtitle="Carga manual de ingresos y egresos por empresa activa."
           variant="analytical"
         />
 

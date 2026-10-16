@@ -1,3 +1,7 @@
+## Ajustes operativos de interfaz (2026-10-16)
+
+Impresion de ordenes en A4 apaisado con margen exterior de 5 mm y dos mitades sin separacion. Plantillas disponibles solo en Compras; alertas agrupadas con identificacion de productos y textos de interfaz reducidos. Sin migraciones ni cambios contables. QA: typecheck, lint y build; impresion comprobada en Chrome, pendiente impresora fisica.
+
 ### Ordenes de compra completas (staging)
 
 La seccion Ordenes de compra permite guardar y editar borradores manuales con proveedor registrado, cabecera y productos; imprimir dos copias iguales por A4, descargar PDF y compartirlo cuando el navegador lo admite. Las plantillas en blanco conservan numeros diferentes. Migracion aplicada en staging: `20261016110000_manual_purchase_orders.sql`; numeracion compartida, guardado atomico e idempotente y permisos por empresa. Sin movimientos de stock, caja ni cuenta corriente. Cantidades enteras como el modelo de compras existente. Pruebas DB con rollback requieren credenciales; impresion fisica y envio por WhatsApp pendientes de QA del operador.

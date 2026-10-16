@@ -12,7 +12,7 @@ import { CountBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/co
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
@@ -198,9 +198,9 @@ export default function PurchaseOrders() {
         <PageHeader
           eyebrow="Compras"
           title="Órdenes de compra"
-          description="Órdenes cargadas manualmente o desde catálogos de proveedores. Los borradores se pueden editar o eliminar; las órdenes enviadas se conservan en el historial."
-          actions={<div className="flex flex-wrap gap-2"><Button onClick={() => navigate("/purchase-orders/new")}>Nueva orden de compra</Button><PrintModelButton key={companyId} /><Button variant="outline" onClick={() => navigate("/suppliers")}><ShoppingCart className="mr-2 h-4 w-4" /> Armar desde catálogos</Button></div>}
+          actions={<div className="flex flex-wrap gap-2"><Button onClick={() => navigate("/purchase-orders/new")}>Nueva orden de compra</Button><Button variant="outline" onClick={() => navigate("/suppliers")}><ShoppingCart className="mr-2 h-4 w-4" /> Armar desde catálogos</Button></div>}
         />
+        <div className="rounded-xl border border-border/70 p-4"><PrintModelButton key={companyId} /></div>
         <FilterToolbar>
           <div className="relative w-full md:max-w-sm">
             <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -219,7 +219,7 @@ export default function PurchaseOrders() {
           <CardHeader className="flex flex-row items-start justify-between gap-3">
             <div className="space-y-1">
               <CardTitle>Historial de órdenes</CardTitle>
-              <CardDescription>Seguimiento operativo por proveedor y estado.</CardDescription>
+
             </div>
             <CountBadge>{filtered.length} {filtered.length === 1 ? "registro" : "registros"}</CountBadge>
           </CardHeader>

@@ -560,7 +560,6 @@ export default function ItemsPage() {
         <PageHeader
           eyebrow="Catálogo maestro"
           title="Ítems"
-          subtitle="Gestioná productos, perfil de demanda y disponibilidad real en una vista integrada."
           actions={(
             <Button onClick={openCreate}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo ítem

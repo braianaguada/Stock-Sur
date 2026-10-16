@@ -104,7 +104,6 @@ export default function CustomerAccountPage() {
         <PageHeader
           eyebrow="Clientes"
           title="Estado de cuenta"
-          description="Vista operativa de deuda, pagos y vencimientos estimados por cliente."
           variant="workspace"
           actions={currentCompany && companyPermissionCodes.includes("customers.edit") ? <div className="flex flex-wrap gap-2"><AccountActions key={currentCompany.id} companyId={currentCompany.id} customers={customers} selectedCustomerId={customerId} /></div> : undefined}
         />
