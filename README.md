@@ -1611,3 +1611,8 @@ git pull origin staging
 ### Documentos: barra de edicion compacta
 - Neto, IVA y total en una misma linea, con acciones compactas al crear o editar remitos y presupuestos para dejar mas espacio a los productos. En pantallas pequenas la barra se adapta en varias filas.
 - Cambio visual sin migraciones ni cambios de calculo o emision; QA visual interactivo pendiente.
+
+### Guardado de PDF (2026-10-17)
+- Documentos, servicios y ordenes de compra vuelven a abrir el selector de destino antes de generar el PDF cuando el navegador lo permite. Cancelar no inicia ninguna descarga.
+- En navegadores sin selector se conserva la descarga convencional. El guardado directo no aparece en el historial ni muestra porcentaje en Chrome.
+- Sin migraciones ni cambios en produccion. Regresion automatizada: selector, cancelacion, permisos, escritura y alternativa sin soporte. QA visual pendiente: elegir carpeta y cancelar desde documentos y servicios en staging.

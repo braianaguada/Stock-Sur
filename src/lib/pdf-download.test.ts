@@ -10,11 +10,37 @@ vi.mock("@/integrations/supabase/client", () => ({
 import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "./pdf-download";
 
 describe("PDF download", () => {
-  it("uses the browser download manager even when a file picker is available", async () => {
-    const picker = vi.fn();
+  it("opens the save picker with the PDF filename before doing any generation", async () => {
+    const handle = { createWritable: vi.fn() };
+    const picker = vi.fn().mockResolvedValue(handle);
     (window as Window & { showSaveFilePicker?: typeof picker }).showSaveFilePicker = picker;
-    await expect(choosePdfSaveTarget("remito")).resolves.toEqual({ fileName: "remito.pdf", handle: null });
-    expect(picker).not.toHaveBeenCalled();
+    const target = choosePdfSaveTarget("remito");
+    expect(picker).toHaveBeenCalledWith({
+      suggestedName: "remito.pdf",
+      types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }],
+    });
+    await expect(target).resolves.toEqual({ fileName: "remito.pdf", handle });
+  });
+
+  it("keeps browser downloads available when the save picker is unsupported", async () => {
+    await expect(choosePdfSaveTarget("remito.PDF")).resolves.toEqual({ fileName: "remito.pdf", handle: null });
+  });
+
+  it.each(["AbortError", "NotAllowedError"])("does not generate or download after picker %s", async (name) => {
+    const error = new DOMException("Save picker closed or denied", name);
+    const picker = vi.fn().mockRejectedValue(error);
+    (window as Window & { showSaveFilePicker?: typeof picker }).showSaveFilePicker = picker;
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click");
+
+    await expect(savePrintHtmlAsPdf({
+      html: "<html>Documento</html>",
+      fileName: "remito",
+      proof: { mode: "public", kind: "document", token: "token-publico-valido-123456" },
+    })).rejects.toBe(error);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(click).not.toHaveBeenCalled();
   });
 
   afterEach(() => {
@@ -37,15 +63,13 @@ describe("PDF download", () => {
     }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const target = { fileName: "Presupuesto 12.pdf", handle };
     await savePrintHtmlAsPdf({
       html: "<html><body>Documento</body></html>",
       fileName: "Presupuesto 12",
       proof: { mode: "public", kind: "service", token: "token-publico-valido-123456" },
-      target,
     });
 
-    expect(picker).not.toHaveBeenCalled();
+    expect(picker).toHaveBeenCalledOnce();
     expect(fetchMock).toHaveBeenCalledWith("/api/render-pdf", expect.objectContaining({
       method: "POST",
       body: expect.stringContaining('"mode":"public"'),
