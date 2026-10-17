@@ -15,10 +15,12 @@ const paymentLabels: Record<PaymentMethod, string> = {
 
 export function buildDailyReport(sales: Sale[], expenses: Expense[], adjustments: Adjustment[], documents: Document[]): ReportRow[] {
   const byId = new Map(documents.map((doc) => [doc.id, doc]));
+  const byInvoice = new Map(documents.filter((doc) => doc.external_invoice_status === "ACTIVE" && doc.external_invoice_number)
+    .map((doc) => [doc.external_invoice_number!.trim(), doc]));
   const entries: { at: string; id: string; row: ReportRow }[] = [];
   for (const sale of sales) {
     if (sale.status === "ANULADA") continue;
-    const doc = byId.get(sale.document_id ?? "");
+    const doc = byId.get(sale.document_id ?? "") ?? (sale.receipt_kind === "FACTURA" ? byInvoice.get(sale.receipt_reference?.trim() ?? "") : undefined);
     const invoiceA = doc?.external_invoice_status === "ACTIVE" && Boolean(doc.external_invoice_number);
     const remito = !invoiceA && ["EFECTIVO", "EFECTIVO_REMITO", "SERVICIOS_REMITO"].includes(sale.payment_method);
     const invoiceNumber = invoiceA ? Number(doc?.external_invoice_number?.split(/[-\s]/).at(-1)) : NaN;
@@ -51,5 +53,10 @@ export async function loadDailyReport(companyId: string, date: string) {
   ]);
   const ids = [...new Set([...sales.map((row) => row.document_id), ...adjustments.map((row) => row.document_id)].filter((id): id is string => Boolean(id)))];
   const documents = await fetchAllPagesByChunks(ids, (chunk) => supabase.from("documents").select("id,document_number,external_invoice_number,external_invoice_status").eq("company_id", companyId).in("id", chunk).order("id"), 100, 500);
-  return buildDailyReport(sales as Sale[], expenses, adjustments, documents);
+  const references = [...new Set(sales.filter((sale) => !sale.document_id && sale.receipt_kind === "FACTURA")
+    .map((sale) => sale.receipt_reference?.trim()).filter((value): value is string => Boolean(value)))];
+  const invoicedDocuments = await fetchAllPagesByChunks(references, (chunk) => supabase.from("documents")
+    .select("id,document_number,external_invoice_number,external_invoice_status").eq("company_id", companyId)
+    .eq("external_invoice_status", "ACTIVE").in("external_invoice_number", chunk).order("id"), 100, 500);
+  return buildDailyReport(sales as Sale[], expenses, adjustments, [...documents, ...invoicedDocuments]);
 }

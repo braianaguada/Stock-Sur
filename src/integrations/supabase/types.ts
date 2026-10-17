@@ -3138,6 +3138,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      register_cash_sale_from_remito_with_invoice: {
+        Args: {
+          p_company_id: string
+          p_document_id: string
+          p_payment_method: Database["public"]["Enums"]["cash_payment_method"]
+          p_external_invoice_number: string | null
+        }
+        Returns: Database["public"]["Tables"]["cash_sales"]["Row"]
+      }
       register_cash_sale_from_remito: {
         Args: {
           p_company_id: string

@@ -1,3 +1,10 @@
+### Registro de remitos en caja
+
+- Factura A opcional al registrar en Caja; asociacion y venta atomicas. Vista previa de solo lectura.
+- Excel reconoce facturas anteriores guardadas por referencia, incluso sin document_id.
+- Migracion: `20261017120000_cash_registration_optional_invoice.sql` (solo staging).
+- QA manual pendiente: registro con/sin factura y rollback ante error; no emitir comprobantes reales. Produccion sin cambios.
+
 ### Descargas PDF
 
 - Documentos y servicios usan el gestor de descargas del navegador. La carpeta y la pregunta de destino dependen de sus ajustes.
