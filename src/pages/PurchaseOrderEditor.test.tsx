@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PurchaseOrderEditor from "./PurchaseOrderEditor";
@@ -52,6 +52,22 @@ describe("manual purchase order editor", () => {
     expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ form: expect.objectContaining({ collected_by: "Carlos" }) }));
     expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ companyId: "company-1", supplierId: "supplier-1", orderId: null, requestId: expect.any(String), lines: [expect.objectContaining({ description: "Caño de cobre 3/8", quantity: 2, unit_cost: 125.5, currency: "ARS" })] }));
     await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith("/purchase-orders?order=order-1"));
+  });
+
+  it("keeps each product independently editable and removable in the compact layout", () => {
+    setup();
+    fireEvent.change(screen.getByLabelText("Descripción 1"), { target: { value: "Primer producto" } });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar producto" }));
+    const second = screen.getByRole("group", { name: "Producto 2" });
+    fireEvent.change(within(second).getByLabelText("Descripción 2"), { target: { value: "Segundo producto" } });
+    fireEvent.change(within(second).getByLabelText("Cantidad"), { target: { value: "3" } });
+    fireEvent.change(within(second).getByLabelText("Moneda"), { target: { value: "USD" } });
+    fireEvent.click(screen.getByRole("button", { name: "Quitar producto 1" }));
+    const remaining = screen.getByRole("group", { name: "Producto 1" });
+    expect(within(remaining).getByLabelText("Descripción 1")).toHaveValue("Segundo producto");
+    expect(within(remaining).getByLabelText("Cantidad")).toHaveValue(3);
+    expect(within(remaining).getByLabelText("Moneda")).toHaveValue("USD");
+    expect(screen.queryByRole("group", { name: "Producto 2" })).toBeNull();
   });
 
   it("clears supplier and draft values when switching company", () => {

@@ -34,6 +34,14 @@ describe("purchase order blank print model", () => {
       expect(order.height).toBe("200mm");
       expect(order.border).toBe("1px solid #334155");
       expect(order.padding).toBe("0");
+      // Chromium must paint the full frame above the collapsed table borders.
+      expect(order.position).toBe("relative");
+      const frame = rules.find(rule => rule.selectorText === ".order::after")!.style;
+      expect(frame.position).toBe("absolute");
+      expect(frame.getPropertyValue("inset")).toBe("-1px");
+      expect(frame.border).toBe("inherit");
+      expect(frame.getPropertyValue("pointer-events")).toBe("none");
+      expect(frame.getPropertyValue("z-index")).toBe("1");
       // Lines reach the printable area and the centre seam; only text has an inset.
       const table = rules.find(rule => rule.selectorText === "table")!.style;
       const field = rules.find(rule => rule.selectorText === ".field")!.style;

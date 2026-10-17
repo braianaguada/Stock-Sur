@@ -1593,3 +1593,9 @@ git pull origin staging
 - Migración staging: `20261017130000_purchase_order_template_copies.sql`; RPC nueva compatible con clientes anteriores. Producción sin cambios.
 - QA: typecheck, lint y build correctos; reserva, reintento, continuidad con clientes anteriores y aislamiento comprobados en staging con rollback (`scripts/purchase-order-template-copies-qa.sql`). Impresi?n f?sica pendiente.
 - Suite completa: 856 pruebas aprobadas; 53 pruebas DB omitidas por falta de credenciales de la suite. QA SQL puntual ejecutado por separado en staging con rollback.
+
+
+### Ordenes de compra: ajuste de impresion y carga
+- Marco continuo en original y duplicado, por encima de los bordes de la tabla; se conservan A4 y margenes de 5 mm.
+- Productos en una fila por item en escritorio y distribucion adaptable en movil, sin tarjetas individuales.
+- Sin cambios de numeracion, permisos, datos ni migraciones.
