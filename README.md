@@ -1603,3 +1603,7 @@ git pull origin staging
 ### Documentos: estados de cierre
 - Filas y tarjetas de documentos rechazados o anulados con fondo rojo suave, con prioridad sobre el verde de caja.
 - Sin cambios de estados, caja ni base de datos.
+
+### Documentos: vista previa compacta
+- Encabezado sin subtitulo, acciones con botones compactos y sin margenes acumulados del dialogo; mas altura disponible para remitos y presupuestos.
+- Documento e historial conservan scroll independiente y selector en pantallas pequenas. Sin cambios de impresion, datos ni migraciones; QA visual interactivo pendiente.

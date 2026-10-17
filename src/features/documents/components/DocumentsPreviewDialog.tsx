@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -146,19 +145,18 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex h-[min(94vh,960px)] max-w-[min(98vw,1560px)] flex-col overflow-hidden border-border bg-muted/95 p-0 shadow-2xl backdrop-blur-xl [&>button]:right-5 [&>button]:top-5 [&>button]:z-20 [&>button]:flex [&>button]:h-9 [&>button]:w-9 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-border [&>button]:bg-card [&>button]:text-muted-foreground [&>button]:opacity-100 [&>button]:shadow-sm [&>button]:transition [&>button]:hover:bg-muted [&>button]:hover:text-foreground [&>button]:focus:ring-ring [&>button]:focus:ring-offset-background [&>button_svg]:h-4 [&>button_svg]:w-4">
-        <DialogHeader className="shrink-0 border-b border-border bg-card px-6 py-4">
-          <DialogTitle className="text-lg font-semibold tracking-tight text-foreground">Vista previa del documento</DialogTitle>
-          <DialogDescription>Revision comercial, productos y trazabilidad.</DialogDescription>
+        <DialogContent aria-describedby={undefined} className="flex h-[min(94vh,960px)] max-w-[min(98vw,1560px)] flex-col gap-0 overflow-hidden border-border bg-muted/95 p-0 shadow-2xl backdrop-blur-xl sm:p-0 [&>button]:right-2 [&>button]:top-1.5 [&>button]:z-20 [&>button]:flex [&>button]:h-9 [&>button]:w-9 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-border [&>button]:bg-card [&>button]:text-muted-foreground [&>button]:opacity-100 [&>button]:shadow-sm [&>button]:transition [&>button]:hover:bg-muted [&>button]:hover:text-foreground [&>button]:focus:ring-ring [&>button]:focus:ring-offset-background [&>button_svg]:h-4 [&>button_svg]:w-4">
+        <DialogHeader className="shrink-0 border-b border-border bg-card px-3 py-3 pr-14">
+          <DialogTitle className="text-left text-sm font-semibold tracking-tight text-foreground">Vista previa del documento</DialogTitle>
         </DialogHeader>
 
-        <div className="grid shrink-0 grid-cols-2 gap-1 border-b border-border bg-card p-2 2xl:hidden" role="tablist" aria-label="Contenido de la vista previa">
-          <Button type="button" variant={mobilePanel === "document" ? "default" : "ghost"} role="tab" aria-selected={mobilePanel === "document"} onClick={() => setMobilePanel("document")}>Documento</Button>
-          <Button type="button" variant={mobilePanel === "history" ? "default" : "ghost"} role="tab" aria-selected={mobilePanel === "history"} onClick={() => setMobilePanel("history")}>Historial ({selectedEvents.length})</Button>
+        <div className="grid shrink-0 grid-cols-2 gap-1 border-b border-border bg-card px-2 py-1 2xl:hidden" role="tablist" aria-label="Contenido de la vista previa">
+          <Button type="button" size="sm" variant={mobilePanel === "document" ? "default" : "ghost"} role="tab" aria-selected={mobilePanel === "document"} onClick={() => setMobilePanel("document")}>Documento</Button>
+          <Button type="button" size="sm" variant={mobilePanel === "history" ? "default" : "ghost"} role="tab" aria-selected={mobilePanel === "history"} onClick={() => setMobilePanel("history")}>Historial ({selectedEvents.length})</Button>
         </div>
 
         {selectedDocument ? (
-          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden p-2 sm:p-4 2xl:grid-cols-[minmax(0,1.9fr)_minmax(360px,440px)]">
+          <div className="grid min-h-0 flex-1 gap-2 overflow-hidden p-2 2xl:grid-cols-[minmax(0,1.9fr)_minmax(360px,440px)]">
             <div className={`${mobilePanel === "document" ? "block" : "hidden"} min-h-0 min-w-0 overflow-y-auto [scrollbar-gutter:stable] 2xl:block 2xl:pr-1`}>
               <div className="mx-auto max-w-[1040px] rounded-[22px] border border-slate-300 bg-white p-3 shadow-sm sm:p-5">
                 <div className="overflow-hidden rounded-[18px] border border-slate-200">
@@ -432,9 +430,10 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
           </div>
         ) : null}
 
-        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border bg-card px-3 py-3 sm:px-5 sm:py-4">
+        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border bg-card px-3 py-2">
           <Button
             type="button"
+            size="sm"
             onClick={() => {
               if (selectedDocument) onOpenPrint(selectedDocument);
             }}
@@ -443,13 +442,14 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
             Abrir impresion
           </Button>
           {onDownloadPdf && selectedDocument ? (
-            <Button type="button" variant="outline" onClick={() => onDownloadPdf(selectedDocument)} disabled={!canPrintDocument || downloadingDocumentId === selectedDocument.id}>
+            <Button type="button" size="sm" variant="outline" onClick={() => onDownloadPdf(selectedDocument)} disabled={!canPrintDocument || downloadingDocumentId === selectedDocument.id}>
               {downloadingDocumentId === selectedDocument.id ? "Descargando..." : "Descargar PDF"}
             </Button>
           ) : null}
           {selectedDocument && canDuplicateDocumentType(selectedDocument.doc_type) ? (
             <Button
               type="button"
+              size="sm"
               variant="outline"
               className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800"
               onClick={() => {
