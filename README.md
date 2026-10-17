@@ -1599,3 +1599,7 @@ git pull origin staging
 - Marco continuo en original y duplicado, por encima de los bordes de la tabla; se conservan A4 y margenes de 5 mm.
 - Productos en una fila por item en escritorio y distribucion adaptable en movil, sin tarjetas individuales.
 - Sin cambios de numeracion, permisos, datos ni migraciones.
+
+### Documentos: estados de cierre
+- Filas y tarjetas de documentos rechazados o anulados con fondo rojo suave, con prioridad sobre el verde de caja.
+- Sin cambios de estados, caja ni base de datos.
