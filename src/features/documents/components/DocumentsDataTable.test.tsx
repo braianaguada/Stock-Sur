@@ -70,6 +70,13 @@ function renderTable(documents: DocRow[], overrides: Partial<ComponentProps<type
 }
 
 describe("DocumentsDataTable duplicate action", () => {
+  it("keeps invoice and technician details accessible without extra text rows", () => {
+    renderTable([{ ...baseDocument, doc_type: "REMITO", status: "EMITIDO", external_invoice_status: "ACTIVE", external_invoice_number: "9-1818" }], { technicianNamesById: new Map([["tech-1", "Juan"]]) });
+    const table = within(screen.getByRole("table"));
+    expect(table.getByLabelText("Factura A: 9-1818")).toHaveAttribute("title", "Factura A: 9-1818");
+    expect(table.getByLabelText("Tecnico: Juan")).toHaveAttribute("title", "Tecnico: Juan");
+    expect(table.queryByText("Factura: 9-1818")).not.toBeInTheDocument();
+  });
   it("offers retry on page errors instead of reporting an empty history", () => {
     const onRetry = vi.fn();
     renderTable([], { errorMessage: "Error de conexion", onRetry });

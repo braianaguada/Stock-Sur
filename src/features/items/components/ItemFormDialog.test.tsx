@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ItemFormDialog } from "./ItemFormDialog";
 import { createItemForm } from "../form";
@@ -17,5 +17,18 @@ describe("ItemFormDialog", () => {
     expect(section).not.toContainElement(screen.getByText("Unidad *"));
     expect(section).not.toContainElement(screen.getByText("Proveedor"));
     expect(screen.getByRole("button", { name: "Guardar" })).toBeEnabled();
+  });
+  it("submits a duplicate with automatic code without pressing Autogenerar", () => {
+    const onSubmit = vi.fn();
+    const onGenerateSku = vi.fn();
+    render(<ItemFormDialog companyId="company-1" aliasSupplierId="" onAliasSupplierChange={vi.fn()}
+      open isDuplicating editingItem={null} form={{ ...createItemForm(), name: "Producto duplicado", sku: "" }}
+      aliases={[]} newAlias="" isSupplierCode={false} isSaving={false}
+      onOpenChange={vi.fn()} onSubmit={onSubmit} onFormChange={vi.fn()} onGenerateSku={onGenerateSku}
+      onNewAliasChange={vi.fn()} onSupplierCodeChange={vi.fn()} onAddAlias={vi.fn()} onDeleteAlias={vi.fn()} />);
+    expect(screen.getByPlaceholderText("Automatico al guardar")).toHaveValue("");
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(onSubmit).toHaveBeenCalledOnce();
+    expect(onGenerateSku).not.toHaveBeenCalled();
   });
 });

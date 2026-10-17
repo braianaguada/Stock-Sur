@@ -55,7 +55,6 @@ const DEFAULT_ITEM_COLUMN_VISIBILITY: VisibilityState = {
   stock: true,
   base_cost: true,
   margin_pct: true,
-  operational_status: true,
   supplier: false,
   brand: true,
   model: false,
@@ -63,7 +62,6 @@ const DEFAULT_ITEM_COLUMN_VISIBILITY: VisibilityState = {
   category: false,
   unit: true,
   demand_profile: false,
-  is_active: true,
   actions: true,
   select: true,
 };
@@ -73,7 +71,6 @@ const ITEM_COLUMN_OPTIONS: Array<{ id: keyof typeof DEFAULT_ITEM_COLUMN_VISIBILI
   { id: "stock", label: "Stock" },
   { id: "base_cost", label: "Costo base" },
   { id: "margin_pct", label: "Margen" },
-  { id: "operational_status", label: "Estado operativo" },
   { id: "supplier", label: "Proveedor" },
   { id: "brand", label: "Marca" },
   { id: "model", label: "Modelo" },
@@ -81,7 +78,6 @@ const ITEM_COLUMN_OPTIONS: Array<{ id: keyof typeof DEFAULT_ITEM_COLUMN_VISIBILI
   { id: "category", label: "Categoría" },
   { id: "unit", label: "Unidad" },
   { id: "demand_profile", label: "Demanda" },
-  { id: "is_active", label: "Estado" },
 ];
 
 export default function ItemsPage() {

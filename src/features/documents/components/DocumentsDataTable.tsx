@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Banknote, Check, Copy, Download, Eye, FileText, Loader2, MessageCircle, MoreHorizontal, Pencil, Printer, RotateCcw, Send } from "lucide-react";
+import { Ban, Banknote, Check, Copy, Download, Eye, FileText, Loader2, MessageCircle, MoreHorizontal, Pencil, Printer, RotateCcw, Send, Info } from "lucide-react";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { CategoryBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { DataTable } from "@/components/data-table/DataTable";
@@ -113,15 +113,15 @@ export function DocumentsDataTable({
       header: () => "Cliente",
       cell: ({ row }) => {
         const recipient = resolveDocumentRecipient(row.original);
-        const metadata = row.original.customer_kind === "INTERNO" && row.original.internal_remito_type ? (
-            <>
-              <span className="block truncate">
-                Tecnico: {row.original.technician_id ? technicianNamesById.get(row.original.technician_id) ?? "Tecnico eliminado" : "-"}
-              </span>
-              <span className="block truncate">{INTERNAL_REMITO_LABEL[row.original.internal_remito_type]}</span>
-            </>
-          ) : recipient.secondaryName;
-        return <PrimaryCell title={recipient.primaryName} metadata={metadata} />;
+        const details = [
+          recipient.secondaryName,
+          row.original.technician_id ? "Tecnico: " + (technicianNamesById.get(row.original.technician_id) ?? "Tecnico eliminado") : null,
+          row.original.internal_remito_type ? INTERNAL_REMITO_LABEL[row.original.internal_remito_type] : null,
+        ].filter(Boolean).join(" \u00b7 ");
+        return <div className="flex min-w-0 items-center gap-2">
+          <div className="min-w-0 flex-1"><PrimaryCell title={recipient.primaryName} /></div>
+          {details ? <span tabIndex={0} title={details} aria-label={details} className="shrink-0 text-muted-foreground"><Info className="h-4 w-4" /></span> : null}
+        </div>;
       },
       meta: {
         className: "w-[220px]",
@@ -132,7 +132,7 @@ export function DocumentsDataTable({
       accessorKey: "status",
       header: () => "Estado",
       cell: ({ row }) => (
-        <div className="space-y-1">
+        <div className="flex items-center gap-2">
           <StatusBadge tone={STATUS_TONE[row.original.status]}>
             {STATUS_LABEL[row.original.status]}
           </StatusBadge>
@@ -140,9 +140,9 @@ export function DocumentsDataTable({
             <span className="sr-only">Registrado en Caja</span>
           ) : null}
           {row.original.doc_type === "REMITO" && row.original.external_invoice_status === "ACTIVE" ? (
-            <p className="truncate font-mono text-[11px] text-muted-foreground">
-              Factura: {row.original.external_invoice_number}
-            </p>
+            <span tabIndex={0} title={`Factura A: ${row.original.external_invoice_number}`} aria-label={`Factura A: ${row.original.external_invoice_number}`} className="shrink-0 text-muted-foreground">
+              <FileText className="h-4 w-4" />
+            </span>
           ) : null}
         </div>
       ),
