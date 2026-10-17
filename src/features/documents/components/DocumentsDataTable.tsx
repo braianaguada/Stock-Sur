@@ -23,6 +23,13 @@ const STATUS_TONE: Record<DocStatus, "muted" | "info" | "success" | "danger"> = 
   ANULADO: "danger",
 };
 
+function documentRowHighlight(doc: DocRow, registeredInCash: boolean): string {
+  if (doc.status === "ANULADO" || doc.status === "RECHAZADO") {
+    return "bg-destructive/5 hover:bg-destructive/10";
+  }
+  return registeredInCash ? "bg-emerald-500/5 hover:bg-emerald-500/10" : "";
+}
+
 interface DocumentsDataTableProps {
   documents: DocRow[];
   isLoading: boolean;
@@ -313,7 +320,7 @@ export function DocumentsDataTable({
         {!isLoading && !errorMessage && documents.map((doc) => {
           const recipient = resolveDocumentRecipient(doc);
           return (
-            <Card key={doc.id} className={`space-y-3 border-border/70 p-4 shadow-none ${cashRegisteredDocumentIds.has(doc.id) ? "bg-emerald-500/5" : ""}`}>
+            <Card key={doc.id} className={`space-y-3 border-border/70 p-4 shadow-none ${documentRowHighlight(doc, cashRegisteredDocumentIds.has(doc.id))}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0"><p className="font-mono text-sm font-semibold">{formatNumber(doc.document_number, doc.point_of_sale)}</p><p className="truncate text-sm text-muted-foreground">{recipient.primaryName}</p></div>
                 <StatusBadge tone={STATUS_TONE[doc.status]}>{STATUS_LABEL[doc.status]}</StatusBadge>
@@ -335,7 +342,7 @@ export function DocumentsDataTable({
         {isLoading ? <DataState variant="loading" title="Cargando documentos" /> : errorMessage ? <DataState variant="error" title="No se pudieron cargar los documentos" description={errorMessage} actionLabel="Reintentar" onAction={onRetry} /> : documents.length === 0 ? <Card className="border-dashed p-6 text-center text-sm text-muted-foreground">No hay documentos para mostrar</Card> : null}
       </div>
       <Card className="hidden min-w-0 overflow-x-auto border-border/70 shadow-none md:block">
-        <DataTable columns={columns} data={documents} isLoading={isLoading} errorMessage={errorMessage} onRetry={onRetry} emptyMessage="No hay documentos para mostrar" className="min-w-[940px] table-fixed" rowClassName={(doc) => `h-11 ${cashRegisteredDocumentIds.has(doc.id) ? "bg-emerald-500/5 hover:bg-emerald-500/10" : ""}`} cellClassName="h-11 py-0" reserveEmptyRows={pageSize} />
+        <DataTable columns={columns} data={documents} isLoading={isLoading} errorMessage={errorMessage} onRetry={onRetry} emptyMessage="No hay documentos para mostrar" className="min-w-[940px] table-fixed" rowClassName={(doc) => `h-11 ${documentRowHighlight(doc, cashRegisteredDocumentIds.has(doc.id))}`} cellClassName="h-11 py-0" reserveEmptyRows={pageSize} />
       </Card>
     </>
   );

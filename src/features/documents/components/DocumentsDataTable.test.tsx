@@ -207,3 +207,31 @@ describe("budget simplified workflow", () => {
     expect(props.onTransition).not.toHaveBeenCalled();
   });
 });
+
+describe("DocumentsDataTable cancelled and rejected highlights", () => {
+  it.each([
+    ["PRESUPUESTO", "RECHAZADO"],
+    ["PRESUPUESTO", "ANULADO"],
+    ["REMITO", "RECHAZADO"],
+    ["REMITO", "ANULADO"],
+  ] as const)("highlights %s / %s in both layouts, even when registered in cash", (doc_type, status) => {
+    renderTable([{ ...baseDocument, doc_type, status }], {
+      cashRegisteredDocumentIds: new Set([baseDocument.id]),
+    });
+    const statusLabel = status === "ANULADO" ? "Anulado" : "Rechazado";
+    const labels = screen.getAllByText(statusLabel);
+    expect(labels).toHaveLength(2);
+    const row = within(screen.getByRole("table")).getByText(statusLabel).closest("tr");
+    const card = labels.find(label => !label.closest("table"))?.closest(".bg-destructive\\/5");
+    for (const surface of [row, card]) {
+      expect(surface).toHaveClass("bg-destructive/5", "hover:bg-destructive/10");
+      expect(surface).not.toHaveClass("bg-emerald-500/5");
+    }
+  });
+
+  it("leaves an active document without a highlight when it is not in cash", () => {
+    renderTable([baseDocument]);
+    const row = within(screen.getByRole("table")).getByText("Borrador").closest("tr");
+    expect(row).not.toHaveClass("bg-destructive/5", "bg-emerald-500/5");
+  });
+});
