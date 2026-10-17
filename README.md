@@ -1585,4 +1585,3 @@ git pull origin staging
 - Factura y tecnico disponibles al pasar el cursor o enfocar su icono, sin agregar renglones.
 - Items sin columnas Estado operativo y Activo; se mantienen los filtros y acciones.
 - Sin migraciones. QA visual responsive pendiente; produccion sin cambios.
-
