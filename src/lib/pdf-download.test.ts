@@ -10,12 +10,11 @@ vi.mock("@/integrations/supabase/client", () => ({
 import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "./pdf-download";
 
 describe("PDF download", () => {
-  it("falls back when the browser blocks the native picker, but respects cancellation", async () => {
-    const picker = vi.fn().mockRejectedValue(new DOMException("Blocked", "SecurityError"));
+  it("uses the browser download manager even when a file picker is available", async () => {
+    const picker = vi.fn();
     (window as Window & { showSaveFilePicker?: typeof picker }).showSaveFilePicker = picker;
     await expect(choosePdfSaveTarget("remito")).resolves.toEqual({ fileName: "remito.pdf", handle: null });
-    picker.mockRejectedValue(new DOMException("Cancel", "AbortError"));
-    await expect(choosePdfSaveTarget("remito")).rejects.toMatchObject({ name: "AbortError" });
+    expect(picker).not.toHaveBeenCalled();
   });
 
   afterEach(() => {
@@ -38,7 +37,7 @@ describe("PDF download", () => {
     }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const target = await choosePdfSaveTarget("Presupuesto 12");
+    const target = { fileName: "Presupuesto 12.pdf", handle };
     await savePrintHtmlAsPdf({
       html: "<html><body>Documento</body></html>",
       fileName: "Presupuesto 12",
@@ -46,7 +45,7 @@ describe("PDF download", () => {
       target,
     });
 
-    expect(picker).toHaveBeenCalledWith(expect.objectContaining({ suggestedName: "Presupuesto 12.pdf" }));
+    expect(picker).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledWith("/api/render-pdf", expect.objectContaining({
       method: "POST",
       body: expect.stringContaining('"mode":"public"'),
@@ -65,7 +64,11 @@ describe("PDF download", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:pdf");
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      expect(this.download).toBe("documento.pdf");
+      expect(this.href).toBe("blob:pdf");
+      expect(this.isConnected).toBe(true);
+    });
 
     const result = await savePrintHtmlAsPdf({
       html: "<html><body>Documento</body></html>",
@@ -78,6 +81,7 @@ describe("PDF download", () => {
       headers: expect.objectContaining({ authorization: "Bearer access-token" }),
     }));
     expect(getSessionMock).toHaveBeenCalledOnce();
+    expect(click).toHaveBeenCalledOnce();
     expect(result).toMatchObject({ fileName: "documento.pdf", method: "downloaded" });
     expect(document.querySelector("a[download] ")).toBeNull();
     expect(URL.revokeObjectURL).not.toHaveBeenCalled();
