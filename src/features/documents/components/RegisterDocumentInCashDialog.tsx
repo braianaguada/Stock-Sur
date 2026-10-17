@@ -3,6 +3,7 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { MoneyCell, PrimaryCell } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PAYMENT_LABEL } from "@/features/cash/constants";
@@ -25,7 +26,7 @@ interface RegisterDocumentInCashDialogProps {
   isSubmitting: boolean;
   isClosedBusinessDate: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (paymentMethod: PaymentMethod) => void;
+  onConfirm: (paymentMethod: PaymentMethod, externalInvoiceNumber: string) => void;
 }
 
 export function RegisterDocumentInCashDialog({
@@ -38,23 +39,25 @@ export function RegisterDocumentInCashDialog({
 }: RegisterDocumentInCashDialogProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO_REMITO");
 
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+
   useEffect(() => {
     if (!open) return;
+    setInvoiceNumber(document?.external_invoice_status === "ACTIVE" ? document.external_invoice_number ?? "" : "");
     setPaymentMethod(document?.external_invoice_status === "ACTIVE" ? "EFECTIVO_FACTURABLE" : "EFECTIVO_REMITO");
-  }, [document?.external_invoice_status, open]);
+  }, [document?.id, document?.external_invoice_number, document?.external_invoice_status, open]);
 
   return (
     <EntityDialog
       open={open}
       onOpenChange={(nextOpen) => !isSubmitting && onOpenChange(nextOpen)}
       title="Registrar en Caja"
-      description="El importe, la fecha y el comprobante se toman del remito y no pueden modificarse."
       contentClassName="max-h-[calc(100dvh-2rem)] sm:max-w-lg"
       bodyClassName="pb-2"
       footer={(
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancelar</Button>
-          <Button onClick={() => onConfirm(paymentMethod)} disabled={!document || isSubmitting}>
+          <Button onClick={() => onConfirm(paymentMethod, invoiceNumber.trim())} disabled={!document || isSubmitting}>
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Registrar
           </Button>
@@ -70,11 +73,11 @@ export function RegisterDocumentInCashDialog({
             <div><p className="mb-1 text-xs text-muted-foreground">Total</p><MoneyCell value={Number(document.total)} className="text-left" /></div>
           </div>
 
-          {document.external_invoice_status === "ACTIVE" ? (
-            <p className="rounded-md border border-info/25 bg-info/10 px-3 py-2 text-sm text-info">
-              Se registrará como factura {document.external_invoice_number}.
-            </p>
-          ) : null}
+          <div className="space-y-2">
+            <Label htmlFor="cash-invoice-number">Factura A (opcional)</Label>
+            <Input id="cash-invoice-number" value={invoiceNumber} disabled={isSubmitting} readOnly={document.external_invoice_status === "ACTIVE"}
+              placeholder="Ej. 0009-00001818" onChange={(event) => setInvoiceNumber(event.target.value)} />
+          </div>
 
           {isClosedBusinessDate ? (
             <div className="flex gap-2 rounded-md border border-warning/25 bg-warning/10 p-3 text-sm text-warning">

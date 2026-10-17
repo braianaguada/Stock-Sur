@@ -11,7 +11,6 @@ import {
   LucideIcon,
   PlayCircle,
   ReceiptText,
-  Trash2,
   XCircle,
 } from "lucide-react";
 import { CategoryBadge, CountBadge, InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
@@ -20,14 +19,10 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { CompanySettings } from "@/contexts/company-brand-context";
-import { DocumentConfirmationDialog } from "./DocumentConfirmationDialog";
 import { CUSTOMER_KIND_LABEL, DOC_LABEL, INTERNAL_REMITO_LABEL, STATUS_LABEL } from "@/features/documents/constants";
 import { canDuplicateDocumentType } from "@/features/documents/lib/duplicate";
 import type { DocEventRow, DocLineRow, DocRow } from "@/features/documents/types";
@@ -44,10 +39,6 @@ interface DocumentsPreviewDialogProps {
   sourceDocumentLabel: string | null;
   technicianName: string | null;
   companySettings: CompanySettings;
-  isExternalInvoiceLocked: boolean;
-  onSetExternalInvoice: (documentId: string, externalInvoiceNumber: string) => void;
-  onClearExternalInvoice: (documentId: string) => void;
-  isUpdatingExternalInvoice: boolean;
   canPrintDocument: boolean;
   onOpenPrint: (document: DocRow) => void;
   onDownloadPdf?: (document: DocRow) => void;
@@ -140,10 +131,6 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     sourceDocumentLabel,
     technicianName,
     companySettings,
-    isExternalInvoiceLocked,
-    onSetExternalInvoice,
-    onClearExternalInvoice,
-    isUpdatingExternalInvoice,
     canPrintDocument,
     onOpenPrint,
     onDownloadPdf,
@@ -154,22 +141,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
     serviceLinkLabel,
     onOpenService,
   } = props;
-  const [externalInvoiceDialogOpen, setExternalInvoiceDialogOpen] = useState(false);
-  const [externalInvoiceNumber, setExternalInvoiceNumber] = useState("");
-  const [clearExternalInvoiceOpen, setClearExternalInvoiceOpen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<"document" | "history">("document");
-
-  const handleSetExternalInvoice = () => {
-    if (!selectedDocument) return;
-    setExternalInvoiceNumber(selectedDocument.external_invoice_number ?? "");
-    setExternalInvoiceDialogOpen(true);
-  };
-
-  const handleClearExternalInvoice = () => {
-    if (!selectedDocument) return;
-    setClearExternalInvoiceOpen(false);
-    onClearExternalInvoice(selectedDocument.id);
-  };
 
   return (
     <>
@@ -278,27 +250,7 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
                           ) : null}
                         </div>
                       </div>
-                      {selectedDocument.doc_type === "REMITO" && !isExternalInvoiceLocked ? (
-                        <div className="grid gap-2 pt-1 sm:grid-cols-[minmax(0,1fr)_auto]">
-                          <Button type="button" size="sm" className="justify-start" onClick={handleSetExternalInvoice} disabled={isUpdatingExternalInvoice}>
-                            <FilePenLine className="h-4 w-4" />
-                            {selectedDocument.external_invoice_number ? "Editar factura externa" : "Registrar factura externa"}
-                          </Button>
-                          {selectedDocument.external_invoice_number ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800"
-                              onClick={() => setClearExternalInvoiceOpen(true)}
-                              disabled={isUpdatingExternalInvoice}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Quitar
-                            </Button>
-                          ) : null}
-                        </div>
-                      ) : null}
+
                     </div>
                   </section>
 
@@ -513,56 +465,6 @@ export function DocumentsPreviewDialog(props: DocumentsPreviewDialogProps) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={externalInvoiceDialogOpen} onOpenChange={setExternalInvoiceDialogOpen}>
-        <DialogContent aria-describedby={undefined} className="sm:max-w-md">
-          <form
-            className="space-y-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!selectedDocument || !externalInvoiceNumber.trim()) return;
-              onSetExternalInvoice(selectedDocument.id, externalInvoiceNumber.trim());
-              setExternalInvoiceDialogOpen(false);
-            }}
-          >
-            <DialogHeader>
-              <DialogTitle>
-                {selectedDocument?.external_invoice_number
-                  ? "Editar factura externa"
-                  : "Registrar factura externa"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-2">
-              <Label htmlFor="external-invoice-number">Numero de factura</Label>
-              <Input
-                id="external-invoice-number"
-                autoFocus
-                placeholder="Ej. 0001-00001234"
-                value={externalInvoiceNumber}
-                onChange={(event) => setExternalInvoiceNumber(event.target.value)}
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setExternalInvoiceDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={!externalInvoiceNumber.trim() || isUpdatingExternalInvoice}>
-                {isUpdatingExternalInvoice ? "Guardando..." : "Guardar referencia"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <DocumentConfirmationDialog
-        open={clearExternalInvoiceOpen}
-        title="Quitar factura externa"
-        description="El remito quedara sin la referencia de factura asociada. La accion se registrara en su historial."
-        confirmLabel="Quitar referencia"
-        tone="danger"
-        isPending={isUpdatingExternalInvoice}
-        onOpenChange={setClearExternalInvoiceOpen}
-        onConfirm={handleClearExternalInvoice}
-      />
     </>
   );
 }

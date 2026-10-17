@@ -187,7 +187,6 @@ export default function DocumentsPage() {
     selectedLines,
     selectedEvents,
     eventUserNamesById,
-    selectedDocumentCashUsage,
     cashRegisteredDocumentIds,
     selectedDocumentClosureClosed,
     selectedDocument,
@@ -346,8 +345,6 @@ export default function DocumentsPage() {
     cloneAsRemitoMutation,
     cloneAsReturnMutation,
     duplicateDocumentMutation,
-    setExternalInvoiceMutation,
-    clearExternalInvoiceMutation,
   } = useDocumentsMutations({
     currentCompanyId: currentCompany?.id ?? null,
     userId: user?.id,
@@ -389,16 +386,20 @@ export default function DocumentsPage() {
   });
 
   const registerCashMutation = useMutation({
-    mutationFn: ({ document, paymentMethod }: { document: DocRow; paymentMethod: PaymentMethod }) => {
+    mutationFn: ({ document, paymentMethod, externalInvoiceNumber }: { document: DocRow; paymentMethod: PaymentMethod; externalInvoiceNumber: string }) => {
       if (!currentCompany?.id) throw new Error("Selecciona una empresa activa antes de registrar en Caja.");
       return registerCashSaleFromRemito({
         companyId: currentCompany.id,
         documentId: document.id,
         paymentMethod,
+        externalInvoiceNumber,
       });
     },
     onSuccess: async (_sale, variables) => {
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["documents", currentCompany?.id ?? "no-company"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.documents.detail(currentCompany?.id ?? null, variables.document.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.documents.events(currentCompany?.id ?? null, variables.document.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.documents.cashUsage(currentCompany?.id ?? null) }),
         queryClient.invalidateQueries({ queryKey: ["cash-sales", currentCompany?.id ?? "no-company"] }),
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.accountSummary(currentCompany?.id ?? null, variables.document.customer_id) }),
@@ -1034,7 +1035,6 @@ export default function DocumentsPage() {
             selectedLines={selectedLines}
             selectedEvents={selectedEvents}
             eventUserNamesById={eventUserNamesById}
-            isExternalInvoiceLocked={selectedDocumentCashUsage}
             sourceDocumentLabel={sourceDocumentLabel}
             technicianName={
               selectedDocument?.technician_id
@@ -1052,19 +1052,6 @@ export default function DocumentsPage() {
                 : undefined
             }
             companySettings={companySettings}
-            onSetExternalInvoice={(documentId, externalInvoiceNumber) => {
-              setExternalInvoiceMutation.mutate({
-                documentId,
-                externalInvoiceNumber,
-                externalInvoiceDate: null,
-              });
-            }}
-            onClearExternalInvoice={(documentId) => {
-              clearExternalInvoiceMutation.mutate(documentId);
-            }}
-            isUpdatingExternalInvoice={
-              setExternalInvoiceMutation.isPending || clearExternalInvoiceMutation.isPending
-            }
             canPrintDocument={canPrintDocument(roles)}
             onOpenPrint={(document) => {
               if (!canPrintDocument(roles)) return;
@@ -1097,9 +1084,9 @@ export default function DocumentsPage() {
           setRegisterCashOpen(open);
           if (!open) setCashDocument(null);
         }}
-        onConfirm={(paymentMethod) => {
+        onConfirm={(paymentMethod, externalInvoiceNumber) => {
           if (!cashDocument) return;
-          registerCashMutation.mutate({ document: cashDocument, paymentMethod });
+          registerCashMutation.mutate({ document: cashDocument, paymentMethod, externalInvoiceNumber });
         }}
       />
 

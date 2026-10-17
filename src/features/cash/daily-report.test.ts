@@ -21,6 +21,26 @@ describe("daily cash report", () => {
     expect(rows[0].slice(0, 5)).toEqual(["FACTURA", "A", 9, 2044, 270000]);
   });
 
+  it.each(["EFECTIVO_FACTURABLE", "POINT", "CUENTA_CORRIENTE", "SERVICIOS_REMITO"] as const)("resolves legacy invoice receipts without document_id for %s", (payment_method) => {
+    const rows = buildDailyReport([{ ...sale, document_id: null, payment_method, receipt_kind: "FACTURA", receipt_reference: " 0009-00001818 " }], [], [], [{ id: "doc", document_number: 59, external_invoice_number: "0009-00001818", external_invoice_status: "ACTIVE" }]);
+    expect(rows[0].slice(0, 5)).toEqual(["FACTURA", "A", 9, 1818, 270000]);
+  });
+
+  it("loads invoice documents by reference within the company", async () => {
+    const queries: { table: string; eq: ReturnType<typeof vi.fn>; in: ReturnType<typeof vi.fn> }[] = [];
+    from.mockImplementation((table: string) => {
+      const query = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(),
+        range: vi.fn(async () => ({ error: null, data: table === "cash_sales" ? [{ ...sale, document_id: null, receipt_kind: "FACTURA", receipt_reference: "0009-00001818" }]
+          : table === "documents" ? [{ id: "doc", document_number: 59, external_invoice_number: "0009-00001818", external_invoice_status: "ACTIVE" }] : [] })) };
+      queries.push({ table, ...query }); return query;
+    });
+    expect((await loadDailyReport("company-1", "2026-10-16"))[0].slice(0, 4)).toEqual(["FACTURA", "A", 9, 1818]);
+    const query = queries.find((entry) => entry.table === "documents")!;
+    expect(query.eq).toHaveBeenCalledWith("company_id", "company-1");
+    expect(query.eq).toHaveBeenCalledWith("external_invoice_status", "ACTIVE");
+    expect(query.in).toHaveBeenCalledWith("external_invoice_number", ["0009-00001818"]);
+  });
+
   it("does not export a cancelled invoice number", () => {
     const rows = buildDailyReport([{ ...sale, payment_method: "EFECTIVO_FACTURABLE", receipt_kind: "FACTURA", receipt_reference: "0009-00002044" }], [], [], [{ id: "doc", document_number: 1550, external_invoice_number: "0009-00002044", external_invoice_status: "VOIDED" }]);
     expect(rows[0].slice(0, 4)).toEqual(["FACTURA", "B", 9, ""]);
