@@ -1,3 +1,8 @@
+### Descargas PDF
+
+- Documentos y servicios usan el gestor de descargas del navegador. La carpeta y la pregunta de destino dependen de sus ajustes.
+- Sin migraciones ni cambios en produccion. QA visual en navegador pendiente.
+
 ## Textos operativos
 Se retiraron descripciones redundantes de las pantallas y dialogos de gestion. Se conservan etiquetas, validaciones, advertencias e instrucciones necesarias. Sin migraciones ni cambios contables. QA visual final pendiente en staging.
 

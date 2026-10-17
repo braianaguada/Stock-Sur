@@ -46,19 +46,8 @@ function downloadBlob(blob: Blob, fileName: string) {
 }
 
 export async function choosePdfSaveTarget(fileName: string): Promise<PdfSaveTarget> {
-  const normalizedFileName = normalizePdfFileName(fileName);
-  const picker = (window as SaveFilePickerWindow).showSaveFilePicker;
-  let handle: PdfSaveTarget["handle"] = null;
-  try {
-    handle = picker ? await picker.call(window, {
-        suggestedName: normalizedFileName,
-        types: [{ description: "Documento PDF", accept: { "application/pdf": [".pdf"] } }],
-      })
-    : null;
-  } catch (error) {
-    if (!(error instanceof DOMException) || !["SecurityError", "NotAllowedError"].includes(error.name)) throw error;
-  }
-  return { fileName: normalizedFileName, handle };
+  // Use the browser download manager, including its configured save-location prompt.
+  return { fileName: normalizePdfFileName(fileName), handle: null };
 }
 
 export type PdfSaveResult = { fileName: string; method: "saved" | "downloaded"; blob: Blob };
