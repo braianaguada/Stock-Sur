@@ -1607,3 +1607,7 @@ git pull origin staging
 ### Documentos: vista previa compacta
 - Encabezado sin subtitulo, acciones con botones compactos y sin margenes acumulados del dialogo; mas altura disponible para remitos y presupuestos.
 - Documento e historial conservan scroll independiente y selector en pantallas pequenas. Sin cambios de impresion, datos ni migraciones; QA visual interactivo pendiente.
+
+### Documentos: barra de edicion compacta
+- Neto, IVA y total en una misma linea, con acciones compactas al crear o editar remitos y presupuestos para dejar mas espacio a los productos. En pantallas pequenas la barra se adapta en varias filas.
+- Cambio visual sin migraciones ni cambios de calculo o emision; QA visual interactivo pendiente.

@@ -8,12 +8,6 @@ vi.mock("@/components/common/EntityDialog", () => ({
   EntityDialog: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode }) => (
-    <button {...props}>{children}</button>
-  ),
-}));
-
 vi.mock("@/components/ui/collapsible", () => ({
   Collapsible: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   CollapsibleContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -120,6 +114,32 @@ function renderDialog(
 }
 
 describe("DocumentsEditorDialog", () => {
+  it.each([
+    ["REMITO", null],
+    ["REMITO", "draft-remito"],
+    ["PRESUPUESTO", null],
+    ["PRESUPUESTO", "draft-budget"],
+  ] as const)("keeps the %s footer compact when editing %s", (doc_type, editingDocId) => {
+    renderDialog({ ...baseForm, doc_type }, vi.fn(), {
+      editingDocId,
+      canIssueOnCreate: true,
+      canSendBudget: true,
+    });
+
+    const summary = screen.getByLabelText("Importes del documento");
+    const footer = summary.parentElement!;
+    expect(footer).toHaveClass("sticky", "bottom-0", "flex-wrap", "px-3", "py-2");
+    expect(summary).toHaveClass("flex-wrap", "items-baseline");
+    for (const amount of Array.from(summary.children)) {
+      expect(amount).toHaveClass("items-baseline", "whitespace-nowrap");
+      expect(amount).not.toHaveClass("flex-col");
+    }
+    for (const button of Array.from(footer.querySelectorAll("button"))) {
+      expect(button).toHaveClass("h-9", "px-3");
+      expect(button).not.toHaveClass("h-11", "px-8");
+    }
+  });
+
   it("groups net, VAT and total in that order", () => {
     renderDialog(baseForm);
     const summary = screen.getByLabelText("Importes del documento");

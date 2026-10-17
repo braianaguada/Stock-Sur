@@ -882,34 +882,34 @@ export function DocumentsEditorDialog({
           />
         </div>
 
-        <div className="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/95 px-5 py-4 shadow-[var(--shadow-md)] backdrop-blur-md">
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-2" aria-label="Importes del documento">
-            <div className="flex flex-col gap-1">
+        <div className="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/80 bg-background/95 px-3 py-2 shadow-[var(--shadow-md)] backdrop-blur-md">
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2" aria-label="Importes del documento">
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Neto</span>
-              <span className="text-lg font-semibold tabular-nums">{formatMoney(splitDocumentIncludedVat(totalDraft).subtotal)}</span>
+              <span className="text-sm font-semibold tabular-nums">{formatMoney(splitDocumentIncludedVat(totalDraft).subtotal)}</span>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">IVA (21%)</span>
-              <span className="text-lg font-semibold tabular-nums">{formatMoney(splitDocumentIncludedVat(totalDraft).tax_total)}</span>
+              <span className="text-sm font-semibold tabular-nums">{formatMoney(splitDocumentIncludedVat(totalDraft).tax_total)}</span>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total</span>
-              <span className="text-2xl font-extrabold tabular-nums">{formatMoney(totalDraft)}</span>
+              <span className="text-lg font-extrabold tabular-nums">{formatMoney(totalDraft)}</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button type="submit" disabled={isSubmitting || priceLists.length === 0} variant="outline" className="h-11 rounded-full px-8">
+            <Button type="submit" disabled={isSubmitting || priceLists.length === 0} variant="outline" size="sm">
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {isSubmitting ? "Procesando..." : "Guardar borrador"}
             </Button>
             {!editingDocId && documentForm.doc_type === "PRESUPUESTO" && canSendBudget ? (
-              <Button type="button" disabled={isSubmitting || priceLists.length === 0} onClick={() => submitWithIntent("SEND_BUDGET")}>Emitir presupuesto</Button>
+              <Button type="button" size="sm" disabled={isSubmitting || priceLists.length === 0} onClick={() => submitWithIntent("SEND_BUDGET")}>Emitir presupuesto</Button>
             ) : null}
             {documentForm.doc_type === "REMITO" && canIssueOnCreate ? (
               <Button
                 type="button"
                 disabled={isSubmitting || priceLists.length === 0}
-                className="h-11 rounded-full px-8 shadow-sm"
+                size="sm"
                 onClick={() => submitWithIntent("ISSUE_REMITO")}
               >
                 Emitir remito
