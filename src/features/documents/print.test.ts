@@ -138,7 +138,7 @@ describe("buildDocumentPrintHtml", () => {
       companySettings: DEFAULT_COMPANY_SETTINGS,
     });
 
-    expect(html).toContain("Cliente ocasional / Consumidor Final");
+    expect(html).toContain("Cliente final");
     expect(html).toContain("Nombre ocasional");
     expect(html).toContain("Snapshot legacy");
   });

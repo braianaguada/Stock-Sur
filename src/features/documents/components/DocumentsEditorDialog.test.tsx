@@ -120,6 +120,12 @@ function renderDialog(
 }
 
 describe("DocumentsEditorDialog", () => {
+  it("groups net, VAT and total in that order", () => {
+    renderDialog(baseForm);
+    const summary = screen.getByLabelText("Importes del documento");
+    expect(summary.textContent).toMatch(/Neto.*IVA \(21%\).*Total/);
+    expect(summary.textContent).not.toContain("?");
+  });
   it("offers budget emission without a document type selector", () => {
     const onSubmit = vi.fn();
     renderDialog({ ...baseForm, doc_type: "PRESUPUESTO" }, onSubmit, { canSendBudget: true, priceLists: [{ id: "list-1", name: "General" } as PriceListRow] });
@@ -176,9 +182,10 @@ describe("DocumentsEditorDialog", () => {
 
     expect(screen.getByText("Destinatario")).toBeInTheDocument();
     expect(screen.getByText("Uso del remito *")).toBeInTheDocument();
-    expect(screen.getByText("Cliente ocasional / Consumidor Final")).toBeInTheDocument();
+    expect(screen.getByText("Cliente final")).toBeInTheDocument();
     expect(screen.getByText("Cliente registrado")).toBeInTheDocument();
-    expect(screen.getByText("Nombre ocasional")).toBeInTheDocument();
+    expect(screen.queryByText("Nombre ocasional")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tipo *")).not.toBeInTheDocument();
     expect(screen.queryByText("Nombre cliente")).not.toBeInTheDocument();
     expect(screen.queryByText("CUIT")).not.toBeInTheDocument();
     expect(screen.queryByText("Tecnico asociado")).not.toBeInTheDocument();

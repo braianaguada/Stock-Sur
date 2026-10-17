@@ -8,7 +8,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const formatNumber = (n: number | null, pointOfSale: number) =>
   n === null ? "BORRADOR" : formatDocumentNumber(pointOfSale, n);
 
-export const OCCASIONAL_CUSTOMER_DISPLAY_NAME = "Cliente ocasional / Consumidor Final";
+export const OCCASIONAL_CUSTOMER_DISPLAY_NAME = "Cliente final";
 const OCCASIONAL_CUSTOMER_DEFAULT_NAME = "Cliente ocasional";
 
 export type RecipientDisplay = {

@@ -61,6 +61,8 @@ describe("ItemsDataTable", () => {
     renderTable();
 
     expect(screen.queryByText("Precio principal")).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Estado operativo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Activo" })).not.toBeInTheDocument();
     expect(screen.queryByText("$ 1.500")).not.toBeInTheDocument();
   });
 

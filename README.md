@@ -1578,3 +1578,11 @@ git pull origin staging
 - Migracion: 20261015150000_documents_server_pagination.sql, aplicada solo en staging; RPC con permisos, RLS y aislamiento por empresa. No cambia emision, stock ni movimientos contables.
 - QA DB: scripts/documents-pagination-qa.sql, ejecutado en staging con 1.205 borradores temporales y rollback completo; valida paginas, filtros, busqueda y aislamiento. Repetir con npx supabase db query --linked --file scripts/documents-pagination-qa.sql.
 - Regresiones automatizadas: carga por pagina, errores/reintento, carga diferida, detalle/origen fuera de pagina y contexto de empresa. QA visual interactivo pendiente.
+
+### Formularios y listados de documentos e items
+
+- Cabecera compacta, cliente final sin campo de nombre y Neto / IVA / Total alineados.
+- Factura y tecnico disponibles al pasar el cursor o enfocar su icono, sin agregar renglones.
+- Items sin columnas Estado operativo y Activo; se mantienen los filtros y acciones.
+- Sin migraciones. QA visual responsive pendiente; produccion sin cambios.
+
