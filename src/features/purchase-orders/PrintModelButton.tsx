@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { buildPurchaseOrderModelHtml, type PrintBatch } from "./print-model";
 
-type PrintClient = { rpc: (name: "reserve_purchase_order_print_sheets", args: { p_company_id: string; p_request_id: string; p_sheet_count: number }) => PromiseLike<{ data: PrintBatch | null; error: { message: string } | null }> };
+type PrintClient = { rpc: (name: "reserve_purchase_order_template_sheets", args: { p_company_id: string; p_request_id: string; p_sheet_count: number }) => PromiseLike<{ data: PrintBatch | null; error: { message: string } | null }> };
 
 export function PrintModelButton() {
   const { currentCompany, companyPermissionCodes, roles } = useAuth();
@@ -41,9 +41,9 @@ export function PrintModelButton() {
     setBusy(true);
     try {
       if (!current.html) {
-        const { data, error } = await (supabase as unknown as PrintClient).rpc("reserve_purchase_order_print_sheets", { p_company_id: companyId, p_request_id: current.id, p_sheet_count: current.sheets });
+        const { data, error } = await (supabase as unknown as PrintClient).rpc("reserve_purchase_order_template_sheets", { p_company_id: companyId, p_request_id: current.id, p_sheet_count: current.sheets });
         if (error) throw new Error(error.message);
-        if (!data || data.sheetCount !== current.sheets || data.lastNumber !== data.firstNumber + current.sheets * 2 - 1) throw new Error("La numeración recibida no es válida.");
+        if (!data || data.sheetCount !== current.sheets || data.lastNumber !== data.firstNumber + current.sheets - 1) throw new Error("La numeración recibida no es válida.");
         current.html = buildPurchaseOrderModelHtml(settings, data, new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date()));
       }
       if (!mounted.current || activeCompany.current !== companyId) { popup.close(); return; }
@@ -69,7 +69,7 @@ export function PrintModelButton() {
         </Button>
         {canRetry ? <Button variant="ghost" disabled={!canPrint || busy} onClick={() => void print(true)}>Reimprimir mismo lote</Button> : null}
       </div>
-      <p className="text-xs text-muted-foreground">{canPrint ? validQuantity ? `${quantity} ${quantity === 1 ? "hoja" : "hojas"} · ${quantity * 2} órdenes numeradas · Margen de 5 mm.` : "Ingresá entre 1 y 100 hojas enteras." : "Necesitás permiso para editar proveedores para imprimir órdenes."}</p>
+      <p className="text-xs text-muted-foreground">{canPrint ? validQuantity ? `${quantity} ${quantity === 1 ? "hoja" : "hojas"} · ${quantity} ${quantity === 1 ? "orden" : "órdenes"} · Original y duplicado · Margen de 5 mm.` : "Ingresá entre 1 y 100 hojas enteras." : "Necesitás permiso para editar proveedores para imprimir órdenes."}</p>
     </div>
   );
 }

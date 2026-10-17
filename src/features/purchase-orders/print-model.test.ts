@@ -3,7 +3,7 @@ import { DEFAULT_COMPANY_SETTINGS } from "@/contexts/company-brand-context";
 import { buildPurchaseOrderModelHtml } from "./print-model";
 
 describe("purchase order blank print model", () => {
-  it("prints two distinct numbered forms side by side on A4 landscape", () => {
+  it("prints original and duplicate with the same number side by side on A4 landscape", () => {
     const html = buildPurchaseOrderModelHtml(DEFAULT_COMPANY_SETTINGS, { firstNumber: 31, secondNumber: 32 }, "15/10/2026");
     const dom = new DOMParser().parseFromString(html, "text/html");
     expect(dom.querySelectorAll("article.order")).toHaveLength(2);
@@ -11,7 +11,9 @@ describe("purchase order blank print model", () => {
     expect(html).toContain("@page{size:A4 landscape;margin:5mm}");
     expect(html).toContain("grid-template-columns:1fr 1fr");
     expect(html).toContain("N° 00000031");
-    expect(html).toContain("N° 00000032");
+    expect(dom.querySelectorAll(".identity strong")[1].textContent).toBe("N° 00000031");
+    expect(dom.body.textContent).toContain("Original");
+    expect(dom.body.textContent).toContain("Duplicado");
     expect(dom.body.textContent).toContain("CUIT 30-71158289-0");
     for (const field of ["Proveedor", "Domicilio", "Condición de compra", "Retira", "Referencia", "Autorizado por", "Preparado por"]) expect(dom.body.textContent).toContain(field);
   });
@@ -62,16 +64,15 @@ describe("purchase order blank print model", () => {
   });
 
   it("prints consecutive pairs across three sheets", () => {
-    const html = buildPurchaseOrderModelHtml(DEFAULT_COMPANY_SETTINGS, { firstNumber: 31, secondNumber: 32, sheetCount: 3, lastNumber: 36 }, "15/10/2026");
+    const html = buildPurchaseOrderModelHtml(DEFAULT_COMPANY_SETTINGS, { firstNumber: 31, secondNumber: 32, sheetCount: 3, lastNumber: 33 }, "15/10/2026");
     const dom = new DOMParser().parseFromString(html, "text/html");
     const pages = [...dom.querySelectorAll("main.page")];
     expect(pages).toHaveLength(3);
     pages.forEach((page, index) => {
       expect(page.querySelectorAll("article.order")).toHaveLength(2);
-      expect(page.textContent).toContain(String(31 + index * 2).padStart(8, "0"));
-      expect(page.textContent).toContain(String(32 + index * 2).padStart(8, "0"));
+      expect([...page.querySelectorAll(".identity strong")].map(node => node.textContent)).toEqual(Array(2).fill("N° " + String(31 + index).padStart(8, "0")));
     });
-    expect(dom.title).toContain("36");
+    expect(dom.title).toContain("33");
   });
   it.each([0, -1, 1.5, 101, NaN])("rejects invalid sheet count %s", sheetCount => {
     expect(() => buildPurchaseOrderModelHtml(DEFAULT_COMPANY_SETTINGS, { firstNumber: 1, secondNumber: 2, sheetCount }, "15/10/2026")).toThrow();

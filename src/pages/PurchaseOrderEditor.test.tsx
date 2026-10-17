@@ -13,6 +13,9 @@ vi.mock("@/components/AppLayout", () => ({ AppLayout: ({ children }: { children:
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => mocks.auth }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: mocks.toast }) }));
 vi.mock("@/features/purchase-orders/api", () => ({ saveManualPurchaseOrder: mocks.save }));
+vi.mock("@/features/purchase-orders/PurchaseOrderCollectorSelect", () => ({
+  PurchaseOrderCollectorSelect: ({ value, onChange }: { value: string; onChange: (name: string) => void }) => <select aria-label="Retira" value={value} onChange={event => onChange(event.target.value)}><option value="">Sin técnico</option><option value="Carlos">Carlos</option></select>,
+}));
 vi.mock("@/features/purchase-orders/hooks", () => ({
   useSupplierPurchaseOrders: () => ({}), useSupplierPurchaseOrderLines: () => ({}),
   purchaseOrderKeys: { lines: (companyId: string, id: string) => ["supplier-purchase-order-lines", companyId, id] },
@@ -40,11 +43,13 @@ describe("manual purchase order editor", () => {
     setup();
     fireEvent.change(screen.getByLabelText("Proveedor registrado"), { target: { value: "supplier-1" } });
     expect(screen.getByLabelText("Domicilio del proveedor")).toHaveValue("San Martin 123");
+    fireEvent.change(screen.getByLabelText("Retira"), { target: { value: "Carlos" } });
     fireEvent.change(screen.getByLabelText("Descripción 1"), { target: { value: "Caño de cobre 3/8" } });
     fireEvent.change(screen.getByLabelText("Cantidad"), { target: { value: "2" } });
     fireEvent.change(screen.getByLabelText("Costo unitario"), { target: { value: "125.50" } });
     fireEvent.click(screen.getAllByRole("button", { name: "Guardar borrador" })[0]);
     await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+    expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ form: expect.objectContaining({ collected_by: "Carlos" }) }));
     expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ companyId: "company-1", supplierId: "supplier-1", orderId: null, requestId: expect.any(String), lines: [expect.objectContaining({ description: "Caño de cobre 3/8", quantity: 2, unit_cost: 125.5, currency: "ARS" })] }));
     await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith("/purchase-orders?order=order-1"));
   });
