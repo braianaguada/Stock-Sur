@@ -7,7 +7,7 @@ export interface FilledPurchaseOrder { number: number; supplier: string; form: R
 
 export function buildPurchaseOrderModelHtml(settings: CompanySettings, batch: PrintBatch, date: string, filled?: FilledPurchaseOrder) {
   const sheets = batch.sheetCount ?? 1;
-  const lastNumber = batch.firstNumber + sheets * 2 - 1;
+  const lastNumber = batch.firstNumber + sheets - 1;
   if (!Number.isInteger(sheets) || sheets < 1 || sheets > 100 || !Number.isSafeInteger(batch.firstNumber) || batch.firstNumber < 1
     || !Number.isSafeInteger(lastNumber) || batch.secondNumber !== batch.firstNumber + 1
     || (batch.lastNumber !== undefined && batch.lastNumber !== lastNumber)) throw new Error("La numeración recibida no es válida.");
@@ -17,11 +17,11 @@ export function buildPurchaseOrderModelHtml(settings: CompanySettings, batch: Pr
   const money = (value: number) => value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const rowsPerPage = filled ? 4 : 12;
   const pages = filled ? Math.max(1, Math.ceil(filled.lines.length / rowsPerPage)) : sheets;
-  const form = (number: number, page = 0) => `<article class="order">
+  const form = (number: number, page = 0, copy = "Original") => `<article class="order">
     <header><div class="brand">${logo}<h1>${e(settings.legal_name || settings.app_name)}</h1>
       ${[settings.address, settings.phone, settings.email].filter(Boolean).map(value => `<p>${e(value!)}</p>`).join("")}
       <p>${e(settings.document_tagline || "")}</p></div>
-      <div class="identity"><h2>ORDEN DE COMPRA</h2><strong>N° ${String(number).padStart(8, "0")}</strong><p>Fecha: ${e(date)}</p><p>CUIT 30-71158289-0</p></div></header>
+      <div class="identity"><h2>ORDEN DE COMPRA</h2><p>${copy}</p><strong>N° ${String(number).padStart(8, "0")}</strong><p>Fecha: ${e(date)}</p><p>CUIT 30-71158289-0</p></div></header>
     <div class="field">Proveedor:<span>${e(filled?.supplier ?? "")}</span></div><div class="field">Domicilio:<span>${e(filled?.form.address ?? "")}</span></div>
     <div class="field">Condición de compra:<span>${e(filled?.form.condition ?? "")}</span></div>
     <table><thead><tr><th class="qty">Cant.</th><th>Descripción</th><th class="price">P. unitario</th><th class="price">Importe</th></tr></thead>
@@ -39,5 +39,5 @@ export function buildPurchaseOrderModelHtml(settings: CompanySettings, batch: Pr
     .signatures{display:grid;grid-template-columns:1fr 1fr;gap:5mm;padding:3mm 2mm;flex-shrink:0;min-height:20mm}.signatures span{display:block;border-bottom:1px solid #94a3b8;margin-top:7mm}footer{font-size:8px;color:#64748b;padding:2mm;margin:0;overflow-wrap:anywhere}
     .page{break-inside:avoid}.page:not(:last-child){break-after:page}
     @media screen{body{padding:8mm;background:#e2e8f0}.page{margin:0 auto 8mm}.order{background:white}}
-    </style></head><body>${Array.from({ length: pages }, (_, index) => `<main class="page">${form(filled?.number ?? batch.firstNumber + index * 2, index)}${form(filled?.number ?? batch.firstNumber + index * 2 + 1, index)}</main>`).join("")}</body></html>`;
+    </style></head><body>${Array.from({ length: pages }, (_, index) => `<main class="page">${form(filled?.number ?? batch.firstNumber + index, index, "Original")}${form(filled?.number ?? batch.firstNumber + index, index, "Duplicado")}</main>`).join("")}</body></html>`;
 }

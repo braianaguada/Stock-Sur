@@ -1585,3 +1585,11 @@ git pull origin staging
 - Factura y tecnico disponibles al pasar el cursor o enfocar su icono, sin agregar renglones.
 - Items sin columnas Estado operativo y Activo; se mantienen los filtros y acciones.
 - Sin migraciones. QA visual responsive pendiente; produccion sin cambios.
+
+
+### Órdenes de compra: original y duplicado
+- Las plantillas imprimen dos copias del mismo número por A4, con margen de 5 mm. Cada hoja siguiente reserva un número nuevo; reimprimir el lote conserva sus números. No se renumeran órdenes anteriores.
+- Retira permite buscar técnicos activos de la empresa y conserva el nombre en la orden.
+- Migración staging: `20261017130000_purchase_order_template_copies.sql`; RPC nueva compatible con clientes anteriores. Producción sin cambios.
+- QA: typecheck, lint y build correctos; reserva, reintento, continuidad con clientes anteriores y aislamiento comprobados en staging con rollback (`scripts/purchase-order-template-copies-qa.sql`). Impresi?n f?sica pendiente.
+- Suite completa: 856 pruebas aprobadas; 53 pruebas DB omitidas por falta de credenciales de la suite. QA SQL puntual ejecutado por separado en staging con rollback.

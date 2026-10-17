@@ -37,11 +37,11 @@ describe("PrintModelButton", () => {
     mocks.permissions = [];
     const win = popup();
     vi.spyOn(window, "open").mockReturnValue(win as unknown as Window);
-    mocks.rpc.mockResolvedValue({ data: { firstNumber: 1, secondNumber: 2, sheetCount: 1, lastNumber: 2 }, error: null });
+    mocks.rpc.mockResolvedValue({ data: { firstNumber: 1, secondNumber: 2, sheetCount: 1, lastNumber: 1 }, error: null });
     render(<PrintModelButton />);
     fireEvent.click(screen.getByRole("button", { name: /Imprimir/ }));
     await waitFor(() => expect(win.print).toHaveBeenCalledTimes(1));
-    expect(mocks.rpc).toHaveBeenCalledWith("reserve_purchase_order_print_sheets", { p_company_id: "company-1", p_request_id: expect.any(String), p_sheet_count: 1 });
+    expect(mocks.rpc).toHaveBeenCalledWith("reserve_purchase_order_template_sheets", { p_company_id: "company-1", p_request_id: expect.any(String), p_sheet_count: 1 });
   });
 
   it("does not reserve numbers using another company's branding", () => {
@@ -54,14 +54,14 @@ describe("PrintModelButton", () => {
   it("reprints the same sheet without allocating more numbers", async () => {
     const win = popup();
     vi.spyOn(window, "open").mockReturnValue(win as unknown as Window);
-    mocks.rpc.mockResolvedValue({ data: { firstNumber: 1, secondNumber: 2, sheetCount: 1, lastNumber: 2 }, error: null });
+    mocks.rpc.mockResolvedValue({ data: { firstNumber: 1, secondNumber: 2, sheetCount: 1, lastNumber: 1 }, error: null });
     render(<PrintModelButton />);
     fireEvent.click(screen.getByRole("button", { name: "Imprimir plantillas" }));
     await waitFor(() => expect(win.print).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole("button", { name: "Reimprimir mismo lote" }));
     await waitFor(() => expect(win.print).toHaveBeenCalledTimes(2));
     expect(mocks.rpc).toHaveBeenCalledTimes(1);
-    expect(mocks.rpc).toHaveBeenCalledWith("reserve_purchase_order_print_sheets", { p_company_id: "company-1", p_request_id: expect.any(String), p_sheet_count: 1 });
+    expect(mocks.rpc).toHaveBeenCalledWith("reserve_purchase_order_template_sheets", { p_company_id: "company-1", p_request_id: expect.any(String), p_sheet_count: 1 });
   });
 
   it("closes pending previews when leaving the company context", async () => {
@@ -72,7 +72,7 @@ describe("PrintModelButton", () => {
     const view = render(<PrintModelButton />);
     fireEvent.click(screen.getByRole("button", { name: "Imprimir plantillas" }));
     view.unmount();
-    await act(async () => { resolve({ data: { firstNumber: 1, secondNumber: 2, sheetCount: 1, lastNumber: 2 }, error: null }); });
+    await act(async () => { resolve({ data: { firstNumber: 1, secondNumber: 2, sheetCount: 1, lastNumber: 1 }, error: null }); });
     expect(win.close).toHaveBeenCalled();
     expect(win.print).not.toHaveBeenCalled();
     expect(win.document.write).toHaveBeenCalledTimes(1);
@@ -81,12 +81,12 @@ describe("PrintModelButton", () => {
   it("reserves the chosen sheet count and reprints that batch after changing the next quantity", async () => {
     const win = popup();
     vi.spyOn(window, "open").mockReturnValue(win as unknown as Window);
-    mocks.rpc.mockResolvedValue({ data: { firstNumber: 11, secondNumber: 12, sheetCount: 3, lastNumber: 16 }, error: null });
+    mocks.rpc.mockResolvedValue({ data: { firstNumber: 11, secondNumber: 12, sheetCount: 3, lastNumber: 13 }, error: null });
     render(<PrintModelButton />);
     fireEvent.change(screen.getByLabelText("Hojas A4"), { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: /Imprimir/ }));
     await waitFor(() => expect(win.print).toHaveBeenCalledTimes(1));
-    expect(mocks.rpc).toHaveBeenCalledWith("reserve_purchase_order_print_sheets", expect.objectContaining({ p_sheet_count: 3 }));
+    expect(mocks.rpc).toHaveBeenCalledWith("reserve_purchase_order_template_sheets", expect.objectContaining({ p_sheet_count: 3 }));
     const printedHtml = win.document.write.mock.calls[1][0];
     expect(new DOMParser().parseFromString(printedHtml, "text/html").querySelectorAll("main.page")).toHaveLength(3);
     fireEvent.change(screen.getByLabelText("Hojas A4"), { target: { value: "5" } });
@@ -113,7 +113,7 @@ describe("PrintModelButton", () => {
     fireEvent.click(screen.getByRole("button", { name: /Imprimir/ }));
     await waitFor(() => expect(mocks.toast).toHaveBeenCalled());
     fireEvent.change(screen.getByLabelText("Hojas A4"), { target: { value: "5" } });
-    mocks.rpc.mockResolvedValueOnce({ data: { firstNumber: 1, secondNumber: 2, sheetCount: 3, lastNumber: 6 }, error: null });
+    mocks.rpc.mockResolvedValueOnce({ data: { firstNumber: 1, secondNumber: 2, sheetCount: 3, lastNumber: 3 }, error: null });
     fireEvent.click(screen.getByRole("button", { name: "Reimprimir mismo lote" }));
     await waitFor(() => expect(win.print).toHaveBeenCalled());
     expect(mocks.rpc.mock.calls[1]).toEqual(mocks.rpc.mock.calls[0]);
