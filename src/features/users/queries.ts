@@ -27,7 +27,7 @@ export async function listCompanyRoles() {
     .in("code", ["admin", "operador", "consulta"])
     .order("name");
   if (error) throw error;
-  return (data ?? []) as CompanyRoleOption[];
+  return (data ?? []).map(role => ({ ...role, name: role.code === "operador" ? "Vendedor" : role.name })) as CompanyRoleOption[];
 }
 
 export async function listPermissionOptions() {

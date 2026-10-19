@@ -20,6 +20,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      list_document_salespeople: { Args: { p_company_id: string }; Returns: { id: string; name: string }[] };
       graphql: {
         Args: {
           extensions?: Json
