@@ -10,10 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { splitDocumentIncludedVat } from "../lib/included-vat";
 import { PRICING_MODE_LABEL } from "@/features/documents/constants";
 import { buildItemDisplayMeta, buildItemDisplayName } from "@/lib/item-display";
 import type {
-  DocType,
   DocumentFormState,
   DocumentDraftSubmissionIntent,
   DocumentServiceOption,
@@ -25,7 +25,10 @@ import type {
 import { calculatePriceFromCostBase, changeDocumentRecipientType, changeRemitoUsage } from "@/features/documents/utils";
 import { rankNaturalItemSearch } from "@/features/items/search";
 
+import { customerPaymentTerms } from "../lib/payment-terms";
+
 type CustomerOption = {
+  account_due_days?: number | null;
   id: string;
   name: string;
 };
@@ -66,6 +69,7 @@ interface DocumentsEditorDialogProps {
   totalDraft: number;
   customers: CustomerOption[];
   technicians: TechnicianOption[];
+  salespeople?: TechnicianOption[];
   serviceOptions: DocumentServiceOption[];
   priceLists: PriceListRow[];
   availableItems: AvailableItemOption[];
@@ -74,8 +78,9 @@ interface DocumentsEditorDialogProps {
   onAddItem: (itemId: string) => void;
   onAddCombo: (comboId: string, quantity: number) => void;
   removeLine: (idx: number) => void;
-  onSubmit: (intent: DocumentDraftSubmissionIntent) => void;
+  onSubmit: (intent: DocumentDraftSubmissionIntent, shareAfterIssue?: true) => void;
   canIssueOnCreate?: boolean;
+  canSendBudget?: boolean;
   onResetDraftForm: () => void;
   isSubmitting: boolean;
   sourceDocumentLabel?: string | null;
@@ -140,6 +145,7 @@ export function DocumentsEditorDialog({
   totalDraft,
   customers,
   technicians,
+  salespeople = [],
   serviceOptions = [],
   priceLists,
   availableItems,
@@ -150,6 +156,7 @@ export function DocumentsEditorDialog({
   removeLine,
   onSubmit,
   canIssueOnCreate = false,
+  canSendBudget = false,
   onResetDraftForm,
   isSubmitting,
   sourceDocumentLabel,
@@ -172,11 +179,6 @@ export function DocumentsEditorDialog({
   const filteredServiceOptions = useMemo(() => {
     return serviceOptions.filter((service) => service.customerId === documentForm.customer_id);
   }, [documentForm.customer_id, serviceOptions]);
-
-  const selectedPriceList = useMemo(
-    () => priceLists.find((priceList) => priceList.id === documentForm.price_list_id) ?? null,
-    [documentForm.price_list_id, priceLists],
-  );
 
   const lineCountByItemId = useMemo(() => {
     const counts = new Map<string, number>();
@@ -241,14 +243,15 @@ export function DocumentsEditorDialog({
     if (!open) setSubmitAttempted(false);
   }, [open]);
 
-  const submitWithIntent = (intent: DocumentDraftSubmissionIntent) => {
+  const submitWithIntent = (intent: DocumentDraftSubmissionIntent, shareAfterIssue?: true) => {
     setSubmitAttempted(true);
 
     if (isInternal && (!documentForm.technician_id || !documentForm.internal_remito_type)) {
       return;
     }
 
-    onSubmit(intent);
+    if (shareAfterIssue) onSubmit(intent, true);
+    else onSubmit(intent);
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -268,7 +271,7 @@ export function DocumentsEditorDialog({
           onResetDraftForm();
         }
       }}
-      title={editingDocId ? (isReturn ? "Editar devolucion" : "Editar borrador") : "Nuevo documento"}
+      title={editingDocId ? (isReturn ? "Editar devolucion" : "Editar borrador") : documentForm.doc_type === "PRESUPUESTO" ? "Nuevo presupuesto" : "Nuevo remito"}
       contentClassName="!w-[min(98vw,1680px)] sm:!w-[min(98vw,1680px)] !max-w-[1680px] sm:!max-w-[1680px] max-h-[92vh] overflow-x-hidden"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -280,70 +283,11 @@ export function DocumentsEditorDialog({
 
         <div className="rounded-xl border border-border/70 bg-card/60 shadow-sm relative">
           <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
-            <div className="p-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 items-start">
-              <div className="space-y-2">
-                <Label>Tipo *</Label>
-                {isReturn ? (
-                  <Input value="Devolucion de remito" disabled />
-                ) : (
-                <Select
-                  value={documentForm.doc_type}
-                  onValueChange={(value) =>
-                    setDraftForm((previousForm) => {
-                      const nextDocType = value as DocType;
-                      const nextCustomerKind =
-                        nextDocType === "PRESUPUESTO" && previousForm.customer_kind === "INTERNO"
-                          ? "GENERAL"
-                          : previousForm.customer_kind;
-                      return {
-                        ...previousForm,
-                        doc_type: nextDocType,
-                        customer_kind: nextCustomerKind,
-                        recipient_type:
-                          nextDocType !== "REMITO" && previousForm.customer_kind === "INTERNO"
-                            ? "OCCASIONAL"
-                            : previousForm.recipient_type,
-                        customer_name:
-                          nextDocType !== "REMITO" && previousForm.customer_kind === "INTERNO"
-                            ? "Cliente ocasional"
-                            : previousForm.customer_name,
-                        internal_remito_type:
-                          nextDocType === "REMITO" && nextCustomerKind === "INTERNO"
-                            ? previousForm.internal_remito_type
-                            : "",
-                        service_id: nextDocType === "REMITO" ? previousForm.service_id : "",
-                      };
-                    })
-                  }
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PRESUPUESTO">Presupuesto</SelectItem>
-                    <SelectItem value="REMITO">Remito</SelectItem>
-                  </SelectContent>
-                </Select>
-                )}
-              </div>
-
-              <div className="space-y-2 lg:hidden xl:block">
-                <Label>Punto de venta</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={documentForm.point_of_sale}
-                  onChange={(event) =>
-                    setDraftForm((previousForm) => ({
-                      ...previousForm,
-                      point_of_sale: Math.max(1, Number(event.target.value) || 1),
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2 xl:col-span-1">
+            <div className="p-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 items-end">
+              <div className="space-y-1">
                 <Label>Lista de precios *</Label>
                 <Select value={documentForm.price_list_id} onValueChange={onPriceListChange}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-9">
                     <SelectValue placeholder="Seleccionar lista" />
                   </SelectTrigger>
                   <SelectContent>
@@ -357,7 +301,7 @@ export function DocumentsEditorDialog({
               </div>
 
               {documentForm.doc_type === "REMITO" && !isReturn ? (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <Label>Uso del remito *</Label>
                 <Select
                   value={isInternal ? "INTERNAL" : "COMMERCIAL"}
@@ -368,7 +312,7 @@ export function DocumentsEditorDialog({
                       )
                     }
                   >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="COMMERCIAL">Comercial</SelectItem>
                       <SelectItem value="INTERNAL">Personal interno</SelectItem>
@@ -377,10 +321,10 @@ export function DocumentsEditorDialog({
                 </div>
               ) : null}
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label aria-hidden="true" className="invisible">Opciones</Label>
                 <CollapsibleTrigger asChild>
-                  <Button type="button" variant="outline" className="w-full bg-background/50 shadow-none hover:bg-background">
+                  <Button type="button" variant="outline" className="h-9 w-full bg-background/50 shadow-none hover:bg-background">
                     {detailsOpen ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
                     {detailsOpen ? "Ocultar opciones avanzadas" : "Opciones de documento"}
                   </Button>
@@ -390,22 +334,7 @@ export function DocumentsEditorDialog({
 
             <CollapsibleContent className="px-4 pb-4 border-t border-border/60 bg-muted/10 pt-4 rounded-b-xl">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <div className="space-y-2 hidden lg:block xl:hidden">
-                  <Label>Punto de venta</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={documentForm.point_of_sale}
-                    onChange={(event) =>
-                      setDraftForm((previousForm) => ({
-                        ...previousForm,
-                        point_of_sale: Math.max(1, Number(event.target.value) || 1),
-                      }))
-                    }
-                  />
-                </div>
-
-                {!isInternal ? <div className="space-y-2">
+                {!isInternal ? <div className="space-y-1">
                   <Label>Destinatario</Label>
                   <Select
                   value={documentForm.recipient_type ?? (documentForm.customer_id ? "REGISTERED" : "OCCASIONAL")}
@@ -416,15 +345,15 @@ export function DocumentsEditorDialog({
                       )
                     }
                   >
-                    <SelectTrigger><SelectValue placeholder="Seleccionar destinatario" /></SelectTrigger>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar destinatario" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="OCCASIONAL">Cliente ocasional / Consumidor Final</SelectItem>
+                      <SelectItem value="OCCASIONAL">Cliente final</SelectItem>
                       <SelectItem value="REGISTERED">Cliente registrado</SelectItem>
                     </SelectContent>
                   </Select>
                 </div> : null}
 
-                {documentForm.recipient_type === "REGISTERED" && !isInternal ? <div className="space-y-2">
+                {documentForm.recipient_type === "REGISTERED" && !isInternal ? <div className="space-y-1">
                   <Label>Cliente registrado</Label>
                   <Select
                     value={documentForm.customer_id || "__none__"}
@@ -442,7 +371,7 @@ export function DocumentsEditorDialog({
                       })
                     }
                   >
-                    <SelectTrigger><SelectValue placeholder="Seleccionar cliente registrado" /></SelectTrigger>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar cliente registrado" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Seleccionar cliente</SelectItem>
                       {customers.map((customer) => (
@@ -457,7 +386,7 @@ export function DocumentsEditorDialog({
                   ) : null}
                 </div> : null}
 
-                {(documentForm.customer_id || isInternal) ? <div className="space-y-2">
+                {(documentForm.customer_id || isInternal) ? <div className="space-y-1">
                   <Label>{isInternal ? "Tecnico responsable *" : "Tecnico asociado"}</Label>
                   <Select
                     value={documentForm.technician_id || "__none__"}
@@ -468,7 +397,7 @@ export function DocumentsEditorDialog({
                       }))
                     }
                   >
-                    <SelectTrigger><SelectValue placeholder="Sin seleccionar" /></SelectTrigger>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Sin seleccionar" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Sin seleccionar</SelectItem>
                       {technicians.map((technician) => (
@@ -483,47 +412,28 @@ export function DocumentsEditorDialog({
                   ) : null}
                 </div> : null}
 
-                {documentForm.recipient_type === "OCCASIONAL" && !isInternal ? <div className="space-y-2 md:col-span-2">
-                  <Label>Nombre ocasional</Label>
-                  <Input
-                    value={documentForm.customer_name}
-                    placeholder="Cliente ocasional"
-                    readOnly={Boolean(documentForm.customer_id)}
-                    onChange={(event) =>
-                      setDraftForm((previousForm) => ({ ...previousForm, customer_name: event.target.value }))
-                    }
-                  />
-                  {!documentForm.customer_id ? (
-                    <p className="text-xs text-muted-foreground">Opcional. Permite identificar a la persona que compra; no crea un cliente registrado.</p>
-                  ) : null}
-                </div> : null}
-
-                {!isInternal ? <div className="space-y-2">
+                {!isInternal ? <div className="space-y-1">
                   <Label>Condición de venta</Label>
-                  <Input
-                    value={documentForm.payment_terms}
-                    placeholder="Opcional"
-                    onChange={(event) =>
-                      setDraftForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
-                    }
-                  />
+                  <Input className="h-9" readOnly value={customerPaymentTerms(documentForm.recipient_type === "REGISTERED" ? customers.find(customer => customer.id === documentForm.customer_id) : null)} />
                 </div> : null}
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <Label>Vendedor</Label>
-                  <Input
-                    value={documentForm.salesperson}
-                    placeholder="Opcional"
-                    onChange={(event) =>
-                      setDraftForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
-                    }
-                  />
+                  <Select value={salespeople.find(person => person.name === documentForm.salesperson)?.id ?? (documentForm.salesperson ? "historical" : "none")} onValueChange={id => setDraftForm(previous => ({ ...previous, salesperson: salespeople.find(person => person.id === id)?.name ?? "" }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar vendedor" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin vendedor</SelectItem>
+                      {documentForm.salesperson && !salespeople.some(person => person.name === documentForm.salesperson) ? <SelectItem value="historical" disabled>{documentForm.salesperson}</SelectItem> : null}
+                      {salespeople.map(person => <SelectItem key={person.id} value={person.id}>{person.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {documentForm.doc_type === "PRESUPUESTO" ? (
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <Label>Válido hasta</Label>
                     <Input
+                  className="h-9"
                       type="date"
                       value={documentForm.valid_until}
                       onChange={(event) =>
@@ -533,21 +443,8 @@ export function DocumentsEditorDialog({
                   </div>
                 ) : null}
 
-                {documentForm.doc_type === "REMITO" ? (
-                  <div className="space-y-2 md:col-span-2">
-                    <Label>Domicilio de entrega</Label>
-                    <Input
-                      value={documentForm.delivery_address}
-                      placeholder="Opcional"
-                      onChange={(event) =>
-                        setDraftForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
-                      }
-                    />
-                  </div>
-                ) : null}
-
                 {documentForm.doc_type === "REMITO" && !isReturn && !isInternal && Boolean(documentForm.customer_id) ? (
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-1 md:col-span-2">
                     <Label>Servicio asociado</Label>
                     <Select
                       value={documentForm.service_id || "__none__"}
@@ -558,7 +455,7 @@ export function DocumentsEditorDialog({
                         }))
                       }
                     >
-                      <SelectTrigger><SelectValue placeholder="Sin servicio" /></SelectTrigger>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Sin servicio" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">Sin servicio</SelectItem>
                         {filteredServiceOptions.map((service) => (
@@ -594,7 +491,7 @@ export function DocumentsEditorDialog({
                 ) : null}
 
                 {documentForm.doc_type === "REMITO" && documentForm.customer_kind === "INTERNO" ? (
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <Label>Tipo / motivo interno *</Label>
                     <Select
                       value={documentForm.internal_remito_type || "__none__"}
@@ -606,7 +503,7 @@ export function DocumentsEditorDialog({
                         }))
                       }
                     >
-                      <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="CUENTA_CORRIENTE">Cuenta corriente</SelectItem>
                         <SelectItem value="DESCUENTO_SUELDO">Descuento de sueldo</SelectItem>
@@ -625,18 +522,11 @@ export function DocumentsEditorDialog({
         <div className="space-y-4 rounded-xl border border-border/70 bg-card/60 p-4 relative">
           <div className="flex flex-col gap-1">
             <Label className="text-base">Productos ({lines.length})</Label>
-            <p className="text-sm text-muted-foreground mr-[200px]">
-              {isReturn
-                ? "Ajusta las cantidades a devolver antes de emitir."
-                : `Busca en la lista activa (${selectedPriceList?.name ?? "Ninguna"}) y agrega productos.`}
-              {!isReturn ? (
-                <span className="hidden sm:inline"> Presiona <strong>Enter</strong> para sumar rápidamente el primero.</span>
-              ) : null}
-            </p>
+            {isReturn ? <p className="text-sm text-muted-foreground">Ajusta las cantidades a devolver.</p> : null}
           </div>
 
           <div className={isReturn ? "hidden" : "space-y-3"}>
-            <div className="max-w-sm flex-1 min-w-[200px]">
+            <div className="w-full max-w-xl min-w-0">
               <ClearableSearchInput
                 value={itemSearch}
                 onValueChange={setItemSearch}
@@ -650,10 +540,10 @@ export function DocumentsEditorDialog({
               />
             </div>
             {filteredCombos.length > 0 ? (
-              <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-2">
+              <div className="max-h-40 overflow-y-auto space-y-1 rounded-xl border border-border/70 bg-background/70 p-2">
                 <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Combos</p>
                 {filteredCombos.map((combo) => (
-                  <div key={combo.id} className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card px-3 py-3 md:flex-row md:items-center md:justify-between">
+                  <div key={combo.id} className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <div className="text-sm font-medium leading-5 break-words">{combo.name}</div>
                       <div className="text-xs text-muted-foreground break-words">{combo.description ?? "Sin descripcion"}</div>
@@ -692,7 +582,7 @@ export function DocumentsEditorDialog({
                     return (
                       <div
                         key={item.id}
-                        className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card px-3 py-3 md:flex-row md:items-center md:justify-between"
+                        className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="min-w-0">
                           <div className="text-sm font-medium leading-5 break-words">
@@ -961,23 +851,37 @@ export function DocumentsEditorDialog({
           />
         </div>
 
-        <div className="sticky bottom-0 z-30 flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/95 px-5 py-4 shadow-[var(--shadow-md)] backdrop-blur-md">
-          <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-0.5">Total del documento</span>
-            <span className="text-2xl font-extrabold tracking-tight text-foreground">
-              {formatMoney(totalDraft)}
-            </span>
+        <div className="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/80 bg-background/95 px-3 py-2 shadow-[var(--shadow-md)] backdrop-blur-md">
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2" aria-label="Importes del documento">
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Neto</span>
+              <span className="text-sm font-semibold tabular-nums">{formatMoney(splitDocumentIncludedVat(totalDraft).subtotal)}</span>
+            </div>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">IVA (21%)</span>
+              <span className="text-sm font-semibold tabular-nums">{formatMoney(splitDocumentIncludedVat(totalDraft).tax_total)}</span>
+            </div>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total</span>
+              <span className="text-lg font-extrabold tabular-nums">{formatMoney(totalDraft)}</span>
+            </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button type="submit" disabled={isSubmitting || priceLists.length === 0} variant="outline" className="h-11 rounded-full px-8">
+            <Button type="submit" disabled={isSubmitting || priceLists.length === 0} variant="outline" size="sm">
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {isSubmitting ? "Procesando..." : editingDocId ? "Actualizar borrador" : "Guardar borrador"}
+              {isSubmitting ? "Procesando..." : "Guardar borrador"}
             </Button>
-            {!editingDocId && documentForm.doc_type === "REMITO" && canIssueOnCreate ? (
+            {!editingDocId && documentForm.doc_type === "PRESUPUESTO" && canSendBudget ? (
+              <>
+                <Button type="button" size="sm" disabled={isSubmitting || priceLists.length === 0} onClick={() => submitWithIntent("SEND_BUDGET")}>Emitir presupuesto</Button>
+                <Button type="button" variant="outline" size="sm" disabled={isSubmitting || priceLists.length === 0} onClick={() => submitWithIntent("SEND_BUDGET", true)}>Emitir y compartir</Button>
+              </>
+            ) : null}
+            {documentForm.doc_type === "REMITO" && canIssueOnCreate ? (
               <Button
                 type="button"
                 disabled={isSubmitting || priceLists.length === 0}
-                className="h-11 rounded-full px-8 shadow-sm"
+                size="sm"
                 onClick={() => submitWithIntent("ISSUE_REMITO")}
               >
                 Emitir remito

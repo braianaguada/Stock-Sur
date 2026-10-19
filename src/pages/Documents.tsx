@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCompanyBrand } from "@/contexts/company-brand-context";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "@/hooks/useSearch";
-import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { getErrorMessage } from "@/lib/errors";
 import {
   canCloneBudgetToRemito,
@@ -29,6 +28,7 @@ import {
 } from "@/lib/permissions";
 import { queryKeys } from "@/lib/query-keys";
 import { openPrintWindow, writePrintWindow } from "@/lib/print";
+import { usePdfDownloadFeedback } from "@/components/common/PdfDownloadFeedback";
 import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "@/lib/pdf-download";
 import { Copy, Link2, MessageCircle, Plus, Unlink } from "lucide-react";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
@@ -48,7 +48,8 @@ import { buildDocumentLineFromItem } from "@/features/documents/lib/buildDocumen
 import { mergeComboDocumentLines } from "@/features/documents/lib/mergeComboDocumentLines";
 import { DUPLICATE_DOCUMENT_CONFIRMATION } from "@/features/documents/lib/duplicate";
 import { buildDocumentPrintHtml } from "@/features/documents/print";
-import { buildDocumentShareMessage, buildPublicDocumentUrl } from "@/features/documents/share";
+import { buildDocumentShareMessage, buildPublicDocumentUrl, type ShareableDocument } from "@/features/documents/share";
+import { createDocumentShareLink, prepareIssuedBudgetShare } from "@/features/documents/lib/prepareIssuedBudgetShare";
 import type {
   CustomerKind,
   DocLineRow,
@@ -124,6 +125,8 @@ function buildEmptyDocumentForm(defaultPointOfSale: number, defaultCustomerId = 
 
 export default function DocumentsPage() {
   const { user, roles, currentCompany, companyRoleCodes, companyPermissionCodes } = useAuth();
+  const companyContext = useRef(currentCompany?.id);
+  companyContext.current = currentCompany?.id;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
@@ -143,13 +146,15 @@ export default function DocumentsPage() {
   const [statusFilter, setStatusFilter] = useState<DocStatus | "ALL">("ALL");
   const [customerFilter, setCustomerFilter] = useState("ALL");
   const [technicianFilter, setTechnicianFilter] = useState("ALL");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [cashDocument, setCashDocument] = useState<DocRow | null>(null);
   const [registerCashOpen, setRegisterCashOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingDocumentAction | null>(null);
-  const [shareDocument, setShareDocument] = useState<DocRow | null>(null);
+  const [shareDocument, setShareDocument] = useState<ShareableDocument | null>(null);
   const [shareCustomerId, setShareCustomerId] = useState("");
   const [sharePhone, setSharePhone] = useState("");
   const [shareLink, setShareLink] = useState<DocumentShareLink | null>(null);
@@ -158,6 +163,7 @@ export default function DocumentsPage() {
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [documentsPage, setDocumentsPage] = useState(1);
   const [documentsPageSize, setDocumentsPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+  const { feedback: downloadFeedback, onSaved: onPdfSaved } = usePdfDownloadFeedback(currentCompany?.id ?? null);
   const [downloadingDocumentId, setDownloadingDocumentId] = useState<string | null>(null);
   const [draftForm, setDraftForm] = useState<DocumentFormState>(() =>
     buildEmptyDocumentForm(defaultPointOfSale),
@@ -167,6 +173,7 @@ export default function DocumentsPage() {
   const {
     customers,
     technicians,
+    salespeople,
     allTechnicians,
     serviceOptions,
     items,
@@ -175,31 +182,39 @@ export default function DocumentsPage() {
     priceByItem,
     priceListItemByItemId,
     documents,
+    documentsPagination,
+    documentsError,
+    refetchDocuments,
     isLoading,
     selectedLines,
     selectedEvents,
     eventUserNamesById,
-    selectedDocumentCashUsage,
     cashRegisteredDocumentIds,
     selectedDocumentClosureClosed,
     selectedDocument,
     sourceDocumentLabel,
+    sourceDocument,
     combos,
     comboLinesByComboId,
   } = useDocumentsData({
+    page: documentsPage,
+    pageSize: documentsPageSize,
+    editorOpen: dialogOpen,
     search: trimmedSearch,
     typeFilter,
     statusFilter,
     customerFilter,
     technicianFilter,
+    dateFrom,
+    dateTo,
     selectedDocId,
     selectedPriceListId: draftForm.price_list_id,
     currentCompanyId: currentCompany?.id ?? null,
   });
 
   const documentsById = useMemo(
-    () => new Map(documents.map((document) => [document.id, document])),
-    [documents],
+    () => new Map([...documents, ...(sourceDocument ? [sourceDocument] : []), ...(selectedDocument ? [selectedDocument] : [])].map((document) => [document.id, document])),
+    [documents, selectedDocument, sourceDocument],
   );
   const editingSourceDocumentLabel = useMemo(() => {
     if (!editingDocId) return null;
@@ -231,11 +246,11 @@ export default function DocumentsPage() {
     },
     [draftForm.price_list_id, priceLists, priceRoundingConfig],
   );
-  const documentsPagination = usePaginationSlice({
-    items: documents,
-    page: documentsPage,
-    pageSize: documentsPageSize,
-  });
+  useEffect(() => {
+    if (!isLoading && !documentsError && documentsPagination.page !== documentsPage) {
+      setDocumentsPage(documentsPagination.page);
+    }
+  }, [isLoading, documentsError, documentsPagination.page, documentsPage]);
   const linkedDocumentId = searchParams.get("document_id");
   const serviceOptionsById = useMemo(
     () => new Map(serviceOptions.map((service) => [service.id, service])),
@@ -252,7 +267,7 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     setDocumentsPage(1);
-  }, [trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter, documentsPageSize]);
+  }, [trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter, dateFrom, dateTo, documentsPageSize, currentCompany?.id]);
 
   useEffect(() => {
     if (draftForm.price_list_id || priceLists.length === 0) return;
@@ -300,11 +315,12 @@ export default function DocumentsPage() {
     setLines([]);
   };
 
-  const loadDraftForEditing = useDocumentDraftLoader({ documentsById });
+  const loadDraftForEditing = useDocumentDraftLoader({ documentsById, currentCompanyId: currentCompany?.id ?? null });
 
-  const openCreateDialog = () => {
+  const openCreateDialog = (docType: "PRESUPUESTO" | "REMITO") => {
     if (!canCreateDocumentDraft(roles)) return;
     resetDraftForm();
+    setDraftForm({ ...buildEmptyDocumentForm(defaultPointOfSale), doc_type: docType });
     setDialogOpen(true);
   };
 
@@ -313,6 +329,8 @@ export default function DocumentsPage() {
 
     try {
       const draft = await loadDraftForEditing(documentId);
+      if (companyContext.current !== currentCompany?.id) return;
+      setSelectedDocId(documentId);
       setEditingDocId(draft.editingDocId);
       setDraftForm(draft.form);
       setLines(draft.lines);
@@ -329,12 +347,11 @@ export default function DocumentsPage() {
     cloneAsRemitoMutation,
     cloneAsReturnMutation,
     duplicateDocumentMutation,
-    setExternalInvoiceMutation,
-    clearExternalInvoiceMutation,
   } = useDocumentsMutations({
+    defaultPointOfSale,
     currentCompanyId: currentCompany?.id ?? null,
     userId: user?.id,
-    documents,
+    documents: Array.from(documentsById.values()),
     customers,
     technicians,
     serviceOptions,
@@ -348,6 +365,22 @@ export default function DocumentsPage() {
     resetDraftForm,
     setDialogOpen,
     toast,
+    onRemitoCreated: (documentId) => {
+      if (companyContext.current === currentCompany?.id) void openEditDialog(documentId);
+    },
+    onRemitoIssued: (documentId) => {
+      if (!canRegisterInCash || !currentCompany?.id || companyContext.current !== currentCompany.id) return;
+      void (async () => {
+        const { data, error } = await supabase.from("documents").select("*")
+          .eq("company_id", currentCompany.id).eq("id", documentId).eq("status", "EMITIDO").maybeSingle();
+        if (companyContext.current !== currentCompany.id) return;
+        if (error) {
+          toast({ title: "Remito emitido", description: "No se pudo abrir Caja. Podes registrarlo desde las acciones del remito.", variant: "destructive" });
+          return;
+        }
+        if (data?.doc_type === "REMITO" && data.customer_kind !== "INTERNO") openRegisterInCash(data as DocRow);
+      })();
+    },
   });
 
   const canRegisterInCash = canCreateCashSale(roles, {
@@ -356,16 +389,20 @@ export default function DocumentsPage() {
   });
 
   const registerCashMutation = useMutation({
-    mutationFn: ({ document, paymentMethod }: { document: DocRow; paymentMethod: PaymentMethod }) => {
+    mutationFn: ({ document, paymentMethod, externalInvoiceNumber }: { document: DocRow; paymentMethod: PaymentMethod; externalInvoiceNumber: string }) => {
       if (!currentCompany?.id) throw new Error("Selecciona una empresa activa antes de registrar en Caja.");
       return registerCashSaleFromRemito({
         companyId: currentCompany.id,
         documentId: document.id,
         paymentMethod,
+        externalInvoiceNumber,
       });
     },
     onSuccess: async (_sale, variables) => {
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["documents", currentCompany?.id ?? "no-company"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.documents.detail(currentCompany?.id ?? null, variables.document.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.documents.events(currentCompany?.id ?? null, variables.document.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.documents.cashUsage(currentCompany?.id ?? null) }),
         queryClient.invalidateQueries({ queryKey: ["cash-sales", currentCompany?.id ?? "no-company"] }),
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.accountSummary(currentCompany?.id ?? null, variables.document.customer_id) }),
@@ -688,8 +725,9 @@ export default function DocumentsPage() {
         companySettings,
         technicianName,
       });
-      await savePrintHtmlAsPdf({ html, fileName, proof: { mode: "authenticated", kind: "document", documentId: document.id }, target });
-      toast({ title: "PDF guardado" });
+      const saved = await savePrintHtmlAsPdf({ html, fileName, proof: { mode: "authenticated", kind: "document", documentId: document.id }, target });
+      onPdfSaved(saved);
+      toast({ title: saved?.method === "downloaded" ? "Descarga iniciada" : "PDF guardado" });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       toast({ title: "No se pudo descargar el PDF", description: getErrorMessage(error), variant: "destructive" });
@@ -698,7 +736,8 @@ export default function DocumentsPage() {
     }
   };
 
-  const openDocumentShare = async (document: DocRow) => {
+  const openDocumentShare = async (document: ShareableDocument, prepared?: { link: DocumentShareLink; message: string }) => {
+    if (!currentCompany?.id || companyContext.current !== currentCompany.id) return;
     if (document.doc_type === "REMITO_DEVOLUCION") {
       toast({ title: "Documento no compartible", description: "Los links públicos están disponibles para presupuestos y remitos." });
       return;
@@ -706,6 +745,12 @@ export default function DocumentsPage() {
     setShareDocument(document);
     setShareCustomerId(document.customer_id ?? "");
     setSharePhone(customers.find((customer) => customer.id === document.customer_id)?.phone ?? "");
+    if (prepared) {
+      setShareLink(prepared.link);
+      setShareMessageText(prepared.message);
+      setShareLinkLoading(false);
+      return;
+    }
     setShareLink(null);
     setShareMessageText("");
     setShareLinkLoading(true);
@@ -713,6 +758,7 @@ export default function DocumentsPage() {
       const { data, error } = await supabase
         .from("document_share_links")
         .select("*")
+        .eq("company_id", currentCompany.id)
         .eq("document_id", document.id)
         .eq("enabled", true)
         .order("created_at", { ascending: false })
@@ -733,12 +779,7 @@ export default function DocumentsPage() {
     if (shareLink?.enabled) return shareLink;
     setShareLinkLoading(true);
     try {
-      const { data, error } = await supabase.rpc("create_document_share_link", {
-        p_document_id: shareDocument.id,
-        p_expires_at: null,
-      });
-      if (error) throw error;
-      const link = data as unknown as DocumentShareLink;
+      const link = await createDocumentShareLink(shareDocument.id);
       setShareLink(link);
       setShareMessageText(buildDocumentShareMessage(shareDocument, buildPublicDocumentUrl(link.token)));
       return link;
@@ -778,14 +819,18 @@ export default function DocumentsPage() {
           <CompanyAccessNotice description="Necesitas una empresa activa para crear documentos, emitir remitos y revisar su historial." />
         ) : null}
 
+        {downloadFeedback}
         <PageHeader
           eyebrow="Presupuestos y remitos"
           title="Documentos"
-          subtitle="Crea, emite y da seguimiento a presupuestos, remitos y devoluciones."
           actions={(
-            <Button onClick={openCreateDialog} disabled={!canCreateDocumentDraft(roles)}>
-              <Plus className="mr-2 h-4 w-4" /> Nuevo documento
-            </Button>
+            <>              <Button variant="outline" onClick={() => openCreateDialog("PRESUPUESTO")} disabled={!canCreateDocumentDraft(roles)}>
+                <Plus className="mr-2 h-4 w-4" /> Presupuesto
+              </Button>
+              <Button onClick={() => openCreateDialog("REMITO")} disabled={!canCreateDocumentDraft(roles)}>
+                <Plus className="mr-2 h-4 w-4" /> Remito
+              </Button>
+            </>
           )}
         />
 
@@ -864,11 +909,22 @@ export default function DocumentsPage() {
               </SelectContent>
             </Select>
           </div>
+          <div className="w-full space-y-1 md:w-44">
+            <Label htmlFor="documents-from" className="text-xs text-muted-foreground">Fecha documento desde</Label>
+            <Input id="documents-from" type="date" value={dateFrom} max={dateTo || undefined} onChange={(event) => { setDateFrom(event.target.value); if (dateTo && event.target.value > dateTo) setDateTo(event.target.value); }} />
+          </div>
+          <div className="w-full space-y-1 md:w-44">
+            <Label htmlFor="documents-to" className="text-xs text-muted-foreground">Fecha documento hasta</Label>
+            <Input id="documents-to" type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => { setDateTo(event.target.value); if (dateFrom && event.target.value && event.target.value < dateFrom) setDateFrom(event.target.value); }} />
+          </div>
+          {dateFrom || dateTo ? <Button variant="ghost" onClick={() => { setDateFrom(""); setDateTo(""); }}>Todas las fechas</Button> : null}
         </FilterToolbar>
 
           <DocumentsDataTable
-          documents={documentsPagination.pagedItems}
+          documents={documents}
           isLoading={isLoading}
+          errorMessage={documentsError ? getErrorMessage(documentsError, "No se pudieron cargar los documentos") : undefined}
+          onRetry={() => void refetchDocuments()}
           pageSize={documentsPageSize}
           technicianNamesById={new Map(allTechnicians.map((technician) => [technician.id, technician.name]))}
           onOpenDetail={(documentId) => {
@@ -931,10 +987,10 @@ export default function DocumentsPage() {
           }
         />
 
-        <DataTablePagination
+        {!isLoading && !documentsError ? <DataTablePagination
           page={documentsPagination.page}
           totalPages={documentsPagination.totalPages}
-          totalItems={documents.length}
+          totalItems={documentsPagination.totalItems}
           rangeStart={documentsPagination.rangeStart}
           rangeEnd={documentsPagination.rangeEnd}
           pageSize={documentsPageSize}
@@ -942,7 +998,7 @@ export default function DocumentsPage() {
           onPageChange={setDocumentsPage}
           onPageSizeChange={(value) => setDocumentsPageSize(value as (typeof PAGE_SIZE_OPTIONS)[number])}
           itemLabel="documentos"
-        />
+        /> : null}
       </PageContainer>
 
       {dialogOpen ? (
@@ -957,6 +1013,7 @@ export default function DocumentsPage() {
             setLines={setLines}
             totalDraft={totalDraft}
             customers={customers}
+          salespeople={salespeople}
             technicians={technicians}
             serviceOptions={serviceOptions}
             priceLists={priceLists}
@@ -966,8 +1023,24 @@ export default function DocumentsPage() {
             onAddCombo={onAddCombo}
             onPriceListChange={onPriceListChange}
             removeLine={removeLine}
-            onSubmit={(intent) => upsertDraftMutation.mutate(intent)}
+            onSubmit={(intent, shareAfterIssue) => {
+              const companyId = currentCompany?.id;
+              upsertDraftMutation.mutate(intent, {
+                onSuccess: async (result) => {
+                  if (!shareAfterIssue || intent !== "SEND_BUDGET" || result.issueError || !companyId || companyContext.current !== companyId) return;
+                  try {
+                    const prepared = await prepareIssuedBudgetShare(companyId, result.documentId);
+                    if (companyContext.current !== companyId) return;
+                    await openDocumentShare(prepared.document, prepared);
+                  } catch (error) {
+                    if (companyContext.current !== companyId) return;
+                    toast({ title: "Presupuesto emitido; no se pudo preparar el mensaje", description: `${getErrorMessage(error)} Reintenta desde Compartir en el listado.`, variant: "destructive" });
+                  }
+                },
+              });
+            }}
             canIssueOnCreate={canIssueRemito(roles)}
+            canSendBudget={canTransitionDocumentTo(roles, "ENVIADO")}
             onResetDraftForm={resetDraftForm}
             isSubmitting={upsertDraftMutation.isPending || !canCreateDocumentDraft(roles)}
             sourceDocumentLabel={editingSourceDocumentLabel}
@@ -984,7 +1057,6 @@ export default function DocumentsPage() {
             selectedLines={selectedLines}
             selectedEvents={selectedEvents}
             eventUserNamesById={eventUserNamesById}
-            isExternalInvoiceLocked={selectedDocumentCashUsage}
             sourceDocumentLabel={sourceDocumentLabel}
             technicianName={
               selectedDocument?.technician_id
@@ -1002,19 +1074,6 @@ export default function DocumentsPage() {
                 : undefined
             }
             companySettings={companySettings}
-            onSetExternalInvoice={(documentId, externalInvoiceNumber) => {
-              setExternalInvoiceMutation.mutate({
-                documentId,
-                externalInvoiceNumber,
-                externalInvoiceDate: null,
-              });
-            }}
-            onClearExternalInvoice={(documentId) => {
-              clearExternalInvoiceMutation.mutate(documentId);
-            }}
-            isUpdatingExternalInvoice={
-              setExternalInvoiceMutation.isPending || clearExternalInvoiceMutation.isPending
-            }
             canPrintDocument={canPrintDocument(roles)}
             onOpenPrint={(document) => {
               if (!canPrintDocument(roles)) return;
@@ -1047,9 +1106,9 @@ export default function DocumentsPage() {
           setRegisterCashOpen(open);
           if (!open) setCashDocument(null);
         }}
-        onConfirm={(paymentMethod) => {
+        onConfirm={(paymentMethod, externalInvoiceNumber) => {
           if (!cashDocument) return;
-          registerCashMutation.mutate({ document: cashDocument, paymentMethod });
+          registerCashMutation.mutate({ document: cashDocument, paymentMethod, externalInvoiceNumber });
         }}
       />
 
@@ -1149,6 +1208,21 @@ export default function DocumentsPage() {
             </div>
           </div>
           <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={shareLinkLoading || !shareLink?.enabled || !shareMessageText.trim()}
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(shareMessageText);
+                  toast({ title: "Mensaje copiado" });
+                } catch (error) {
+                  toast({ title: "No se pudo copiar el mensaje", description: `Selecciona y copia el texto del mensaje. ${getErrorMessage(error)}`, variant: "destructive" });
+                }
+              }}
+            >
+              <Copy className="mr-2 h-4 w-4" /> Copiar mensaje
+            </Button>
             <Button
               type="button"
               variant="outline"

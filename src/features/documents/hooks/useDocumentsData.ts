@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
 import { buildItemDisplayName } from "@/lib/item-display";
-import { searchIncludes } from "@/lib/search";
 import { fetchAllPages } from "@/lib/supabase-pagination";
 import { DOC_LABEL } from "../constants";
 import type {
@@ -25,6 +24,11 @@ type UseDocumentsDataParams = {
   statusFilter: DocStatus | "ALL";
   customerFilter: string;
   technicianFilter: string;
+  page?: number;
+  pageSize?: number;
+  editorOpen?: boolean;
+  dateFrom?: string;
+  dateTo?: string;
   selectedDocId: string | null;
   selectedPriceListId: string;
   currentCompanyId: string | null;
@@ -36,6 +40,11 @@ export function useDocumentsData({
   statusFilter,
   customerFilter,
   technicianFilter,
+  page = 1,
+  pageSize = 10,
+  editorOpen = false,
+  dateFrom = "",
+  dateTo = "",
   selectedDocId,
   selectedPriceListId,
   currentCompanyId,
@@ -47,10 +56,20 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customers")
-        .select("id, name, cuit, phone")
+        .select("id, name, cuit, phone, account_due_days")
         .eq("company_id", currentCompanyId!)
         .eq("is_occasional", false)
         .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: salespeople = [] } = useQuery({
+    queryKey: ["documents", "salespeople", currentCompanyId],
+    enabled: Boolean(currentCompanyId) && editorOpen,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("list_document_salespeople", { p_company_id: currentCompanyId! });
       if (error) throw error;
       return data ?? [];
     },
@@ -76,7 +95,7 @@ export function useDocumentsData({
 
   const { data: serviceOptions = [] } = useQuery({
     queryKey: ["documents", "service-options", currentCompanyId],
-    enabled: Boolean(currentCompanyId),
+    enabled: Boolean(currentCompanyId) && (editorOpen || Boolean(selectedDocId)),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("service_job_services")
@@ -103,7 +122,7 @@ export function useDocumentsData({
 
   const { data: items = [] } = useQuery({
     queryKey: queryKeys.documents.items(currentCompanyId),
-    enabled: Boolean(currentCompanyId),
+    enabled: Boolean(currentCompanyId) && editorOpen,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("items")
@@ -118,7 +137,7 @@ export function useDocumentsData({
 
   const { data: stockByItemId = new Map<string, number>() } = useQuery({
     queryKey: queryKeys.documents.itemStock(currentCompanyId),
-    enabled: Boolean(currentCompanyId),
+    enabled: Boolean(currentCompanyId) && editorOpen,
     staleTime: 60_000,
     queryFn: async () => {
       const movements = await fetchAllPages(() =>
@@ -142,7 +161,7 @@ export function useDocumentsData({
 
   const { data: priceLists = [] } = useQuery({
     queryKey: queryKeys.documents.priceLists(currentCompanyId),
-    enabled: Boolean(currentCompanyId),
+    enabled: Boolean(currentCompanyId) && editorOpen,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_lists")
@@ -156,7 +175,7 @@ export function useDocumentsData({
 
   const { data: priceListItems = [] } = useQuery({
     queryKey: queryKeys.documents.priceListItems(currentCompanyId, selectedPriceListId),
-    enabled: !!selectedPriceListId && Boolean(currentCompanyId),
+    enabled: !!selectedPriceListId && Boolean(currentCompanyId) && editorOpen,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("price_list_items")
@@ -171,7 +190,7 @@ export function useDocumentsData({
 
   const { data: combos = [] } = useQuery({
     queryKey: queryKeys.combos.list(currentCompanyId),
-    enabled: Boolean(currentCompanyId),
+    enabled: Boolean(currentCompanyId) && editorOpen,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("product_combos")
@@ -185,7 +204,7 @@ export function useDocumentsData({
 
   const { data: comboLines = [] } = useQuery({
     queryKey: ["product-combo-lines", currentCompanyId, combos.map((combo) => combo.id).join(",")],
-    enabled: Boolean(currentCompanyId) && combos.length > 0,
+    enabled: Boolean(currentCompanyId) && editorOpen && combos.length > 0,
     queryFn: async () => {
       const comboIds = combos.map((combo) => combo.id);
       const { data, error } = await supabase
@@ -239,45 +258,29 @@ export function useDocumentsData({
     [priceListItems],
   );
 
-  const { data: documents = [], isLoading } = useQuery({
-    queryKey: queryKeys.documents.list(currentCompanyId, trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter),
+  const { data: documentPage, isLoading, error: documentsError, refetch: refetchDocuments } = useQuery({
+    queryKey: queryKeys.documents.list(currentCompanyId, trimmedSearch, typeFilter, statusFilter, customerFilter, technicianFilter, dateFrom, dateTo, page, pageSize),
     enabled: Boolean(currentCompanyId),
+    staleTime: 30_000,
     queryFn: async () => {
-      const rows = await fetchAllPages(() => {
-        let q = supabase
-          .from("documents")
-          .select("id, doc_type, status, point_of_sale, document_number, issue_date, customer_id, technician_id, service_id, origin_document_id, customer_name, customer_tax_id, customer_tax_condition, customer_kind, internal_remito_type, payment_terms, delivery_address, salesperson, valid_until, price_list_id, source_document_id, source_document_type, source_document_number_snapshot, external_invoice_number, external_invoice_date, external_invoice_status, notes, subtotal, tax_total, total, created_at")
-          .eq("company_id", currentCompanyId!)
-          .order("created_at", { ascending: false })
-          .order("id", { ascending: false });
-        if (typeFilter !== "ALL") q = q.eq("doc_type", typeFilter);
-        if (statusFilter !== "ALL") q = q.eq("status", statusFilter);
-        if (customerFilter !== "ALL") q = q.eq("customer_id", customerFilter);
-        if (technicianFilter !== "ALL") q = q.eq("technician_id", technicianFilter);
-        return { range: async (from: number, to: number) => await q.range(from, to) };
-      }) as DocRow[];
-      if (!trimmedSearch) return rows;
-      const numberQuery = Number.parseInt(trimmedSearch, 10);
-      return rows.filter((document) =>
-        searchIncludes(
-          [
-            document.customer_name,
-            document.customer_tax_id,
-            document.external_invoice_number,
-            document.salesperson,
-            document.payment_terms,
-            document.delivery_address,
-            document.notes,
-            document.source_document_number_snapshot,
-            document.doc_type,
-            document.status,
-            document.document_number != null ? String(document.document_number) : "",
-          ].filter(Boolean).join(" "),
-          trimmedSearch,
-        ) || (Number.isFinite(numberQuery) && document.document_number === numberQuery),
-      );
+      const { data, error } = await supabase.rpc("list_documents_page", {
+        p_company_id: currentCompanyId!, p_search: trimmedSearch, p_type: typeFilter,
+        p_status: statusFilter, p_customer_id: customerFilter === "ALL" ? null : customerFilter,
+        p_technician_id: technicianFilter === "ALL" ? null : technicianFilter,
+        p_date_from: dateFrom || null, p_date_to: dateTo || null, p_page: page, p_page_size: pageSize,
+      });
+      if (error) throw error;
+      return data as unknown as { rows: DocRow[]; total: number; page: number };
     },
   });
+  const documents = useMemo(() => documentPage?.rows ?? [], [documentPage]);
+  const totalDocuments = documentPage?.total ?? 0;
+  const loadedPage = documentPage?.page ?? page;
+  const documentsPagination = {
+    page: loadedPage, totalPages: Math.max(1, Math.ceil(totalDocuments / pageSize)), totalItems: totalDocuments,
+    rangeStart: totalDocuments ? (loadedPage - 1) * pageSize + 1 : 0,
+    rangeEnd: totalDocuments ? (loadedPage - 1) * pageSize + documents.length : 0,
+  };
 
   const documentsById = useMemo(
     () => new Map(documents.map((document) => [document.id, document])),
@@ -353,39 +356,26 @@ export function useDocumentsData({
     [eventProfiles],
   );
 
+  const cashDocumentIds = useMemo(
+    () => Array.from(new Set([...documents.map(document => document.id), ...(selectedDocId ? [selectedDocId] : [])])).sort(),
+    [documents, selectedDocId],
+  );
   const { data: cashUsages = [] } = useQuery({
-    queryKey: queryKeys.documents.cashUsage(currentCompanyId),
-    enabled: Boolean(currentCompanyId),
+    queryKey: [...queryKeys.documents.cashUsage(currentCompanyId), cashDocumentIds],
+    enabled: Boolean(currentCompanyId) && cashDocumentIds.length > 0,
+    staleTime: 30_000,
     queryFn: async () => {
-      return fetchAllPages(() => ({
-        range: async (from: number, to: number) => await supabase
-          .from("cash_sales")
-          .select("document_id, receipt_kind, receipt_reference")
-          .eq("company_id", currentCompanyId!)
-          .neq("status", "ANULADA")
-          .order("id")
-          .range(from, to),
-      }));
+      const { data, error } = await supabase.rpc("documents_page_cash_usage", {
+        p_company_id: currentCompanyId!, p_document_ids: cashDocumentIds,
+      });
+      if (error) throw error;
+      return data ?? [];
     },
   });
-
-  const cashRegisteredDocumentIds = useMemo(() => {
-    const directIds = new Set(cashUsages.flatMap((usage) => usage.document_id ? [usage.document_id] : []));
-    const invoiceReferences = new Set(
-      cashUsages
-        .filter((usage) => usage.receipt_kind === "FACTURA")
-        .flatMap((usage) => usage.receipt_reference?.trim() ? [usage.receipt_reference.trim()] : []),
-    );
-    for (const document of documents) {
-      if (document.external_invoice_number && invoiceReferences.has(document.external_invoice_number.trim())) {
-        directIds.add(document.id);
-      }
-    }
-    if (selectedDocument?.external_invoice_number && invoiceReferences.has(selectedDocument.external_invoice_number.trim())) {
-      directIds.add(selectedDocument.id);
-    }
-    return directIds;
-  }, [cashUsages, documents, selectedDocument]);
+  const cashRegisteredDocumentIds = useMemo(
+    () => new Set(cashUsages.map(usage => usage.document_id)),
+    [cashUsages],
+  );
 
   const selectedDocumentCashUsage = Boolean(selectedDocId && cashRegisteredDocumentIds.has(selectedDocId));
   const selectedBusinessDate = selectedDocument?.issue_date ?? null;
@@ -404,10 +394,18 @@ export function useDocumentsData({
     },
   });
 
-  const sourceDocument = useMemo(
-    () => (selectedDocument?.source_document_id ? documentsById.get(selectedDocument.source_document_id) ?? null : null),
-    [documentsById, selectedDocument?.source_document_id],
-  );
+  const sourceDocumentId = selectedDocument?.source_document_id ?? null;
+  const { data: fetchedSourceDocument = null } = useQuery({
+    queryKey: queryKeys.documents.detail(currentCompanyId, sourceDocumentId),
+    enabled: Boolean(currentCompanyId && sourceDocumentId && !documentsById.has(sourceDocumentId)),
+    queryFn: async () => {
+      const { data, error } = await supabase.from("documents").select("*")
+        .eq("company_id", currentCompanyId!).eq("id", sourceDocumentId!).maybeSingle();
+      if (error) throw error;
+      return data as unknown as DocRow | null;
+    },
+  });
+  const sourceDocument = (sourceDocumentId ? documentsById.get(sourceDocumentId) : null) ?? fetchedSourceDocument;
 
   const combosById = useMemo(() => new Map(combos.map((combo) => [combo.id, combo])), [combos]);
   const comboLinesByComboId = useMemo(() => {
@@ -432,6 +430,7 @@ export function useDocumentsData({
   return {
     customers,
     technicians,
+    salespeople,
     allTechnicians,
     serviceOptions,
     items,
@@ -442,6 +441,9 @@ export function useDocumentsData({
     priceByItem,
     priceListItemByItemId,
     documents,
+    documentsPagination,
+    documentsError,
+    refetchDocuments,
     isLoading,
     selectedLines,
     selectedEvents,

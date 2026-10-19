@@ -20,6 +20,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      list_document_salespeople: { Args: { p_company_id: string }; Returns: { id: string; name: string }[] };
       graphql: {
         Args: {
           extensions?: Json
@@ -760,6 +761,7 @@ export type Database = {
       }
       customers: {
         Row: {
+          account_due_days: number
           company_id: string
           created_at: string
           created_by: string | null
@@ -771,6 +773,7 @@ export type Database = {
           phone: string | null
         }
         Insert: {
+          account_due_days?: number
           company_id: string
           created_at?: string
           created_by?: string | null
@@ -782,6 +785,7 @@ export type Database = {
           phone?: string | null
         }
         Update: {
+          account_due_days?: number
           company_id?: string
           created_at?: string
           created_by?: string | null
@@ -1330,6 +1334,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          supplier_id: string | null
           is_supplier_code: boolean
           item_id: string
         }
@@ -1339,6 +1344,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          supplier_id?: string | null
           is_supplier_code?: boolean
           item_id: string
         }
@@ -1348,6 +1354,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          supplier_id?: string | null
           is_supplier_code?: boolean
           item_id?: string
         }
@@ -1376,6 +1383,16 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          supplier_id: string | null
+          description: string | null
+          technical_notes: string | null
+          structured_attributes: Json
+          weight: number | null
+          weight_unit: string
+          length: number | null
+          width: number | null
+          height: number | null
+          dimension_unit: string
           demand_monthly_estimate: number | null
           demand_profile: Database["public"]["Enums"]["item_demand_profile"]
           id: string
@@ -1394,6 +1411,16 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
+          supplier_id?: string | null
+          description?: string | null
+          technical_notes?: string | null
+          structured_attributes?: Json
+          weight?: number | null
+          weight_unit?: string
+          length?: number | null
+          width?: number | null
+          height?: number | null
+          dimension_unit?: string
           demand_monthly_estimate?: number | null
           demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
           id?: string
@@ -1412,6 +1439,16 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          supplier_id?: string | null
+          description?: string | null
+          technical_notes?: string | null
+          structured_attributes?: Json
+          weight?: number | null
+          weight_unit?: string
+          length?: number | null
+          width?: number | null
+          height?: number | null
+          dimension_unit?: string
           demand_monthly_estimate?: number | null
           demand_profile?: Database["public"]["Enums"]["item_demand_profile"]
           id?: string
@@ -2622,6 +2659,61 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_stock_overview: { Args: { p_company_id: string }; Returns: Json }
+      list_stock_movements_page: {
+        Args: { p_company_id: string; p_search?: string; p_page?: number; p_page_size?: number }
+        Returns: Json
+      }
+      list_pricing_items_page: {
+        Args: { p_company_id: string; p_list_id?: string | null; p_search?: string; p_page?: number; p_page_size?: number; p_stock_filter?: string };
+        Returns: Json;
+      };
+      get_price_list_metrics: {
+        Args: { p_company_id: string; p_list_id?: string | null; p_round_enabled?: boolean; p_round_increment?: number };
+        Returns: Json;
+      };
+      search_quick_prices: {
+        Args: { p_company_id: string; p_price_list_id: string; p_search: string; p_page?: number }
+        Returns: Json
+      }
+      list_items_page: {
+        Args: {
+          p_company_id: string
+          p_search?: string
+          p_status?: string
+          p_category?: string
+          p_supplier?: string
+          p_stock?: string
+          p_sort?: string
+          p_direction?: string
+          p_page?: number
+          p_page_size?: number
+        }
+        Returns: Json
+      }
+      list_documents_page: {
+        Args: {
+          p_company_id: string
+          p_search?: string
+          p_type?: string
+          p_status?: string
+          p_customer_id?: string | null
+          p_technician_id?: string | null
+          p_date_from?: string | null
+          p_date_to?: string | null
+          p_page?: number
+          p_page_size?: number
+        }
+        Returns: Json
+      }
+      documents_page_cash_usage: {
+        Args: { p_company_id: string; p_document_ids: string[] }
+        Returns: { document_id: string }[]
+      }
+      normalize_document_search: {
+        Args: { p_value: string }
+        Returns: string
+      }
       create_company: {
         Args: { p_name: string; p_slug: string }
         Returns: Database["public"]["Tables"]["companies"]["Row"]
@@ -2922,6 +3014,7 @@ export type Database = {
         }
         Returns: string
       }
+      approve_budget_create_remito: { Args: { p_document_id: string }; Returns: string }
       duplicate_document: {
         Args: { p_document_id: string }
         Returns: {
@@ -3045,6 +3138,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      register_cash_sale_from_remito_with_invoice: {
+        Args: {
+          p_company_id: string
+          p_document_id: string
+          p_payment_method: Database["public"]["Enums"]["cash_payment_method"]
+          p_external_invoice_number: string | null
+        }
+        Returns: Database["public"]["Tables"]["cash_sales"]["Row"]
       }
       register_cash_sale_from_remito: {
         Args: {

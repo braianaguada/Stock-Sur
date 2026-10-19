@@ -1,4 +1,147 @@
+### Emitir y compartir presupuestos de documentos
+
+- Al crear un presupuesto, `Emitir y compartir` emite y prepara el mensaje con numero definitivo, importe y enlace publico. `Copiar mensaje` permite pegarlo en el canal elegido.
+- Conserva los permisos existentes para emitir y compartir; si falla el enlace, el presupuesto sigue emitido y se puede reintentar desde Compartir sin volver a emitirlo. Servicios sin cambios.
+- Sin migraciones ni cambios en produccion. QA automatizada: editor, mensaje, consulta por empresa y fallos del enlace. QA manual pendiente en staging: emision con datos de prueba, enlace publico y portapapeles.
+- Integracion final con staging: typecheck, lint, build y diff --check correctos. Suite: 889 aprobadas, 53 omitidas y un timeout en dependencias circulares; los 2 controles de ese archivo pasaron al ejecutarlos aislados.
+
+### Carga comercial y presupuestos de servicio
+
+- Documentos: punto de venta desde la empresa, condición de pago desde el cliente (Contado / 30 días) y vendedor seleccionado entre vendedores y superadmin habilitados. Se conservan condiciones y vendedores históricos.
+- Servicios: guardar borrador o emitir como enviado; aprobación/rechazo, formulario compacto, IVA y adjuntos en el pie. Si falla un adjunto, se conserva el borrador para reintentar sin volver a emitir.
+- Migración: `20261019190000_commercial_entry_settings.sql` (vendedores por empresa y emisión transaccional). Aplicada en staging; producción sin cambios. QA visual y operativa pendiente.
+
+- Validaciones: typecheck, lint y build correctos; suite general con 877 aprobadas, 53 omitidas y 4 timeouts. Los 12 controles de arquitectura visual pasaron al repetirlos con timeout de 60 segundos.
+
+### Registro de remitos en caja
+
+- Factura A opcional al registrar en Caja; asociacion y venta atomicas. Vista previa de solo lectura.
+- Excel reconoce facturas anteriores guardadas por referencia, incluso sin document_id.
+- Migracion: `20261017120000_cash_registration_optional_invoice.sql` (solo staging).
+- QA manual pendiente: registro con/sin factura y rollback ante error; no emitir comprobantes reales. Produccion sin cambios.
+
+### Descargas PDF
+
+- Documentos y servicios usan el gestor de descargas del navegador. La carpeta y la pregunta de destino dependen de sus ajustes.
+- Sin migraciones ni cambios en produccion. QA visual en navegador pendiente.
+
+## Textos operativos
+Se retiraron descripciones redundantes de las pantallas y dialogos de gestion. Se conservan etiquetas, validaciones, advertencias e instrucciones necesarias. Sin migraciones ni cambios contables. QA visual final pendiente en staging.
+
+## Excel diario de caja
+Las facturas activas asociadas se exportan como A con su numero, cualquiera sea el medio de pago. El XLSX incluye bordes en todas las celdas; copiar para Excel incluye una tabla HTML con bordes cuando el navegador lo permite y conserva TSV como alternativa. Sin migraciones. QA manual de pegado en Excel pendiente.
+
+## Remitos convertidos desde presupuestos
+
+El editor permite guardar el borrador existente o emitir el remito, sin crear otro documento. La actualizaci?n exige que siga siendo borrador y pertenezca a la empresa activa. Sin migraciones; QA automatizada, emisi?n real pendiente en staging.
+
+## Staging: reporte diario de Caja
+
+Copiar para Excel pega seis columnas sin encabezado; Excel del dia descarga XLSX con encabezado. Consulta todos los movimientos del dia por paginas, excluyendo anulados. Remitos: X/7; facturas: 9, A con referencia externa activa registrada, B sin numeracion. Gastos como GASTO con importe negativo y devoluciones negativas. Sin migraciones ni movimientos nuevos. QA operativa del formato con el Excel principal pendiente.
+
+## Staging: aprobacion de presupuestos
+
+Aprobar y crear remito es atomico e idempotente; crea un borrador y ofrece Caja al emitirlo, sin ingresos automaticos. Conserva estados historicos. Migraciones: 20261016130000 y 20261016133000 (bloqueo compatible con RLS). Aplicadas solo en staging. QA DB autenticada de concurrencia, permisos y aislamiento pendiente; no se emitieron documentos reales.
+
+## Proveedores registrados (2026-10-16)
+
+Selector unico con busqueda y seleccion en el mismo campo. Las ordenes completan la direccion del proveedor cuando existe; sigue siendo opcional. Los textos antiguos de productos se conservan y las asociaciones exactas por empresa mantienen la migracion existente. Sin migraciones nuevas. QA: pruebas de selector, direccion y aislamiento por empresa.
+
+## Ajustes operativos de interfaz (2026-10-16)
+
+Impresion de ordenes en A4 apaisado con margen exterior de 5 mm y dos mitades sin separacion. Plantillas disponibles solo en Compras; alertas agrupadas con identificacion de productos y textos de interfaz reducidos. Sin migraciones ni cambios contables. QA: typecheck, lint y build; impresion comprobada en Chrome, pendiente impresora fisica.
+
+### Ordenes de compra completas (staging)
+
+La seccion Ordenes de compra permite guardar y editar borradores manuales con proveedor registrado, cabecera y productos; imprimir dos copias iguales por A4, descargar PDF y compartirlo cuando el navegador lo admite. Las plantillas en blanco conservan numeros diferentes. Migracion aplicada en staging: `20261016110000_manual_purchase_orders.sql`; numeracion compartida, guardado atomico e idempotente y permisos por empresa. Sin movimientos de stock, caja ni cuenta corriente. Cantidades enteras como el modelo de compras existente. Pruebas DB con rollback requieren credenciales; impresion fisica y envio por WhatsApp pendientes de QA del operador.
+
+### IVA incluido en documentos (staging)
+
+Los precios finales de presupuestos y remitos incluyen IVA 21%; se desglosan neto e IVA sin aumentar el total, incluso con precios manuales. Migracion: `20261016100000_documents_included_vat.sql`; conserva fuentes fiscales existentes y corrige el traslado de nuevas ventas a borrador fiscal. Pruebas focalizadas: calculo, guardado, duplicado e impresion; prueba DB con rollback en `criticalDb.test.ts` (requiere credenciales de QA).
+
+### Proveedores registrados
+
+Los egresos de rendiciones seleccionan proveedores activos del sistema mediante el mismo selector de Items, con busqueda y cache por empresa. El nombre se conserva como snapshot historico. Sin migraciones.
+
 # Stock Sur
+
+Impresion de ordenes: se elimina el margen interno de 4 mm de cada mitad; las lineas de campos y tabla llegan al marco exterior y a la division central. La tabla aprovecha el alto disponible. QA Chrome/PDF: 1, 3 y 100 hojas A4 al 100%, numeracion y ausencia de paginas extra verificadas. Sin migraciones. Escala personalizada guardada por el navegador e impresion fisica sin bordes dependen de su configuracion y de la impresora.
+
+
+### Staging: lotes de hojas para ordenes de compra
+
+- Documentos y Ordenes de compra: selector Hojas A4 (1 a 100), dos ordenes numeradas consecutivas por hoja. Reimprimir mismo lote conserva cantidad y numeros; Imprimir reserva un lote nuevo. Los numeros reservados no se recuperan al cancelar el dialogo de impresion.
+- Migracion `20261016000000_purchase_order_print_sheets.sql`: reserva atomica e idempotente por empresa, contador compartido con clientes anteriores, permisos e aislamiento existentes conservados. Aplicada solamente en staging.
+- QA: pruebas de interfaz y generador; PDF en Chrome de 1, 3 y 100 hojas con dos mitades A4 y numeracion comprobadas. QA DB transaccional pendiente de credenciales: ejecutar `npx vitest run src/features/db/criticalDb.test.ts` con `DATABASE_URL` o `PGPASSWORD` configurada interactivamente para staging. Impresion fisica pendiente; bordes al limite del papel requieren impresora sin margenes y escala 100%.
+
+
+Impresión de órdenes: A4 apaisado sin márgenes, con dos mitades exactas de 148,5 × 210 mm y marco hasta el borde. Imprimir al 100 %, sin encabezados ni pies del navegador; el borde físico requiere impresora compatible con impresión sin bordes. Sin migraciones. Regresión de dimensiones incluida.
+
+Documentos: se elimina el ícono de registrado en caja del listado; se conserva el fondo suave de filas y tarjetas, el estado accesible y el detalle en acciones. Sin migraciones. Regresión cubierta en escritorio y móvil.
+
+Impresión de órdenes: se corrige el acceso de superadmin sin permiso explícito de proveedores ni membresía local. Migración `20261015230000_superadmin_purchase_order_print.sql`; conserva empresa activa, aislamiento y numeración idempotente. QA: tests del botón y casos DB transaccionales en `criticalDb.test.ts` (requieren conexión staging).
+
+Consulta rápida: acceso flotante circular de 44 px, solo con ícono, nombre accesible y ayuda al pasar el cursor. Mantiene la apertura de la consulta y ocupa menos espacio en escritorio y móvil. Cambio visual sin migraciones.
+
+- Staging: acceso visible "Imprimir órdenes de compra" en Documentos y Compras > Órdenes de compra; dos modelos en blanco por A4. Sin permiso `suppliers.edit`, se muestra la acción deshabilitada con explicación. Sin cambios de base de datos.
+
+Formulario de items: codigo, nombre, proveedor, unidad, categoria y descripcion a primera vista; marca, modelo, aliases, demanda y datos fisicos/tecnicos en seccion desplegable. Costos y stock continuan en el asistente existente. Cambio visual sin migraciones.
+
+Unidades: validacion compartida de cantidades en stock y documentos, normalizacion compatible en importacion. Migracion 20261015220000_sale_quantity_validation.sql: controles DB por empresa, unidades enteras y medidas decimales; historicos conservados.
+
+Productos: proveedor asociado por empresa, codigos por proveedor, descripcion completa, caracteristicas estructuradas, notas tecnicas, peso y medidas. Migracion 20261015210000; campos antiguos conservados para importaciones.
+
+Listas de precios: costos y productos por pagina desde SQL, filtros de stock/busqueda antes de paginar, metricas de la lista en servidor e historial acotado. Migracion 20261015200000 aplicada en staging; QA transaccional: scripts/pricing-pages-qa.sql. Produccion sin cambios.
+
+Numeric product codes: existing alphanumeric codes migrate to company sequences starting at 12440345903; old codes remain searchable aliases. New products get their code atomically on save. Staging migration 20261015190000.
+
+Consulta rapida (staging): busqueda en servidor por empresa y lista, paginas de 30 y stock solo de resultados visibles. Migracion 20261015180000; QA reversible: scripts/quick-prices-qa.sql. Sin cambios en produccion.
+
+Stock: resumen de consumo/cobertura en DB sin limite de filas y movimientos paginados al abrir la pesta?a. Migracion 20261015170000; QA transaccional: scripts/stock-pages-qa.sql.
+
+### Catalogo paginado en staging (2026-10-15)
+
+- Items consulta una pagina desde PostgreSQL con busqueda natural, aliases, filtros y orden. Costos y precios se traen solo para los productos visibles. No descarga el catalogo completo ni sus movimientos.
+- Stock e Items comparten el signo de movimientos en la base. Cambios de stock y precios invalidan tambien el catalogo paginado.
+- Migracion `20261015160000_items_server_pagination.sql` aplicada solo en staging. QA SQL con 1.205 productos temporales, aislamiento, limites y consistencia de saldos: `npx supabase db query --linked --file scripts/catalog-pagination-qa.sql` (rollback).
+- Pendiente QA visual autenticada y bloques de precios, campos, proveedores y numeracion nueva. Este cambio conserva los codigos existentes.
+
+### Tipos de cuentas corrientes en staging (2026-10-15)
+
+- Se sincroniza el campo existente account_due_days en los tipos Supabase y se adapta la consulta paginada para conservar el tipo de cliente y plazo. Sin migraciones ni cambios de comportamiento.
+- Validacion adicional: tsconfig.app.json conserva 241 diagnosticos previos frente a 242 en la base, sin nuevos errores; se completa tambien el fixture de servicios del test de emision. La compilacion ampliada aun requiere resolver deuda previa.
+
+
+### Documentos y descargas en staging
+- Alta separada de Presupuesto y Remito, con borrador y emision (presupuesto pasa a ENVIADO sin stock). Impresion visible junto a Ver.
+- Marca de caja con icono y fondo suave; devoluciones internas conservan el tecnico original sin exigir cliente.
+- PDF: selector de carpeta cuando el navegador lo permite; aviso persistente con nombre y acceso a repetir descarga.
+- Productos impresos con aproximadamente 2 puntos mas de letra. Sin migraciones de base de datos en esta rama.
+- QA automatizada y checks de compilacion; pendiente comprobacion visual autenticada y dialogo nativo de guardado en staging.
+
+### Cantidades en productos vendidos
+Cada producto muestra Cantidad vendida con su unidad junto a venta, costo y ganancia para el período seleccionado. Sin migraciones. Validación: suite, typecheck, lint y build.
+
+### Modelo de orden de compra
+Compras > Órdenes de compra permite imprimir dos formularios en blanco en A4 horizontal, con logo y datos de la empresa y CUIT fijo 30-71158289-0. Numeración propia correlativa e idempotente por empresa; Reimprimir misma hoja conserva los números. Cancelar la impresión puede dejar números reservados. No genera compras ni movimientos. Migración 20261015140000_purchase_order_print_numbers.sql aplicada en staging. QA SQL: npx supabase db query --linked --file scripts/purchase-order-print-qa.sql (rollback). Pendiente impresión física.
+
+## Correcciones operativas y filtros de fechas
+
+- Stock recupera nombre, SKU, unidad y atributos del resumen. Interactuar con notificaciones conserva el editor y su borrador.
+- Dashboard comparte Hoy/semana/mes/mes anterior/rango personalizado (hasta 366 dias) entre caja, rentabilidad, medios de pago y productos. Inventario, alertas, pulso operativo y lectura ejecutiva indican su alcance actual.
+- Los productos vendidos incluyen atributos; la evolucion de venta neta muestra fechas, escala monetaria, detalle y devoluciones negativas, sin estirar el panel al alto de la lista.
+- Documentos filtra por fecha de documento desde/hasta antes de paginar, con cache por empresa e intervalo.
+- Migracion: `20261015120000_dashboard_period_details.sql`; agrega atributos y medios de pago por periodo a las RPC existentes, conservando permisos y aislamiento. No genera movimientos ni emite comprobantes; no se toca produccion.
+- Validaciones: typecheck, lint, build y regresiones focalizadas aprobados; QA SQL de solo lectura aprobada en staging con rollback (`npx supabase db query --linked --file scripts/dashboard-period-qa.sql`). Migracion aplicada solo en staging. El chequeo ampliado de tsconfig.app mantiene los mismos 242 diagnosticos preexistentes de origin/staging.
+- Suite completa: 694 tests aprobados y 46 DB omitidos por credenciales ausentes (`npm run test -- --maxWorkers=2 --testTimeout=15000`); limite ampliado para el control estatico visual.
+- QA visual autenticada pendiente en staging: cambiar empresa y periodo, contrastar importes y variantes, filtrar Documentos y cerrar una notificacion con un borrador abierto, en escritorio y celular.
+### Cuenta corriente: pagos y vencimientos (staging)
+
+- Acciones para registrar pagos y configurar el plazo por cliente (permiso customers.edit).
+- Estados y deuda pendiente calculados por empresa/cliente, aplicando pagos a la deuda mas antigua hasta la fecha de corte.
+- Los cobros manuales no generan movimientos de caja. Migracion 20261015130000 limita el RPC a usuarios autorizados.
+- QA: regresiones de saldos, anticipos, pagos parciales y aislamiento; verificar flujo visual con sesion en staging.
+
 
 ## Marca de registro en Caja en Documentos
 
@@ -1438,3 +1581,53 @@ git pull origin staging
 - Se retiró de la navegación el radar manual porque no representa el objetivo de analizar de forma orgánica precios, demanda y tendencias externas del rubro; la ruta anterior redirige a Stock.
 - La versión automática queda pendiente de integrar fuentes de Internet verificables, un proveedor de IA/búsqueda, ejecución programada y controles de costo, frecuencia y trazabilidad. La aplicación no presenta señales manuales como si fueran inteligencia de mercado automática.
 - La tabla introducida por `20260813160000_market_watch_signals.sql` se conserva sin uso visible para evitar una eliminación destructiva de esquema; no afecta stock ni genera compras.
+
+### Resumen de stock en staging (2026-10-09)
+
+- Stock e Items consultan el resumen agregado `get_stock_summary` en PostgreSQL, evitando descargar todo el historial de movimientos al navegador.
+- La migraci�n `20261009120000_stock_summary_rpc.sql` agrega el �ndice por empresa, �tem y fecha. Debe aplicarse �nicamente en staging durante QA.
+
+### Documentos: historial paginado en staging (2026-10-15)
+
+- El listado consulta una pagina desde PostgreSQL, con total exacto y filtros/busqueda sobre todo el historial; no descarga todos los documentos ni toda la caja. El catalogo y stock del editor se cargan al abrirlo.
+- Migracion: 20261015150000_documents_server_pagination.sql, aplicada solo en staging; RPC con permisos, RLS y aislamiento por empresa. No cambia emision, stock ni movimientos contables.
+- QA DB: scripts/documents-pagination-qa.sql, ejecutado en staging con 1.205 borradores temporales y rollback completo; valida paginas, filtros, busqueda y aislamiento. Repetir con npx supabase db query --linked --file scripts/documents-pagination-qa.sql.
+- Regresiones automatizadas: carga por pagina, errores/reintento, carga diferida, detalle/origen fuera de pagina y contexto de empresa. QA visual interactivo pendiente.
+
+### Formularios y listados de documentos e items
+
+- Cabecera compacta, cliente final sin campo de nombre y Neto / IVA / Total alineados.
+- Factura y tecnico disponibles al pasar el cursor o enfocar su icono, sin agregar renglones.
+- Items sin columnas Estado operativo y Activo; se mantienen los filtros y acciones.
+- Sin migraciones. QA visual responsive pendiente; produccion sin cambios.
+
+
+### Órdenes de compra: original y duplicado
+- Las plantillas imprimen dos copias del mismo número por A4, con margen de 5 mm. Cada hoja siguiente reserva un número nuevo; reimprimir el lote conserva sus números. No se renumeran órdenes anteriores.
+- Retira permite buscar técnicos activos de la empresa y conserva el nombre en la orden.
+- Migración staging: `20261017130000_purchase_order_template_copies.sql`; RPC nueva compatible con clientes anteriores. Producción sin cambios.
+- QA: typecheck, lint y build correctos; reserva, reintento, continuidad con clientes anteriores y aislamiento comprobados en staging con rollback (`scripts/purchase-order-template-copies-qa.sql`). Impresi?n f?sica pendiente.
+- Suite completa: 856 pruebas aprobadas; 53 pruebas DB omitidas por falta de credenciales de la suite. QA SQL puntual ejecutado por separado en staging con rollback.
+
+
+### Ordenes de compra: ajuste de impresion y carga
+- Marco continuo en original y duplicado, por encima de los bordes de la tabla; se conservan A4 y margenes de 5 mm.
+- Productos en una fila por item en escritorio y distribucion adaptable en movil, sin tarjetas individuales.
+- Sin cambios de numeracion, permisos, datos ni migraciones.
+
+### Documentos: estados de cierre
+- Filas y tarjetas de documentos rechazados o anulados con fondo rojo suave, con prioridad sobre el verde de caja.
+- Sin cambios de estados, caja ni base de datos.
+
+### Documentos: vista previa compacta
+- Encabezado sin subtitulo, acciones con botones compactos y sin margenes acumulados del dialogo; mas altura disponible para remitos y presupuestos.
+- Documento e historial conservan scroll independiente y selector en pantallas pequenas. Sin cambios de impresion, datos ni migraciones; QA visual interactivo pendiente.
+
+### Documentos: barra de edicion compacta
+- Neto, IVA y total en una misma linea, con acciones compactas al crear o editar remitos y presupuestos para dejar mas espacio a los productos. En pantallas pequenas la barra se adapta en varias filas.
+- Cambio visual sin migraciones ni cambios de calculo o emision; QA visual interactivo pendiente.
+
+### Guardado de PDF (2026-10-17)
+- Documentos, servicios y ordenes de compra vuelven a abrir el selector de destino antes de generar el PDF cuando el navegador lo permite. Cancelar no inicia ninguna descarga.
+- En navegadores sin selector se conserva la descarga convencional. El guardado directo no aparece en el historial ni muestra porcentaje en Chrome.
+- Sin migraciones ni cambios en produccion. Regresion automatizada: selector, cancelacion, permisos, escritura y alternativa sin soporte. QA visual pendiente: elegir carpeta y cancelar desde documentos y servicios en staging.

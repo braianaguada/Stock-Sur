@@ -25,6 +25,7 @@ import { StockMovementDialog } from "@/features/stock/components/StockMovementDi
 import { StockMovementsTable } from "@/features/stock/components/StockMovementsTable";
 import { useStockPage } from "@/features/stock/hooks/useStockPage";
 import { buildStockInsights, countStockInsightTones, getStockInsightKindLabel } from "@/features/stock/insights";
+import { groupStockAlerts } from "@/features/stock/alert-presentation";
 import { formatStockQuantity } from "@/lib/stock-quantity";
 import type { DemandProfile, MovementType, StockHealth } from "@/features/stock/types";
 
@@ -65,6 +66,9 @@ export default function StockPage() {
     stockRows,
     loadingStock,
     filteredMovements,
+    movementTotal,
+    movementPage,
+    stockError, retryStock, movementsError, retryMovements,
     loadingMovements,
     search,
     setSearch,
@@ -77,7 +81,7 @@ export default function StockPage() {
     handleItemSearchChange,
     handleSelectedItemChange,
     submitMovement,
-  } = useStockPage();
+  } = useStockPage({ movementsEnabled: tab === "movements", movementsPage, movementsPageSize });
 
   const typeIcon = (type: MovementType) => {
     if (type === "IN") return <ArrowDownCircle className="h-4 w-4 text-green-500" />;
@@ -176,11 +180,12 @@ export default function StockPage() {
     page: stockPage,
     pageSize: stockPageSize,
   });
-  const movementsPagination = usePaginationSlice({
-    items: filteredMovements,
-    page: movementsPage,
-    pageSize: movementsPageSize,
-  });
+  const movementsPagination = {
+    page: movementPage,
+    totalPages: Math.max(1, Math.ceil(movementTotal / movementsPageSize)),
+    rangeStart: movementTotal ? (movementPage - 1) * movementsPageSize + 1 : 0,
+    rangeEnd: Math.min(movementPage * movementsPageSize, movementTotal),
+  };
 
   return (
     <AppLayout>
@@ -191,7 +196,6 @@ export default function StockPage() {
         <PageHeader
           eyebrow="Control de existencias"
           title="Stock"
-          subtitle="Control de existencias, cobertura y movimientos con la misma logica actual en una jerarquia mas clara."
           tabs={[
             { label: "Resumen", value: "summary" },
             { label: "Stock", value: "current" },
@@ -206,6 +210,7 @@ export default function StockPage() {
             </Button>
           )}
         />
+        {stockError ? <div role="alert">No se pudo cargar el stock. <Button variant="outline" onClick={() => void retryStock()}>Reintentar</Button></div> : null}
         {setupItemId ? (
           <Card className="flex flex-col gap-3 border-primary/25 bg-primary/5 p-4 shadow-none sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -280,22 +285,19 @@ export default function StockPage() {
                 </CardHeader>
                 <CardContent className="pt-7">
                   <div className="space-y-2.5 pt-4">
-                    {alertsPagination.pagedItems.map((alert) => (
-                      <div
-                        key={alert.id}
-                        className="flex items-center justify-between gap-4 rounded-xl border border-border/70 px-4 py-4 text-sm"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-foreground">{alert.title}</p>
-                          <p className="mt-1 text-muted-foreground">{alert.detail}</p>
-                          <p className="mt-2 text-xs font-medium text-foreground/80">
-                            Sugerencia: {alert.suggestedAction}
-                          </p>
+                    {groupStockAlerts(alertsPagination.pagedItems, stockRows).map(group => (
+                      <section key={group.kind} className="overflow-hidden rounded-xl border border-border/70">
+                        <div className="flex flex-wrap items-center justify-between gap-2 bg-muted/30 px-4 py-2">
+                          <StatusBadge tone={insightBadgeTone[group.tone]}>{getStockInsightKindLabel(group.kind)} · {group.products.length}</StatusBadge>
+                          <span className="text-xs text-muted-foreground">{group.action}</span>
                         </div>
-                        <StatusBadge tone={insightBadgeTone[alert.tone]} className="shrink-0">
-                          {getStockInsightKindLabel(alert.kind)}
-                        </StatusBadge>
-                      </div>
+                        <ul className="divide-y divide-border/50">
+                          {group.products.map(product => <li key={product.id} className="px-4 py-2 text-sm">
+                            <p className="break-words font-semibold">{product.name}{product.detail ? <span className="font-normal"> · {product.detail}</span> : null}</p>
+                            {product.sku ? <p className="text-xs text-muted-foreground">{product.sku}</p> : null}
+                          </li>)}
+                        </ul>
+                      </section>
                     ))}
                   </div>
                   <div className="pt-4">
@@ -401,8 +403,9 @@ export default function StockPage() {
               />
             </div></FilterToolbar>
             <Card className="min-w-0 border-border/70 shadow-none">
+              {movementsError ? <div role="alert">No se pudieron cargar los movimientos. <Button variant="outline" onClick={() => void retryMovements()}>Reintentar</Button></div> : null}
               <StockMovementsTable
-                movements={movementsPagination.pagedItems}
+                movements={filteredMovements}
                 isLoading={loadingMovements}
                 pageSize={movementsPageSize}
                 formatQuantity={formatStockQuantity}
@@ -413,7 +416,7 @@ export default function StockPage() {
             <DataTablePagination
               page={movementsPagination.page}
               totalPages={movementsPagination.totalPages}
-              totalItems={filteredMovements.length}
+              totalItems={movementTotal}
               rangeStart={movementsPagination.rangeStart}
               rangeEnd={movementsPagination.rangeEnd}
               pageSize={movementsPageSize}

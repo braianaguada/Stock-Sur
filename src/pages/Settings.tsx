@@ -93,7 +93,6 @@ export default function SettingsPage() {
         <PageHeader
           eyebrow="Administración de empresa"
           title="Configuración"
-          subtitle={`Administrá los datos operativos y la identidad visual de ${form.app_name || currentCompany.name}.`}
           meta={(
             <>
               <InfoBadge>{currentCompany.name}</InfoBadge>
@@ -121,17 +120,11 @@ export default function SettingsPage() {
           >
             <CardHeader>
               <CardTitle id="company-settings-title">Empresa y operación</CardTitle>
-              <CardDescription>
-                Datos compartidos por la aplicación, reglas operativas y valores predeterminados de documentos y servicios.
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1 border-b border-border/60 pb-3 md:col-span-2">
                   <h2 className="font-semibold text-foreground">Identidad fiscal</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Información principal de la empresa utilizada en la interfaz y los comprobantes.
-                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Nombre visible de la app</Label>
@@ -151,9 +144,6 @@ export default function SettingsPage() {
                 </div>
                 <div className="mt-4 space-y-1 border-b border-border/60 pb-3 md:col-span-2">
                   <h2 className="font-semibold text-foreground">Reglas operativas</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Comportamientos que afectan la emisión, el cierre de caja y los precios sugeridos.
-                  </p>
                 </div>
                 <div className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4 md:col-span-2">
                   <div className="flex items-start gap-3">
@@ -274,9 +264,6 @@ export default function SettingsPage() {
                 </div>
                 <div className="mt-4 space-y-1 border-b border-border/60 pb-3 md:col-span-2">
                   <h2 className="font-semibold text-foreground">Contacto y documentos</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Datos de contacto y textos que se reutilizan en los documentos emitidos.
-                  </p>
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Direccion</Label>
@@ -304,9 +291,6 @@ export default function SettingsPage() {
                 </div>
                 <div className="mt-4 space-y-1 border-b border-border/60 pb-3 md:col-span-2">
                   <h2 className="font-semibold text-foreground">Valores predeterminados de servicios</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Textos y condiciones iniciales para nuevas propuestas de servicios.
-                  </p>
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Default de servicios: introduccion</Label>
@@ -342,9 +326,6 @@ export default function SettingsPage() {
           >
             <CardHeader>
               <CardTitle id="brand-settings-title">Marca visual</CardTitle>
-              <CardDescription>
-                Definí el logo, el modo de apariencia y dos colores de marca. El sistema deriva el resto de los tonos para mantener contraste y consistencia.
-              </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -364,8 +345,8 @@ export default function SettingsPage() {
                   <Label>Apariencia</Label>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {([
-                      { id: "professional" as const, name: "Modo claro", description: "Superficies claras y contraste cómodo para uso diario." },
-                      { id: "premium-dark" as const, name: "Modo oscuro", description: "Superficies oscuras con la misma jerarquía y accesibilidad." },
+                      { id: "professional" as const, name: "Modo claro" },
+                      { id: "premium-dark" as const, name: "Modo oscuro" },
                     ]).map((mode) => (
                       <button
                         key={mode.id}
@@ -379,7 +360,6 @@ export default function SettingsPage() {
                         }`}
                       >
                         <p className="font-semibold">{mode.name}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">{mode.description}</p>
                       </button>
                     ))}
                   </div>
@@ -401,9 +381,6 @@ export default function SettingsPage() {
                       <Input value={form.secondary_color} onChange={(e) => setForm((prev) => ({ ...prev, secondary_color: e.target.value }))} placeholder="#315a8a" />
                       <Input aria-label="Elegir color secundario" type="color" value={form.secondary_color} onChange={(e) => setForm((prev) => ({ ...prev, secondary_color: e.target.value }))} className="h-10 p-1" />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Apoyos visuales y contraste complementario. Los estados conservan su color semántico.
-                    </p>
                   </div>
                 </div>
                 <div className="rounded-3xl border border-border/60 bg-[hsl(var(--panel))]/42 p-4">
@@ -423,9 +400,6 @@ export default function SettingsPage() {
                       </div>
                       <div className="rounded-2xl border p-4" style={{ borderColor: `hsl(${previewTheme.tokens.border})`, backgroundColor: `hsl(${previewTheme.tokens.card})` }}>
                         <p className="text-sm font-semibold" style={{ color: `hsl(${previewTheme.tokens.primary})` }}>Panel con tono derivado</p>
-                        <p className="mt-1 text-sm" style={{ color: `hsl(${previewTheme.tokens["muted-foreground"]})` }}>
-                          El sistema usa tokens derivados para hover, seleccion, topbar, badges y acciones primarias.
-                        </p>
                       </div>
                     </div>
                     <div className="rounded-3xl border">
@@ -440,9 +414,6 @@ export default function SettingsPage() {
                           <div className="rounded-2xl border p-4 shadow-sm" style={{ backgroundColor: `hsl(${previewTheme.tokens.card})`, borderColor: `hsl(${previewTheme.tokens.border})` }}>
                             <p className="text-xs uppercase tracking-[0.18em]" style={{ color: `hsl(${previewTheme.tokens["muted-foreground"]})` }}>Preview de interfaz</p>
                             <p className="mt-2 text-lg font-bold" style={{ color: `hsl(${previewTheme.tokens.primary})` }}>{form.app_name || "Tu empresa"}</p>
-                            <p className="mt-1 text-sm" style={{ color: `hsl(${previewTheme.tokens["muted-foreground"]})` }}>
-                              Asi se perciben la barra superior, las cards y las superficies principales dentro de la app.
-                            </p>
                           </div>
                         </div>
                       </div>

@@ -1,13 +1,8 @@
 import { cleanText } from "@/lib/clean";
 
-export function generateItemSku(name: string) {
-  const base = cleanText(name)
-    .toUpperCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^A-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 12);
-  const suffix = Date.now().toString().slice(-4);
-  return `${base || "ITEM"}-${suffix}`;
+// Empty codes are assigned atomically by PostgreSQL, never by the browser.
+export function validateItemCode(value: string) {
+  const code = cleanText(value);
+  if (code && !/^[0-9]+$/.test(code)) throw new Error("El codigo debe contener solo numeros. Dejalo vacio para asignarlo automaticamente.");
+  return code;
 }

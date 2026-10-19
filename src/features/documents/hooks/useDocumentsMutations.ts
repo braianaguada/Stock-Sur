@@ -1,3 +1,4 @@
+import { validateSaleQuantity, normalizeSaleUnit } from '@/lib/stock-quantity';
 import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,13 +20,16 @@ import { buildDocumentCustomerSnapshot, calculatePriceFromCostBase, formatNumber
 import { getOperationalPrice } from "@/features/pricing/operational-price";
 import type { PriceRoundingConfig } from "@/features/pricing/rounding";
 
+import { customerPaymentTerms } from "../lib/payment-terms";
+
 type ToastFn = (args: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
 
 type UseDocumentsMutationsParams = {
   currentCompanyId: string | null;
   userId: string | undefined;
+  defaultPointOfSale?: number;
   documents: DocRow[];
-  customers: Array<{ id: string; name: string; cuit: string | null }>;
+  customers: Array<{ id: string; name: string; cuit: string | null; account_due_days?: number | null }>;
   technicians: Array<{ id: string; name: string }>;
   serviceOptions: DocumentServiceOption[];
   lines: LineDraft[];
@@ -38,6 +42,8 @@ type UseDocumentsMutationsParams = {
   resetDraftForm: () => void;
   setDialogOpen: (open: boolean) => void;
   toast: ToastFn;
+  onRemitoCreated?: (documentId: string) => void;
+  onRemitoIssued?: (documentId: string) => void;
 };
 
 export function normalizeDraftLine({
@@ -139,6 +145,7 @@ export function normalizeDraftLine({
 
 export function useDocumentsMutations({
   currentCompanyId,
+  defaultPointOfSale = 1,
   userId,
   documents,
   customers,
@@ -154,6 +161,8 @@ export function useDocumentsMutations({
   resetDraftForm,
   setDialogOpen,
   toast,
+  onRemitoCreated,
+  onRemitoIssued,
 }: UseDocumentsMutationsParams) {
   const qc = useQueryClient();
   const customersById = useMemo(
@@ -177,8 +186,11 @@ export function useDocumentsMutations({
   const upsertDraftMutation = useMutation({
     mutationFn: async (intent: DocumentDraftSubmissionIntent = "SAVE_DRAFT") => {
       if (!currentCompanyId) throw new Error("Selecciona una empresa antes de crear documentos");
-      if (intent === "ISSUE_REMITO" && (editingDocId || draftForm.doc_type !== "REMITO")) {
-        throw new Error("La emision directa solo esta disponible al crear un remito nuevo");
+      if (intent === "ISSUE_REMITO" && draftForm.doc_type !== "REMITO") {
+        throw new Error("Solo se puede emitir un remito desde este formulario");
+      }
+      if (intent === "SEND_BUDGET" && (editingDocId || draftForm.doc_type !== "PRESUPUESTO")) {
+        throw new Error("La emision directa solo esta disponible al crear un presupuesto nuevo");
       }
       if (draftForm.customer_id && !customersById.has(draftForm.customer_id)) {
         throw new Error("El cliente seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
@@ -195,8 +207,15 @@ export function useDocumentsMutations({
       if (editingDocId && !documentsById.has(editingDocId)) {
         throw new Error("El borrador que intentas editar ya no esta disponible. Recarga Documentos e intenta de nuevo");
       }
+      if (editingDocId) {
+        const existingDocument = documentsById.get(editingDocId)!;
+        if (existingDocument.status !== "BORRADOR" || existingDocument.doc_type !== draftForm.doc_type) {
+          throw new Error("El documento ya no es un borrador editable. Recarga Documentos e intenta de nuevo");
+        }
+      }
 
       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
+      valid.forEach(line => validateSaleQuantity(line.quantity, line.unit));
       if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
       if (totalDraft <= 0) throw new Error("El documento no puede guardarse con total cero");
       if (!draftForm.price_list_id) throw new Error("Selecciona una lista de precios para cargar productos");
@@ -236,7 +255,7 @@ export function useDocumentsMutations({
         manualTaxCondition: draftForm.customer_tax_condition,
       });
       const draftPayload = buildDocumentDraftPersistencePayload({
-        draft: draftForm,
+        draft: { ...draftForm, point_of_sale: defaultPointOfSale, payment_terms: customerPaymentTerms(pickedCustomer) },
         customerSnapshot,
         total: totalDraft,
       });
@@ -263,7 +282,10 @@ export function useDocumentsMutations({
             updated_at: nowIso,
           })
           .eq("id", documentId)
-          .eq("status", "BORRADOR");
+          .eq("status", "BORRADOR")
+          .eq("company_id", currentCompanyId)
+          .select("id")
+          .single();
         if (updErr) throw updErr;
 
         const { error: delErr } = await supabase
@@ -279,9 +301,10 @@ export function useDocumentsMutations({
         item_id: line.item_id,
         sku_snapshot: line.sku_snapshot || null,
         description: line.description,
-        unit: line.unit || null,
+        unit: normalizeSaleUnit(line.unit) || null,
         quantity: line.quantity,
         unit_price: line.unit_price,
+        tax_pct: 21,
         pricing_mode: line.pricing_mode,
         suggested_unit_price: line.suggested_unit_price,
         base_cost_snapshot: line.base_cost_snapshot,
@@ -304,19 +327,22 @@ export function useDocumentsMutations({
         created_by: userId,
       });
 
-      if (intent === "ISSUE_REMITO") {
-        const { error: issueError } = await supabase.rpc("issue_document", { p_document_id: documentId! });
+      if (intent === "ISSUE_REMITO" || intent === "SEND_BUDGET") {
+        const { error: issueError } = intent === "ISSUE_REMITO"
+          ? await supabase.rpc("issue_document", { p_document_id: documentId! })
+          : await supabase.rpc("transition_document_status", { p_document_id: documentId!, p_target_status: "ENVIADO" });
         if (issueError) {
           return {
             intent,
+            documentId: documentId!,
             issued: false,
             issueError: getErrorMessage(issueError),
           };
         }
-        return { intent, issued: true, issueError: null };
+        return { intent, documentId: documentId!, issued: intent === "ISSUE_REMITO", issueError: null };
       }
 
-      return { intent, issued: false, issueError: null };
+      return { intent, documentId, issued: false, issueError: null };
     },
     onSuccess: (result) => {
       void Promise.all([
@@ -325,16 +351,17 @@ export function useDocumentsMutations({
       ]);
       setDialogOpen(false);
       resetDraftForm();
+      if (result.issued) onRemitoIssued?.(result.documentId);
       if (result.issueError) {
         toast({
-          title: "Remito guardado como borrador",
+          title: result.intent === "SEND_BUDGET" ? "Presupuesto guardado como borrador" : "Remito guardado como borrador",
           description: `No se pudo emitir: ${result.issueError}`,
           variant: "destructive",
         });
         return;
       }
       toast({
-        title: result.issued
+        title: result.intent === "SEND_BUDGET" ? "Presupuesto emitido" : result.issued
           ? "Remito emitido"
           : editingDocId
             ? "Borrador actualizado"
@@ -385,12 +412,13 @@ export function useDocumentsMutations({
       const { error } = await supabase.rpc("issue_document", { p_document_id: documentId });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, documentId) => {
       void Promise.all([
         invalidateDocumentQueries(qc),
         invalidateStockQueries(qc),
       ]);
       toast({ title: "Documento emitido" });
+      if (documentsById.get(documentId)?.doc_type === "REMITO") onRemitoIssued?.(documentId);
     },
     onError: (error: unknown) => {
       toast({
@@ -434,115 +462,15 @@ export function useDocumentsMutations({
       if (!documentsById.has(sourceId)) {
         throw new Error("El presupuesto seleccionado ya no esta disponible. Recarga Documentos e intenta de nuevo");
       }
-      const { data: src, error: srcErr } = await supabase
-        .from("documents")
-        .select("*")
-        .eq("id", sourceId)
-        .single();
-      if (srcErr) throw srcErr;
-
-      const { data: srcLines, error: lineErr } = await supabase
-        .from("document_lines")
-        .select("*")
-        .eq("document_id", sourceId)
-        .order("line_order");
-      if (lineErr) throw lineErr;
-
-      if (src.status === "ANULADO") {
-        throw new Error("No se puede convertir a remito un presupuesto anulado");
-      }
-      if (src.status !== "APROBADO") {
-        throw new Error("Solo se puede convertir a remito un presupuesto aprobado");
-      }
-      if ((srcLines ?? []).some((line) => !line.item_id)) {
-        throw new Error("El presupuesto tiene lineas sin item asociado. Completa los items antes de convertir a remito");
-      }
-
-      const { data: newDoc, error: newDocErr } = await supabase
-        .from("documents")
-        .insert({
-          company_id: currentCompanyId,
-          doc_type: "REMITO",
-          status: "BORRADOR",
-          point_of_sale: src.point_of_sale,
-          customer_id: src.customer_kind === "INTERNO" ? null : src.customer_id,
-          technician_id: src.customer_kind === "INTERNO" ? null : src.technician_id,
-          service_id: null,
-          customer_name: src.customer_kind === "INTERNO" ? null : src.customer_name,
-          customer_tax_condition: src.customer_kind === "INTERNO" ? null : src.customer_tax_condition,
-          customer_tax_id: src.customer_kind === "INTERNO" ? null : src.customer_tax_id,
-          customer_kind: src.customer_kind === "INTERNO" ? "GENERAL" : src.customer_kind,
-          internal_remito_type: null,
-          payment_terms: src.customer_kind === "INTERNO" ? null : src.payment_terms,
-          delivery_address: src.delivery_address,
-          salesperson: src.salesperson,
-          price_list_id: src.price_list_id,
-          source_document_id: src.id,
-          source_document_type: src.doc_type,
-          source_document_number_snapshot: formatNumber(src.document_number, src.point_of_sale),
-          notes: src.notes,
-          subtotal: src.subtotal ?? 0,
-          tax_total: src.tax_total ?? 0,
-          total: src.total ?? 0,
-          created_by: userId,
-        })
-        .select("id")
-        .single();
-      if (newDocErr) throw newDocErr;
-
-      const linesPayload = (srcLines ?? []).map((line) => ({
-        document_id: newDoc.id,
-        line_order: line.line_order,
-        item_id: line.item_id,
-        sku_snapshot: line.sku_snapshot,
-        description: line.description,
-        unit: line.unit,
-        quantity: line.quantity,
-        unit_price: line.unit_price,
-        pricing_mode: line.pricing_mode,
-        suggested_unit_price: line.suggested_unit_price,
-        base_cost_snapshot: line.base_cost_snapshot,
-        list_flete_pct_snapshot: line.list_flete_pct_snapshot,
-        list_utilidad_pct_snapshot: line.list_utilidad_pct_snapshot,
-        list_impuesto_pct_snapshot: line.list_impuesto_pct_snapshot,
-        manual_margin_pct: line.manual_margin_pct,
-        price_overridden_by: line.price_overridden_by,
-        price_overridden_at: line.price_overridden_at,
-        discount_pct: line.discount_pct,
-        line_total: line.line_total,
-        created_by: userId,
-      }));
-      const { error: insErr } = await supabase.from("document_lines").insert(linesPayload);
-      if (insErr) throw insErr;
-
-      const remitoNumberLabel = formatNumber(null, src.point_of_sale);
-      await supabase.from("document_events").insert([
-        {
-          document_id: newDoc.id,
-          event_type: "CREATED",
-          payload: {
-            source: "budget_conversion",
-            source_document_id: src.id,
-            source_doc_type: src.doc_type,
-            source_number: formatNumber(src.document_number, src.point_of_sale),
-          },
-          created_by: userId,
-        },
-        {
-          document_id: src.id,
-          event_type: "REMITO_CREATED_FROM_BUDGET",
-          payload: {
-            target_document_id: newDoc.id,
-            target_number: remitoNumberLabel,
-            source_number: formatNumber(src.document_number, src.point_of_sale),
-          },
-          created_by: userId,
-        },
-      ]);
+      const { data, error } = await supabase.rpc("approve_budget_create_remito", { p_document_id: sourceId });
+      if (error) throw error;
+      if (!data) throw new Error("No se pudo crear el remito");
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (documentId) => {
       void invalidateDocumentQueries(qc);
-      toast({ title: "Remito borrador creado" });
+      toast({ title: "Presupuesto aprobado. Remito borrador listo" });
+      onRemitoCreated?.(documentId);
     },
     onError: (error: unknown) => {
       toast({ title: "No se pudo convertir a remito", description: getErrorMessage(error), variant: "destructive" });
@@ -601,6 +529,7 @@ export function useDocumentsMutations({
         unit: line.unit,
         quantity: line.quantity,
         unit_price: line.unit_price,
+        tax_pct: 21,
         pricing_mode: line.pricing_mode,
         suggested_unit_price: line.suggested_unit_price,
         base_cost_snapshot: line.base_cost_snapshot,

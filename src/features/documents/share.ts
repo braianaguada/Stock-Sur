@@ -6,7 +6,9 @@ export function buildPublicDocumentUrl(token: string) {
   return `${getPublicAppOrigin()}/public/document/${encodeURIComponent(token)}`;
 }
 
-export function buildDocumentShareMessage(document: DocRow, publicLink: string) {
+export type ShareableDocument = Pick<DocRow, "id" | "doc_type" | "document_number" | "point_of_sale" | "total" | "customer_id">;
+
+export function buildDocumentShareMessage(document: ShareableDocument, publicLink: string) {
   const label = document.doc_type === "PRESUPUESTO" ? "presupuesto" : "remito";
   return [
     `Hola, te compartimos el ${label} N° ${formatNumber(document.document_number, document.point_of_sale)}.`,

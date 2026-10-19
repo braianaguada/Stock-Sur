@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, Ban, Bot, Camera, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Bot, Camera, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ClearableSearchInput } from "@/components/common/ClearableSearchInput";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -9,10 +9,10 @@ import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogActionGrid, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { formatBusinessDate, formatMoney } from "@/lib/formatters";
 import { openPrintWindow } from "@/lib/print";
+import { usePdfDownloadFeedback } from "@/components/common/PdfDownloadFeedback";
 import { choosePdfSaveTarget, savePrintHtmlAsPdf } from "@/lib/pdf-download";
 import {
   acceptServiceDocumentAiSuggestion,
@@ -103,6 +104,7 @@ export default function ServiceDocumentsPage() {
   const [shareSubject, setShareSubject] = useState("");
   const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
   const [shareLinkLoading, setShareLinkLoading] = useState(false);
+  const { feedback: downloadFeedback, onSaved: onPdfSaved } = usePdfDownloadFeedback(currentCompany?.id ?? null);
   const [downloadingDocumentId, setDownloadingDocumentId] = useState<string | null>(null);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const [remitoImportOpen, setRemitoImportOpen] = useState(false);
@@ -120,10 +122,12 @@ export default function ServiceDocumentsPage() {
     documentId: editingDocumentId ?? previewDocumentId,
   });
 
-  const total = useMemo(() => {
+  const amounts = useMemo(() => {
     const subtotal = form.pricing_mode === "GLOBAL_TOTAL" ? Number(form.global_total || 0) : lines.reduce((sum, line) => sum + calculateServiceLineTotal(line), 0);
-    return form.include_tax ? subtotal * (1 + Number(form.tax_rate || 0) / 100) : subtotal;
+    const tax = form.include_tax ? Math.round(subtotal * Number(form.tax_rate || 0) / 100 * 100) / 100 : 0;
+    return { subtotal, tax, total: subtotal + tax };
   }, [form.global_total, form.include_tax, form.pricing_mode, form.tax_rate, lines]);
+  const total = amounts.total;
   const occasionalCustomerId = useMemo(
     () => customers.find((customer) => customer.is_occasional)?.id ?? "",
     [customers],
@@ -195,6 +199,7 @@ export default function ServiceDocumentsPage() {
   const { upsertMutation, duplicateMutation, transitionMutation } = useServiceDocumentMutations({
     companyId: currentCompany?.id ?? null,
     editingDocumentId,
+    editorOpen: dialogOpen,
     form,
     lines,
     attachments,
@@ -253,7 +258,6 @@ export default function ServiceDocumentsPage() {
   const canManageServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.create");
   const canEditServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.edit");
   const canApproveServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.approve");
-  const canCancelServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.cancel");
   const canPrintServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.print");
 
   const openServicePrint = async (document: ServiceDocument) => {
@@ -293,13 +297,14 @@ export default function ServiceDocumentsPage() {
         ...resources,
         companySettings: settings,
       });
-      await savePrintHtmlAsPdf({
+      const saved = await savePrintHtmlAsPdf({
         html,
         fileName,
         proof: { mode: "authenticated", kind: "service", documentId: document.id },
         target,
       });
-      toast({ title: "PDF guardado" });
+      onPdfSaved(saved);
+      toast({ title: saved?.method === "downloaded" ? "Descarga iniciada" : "PDF guardado" });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       toast({ title: "No se pudo descargar el PDF", description: getErrorMessage(error), variant: "destructive" });
@@ -597,6 +602,19 @@ export default function ServiceDocumentsPage() {
 
   const previewDocument = selectedDocument ?? null;
   const previewLines = selectedLines;
+  const renderDocumentActions = (document: ServiceDocument) => (
+    <RowActions>
+      <RowActionButton className="h-8 w-8" label="Vista previa" tone="view" onClick={() => openPreview(document)}><Eye className="h-4 w-4" /></RowActionButton>
+      {canPrintServiceDocuments ? <>
+        <RowActionButton className="h-8 w-8" label="Imprimir" onClick={() => void openServicePrint(document)}><Printer className="h-4 w-4" /></RowActionButton>
+        <RowActionButton className="h-8 w-8" label="Guardar PDF" onClick={() => void downloadServicePdf(document)} disabled={downloadingDocumentId === document.id}><Download className="h-4 w-4" /></RowActionButton>
+      </> : null}
+      <RowActionButton className="h-8 w-8" label="Mas acciones" onClick={() => setActionDocument(document)}><MoreHorizontal className="h-4 w-4" /></RowActionButton>
+    </RowActions>
+  );
+  const serviceRowClass = (document: ServiceDocument) => document.status === "APPROVED"
+    ? "bg-emerald-500/5 hover:bg-emerald-500/10"
+    : document.status === "REJECTED" ? "bg-red-500/5 hover:bg-red-500/10" : "";
   const documentColumns: ColumnDef<ServiceDocument, unknown>[] = [
     {
       id: "document",
@@ -637,28 +655,7 @@ export default function ServiceDocumentsPage() {
       id: "actions",
       header: "Acciones",
       meta: { className: "w-44 min-w-44 text-right", cellClassName: "text-right" },
-      cell: ({ row }) => (
-        <RowActions>
-          <RowActionButton label="Vista previa" tone="view" onClick={() => openPreview(row.original)}>
-            <Eye className="h-4 w-4" />
-          </RowActionButton>
-          {canPrintServiceDocuments ? (
-            <RowActionButton
-              label="Guardar PDF"
-              onClick={() => void downloadServicePdf(row.original)}
-              disabled={downloadingDocumentId === row.original.id}
-            >
-              <Download className="h-4 w-4" />
-            </RowActionButton>
-          ) : null}
-          <RowActionButton label="Compartir" onClick={() => void openShare(row.original)}>
-            <Link2 className="h-4 w-4" />
-          </RowActionButton>
-          <RowActionButton label="Mas acciones" onClick={() => setActionDocument(row.original)}>
-            <MoreHorizontal className="h-4 w-4" />
-          </RowActionButton>
-        </RowActions>
-      ),
+      cell: ({ row }) => renderDocumentActions(row.original),
     },
   ];
 
@@ -667,10 +664,10 @@ export default function ServiceDocumentsPage() {
       <PageContainer archetype="workspace" className="page-shell">
         {!currentCompany ? <CompanyAccessNotice description="Necesitas una empresa activa para crear presupuestos de servicio." /> : null}
 
+        {downloadFeedback}
         <PageHeader
           eyebrow="Servicios"
           title="Documentos"
-          subtitle="Presupuestos de servicio manuales, separados de stock, caja e items."
           actions={
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => setRemitoImportOpen(true)} disabled={!canManageServiceDocuments}>
@@ -722,7 +719,7 @@ export default function ServiceDocumentsPage() {
 
         <Card className="min-w-0 border-border/70 shadow-none">
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div><CardTitle>Presupuestos de servicio</CardTitle><CardDescription>Seguimiento comercial, vista previa y acciones sobre cada presupuesto.</CardDescription></div>
+            <div><CardTitle>Presupuestos de servicio</CardTitle></div>
             <CountBadge>{documents.length} {documents.length === 1 ? "registro" : "registros"}</CountBadge>
           </CardHeader>
           <CardContent className="p-0">
@@ -731,9 +728,6 @@ export default function ServiceDocumentsPage() {
               <CardContent className="flex flex-col items-start gap-3 p-6 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
                   <h3 className="text-base font-semibold">Todavía no hay presupuestos de servicio</h3>
-                  <p className="max-w-2xl text-sm text-muted-foreground">
-                    Creá el primero para empezar a registrar trabajos manuales sin tocar stock, caja ni cuenta corriente.
-                  </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={() => setRemitoImportOpen(true)} disabled={!canManageServiceDocuments}>
@@ -752,15 +746,18 @@ export default function ServiceDocumentsPage() {
             <div>
               <div className="grid gap-3 p-4 md:hidden">
                 {pagedDocuments.map((document) => (
-                  <Card key={document.id} className="space-y-3 border-border/70 p-4 shadow-none">
+                  <Card key={document.id} className={`space-y-2 border-border/70 p-3 shadow-none ${serviceRowClass(document)}`}>
                     <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-mono text-sm font-semibold">{SERVICE_DOCUMENT_PREFIX}-{String(document.number).padStart(6, "0")}</p><p className="truncate text-sm text-muted-foreground">{document.customers?.name ?? "Sin cliente"}</p></div><StatusBadge tone={SERVICE_STATUS_TONE[document.status]}>{SERVICE_STATUS_LABEL[document.status]}</StatusBadge></div>
                     <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-xs text-muted-foreground">Fecha</p><p>{formatBusinessDate(document.issue_date)}</p></div><div className="text-right"><p className="text-xs text-muted-foreground">Total</p><p className="font-semibold">{formatMoney(document.total ?? 0, document.currency)}</p></div></div>
-                    <div className="flex flex-wrap justify-end gap-1 border-t border-border/60 pt-3"><RowActionButton label="Vista previa" tone="view" onClick={() => openPreview(document)}><Eye className="h-4 w-4" /></RowActionButton>{canPrintServiceDocuments ? <RowActionButton label="Guardar PDF" onClick={() => void downloadServicePdf(document)} disabled={downloadingDocumentId === document.id}><Download className="h-4 w-4" /></RowActionButton> : null}<RowActionButton label="Compartir" onClick={() => void openShare(document)}><Link2 className="h-4 w-4" /></RowActionButton><RowActionButton label="Más acciones" onClick={() => setActionDocument(document)}><MoreHorizontal className="h-4 w-4" /></RowActionButton></div>
+                    <div className="flex justify-end border-t border-border/60 pt-2">{renderDocumentActions(document)}</div>
                   </Card>
                 ))}
               </div>
               <div className="hidden overflow-x-auto md:block">
               <DataTable
+                density="compact"
+                cellClassName="!py-1"
+                rowClassName={serviceRowClass}
                 columns={documentColumns}
                 data={pagedDocuments}
                 emptyMessage="No hay presupuestos para los filtros seleccionados."
@@ -792,7 +789,7 @@ export default function ServiceDocumentsPage() {
       </PageContainer>
 
       <Dialog open={Boolean(actionDocument)} onOpenChange={(open) => { if (!open) setActionDocument(null); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Acciones del presupuesto</DialogTitle>
             <DialogDescription>
@@ -802,43 +799,34 @@ export default function ServiceDocumentsPage() {
             </DialogDescription>
           </DialogHeader>
           {actionDocument ? (
-            <div className="grid gap-1">
-              {canManageServiceDocuments && canTransitionServiceDocument(actionDocument, "SENT") ? (
-                <Button variant="ghost" className="justify-start" onClick={() => triggerTransition(actionDocument, "SENT")} disabled={transitionMutation.isPending}>
-                  <Send className="mr-2 h-4 w-4 text-info" /> Enviar al cliente
-                </Button>
-              ) : null}
+            <DialogActionGrid columns={2}>
               {canApproveServiceDocuments && canTransitionServiceDocument(actionDocument, "APPROVED") ? (
-                <Button variant="ghost" className="justify-start" onClick={() => triggerTransition(actionDocument, "APPROVED")} disabled={transitionMutation.isPending}>
+                <Button variant="ghost" className="h-8 justify-start" onClick={() => triggerTransition(actionDocument, "APPROVED")} disabled={transitionMutation.isPending}>
                   <Check className="mr-2 h-4 w-4 text-success" /> Aprobar
                 </Button>
               ) : null}
               {canApproveServiceDocuments && canTransitionServiceDocument(actionDocument, "REJECTED") ? (
-                <Button variant="ghost" className="justify-start" onClick={() => triggerTransition(actionDocument, "REJECTED")} disabled={transitionMutation.isPending}>
+                <Button variant="ghost" className="h-8 justify-start" onClick={() => triggerTransition(actionDocument, "REJECTED")} disabled={transitionMutation.isPending}>
                   <X className="mr-2 h-4 w-4 text-destructive" /> Rechazar
                 </Button>
               ) : null}
-              {canCancelServiceDocuments && canTransitionServiceDocument(actionDocument, "CANCELLED") ? (
-                <Button variant="ghost" className="justify-start" onClick={() => triggerTransition(actionDocument, "CANCELLED")} disabled={transitionMutation.isPending}>
-                  <Ban className="mr-2 h-4 w-4 text-warning" /> Anular
-                </Button>
-              ) : null}
               {canEditServiceDocuments && actionDocument.status === "DRAFT" ? (
-                <Button variant="ghost" className="justify-start" onClick={() => { openEdit(actionDocument); setActionDocument(null); }}>
+                <Button variant="ghost" className="h-8 justify-start" onClick={() => { openEdit(actionDocument); setActionDocument(null); }}>
                   <Pencil className="mr-2 h-4 w-4 text-warning" /> Editar
                 </Button>
               ) : null}
               {canManageServiceDocuments && actionDocument.status !== "CANCELLED" ? (
-                <Button variant="ghost" className="justify-start" onClick={() => triggerDuplicate(actionDocument)} disabled={duplicateMutation.isPending}>
+                <Button variant="ghost" className="h-8 justify-start" onClick={() => triggerDuplicate(actionDocument)} disabled={duplicateMutation.isPending}>
                   <Copy className="mr-2 h-4 w-4" /> Duplicar
                 </Button>
               ) : null}
               {canPrintServiceDocuments ? (
-                <Button title="Imprimir" variant="ghost" className="justify-start" onClick={() => { void openServicePrint(actionDocument); setActionDocument(null); }}>
+                <Button title="Imprimir" variant="ghost" className="h-8 justify-start" onClick={() => { void openServicePrint(actionDocument); setActionDocument(null); }}>
                   <Printer className="mr-2 h-4 w-4 text-warning" /> Imprimir
                 </Button>
               ) : null}
-            </div>
+              <Button variant="ghost" className="h-8 justify-start" onClick={() => { void openShare(actionDocument); setActionDocument(null); }}><Link2 className="mr-2 h-4 w-4" /> Compartir</Button>
+            </DialogActionGrid>
           ) : null}
         </DialogContent>
       </Dialog>
@@ -864,38 +852,34 @@ export default function ServiceDocumentsPage() {
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
         <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto p-0">
           <DialogHeader>
-            <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5">
+            <div className="flex flex-wrap items-start justify-between gap-2 px-4 pt-3">
               <div>
                 <DialogTitle>{editingDocumentId ? "Editar presupuesto de servicio" : "Nuevo presupuesto de servicio"}</DialogTitle>
-                <DialogDescription>Formulario de presupuesto de servicio manual.</DialogDescription>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={() => setAiAssistantOpen(true)} disabled={!canManageServiceDocuments}>
                 <Bot className="mr-2 h-4 w-4" /> Asistente IA
               </Button>
             </div>
           </DialogHeader>
-          <div className="grid gap-3 px-5 pb-4">
+          <div className="grid gap-2 px-4 pb-2">
             <section className="rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm">
               <div className="grid gap-2.5 md:grid-cols-5">
                 <div className="space-y-1 md:col-span-2">
                   <Label className="text-xs">Cliente <span className="font-normal text-muted-foreground">(podés asignarlo después)</span></Label>
                   <Select value={form.customer_id || "none"} onValueChange={(value) => setForm((current) => ({ ...current, customer_id: value === "none" ? "" : value }))}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Sin cliente todavía" /></SelectTrigger>
+                    <SelectTrigger className="h-8"><SelectValue placeholder="Sin cliente todavía" /></SelectTrigger>
                     <SelectContent><SelectItem value="none">Sin cliente todavía</SelectItem>{customers.map((customer) => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1 md:col-span-1"><Label className="text-xs">Referencia</Label><Input className="h-9" value={form.reference} onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))} /></div>
-                <div className="space-y-1"><Label className="text-xs">Fecha</Label><Input className="h-9" type="date" value={form.issue_date} onChange={(event) => setForm((current) => ({ ...current, issue_date: event.target.value }))} /></div>
-                <div className="space-y-1"><Label className="text-xs">Vigencia</Label><Input className="h-9" type="date" value={form.valid_until} onChange={(event) => setForm((current) => ({ ...current, valid_until: event.target.value }))} /></div>
+                <div className="space-y-1 md:col-span-1"><Label className="text-xs">Referencia</Label><Input className="h-8" value={form.reference} onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))} /></div>
+                <div className="space-y-1"><Label className="text-xs">Fecha</Label><Input className="h-8" type="date" value={form.issue_date} onChange={(event) => setForm((current) => ({ ...current, issue_date: event.target.value }))} /></div>
+                <div className="space-y-1"><Label className="text-xs">Vigencia</Label><Input className="h-8" type="date" value={form.valid_until} onChange={(event) => setForm((current) => ({ ...current, valid_until: event.target.value }))} /></div>
               </div>
-            </section>
-
-            <section className="grid gap-3 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm lg:grid-cols-[1fr_1.2fr]">
-              <div className="grid gap-2 md:grid-cols-2">
+              <div className="mt-2 grid gap-2 md:grid-cols-4">
                 <div className="space-y-1">
                   <Label className="text-xs">Moneda</Label>
                   <Select value={form.currency} onValueChange={(value) => setForm((current) => ({ ...current, currency: value as "ARS" | "USD" }))}>
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ARS">ARS</SelectItem>
                       <SelectItem value="USD">USD</SelectItem>
@@ -905,7 +889,7 @@ export default function ServiceDocumentsPage() {
                 <div className="space-y-1">
                   <Label className="text-xs">Modo de precio</Label>
                   <Select value={form.pricing_mode} onValueChange={(value) => setForm((current) => ({ ...current, pricing_mode: value as "DETAILED" | "GLOBAL_TOTAL", hide_line_prices: value === "GLOBAL_TOTAL" }))}>
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="DETAILED">Detallado por linea</SelectItem>
                       <SelectItem value="GLOBAL_TOTAL">Precio final global</SelectItem>
@@ -915,42 +899,38 @@ export default function ServiceDocumentsPage() {
                 {form.pricing_mode === "GLOBAL_TOTAL" ? (
                   <div className="space-y-1 md:col-span-2">
                     <Label className="text-xs">Precio final del presupuesto</Label>
-                    <Input className="h-9" type="number" min="0" step="0.01" value={form.global_total} onChange={(event) => setForm((current) => ({ ...current, global_total: event.target.value }))} />
-                    <p className="text-xs text-muted-foreground">Usalo para detallar trabajos sin desglosar precios por item.</p>
+                    <Input className="h-8" type="number" min="0" step="0.01" value={form.global_total} onChange={(event) => setForm((current) => ({ ...current, global_total: event.target.value }))} />
                   </div>
                 ) : null}
-                <label className="flex items-center gap-2 self-end rounded-md border bg-background px-3 py-2 text-sm font-medium">
+                <label className="flex items-center gap-2 self-end rounded-md border bg-background px-2 py-1 text-xs font-medium">
                   <input type="checkbox" checked={form.include_tax} onChange={(event) => setForm((current) => ({ ...current, include_tax: event.target.checked }))} />
                   Incluir IVA sobre el subtotal
                 </label>
-                {form.include_tax ? <div className="space-y-1"><Label className="text-xs">Alícuota IVA (%)</Label><Input className="h-9" type="number" min="0" max="100" step="0.01" value={form.tax_rate} onChange={(event) => setForm((current) => ({ ...current, tax_rate: event.target.value }))} /></div> : null}
+                {form.include_tax ? <div className="space-y-1"><Label className="text-xs">Alícuota IVA (%)</Label><Input className="h-8" type="number" min="0" max="100" step="0.01" value={form.tax_rate} onChange={(event) => setForm((current) => ({ ...current, tax_rate: event.target.value }))} /></div> : null}
               </div>
 
               {form.currency === "USD" ? (
                 <div className="grid gap-2 rounded-lg border bg-background p-3 md:grid-cols-[1fr_1fr_auto]">
                   <div className="space-y-1">
                     <Label className="text-xs">Cotizacion USD</Label>
-                    <Input className="h-9" type="number" min="0" step="0.01" value={form.exchange_rate} onChange={(event) => applyManualExchangeRate(event.target.value)} />
+                    <Input className="h-8" type="number" min="0" step="0.01" value={form.exchange_rate} onChange={(event) => applyManualExchangeRate(event.target.value)} />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Fecha cotizacion</Label>
-                    <Input className="h-9" type="date" value={form.exchange_rate_date} onChange={(event) => setForm((current) => ({ ...current, exchange_rate_date: event.target.value, exchange_rate_source: "MANUAL" }))} />
+                    <Input className="h-8" type="date" value={form.exchange_rate_date} onChange={(event) => setForm((current) => ({ ...current, exchange_rate_date: event.target.value, exchange_rate_source: "MANUAL" }))} />
                   </div>
                   <div className="flex items-end">
-                    <Button type="button" variant="outline" className="h-9" onClick={() => void fetchExchangeRate()} disabled={exchangeRateLoading}>
+                    <Button type="button" variant="outline" className="h-8" onClick={() => void fetchExchangeRate()} disabled={exchangeRateLoading}>
                       <RefreshCw className="mr-2 h-4 w-4" /> BNA
                     </Button>
                   </div>
-                  <p className="md:col-span-3 text-xs text-muted-foreground">
-                    La cotizacion queda guardada como snapshot. Si Banco Nacion falla, podes cargarla manualmente.
-                  </p>
                 </div>
               ) : null}
             </section>
 
             <section className="grid gap-2 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm">
               <Label className="text-xs">Texto introductorio</Label>
-              <Textarea className="min-h-14 resize-none text-sm" rows={2} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
+              <Textarea className="min-h-8 resize-y text-sm" rows={1} value={form.intro_text} onChange={(event) => setForm((current) => ({ ...current, intro_text: event.target.value }))} />
               <div className="grid gap-3 md:hidden">
                 {lines.map((line, index) => (
                   <div key={index} className="rounded-lg border bg-background p-3 shadow-sm">
@@ -978,39 +958,30 @@ export default function ServiceDocumentsPage() {
               </div>
               <div className="hidden overflow-x-auto rounded-lg border bg-background md:block">
                 <Table>
-                  <TableHeader><TableRow className="h-9"><TableHead>Descripción</TableHead><TableHead className="w-24">Cantidad</TableHead><TableHead className="w-24">Unidad</TableHead>{form.pricing_mode === "DETAILED" ? <TableHead className="w-32">Precio</TableHead> : null}{form.pricing_mode === "DETAILED" ? <TableHead className="w-32 text-right">Total</TableHead> : null}<TableHead className="w-10" /></TableRow></TableHeader>
+                  <TableHeader><TableRow className="h-8"><TableHead>Descripción</TableHead><TableHead className="w-24">Cantidad</TableHead><TableHead className="w-24">Unidad</TableHead>{form.pricing_mode === "DETAILED" ? <TableHead className="w-32">Precio</TableHead> : null}{form.pricing_mode === "DETAILED" ? <TableHead className="w-32 text-right">Total</TableHead> : null}<TableHead className="w-10" /></TableRow></TableHeader>
                   <TableBody>{lines.map((line, index) => (
-                    <TableRow key={index} className={(line.line_type ?? "ITEM") === "ITEM" ? "h-12" : "h-9"}>
-                      <TableCell className="space-y-1 py-1.5">{(line.line_type ?? "ITEM") !== "ITEM" ? <div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-wide text-primary">{line.line_type === "TITLE" ? "Título de sección" : "Subtítulo"}</p><div className="flex gap-3 text-xs"><label className="flex items-center gap-1"><input type="checkbox" checked={Boolean(line.is_bold)} onChange={(event) => updateLine(index, { is_bold: event.target.checked })} />Negrita</label><label className="flex items-center gap-1"><input type="checkbox" checked={Boolean(line.is_underlined)} onChange={(event) => updateLine(index, { is_underlined: event.target.checked })} />Subrayado</label></div></div> : null}<Textarea className={`min-h-12 resize-none text-sm ${line.is_bold ? "font-bold" : ""} ${line.is_underlined ? "underline underline-offset-2" : ""}`} rows={2} placeholder={(line.line_type ?? "ITEM") === "ITEM" ? "Describí el trabajo o ítem" : "Texto de la sección"} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
-                      <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /> : null}</TableCell>
-                      <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /> : null}</TableCell>
-                      {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-9" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /> : null}</TableCell> : null}
-                      {form.pricing_mode === "DETAILED" ? <TableCell className="py-1.5 text-right text-sm font-semibold">{(line.line_type ?? "ITEM") === "ITEM" ? formatMoney(calculateServiceLineTotal(line), form.currency) : null}</TableCell> : null}
-                      <TableCell className="py-1.5"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeLine(index)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                    <TableRow key={index} className={(line.line_type ?? "ITEM") === "ITEM" ? "h-10" : "h-8"}>
+                      <TableCell className="space-y-1 py-1">{(line.line_type ?? "ITEM") !== "ITEM" ? <div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-wide text-primary">{line.line_type === "TITLE" ? "Título de sección" : "Subtítulo"}</p><div className="flex gap-3 text-xs"><label className="flex items-center gap-1"><input type="checkbox" checked={Boolean(line.is_bold)} onChange={(event) => updateLine(index, { is_bold: event.target.checked })} />Negrita</label><label className="flex items-center gap-1"><input type="checkbox" checked={Boolean(line.is_underlined)} onChange={(event) => updateLine(index, { is_underlined: event.target.checked })} />Subrayado</label></div></div> : null}<Textarea className={`min-h-8 resize-y text-sm ${line.is_bold ? "font-bold" : ""} ${line.is_underlined ? "underline underline-offset-2" : ""}`} rows={1} placeholder={(line.line_type ?? "ITEM") === "ITEM" ? "Describí el trabajo o ítem" : "Texto de la sección"} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></TableCell>
+                      <TableCell className="py-1">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-8" type="number" min="0" step="0.001" value={line.quantity ?? ""} onChange={(event) => updateLine(index, { quantity: event.target.value ? Number(event.target.value) : null })} /> : null}</TableCell>
+                      <TableCell className="py-1">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-8" value={line.unit ?? ""} onChange={(event) => updateLine(index, { unit: event.target.value })} /> : null}</TableCell>
+                      {form.pricing_mode === "DETAILED" ? <TableCell className="py-1">{(line.line_type ?? "ITEM") === "ITEM" ? <Input className="h-8" type="number" min="0" step="0.01" value={line.unit_price ?? ""} onChange={(event) => updateLine(index, { unit_price: event.target.value ? Number(event.target.value) : null })} /> : null}</TableCell> : null}
+                      {form.pricing_mode === "DETAILED" ? <TableCell className="py-1 text-right text-sm font-semibold">{(line.line_type ?? "ITEM") === "ITEM" ? formatMoney(calculateServiceLineTotal(line), form.currency) : null}</TableCell> : null}
+                      <TableCell className="py-1"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeLine(index)}><Trash2 className="h-4 w-4" /></Button></TableCell>
                     </TableRow>
                   ))}</TableBody>
                 </Table>
               </div>
-              <div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "ITEM" }))}><Plus className="mr-2 h-4 w-4" /> Agregar ítem</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "TITLE", quantity: null, unit: null, unit_price: null, is_bold: true }))}>Agregar título</Button><Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "SUBTITLE", quantity: null, unit: null, unit_price: null }))}>Agregar subtítulo</Button></div>
+              <div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="h-8" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "ITEM" }))}><Plus className="mr-2 h-4 w-4" /> Agregar ítem</Button><Button type="button" variant="outline" size="sm" className="h-8" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "TITLE", quantity: null, unit: null, unit_price: null, is_bold: true }))}>Agregar título</Button><Button type="button" variant="outline" size="sm" className="h-8" onClick={() => setLines((current) => appendServiceDocumentLine(current, { ...EMPTY_SERVICE_LINE, line_type: "SUBTITLE", quantity: null, unit: null, unit_price: null }))}>Agregar subtítulo</Button></div>
             </section>
 
             <section className="grid gap-2.5 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm md:grid-cols-3">
-              <div className="space-y-1"><Label className="text-xs">Plazo de entrega</Label><Textarea className="min-h-14 resize-none text-sm" rows={2} value={form.delivery_time} onChange={(event) => setForm((current) => ({ ...current, delivery_time: event.target.value }))} /></div>
-              <div className="space-y-1"><Label className="text-xs">Condiciones de pago</Label><Textarea className="min-h-14 resize-none text-sm" rows={2} value={form.payment_terms} onChange={(event) => setForm((current) => ({ ...current, payment_terms: event.target.value }))} /></div>
-              <div className="space-y-1"><Label className="text-xs">Lugar de entrega</Label><Textarea className="min-h-14 resize-none text-sm" rows={2} value={form.delivery_location} onChange={(event) => setForm((current) => ({ ...current, delivery_location: event.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Plazo de entrega</Label><Textarea className="min-h-8 resize-y text-sm" rows={1} value={form.delivery_time} onChange={(event) => setForm((current) => ({ ...current, delivery_time: event.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Condiciones de pago</Label><Textarea className="min-h-8 resize-y text-sm" rows={1} value={form.payment_terms} onChange={(event) => setForm((current) => ({ ...current, payment_terms: event.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Lugar de entrega</Label><Textarea className="min-h-8 resize-y text-sm" rows={1} value={form.delivery_location} onChange={(event) => setForm((current) => ({ ...current, delivery_location: event.target.value }))} /></div>
             </section>
 
-            <section className="grid gap-3 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <Label className="text-xs">Imágenes / referencias</Label>
-                  <p className="text-xs text-muted-foreground">JPG, PNG o WEBP hasta 10 MB. Solo las marcadas se muestran en impresión y link público.</p>
-                </div>
-                <Button type="button" variant="outline" size="sm" className="relative h-9 overflow-hidden">
-                  <ImagePlus className="mr-2 h-4 w-4" /> Subir imágenes
-                  <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="absolute inset-0 cursor-pointer opacity-0" onChange={(event) => { addAttachments(event.target.files); event.currentTarget.value = ""; }} />
-                </Button>
-              </div>
+            {attachments.some((attachment) => !attachment.remove) ? (
+            <section className="grid gap-2 rounded-xl border border-border/70 p-2">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {attachments.filter((attachment) => !attachment.remove).map((attachment) => (
                   <div key={attachment.id} className="rounded-lg border bg-background p-3">
@@ -1034,10 +1005,11 @@ export default function ServiceDocumentsPage() {
                 ))}
               </div>
             </section>
+            ) : null}
 
             <section className="grid gap-2 rounded-xl border border-border/70 bg-card/60 p-3 shadow-sm">
               <Label className="text-xs">Cierre</Label>
-              <Textarea className="min-h-16 resize-none text-sm" rows={2} value={form.closing_text} onChange={(event) => setForm((current) => ({ ...current, closing_text: event.target.value }))} />
+              <Textarea className="min-h-8 resize-y text-sm" rows={1} value={form.closing_text} onChange={(event) => setForm((current) => ({ ...current, closing_text: event.target.value }))} />
             </section>
 
             {selectedEvents.length > 0 ? (
@@ -1059,16 +1031,19 @@ export default function ServiceDocumentsPage() {
               </section>
             ) : null}
           </div>
-          <DialogFooter className="sticky bottom-0 z-10 flex-row items-center justify-between border-t bg-background/95 px-5 py-3 backdrop-blur">
-            <div className="mr-auto">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Total documento</p>
-              <p className="text-xl font-extrabold tracking-tight">{formatMoney(total, form.currency)}</p>
-              {form.currency === "USD" && Number(form.exchange_rate) > 0 ? (
-                <p className="text-xs text-muted-foreground">Estimado {formatMoney(total * Number(form.exchange_rate), "ARS")}</p>
-              ) : null}
+          <DialogFooter className="sticky bottom-0 z-10 flex-row flex-wrap items-center gap-2 border-t bg-background/95 px-4 py-2 backdrop-blur">
+            <div className="mr-auto flex flex-wrap items-center gap-5">
+              <div><p className="text-[10px] uppercase text-muted-foreground">Subtotal</p><p className="text-sm font-semibold">{formatMoney(amounts.subtotal, form.currency)}</p></div>
+              <div><p className="text-[10px] uppercase text-muted-foreground">IVA ({form.include_tax ? form.tax_rate : 0}%)</p><p className="text-sm font-semibold">{formatMoney(amounts.tax, form.currency)}</p></div>
+              <div><p className="text-[10px] uppercase text-muted-foreground">Total</p><p className="text-lg font-bold">{formatMoney(total, form.currency)}</p></div>
+              {form.currency === "USD" && Number(form.exchange_rate) > 0 ? <span className="text-xs text-muted-foreground">Estimado {formatMoney(total * Number(form.exchange_rate), "ARS")}</span> : null}
             </div>
-            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button type="button" className="px-6" onClick={() => upsertMutation.mutate()} disabled={upsertMutation.isPending}>{upsertMutation.isPending ? "Guardando..." : "Guardar"}</Button>
+            <Button type="button" variant="outline" size="sm" className="relative h-8 overflow-hidden" disabled={upsertMutation.isPending}>
+              <ImagePlus className="mr-2 h-4 w-4" /> Subir imágenes
+              <input aria-label="Subir imágenes" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={upsertMutation.isPending} className="absolute inset-0 cursor-pointer opacity-0" onChange={(event) => { addAttachments(event.target.files); event.currentTarget.value = ""; }} />
+            </Button>
+            <Button type="button" variant="outline" className="h-8" onClick={() => upsertMutation.mutate("DRAFT")} disabled={upsertMutation.isPending}>Guardar borrador</Button>
+            {canApproveServiceDocuments ? <Button type="button" className="h-8" onClick={() => upsertMutation.mutate("SENT")} disabled={upsertMutation.isPending}>{upsertMutation.isPending ? "Procesando..." : "Emitir presupuesto"}</Button> : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>

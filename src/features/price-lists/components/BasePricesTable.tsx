@@ -15,6 +15,9 @@ import { formatTimestampDate } from "@/lib/formatters";
 import { formatPercentDelta, parseNonNegative, sanitizeNonNegativeDraft } from "@/features/price-lists/utils";
 
 type BasePricesTableProps = {
+  isLoading?: boolean;
+  errorMessage?: string;
+  onRetry?: () => void;
   rows: BasePriceRow[];
   isSaving: boolean;
   pageSize: number;
@@ -26,7 +29,7 @@ type BasePricesTableProps = {
 };
 
 export function BasePricesTable({
-  rows,
+  rows, isLoading, errorMessage, onRetry,
   isSaving,
   pageSize,
   columnVisibility,
@@ -180,6 +183,7 @@ export function BasePricesTable({
   return (
     <>
       <DataTable
+        isLoading={isLoading} errorMessage={errorMessage} onRetry={onRetry}
           columns={columns}
           data={rows}
           emptyMessage="No hay productos para mostrar."

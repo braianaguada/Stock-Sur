@@ -75,7 +75,7 @@ describe("customer fiscal UI", () => {
   it("does not expose occasional customer editing as a customer form option", () => {
     renderDialog({ ...baseForm, is_occasional: true }, { ...customer, is_occasional: true });
     expect(screen.queryByRole("checkbox", { name: /cliente ocasional/i })).not.toBeInTheDocument();
-    expect(screen.getByText("Cliente ocasional no aplica: los clientes creados aqui son registrados.")).toBeInTheDocument();
+    expect(screen.queryByText("Cliente ocasional no aplica: los clientes creados aqui son registrados.")).not.toBeInTheDocument();
   });
 
   it("shows lookup environment and clear diagnostic reason when fiscal lookup fails", () => {

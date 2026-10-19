@@ -8,12 +8,6 @@ vi.mock("@/components/common/EntityDialog", () => ({
   EntityDialog: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode }) => (
-    <button {...props}>{children}</button>
-  ),
-}));
-
 vi.mock("@/components/ui/collapsible", () => ({
   Collapsible: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   CollapsibleContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -74,7 +68,9 @@ function renderDialog(
     setLines?: React.Dispatch<React.SetStateAction<LineDraft[]>>;
     editingDocId?: string | null;
     canIssueOnCreate?: boolean;
+    canSendBudget?: boolean;
     priceLists?: PriceListRow[];
+    isSubmitting?: boolean;
   } = {},
 ) {
   render(
@@ -87,7 +83,8 @@ function renderDialog(
       lines={options.lines ?? []}
       setLines={options.setLines ?? vi.fn()}
       totalDraft={0}
-      customers={[{ id: "customer-1", name: "Cliente registrado" }]}
+      customers={[{ id: "customer-1", name: "Cliente registrado", account_due_days: 30 }]}
+      salespeople={[{ id: "seller-1", name: "Vendedora Uno" }]}
       technicians={[{ id: "technician-1", name: "Tecnico Uno" }]}
       serviceOptions={[
         {
@@ -109,8 +106,9 @@ function renderDialog(
       removeLine={vi.fn()}
       onSubmit={onSubmit}
       canIssueOnCreate={options.canIssueOnCreate}
+      canSendBudget={options.canSendBudget}
       onResetDraftForm={vi.fn()}
-      isSubmitting={false}
+      isSubmitting={options.isSubmitting ?? false}
     />,
   );
 
@@ -118,7 +116,78 @@ function renderDialog(
 }
 
 describe("DocumentsEditorDialog", () => {
-  it("offers direct issue only while creating a remito and preserves draft saving", () => {
+  it.each([['OCCASIONAL', '', 'Contado'], ['REGISTERED', 'customer-1', '30 d\u00edas']] as const)("derives terms for %s and removes redundant controls", (recipient_type, customer_id, terms) => {
+    renderDialog({ ...baseForm, recipient_type, customer_id });
+    expect(screen.queryByText('Punto de venta', { selector: 'label' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Domicilio de entrega', { selector: 'label' })).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue(terms)).toHaveAttribute('readonly');
+    expect(screen.getByText('Vendedora Uno')).toBeInTheDocument();
+  });
+  it.each([
+    ["REMITO", null],
+    ["REMITO", "draft-remito"],
+    ["PRESUPUESTO", null],
+    ["PRESUPUESTO", "draft-budget"],
+  ] as const)("keeps the %s footer compact when editing %s", (doc_type, editingDocId) => {
+    renderDialog({ ...baseForm, doc_type }, vi.fn(), {
+      editingDocId,
+      canIssueOnCreate: true,
+      canSendBudget: true,
+    });
+
+    const summary = screen.getByLabelText("Importes del documento");
+    const footer = summary.parentElement!;
+    expect(footer).toHaveClass("sticky", "bottom-0", "flex-wrap", "px-3", "py-2");
+    expect(summary).toHaveClass("flex-wrap", "items-baseline");
+    for (const amount of Array.from(summary.children)) {
+      expect(amount).toHaveClass("items-baseline", "whitespace-nowrap");
+      expect(amount).not.toHaveClass("flex-col");
+    }
+    for (const button of Array.from(footer.querySelectorAll("button"))) {
+      expect(button).toHaveClass("h-9", "px-3");
+      expect(button).not.toHaveClass("h-11", "px-8");
+    }
+  });
+
+  it("groups net, VAT and total in that order", () => {
+    renderDialog(baseForm);
+    const summary = screen.getByLabelText("Importes del documento");
+    expect(summary.textContent).toMatch(/Neto.*IVA \(21%\).*Total/);
+    expect(summary.textContent).not.toContain("?");
+  });
+  it("offers budget emission without a document type selector", () => {
+    const onSubmit = vi.fn();
+    renderDialog({ ...baseForm, doc_type: "PRESUPUESTO" }, onSubmit, { canSendBudget: true, priceLists: [{ id: "list-1", name: "General" } as PriceListRow] });
+    fireEvent.click(screen.getByRole("button", { name: "Emitir presupuesto" }));
+    expect(onSubmit).toHaveBeenCalledWith("SEND_BUDGET");
+    expect(screen.queryByRole("button", { name: "Emitir remito" })).not.toBeInTheDocument();
+  });
+  it("emits and shares a document budget with one action", () => {
+    const onSubmit = vi.fn();
+    renderDialog({ ...baseForm, doc_type: "PRESUPUESTO" }, onSubmit, {
+      canSendBudget: true,
+      priceLists: [{ id: "list-1", name: "General" } as PriceListRow],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Emitir y compartir" }));
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith("SEND_BUDGET", true);
+    expect(screen.getByRole("button", { name: "Guardar borrador" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Emitir presupuesto" })).toBeInTheDocument();
+  });
+  it.each([
+    { doc_type: "REMITO" as const, canSendBudget: true },
+    { doc_type: "PRESUPUESTO" as const, canSendBudget: false },
+  ])("does not offer issue and share for $doc_type with permission $canSendBudget", ({ doc_type, canSendBudget }) => {
+    renderDialog({ ...baseForm, doc_type }, vi.fn(), { canSendBudget });
+    expect(screen.queryByRole("button", { name: "Emitir y compartir" })).not.toBeInTheDocument();
+  });
+  it("disables issue and share while submitting", () => {
+    renderDialog({ ...baseForm, doc_type: "PRESUPUESTO" }, vi.fn(), {
+      canSendBudget: true, isSubmitting: true,
+      priceLists: [{ id: "list-1", name: "General" } as PriceListRow],
+    });
+    expect(screen.getByRole("button", { name: "Emitir y compartir" })).toBeDisabled();
+  });
+  it.each([null, "converted-remito-id"])("offers save and issue for a remito with editing id %s", (editingDocId) => {
     const onSubmit = vi.fn<(intent: DocumentDraftSubmissionIntent) => void>();
     const priceLists: PriceListRow[] = [{
       id: "price-list-1",
@@ -132,7 +201,7 @@ describe("DocumentsEditorDialog", () => {
     renderDialog(
       { ...baseForm, price_list_id: "price-list-1" },
       onSubmit,
-      { canIssueOnCreate: true, priceLists },
+      { canIssueOnCreate: true, priceLists, editingDocId },
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Emitir remito" }));
@@ -167,9 +236,10 @@ describe("DocumentsEditorDialog", () => {
 
     expect(screen.getByText("Destinatario")).toBeInTheDocument();
     expect(screen.getByText("Uso del remito *")).toBeInTheDocument();
-    expect(screen.getByText("Cliente ocasional / Consumidor Final")).toBeInTheDocument();
+    expect(screen.getByText("Cliente final")).toBeInTheDocument();
     expect(screen.getByText("Cliente registrado")).toBeInTheDocument();
-    expect(screen.getByText("Nombre ocasional")).toBeInTheDocument();
+    expect(screen.queryByText("Nombre ocasional")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tipo *")).not.toBeInTheDocument();
     expect(screen.queryByText("Nombre cliente")).not.toBeInTheDocument();
     expect(screen.queryByText("CUIT")).not.toBeInTheDocument();
     expect(screen.queryByText("Tecnico asociado")).not.toBeInTheDocument();

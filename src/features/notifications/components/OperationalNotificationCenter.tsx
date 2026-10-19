@@ -71,7 +71,6 @@ export function OperationalNotificationCenter() {
         <div className="flex items-center justify-between gap-3 border-y py-3">
           <div>
             <p className="text-sm font-semibold">{pendingCount} pendientes en {notifications.length} categorías</p>
-            <p className="text-xs text-muted-foreground">Los avisos sin acción concreta no aparecen acá.</p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={() => void refetch()} disabled={isFetching}>
             {isFetching ? <Loader2 className="animate-spin" /> : <RefreshCw />}
@@ -91,7 +90,6 @@ export function OperationalNotificationCenter() {
           <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center">
             <CheckCircle2 className="mb-3 h-8 w-8 text-emerald-600" />
             <p className="font-semibold">No hay pendientes accionables</p>
-            <p className="mt-1 text-sm text-muted-foreground">La campana se actualizará cuando aparezca algo que requiera atención.</p>
           </div>
         ) : (
           <div className="space-y-3">

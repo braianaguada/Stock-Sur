@@ -22,6 +22,10 @@ import { markupToGrossMargin, summarizePriceListMargins } from "@/features/price
 import { getOperationalPrice } from "@/features/pricing/operational-price";
 
 type PriceListDetailDialogProps = {
+  serverMarginSummary?: ReturnType<typeof summarizePriceListMargins> | null;
+  isLoading?: boolean;
+  errorMessage?: string;
+  onRetry?: () => void;
   open: boolean;
   selectedList: PriceListSummary | null;
   selectedListHistory: PriceListHistoryRow[];
@@ -74,7 +78,7 @@ export function PriceListDetailDialog({
   selectedList,
   selectedListHistory,
   pagedProducts,
-  allProducts,
+  allProducts, serverMarginSummary, isLoading, errorMessage, onRetry,
   detailSearch,
   detailTab,
   detailPage,
@@ -110,7 +114,7 @@ export function PriceListDetailDialog({
   const [overrideEnabled, setOverrideEnabled] = useState(false);
   const [overridePrice, setOverridePrice] = useState("");
   const targetMarginPct = markupToGrossMargin(selectedList?.utilidad_pct);
-  const marginSummary = useMemo(() => selectedList
+  const marginSummary = useMemo(() => serverMarginSummary !== undefined ? serverMarginSummary : selectedList
     ? summarizePriceListMargins({
         rows: allProducts,
         freightPct: selectedList.flete_pct,
@@ -123,7 +127,7 @@ export function PriceListDetailDialog({
           config: priceRoundingConfig,
         }).price,
       })
-    : null, [allProducts, priceRoundingConfig, selectedList, targetMarginPct]);
+    : null, [allProducts, priceRoundingConfig, selectedList, targetMarginPct, serverMarginSummary]);
 
   const scrollActiveTabToTop = useCallback(() => {
     if (detailTab === "config") {
@@ -263,6 +267,7 @@ export function PriceListDetailDialog({
               <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
                 <div className="min-h-0 flex-1 overflow-auto">
                   <PriceListProductsTable
+                    isLoading={isLoading} errorMessage={errorMessage} onRetry={onRetry}
                     rows={pagedProducts}
                     columnVisibility={productColumnVisibility}
                     stockByItemId={stockByItemId}

@@ -36,7 +36,6 @@ export function UsersOverviewHeader({
       <PageHeader
         eyebrow="Administración global"
         title="Usuarios y empresas"
-        subtitle="Administrá identidades, membresías y empresas desde un espacio centralizado."
         variant="workspace"
         tabs={[
           { label: "Usuarios y accesos", value: "users" },

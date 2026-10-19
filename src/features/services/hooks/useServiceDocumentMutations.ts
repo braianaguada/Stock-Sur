@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
@@ -21,6 +22,7 @@ function parseOptionalNumber(value: string | undefined) {
 
 export function useServiceDocumentMutations(params: {
   companyId: string | null;
+  editorOpen?: boolean;
   editingDocumentId: string | null;
   form: ServiceDocumentForm;
   lines: ServiceDocumentLine[];
@@ -30,9 +32,16 @@ export function useServiceDocumentMutations(params: {
 }) {
   const { companyId, editingDocumentId, form, lines, attachments = [], toast, onDone } = params;
   const qc = useQueryClient();
+  const progress = useRef<{ documentId?: string; paths: Map<string, string>; saved: Set<string>; removed: Set<string> }>({ paths: new Map(), saved: new Set(), removed: new Set() });
+  useEffect(() => {
+    if (params.editorOpen === false) progress.current = { paths: new Map(), saved: new Set(), removed: new Set() };
+  }, [params.editorOpen]);
+  useEffect(() => {
+    progress.current = { paths: new Map(), saved: new Set(), removed: new Set() };
+  }, [companyId, editingDocumentId]);
 
   const upsertMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (intent: "DRAFT" | "SENT" = "DRAFT") => {
       if (!companyId) throw new Error("Selecciona una empresa antes de crear presupuestos de servicio");
 
       const isGlobalTotal = form.pricing_mode === "GLOBAL_TOTAL";
@@ -57,10 +66,10 @@ export function useServiceDocumentMutations(params: {
       }
 
       const { data, error } = await serviceDb.rpc("save_service_document_with_sections", {
-        p_document_id: editingDocumentId,
+        p_document_id: progress.current.documentId ?? editingDocumentId,
         p_company_id: companyId,
         p_customer_id: form.customer_id || null,
-        p_status: "DRAFT",
+        p_status: attachments.length ? "DRAFT" : intent,
         p_reference: form.reference.trim() || null,
         p_issue_date: form.issue_date,
         p_valid_until: form.valid_until || null,
@@ -95,26 +104,32 @@ export function useServiceDocumentMutations(params: {
       if (error) throw error;
       const savedDocument = data as ServiceDocument | null;
       if (!savedDocument) return null;
+      progress.current.documentId = savedDocument.id;
 
-      for (const attachment of attachments.filter((item) => item.remove && item.storage_path)) {
-        await supabase.storage.from("service-document-attachments").remove([attachment.storage_path!]);
-        await serviceDb
+      for (const attachment of attachments.filter((item) => item.remove && (item.storage_path || progress.current.paths.has(item.id)))) {
+        if (progress.current.removed.has(attachment.id)) continue;
+        const { error: removalError } = await supabase.storage.from("service-document-attachments").remove([attachment.storage_path ?? progress.current.paths.get(attachment.id)!]);
+        if (removalError) throw removalError;
+        const { error: deletionError } = await serviceDb
           .from("service_document_attachments")
           .delete()
           .eq("company_id", companyId)
           .eq("id", attachment.id);
+        if (deletionError) throw deletionError;
+        progress.current.removed.add(attachment.id);
       }
 
       const activeAttachments = attachments.filter((item) => !item.remove);
       for (const attachment of activeAttachments) {
-        let storagePath = attachment.storage_path;
-        if (attachment.file) {
+        let storagePath = progress.current.paths.get(attachment.id) ?? attachment.storage_path;
+        if (attachment.file && !storagePath) {
           const extension = attachment.file.name.split(".").pop()?.toLowerCase() ?? "jpg";
           storagePath = `${companyId}/${savedDocument.id}/${crypto.randomUUID()}.${extension}`;
           const { error: uploadError } = await supabase.storage
             .from("service-document-attachments")
             .upload(storagePath, attachment.file, { contentType: attachment.file.type, upsert: false });
           if (uploadError) throw uploadError;
+          progress.current.paths.set(attachment.id, storagePath);
         }
         if (!storagePath) continue;
 
@@ -133,8 +148,8 @@ export function useServiceDocumentMutations(params: {
           created_by: savedDocument.created_by,
         };
 
-        const { error: attachmentError } = attachment.file
-          ? await serviceDb.from("service_document_attachments").insert(payload).select().single()
+        const { error: attachmentError } = attachment.file && !progress.current.saved.has(attachment.id)
+          ? await serviceDb.from("service_document_attachments").insert({ ...payload, id: attachment.id }).select().single()
           : await serviceDb
             .from("service_document_attachments")
             .update({
@@ -148,8 +163,14 @@ export function useServiceDocumentMutations(params: {
             .select()
             .single();
         if (attachmentError) throw attachmentError;
+        progress.current.saved.add(attachment.id);
       }
 
+      if (intent === "SENT" && attachments.length) {
+        const { data: issued, error: issueError } = await serviceDb.rpc("transition_service_document_status", { p_document_id: savedDocument.id, p_target_status: "SENT" });
+        if (issueError) throw issueError;
+        return issued as ServiceDocument;
+      }
       return savedDocument;
     },
     onSuccess: async (savedDocument) => {
@@ -162,6 +183,7 @@ export function useServiceDocumentMutations(params: {
           qc.invalidateQueries({ queryKey: queryKeys.serviceDocuments.events(companyId, savedDocument.id) }),
         ]);
       }
+      progress.current = { paths: new Map(), saved: new Set(), removed: new Set() };
       await onDone(savedDocument);
       toast({ title: editingDocumentId ? "Presupuesto actualizado" : "Presupuesto creado" });
     },

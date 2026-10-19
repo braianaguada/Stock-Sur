@@ -250,7 +250,6 @@ export function CashExpensesTab({
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <CardTitle>Gastos del día</CardTitle>
-            <CardDescription>Registro operativo de egresos. Los anulados quedan visibles, pero no suman.</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <CountBadge>{expenses.length} {expenses.length === 1 ? "gasto" : "gastos"}</CountBadge>

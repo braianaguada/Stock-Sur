@@ -14,7 +14,8 @@ describe("documents confirmation architecture", () => {
     expect(documentsPage).toContain("DocumentConfirmationDialog");
     expect(documentsPage).toContain("Se registrara la salida de stock");
     expect(documentsPage).toContain("Se registrara el ingreso de stock");
-    expect(previewDialog).toContain('htmlFor="external-invoice-number"');
-    expect(previewDialog).toContain("DocumentConfirmationDialog");
+    const cashDialog = readFileSync("src/features/documents/components/RegisterDocumentInCashDialog.tsx", "utf8");
+    expect(previewDialog).not.toContain('htmlFor="external-invoice-number"');
+    expect(cashDialog).toContain('htmlFor="cash-invoice-number"');
   });
 });

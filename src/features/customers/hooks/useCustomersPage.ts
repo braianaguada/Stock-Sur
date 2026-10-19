@@ -17,7 +17,7 @@ const EMPTY_FORM: CustomerFormState = {
   email: "",
   phone: "",
   is_occasional: false,
-  account_due_days: "30",
+  account_due_days: "0",
   fiscal_tax_id: "",
   fiscal_legal_name: "",
   fiscal_tax_condition: "",

@@ -1,4 +1,5 @@
 import type { DocumentFormState } from "../types";
+import { splitDocumentIncludedVat } from "./included-vat";
 
 type CustomerSnapshot = {
   customer_id: string | null;
@@ -47,8 +48,6 @@ export function buildDocumentDraftPersistencePayload({
     valid_until: draft.doc_type === "PRESUPUESTO" ? draft.valid_until || null : null,
     price_list_id: draft.price_list_id || null,
     notes: draft.notes || null,
-    subtotal: total,
-    tax_total: 0,
-    total,
+    ...splitDocumentIncludedVat(total),
   };
 }

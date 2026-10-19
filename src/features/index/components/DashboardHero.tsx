@@ -35,8 +35,8 @@ function DashboardChartFallback() {
   );
 }
 
-export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
-  const views = useMemo(() => buildDashboardViews(dashboard), [dashboard]);
+export function DashboardHero({ dashboard, periodViews }: { dashboard: DashboardInsights; periodViews?: DashboardView[] }) {
+  const views = useMemo(() => periodViews ?? buildDashboardViews(dashboard), [dashboard, periodViews]);
   const [selected, setSelected] = useState(0);
   const view = views[Math.min(selected, views.length - 1)];
   const Icon = icons[view.key];
@@ -65,8 +65,8 @@ export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
               <Icon className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 id="dashboard-hero-title" className="text-lg font-semibold">Territorio del negocio</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">Indicadores verificables del período actual</p>
+              <h2 id="dashboard-hero-title" className="text-lg font-semibold">Indicadores</h2>
+              {view.key === "inventory" ? <p className="mt-0.5 text-xs text-muted-foreground">Stock actual</p> : null}
             </div>
           </div>
           <div className="hidden items-center gap-1 sm:flex">
@@ -99,7 +99,6 @@ export function DashboardHero({ dashboard }: { dashboard: DashboardInsights }) {
         <div className="flex flex-col justify-between gap-5">
           <div>
             <p className="text-sm font-medium text-primary">{view.title}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{view.description}</p>
           </div>
           <MetricGrid columns={3}>
             {view.metrics.map((metric, index) => (

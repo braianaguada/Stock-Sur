@@ -1,3 +1,4 @@
+import { normalizeSaleUnit } from '@/lib/stock-quantity';
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Upload } from "lucide-react";
@@ -167,7 +168,7 @@ async function importSelectedRows(
     const itemsPayload = batch.map((row) => ({
       company_id: companyId,
       name: cleanText(row.articulo),
-      unit: cleanText(row.medida) || "un",
+      unit: normalizeSaleUnit(cleanText(row.medida)) || "un",
       category: cleanText(row.rubro) || null,
       brand: cleanText(row.marca) || null,
       is_active: true,
@@ -385,7 +386,6 @@ export default function LegacyCatalogImportPage() {
         <PageHeader
           eyebrow="Compras / Catalogos"
           title="Importador de catalogo legacy"
-          description="Carga, valida y selecciona articulos antes de crear items y codigos de proveedor."
           variant="workspace"
           meta={(
             <>
@@ -419,7 +419,6 @@ export default function LegacyCatalogImportPage() {
             <CardHeader className="flex flex-row items-start justify-between gap-3">
               <div className="space-y-1">
                 <CardTitle>Preview y seleccion</CardTitle>
-                <CardDescription>Revisa las filas detectadas y limita la importacion a los articulos necesarios.</CardDescription>
               </div>
               <CountBadge>{selectedIds.size} de {rows.length}</CountBadge>
             </CardHeader>

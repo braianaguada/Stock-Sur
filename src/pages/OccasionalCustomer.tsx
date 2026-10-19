@@ -239,7 +239,6 @@ export default function OccasionalCustomerPage() {
         <PageHeader
           eyebrow="Cliente de sistema"
           title="Cliente ocasional / Consumidor Final"
-          description="Seguimiento operativo read-only de remitos, caja, Factura B y NC B sin cliente registrado."
           meta={(
             <>
               <CategoryBadge>Sistema</CategoryBadge>

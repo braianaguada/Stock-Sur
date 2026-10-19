@@ -26,6 +26,9 @@ describe("CashOverviewPanel", () => {
     expect(screen.getByTitle(/1\.380\.000,00/)).toBeInTheDocument();
     expect(screen.getByTitle(/1\.190\.000,00/)).toBeInTheDocument();
     expect(screen.queryByText("Caja abierta")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Balance esperado, actividad/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Desglose verificable/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Saldo esperado después de gastos/)).not.toBeInTheDocument();
   });
 
   it("keeps cash and non-cash expenses separated", () => {

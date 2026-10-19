@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SuppliersTable } from "@/features/suppliers/components/SuppliersTable";
@@ -181,7 +181,6 @@ export default function SuppliersPage() {
         <PageHeader
           eyebrow="Compras y catalogos"
           title="Proveedores"
-          description="Administrá proveedores, consultá sus catálogos y prepará órdenes de compra."
           actions={(
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => setComparisonOpen(true)} disabled={!currentCompany}>
@@ -387,10 +386,9 @@ export default function SuppliersPage() {
       ) : null}
 
       <Dialog open={comparisonOpen} onOpenChange={setComparisonOpen}>
-        <DialogContent className="h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-6xl overflow-y-auto sm:h-[calc(100dvh-2rem)]">
+        <DialogContent aria-describedby={undefined} className="h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-6xl overflow-y-auto sm:h-[calc(100dvh-2rem)]">
           <DialogHeader>
             <DialogTitle>Comparación de proveedores</DialogTitle>
-            <DialogDescription>Elegí listas, compará ofertas equivalentes y conservá siempre la moneda original.</DialogDescription>
           </DialogHeader>
           <Suspense fallback={<SupplierDialogLoader />}>
             <SupplierComparison

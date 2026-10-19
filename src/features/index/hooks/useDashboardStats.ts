@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { EMPTY_DASHBOARD, mergeDashboardInsights, normalizeDashboardInsights } from "@/features/index/dashboard-insights";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
+import { periodError } from "../dashboard-period";
 
 type UseDashboardStatsOptions = {
   companyId: string | null | undefined;
@@ -26,8 +27,8 @@ export function useDashboardStats({ companyId, period }: UseDashboardStatsOption
   });
 
   const periodQuery = useQuery({
-    queryKey: ["dashboard", "period", companyId ?? null, period?.granularity, period?.from, period?.to],
-    enabled: Boolean(companyId && period),
+    queryKey: queryKeys.dashboard.period(companyId ?? null, period?.granularity, period?.from, period?.to),
+    enabled: Boolean(companyId && period && !periodError(period.from, period.to)),
     staleTime: 60_000,
     queryFn: async () => {
       const rpc = supabase.rpc as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }>;
@@ -48,8 +49,10 @@ export function useDashboardStats({ companyId, period }: UseDashboardStatsOption
     error: overviewQuery.error,
     hasData: overviewQuery.data !== undefined,
     dataUpdatedAt: overviewQuery.dataUpdatedAt,
-    refetch: overviewQuery.refetch,
+    refetch: () => Promise.all([overviewQuery.refetch(), ...(period && !periodError(period.from, period.to) ? [periodQuery.refetch()] : [])]),
     periodData: periodQuery.data,
     isPeriodLoading: periodQuery.isLoading,
+    periodError: periodQuery.error,
+    isPeriodFetching: periodQuery.isFetching,
   };
 }

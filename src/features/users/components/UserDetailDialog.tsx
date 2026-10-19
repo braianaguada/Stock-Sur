@@ -18,7 +18,6 @@ export function UserDetailDialog(props: {
       open={open}
       onOpenChange={onOpenChange}
       title="Detalle de usuario"
-      description="Vista previa de membresias, roles globales y acceso por empresa."
       contentClassName="max-w-4xl"
     >
       {selectedUser ? (

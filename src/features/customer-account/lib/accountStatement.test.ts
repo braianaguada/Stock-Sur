@@ -33,6 +33,46 @@ function entry(overrides: Partial<AccountStatementSource>): AccountStatementSour
 }
 
 describe("account statement", () => {
+  it("settles the oldest debt using later payments and shows only the unpaid remainder", () => {
+    const { rows, summary } = buildAccountStatement([
+      baseEntry,
+      entry({ id: "entry-2", amount: 80, business_date: "2026-04-02" }),
+      entry({ id: "payment", entry_type: "CREDIT", amount: 130, business_date: "2026-04-03" }),
+    ], {}, "2026-05-10");
+    expect(rows.find((row) => row.id === baseEntry.id)).toMatchObject({ status: "paid", outstanding: 0 });
+    expect(rows.find((row) => row.id === "entry-2")).toMatchObject({ status: "overdue", outstanding: 50 });
+    expect(summary).toMatchObject({ balance: 50, overdueDebt: 50, notDueDebt: 0 });
+  });
+
+  it("never applies another customer's or company's credits to a debt", () => {
+    const { rows, summary } = buildAccountStatement([
+      baseEntry,
+      entry({ id: "other-customer", customer_id: "customer-2", entry_type: "CREDIT", amount: 100 }),
+      entry({ id: "other-company", company_id: "company-2", entry_type: "CREDIT", amount: 100 }),
+    ], {}, "2026-04-05");
+    expect(rows.find((row) => row.id === baseEntry.id)).toMatchObject({ status: "pending", outstanding: 100, running_balance: 100 });
+    expect(summary.notDueDebt).toBe(100);
+  });
+
+  it("does not use payments after the selected closing date", () => {
+    const { rows, summary } = buildAccountStatement([
+      baseEntry,
+      entry({ id: "future-payment", entry_type: "CREDIT", amount: 100, business_date: "2026-06-01" }),
+    ], { to: "2026-05-31" }, "2026-05-10");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ status: "overdue", outstanding: 100 });
+    expect(summary.balance).toBe(100);
+  });
+
+  it("applies advances and includes earlier movements in the balance", () => {
+    const { rows, summary } = buildAccountStatement([
+      entry({ id: "advance", entry_type: "CREDIT", amount: 40, business_date: "2026-03-01" }),
+      baseEntry,
+    ], { from: "2026-04-01" }, "2026-04-05");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ status: "partial", outstanding: 60, running_balance: 60 });
+    expect(summary).toMatchObject({ balance: 60, notDueDebt: 60, periodPayments: 0 });
+  });
   it("marks a debit without credit as pending", () => {
     const { rows } = buildAccountStatement([baseEntry], {}, "2026-04-10");
     expect(rows[0].status).toBe("pending");

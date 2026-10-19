@@ -1,10 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import type { QueryClient } from "@tanstack/react-query";
 import {
+  invalidateStockQueries,
+  invalidatePricingQueries,
   invalidateSupplierCatalogQueries,
   invalidateSupplierQueries,
   invalidateTechnicianQueries,
 } from "@/lib/invalidate";
+
+describe("catalog page freshness", () => {
+  it.each([invalidateStockQueries, invalidatePricingQueries])("refreshes visible catalog balances and prices after mutations", async (invalidate) => {
+    const invalidateQueries = vi.fn().mockResolvedValue(undefined);
+    await invalidate({ invalidateQueries } as unknown as QueryClient);
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["items-catalog"] });
+  });
+});
 
 describe("invalidateTechnicianQueries", () => {
   it("invalidates only technician-dependent keys for the affected company", async () => {

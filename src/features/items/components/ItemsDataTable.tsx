@@ -271,32 +271,6 @@ function ItemsDataTableComponent({
       },
     },
     {
-      id: "operational_status",
-      header: () => "Estado operativo",
-      cell: ({ row }) => {
-        const meta = operationalMetaByItemId.get(row.original.id);
-        const status = operationalStatus(meta, row.original.demand_profile);
-        return (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex max-w-[94px]">
-                <HealthBadge tone={status.tone} className="max-w-full justify-center truncate">
-                  {status.label}
-                </HealthBadge>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="left" className="max-w-56">
-              <p>{status.detail}</p>
-            </TooltipContent>
-          </Tooltip>
-        );
-      },
-      meta: {
-        className: "w-[112px]",
-        cellClassName: "py-1",
-      },
-    },
-    {
       accessorKey: "supplier",
       header: () => (
         <DataTableColumnHeader
@@ -390,25 +364,6 @@ function ItemsDataTableComponent({
       ),
       meta: {
         className: "w-[100px]",
-        cellClassName: "py-1.5",
-      },
-    },
-    {
-      accessorKey: "is_active",
-      header: () => (
-        <DataTableColumnHeader
-          title="Activo"
-          sorted={sortBy === "is_active" ? sortDirection : false}
-          onToggleSort={() => onSort("is_active")}
-        />
-      ),
-      cell: ({ row }) => (
-        <StatusBadge tone={row.original.is_active ? "success" : "muted"}>
-          {row.original.is_active ? "Activo" : "Inactivo"}
-        </StatusBadge>
-      ),
-      meta: {
-        className: "w-[96px]",
         cellClassName: "py-1.5",
       },
     },

@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Banknote, Check, Copy, Download, Eye, FileText, Loader2, MessageCircle, MoreHorizontal, Pencil, Printer, RotateCcw, Send, X } from "lucide-react";
+import { Ban, Banknote, Check, Copy, Download, Eye, FileText, Loader2, MessageCircle, MoreHorizontal, Pencil, Printer, RotateCcw, Send, Info } from "lucide-react";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { CategoryBadge, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { DataTable } from "@/components/data-table/DataTable";
+import { DataState } from "@/components/common/DataState";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogActionGrid, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -22,9 +23,18 @@ const STATUS_TONE: Record<DocStatus, "muted" | "info" | "success" | "danger"> = 
   ANULADO: "danger",
 };
 
+function documentRowHighlight(doc: DocRow, registeredInCash: boolean): string {
+  if (doc.status === "ANULADO" || doc.status === "RECHAZADO") {
+    return "bg-destructive/5 hover:bg-destructive/10";
+  }
+  return registeredInCash ? "bg-emerald-500/5 hover:bg-emerald-500/10" : "";
+}
+
 interface DocumentsDataTableProps {
   documents: DocRow[];
   isLoading: boolean;
+  errorMessage?: string;
+  onRetry?: () => void;
   pageSize: number;
   technicianNamesById?: Map<string, string>;
   onOpenDetail: (documentId: string) => void;
@@ -52,6 +62,8 @@ interface DocumentsDataTableProps {
 export function DocumentsDataTable({
   documents,
   isLoading,
+  errorMessage,
+  onRetry,
   pageSize,
   technicianNamesById = new Map(),
   onOpenDetail,
@@ -108,15 +120,15 @@ export function DocumentsDataTable({
       header: () => "Cliente",
       cell: ({ row }) => {
         const recipient = resolveDocumentRecipient(row.original);
-        const metadata = row.original.customer_kind === "INTERNO" && row.original.internal_remito_type ? (
-            <>
-              <span className="block truncate">
-                Tecnico: {row.original.technician_id ? technicianNamesById.get(row.original.technician_id) ?? "Tecnico eliminado" : "-"}
-              </span>
-              <span className="block truncate">{INTERNAL_REMITO_LABEL[row.original.internal_remito_type]}</span>
-            </>
-          ) : recipient.secondaryName;
-        return <PrimaryCell title={recipient.primaryName} metadata={metadata} />;
+        const details = [
+          recipient.secondaryName,
+          row.original.technician_id ? "Tecnico: " + (technicianNamesById.get(row.original.technician_id) ?? "Tecnico eliminado") : null,
+          row.original.internal_remito_type ? INTERNAL_REMITO_LABEL[row.original.internal_remito_type] : null,
+        ].filter(Boolean).join(" \u00b7 ");
+        return <div className="flex min-w-0 items-center gap-2">
+          <div className="min-w-0 flex-1"><PrimaryCell title={recipient.primaryName} /></div>
+          {details ? <span tabIndex={0} title={details} aria-label={details} className="shrink-0 text-muted-foreground"><Info className="h-4 w-4" /></span> : null}
+        </div>;
       },
       meta: {
         className: "w-[220px]",
@@ -127,17 +139,17 @@ export function DocumentsDataTable({
       accessorKey: "status",
       header: () => "Estado",
       cell: ({ row }) => (
-        <div className="space-y-1">
+        <div className="flex items-center gap-2">
           <StatusBadge tone={STATUS_TONE[row.original.status]}>
             {STATUS_LABEL[row.original.status]}
           </StatusBadge>
           {row.original.doc_type === "REMITO" && row.original.status === "EMITIDO" && cashRegisteredDocumentIds.has(row.original.id) ? (
-            <div><StatusBadge tone="success">Registrado en Caja</StatusBadge></div>
+            <span className="sr-only">Registrado en Caja</span>
           ) : null}
           {row.original.doc_type === "REMITO" && row.original.external_invoice_status === "ACTIVE" ? (
-            <p className="truncate font-mono text-[11px] text-muted-foreground">
-              Factura: {row.original.external_invoice_number}
-            </p>
+            <span tabIndex={0} title={`Factura A: ${row.original.external_invoice_number}`} aria-label={`Factura A: ${row.original.external_invoice_number}`} className="shrink-0 text-muted-foreground">
+              <FileText className="h-4 w-4" />
+            </span>
           ) : null}
         </div>
       ),
@@ -175,6 +187,7 @@ export function DocumentsDataTable({
             <RowActionButton label="Ver detalle" tone="view" onClick={() => onOpenDetail(doc.id)}>
               <Eye className="h-4 w-4" />
             </RowActionButton>
+            {canPrintDocument ? <RowActionButton label="Imprimir" onClick={() => onPrint(doc)}><Printer className="h-4 w-4" /></RowActionButton> : null}
             {canPrintDocument ? (
               <RowActionButton label="Descargar PDF" onClick={() => onDownloadPdf(doc)} disabled={downloadingDocumentId === doc.id}>
                 {downloadingDocumentId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
@@ -192,11 +205,6 @@ export function DocumentsDataTable({
                   <DialogDescription>Elegí una acción para {doc.document_number ?? "este documento"}.</DialogDescription>
                 </DialogHeader>
                 <DialogActionGrid columns={2}>
-            {canPrintDocument ? (
-              <Button variant="ghost" onClick={() => onPrint(doc)}>
-                <Printer className="h-4 w-4" /><span>Imprimir / PDF</span>
-              </Button>
-            ) : null}
             <Button variant="ghost" onClick={() => onShare(doc)}>
               <MessageCircle className="h-4 w-4" /><span>Compartir</span>
             </Button>
@@ -224,12 +232,6 @@ export function DocumentsDataTable({
                 <Button variant="ghost" className="text-[hsl(var(--domain-accent-strong))] hover:bg-[hsl(var(--domain-accent))]/10 hover:text-[hsl(var(--domain-accent-strong))]" onClick={() => onTransition(doc.id, "ENVIADO")} title="Marcar como enviado" disabled={!canTransitionDocumentTo("ENVIADO")}>
                   <Send className="h-4 w-4" /><span>Marcar enviado</span>
                 </Button>
-                <Button variant="ghost" className="text-success hover:bg-success/10 hover:text-success" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
-                  <Check className="h-4 w-4" /><span>Aprobar</span>
-                </Button>
-                <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
-                  <X className="h-4 w-4" /><span>Rechazar</span>
-                </Button>
                 <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" /><span>Anular</span>
                 </Button>
@@ -237,11 +239,8 @@ export function DocumentsDataTable({
             ) : null}
             {doc.doc_type === "PRESUPUESTO" && doc.status === "ENVIADO" ? (
               <>
-                <Button variant="ghost" className="text-success hover:bg-success/10 hover:text-success" onClick={() => onTransition(doc.id, "APROBADO")} title="Aprobar" disabled={!canTransitionDocumentTo("APROBADO")}>
-                  <Check className="h-4 w-4" /><span>Aprobar</span>
-                </Button>
-                <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "RECHAZADO")} title="Rechazar" disabled={!canTransitionDocumentTo("RECHAZADO")}>
-                  <X className="h-4 w-4" /><span>Rechazar</span>
+                <Button variant="ghost" onClick={() => onCloneAsRemito(doc.id)} disabled={!canCloneBudgetToRemito || !canTransitionDocumentTo("APROBADO")}>
+                  <Check className="h-4 w-4" /><span>Aprobar y crear remito</span>
                 </Button>
                 <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onTransition(doc.id, "ANULADO")} title="Anular" disabled={!canTransitionDocumentTo("ANULADO")}>
                   <Ban className="h-4 w-4" /><span>Anular</span>
@@ -318,16 +317,16 @@ export function DocumentsDataTable({
   return (
     <>
       <div className="grid gap-3 md:hidden">
-        {documents.map((doc) => {
+        {!isLoading && !errorMessage && documents.map((doc) => {
           const recipient = resolveDocumentRecipient(doc);
           return (
-            <Card key={doc.id} className="space-y-3 border-border/70 p-4 shadow-none">
+            <Card key={doc.id} className={`space-y-3 border-border/70 p-4 shadow-none ${documentRowHighlight(doc, cashRegisteredDocumentIds.has(doc.id))}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0"><p className="font-mono text-sm font-semibold">{formatNumber(doc.document_number, doc.point_of_sale)}</p><p className="truncate text-sm text-muted-foreground">{recipient.primaryName}</p></div>
                 <StatusBadge tone={STATUS_TONE[doc.status]}>{STATUS_LABEL[doc.status]}</StatusBadge>
               </div>
               {doc.doc_type === "REMITO" && doc.status === "EMITIDO" && cashRegisteredDocumentIds.has(doc.id) ? (
-                <StatusBadge tone="success">Registrado en Caja</StatusBadge>
+                <span className="sr-only">Registrado en Caja</span>
               ) : null}
               <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-xs text-muted-foreground">Fecha</p><p>{formatBusinessDate(doc.issue_date)}</p></div><div className="text-right"><p className="text-xs text-muted-foreground">Total</p><MoneyCell value={Number(doc.total)} /></div></div>
               <div className="flex flex-wrap justify-end gap-1 border-t border-border/60 pt-3">
@@ -340,10 +339,10 @@ export function DocumentsDataTable({
             </Card>
           );
         })}
-        {!isLoading && documents.length === 0 ? <Card className="border-dashed p-6 text-center text-sm text-muted-foreground">No hay documentos para mostrar</Card> : null}
+        {isLoading ? <DataState variant="loading" title="Cargando documentos" /> : errorMessage ? <DataState variant="error" title="No se pudieron cargar los documentos" description={errorMessage} actionLabel="Reintentar" onAction={onRetry} /> : documents.length === 0 ? <Card className="border-dashed p-6 text-center text-sm text-muted-foreground">No hay documentos para mostrar</Card> : null}
       </div>
       <Card className="hidden min-w-0 overflow-x-auto border-border/70 shadow-none md:block">
-        <DataTable columns={columns} data={documents} isLoading={isLoading} emptyMessage="No hay documentos para mostrar" className="min-w-[940px] table-fixed" rowClassName="h-11" cellClassName="h-11 py-0" reserveEmptyRows={pageSize} />
+        <DataTable columns={columns} data={documents} isLoading={isLoading} errorMessage={errorMessage} onRetry={onRetry} emptyMessage="No hay documentos para mostrar" className="min-w-[940px] table-fixed" rowClassName={(doc) => `h-11 ${documentRowHighlight(doc, cashRegisteredDocumentIds.has(doc.id))}`} cellClassName="h-11 py-0" reserveEmptyRows={pageSize} />
       </Card>
     </>
   );

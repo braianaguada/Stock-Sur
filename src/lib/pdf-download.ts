@@ -1,7 +1,7 @@
 import { supabaseAuth, IMPERSONATION_ACCESS_TOKEN_STORAGE_KEY } from "@/integrations/supabase/client";
 
 type PdfProof =
-  | { mode: "authenticated"; kind: "document" | "service"; documentId: string }
+  | { mode: "authenticated"; kind: "document" | "service" | "purchase_order"; documentId: string }
   | { mode: "public"; kind: "document" | "service"; token: string };
 
 type SaveFilePickerWindow = Window & {
@@ -39,21 +39,26 @@ function downloadBlob(blob: Blob, fileName: string) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName;
+  document.body.appendChild(anchor);
   anchor.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export async function choosePdfSaveTarget(fileName: string): Promise<PdfSaveTarget> {
   const normalizedFileName = normalizePdfFileName(fileName);
-  const picker = (window as SaveFilePickerWindow).showSaveFilePicker;
-  const handle = picker
-    ? await picker.call(window, {
+  const pickerWindow = window as SaveFilePickerWindow;
+  // Open before generating the PDF to preserve the user's click activation.
+  const handle = pickerWindow.showSaveFilePicker
+    ? await pickerWindow.showSaveFilePicker({
         suggestedName: normalizedFileName,
-        types: [{ description: "Documento PDF", accept: { "application/pdf": [".pdf"] } }],
+        types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }],
       })
     : null;
   return { fileName: normalizedFileName, handle };
 }
+
+export type PdfSaveResult = { fileName: string; method: "saved" | "downloaded"; blob: Blob };
 
 export async function savePrintHtmlAsPdf(params: {
   html: string;
@@ -84,13 +89,14 @@ export async function savePrintHtmlAsPdf(params: {
   const blob = await response.blob();
   if (!handle) {
     downloadBlob(blob, fileName);
-    return;
+    return { fileName, method: "downloaded", blob } satisfies PdfSaveResult;
   }
 
   const writable = await handle.createWritable();
   try {
     await writable.write(blob);
     await writable.close();
+    return { fileName, method: "saved", blob } satisfies PdfSaveResult;
   } catch (error) {
     await writable.abort?.();
     throw error;

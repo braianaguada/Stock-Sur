@@ -7,13 +7,14 @@ import { DataTablePagination } from "@/components/data-table/DataTablePagination
 import { CountBadge, MetricCard, MetricGrid, MoneyCell, PrimaryCell, StatusBadge } from "@/components/common/VisualSystem";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCustomerAccountCustomers } from "@/features/customer-account/hooks/useCustomerAccountCustomers";
 import { useCustomerAccountStatement } from "@/features/customer-account/hooks/useCustomerAccountStatement";
+import { AccountActions } from "@/features/customer-account/components/AccountActions";
 import type { AccountStatementRow, AccountStatementStatus } from "@/features/customer-account/lib/accountStatement";
 import { customerIdFromAccountParams } from "@/features/customer-account/lib/routes";
 import { formatBusinessDate, todayBusinessDateInputValue } from "@/lib/formatters";
@@ -42,7 +43,7 @@ function todayDate() {
 }
 
 export default function CustomerAccountPage() {
-  const { currentCompany } = useAuth();
+  const { currentCompany, companyPermissionCodes } = useAuth();
   const [params, setParams] = useSearchParams();
   const [customerId, setCustomerId] = useState(() => customerIdFromAccountParams(params));
   const [from, setFrom] = useState("");
@@ -75,6 +76,7 @@ export default function CustomerAccountPage() {
     { accessorKey: "debit", header: () => <div className="text-right">Débito</div>, cell: ({ row }) => row.original.debit > 0 ? <MoneyCell value={row.original.debit} /> : <div className="text-right">-</div> },
     { accessorKey: "credit", header: () => <div className="text-right">Crédito</div>, cell: ({ row }) => row.original.credit > 0 ? <MoneyCell value={row.original.credit} className="text-success" /> : <div className="text-right">-</div> },
     { accessorKey: "running_balance", header: () => <div className="text-right">Saldo</div>, cell: ({ row }) => <MoneyCell value={row.original.running_balance} /> },
+    { accessorKey: "outstanding", header: () => <div className="text-right">Pendiente</div>, cell: ({ row }) => row.original.entry_type === "DEBIT" ? <MoneyCell value={row.original.outstanding} /> : <div className="text-right">-</div> },
     { accessorKey: "status", header: "Estado", cell: ({ row }) => <StatusBadge tone={statusTone[row.original.status]}>{statusLabels[row.original.status]}</StatusBadge> },
   ], []);
 
@@ -102,8 +104,8 @@ export default function CustomerAccountPage() {
         <PageHeader
           eyebrow="Clientes"
           title="Estado de cuenta"
-          description="Vista operativa de deuda, pagos y vencimientos estimados por cliente."
           variant="workspace"
+          actions={currentCompany && companyPermissionCodes.includes("customers.edit") ? <div className="flex flex-wrap gap-2"><AccountActions key={currentCompany.id} companyId={currentCompany.id} customers={customers} selectedCustomerId={customerId} /></div> : undefined}
         />
 
         <FilterToolbar>
@@ -144,21 +146,18 @@ export default function CustomerAccountPage() {
           <MetricCard
             label="Deuda vencida"
             value={summary.overdueDebt}
-            helper="Importes cuyo vencimiento estimado ya pasó."
             tone="danger"
             icon={<CalendarClock className="h-5 w-5" />}
           />
           <MetricCard
             label="Deuda no vencida"
             value={summary.notDueDebt}
-            helper="Importes pendientes dentro del plazo estimado."
             tone="warning"
             icon={<CalendarClock className="h-5 w-5" />}
           />
           <MetricCard
             label="Pagos del período"
             value={summary.periodPayments}
-            helper="Créditos registrados dentro del rango filtrado."
             tone="success"
             icon={<CircleDollarSign className="h-5 w-5" />}
           />
@@ -166,7 +165,7 @@ export default function CustomerAccountPage() {
 
         <Card className="min-w-0 border-border/70 shadow-none">
           <CardHeader className="flex flex-row items-start justify-between gap-3">
-            <div><CardTitle>Movimientos de cuenta</CardTitle><CardDescription>Débitos, créditos y saldo acumulado según los filtros aplicados.</CardDescription></div>
+            <div><CardTitle>Movimientos de cuenta</CardTitle></div>
             <CountBadge>{summary.movementsCount} {summary.movementsCount === 1 ? "registro" : "registros"}</CountBadge>
           </CardHeader>
           <CardContent>

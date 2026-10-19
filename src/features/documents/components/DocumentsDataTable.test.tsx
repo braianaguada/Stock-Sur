@@ -70,8 +70,30 @@ function renderTable(documents: DocRow[], overrides: Partial<ComponentProps<type
 }
 
 describe("DocumentsDataTable duplicate action", () => {
+  it("keeps invoice and technician details accessible without extra text rows", () => {
+    renderTable([{ ...baseDocument, doc_type: "REMITO", status: "EMITIDO", external_invoice_status: "ACTIVE", external_invoice_number: "9-1818" }], { technicianNamesById: new Map([["tech-1", "Juan"]]) });
+    const table = within(screen.getByRole("table"));
+    expect(table.getByLabelText("Factura A: 9-1818")).toHaveAttribute("title", "Factura A: 9-1818");
+    expect(table.getByLabelText("Tecnico: Juan")).toHaveAttribute("title", "Tecnico: Juan");
+    expect(table.queryByText("Factura: 9-1818")).not.toBeInTheDocument();
+  });
+  it("offers retry on page errors instead of reporting an empty history", () => {
+    const onRetry = vi.fn();
+    renderTable([], { errorMessage: "Error de conexion", onRetry });
+    expect(screen.queryByText("No hay documentos para mostrar")).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Reintentar" })[0]);
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+  it("shows loading on mobile while the requested page is being fetched", () => {
+    renderTable([], { isLoading: true });
+    expect(screen.getByText("Cargando documentos")).toBeInTheDocument();
+    expect(screen.queryByText("No hay documentos para mostrar")).not.toBeInTheDocument();
+  });
   it("keeps frequent actions visible and groups secondary actions", () => {
-    renderTable([baseDocument]);
+    const props = renderTable([baseDocument]);
+    fireEvent.click(within(screen.getByRole("table")).getByRole("button", { name: "Imprimir" }));
+    expect(props.onPrint).toHaveBeenCalledWith(baseDocument);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     expect(screen.getAllByRole("button", { name: "Ver detalle" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Descargar PDF" }).length).toBeGreaterThan(0);
@@ -140,13 +162,17 @@ describe("DocumentsDataTable cash registration", () => {
     expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
   });
 
-  it.each([true, false])("shows the cash mark in both layouts without opening actions (create permission: %s)", (canRegisterInCash) => {
+  it.each([true, false])("keeps only the row highlight and accessible cash state in both layouts (create permission: %s)", (canRegisterInCash) => {
     renderTable([emittedRemito], {
       cashRegisteredDocumentIds: new Set([emittedRemito.id]),
       canRegisterInCash,
     });
-    expect(screen.getAllByText("Registrado en Caja")).toHaveLength(2);
-    expect(within(screen.getByRole("table")).getByText("Registrado en Caja")).toBeInTheDocument();
+    const cashStates = screen.getAllByText("Registrado en Caja");
+    expect(cashStates).toHaveLength(2);
+    cashStates.forEach((state) => expect(state).toHaveClass("sr-only"));
+    expect(screen.queryByRole("img", { name: "Registrado en Caja" })).not.toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("Registrado en Caja").closest("tr")).toHaveClass("bg-emerald-500/5");
+    expect(cashStates.find((state) => !state.closest("table"))?.parentElement).toHaveClass("bg-emerald-500/5");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
   });
@@ -166,5 +192,46 @@ describe("DocumentsDataTable cash registration", () => {
     renderTable([emittedRemito], { canRegisterInCash: false });
 
     expect(screen.queryByRole("button", { name: "Registrar en Caja" })).not.toBeInTheDocument();
+  });
+});
+
+
+describe("budget simplified workflow", () => {
+  it("offers approval with a draft remito and removes the separate rejected state action", () => {
+    const props = renderTable([{ ...baseDocument, status: "ENVIADO" }]);
+    fireEvent.click(screen.getByRole("button", { name: /acciones/i }));
+    expect(screen.queryByRole("button", { name: "Rechazar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aprobar" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Aprobar y crear remito" }));
+    expect(props.onCloneAsRemito).toHaveBeenCalledWith("doc-1");
+    expect(props.onTransition).not.toHaveBeenCalled();
+  });
+});
+
+describe("DocumentsDataTable cancelled and rejected highlights", () => {
+  it.each([
+    ["PRESUPUESTO", "RECHAZADO"],
+    ["PRESUPUESTO", "ANULADO"],
+    ["REMITO", "RECHAZADO"],
+    ["REMITO", "ANULADO"],
+  ] as const)("highlights %s / %s in both layouts, even when registered in cash", (doc_type, status) => {
+    renderTable([{ ...baseDocument, doc_type, status }], {
+      cashRegisteredDocumentIds: new Set([baseDocument.id]),
+    });
+    const statusLabel = status === "ANULADO" ? "Anulado" : "Rechazado";
+    const labels = screen.getAllByText(statusLabel);
+    expect(labels).toHaveLength(2);
+    const row = within(screen.getByRole("table")).getByText(statusLabel).closest("tr");
+    const card = labels.find(label => !label.closest("table"))?.closest(".bg-destructive\\/5");
+    for (const surface of [row, card]) {
+      expect(surface).toHaveClass("bg-destructive/5", "hover:bg-destructive/10");
+      expect(surface).not.toHaveClass("bg-emerald-500/5");
+    }
+  });
+
+  it("leaves an active document without a highlight when it is not in cash", () => {
+    renderTable([baseDocument]);
+    const row = within(screen.getByRole("table")).getByText("Borrador").closest("tr");
+    expect(row).not.toHaveClass("bg-destructive/5", "bg-emerald-500/5");
   });
 });

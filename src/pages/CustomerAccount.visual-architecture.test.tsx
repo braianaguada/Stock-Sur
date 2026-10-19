@@ -9,7 +9,7 @@ vi.mock("@/components/AppLayout", () => ({
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ currentCompany: { id: "company-1" } }),
+  useAuth: () => ({ currentCompany: { id: "company-1" }, companyPermissionCodes: [] }),
 }));
 
 vi.mock("@/features/customer-account/hooks/useCustomerAccountCustomers", () => ({

@@ -2,7 +2,7 @@ import { BriefcaseBusiness, GripVertical, MapPin, Pencil, UserRound } from "luci
 import { useState, type DragEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -63,7 +63,7 @@ export function TechnicianDailyBoard({
         <CardHeader className="gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <CardTitle>Estado actual de tecnicos</CardTitle>
-            <CardDescription>Arrastra cada tecnico para actualizar su situacion. El estado se conserva hasta que alguien lo cambie.</CardDescription>
+            <CardDescription>Arrastrá para cambiar de estado.</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <CountBadge>{board.cards.length} tecnicos activos</CountBadge>
@@ -141,10 +141,9 @@ export function TechnicianDailyBoard({
       )}
 
       <Dialog open={Boolean(editingCard)} onOpenChange={(open) => { if (!open) { setEditingCard(null); setForm(null); } }}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>{editingCard ? `Jornada de ${editingCard.technician.name}` : "Detalle de jornada"}</DialogTitle>
-            <DialogDescription>Completa solo la informacion util para ubicar y coordinar al tecnico.</DialogDescription>
           </DialogHeader>
           {form ? (
             <div className="grid gap-4">

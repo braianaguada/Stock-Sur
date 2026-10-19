@@ -6,6 +6,8 @@ export const queryKeys = {
     settings: (companyId: string | null) => ["company-settings", companyId ?? "no-company"] as const,
   },
   dashboard: {
+    period: (companyId: string | null, granularity?: string, from?: string, to?: string) =>
+      ["dashboard", "period", companyId ?? "no-company", granularity, from, to] as const,
     overview: (companyId: string | null) => ["dashboard-overview", companyId ?? "no-company"] as const,
     itemsCount: (companyId: string | null) => ["items-count", companyId ?? "no-company"] as const,
     suppliersCount: (companyId: string | null) => ["suppliers-count", companyId ?? "no-company"] as const,
@@ -111,7 +113,11 @@ export const queryKeys = {
       statusFilter: DocStatus | "ALL",
       customerFilter = "ALL",
       technicianFilter = "ALL",
-    ) => ["documents", companyId ?? "no-company", search, typeFilter, statusFilter, customerFilter, technicianFilter] as const,
+      from = "",
+      to = "",
+      page = 1,
+      pageSize = 10,
+    ) => ["documents", companyId ?? "no-company", search, typeFilter, statusFilter, customerFilter, technicianFilter, from, to, page, pageSize] as const,
     all: () => ["documents"] as const,
     detail: (companyId: string | null, documentId: string | null) =>
       ["documents", "detail", companyId ?? "no-company", documentId ?? "no-document"] as const,
@@ -212,6 +218,7 @@ export const queryKeys = {
     items: (companyId: string | null) => ["market-radar", "items", companyId ?? "no-company"] as const,
   },
   pricing: {
+    quickSearchAll: () => ["quick-price-search"] as const,
     catalogItems: (companyId: string | null) => ["pricing-catalog-items", companyId ?? "no-company"] as const,
     catalogItemsAll: () => ["pricing-catalog-items"] as const,
     base: (companyId: string | null) => ["pricing-base", companyId ?? "no-company"] as const,

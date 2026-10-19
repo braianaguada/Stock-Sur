@@ -8,7 +8,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const formatNumber = (n: number | null, pointOfSale: number) =>
   n === null ? "BORRADOR" : formatDocumentNumber(pointOfSale, n);
 
-export const OCCASIONAL_CUSTOMER_DISPLAY_NAME = "Cliente ocasional / Consumidor Final";
+export const OCCASIONAL_CUSTOMER_DISPLAY_NAME = "Cliente final";
 const OCCASIONAL_CUSTOMER_DEFAULT_NAME = "Cliente ocasional";
 
 export type RecipientDisplay = {
@@ -176,7 +176,7 @@ export function validateDocumentRecipientDraft(
     throw new Error("Cliente registrado requiere seleccionar un cliente");
   }
 
-  if (draft.recipient_type === "OCCASIONAL" && draft.technician_id) {
+  if (draft.doc_type !== "REMITO_DEVOLUCION" && draft.recipient_type === "OCCASIONAL" && draft.technician_id) {
     throw new Error("Cliente ocasional no puede tener tecnico asociado");
   }
 
