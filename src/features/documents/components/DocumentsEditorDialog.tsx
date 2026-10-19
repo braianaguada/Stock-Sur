@@ -25,7 +25,10 @@ import type {
 import { calculatePriceFromCostBase, changeDocumentRecipientType, changeRemitoUsage } from "@/features/documents/utils";
 import { rankNaturalItemSearch } from "@/features/items/search";
 
+import { customerPaymentTerms } from "../lib/payment-terms";
+
 type CustomerOption = {
+  account_due_days?: number | null;
   id: string;
   name: string;
 };
@@ -66,6 +69,7 @@ interface DocumentsEditorDialogProps {
   totalDraft: number;
   customers: CustomerOption[];
   technicians: TechnicianOption[];
+  salespeople?: TechnicianOption[];
   serviceOptions: DocumentServiceOption[];
   priceLists: PriceListRow[];
   availableItems: AvailableItemOption[];
@@ -141,6 +145,7 @@ export function DocumentsEditorDialog({
   totalDraft,
   customers,
   technicians,
+  salespeople = [],
   serviceOptions = [],
   priceLists,
   availableItems,
@@ -277,23 +282,7 @@ export function DocumentsEditorDialog({
 
         <div className="rounded-xl border border-border/70 bg-card/60 shadow-sm relative">
           <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
-            <div className="p-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4 items-end">
-              <div className="space-y-1">
-                <Label>Punto de venta</Label>
-                <Input
-                  className="h-9"
-                  type="number"
-                  min={1}
-                  value={documentForm.point_of_sale}
-                  onChange={(event) =>
-                    setDraftForm((previousForm) => ({
-                      ...previousForm,
-                      point_of_sale: Math.max(1, Number(event.target.value) || 1),
-                    }))
-                  }
-                />
-              </div>
-
+            <div className="p-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 items-end">
               <div className="space-y-1">
                 <Label>Lista de precios *</Label>
                 <Select value={documentForm.price_list_id} onValueChange={onPriceListChange}>
@@ -424,26 +413,19 @@ export function DocumentsEditorDialog({
 
                 {!isInternal ? <div className="space-y-1">
                   <Label>Condición de venta</Label>
-                  <Input
-                  className="h-9"
-                    value={documentForm.payment_terms}
-                    placeholder="Opcional"
-                    onChange={(event) =>
-                      setDraftForm((previousForm) => ({ ...previousForm, payment_terms: event.target.value }))
-                    }
-                  />
+                  <Input className="h-9" readOnly value={customerPaymentTerms(documentForm.recipient_type === "REGISTERED" ? customers.find(customer => customer.id === documentForm.customer_id) : null)} />
                 </div> : null}
 
                 <div className="space-y-1">
                   <Label>Vendedor</Label>
-                  <Input
-                  className="h-9"
-                    value={documentForm.salesperson}
-                    placeholder="Opcional"
-                    onChange={(event) =>
-                      setDraftForm((previousForm) => ({ ...previousForm, salesperson: event.target.value }))
-                    }
-                  />
+                  <Select value={salespeople.find(person => person.name === documentForm.salesperson)?.id ?? (documentForm.salesperson ? "historical" : "none")} onValueChange={id => setDraftForm(previous => ({ ...previous, salesperson: salespeople.find(person => person.id === id)?.name ?? "" }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar vendedor" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin vendedor</SelectItem>
+                      {documentForm.salesperson && !salespeople.some(person => person.name === documentForm.salesperson) ? <SelectItem value="historical" disabled>{documentForm.salesperson}</SelectItem> : null}
+                      {salespeople.map(person => <SelectItem key={person.id} value={person.id}>{person.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {documentForm.doc_type === "PRESUPUESTO" ? (
@@ -455,20 +437,6 @@ export function DocumentsEditorDialog({
                       value={documentForm.valid_until}
                       onChange={(event) =>
                         setDraftForm((previousForm) => ({ ...previousForm, valid_until: event.target.value }))
-                      }
-                    />
-                  </div>
-                ) : null}
-
-                {documentForm.doc_type === "REMITO" ? (
-                  <div className="space-y-1 md:col-span-2">
-                    <Label>Domicilio de entrega</Label>
-                    <Input
-                  className="h-9"
-                      value={documentForm.delivery_address}
-                      placeholder="Opcional"
-                      onChange={(event) =>
-                        setDraftForm((previousForm) => ({ ...previousForm, delivery_address: event.target.value }))
                       }
                     />
                   </div>

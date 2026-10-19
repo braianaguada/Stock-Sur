@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, Ban, Bot, Camera, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Bot, Camera, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ClearableSearchInput } from "@/components/common/ClearableSearchInput";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -197,6 +197,7 @@ export default function ServiceDocumentsPage() {
   const { upsertMutation, duplicateMutation, transitionMutation } = useServiceDocumentMutations({
     companyId: currentCompany?.id ?? null,
     editingDocumentId,
+    editorOpen: dialogOpen,
     form,
     lines,
     attachments,
@@ -255,7 +256,6 @@ export default function ServiceDocumentsPage() {
   const canManageServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.create");
   const canEditServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.edit");
   const canApproveServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.approve");
-  const canCancelServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.cancel");
   const canPrintServiceDocuments = companyRoleCodes.includes("admin") || companyPermissionCodes.includes("documents.print");
 
   const openServicePrint = async (document: ServiceDocument) => {
@@ -803,11 +803,6 @@ export default function ServiceDocumentsPage() {
           </DialogHeader>
           {actionDocument ? (
             <div className="grid gap-1">
-              {canManageServiceDocuments && canTransitionServiceDocument(actionDocument, "SENT") ? (
-                <Button variant="ghost" className="justify-start" onClick={() => triggerTransition(actionDocument, "SENT")} disabled={transitionMutation.isPending}>
-                  <Send className="mr-2 h-4 w-4 text-info" /> Enviar al cliente
-                </Button>
-              ) : null}
               {canApproveServiceDocuments && canTransitionServiceDocument(actionDocument, "APPROVED") ? (
                 <Button variant="ghost" className="justify-start" onClick={() => triggerTransition(actionDocument, "APPROVED")} disabled={transitionMutation.isPending}>
                   <Check className="mr-2 h-4 w-4 text-success" /> Aprobar
@@ -816,11 +811,6 @@ export default function ServiceDocumentsPage() {
               {canApproveServiceDocuments && canTransitionServiceDocument(actionDocument, "REJECTED") ? (
                 <Button variant="ghost" className="justify-start" onClick={() => triggerTransition(actionDocument, "REJECTED")} disabled={transitionMutation.isPending}>
                   <X className="mr-2 h-4 w-4 text-destructive" /> Rechazar
-                </Button>
-              ) : null}
-              {canCancelServiceDocuments && canTransitionServiceDocument(actionDocument, "CANCELLED") ? (
-                <Button variant="ghost" className="justify-start" onClick={() => triggerTransition(actionDocument, "CANCELLED")} disabled={transitionMutation.isPending}>
-                  <Ban className="mr-2 h-4 w-4 text-warning" /> Anular
                 </Button>
               ) : null}
               {canEditServiceDocuments && actionDocument.status === "DRAFT" ? (
@@ -1066,8 +1056,8 @@ export default function ServiceDocumentsPage() {
                 <p className="text-xs text-muted-foreground">Estimado {formatMoney(total * Number(form.exchange_rate), "ARS")}</p>
               ) : null}
             </div>
-            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button type="button" className="px-6" onClick={() => upsertMutation.mutate()} disabled={upsertMutation.isPending}>{upsertMutation.isPending ? "Guardando..." : "Guardar"}</Button>
+            <Button type="button" variant="outline" onClick={() => upsertMutation.mutate("DRAFT")} disabled={upsertMutation.isPending}>Guardar borrador</Button>
+            {canApproveServiceDocuments ? <Button type="button" className="px-6" onClick={() => upsertMutation.mutate("SENT")} disabled={upsertMutation.isPending}>{upsertMutation.isPending ? "Procesando..." : "Emitir presupuesto"}</Button> : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>

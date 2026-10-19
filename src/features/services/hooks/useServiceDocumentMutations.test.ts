@@ -1,8 +1,12 @@
+import { buildInitialServiceDocumentForm } from "../logic";
+import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { calculateServiceLineTotal, useServiceDocumentMutations } from "./useServiceDocumentMutations";
+import { calculateServiceLineTotal, useServiceDocumentMutations as useMutations } from "./useServiceDocumentMutations";
 
-const { rpc, invalidateQueries, toast } = vi.hoisted(() => ({
+const { rpc, invalidateQueries, toast, upload, attachmentSingle } = vi.hoisted(() => ({
   rpc: vi.fn(),
+  upload: vi.fn(),
+  attachmentSingle: vi.fn(),
   invalidateQueries: vi.fn(),
   toast: vi.fn(),
 }));
@@ -23,21 +27,29 @@ vi.mock("@/lib/query-keys", () => ({
 }));
 
 vi.mock("@/features/services/db", () => ({
-  serviceDb: { rpc },
+  serviceDb: { rpc, from: () => ({ insert: () => ({ select: () => ({ single: attachmentSingle }) }) }) },
 }));
+
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { storage: { from: () => ({ upload }) } } }));
 
 vi.mock("@/lib/errors", () => ({
   getErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "error"),
 }));
 
+function useServiceDocumentMutations(params: Parameters<typeof useMutations>[0]) {
+  return renderHook(function TestHook() { return useMutations(params); }).result.current;
+}
+
 describe("useServiceDocumentMutations", () => {
   beforeEach(() => {
     rpc.mockReset();
+    upload.mockReset();
+    attachmentSingle.mockReset();
     invalidateQueries.mockReset();
     toast.mockReset();
   });
 
-  it("saves service documents as drafts through rpc with trimmed payload", async () => {
+  it.each(["DRAFT", "SENT"] as const)("saves service documents with intent %s and trimmed payload", async (intent) => {
     rpc.mockResolvedValueOnce({ error: null });
     const mutations = useServiceDocumentMutations({
       companyId: "company-1",
@@ -72,14 +84,14 @@ describe("useServiceDocumentMutations", () => {
       onDone: vi.fn(),
     });
 
-    await mutations.upsertMutation.mutationFn();
+    await mutations.upsertMutation.mutationFn(intent);
 
     expect(rpc).toHaveBeenCalledWith(
       "save_service_document_with_sections",
       expect.objectContaining({
         p_company_id: "company-1",
         p_customer_id: "cust-1",
-        p_status: "DRAFT",
+        p_status: intent,
         p_reference: "ref",
         p_delivery_time: "48 hs",
         p_payment_terms: "contado",
@@ -90,6 +102,25 @@ describe("useServiceDocumentMutations", () => {
         p_lines: [{ description: "Trabajo", line_type: "ITEM", quantity: 2, unit: "u", unit_price: 10, line_total: 20, is_bold: false, is_underlined: false }],
       }),
     );
+  });
+
+  it("keeps a draft on attachment failure and retries without creating another document or upload", async () => {
+    rpc.mockResolvedValue({ data: { id: "doc-1", created_by: "user-1" }, error: null });
+    upload.mockResolvedValue({ error: null });
+    attachmentSingle.mockResolvedValueOnce({ error: new Error("metadata failed") }).mockResolvedValueOnce({ error: null });
+    const mutations = useServiceDocumentMutations({
+      companyId: "company-1", editingDocumentId: null, form: buildInitialServiceDocumentForm({}),
+      lines: [{ description: "Trabajo", quantity: 1, unit: "u", unit_price: 10, line_total: 10 }] as never,
+      attachments: [{ id: "attachment-1", file: new File(["image"], "image.jpg", { type: "image/jpeg" }), file_name: "image.jpg", mime_type: "image/jpeg", size_bytes: 5, title: "", description: "", sort_order: 1, include_in_print: true }],
+      toast, onDone: vi.fn(),
+    });
+    await expect(mutations.upsertMutation.mutationFn("SENT")).rejects.toThrow("metadata failed");
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenLastCalledWith("save_service_document_with_sections", expect.objectContaining({ p_status: "DRAFT", p_document_id: null }));
+    await mutations.upsertMutation.mutationFn("SENT");
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenNthCalledWith(2, "save_service_document_with_sections", expect.objectContaining({ p_document_id: "doc-1", p_status: "DRAFT" }));
+    expect(rpc).toHaveBeenLastCalledWith("transition_service_document_status", { p_document_id: "doc-1", p_target_status: "SENT" });
   });
 
   it("allows global total service documents without line prices", async () => {
