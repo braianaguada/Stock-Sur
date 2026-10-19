@@ -1,3 +1,4 @@
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EntityDialog } from "@/components/common/EntityDialog";
 import { HealthBadge, InfoBadge } from "@/components/common/VisualSystem";
 import { AlertTriangle, Loader2 } from "lucide-react";
@@ -168,18 +169,15 @@ export function CustomerFormDialog({
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Días de vencimiento de cuenta corriente</Label>
-            <Input
-              type="number"
-              min={0}
-              max={3650}
-              step={1}
-              value={form.account_due_days}
-              onChange={(event) => onFormChange({ ...form, account_due_days: event.target.value })}
-            />
-            <p className="text-xs text-muted-foreground">
-              Se aplica a los nuevos vencimientos del estado de cuenta de este cliente.
-            </p>
+            <Label>Condición de pago</Label>
+            <Select value={form.account_due_days} onValueChange={value => onFormChange({ ...form, account_due_days: value })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Contado</SelectItem>
+                <SelectItem value="30">30 días</SelectItem>
+                {!["0", "30"].includes(form.account_due_days) ? <SelectItem value={form.account_due_days}>{form.account_due_days} días</SelectItem> : null}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

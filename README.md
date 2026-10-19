@@ -3,6 +3,15 @@
 - Al crear un presupuesto, `Emitir y compartir` emite y prepara el mensaje con numero definitivo, importe y enlace publico. `Copiar mensaje` permite pegarlo en el canal elegido.
 - Conserva los permisos existentes para emitir y compartir; si falla el enlace, el presupuesto sigue emitido y se puede reintentar desde Compartir sin volver a emitirlo. Servicios sin cambios.
 - Sin migraciones ni cambios en produccion. QA automatizada: editor, mensaje, consulta por empresa y fallos del enlace. QA manual pendiente en staging: emision con datos de prueba, enlace publico y portapapeles.
+- Integracion final con staging: typecheck, lint, build y diff --check correctos. Suite: 889 aprobadas, 53 omitidas y un timeout en dependencias circulares; los 2 controles de ese archivo pasaron al ejecutarlos aislados.
+
+### Carga comercial y presupuestos de servicio
+
+- Documentos: punto de venta desde la empresa, condici贸n de pago desde el cliente (Contado / 30 d铆as) y vendedor seleccionado entre vendedores y superadmin habilitados. Se conservan condiciones y vendedores hist贸ricos.
+- Servicios: guardar borrador o emitir como enviado; aprobaci贸n/rechazo, formulario compacto, IVA y adjuntos en el pie. Si falla un adjunto, se conserva el borrador para reintentar sin volver a emitir.
+- Migraci贸n: `20261019190000_commercial_entry_settings.sql` (vendedores por empresa y emisi贸n transaccional). Aplicada en staging; producci贸n sin cambios. QA visual y operativa pendiente.
+
+- Validaciones: typecheck, lint y build correctos; suite general con 877 aprobadas, 53 omitidas y 4 timeouts. Los 12 controles de arquitectura visual pasaron al repetirlos con timeout de 60 segundos.
 
 ### Registro de remitos en caja
 
@@ -1576,7 +1585,7 @@ git pull origin staging
 ### Resumen de stock en staging (2026-10-09)
 
 - Stock e Items consultan el resumen agregado `get_stock_summary` en PostgreSQL, evitando descargar todo el historial de movimientos al navegador.
-- La migraci髇 `20261009120000_stock_summary_rpc.sql` agrega el 韓dice por empresa, 韙em y fecha. Debe aplicarse 鷑icamente en staging durante QA.
+- La migraci锟絥 `20261009120000_stock_summary_rpc.sql` agrega el 锟絥dice por empresa, 锟絫em y fecha. Debe aplicarse 锟絥icamente en staging durante QA.
 
 ### Documentos: historial paginado en staging (2026-10-15)
 

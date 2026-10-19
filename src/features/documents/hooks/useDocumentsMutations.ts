@@ -20,13 +20,16 @@ import { buildDocumentCustomerSnapshot, calculatePriceFromCostBase, formatNumber
 import { getOperationalPrice } from "@/features/pricing/operational-price";
 import type { PriceRoundingConfig } from "@/features/pricing/rounding";
 
+import { customerPaymentTerms } from "../lib/payment-terms";
+
 type ToastFn = (args: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
 
 type UseDocumentsMutationsParams = {
   currentCompanyId: string | null;
   userId: string | undefined;
+  defaultPointOfSale?: number;
   documents: DocRow[];
-  customers: Array<{ id: string; name: string; cuit: string | null }>;
+  customers: Array<{ id: string; name: string; cuit: string | null; account_due_days?: number | null }>;
   technicians: Array<{ id: string; name: string }>;
   serviceOptions: DocumentServiceOption[];
   lines: LineDraft[];
@@ -142,6 +145,7 @@ export function normalizeDraftLine({
 
 export function useDocumentsMutations({
   currentCompanyId,
+  defaultPointOfSale = 1,
   userId,
   documents,
   customers,
@@ -251,7 +255,7 @@ export function useDocumentsMutations({
         manualTaxCondition: draftForm.customer_tax_condition,
       });
       const draftPayload = buildDocumentDraftPersistencePayload({
-        draft: draftForm,
+        draft: { ...draftForm, point_of_sale: defaultPointOfSale, payment_terms: customerPaymentTerms(pickedCustomer) },
         customerSnapshot,
         total: totalDraft,
       });

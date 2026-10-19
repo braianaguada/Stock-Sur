@@ -173,6 +173,7 @@ export default function DocumentsPage() {
   const {
     customers,
     technicians,
+    salespeople,
     allTechnicians,
     serviceOptions,
     items,
@@ -347,6 +348,7 @@ export default function DocumentsPage() {
     cloneAsReturnMutation,
     duplicateDocumentMutation,
   } = useDocumentsMutations({
+    defaultPointOfSale,
     currentCompanyId: currentCompany?.id ?? null,
     userId: user?.id,
     documents: Array.from(documentsById.values()),
@@ -1011,6 +1013,7 @@ export default function DocumentsPage() {
             setLines={setLines}
             totalDraft={totalDraft}
             customers={customers}
+          salespeople={salespeople}
             technicians={technicians}
             serviceOptions={serviceOptions}
             priceLists={priceLists}

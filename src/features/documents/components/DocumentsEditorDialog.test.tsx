@@ -83,7 +83,8 @@ function renderDialog(
       lines={options.lines ?? []}
       setLines={options.setLines ?? vi.fn()}
       totalDraft={0}
-      customers={[{ id: "customer-1", name: "Cliente registrado" }]}
+      customers={[{ id: "customer-1", name: "Cliente registrado", account_due_days: 30 }]}
+      salespeople={[{ id: "seller-1", name: "Vendedora Uno" }]}
       technicians={[{ id: "technician-1", name: "Tecnico Uno" }]}
       serviceOptions={[
         {
@@ -115,6 +116,13 @@ function renderDialog(
 }
 
 describe("DocumentsEditorDialog", () => {
+  it.each([['OCCASIONAL', '', 'Contado'], ['REGISTERED', 'customer-1', '30 d\u00edas']] as const)("derives terms for %s and removes redundant controls", (recipient_type, customer_id, terms) => {
+    renderDialog({ ...baseForm, recipient_type, customer_id });
+    expect(screen.queryByText('Punto de venta', { selector: 'label' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Domicilio de entrega', { selector: 'label' })).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue(terms)).toHaveAttribute('readonly');
+    expect(screen.getByText('Vendedora Uno')).toBeInTheDocument();
+  });
   it.each([
     ["REMITO", null],
     ["REMITO", "draft-remito"],

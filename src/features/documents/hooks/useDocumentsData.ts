@@ -56,10 +56,20 @@ export function useDocumentsData({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customers")
-        .select("id, name, cuit, phone")
+        .select("id, name, cuit, phone, account_due_days")
         .eq("company_id", currentCompanyId!)
         .eq("is_occasional", false)
         .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: salespeople = [] } = useQuery({
+    queryKey: ["documents", "salespeople", currentCompanyId],
+    enabled: Boolean(currentCompanyId) && editorOpen,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("list_document_salespeople", { p_company_id: currentCompanyId! });
       if (error) throw error;
       return data ?? [];
     },
@@ -420,6 +430,7 @@ export function useDocumentsData({
   return {
     customers,
     technicians,
+    salespeople,
     allTechnicians,
     serviceOptions,
     items,
