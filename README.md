@@ -1,3 +1,11 @@
+### Carga comercial y presupuestos de servicio
+
+- Documentos: punto de venta desde la empresa, condici贸n de pago desde el cliente (Contado / 30 d铆as) y vendedor seleccionado entre vendedores y superadmin habilitados. Se conservan condiciones y vendedores hist贸ricos.
+- Servicios: guardar borrador o emitir como enviado; aprobaci贸n/rechazo, formulario compacto, IVA y adjuntos en el pie. Si falla un adjunto, se conserva el borrador para reintentar sin volver a emitir.
+- Migraci贸n: `20261019190000_commercial_entry_settings.sql` (vendedores por empresa y emisi贸n transaccional). Aplicada en staging; producci贸n sin cambios. QA visual y operativa pendiente.
+
+- Validaciones: typecheck, lint y build correctos; suite general con 877 aprobadas, 53 omitidas y 4 timeouts. Los 12 controles de arquitectura visual pasaron al repetirlos con timeout de 60 segundos.
+
 ### Registro de remitos en caja
 
 - Factura A opcional al registrar en Caja; asociacion y venta atomicas. Vista previa de solo lectura.
@@ -1570,7 +1578,7 @@ git pull origin staging
 ### Resumen de stock en staging (2026-10-09)
 
 - Stock e Items consultan el resumen agregado `get_stock_summary` en PostgreSQL, evitando descargar todo el historial de movimientos al navegador.
-- La migraci髇 `20261009120000_stock_summary_rpc.sql` agrega el 韓dice por empresa, 韙em y fecha. Debe aplicarse 鷑icamente en staging durante QA.
+- La migraci锟絥 `20261009120000_stock_summary_rpc.sql` agrega el 锟絥dice por empresa, 锟絫em y fecha. Debe aplicarse 锟絥icamente en staging durante QA.
 
 ### Documentos: historial paginado en staging (2026-10-15)
 

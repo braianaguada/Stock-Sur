@@ -123,7 +123,7 @@ describe("ServiceDocumentsPage", () => {
     serviceDocumentsParamsMock.mockReset();
   });
 
-  it("keeps preview, PDF and share visible and groups secondary actions", async () => {
+  it("keeps preview, print and PDF visible and sharing in secondary actions", async () => {
     const write = vi.fn();
     const focus = vi.fn();
     vi.stubGlobal("open", vi.fn(() => ({ document: { open: vi.fn(), write, close: vi.fn() }, focus, close: vi.fn() })));
@@ -136,9 +136,12 @@ describe("ServiceDocumentsPage", () => {
     expect(screen.getByText("Documentos")).toBeInTheDocument();
     expect(screen.getAllByTitle("Vista previa").length).toBeGreaterThan(0);
     expect(screen.getAllByTitle("Guardar PDF").length).toBeGreaterThan(0);
-    expect(screen.getAllByTitle("Compartir").length).toBeGreaterThan(0);
+    expect(screen.queryByTitle("Compartir")).not.toBeInTheDocument();
+    expect(screen.getAllByTitle("Imprimir").length).toBeGreaterThan(0);
     fireEvent.click(screen.getAllByTitle("Mas acciones")[0]);
-    expect(screen.getByTitle("Imprimir")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Compartir" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Enviar al cliente" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Anular" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
     fireEvent.click(screen.getAllByTitle("Vista previa")[0]);
@@ -164,22 +167,23 @@ describe("ServiceDocumentsPage", () => {
     renderPage();
 
     fireEvent.click(screen.getAllByTitle("Mas acciones")[0]);
-    fireEvent.click(screen.getByRole("button", { name: "Enviar al cliente" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aprobar" }));
 
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
-    expect(screen.getByText("Enviado presupuesto")).toBeInTheDocument();
+    expect(screen.getByText("Aprobado presupuesto")).toBeInTheDocument();
     expect(screen.getByText(/SERV-000012 cambiara de estado/i)).toBeInTheDocument();
     expect(nativeConfirm).not.toHaveBeenCalled();
   });
 
-  it("keeps status transitions outside the service document form", () => {
+  it("offers draft and issue actions in the service document form", () => {
     renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: "Nuevo presupuesto" }));
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).queryByText("Estado", { selector: "label" })).not.toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Guardar" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Guardar borrador" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Emitir presupuesto" })).toBeInTheDocument();
   });
 
   it("opens the AI assistant and renders a generated price preview", async () => {
