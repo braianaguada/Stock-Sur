@@ -1,3 +1,9 @@
+### Emitir y compartir presupuestos de documentos
+
+- Al crear un presupuesto, `Emitir y compartir` emite y prepara el mensaje con numero definitivo, importe y enlace publico. `Copiar mensaje` permite pegarlo en el canal elegido.
+- Conserva los permisos existentes para emitir y compartir; si falla el enlace, el presupuesto sigue emitido y se puede reintentar desde Compartir sin volver a emitirlo. Servicios sin cambios.
+- Sin migraciones ni cambios en produccion. QA automatizada: editor, mensaje, consulta por empresa y fallos del enlace. QA manual pendiente en staging: emision con datos de prueba, enlace publico y portapapeles.
+
 ### Registro de remitos en caja
 
 - Factura A opcional al registrar en Caja; asociacion y venta atomicas. Vista previa de solo lectura.

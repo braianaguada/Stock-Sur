@@ -70,6 +70,7 @@ function renderDialog(
     canIssueOnCreate?: boolean;
     canSendBudget?: boolean;
     priceLists?: PriceListRow[];
+    isSubmitting?: boolean;
   } = {},
 ) {
   render(
@@ -106,7 +107,7 @@ function renderDialog(
       canIssueOnCreate={options.canIssueOnCreate}
       canSendBudget={options.canSendBudget}
       onResetDraftForm={vi.fn()}
-      isSubmitting={false}
+      isSubmitting={options.isSubmitting ?? false}
     />,
   );
 
@@ -152,6 +153,31 @@ describe("DocumentsEditorDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Emitir presupuesto" }));
     expect(onSubmit).toHaveBeenCalledWith("SEND_BUDGET");
     expect(screen.queryByRole("button", { name: "Emitir remito" })).not.toBeInTheDocument();
+  });
+  it("emits and shares a document budget with one action", () => {
+    const onSubmit = vi.fn();
+    renderDialog({ ...baseForm, doc_type: "PRESUPUESTO" }, onSubmit, {
+      canSendBudget: true,
+      priceLists: [{ id: "list-1", name: "General" } as PriceListRow],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Emitir y compartir" }));
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith("SEND_BUDGET", true);
+    expect(screen.getByRole("button", { name: "Guardar borrador" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Emitir presupuesto" })).toBeInTheDocument();
+  });
+  it.each([
+    { doc_type: "REMITO" as const, canSendBudget: true },
+    { doc_type: "PRESUPUESTO" as const, canSendBudget: false },
+  ])("does not offer issue and share for $doc_type with permission $canSendBudget", ({ doc_type, canSendBudget }) => {
+    renderDialog({ ...baseForm, doc_type }, vi.fn(), { canSendBudget });
+    expect(screen.queryByRole("button", { name: "Emitir y compartir" })).not.toBeInTheDocument();
+  });
+  it("disables issue and share while submitting", () => {
+    renderDialog({ ...baseForm, doc_type: "PRESUPUESTO" }, vi.fn(), {
+      canSendBudget: true, isSubmitting: true,
+      priceLists: [{ id: "list-1", name: "General" } as PriceListRow],
+    });
+    expect(screen.getByRole("button", { name: "Emitir y compartir" })).toBeDisabled();
   });
   it.each([null, "converted-remito-id"])("offers save and issue for a remito with editing id %s", (editingDocId) => {
     const onSubmit = vi.fn<(intent: DocumentDraftSubmissionIntent) => void>();
