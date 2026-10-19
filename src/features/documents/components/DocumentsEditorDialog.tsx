@@ -78,7 +78,7 @@ interface DocumentsEditorDialogProps {
   onAddItem: (itemId: string) => void;
   onAddCombo: (comboId: string, quantity: number) => void;
   removeLine: (idx: number) => void;
-  onSubmit: (intent: DocumentDraftSubmissionIntent) => void;
+  onSubmit: (intent: DocumentDraftSubmissionIntent, shareAfterIssue?: true) => void;
   canIssueOnCreate?: boolean;
   canSendBudget?: boolean;
   onResetDraftForm: () => void;
@@ -243,14 +243,15 @@ export function DocumentsEditorDialog({
     if (!open) setSubmitAttempted(false);
   }, [open]);
 
-  const submitWithIntent = (intent: DocumentDraftSubmissionIntent) => {
+  const submitWithIntent = (intent: DocumentDraftSubmissionIntent, shareAfterIssue?: true) => {
     setSubmitAttempted(true);
 
     if (isInternal && (!documentForm.technician_id || !documentForm.internal_remito_type)) {
       return;
     }
 
-    onSubmit(intent);
+    if (shareAfterIssue) onSubmit(intent, true);
+    else onSubmit(intent);
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -871,7 +872,10 @@ export function DocumentsEditorDialog({
               {isSubmitting ? "Procesando..." : "Guardar borrador"}
             </Button>
             {!editingDocId && documentForm.doc_type === "PRESUPUESTO" && canSendBudget ? (
-              <Button type="button" size="sm" disabled={isSubmitting || priceLists.length === 0} onClick={() => submitWithIntent("SEND_BUDGET")}>Emitir presupuesto</Button>
+              <>
+                <Button type="button" size="sm" disabled={isSubmitting || priceLists.length === 0} onClick={() => submitWithIntent("SEND_BUDGET")}>Emitir presupuesto</Button>
+                <Button type="button" variant="outline" size="sm" disabled={isSubmitting || priceLists.length === 0} onClick={() => submitWithIntent("SEND_BUDGET", true)}>Emitir y compartir</Button>
+              </>
             ) : null}
             {documentForm.doc_type === "REMITO" && canIssueOnCreate ? (
               <Button

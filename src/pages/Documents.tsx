@@ -48,7 +48,8 @@ import { buildDocumentLineFromItem } from "@/features/documents/lib/buildDocumen
 import { mergeComboDocumentLines } from "@/features/documents/lib/mergeComboDocumentLines";
 import { DUPLICATE_DOCUMENT_CONFIRMATION } from "@/features/documents/lib/duplicate";
 import { buildDocumentPrintHtml } from "@/features/documents/print";
-import { buildDocumentShareMessage, buildPublicDocumentUrl } from "@/features/documents/share";
+import { buildDocumentShareMessage, buildPublicDocumentUrl, type ShareableDocument } from "@/features/documents/share";
+import { createDocumentShareLink, prepareIssuedBudgetShare } from "@/features/documents/lib/prepareIssuedBudgetShare";
 import type {
   CustomerKind,
   DocLineRow,
@@ -153,7 +154,7 @@ export default function DocumentsPage() {
   const [cashDocument, setCashDocument] = useState<DocRow | null>(null);
   const [registerCashOpen, setRegisterCashOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingDocumentAction | null>(null);
-  const [shareDocument, setShareDocument] = useState<DocRow | null>(null);
+  const [shareDocument, setShareDocument] = useState<ShareableDocument | null>(null);
   const [shareCustomerId, setShareCustomerId] = useState("");
   const [sharePhone, setSharePhone] = useState("");
   const [shareLink, setShareLink] = useState<DocumentShareLink | null>(null);
@@ -735,7 +736,8 @@ export default function DocumentsPage() {
     }
   };
 
-  const openDocumentShare = async (document: DocRow) => {
+  const openDocumentShare = async (document: ShareableDocument, prepared?: { link: DocumentShareLink; message: string }) => {
+    if (!currentCompany?.id || companyContext.current !== currentCompany.id) return;
     if (document.doc_type === "REMITO_DEVOLUCION") {
       toast({ title: "Documento no compartible", description: "Los links públicos están disponibles para presupuestos y remitos." });
       return;
@@ -743,6 +745,12 @@ export default function DocumentsPage() {
     setShareDocument(document);
     setShareCustomerId(document.customer_id ?? "");
     setSharePhone(customers.find((customer) => customer.id === document.customer_id)?.phone ?? "");
+    if (prepared) {
+      setShareLink(prepared.link);
+      setShareMessageText(prepared.message);
+      setShareLinkLoading(false);
+      return;
+    }
     setShareLink(null);
     setShareMessageText("");
     setShareLinkLoading(true);
@@ -750,6 +758,7 @@ export default function DocumentsPage() {
       const { data, error } = await supabase
         .from("document_share_links")
         .select("*")
+        .eq("company_id", currentCompany.id)
         .eq("document_id", document.id)
         .eq("enabled", true)
         .order("created_at", { ascending: false })
@@ -770,12 +779,7 @@ export default function DocumentsPage() {
     if (shareLink?.enabled) return shareLink;
     setShareLinkLoading(true);
     try {
-      const { data, error } = await supabase.rpc("create_document_share_link", {
-        p_document_id: shareDocument.id,
-        p_expires_at: null,
-      });
-      if (error) throw error;
-      const link = data as unknown as DocumentShareLink;
+      const link = await createDocumentShareLink(shareDocument.id);
       setShareLink(link);
       setShareMessageText(buildDocumentShareMessage(shareDocument, buildPublicDocumentUrl(link.token)));
       return link;
@@ -1019,7 +1023,22 @@ export default function DocumentsPage() {
             onAddCombo={onAddCombo}
             onPriceListChange={onPriceListChange}
             removeLine={removeLine}
-            onSubmit={(intent) => upsertDraftMutation.mutate(intent)}
+            onSubmit={(intent, shareAfterIssue) => {
+              const companyId = currentCompany?.id;
+              upsertDraftMutation.mutate(intent, {
+                onSuccess: async (result) => {
+                  if (!shareAfterIssue || intent !== "SEND_BUDGET" || result.issueError || !companyId || companyContext.current !== companyId) return;
+                  try {
+                    const prepared = await prepareIssuedBudgetShare(companyId, result.documentId);
+                    if (companyContext.current !== companyId) return;
+                    await openDocumentShare(prepared.document, prepared);
+                  } catch (error) {
+                    if (companyContext.current !== companyId) return;
+                    toast({ title: "Presupuesto emitido; no se pudo preparar el mensaje", description: `${getErrorMessage(error)} Reintenta desde Compartir en el listado.`, variant: "destructive" });
+                  }
+                },
+              });
+            }}
             canIssueOnCreate={canIssueRemito(roles)}
             canSendBudget={canTransitionDocumentTo(roles, "ENVIADO")}
             onResetDraftForm={resetDraftForm}
@@ -1189,6 +1208,21 @@ export default function DocumentsPage() {
             </div>
           </div>
           <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={shareLinkLoading || !shareLink?.enabled || !shareMessageText.trim()}
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(shareMessageText);
+                  toast({ title: "Mensaje copiado" });
+                } catch (error) {
+                  toast({ title: "No se pudo copiar el mensaje", description: `Selecciona y copia el texto del mensaje. ${getErrorMessage(error)}`, variant: "destructive" });
+                }
+              }}
+            >
+              <Copy className="mr-2 h-4 w-4" /> Copiar mensaje
+            </Button>
             <Button
               type="button"
               variant="outline"

@@ -1,3 +1,10 @@
+### Emitir y compartir presupuestos de documentos
+
+- Al crear un presupuesto, `Emitir y compartir` emite y prepara el mensaje con numero definitivo, importe y enlace publico. `Copiar mensaje` permite pegarlo en el canal elegido.
+- Conserva los permisos existentes para emitir y compartir; si falla el enlace, el presupuesto sigue emitido y se puede reintentar desde Compartir sin volver a emitirlo. Servicios sin cambios.
+- Sin migraciones ni cambios en produccion. QA automatizada: editor, mensaje, consulta por empresa y fallos del enlace. QA manual pendiente en staging: emision con datos de prueba, enlace publico y portapapeles.
+- Integracion final con staging: typecheck, lint, build y diff --check correctos. Suite: 889 aprobadas, 53 omitidas y un timeout en dependencias circulares; los 2 controles de ese archivo pasaron al ejecutarlos aislados.
+
 ### Carga comercial y presupuestos de servicio
 
 - Documentos: punto de venta desde la empresa, condición de pago desde el cliente (Contado / 30 días) y vendedor seleccionado entre vendedores y superadmin habilitados. Se conservan condiciones y vendedores históricos.
