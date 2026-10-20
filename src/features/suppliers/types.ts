@@ -1,10 +1,5 @@
 import type {
-  CatalogImportLine,
   ContentUnit,
-  CurrencyDetection,
-  NormalizeDiagnostics,
-  ParsePdfProgress,
-  ParsedSheetData,
   SemanticDetection,
 } from "@/lib/importers/catalogImporter";
 import type { TaxTreatment } from "@/lib/importers/catalogImporter";
@@ -86,75 +81,6 @@ export interface SupplierReorderSuggestion {
   matchReason: SupplierReorderMatchReason;
 }
 
-export interface ExtractionReviewLine {
-  id: string;
-  supplier_code: string | null;
-  raw_description: string;
-  cost: number;
-  currency: "ARS" | "USD";
-  currency_detection?: CurrencyDetection;
-  product_name?: string | null;
-  additional_description?: string | null;
-  presentation_raw?: string | null;
-  package_quantity?: number | null;
-  content_value?: number | null;
-  content_unit?: ContentUnit | null;
-  reference_unit_price?: number | null;
-  reference_price_basis?: string | null;
-  semantic_detection?: SemanticDetection;
-  tax_treatment: TaxTreatment;
-  row_index: number;
-  source_page?: number;
-  confidence?: number;
-}
-
 export interface OrderLine extends CatalogLine {
   quantity: number;
 }
-
-export interface SupplierCatalogLinePayload {
-  supplier_code: string | null;
-  raw_description: string;
-  normalized_description: string | null;
-  cost: number;
-  currency: "ARS" | "USD";
-  product_name?: string | null;
-  additional_description?: string | null;
-  presentation_raw?: string | null;
-  package_quantity?: number | null;
-  content_value?: number | null;
-  content_unit?: ContentUnit | null;
-  semantic_detection?: SemanticDetection;
-  reference_unit_price?: number | null;
-  reference_price_basis?: string | null;
-  tax_treatment: TaxTreatment;
-  row_index: number;
-  matched_item_id: string | null;
-  match_status: "MATCHED" | "PENDING" | "NEW";
-}
-
-export interface ImportMappingStored {
-  descriptionColumn: string;
-  priceColumn: string;
-  currencyColumn?: string | null;
-  supplierCodeColumn?: string | null;
-  presentationColumn?: string | null;
-  contentValueColumn?: string | null;
-  referencePriceColumn?: string | null;
-}
-
-export interface PdfImportMappingStored {
-  descriptionColumn: string;
-  priceColumn: string;
-  codeColumn?: string | null;
-  taxColumn?: string | null;
-  preferPriceAtEnd?: boolean;
-  filterRowsWithoutPrice?: boolean;
-}
-
-export type {
-  CatalogImportLine,
-  NormalizeDiagnostics,
-  ParsePdfProgress,
-  ParsedSheetData,
-};

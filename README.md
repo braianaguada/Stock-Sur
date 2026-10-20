@@ -512,14 +512,17 @@ Estado de cuenta lee `account_due_days` del cliente para calcular vencimientos c
 ### Base de abastecimiento: proveedores y listas
 
 - Proveedores incorpora razon social, CUIT normalizado, telefono y WhatsApp independientes y direccion. La moneda no se solicita ni se clasifica por proveedor.
-- Cada oferta importada conserva su propia moneda (`ARS` o `USD`), por lo que una lista puede ser ARS, USD o mixta. La deteccion prioriza celda de precio, columna de moneda y encabezado; los conflictos requieren revision y, sin evidencia, se usa ARS.
-- El preview permite corregir moneda por fila. Catalogo y bandeja de seleccion usan layouts adaptables sin megatablas horizontales.
+- La carga se rehace desde Excel `.xlsx`/`.xls` (hasta 20 MB y 20.000 filas de datos). Reemplaza los asistentes anteriores de PDF, extraccion automatica y mapeos complejos.
+- Se eligen hoja, fila de encabezados y las columnas nombre, unidad y precio. Nombre y precio son obligatorios; sin unidad se guarda `unidad`.
+- La moneda se elige explicitamente por lista: `ARS` o `USD`. Los precios se guardan sin IVA (`tax_treatment = EXCLUDED`), sin conversion monetaria ni suma de impuestos. Los precios numericos de Excel conservan su valor; los de texto usan el separador decimal elegido.
+- La vista previa muestra errores y permite excluir filas expresamente. No se guardan filas invalidas ni se descartan automaticamente. Las listas se consultan completas, con busqueda sobre todos sus productos y paginacion visual, sin el limite anterior de 250 filas.
 - `price_lists` sigue siendo el dominio de precios internos de venta; abastecimiento reutiliza `supplier_catalogs`, `supplier_catalog_versions` y `supplier_catalog_lines`.
 - Las migraciones `20260711120000_procurement_supplier_list_foundation.sql` y `20260711150000_supplier_offer_currency_per_line.sql` son aditivas. La segunda canoniza y valida moneda por linea, preserva los campos legacy y no los usa como fallback operativo.
-- La importacion PDF permite revisar el documento real junto a las lineas detectadas, navegar paginas y zoom, y confirmar por linea si el costo incluye IVA, no lo incluye o no fue informado.
-- El tratamiento de IVA se conserva en `supplier_catalog_lines.tax_treatment`; las leyendas ambiguas quedan como `UNKNOWN` para evitar recalculos implicitos.
+- Las listas historicas conservan sus precios, moneda y tratamiento de IVA originales. Esta etapa no agrega conversion BNA ni calculo de IVA.
 - La migracion `20260713220000_supplier_catalog_line_tax_treatment.sql` agrega el dato impositivo y lo valida dentro del RPC de importacion, manteniendo los controles de empresa y permisos existentes.
-- La carga de listas ahora valida nombres, precios y monedas antes de confirmar, advierte codigos de proveedor repetidos y muestra la cantidad exacta a importar. La migracion `20260813133000_supplier_catalog_import_atomic.sql` guarda documento, version y lineas en una unica transaccion, conserva presentacion/IVA/precio de referencia y evita documentos huerfanos ante un error.
+- Cada actualizacion crea una version. El RPC existente `create_supplier_catalog_import_atomic` guarda documento, version y filas en una transaccion con controles de empresa y permisos. No requiere migraciones nuevas.
+- Pruebas de regresion: lectura XLS/XLSX, mapeo, unidades vacias, formatos y monedas, filas invalidas, contrato de guardado atomico, filtros por empresa y consultas de mas de 1.000 productos. QA interactiva y DB pendientes en staging.
+- Limitaciones de esta etapa: solo Excel, una moneda por carga y precios sin IVA. Antes de reintentar una carga interrumpida por un corte de conexion, revisar el historial para evitar duplicados.
 - Abastecimiento incluye comparacion de ofertas y ordenes de compra persistidas. La confirmacion de una orden no genera por si sola movimientos de stock, Caja ni cuenta corriente.
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
@@ -897,43 +900,11 @@ Notas:
 - El parser tolera precios con `,` o `.` como separador decimal, símbolos de moneda y espacios.
 - Si el archivo no se puede leer, se informa un error claro en pantalla y en consola.
 
-## Importación asistida con IA para PDFs difíciles
+## Carga de listas de proveedores
 
-Se agregó una capa opcional para PDFs de proveedores con muchas imágenes o texto poco legible:
+La carga de proveedores utiliza Excel con selección de hoja, encabezados y columnas de nombre, unidad y precio. Conserva los precios sin IVA en la moneda elegida (ARS o USD); la unidad vacía se interpreta como unidad. Ver el apartado de proveedores para límites y validaciones.
 
-- El flujo sigue intentando primero con `pdfjs` y OCR local.
-- Si el resultado es flojo, prueba automáticamente motores externos vía Edge Functions de Supabase.
-- La prioridad gratis actual es `Gemini`.
-- `Mistral OCR` queda como motor opcional, no requerido.
-- Si los motores externos no están configurados o fallan, el sistema vuelve al parser actual sin cortar la importación.
-
-### Configuración
-
-1. Configuracion minima gratis en Supabase:
-
-```sh
-supabase secrets set GEMINI_API_KEY=tu_api_key
-supabase secrets set GEMINI_MODEL=gemini-2.5-flash
-```
-
-2. Desplegar la función:
-
-```sh
-supabase functions deploy supplier-pdf-ai-extract
-```
-
-3. Verificar que la sesión del usuario autenticado pueda invocar Edge Functions normalmente.
-
-### Qué devuelve Gemini
-
-La función intenta devolver una estructura limpia con:
-
-- `supplier_code`
-- `description`
-- `price`
-- `currency`
-
-Luego el frontend reutiliza el mismo modal de mapeo PDF y el pipeline de importación, ahora con una revisión final antes de confirmar el alta del listado.
+Se retiró del repositorio el importador PDF anterior y sus funciones de extracción exclusivas. Este cambio no elimina funciones desplegadas ni modifica secretos de Supabase.
 
 ## Asistente IA para Presupuestos de Servicios
 

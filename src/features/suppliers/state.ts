@@ -1,8 +1,6 @@
 import type {
   CatalogLine,
-  NormalizeDiagnostics,
   OrderLine,
-  ParsePdfProgress,
   Supplier,
   SupplierCatalogVersion,
   SupplierFormState,
@@ -43,10 +41,6 @@ export function createCatalogDialogState() {
     activeVersionId: null as string | null,
     orderItems: {} as Record<string, OrderLine>,
     lineQuantities: {} as Record<string, number>,
-    lastDiagnostics: null as NormalizeDiagnostics | null,
-    pdfProgress: null as ParsePdfProgress | null,
-    selectedCatalogId: "new",
-    selectedFile: null as File | null,
     catalogUiTab: "catalogo" as const,
   };
 }

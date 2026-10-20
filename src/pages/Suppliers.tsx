@@ -26,29 +26,14 @@ const SupplierCatalogDialog = lazy(async () => {
   return { default: module.SupplierCatalogDialog };
 });
 
-const SupplierDropDetailDialog = lazy(async () => {
-  const module = await import("@/features/suppliers/components/SupplierDropDetailDialog");
-  return { default: module.SupplierDropDetailDialog };
-});
-
-const SupplierExtractionReviewDialog = lazy(async () => {
-  const module = await import("@/features/suppliers/components/SupplierExtractionReviewDialog");
-  return { default: module.SupplierExtractionReviewDialog };
-});
-
 const SupplierComparison = lazy(async () => {
   const module = await import("@/features/suppliers/components/SupplierComparison");
   return { default: module.SupplierComparison };
 });
 
-const ColumnMappingModal = lazy(async () => {
-  const module = await import("@/features/suppliers/components/ColumnMappingModal");
-  return { default: module.ColumnMappingModal };
-});
-
-const PdfMappingModal = lazy(async () => {
-  const module = await import("@/features/suppliers/components/PdfMappingModal");
-  return { default: module.PdfMappingModal };
+const SupplierExcelImport = lazy(async () => {
+  const module = await import("@/features/suppliers/components/SupplierExcelImport");
+  return { default: module.SupplierExcelImport };
 });
 
 function SupplierDialogLoader() {
@@ -80,19 +65,13 @@ export default function SuppliersPage() {
     catalogTitleById,
     catalogUiTab,
     catalogs,
-    closeMappingModal,
-    closePdfMappingModal,
-    confirmMappingModal,
-    confirmPdfMappingModal,
+    importOpen,
+    startImport,
+    cancelImport,
+    finishImport,
     deleteMutation,
     dialogOpen,
-    documentNotes,
-    documentTitle,
-    dropDetailOpen,
     editing,
-    extractionImportPending,
-    extractionReviewLines,
-    extractionReviewOpen,
     form,
     goToPurchaseOrder,
     goToPurchaseOrders,
@@ -100,21 +79,12 @@ export default function SuppliersPage() {
     isHistoryLoading,
     isLoading,
     isReorderSuggestionsLoading,
-    lastDiagnostics,
     lineQuantities,
-    mappingModalColumns,
-    mappingModalConfidence,
-    mappingModalOpen,
-    mappingModalPreviewRows,
-    mappingModalSuggested,
     onCatalogDialogOpenChange,
     onCatalogVersionSelect,
     onCopyOrderMessage,
-    onConfirmExtractionImport,
-    onExtractionReviewLineChange,
     onOpenEmail,
     onOpenWhatsApp,
-    onRemoveExtractionReviewLine,
     onRemoveOrderItem,
     onRestoreSupplier,
     onUpdateLineQuantity,
@@ -130,28 +100,14 @@ export default function SuppliersPage() {
     isCreatingPurchaseOrder,
     lastPurchaseOrder,
     onCreatePurchaseOrder,
-    pdfMappingHeaders,
-    pdfMappingOpen,
-    pdfMappingRows,
-    pdfMappingSuggested,
-    pdfProgress,
     saveMutation,
     search,
-    selectedCatalogId,
-    selectedFile,
     selectedSupplier,
     setCatalogSearch,
     setCatalogUiTab,
     setDialogOpen,
-    setDocumentNotes,
-    setDocumentTitle,
-    setDropDetailOpen,
     setForm,
-    setMappingModalOpen,
-    setPdfMappingOpen,
     setSearch,
-    setSelectedCatalogId,
-    setSelectedFile,
     setShowAdvanced,
     setStatusFilter,
     setSupplierToDelete,
@@ -159,10 +115,7 @@ export default function SuppliersPage() {
     statusFilter,
     supplierToDelete,
     suppliers,
-    uploadCatalogMutation,
     versionsByCatalog,
-    setExtractionReviewLines,
-    setExtractionReviewOpen,
   } = useSuppliersPage({
     companyId: currentCompany?.id,
     toast,
@@ -170,6 +123,12 @@ export default function SuppliersPage() {
   const pagination = usePaginationSlice({ items: suppliers, page, pageSize });
 
   useEffect(() => setPage(1), [search, statusFilter, currentCompany?.id]);
+
+  if (importOpen && selectedSupplier && currentCompany) {
+    return <AppLayout><Suspense fallback={<SupplierDialogLoader />}>
+      <SupplierExcelImport key={currentCompany.id + selectedSupplier.id} companyId={currentCompany.id} supplier={selectedSupplier} catalogs={catalogs} onCancel={cancelImport} onImported={finishImport} />
+    </Suspense></AppLayout>;
+  }
 
   return (
     <AppLayout>
@@ -252,19 +211,7 @@ export default function SuppliersPage() {
             selectedSupplier={selectedSupplier}
             catalogUiTab={catalogUiTab}
             onCatalogUiTabChange={setCatalogUiTab}
-            documentTitle={documentTitle}
-            onDocumentTitleChange={setDocumentTitle}
-            documentNotes={documentNotes}
-            onDocumentNotesChange={setDocumentNotes}
-            selectedCatalogId={selectedCatalogId}
-            onSelectedCatalogIdChange={setSelectedCatalogId}
-            selectedFile={selectedFile}
-            onSelectedFileChange={setSelectedFile}
-            onUpload={() => uploadCatalogMutation.mutate()}
-            isUploading={uploadCatalogMutation.isPending}
-            pdfProgress={pdfProgress}
-            lastDiagnostics={lastDiagnostics}
-            onOpenDropDetail={() => setDropDetailOpen(true)}
+            onStartImport={startImport}
             catalogs={catalogs}
             isHistoryLoading={isHistoryLoading}
             versionsByCatalog={versionsByCatalog}
@@ -300,27 +247,6 @@ export default function SuppliersPage() {
         </Suspense>
       ) : null}
 
-      {extractionReviewOpen ? (
-        <Suspense fallback={<SupplierDialogLoader />}>
-          <SupplierExtractionReviewDialog
-            open={extractionReviewOpen}
-            onOpenChange={setExtractionReviewOpen}
-            fileName={selectedFile?.name ?? null}
-            file={selectedFile}
-            lines={extractionReviewLines}
-            diagnostics={lastDiagnostics}
-            isImporting={extractionImportPending}
-            onLineChange={onExtractionReviewLineChange}
-            onRemoveLine={onRemoveExtractionReviewLine}
-            onConfirm={onConfirmExtractionImport}
-            onCancel={() => {
-              setExtractionReviewLines([]);
-              setExtractionReviewOpen(false);
-            }}
-          />
-        </Suspense>
-      ) : null}
-
       <ConfirmDeleteDialog
         open={!!supplierToDelete}
         onOpenChange={(open) => {
@@ -339,51 +265,6 @@ export default function SuppliersPage() {
           setSupplierToDelete(null);
         }}
       />
-
-      {mappingModalOpen ? (
-        <Suspense fallback={<SupplierDialogLoader />}>
-          <ColumnMappingModal
-            open={mappingModalOpen}
-            onOpenChange={(open) => {
-              if (!open) closeMappingModal();
-              else setMappingModalOpen(true);
-            }}
-            columns={mappingModalColumns}
-            previewRows={mappingModalPreviewRows}
-            suggestedMapping={mappingModalSuggested}
-            confidence={mappingModalConfidence}
-            onConfirm={confirmMappingModal}
-            onCancel={closeMappingModal}
-          />
-        </Suspense>
-      ) : null}
-
-      {pdfMappingOpen ? (
-        <Suspense fallback={<SupplierDialogLoader />}>
-          <PdfMappingModal
-            open={pdfMappingOpen}
-            onOpenChange={(open) => {
-              if (!open) closePdfMappingModal();
-              else setPdfMappingOpen(true);
-            }}
-            headers={pdfMappingHeaders}
-            rows={pdfMappingRows}
-            suggested={pdfMappingSuggested}
-            onApply={confirmPdfMappingModal}
-            onCancel={closePdfMappingModal}
-          />
-        </Suspense>
-      ) : null}
-
-      {dropDetailOpen ? (
-        <Suspense fallback={<SupplierDialogLoader />}>
-          <SupplierDropDetailDialog
-            open={dropDetailOpen}
-            onOpenChange={setDropDetailOpen}
-            diagnostics={lastDiagnostics}
-          />
-        </Suspense>
-      ) : null}
 
       <Dialog open={comparisonOpen} onOpenChange={setComparisonOpen}>
         <DialogContent aria-describedby={undefined} className="h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-6xl overflow-y-auto sm:h-[calc(100dvh-2rem)]">

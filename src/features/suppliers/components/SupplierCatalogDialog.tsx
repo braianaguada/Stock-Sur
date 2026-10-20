@@ -1,12 +1,10 @@
 import { Copy, Mail, MessageCircle, PackagePlus, Search, Upload } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
-import { CountBadge, InfoBadge, StatusBadge } from "@/components/common/VisualSystem";
+import { CountBadge, StatusBadge } from "@/components/common/VisualSystem";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { FilterToolbar, PageTabs } from "@/components/ui/page";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { SupplierCatalogLinesTable } from "@/features/suppliers/components/SupplierCatalogLinesTable";
 import { SupplierOrderTable } from "@/features/suppliers/components/SupplierOrderTable";
@@ -15,9 +13,7 @@ import { PurchaseOrderHistory } from "@/features/purchase-orders/PurchaseOrderHi
 import type { SupplierPurchaseOrder } from "@/features/purchase-orders/types";
 import type {
   CatalogLine,
-  NormalizeDiagnostics,
   OrderLine,
-  ParsePdfProgress,
   Supplier,
   SupplierCatalog,
   SupplierCatalogVersion,
@@ -31,19 +27,7 @@ type SupplierCatalogDialogProps = {
   selectedSupplier: Supplier | null;
   catalogUiTab: "carga" | "historial" | "catalogo";
   onCatalogUiTabChange: (value: "carga" | "historial" | "catalogo") => void;
-  documentTitle: string;
-  onDocumentTitleChange: (value: string) => void;
-  documentNotes: string;
-  onDocumentNotesChange: (value: string) => void;
-  selectedCatalogId: string;
-  onSelectedCatalogIdChange: (value: string) => void;
-  selectedFile: File | null;
-  onSelectedFileChange: (file: File | null) => void;
-  onUpload: () => void;
-  isUploading: boolean;
-  pdfProgress: ParsePdfProgress | null;
-  lastDiagnostics: NormalizeDiagnostics | null;
-  onOpenDropDetail: () => void;
+  onStartImport: () => void;
   catalogs: SupplierCatalog[];
   isHistoryLoading: boolean;
   versionsByCatalog: Record<string, SupplierCatalogVersion[]>;
@@ -80,7 +64,7 @@ type SupplierCatalogDialogProps = {
 const NAV_ITEMS = [
   {
     key: "carga" as const,
-    label: "Fuentes",
+    label: "Cargar lista",
   },
   {
     key: "historial" as const,
@@ -98,19 +82,7 @@ export function SupplierCatalogDialog({
   selectedSupplier,
   catalogUiTab,
   onCatalogUiTabChange,
-  documentTitle,
-  onDocumentTitleChange,
-  documentNotes,
-  onDocumentNotesChange,
-  selectedCatalogId,
-  onSelectedCatalogIdChange,
-  selectedFile,
-  onSelectedFileChange,
-  onUpload,
-  isUploading,
-  pdfProgress,
-  lastDiagnostics,
-  onOpenDropDetail,
+  onStartImport,
   catalogs,
   isHistoryLoading,
   versionsByCatalog,
@@ -167,114 +139,16 @@ export function SupplierCatalogDialog({
 
         <section className="min-h-0 flex-1 overflow-hidden bg-background">
           {catalogUiTab === "carga" ? (
-            <div className="grid h-full min-h-0 gap-4 overflow-y-auto p-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-              <Card className="min-h-0">
+            <div className="h-full overflow-y-auto p-4">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Nueva fuente del proveedor</CardTitle>
-                  <CardDescription>
-                    PDF, Excel o CSV.
-                  </CardDescription>
+                  <CardTitle className="text-base">Cargar lista de precios desde Excel</CardTitle>
+                  <CardDescription>Nombre, unidad y precio sin IVA. Elegí la hoja y las columnas antes de guardar.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Titulo interno</Label>
-                      <Input
-                        value={documentTitle}
-                        onChange={(event) => onDocumentTitleChange(event.target.value)}
-                        placeholder="Lista Febrero 2026 contado"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Agregar a fuente existente</Label>
-                      <Select value={selectedCatalogId} onValueChange={onSelectedCatalogIdChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Crear nueva fuente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="new">Crear nueva fuente</SelectItem>
-                          {catalogs.map((catalog) => (
-                            <SelectItem key={catalog.id} value={catalog.id}>
-                              {catalog.title}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Notas</Label>
-                    <Input
-                      value={documentNotes}
-                      onChange={(event) => onDocumentNotesChange(event.target.value)}
-                      placeholder="Ej: contado, lista oficial, promo, actualizado por proveedor"
-                    />
-                  </div>
-
-                  <div className="rounded-2xl border border-dashed bg-muted/20 p-5">
-                    <div className="space-y-3">
-                      <div>
-                        <div className="font-medium">Archivo a procesar</div>
-                        <div className="text-sm text-muted-foreground">
-                          Se soportan `.xlsx`, `.xls`, `.csv`, `.txt`, `.tsv` y `.pdf`.
-                        </div>
-                      </div>
-                      <Input
-                        type="file"
-                        accept=".xlsx,.xls,.csv,.txt,.tsv,.pdf"
-                        onChange={(event) => onSelectedFileChange(event.target.files?.[0] ?? null)}
-                      />
-                      {selectedFile ? (
-                        <div className="rounded-lg border bg-background p-3 text-sm">
-                          <div className="font-medium">{selectedFile.name}</div>
-                          <div className="text-muted-foreground">
-                            {(selectedFile.size / 1024).toFixed(1)} KB
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3">
-                    <Button onClick={onUpload} disabled={isUploading || !selectedFile}>
-                      <Upload className="mr-2 h-4 w-4" />
-                      {isUploading ? "Procesando fuente..." : "Procesar listado"}
-                    </Button>
-                    {pdfProgress ? (
-                      <InfoBadge>
-                        {pdfProgress.message}
-                      </InfoBadge>
-                    ) : null}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="h-fit">
-                <CardHeader>
-                  <CardTitle className="text-base">Control de calidad</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 text-sm">
-                  {lastDiagnostics ? (
-                    <div className="rounded-lg border p-3">
-                      <div className="font-medium">Ultima importacion tabular</div>
-                      <div className="mt-2 space-y-1 text-muted-foreground">
-                        <div>Filas validas: {lastDiagnostics.keptRows} / {lastDiagnostics.totalRows}</div>
-                        <div>Sin descripcion: {lastDiagnostics.dropped_missingDesc}</div>
-                        <div>Precio invalido: {lastDiagnostics.dropped_invalidPrice}</div>
-                        <div>Precio menor o igual a 0: {lastDiagnostics.dropped_priceLE0}</div>
-                      </div>
-                      {lastDiagnostics.keptRows < 10 ? (
-                        <Button type="button" variant="link" className="mt-2 h-auto p-0 text-xs" onClick={onOpenDropDetail}>
-                          Ver detalle de filas descartadas
-                        </Button>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border p-3 text-muted-foreground">
-                      Todavia no hay diagnostico de importacion en esta sesion.
-                    </div>
-                  )}
+                <CardContent>
+                  <Button onClick={onStartImport} disabled={!selectedSupplier?.is_active}>
+                    <Upload className="mr-2 h-4 w-4" /> Cargar Excel
+                  </Button>
                 </CardContent>
               </Card>
             </div>
