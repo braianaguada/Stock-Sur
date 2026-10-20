@@ -22,6 +22,16 @@ describe("document customer helpers", () => {
     );
   });
 
+  it.each([null, "Cliente final", "Cliente ocasional", "Consumidor Final"])(
+    "displays Consumidor Final without repeating the default snapshot %s",
+    (customerName) => {
+      expect(resolveDocumentRecipient({ customer_id: null, customer_name: customerName })).toMatchObject({
+        primaryName: "Consumidor Final",
+        secondaryName: null,
+      });
+    },
+  );
+
   it("keeps an occasional buyer name as secondary display", () => {
     expect(resolveDocumentRecipient({ customer_id: null, customer_name: "Juan Perez" })).toMatchObject({
       primaryName: OCCASIONAL_CUSTOMER_DISPLAY_NAME,
