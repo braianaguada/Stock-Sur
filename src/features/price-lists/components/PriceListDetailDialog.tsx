@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { FilterToolbar, PageTabs } from "@/components/ui/page";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, ChevronDown, CircleDollarSign, RefreshCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, CircleDollarSign, Search, Trash2 } from "lucide-react";
 import { PriceListProductsTable } from "@/features/price-lists/components/PriceListProductsTable";
 import { PRICE_LIST_STATUS_LABEL } from "@/features/price-lists/constants";
 import type { PriceListFormState, PriceListHistoryRow, PriceListProductRow, PriceListSummary } from "@/features/price-lists/types";
@@ -39,7 +39,6 @@ type PriceListDetailDialogProps = {
   productColumnsOpen: boolean;
   productColumnVisibility: VisibilityState;
   configDraft: PriceListFormState | null;
-  isRecalculating: boolean;
   isSavingConfig: boolean;
   isDeleting: boolean;
   stockByItemId?: Map<string, number>;
@@ -55,7 +54,6 @@ type PriceListDetailDialogProps = {
   onResetProductColumns: () => void;
   onConfigDraftChange: (updater: (prev: PriceListFormState | null) => PriceListFormState | null) => void;
   onSaveConfig: () => void;
-  onRecalculate: () => void;
   onUpdateProductOverride: (itemId: string, values: { enabled: boolean; price: number | null }) => void;
   isSavingProductOverride: boolean;
   onDelete: () => void;
@@ -87,7 +85,6 @@ export function PriceListDetailDialog({
   productColumnsOpen,
   productColumnVisibility,
   configDraft,
-  isRecalculating,
   isSavingConfig,
   isDeleting,
   renderUserName,
@@ -103,7 +100,6 @@ export function PriceListDetailDialog({
   onResetProductColumns,
   onConfigDraftChange,
   onSaveConfig,
-  onRecalculate,
   onUpdateProductOverride,
   isSavingProductOverride,
   onDelete,
@@ -332,9 +328,6 @@ export function PriceListDetailDialog({
                     <div className="flex flex-wrap items-center gap-2">
                       <Button onClick={onSaveConfig} disabled={isSavingConfig}>
                         Guardar configuracion
-                      </Button>
-                      <Button variant="outline" onClick={onRecalculate} disabled={isRecalculating}>
-                        <RefreshCcw className="mr-2 h-4 w-4" /> Recalcular pendientes
                       </Button>
                     </div>
                     <Button

@@ -1,3 +1,11 @@
+### Listas de precios automaticas y Consumidor Final
+
+- Se retiran los botones Recalcular. Las listas calculan precios al incorporar productos, crear listas y cambiar costos o porcentajes; conservan los precios manuales.
+- Remitos y presupuestos muestran `Consumidor Final` en editor, vista previa e impresion, incluidos documentos anteriores con la etiqueta `Cliente final`.
+- Migracion: `20261020120000_automatic_price_list_calculation.sql`, aplicada solo en staging; resuelve pendientes existentes por empresa. Produccion sin cambios.
+- QA: regresiones de interfaz y SQL; ocho escenarios de PostgreSQL aislado (altas, costos, porcentajes, pendientes, precios manuales y aislamiento). QA visual y DB autenticada en staging pendiente.
+- Validaciones: typecheck, lint, build y diff --check correctos; suite completa con 897 pruebas aprobadas y 53 omitidas por falta de credenciales DB.
+
 ### Emitir y compartir presupuestos de documentos
 
 - Al crear un presupuesto, `Emitir y compartir` emite y prepara el mensaje con numero definitivo, importe y enlace publico. `Copiar mensaje` permite pegarlo en el canal elegido.

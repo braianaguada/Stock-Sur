@@ -31,6 +31,8 @@ function renderPreview(docType: DocRow["doc_type"], canPrint = true) {
 describe("DocumentsPreviewDialog compact layout", () => {
   it.each(["REMITO", "PRESUPUESTO"] as const)("reserves the available body height for %s without inherited desktop padding or gaps", (docType) => {
     const props = renderPreview(docType);
+    expect(screen.getByText("Consumidor Final")).toBeInTheDocument();
+    expect(screen.queryByText("Cliente final")).not.toBeInTheDocument();
     const dialog = screen.getByRole("dialog", { name: "Vista previa del documento" });
     // p-0 alone does not override the dialog base's responsive sm:p-6.
     expect(dialog).toHaveClass("p-0", "sm:p-0", "gap-0", "overflow-hidden");

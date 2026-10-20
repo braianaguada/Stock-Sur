@@ -3,9 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import PriceListsPage from "./PriceLists";
 
-const { setSearchParams, recalculateMutate, priceListsData } = vi.hoisted(() => ({
+const { setSearchParams, priceListsData } = vi.hoisted(() => ({
   setSearchParams: vi.fn(),
-  recalculateMutate: vi.fn(),
   priceListsData: {
     baseRows: [],
     itemIdentity: { id: "item-1", sku: "123456" },
@@ -77,7 +76,6 @@ const { setSearchParams, recalculateMutate, priceListsData } = vi.hoisted(() => 
     updateBaseCostMutation: { isPending: false, mutate: vi.fn() },
     createListMutation: { isPending: false, mutate: vi.fn() },
     updateListConfigMutation: { isPending: false, mutate: vi.fn() },
-    recalculateMutation: { isPending: false, mutate: vi.fn() },
     deleteListMutation: { isPending: false, mutate: vi.fn() },
     basePagination: { page: 1, totalPages: 1, totalItems: 0 },
     detailPagination: { page: 1, totalPages: 1, totalItems: 0 },
@@ -188,14 +186,12 @@ vi.mock("react-router-dom", async () => {
 vi.mock("@/features/price-lists/use-price-lists-data", () => ({
   usePriceListsData: () => ({
     ...priceListsData,
-    recalculateMutation: { isPending: false, mutate: recalculateMutate },
     updateProductOverrideMutation: { isPending: false, mutate: vi.fn() },
   }),
 }));
 
 describe("PriceListsPage", () => {
   beforeEach(() => {
-    recalculateMutate.mockClear();
     setSearchParams.mockClear();
   });
 
@@ -208,14 +204,13 @@ describe("PriceListsPage", () => {
     expect(screen.getByText("Consulta rápida de precios abierta")).toBeInTheDocument();
   });
 
-  it("keeps view and recalculate actions available", () => {
+  it("keeps list details available without a manual recalculation action", () => {
     render(<PriceListsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "Ver lista" }));
     expect(screen.getByText("Detalle de Mayorista")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Recalcular/i }));
-    expect(recalculateMutate).toHaveBeenCalledWith("list-1");
+    expect(screen.queryByRole("button", { name: /Recalcular/i })).not.toBeInTheDocument();
   });
 
   it("handles itemId navigation without breaking the screen", () => {

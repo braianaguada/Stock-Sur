@@ -17,7 +17,8 @@ vi.mock("@/components/ui/collapsible", () => ({
 vi.mock("@/components/ui/input", () => ({ Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} /> }));
 vi.mock("@/components/ui/label", () => ({ Label: ({ children }: { children: ReactNode }) => <label>{children}</label> }));
 vi.mock("@/components/ui/textarea", () => ({ Textarea: (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea {...props} /> }));
-vi.mock("@/features/documents/utils", () => ({
+vi.mock("@/features/documents/utils", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/features/documents/utils")>(),
   calculatePriceFromCostBase: () => 0,
   changeDocumentRecipientType: (form: DocumentFormState) => form,
   changeRemitoUsage: (form: DocumentFormState) => form,
@@ -236,7 +237,7 @@ describe("DocumentsEditorDialog", () => {
 
     expect(screen.getByText("Destinatario")).toBeInTheDocument();
     expect(screen.getByText("Uso del remito *")).toBeInTheDocument();
-    expect(screen.getByText("Cliente final")).toBeInTheDocument();
+    expect(screen.getByText("Consumidor Final")).toBeInTheDocument();
     expect(screen.getByText("Cliente registrado")).toBeInTheDocument();
     expect(screen.queryByText("Nombre ocasional")).not.toBeInTheDocument();
     expect(screen.queryByText("Tipo *")).not.toBeInTheDocument();
