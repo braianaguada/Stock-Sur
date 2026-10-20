@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyBrand } from "@/contexts/company-brand-context";
-import { Plus, RefreshCcw, Search, Tags, X } from "lucide-react";
+import { Plus, Search, Tags, X } from "lucide-react";
 import { BasePricesTable } from "@/features/price-lists/components/BasePricesTable";
 import { PriceListCreateDialog } from "@/features/price-lists/components/PriceListCreateDialog";
 import { PriceListDetailDialog } from "@/features/price-lists/components/PriceListDetailDialog";
@@ -142,7 +142,6 @@ export default function PriceListsPage() {
     updateBaseCostMutation,
     createListMutation,
     updateListConfigMutation,
-    recalculateMutation,
     updateProductOverrideMutation,
     deleteListMutation,
     basePagination,
@@ -615,16 +614,6 @@ export default function PriceListsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Button onClick={() => openListDetail(priceList.id)}>Ver lista</Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedListId(priceList.id);
-                              recalculateMutation.mutate(priceList.id);
-                            }}
-                            disabled={recalculateMutation.isPending}
-                          >
-                            <RefreshCcw className="mr-2 h-4 w-4" /> Recalcular
-                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -679,7 +668,6 @@ export default function PriceListsPage() {
         productColumnsOpen={detailColumnsOpen}
         productColumnVisibility={detailColumnVisibility}
         configDraft={configDraft}
-        isRecalculating={recalculateMutation.isPending}
         isSavingConfig={updateListConfigMutation.isPending}
         isDeleting={deleteListMutation.isPending}
         stockByItemId={stockByItemId}
@@ -700,10 +688,6 @@ export default function PriceListsPage() {
         onSaveConfig={() => {
           if (!selectedListId || !configDraft) return;
           updateListConfigMutation.mutate({ form: configDraft, priceListId: selectedListId });
-        }}
-        onRecalculate={() => {
-          if (!selectedListId) return;
-          recalculateMutation.mutate(selectedListId);
         }}
         onUpdateProductOverride={(itemId, values) => {
           if (!selectedListId) return;

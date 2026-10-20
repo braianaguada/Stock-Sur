@@ -1,3 +1,12 @@
+### Listas de precios automaticas y Consumidor Final
+
+- Se retiran los botones Recalcular. Las listas calculan precios al incorporar productos, crear listas y cambiar costos o porcentajes; conservan los precios manuales.
+- Remitos y presupuestos muestran `Consumidor Final` en editor, vista previa e impresion, incluidos documentos anteriores con la etiqueta `Cliente final`.
+- Migracion: `20261020120000_automatic_price_list_calculation.sql`, aplicada solo en staging; resuelve pendientes existentes por empresa. Produccion sin cambios.
+- Integracion: se recuperan tambien en la rama de proveedores los cambios del PR #462, que aun no estaba incorporado en staging. No requiere nuevas migraciones.
+- QA de esta integracion: 62 pruebas focalizadas aprobadas de listas, destinatarios, editor, vista previa e impresion; incluyen controles estaticos SQL. QA visual y DB autenticada del recalculo automatico en staging pendiente.
+- Validaciones: typecheck, lint, build y diff --check correctos. Suite completa: 932 aprobadas, 53 omitidas y un timeout en el control de dependencias circulares; los dos controles de ese archivo pasaron al repetirlos aislados con timeout de 60 segundos.
+
 ### Emitir y compartir presupuestos de documentos
 
 - Al crear un presupuesto, `Emitir y compartir` emite y prepara el mensaje con numero definitivo, importe y enlace publico. `Copiar mensaje` permite pegarlo en el canal elegido.
