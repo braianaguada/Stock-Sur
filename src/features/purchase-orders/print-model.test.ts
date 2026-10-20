@@ -91,6 +91,18 @@ describe("purchase order blank print model", () => {
 });
 
  describe("filled purchase orders", () => {
+  it("prints frozen VAT and freight in both copies without changing net line prices", () => {
+    const html = buildPurchaseOrderModelHtml(DEFAULT_COMPANY_SETTINGS, { firstNumber: 1, secondNumber: 2 }, "20/10/2026", {
+      number: 1, supplier: "Proveedor", form: {}, totals: { ARS: 100 }, vatRate: 21, freightRate: 5,
+      lines: [{ description: "Producto", quantity: 1, currency: "ARS", unitCost: 100, total: 100 }],
+    });
+    const dom = new DOMParser().parseFromString(html, "text/html");
+    for (const order of dom.querySelectorAll("article.order")) {
+      expect(order.querySelector(".field b")?.textContent).toBe("ARS 126,00");
+      expect(order.querySelector(".charges")?.textContent).toContain("IVA 21%: 21,00 | Flete 5%: 5,00");
+      expect(order.querySelector("tbody")?.textContent).toContain("ARS 100,00");
+    }
+  });
   it("keeps the saved number on both copies and paginates every product without duplication", () => {
     const lines = Array.from({ length: 9 }, (_, i) => ({ description: 'Producto ' + i, quantity: 2, currency: 'ARS', unitCost: 100, total: 200 }));
     const html = buildPurchaseOrderModelHtml(DEFAULT_COMPANY_SETTINGS, { firstNumber: 31, secondNumber: 32 }, '16/10/2026', { number: 31, supplier: 'Proveedor registrado', form: { address: 'Direccion', notes: '<script>mal</script>' }, totals: { ARS: 1800 }, lines });

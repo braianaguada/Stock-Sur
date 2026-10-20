@@ -9,6 +9,8 @@ import { formatDateTime } from "@/lib/formatters";
 
 export function createEmptySupplierForm(): SupplierFormState {
   return {
+    vat_rate: "21",
+    freight_rate: "0",
     name: "",
     legal_name: "",
     tax_id: "",
@@ -23,6 +25,8 @@ export function createEmptySupplierForm(): SupplierFormState {
 
 export function buildSupplierFormState(supplier: Supplier): SupplierFormState {
   return {
+    vat_rate: String(supplier.vat_rate ?? 21),
+    freight_rate: String(supplier.freight_rate ?? 0),
     name: supplier.name,
     legal_name: supplier.legal_name ?? "",
     tax_id: supplier.tax_id ?? "",

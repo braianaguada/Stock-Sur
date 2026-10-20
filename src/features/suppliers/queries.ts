@@ -42,6 +42,12 @@ export async function fetchSupplierCatalogs(companyId: string, supplierId: strin
   return (data ?? []) as SupplierCatalog[];
 }
 
+export async function fetchSupplier(companyId: string, supplierId: string): Promise<Supplier> {
+  const { data, error } = await supabase.from("suppliers").select("*").eq("company_id", companyId).eq("id", supplierId).single();
+  if (error) throw error;
+  return data as Supplier;
+}
+
 export async function fetchSupplierCatalogVersions(companyId: string, supplierId: string) {
   const { data, error } = await supabase
     .from("supplier_catalog_versions")

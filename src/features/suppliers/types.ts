@@ -17,9 +17,13 @@ export interface Supplier {
   default_currency: "ARS" | "USD" | null;
   notes: string | null;
   is_active: boolean;
+  vat_rate?: number;
+  freight_rate?: number;
 }
 
 export interface SupplierFormState {
+  vat_rate?: string;
+  freight_rate?: string;
   name: string;
   legal_name: string;
   tax_id: string;

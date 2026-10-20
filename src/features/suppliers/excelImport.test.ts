@@ -48,6 +48,38 @@ describe("supplier Excel preview", () => {
 });
 
 describe("supplier workbook reader", () => {
+  it.each(["xlsx", "xls"] as const)("skips hidden rows in real %s files and preserves source row numbers", async (bookType) => {
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.aoa_to_sheet([["Nombre", "Precio"], ["Oculto", 10], ["Visible", 20]]);
+    sheet["!rows"] = [{}, { hidden: true }, {}];
+    XLSX.utils.book_append_sheet(workbook, sheet, "Lista");
+    let bytes = XLSX.write(workbook, { bookType, type: "array" });
+    if (bookType === "xls") {
+      // SheetJS's BIFF writer omits row metadata. Add a real BIFF8 ROW
+      // record for row 2, with fDyZero set, before the final worksheet EOF.
+      const container = XLSX.CFB.read(new Uint8Array(bytes), { type: "array" });
+      const stream = XLSX.CFB.find(container, "/Workbook");
+      const source = new Uint8Array(stream.content);
+      const hiddenRow = new Uint8Array([8, 2, 16, 0, 1, 0, 0, 0, 2, 0, 255, 0, 0, 0, 0, 0, 32, 0, 0, 0]);
+      let eof = 0;
+      for (let offset = 0; offset + 4 <= source.length;) {
+        const type = source[offset] | source[offset + 1] << 8;
+        const size = source[offset + 2] | source[offset + 3] << 8;
+        if (type === 10) eof = offset;
+        offset += 4 + size;
+      }
+      const content = new Uint8Array(source.length + hiddenRow.length);
+      content.set(source.subarray(0, eof));
+      content.set(hiddenRow, eof);
+      content.set(source.subarray(eof), eof + hiddenRow.length);
+      XLSX.CFB.utils.cfb_add(container, "/Workbook", content);
+      bytes = XLSX.CFB.write(container, { type: "array" });
+    }
+    const [read] = await readSupplierExcel({ name: `lista.${bookType}`, size: bytes.byteLength, arrayBuffer: async () => bytes } as File);
+    expect(read.hiddenRows).toContain(2);
+    const rows = previewSupplierSheet(read, 1, { name: 0, price: 1, unit: null }, "comma", "ARS");
+    expect(rows.map((row) => [row.row, row.name])).toEqual([[3, "Visible"]]);
+  });
   async function workbookFile(bookType: "xlsx" | "xls") {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["Portada"]]), "Portada");

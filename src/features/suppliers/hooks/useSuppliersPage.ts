@@ -2,21 +2,13 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invalidateSupplierQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
-import { useSupplierOrderActions } from "@/features/suppliers/hooks/useSupplierOrderActions";
-import {
-  useCreateSupplierPurchaseOrder,
-  useSupplierPurchaseOrders,
-} from "@/features/purchase-orders/hooks";
-import type { SupplierPurchaseOrder } from "@/features/purchase-orders/types";
 import { deleteSupplier, restoreSupplier, saveSupplier } from "@/features/suppliers/mutations";
 import {
   fetchSupplierCatalogLines,
   fetchSupplierCatalogVersions,
   fetchSupplierCatalogs,
-  fetchSupplierReorderContext,
   fetchSuppliers,
 } from "@/features/suppliers/queries";
-import { buildSupplierReorderSuggestions } from "@/features/suppliers/reorderSuggestions";
 import {
   buildSupplierFormState,
   createCatalogDialogState,
@@ -26,7 +18,6 @@ import {
 } from "@/features/suppliers/state";
 import type {
   CatalogLine,
-  OrderLine,
   Supplier,
   SupplierCatalog,
   SupplierCatalogVersion,
@@ -59,13 +50,11 @@ export function useSuppliersPage({
   const selectedSupplier = supplierContext && supplierContext.companyId === companyId ? supplierContext.supplier : null;
   const [catalogSearch, setCatalogSearch] = useState("");
   const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
-  const [orderItems, setOrderItems] = useState<Record<string, OrderLine>>({});
   const [lineQuantities, setLineQuantities] = useState<Record<string, number>>({});
   const [form, setForm] = useState<SupplierFormState>(createEmptySupplierForm);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [catalogUiTab, setCatalogUiTab] = useState<"carga" | "historial" | "catalogo">("catalogo");
-  const [lastPurchaseOrder, setLastPurchaseOrder] = useState<SupplierPurchaseOrder | null>(null);
 
   const qc = useQueryClient();
   const deferredSearch = useDeferredValue(search);
@@ -77,10 +66,8 @@ export function useSuppliersPage({
     const nextState = createCatalogDialogState();
     setCatalogSearch(nextState.catalogSearch);
     setActiveVersionId(nextState.activeVersionId);
-    setOrderItems(nextState.orderItems);
     setLineQuantities(nextState.lineQuantities);
     setCatalogUiTab(nextState.catalogUiTab);
-    setLastPurchaseOrder(null);
   }, []);
 
   const previousCompanyIdRef = useRef(companyId ?? null);
@@ -126,34 +113,10 @@ export function useSuppliersPage({
       search: trimmedDeferredCatalogSearch,
     }),
   });
-  const reorderContextQuery = useQuery({
-    queryKey: queryKeys.suppliers.reorderSuggestions(companyId ?? null, activeVersionId),
-    enabled: Boolean(companyId && selectedSupplier && activeVersionId && catalogDialogOpen),
-    queryFn: () => fetchSupplierReorderContext({
-      companyId: companyId!,
-      versionId: activeVersionId!,
-    }),
-  });
-  const purchaseOrdersQuery = useSupplierPurchaseOrders(
-    selectedSupplier ? companyId ?? null : null,
-    selectedSupplier?.id,
-  );
-  const createPurchaseOrderMutation = useCreateSupplierPurchaseOrder();
-
   const suppliers = suppliersQuery.data ?? EMPTY_SUPPLIERS;
   const catalogs = catalogsQuery.data ?? EMPTY_CATALOGS;
   const catalogVersions = catalogVersionsQuery.data ?? EMPTY_CATALOG_VERSIONS;
   const activeCatalogLines = activeCatalogLinesQuery.data ?? EMPTY_CATALOG_LINES;
-  const reorderSuggestions = useMemo(
-    () => reorderContextQuery.data
-      ? buildSupplierReorderSuggestions(
-        reorderContextQuery.data.lines,
-        reorderContextQuery.data.stockRows,
-      )
-      : [],
-    [reorderContextQuery.data],
-  );
-
   const catalogVersionsById = useMemo(
     () => new Map(catalogVersions.map((version) => [version.id, version])),
     [catalogVersions],
@@ -184,31 +147,6 @@ export function useSuppliersPage({
     selectedSupplier,
   ]);
 
-  const {
-    addToOrder,
-    addSuggestionsToOrder,
-    copyOrderMessage,
-    emailLink,
-    goToPurchaseOrder,
-    goToPurchaseOrders,
-    openEmail,
-    openWhatsApp,
-    orderLines,
-    orderTotalsByCurrency,
-    removeOrderItem,
-    updateLineQuantity,
-    updateOrderQuantity,
-  } = useSupplierOrderActions({
-    selectedSupplier,
-    activeVersion,
-    catalogTitleById,
-    orderItems,
-    lineQuantities,
-    setOrderItems,
-    setLineQuantities,
-    toast,
-  });
-
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!companyId) throw new Error("Necesitas una empresa activa para guardar proveedores.");
@@ -220,6 +158,9 @@ export function useSuppliersPage({
     },
     onSuccess: async () => {
       await invalidateSupplierQueries(qc, companyId!);
+      await qc.invalidateQueries({ queryKey: ["supplier-comparison-versions", companyId] });
+      await qc.invalidateQueries({ queryKey: ["supplier-pricing", companyId] });
+      if (editing && selectedSupplier?.id === editing.id) setSupplierContext({ companyId: companyId!, supplier: { ...editing, ...form, vat_rate: Number(form.vat_rate ?? 21), freight_rate: Number(form.freight_rate ?? 0) } });
       setDialogOpen(false);
       setEditing(null);
       setForm(createEmptySupplierForm());
@@ -242,7 +183,10 @@ export function useSuppliersPage({
     },
     onSuccess: async () => {
       await invalidateSupplierQueries(qc, companyId!);
+      await qc.invalidateQueries({ queryKey: ["supplier-comparison-versions", companyId] });
+      await qc.invalidateQueries({ queryKey: ["supplier-pricing", companyId] });
       toast({ title: "Proveedor eliminado" });
+      setSupplierToDelete(null);
     },
     onError: (error: unknown) => {
       toast({
@@ -260,6 +204,8 @@ export function useSuppliersPage({
     },
     onSuccess: async () => {
       await invalidateSupplierQueries(qc, companyId!);
+      await qc.invalidateQueries({ queryKey: ["supplier-comparison-versions", companyId] });
+      await qc.invalidateQueries({ queryKey: ["supplier-pricing", companyId] });
       toast({ title: "Proveedor restaurado" });
     },
     onError: (error: unknown) => {
@@ -301,39 +247,14 @@ export function useSuppliersPage({
   const onCatalogVersionSelect = (versionId: string) => {
     setActiveVersionId(versionId);
     setCatalogSearch("");
-    setOrderItems({});
     setLineQuantities({});
     setCatalogUiTab("catalogo");
-  };
-
-  const onCreatePurchaseOrder = () => {
-    if (!companyId || !selectedSupplier || !activeVersionId || orderLines.length === 0) return;
-    createPurchaseOrderMutation.mutate({
-      companyId,
-      supplierId: selectedSupplier.id,
-      catalogVersionId: activeVersionId,
-      lines: orderLines.map((line) => ({ catalogLineId: line.id, quantity: line.quantity })),
-    }, {
-      onSuccess: (order) => {
-        setLastPurchaseOrder(order);
-        setOrderItems({});
-        setLineQuantities({});
-        toast({ title: `Orden #${order.order_number} generada` });
-      },
-      onError: (error: unknown) => toast({
-        title: "No se pudo generar la orden",
-        description: error instanceof Error ? error.message : "Error desconocido",
-        variant: "destructive",
-      }),
-    });
   };
 
   return {
     activeCatalogLines,
     activeVersion,
     activeVersionId,
-    addToOrder,
-    addSuggestionsToOrder,
     catalogDialogOpen: catalogDialogOpen && Boolean(selectedSupplier),
     catalogSearch,
     catalogTitleById,
@@ -346,7 +267,6 @@ export function useSuppliersPage({
       setImportOpen(false);
       setActiveVersionId(versionId);
       setCatalogSearch("");
-      setOrderItems({});
       setLineQuantities({});
       setCatalogUiTab("catalogo");
       setCatalogDialogOpen(true);
@@ -356,37 +276,22 @@ export function useSuppliersPage({
     dialogOpen,
     editing,
     form,
-    goToPurchaseOrder,
-    goToPurchaseOrders,
+    catalogError: activeCatalogLinesQuery.error ?? catalogsQuery.error ?? catalogVersionsQuery.error,
+    suppliersError: suppliersQuery.error,
     isCatalogLoading: activeCatalogLinesQuery.isLoading,
-    isReorderSuggestionsLoading: reorderContextQuery.isLoading,
     isHistoryLoading: catalogVersionsQuery.isLoading,
     isLoading: suppliersQuery.isLoading,
     lineQuantities,
     onCatalogDialogOpenChange,
     onCatalogVersionSelect,
-    onCopyOrderMessage: copyOrderMessage,
-    onOpenEmail: openEmail,
-    onOpenWhatsApp: openWhatsApp,
-    onRemoveOrderItem: removeOrderItem,
     onRestoreSupplier: (supplierId: string) => restoreMutation.mutate(supplierId),
-    onUpdateLineQuantity: updateLineQuantity,
-    onUpdateOrderQuantity: updateOrderQuantity,
+    onUpdateLineQuantity: (id: string, value: string) => setLineQuantities((current) => ({ ...current, [id]: Math.max(1, Math.trunc(Number(value) || 1)) })),
     openCatalog,
     openCreate,
     openEdit,
-    orderLines,
-    orderTotalsByCurrency,
-    purchaseOrders: purchaseOrdersQuery.data ?? [],
-    reorderSuggestions,
-    isPurchaseOrdersLoading: purchaseOrdersQuery.isLoading,
-    isCreatingPurchaseOrder: createPurchaseOrderMutation.isPending,
-    lastPurchaseOrder,
-    onCreatePurchaseOrder,
     saveMutation,
     search,
     selectedSupplier,
-    supplierEmailLink: emailLink,
     setCatalogSearch,
     setCatalogUiTab,
     setDialogOpen,

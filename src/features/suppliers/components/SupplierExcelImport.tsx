@@ -50,6 +50,7 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, o
   const [format, setFormat] = useState<PriceFormat>("comma");
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [page, setPage] = useState(1);
+  const [onlyErrors, setOnlyErrors] = useState(false);
   const [busy, setBusy] = useState<"reading" | "saving" | null>(null);
   const [error, setError] = useState("");
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -81,9 +82,9 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, o
       return { rows: previewSupplierSheet(sheet, headerNumber, { name: Number(nameColumn), unit: unitColumn === "none" ? null : Number(unitColumn), price: Number(priceColumn) }, format, currency), error: "" };
     } catch (cause) { return { rows: [], error: (cause as Error).message }; }
   }, [sheet, headerNumber, nameColumn, unitColumn, priceColumn, format, currency]);
-  const included = preview.rows.filter((row) => !excluded.has(row.row));
-  const invalidCount = included.filter((row) => row.errors.length).length;
-  const pagination = usePaginationSlice({ items: preview.rows, page, pageSize: 25 });
+  const included = preview.rows.filter((row) => !row.errors.length && !excluded.has(row.row));
+  const invalidCount = preview.rows.filter((row) => row.errors.length).length;
+  const pagination = usePaginationSlice({ items: onlyErrors ? preview.rows.filter((row) => row.errors.length) : preview.rows, page, pageSize: 25 });
 
   const resetMapping = () => {
     setNameColumn(""); setUnitColumn("none"); setPriceColumn(""); setExcluded(new Set()); setPage(1); setError("");
@@ -105,7 +106,7 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, o
     }
   };
   const columns = useMemo<ColumnDef<SupplierPreviewRow, unknown>[]>(() => [
-    { id: "include", header: "Importar", cell: ({ row }) => <Checkbox aria-label={`Importar fila ${row.original.row}`} checked={!excluded.has(row.original.row)} disabled={Boolean(busy)} onCheckedChange={(checked) => setExcluded((current) => {
+    { id: "include", header: "Importar", cell: ({ row }) => <Checkbox aria-label={`Importar fila ${row.original.row}`} checked={!row.original.errors.length && !excluded.has(row.original.row)} disabled={Boolean(busy) || Boolean(row.original.errors.length)} onCheckedChange={(checked) => setExcluded((current) => {
       const next = new Set(current); if (checked) next.delete(row.original.row); else next.add(row.original.row); return next;
     })} /> },
     { accessorKey: "row", header: "Fila Excel" },
@@ -116,7 +117,7 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, o
   ], [busy, currency, excluded]);
 
   const save = async () => {
-    if (busy || !file || !currency || !title.trim() || preview.error || invalidCount || !included.length) return;
+    if (busy || !file || !currency || !title.trim() || preview.error || !included.length) return;
     setBusy("saving"); setError("");
     let versionId: string;
     try {
@@ -131,6 +132,7 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, o
     }
     // A cache refresh failure must not turn a completed import into a retry/duplicate.
     await invalidateSupplierCatalogQueries(queryClient, { companyId, supplierId: supplier.id, versionId }).catch(() => undefined);
+    await queryClient.invalidateQueries({ queryKey: ["supplier-comparison-versions", companyId] }).catch(() => undefined);
     if (aliveRef.current) onImported(versionId);
   };
 
@@ -141,11 +143,11 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, o
       <legend className="px-1 font-medium">1. Archivo y lista</legend>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2"><Label htmlFor="supplier-excel">Archivo Excel (.xlsx o .xls, hasta 20 MB)</Label><Input id="supplier-excel" type="file" accept=".xlsx,.xls" onChange={(event) => { void selectFile(event.target.files?.[0] ?? null); event.target.value = ""; }} />{file && <p className="text-sm">Archivo en revisión: {file.name}</p>}</div>
-        <div className="space-y-2"><Label htmlFor="supplier-list-title">Nombre de la lista o versión</Label><Input id="supplier-list-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ej.: Octubre contado" /></div>
-        <ImportSelect id="supplier-list" label="Guardar como" value={catalogId} onChange={setCatalogId} options={[{ value: "new", label: "Nueva lista" }, ...catalogs.map((catalog) => ({ value: catalog.id, label: `Nueva versión de: ${catalog.title}` }))]} />
+        <div className="space-y-2"><Label htmlFor="supplier-list-title">Nombre de la carga</Label><Input id="supplier-list-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ej.: Octubre contado" /></div>
+        <ImportSelect id="supplier-list" label="Guardar como" value={catalogId} onChange={setCatalogId} options={[{ value: "new", label: "Nueva lista" }, ...catalogs.map((catalog) => ({ value: catalog.id, label: `Actualizar lista: ${catalog.title}` }))]} />
         <ImportSelect id="supplier-currency" label="Moneda de todos los precios" value={currency} onChange={(value) => { setCurrency(value as ImportCurrency); setExcluded(new Set()); }} options={[{ value: "ARS", label: "Pesos (ARS)" }, { value: "USD", label: "Dólares (USD)" }]} />
       </div>
-      <p className="text-sm text-muted-foreground">No se suma IVA ni se convierte la moneda en esta carga. Una actualización crea una versión y conserva las anteriores.</p>
+      <p className="text-sm text-muted-foreground">Los precios se guardan sin IVA en su moneda original. Al actualizar una lista, se mostrará la última carga y se conservarán los datos anteriores para las órdenes ya creadas.</p>
     </fieldset>
     {sheets.length > 0 && <fieldset disabled={Boolean(busy)} className="min-w-0 space-y-5 rounded-xl border bg-card p-4">
       <legend className="px-1 font-medium">2. Hoja y columnas</legend>
@@ -161,14 +163,15 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, o
     </fieldset>}
     <section aria-label="Vista previa de importación" className="min-w-0 space-y-3">
       <h2 className="font-medium">3. Revisar e importar</h2>
-      <p className="text-sm" aria-live="polite">{preview.rows.length} filas · {included.length} seleccionadas · {invalidCount} con errores · {preview.rows.length - included.length} excluidas. Las filas completamente vacías se omiten.</p>
+      <p className="text-sm" aria-live="polite">{preview.rows.length} filas visibles · {included.length} seleccionadas · {invalidCount} con errores · {preview.rows.length - included.length} excluidas. Se omiten las filas vacías y las ocultas en Excel ({sheet?.hiddenRows?.filter((row) => row > headerNumber).length ?? 0}).</p>
+      <Button variant="outline" disabled={Boolean(busy)} aria-pressed={onlyErrors} onClick={() => { setOnlyErrors((value) => !value); setPage(1); }}>{onlyErrors ? "Ver todas las filas" : `Ver filas con errores (${invalidCount})`}</Button>
       <DataTable columns={columns} data={pagination.pagedItems} getRowId={(row) => String(row.row)} density="compact" emptyMessage="Seleccioná hoja, columnas y moneda para revisar los productos." />
       <DataTablePagination {...pagination} onPageChange={setPage} itemLabel="filas" />
-      <p className="text-sm text-muted-foreground">Para corregir datos, editá el Excel y volvé a cargarlo. También podés desmarcar filas de forma explícita. No se importan filas inválidas ni se descartan automáticamente.</p>
+      <p className="text-sm text-muted-foreground">Las filas con errores quedan deseleccionadas y muestran el motivo. Podés importar las válidas y corregir las otras en el Excel para una nueva carga. También podés desmarcar productos que no quieras importar.</p>
     </section>
     {(error || preview.error) && <p role="alert" className="text-sm text-destructive">{error || preview.error}</p>}
     {busy && <p role="status" className="text-sm">{busy === "reading" ? "Leyendo Excel…" : "Guardando lista…"}</p>}
-    <div className="flex flex-wrap justify-end gap-3"><Button onClick={() => void save()} disabled={Boolean(busy) || !file || !currency || !title.trim() || Boolean(preview.error) || invalidCount > 0 || !included.length}>Importar {included.length} productos sin IVA</Button></div>
+    <div className="flex flex-wrap justify-end gap-3"><Button onClick={() => void save()} disabled={Boolean(busy) || !file || !currency || !title.trim() || Boolean(preview.error) || !included.length}>Importar {included.length} productos sin IVA</Button></div>
     <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Descartar esta carga?</AlertDialogTitle><AlertDialogDescription>El archivo y las columnas seleccionadas todavía no se guardaron.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Seguir revisando</AlertDialogCancel><AlertDialogAction onClick={onCancel}>Descartar y volver</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
   </PageContainer>;
 }

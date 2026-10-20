@@ -37,10 +37,11 @@ describe("SupplierExcelImport", () => {
     mocks.invalidate.mockResolvedValue(undefined);
   });
 
-  it("blocks invalid rows until explicitly excluded, defaults the unit and preserves the chosen currency", async () => {
+  it("automatically excludes invalid rows, defaults the unit and preserves the chosen currency", async () => {
     const view = setup();
     await prepare();
-    expect(screen.getByRole("button", { name: "Importar 2 productos sin IVA" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Importar fila 3" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Importar fila 3" })).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox", { name: "Importar fila 3" }));
     fireEvent.click(screen.getByRole("button", { name: "Importar 1 productos sin IVA" }));
     await waitFor(() => expect(view.onImported).toHaveBeenCalledWith("v1"));

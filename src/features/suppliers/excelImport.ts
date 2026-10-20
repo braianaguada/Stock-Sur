@@ -1,7 +1,7 @@
 import { loadXlsx } from "@/lib/lazy-vendors";
 
 export type ExcelCell = string | number | null;
-export type SupplierSheet = { name: string; rows: ExcelCell[][] };
+export type SupplierSheet = { name: string; rows: ExcelCell[][]; hiddenRows?: number[] };
 export type PriceFormat = "comma" | "dot";
 export type ImportCurrency = "ARS" | "USD";
 export type SupplierColumnMapping = { name: number; unit: number | null; price: number };
@@ -20,7 +20,7 @@ export async function readSupplierExcel(file: File): Promise<SupplierSheet[]> {
   if (!/\.xlsx?$/i.test(file.name)) throw new Error("Seleccioná un archivo Excel .xlsx o .xls.");
   if (file.size > 20 * 1024 * 1024) throw new Error("El Excel supera el máximo de 20 MB.");
   const xlsx = await loadXlsx();
-  const workbook = xlsx.read(await file.arrayBuffer(), { type: "array", cellDates: false });
+  const workbook = xlsx.read(await file.arrayBuffer(), { type: "array", cellDates: false, cellStyles: true });
   const sheets = workbook.SheetNames.map((name) => {
     const sheet = workbook.Sheets[name];
     if (!sheet["!ref"]) return { name, rows: [] };
@@ -45,7 +45,7 @@ export async function readSupplierExcel(file: File): Promise<SupplierSheet[]> {
         rows[position.r][position.c] = "#CELDA INVÁLIDA";
       }
     }
-    return { name, rows };
+    return { name, rows, hiddenRows: (sheet["!rows"] ?? []).flatMap((row, index) => row?.hidden ? [index + 1] : []) };
   });
   if (!sheets.some((sheet) => sheet.rows.length > 0)) throw new Error("El Excel no contiene datos.");
   return sheets;
@@ -75,6 +75,7 @@ export function previewSupplierSheet(sheet: SupplierSheet, headerRow: number, ma
   }
   if (!Number.isInteger(headerRow) || headerRow < 1 || headerRow > sheet.rows.length) throw new Error("Indicá una fila de encabezados válida.");
   return sheet.rows.slice(headerRow).flatMap((cells, index) => {
+    if (sheet.hiddenRows?.includes(headerRow + index + 1)) return [];
     if (cells.every((cell) => cell == null || String(cell).trim() === "")) return [];
     const name = String(cells[mapping.name] ?? "").trim();
     const unit = mapping.unit === null ? "unidad" : String(cells[mapping.unit] ?? "").trim() || "unidad";

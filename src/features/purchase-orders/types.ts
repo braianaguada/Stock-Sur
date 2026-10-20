@@ -2,6 +2,8 @@ export type PurchaseOrderCurrency = "ARS" | "USD";
 export type PurchaseOrderStatus = "DRAFT" | "SENT" | "CANCELLED";
 
 export interface SupplierPurchaseOrder {
+  vat_rate_snapshot?: number;
+  freight_rate_snapshot?: number;
   id: string;
   company_id: string;
   supplier_id: string;
@@ -43,7 +45,7 @@ export interface SupplierPurchaseOrderLine {
 export interface CreateSupplierPurchaseOrderInput {
   companyId: string;
   supplierId: string;
-  catalogVersionId: string;
+  catalogVersionId: string | null;
   lines: Array<{ catalogLineId: string; quantity: number }>;
   notes?: string | null;
 }

@@ -21,7 +21,7 @@ export function PurchaseOrderOutput({ order, lines, loading }: { order: Supplier
   useEffect(() => { setPdf(null); }, [context]);
   const enabled = !loading && !isLoading && !busy && lines.length > 0 && currentCompany?.id === order.company_id && settings.company_id === order.company_id;
   const html = () => buildPurchaseOrderModelHtml(settings, { firstNumber: order.order_number, secondNumber: order.order_number + 1 }, order.form_data?.date ?? new Date(order.created_at).toLocaleDateString("es-AR"), {
-    number: order.order_number, supplier: order.supplier_name_snapshot, form: { ...order.form_data, notes: order.notes ?? "" }, totals: order.totals_by_currency,
+    number: order.order_number, supplier: order.supplier_name_snapshot, form: { ...order.form_data, notes: order.notes ?? "" }, totals: order.totals_by_currency, vatRate: order.vat_rate_snapshot, freightRate: order.freight_rate_snapshot,
     lines: lines.map(line => ({ description: [line.supplier_code_snapshot, line.product_name_snapshot, line.additional_description_snapshot].filter(Boolean).join(" - "), quantity: Number(line.quantity), currency: line.currency, unitCost: Number(line.unit_cost), total: Number(line.line_total) })),
   });
   const fail = (error: unknown) => toast({ title: "No se pudo preparar la orden", description: error instanceof Error ? error.message : "Volvé a intentar.", variant: "destructive" });
