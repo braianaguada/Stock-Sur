@@ -1,3 +1,4 @@
+import { supplierOrderAmounts } from "@/features/suppliers/pricing";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -126,7 +127,7 @@ export default function PurchaseOrders() {
     {
       id: "total",
       header: () => <span className="block text-right">Total</span>,
-      cell: ({ row }) => <div className="space-y-1">{Object.entries(row.original.totals_by_currency).map(([currency, total]) => <MoneyCell key={currency} value={money(currency, total ?? 0)} format="plain" />)}</div>,
+      cell: ({ row }) => <div className="space-y-1">{Object.entries(row.original.totals_by_currency).map(([currency, total]) => <MoneyCell key={currency} value={money(currency, supplierOrderAmounts(total ?? 0, row.original.vat_rate_snapshot, row.original.freight_rate_snapshot).total)} format="plain" />)}</div>,
       meta: { className: "text-right", cellClassName: "text-right" },
     },
     {
@@ -260,7 +261,7 @@ export default function PurchaseOrders() {
               onRetry={() => linesQuery.refetch()}
             />
           </div>
-          <div className="flex flex-wrap justify-end gap-4">{Object.entries(selectedTotals).map(([currency, total]) => <div key={currency}><span className="mr-2 text-sm text-muted-foreground">Total {currency}</span><MoneyCell className="inline-block text-lg" value={money(currency, total)} format="plain" /></div>)}</div>
+          <div className="flex flex-wrap justify-end gap-4">{Object.entries(selectedTotals).map(([currency, total]) => <div key={currency}><span className="mr-2 text-sm text-muted-foreground">Total {currency}</span><MoneyCell className="inline-block text-lg" value={money(currency, supplierOrderAmounts(total, selected.vat_rate_snapshot, selected.freight_rate_snapshot).total)} format="plain" /><p className="text-xs text-muted-foreground">Neto {money(currency, total)} · IVA {selected.vat_rate_snapshot ?? 0}%: {money(currency, supplierOrderAmounts(total, selected.vat_rate_snapshot).vat)} · Flete {selected.freight_rate_snapshot ?? 0}%: {money(currency, supplierOrderAmounts(total, 0, selected.freight_rate_snapshot).freight)}</p></div>)}</div>
         </div> : null}
       </EntityDialog>
 

@@ -307,23 +307,6 @@ export function usePriceListsData({
       toast({ title: "No se pudo guardar la configuración", description: getErrorMessage(error), variant: "destructive" }),
   });
 
-  const recalculateMutation = useMutation({
-    mutationFn: async (priceListId: string) => {
-      const { data, error } = await supabase.rpc("recalculate_price_list", {
-        p_price_list_id: priceListId,
-        p_actor: user?.id ?? null,
-      });
-      if (error) throw error;
-      return Number(data ?? 0);
-    },
-    onSuccess: (updatedCount) => {
-      invalidatePricingQueries(queryClient);
-      toast({ title: "Lista recalculada", description: `${updatedCount} productos actualizados.` });
-    },
-    onError: (error: unknown) =>
-      toast({ title: "No se pudo recalcular la lista", description: getErrorMessage(error), variant: "destructive" }),
-  });
-
   const updateProductOverrideMutation = useMutation({
     mutationFn: async ({
       itemId,
@@ -415,7 +398,6 @@ export function usePriceListsData({
     updateBaseCostMutation,
     createListMutation,
     updateListConfigMutation,
-    recalculateMutation,
     updateProductOverrideMutation,
     deleteListMutation,
     itemIdentity: itemIdentityQuery.data,

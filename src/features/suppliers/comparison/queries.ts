@@ -14,7 +14,7 @@ export async function fetchSupplierComparisonVersions(companyId: string): Promis
   const [{ data: suppliers, error: suppliersError }, { data: catalogs, error: catalogsError }, { data: versions, error: versionsError }] = await Promise.all([
     supabase.from("suppliers").select("id, name").eq("company_id", companyId).eq("is_active", true),
     supabase.from("supplier_catalogs").select("id, supplier_id, title").eq("company_id", companyId).eq("status", "ACTIVE"),
-    supabase.from("supplier_catalog_versions").select("id, catalog_id, supplier_id, title, imported_at").eq("company_id", companyId).order("imported_at", { ascending: false }),
+    supabase.from("supplier_catalog_versions").select("id, catalog_id, supplier_id, title, imported_at").eq("company_id", companyId).order("imported_at", { ascending: false }).order("id", { ascending: false }),
   ]);
   if (suppliersError) throw suppliersError;
   if (catalogsError) throw catalogsError;
@@ -22,15 +22,17 @@ export async function fetchSupplierComparisonVersions(companyId: string): Promis
 
   const supplierNames = new Map((suppliers ?? []).map((supplier) => [supplier.id, supplier.name]));
   const catalogById = new Map((catalogs ?? []).map((catalog) => [catalog.id, catalog]));
+  const seenCatalogs = new Set<string>();
   return (versions ?? []).flatMap((version) => {
     const catalog = catalogById.get(version.catalog_id);
     const supplierName = supplierNames.get(version.supplier_id);
-    if (!catalog || !supplierName || catalog.supplier_id !== version.supplier_id) return [];
+    if (!catalog || !supplierName || catalog.supplier_id !== version.supplier_id || seenCatalogs.has(version.catalog_id)) return [];
+    seenCatalogs.add(version.catalog_id);
     return [{
       id: version.id,
       supplierId: version.supplier_id,
       supplierName,
-      listName: version.title?.trim() || catalog.title,
+      listName: catalog.title,
       importedAt: version.imported_at,
     }];
   });

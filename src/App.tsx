@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { SupplierPurchasingProvider } from "@/features/suppliers/components/SupplierPurchasingProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CompanyBrandProvider } from "@/components/CompanyBrandProvider";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
@@ -108,6 +109,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <SupplierPurchasingProvider>
               <Suspense fallback={<DelayedRouteLoader />}>
                 <Routes>
                   <Route path="/auth" element={<AuthRedirect />} />
@@ -146,6 +148,7 @@ const App = () => (
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
+              </SupplierPurchasingProvider>
             </BrowserRouter>
           </CompanyBrandProvider>
         </AuthProvider>

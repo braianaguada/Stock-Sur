@@ -22,7 +22,7 @@ import type {
   LinePricingMode,
   PriceListRow,
 } from "@/features/documents/types";
-import { calculatePriceFromCostBase, changeDocumentRecipientType, changeRemitoUsage } from "@/features/documents/utils";
+import { calculatePriceFromCostBase, changeDocumentRecipientType, changeRemitoUsage, OCCASIONAL_CUSTOMER_DISPLAY_NAME } from "@/features/documents/utils";
 import { rankNaturalItemSearch } from "@/features/items/search";
 
 import { customerPaymentTerms } from "../lib/payment-terms";
@@ -347,7 +347,7 @@ export function DocumentsEditorDialog({
                   >
                     <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar destinatario" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="OCCASIONAL">Cliente final</SelectItem>
+                      <SelectItem value="OCCASIONAL">{OCCASIONAL_CUSTOMER_DISPLAY_NAME}</SelectItem>
                       <SelectItem value="REGISTERED">Cliente registrado</SelectItem>
                     </SelectContent>
                   </Select>

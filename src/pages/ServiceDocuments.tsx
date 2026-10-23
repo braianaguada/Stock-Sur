@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, Bot, Camera, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, RefreshCw, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Bot, Camera, Check, Copy, Download, Eye, ImagePlus, Link2, Mail, MessageCircle, MoreHorizontal, Pencil, Plus, Printer, Trash2, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ClearableSearchInput } from "@/components/common/ClearableSearchInput";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -43,7 +43,8 @@ import { appendServiceDocumentLine, buildInitialServiceDocumentForm, canTransiti
 import { calculateServiceLineTotal, useServiceDocumentMutations } from "@/features/services/hooks/useServiceDocumentMutations";
 import { useServiceDocuments } from "@/features/services/hooks/useServiceDocuments";
 import { buildServiceDocumentPrintHtml } from "@/features/services/print";
-import { fetchBnaOfficialUsdRate, getManualExchangeRateSnapshot } from "@/features/services/exchangeRateProvider";
+import { useBnaExchangeRate } from "@/hooks/use-bna-exchange-rate";
+import { applyDraftExchangeRate } from "@/features/services/draftExchangeRate";
 import { buildMailtoUrl, buildPublicServiceDocumentUrl, buildServiceDocumentShareMessage, buildWhatsAppUrl } from "@/features/services/share";
 import type { ServiceQuoteAiApplyMode, ServiceQuoteAiSuggestion } from "@/features/services/aiAssistant";
 import type { ServiceRemitoImport } from "@/features/services/remitoOcr";
@@ -102,7 +103,10 @@ export default function ServiceDocumentsPage() {
   const [shareEmail, setShareEmail] = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const [shareSubject, setShareSubject] = useState("");
-  const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
+  const exchange = useBnaExchangeRate(currentCompany?.status === "ACTIVE" ? currentCompany.id : undefined);
+  useEffect(() => {
+    if (dialogOpen && exchange.data) setForm((current) => applyDraftExchangeRate(current, exchange.data!));
+  }, [dialogOpen, form.currency, form.exchange_rate, exchange.data]);
   const [shareLinkLoading, setShareLinkLoading] = useState(false);
   const { feedback: downloadFeedback, onSaved: onPdfSaved } = usePdfDownloadFeedback(currentCompany?.id ?? null);
   const [downloadingDocumentId, setDownloadingDocumentId] = useState<string | null>(null);
@@ -435,46 +439,6 @@ export default function ServiceDocumentsPage() {
       confirmLabel: SERVICE_STATUS_LABEL[pendingConfirmation.targetStatus],
     };
   })();
-
-  const fetchExchangeRate = async () => {
-    setExchangeRateLoading(true);
-    try {
-      const snapshot = await fetchBnaOfficialUsdRate();
-      setForm((current) => ({
-        ...current,
-        currency: "USD",
-        exchange_rate_source: snapshot.source,
-        exchange_rate: String(snapshot.rate),
-        exchange_rate_date: snapshot.rateDate,
-        exchange_rate_fetched_at: snapshot.fetchedAt,
-        exchange_rate_snapshot_label: snapshot.label,
-      }));
-      toast({ title: "Cotizacion actualizada", description: "Se guardara como snapshot del presupuesto." });
-    } catch (error) {
-      toast({
-        title: "No se pudo obtener la cotización automáticamente. Cargala manualmente.",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
-    } finally {
-      setExchangeRateLoading(false);
-    }
-  };
-
-  const applyManualExchangeRate = (value: string) => {
-    setForm((current) => {
-      const rate = Number(value);
-      const snapshot = Number.isFinite(rate) && rate > 0 ? getManualExchangeRateSnapshot(rate, current.exchange_rate_date || undefined) : null;
-      return {
-        ...current,
-        exchange_rate: value,
-        exchange_rate_source: snapshot ? "MANUAL" : current.exchange_rate_source,
-        exchange_rate_date: snapshot?.rateDate ?? current.exchange_rate_date,
-        exchange_rate_fetched_at: snapshot?.fetchedAt ?? current.exchange_rate_fetched_at,
-        exchange_rate_snapshot_label: snapshot?.label ?? current.exchange_rate_snapshot_label,
-      };
-    });
-  };
 
   const addAttachments = (files: FileList | null) => {
     if (!files) return;
@@ -909,22 +873,10 @@ export default function ServiceDocumentsPage() {
                 {form.include_tax ? <div className="space-y-1"><Label className="text-xs">Alícuota IVA (%)</Label><Input className="h-8" type="number" min="0" max="100" step="0.01" value={form.tax_rate} onChange={(event) => setForm((current) => ({ ...current, tax_rate: event.target.value }))} /></div> : null}
               </div>
 
-              {form.currency === "USD" ? (
-                <div className="grid gap-2 rounded-lg border bg-background p-3 md:grid-cols-[1fr_1fr_auto]">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Cotizacion USD</Label>
-                    <Input className="h-8" type="number" min="0" step="0.01" value={form.exchange_rate} onChange={(event) => applyManualExchangeRate(event.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Fecha cotizacion</Label>
-                    <Input className="h-8" type="date" value={form.exchange_rate_date} onChange={(event) => setForm((current) => ({ ...current, exchange_rate_date: event.target.value, exchange_rate_source: "MANUAL" }))} />
-                  </div>
-                  <div className="flex items-end">
-                    <Button type="button" variant="outline" className="h-8" onClick={() => void fetchExchangeRate()} disabled={exchangeRateLoading}>
-                      <RefreshCw className="mr-2 h-4 w-4" /> BNA
-                    </Button>
-                  </div>
-                </div>
+              {form.currency === "USD" && !(Number(form.exchange_rate) > 0) ? (
+                <p role={exchange.isError ? "alert" : "status"} className="text-sm text-muted-foreground">
+                  {exchange.isError ? "No se pudo obtener el dólar BNA. Reintentá desde la barra superior antes de guardar." : "Obteniendo cotización BNA…"}
+                </p>
               ) : null}
             </section>
 

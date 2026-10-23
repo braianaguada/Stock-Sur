@@ -1,8 +1,6 @@
 import type {
   CatalogLine,
-  NormalizeDiagnostics,
   OrderLine,
-  ParsePdfProgress,
   Supplier,
   SupplierCatalogVersion,
   SupplierFormState,
@@ -11,6 +9,8 @@ import { formatDateTime } from "@/lib/formatters";
 
 export function createEmptySupplierForm(): SupplierFormState {
   return {
+    vat_rate: "21",
+    freight_rate: "0",
     name: "",
     legal_name: "",
     tax_id: "",
@@ -25,6 +25,8 @@ export function createEmptySupplierForm(): SupplierFormState {
 
 export function buildSupplierFormState(supplier: Supplier): SupplierFormState {
   return {
+    vat_rate: String(supplier.vat_rate ?? 21),
+    freight_rate: String(supplier.freight_rate ?? 0),
     name: supplier.name,
     legal_name: supplier.legal_name ?? "",
     tax_id: supplier.tax_id ?? "",
@@ -43,10 +45,6 @@ export function createCatalogDialogState() {
     activeVersionId: null as string | null,
     orderItems: {} as Record<string, OrderLine>,
     lineQuantities: {} as Record<string, number>,
-    lastDiagnostics: null as NormalizeDiagnostics | null,
-    pdfProgress: null as ParsePdfProgress | null,
-    selectedCatalogId: "new",
-    selectedFile: null as File | null,
     catalogUiTab: "catalogo" as const,
   };
 }

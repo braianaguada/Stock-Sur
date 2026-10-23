@@ -8,7 +8,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const formatNumber = (n: number | null, pointOfSale: number) =>
   n === null ? "BORRADOR" : formatDocumentNumber(pointOfSale, n);
 
-export const OCCASIONAL_CUSTOMER_DISPLAY_NAME = "Cliente final";
+export const OCCASIONAL_CUSTOMER_DISPLAY_NAME = "Consumidor Final";
 const OCCASIONAL_CUSTOMER_DEFAULT_NAME = "Cliente ocasional";
 
 export type RecipientDisplay = {
@@ -63,6 +63,7 @@ export function resolveDocumentRecipient(
 
   const normalizedName = customerName?.toLocaleLowerCase("es-AR");
   const isDefaultName = !normalizedName
+    || normalizedName === "cliente final"
     || normalizedName === OCCASIONAL_CUSTOMER_DEFAULT_NAME.toLocaleLowerCase("es-AR")
     || normalizedName === OCCASIONAL_CUSTOMER_DISPLAY_NAME.toLocaleLowerCase("es-AR");
 

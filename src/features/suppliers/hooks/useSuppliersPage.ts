@@ -2,28 +2,13 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invalidateSupplierQueries } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
-import type {
-  MappingColumnOption,
-  MappingPreviewRow,
-  MappingSelection,
-} from "@/features/suppliers/components/ColumnMappingModal";
-import type { PdfMappingSelection } from "@/features/suppliers/components/PdfMappingModal";
-import { useSupplierImportFlow } from "@/features/suppliers/hooks/useSupplierImportFlow";
-import { useSupplierOrderActions } from "@/features/suppliers/hooks/useSupplierOrderActions";
-import {
-  useCreateSupplierPurchaseOrder,
-  useSupplierPurchaseOrders,
-} from "@/features/purchase-orders/hooks";
-import type { SupplierPurchaseOrder } from "@/features/purchase-orders/types";
 import { deleteSupplier, restoreSupplier, saveSupplier } from "@/features/suppliers/mutations";
 import {
   fetchSupplierCatalogLines,
   fetchSupplierCatalogVersions,
   fetchSupplierCatalogs,
-  fetchSupplierReorderContext,
   fetchSuppliers,
 } from "@/features/suppliers/queries";
-import { buildSupplierReorderSuggestions } from "@/features/suppliers/reorderSuggestions";
 import {
   buildSupplierFormState,
   createCatalogDialogState,
@@ -32,11 +17,7 @@ import {
   selectSupplierCatalogVersionId,
 } from "@/features/suppliers/state";
 import type {
-  CatalogImportLine,
-  ExtractionReviewLine,
-  NormalizeDiagnostics,
-  OrderLine,
-  ParsePdfProgress,
+  CatalogLine,
   Supplier,
   SupplierCatalog,
   SupplierCatalogVersion,
@@ -46,7 +27,7 @@ import type {
 const EMPTY_SUPPLIERS: Supplier[] = [];
 const EMPTY_CATALOGS: SupplierCatalog[] = [];
 const EMPTY_CATALOG_VERSIONS: SupplierCatalogVersion[] = [];
-const EMPTY_CATALOG_LINES: CatalogImportLine[] = [];
+const EMPTY_CATALOG_LINES: CatalogLine[] = [];
 
 type ToastFn = (options: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
 
@@ -65,48 +46,16 @@ export function useSuppliersPage({
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
   const [catalogDialogOpen, setCatalogDialogOpen] = useState(false);
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [supplierContext, setSupplierContext] = useState<{ companyId: string; supplier: Supplier } | null>(null);
+  const selectedSupplier = supplierContext && supplierContext.companyId === companyId ? supplierContext.supplier : null;
   const [catalogSearch, setCatalogSearch] = useState("");
   const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
-  const [orderItems, setOrderItems] = useState<Record<string, OrderLine>>({});
   const [lineQuantities, setLineQuantities] = useState<Record<string, number>>({});
   const [form, setForm] = useState<SupplierFormState>(createEmptySupplierForm);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [documentTitle, setDocumentTitle] = useState("");
-  const [documentNotes, setDocumentNotes] = useState("");
-  const [selectedCatalogId, setSelectedCatalogId] = useState("new");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [catalogUiTab, setCatalogUiTab] = useState<"carga" | "historial" | "catalogo">("catalogo");
-  const [dropDetailOpen, setDropDetailOpen] = useState(false);
-  const [lastDiagnostics, setLastDiagnostics] = useState<NormalizeDiagnostics | null>(null);
-  const [mappingModalOpen, setMappingModalOpen] = useState(false);
-  const [mappingModalColumns, setMappingModalColumns] = useState<MappingColumnOption[]>([]);
-  const [mappingModalPreviewRows, setMappingModalPreviewRows] = useState<MappingPreviewRow[]>([]);
-  const [mappingModalSuggested, setMappingModalSuggested] = useState<Omit<MappingSelection, "remember">>({
-    descriptionColumn: "",
-    priceColumn: "",
-    currencyColumn: null,
-    supplierCodeColumn: null,
-  });
-  const [mappingModalConfidence, setMappingModalConfidence] = useState(0);
-  const [pdfMappingOpen, setPdfMappingOpen] = useState(false);
-  const [pdfMappingHeaders, setPdfMappingHeaders] = useState<string[]>([]);
-  const [pdfMappingRows, setPdfMappingRows] = useState<string[][]>([]);
-  const [pdfMappingSuggested, setPdfMappingSuggested] = useState<Omit<PdfMappingSelection, "remember">>({
-    descriptionColumn: "col_1",
-    priceColumn: "col_2",
-    codeColumn: null,
-    taxColumn: null,
-    preferPriceAtEnd: true,
-    filterRowsWithoutPrice: true,
-  });
-  const [pdfProgress, setPdfProgress] = useState<ParsePdfProgress | null>(null);
-  const [extractionReviewOpen, setExtractionReviewOpen] = useState(false);
-  const [extractionReviewLines, setExtractionReviewLines] = useState<ExtractionReviewLine[]>([]);
-  const [lastPurchaseOrder, setLastPurchaseOrder] = useState<SupplierPurchaseOrder | null>(null);
 
-  const xlsxMappingResolverRef = useRef<((value: MappingSelection | null) => void) | null>(null);
-  const pdfMappingResolverRef = useRef<((value: PdfMappingSelection | null) => void) | null>(null);
   const qc = useQueryClient();
   const deferredSearch = useDeferredValue(search);
   const trimmedDeferredSearch = deferredSearch.trim();
@@ -117,16 +66,8 @@ export function useSuppliersPage({
     const nextState = createCatalogDialogState();
     setCatalogSearch(nextState.catalogSearch);
     setActiveVersionId(nextState.activeVersionId);
-    setOrderItems(nextState.orderItems);
     setLineQuantities(nextState.lineQuantities);
-    setLastDiagnostics(nextState.lastDiagnostics);
-    setPdfProgress(nextState.pdfProgress);
-    setSelectedCatalogId(nextState.selectedCatalogId);
-    setSelectedFile(nextState.selectedFile);
     setCatalogUiTab(nextState.catalogUiTab);
-    setExtractionReviewOpen(false);
-    setExtractionReviewLines([]);
-    setLastPurchaseOrder(null);
   }, []);
 
   const previousCompanyIdRef = useRef(companyId ?? null);
@@ -136,7 +77,8 @@ export function useSuppliersPage({
 
     previousCompanyIdRef.current = nextCompanyId;
     setCatalogDialogOpen(false);
-    setSelectedSupplier(null);
+    setImportOpen(false);
+    setSupplierContext(null);
     resetCatalogDialogState();
   }, [companyId, resetCatalogDialogState]);
 
@@ -164,45 +106,17 @@ export function useSuppliersPage({
 
   const activeCatalogLinesQuery = useQuery({
     queryKey: queryKeys.suppliers.catalogLines(companyId ?? null, activeVersionId, trimmedDeferredCatalogSearch),
-    enabled: Boolean(companyId && activeVersionId),
+    enabled: Boolean(companyId && selectedSupplier && activeVersionId),
     queryFn: () => fetchSupplierCatalogLines({
       companyId: companyId!,
       versionId: activeVersionId!,
       search: trimmedDeferredCatalogSearch,
     }),
   });
-  const reorderContextQuery = useQuery({
-    queryKey: queryKeys.suppliers.reorderSuggestions(companyId ?? null, activeVersionId),
-    enabled: Boolean(companyId && activeVersionId && catalogDialogOpen),
-    queryFn: () => fetchSupplierReorderContext({
-      companyId: companyId!,
-      versionId: activeVersionId!,
-    }),
-  });
-  const purchaseOrdersQuery = useSupplierPurchaseOrders(
-    selectedSupplier ? companyId ?? null : null,
-    selectedSupplier?.id,
-  );
-  const createPurchaseOrderMutation = useCreateSupplierPurchaseOrder();
-
   const suppliers = suppliersQuery.data ?? EMPTY_SUPPLIERS;
   const catalogs = catalogsQuery.data ?? EMPTY_CATALOGS;
   const catalogVersions = catalogVersionsQuery.data ?? EMPTY_CATALOG_VERSIONS;
   const activeCatalogLines = activeCatalogLinesQuery.data ?? EMPTY_CATALOG_LINES;
-  const reorderSuggestions = useMemo(
-    () => reorderContextQuery.data
-      ? buildSupplierReorderSuggestions(
-        reorderContextQuery.data.lines,
-        reorderContextQuery.data.stockRows,
-      )
-      : [],
-    [reorderContextQuery.data],
-  );
-
-  const catalogsById = useMemo(
-    () => new Map(catalogs.map((catalog) => [catalog.id, catalog])),
-    [catalogs],
-  );
   const catalogVersionsById = useMemo(
     () => new Map(catalogVersions.map((version) => [version.id, version])),
     [catalogVersions],
@@ -233,73 +147,6 @@ export function useSuppliersPage({
     selectedSupplier,
   ]);
 
-  const {
-    closeMappingModal,
-    closePdfMappingModal,
-    confirmMappingModal,
-    confirmPdfMappingModal,
-    confirmImportMutation,
-    uploadCatalogMutation,
-  } = useSupplierImportFlow({
-    currentCompanyId: companyId ?? null,
-    selectedSupplier,
-    selectedFile,
-    selectedCatalogId,
-    documentTitle,
-    documentNotes,
-    catalogsById,
-    queryClient: qc,
-    setDocumentTitle,
-    setDocumentNotes,
-    setSelectedCatalogId,
-    setSelectedFile,
-    setPdfProgress,
-    setLastDiagnostics,
-    setExtractionReviewOpen,
-    setExtractionReviewLines,
-    setActiveVersionId,
-    setCatalogUiTab,
-    setOrderItems,
-    setLineQuantities,
-    setMappingModalOpen,
-    setMappingModalColumns,
-    setMappingModalPreviewRows,
-    setMappingModalSuggested,
-    setMappingModalConfidence,
-    setPdfMappingOpen,
-    setPdfMappingHeaders,
-    setPdfMappingRows,
-    setPdfMappingSuggested,
-    xlsxMappingResolverRef,
-    pdfMappingResolverRef,
-    toast,
-  });
-
-  const {
-    addToOrder,
-    addSuggestionsToOrder,
-    copyOrderMessage,
-    emailLink,
-    goToPurchaseOrder,
-    goToPurchaseOrders,
-    openEmail,
-    openWhatsApp,
-    orderLines,
-    orderTotalsByCurrency,
-    removeOrderItem,
-    updateLineQuantity,
-    updateOrderQuantity,
-  } = useSupplierOrderActions({
-    selectedSupplier,
-    activeVersion,
-    catalogTitleById,
-    orderItems,
-    lineQuantities,
-    setOrderItems,
-    setLineQuantities,
-    toast,
-  });
-
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!companyId) throw new Error("Necesitas una empresa activa para guardar proveedores.");
@@ -311,6 +158,9 @@ export function useSuppliersPage({
     },
     onSuccess: async () => {
       await invalidateSupplierQueries(qc, companyId!);
+      await qc.invalidateQueries({ queryKey: ["supplier-comparison-versions", companyId] });
+      await qc.invalidateQueries({ queryKey: ["supplier-pricing", companyId] });
+      if (editing && selectedSupplier?.id === editing.id) setSupplierContext({ companyId: companyId!, supplier: { ...editing, ...form, vat_rate: Number(form.vat_rate ?? 21), freight_rate: Number(form.freight_rate ?? 0) } });
       setDialogOpen(false);
       setEditing(null);
       setForm(createEmptySupplierForm());
@@ -333,7 +183,10 @@ export function useSuppliersPage({
     },
     onSuccess: async () => {
       await invalidateSupplierQueries(qc, companyId!);
+      await qc.invalidateQueries({ queryKey: ["supplier-comparison-versions", companyId] });
+      await qc.invalidateQueries({ queryKey: ["supplier-pricing", companyId] });
       toast({ title: "Proveedor eliminado" });
+      setSupplierToDelete(null);
     },
     onError: (error: unknown) => {
       toast({
@@ -351,6 +204,8 @@ export function useSuppliersPage({
     },
     onSuccess: async () => {
       await invalidateSupplierQueries(qc, companyId!);
+      await qc.invalidateQueries({ queryKey: ["supplier-comparison-versions", companyId] });
+      await qc.invalidateQueries({ queryKey: ["supplier-pricing", companyId] });
       toast({ title: "Proveedor restaurado" });
     },
     onError: (error: unknown) => {
@@ -377,14 +232,14 @@ export function useSuppliersPage({
 
   const openCatalog = (supplier: Supplier) => {
     resetCatalogDialogState();
-    setSelectedSupplier(supplier);
+    setSupplierContext(companyId ? { companyId, supplier } : null);
     setCatalogDialogOpen(true);
   };
 
   const onCatalogDialogOpenChange = (open: boolean) => {
     setCatalogDialogOpen(open);
     if (!open) {
-      setSelectedSupplier(null);
+      setSupplierContext(null);
       resetCatalogDialogState();
     }
   };
@@ -392,130 +247,65 @@ export function useSuppliersPage({
   const onCatalogVersionSelect = (versionId: string) => {
     setActiveVersionId(versionId);
     setCatalogSearch("");
-    setOrderItems({});
     setLineQuantities({});
     setCatalogUiTab("catalogo");
-  };
-
-  const onExtractionReviewLineChange = (lineId: string, patch: Partial<ExtractionReviewLine>) => {
-    setExtractionReviewLines((previousLines) =>
-      previousLines.map((line) => (line.id === lineId ? { ...line, ...patch } : line)),
-    );
-  };
-
-  const onRemoveExtractionReviewLine = (lineId: string) => {
-    setExtractionReviewLines((previousLines) => previousLines.filter((line) => line.id !== lineId));
-  };
-
-  const onCreatePurchaseOrder = () => {
-    if (!companyId || !selectedSupplier || !activeVersionId || orderLines.length === 0) return;
-    createPurchaseOrderMutation.mutate({
-      companyId,
-      supplierId: selectedSupplier.id,
-      catalogVersionId: activeVersionId,
-      lines: orderLines.map((line) => ({ catalogLineId: line.id, quantity: line.quantity })),
-    }, {
-      onSuccess: (order) => {
-        setLastPurchaseOrder(order);
-        setOrderItems({});
-        setLineQuantities({});
-        toast({ title: `Orden #${order.order_number} generada` });
-      },
-      onError: (error: unknown) => toast({
-        title: "No se pudo generar la orden",
-        description: error instanceof Error ? error.message : "Error desconocido",
-        variant: "destructive",
-      }),
-    });
   };
 
   return {
     activeCatalogLines,
     activeVersion,
     activeVersionId,
-    addToOrder,
-    addSuggestionsToOrder,
-    catalogDialogOpen,
+    catalogDialogOpen: catalogDialogOpen && Boolean(selectedSupplier),
     catalogSearch,
     catalogTitleById,
     catalogUiTab,
     catalogs,
-    closeMappingModal,
-    closePdfMappingModal,
-    confirmMappingModal,
-    confirmPdfMappingModal,
+    catalogsLoading: catalogsQuery.isLoading,
+    catalogsError: catalogsQuery.error,
+    retryCatalogs: () => { void catalogsQuery.refetch(); },
+    importOpen: importOpen && Boolean(selectedSupplier),
+    startImport: () => { setCatalogDialogOpen(false); setImportOpen(true); },
+    openImport: (supplier: Supplier) => {
+      resetCatalogDialogState();
+      setSupplierContext(companyId ? { companyId, supplier } : null);
+      setCatalogDialogOpen(false);
+      setImportOpen(true);
+    },
+    cancelImport: () => { setImportOpen(false); setCatalogDialogOpen(true); },
+    finishImport: (versionId: string) => {
+      setImportOpen(false);
+      setActiveVersionId(versionId);
+      setCatalogSearch("");
+      setLineQuantities({});
+      setCatalogUiTab("catalogo");
+      setCatalogDialogOpen(true);
+      toast({ title: "Lista importada", description: "Precios guardados sin IVA." });
+    },
     deleteMutation,
     dialogOpen,
-    documentNotes,
-    documentTitle,
-    dropDetailOpen,
     editing,
     form,
-    goToPurchaseOrder,
-    goToPurchaseOrders,
+    catalogError: activeCatalogLinesQuery.error ?? catalogsQuery.error ?? catalogVersionsQuery.error,
+    suppliersError: suppliersQuery.error,
     isCatalogLoading: activeCatalogLinesQuery.isLoading,
-    isReorderSuggestionsLoading: reorderContextQuery.isLoading,
-    isHistoryLoading: catalogVersionsQuery.isLoading,
+    isHistoryLoading: catalogsQuery.isLoading || catalogVersionsQuery.isLoading,
     isLoading: suppliersQuery.isLoading,
-    lastDiagnostics,
     lineQuantities,
-    mappingModalColumns,
-    mappingModalConfidence,
-    mappingModalOpen,
-    mappingModalPreviewRows,
-    mappingModalSuggested,
     onCatalogDialogOpenChange,
     onCatalogVersionSelect,
-    onCopyOrderMessage: copyOrderMessage,
-    onConfirmExtractionImport: () => confirmImportMutation.mutate(extractionReviewLines),
-    onExtractionReviewLineChange,
-    onOpenEmail: openEmail,
-    onOpenWhatsApp: openWhatsApp,
-    onRemoveExtractionReviewLine,
-    onRemoveOrderItem: removeOrderItem,
     onRestoreSupplier: (supplierId: string) => restoreMutation.mutate(supplierId),
-    onUpdateLineQuantity: updateLineQuantity,
-    onUpdateOrderQuantity: updateOrderQuantity,
+    onUpdateLineQuantity: (id: string, value: string) => setLineQuantities((current) => ({ ...current, [id]: Math.max(1, Math.trunc(Number(value) || 1)) })),
     openCatalog,
     openCreate,
     openEdit,
-    orderLines,
-    orderTotalsByCurrency,
-    purchaseOrders: purchaseOrdersQuery.data ?? [],
-    reorderSuggestions,
-    isPurchaseOrdersLoading: purchaseOrdersQuery.isLoading,
-    isCreatingPurchaseOrder: createPurchaseOrderMutation.isPending,
-    lastPurchaseOrder,
-    onCreatePurchaseOrder,
-    pdfMappingHeaders,
-    pdfMappingOpen,
-    pdfMappingRows,
-    pdfMappingSuggested,
-    pdfProgress,
-    extractionImportPending: confirmImportMutation.isPending,
-    extractionReviewLines,
-    extractionReviewOpen,
-    confirmImportMutation,
     saveMutation,
     search,
-    selectedCatalogId,
-    selectedFile,
     selectedSupplier,
-    supplierEmailLink: emailLink,
     setCatalogSearch,
     setCatalogUiTab,
     setDialogOpen,
-    setDocumentNotes,
-    setDocumentTitle,
-    setDropDetailOpen,
-    setExtractionReviewLines,
-    setExtractionReviewOpen,
     setForm,
-    setMappingModalOpen,
-    setPdfMappingOpen,
     setSearch,
-    setSelectedCatalogId,
-    setSelectedFile,
     setShowAdvanced,
     setStatusFilter,
     setSupplierToDelete,
@@ -523,7 +313,6 @@ export function useSuppliersPage({
     statusFilter,
     supplierToDelete,
     suppliers,
-    uploadCatalogMutation,
     versionsByCatalog,
   };
 }

@@ -72,6 +72,9 @@ export function SupplierFormDialog(props: {
               placeholder="2991234567 o +542991234567"
             />
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            {([['vat_rate', 'IVA (%)', '21'], ['freight_rate', 'Flete sobre neto (%)', '0']] as const).map(([field, label, fallback]) => <div key={field} className="space-y-2"><Label htmlFor={field}>{label}</Label><Input id={field} type="number" min={0} max={100} step="0.01" required value={form[field] ?? fallback} onChange={(event) => onFormChange({ ...form, [field]: event.target.value })} /></div>)}
+          </div>
           <Collapsible open={showAdvanced} onOpenChange={onShowAdvancedChange}>
             <CollapsibleTrigger asChild>
               <Button type="button" variant="ghost" className="px-0 text-muted-foreground">

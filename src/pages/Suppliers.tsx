@@ -1,409 +1,105 @@
-import { Suspense, lazy, useEffect, useState } from "react";
-import { Plus, Search, Scale } from "lucide-react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchSupplier } from "@/features/suppliers/queries";
+import { useSearchParams } from "react-router-dom";
+import { Plus, Search } from "lucide-react";
+import { EntityDialog } from "@/components/common/EntityDialog";
+import { useSupplierPurchasing } from "@/features/suppliers/hooks/useSupplierPurchasing";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { FilterToolbar, PageContainer, PageHeader, PageTabs } from "@/components/ui/page";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SuppliersTable } from "@/features/suppliers/components/SuppliersTable";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { useSuppliersPage } from "@/features/suppliers/hooks/useSuppliersPage";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
-import type { SupplierComparisonOffer } from "@/features/suppliers/comparison/domain";
+import { SupplierCurrencyToolbar } from "@/features/suppliers/components/SupplierCurrencyToolbar";
+import { useSupplierExchangeRate } from "@/features/suppliers/hooks/useSupplierExchangeRate";
+import { SupplierListProducts } from "@/features/suppliers/components/SupplierListProducts";
 
-const SupplierFormDialog = lazy(async () => {
-  const module = await import("@/features/suppliers/components/SupplierFormDialog");
-  return { default: module.SupplierFormDialog };
-});
+const SupplierFormDialog = lazy(() => import("@/features/suppliers/components/SupplierFormDialog").then((module) => ({ default: module.SupplierFormDialog })));
+const SupplierExcelImport = lazy(() => import("@/features/suppliers/components/SupplierExcelImport").then((module) => ({ default: module.SupplierExcelImport })));
+const SupplierListsComparison = lazy(() => import("@/features/suppliers/components/SupplierListsComparison").then((module) => ({ default: module.SupplierListsComparison })));
 
-const SupplierCatalogDialog = lazy(async () => {
-  const module = await import("@/features/suppliers/components/SupplierCatalogDialog");
-  return { default: module.SupplierCatalogDialog };
-});
-
-const SupplierDropDetailDialog = lazy(async () => {
-  const module = await import("@/features/suppliers/components/SupplierDropDetailDialog");
-  return { default: module.SupplierDropDetailDialog };
-});
-
-const SupplierExtractionReviewDialog = lazy(async () => {
-  const module = await import("@/features/suppliers/components/SupplierExtractionReviewDialog");
-  return { default: module.SupplierExtractionReviewDialog };
-});
-
-const SupplierComparison = lazy(async () => {
-  const module = await import("@/features/suppliers/components/SupplierComparison");
-  return { default: module.SupplierComparison };
-});
-
-const ColumnMappingModal = lazy(async () => {
-  const module = await import("@/features/suppliers/components/ColumnMappingModal");
-  return { default: module.ColumnMappingModal };
-});
-
-const PdfMappingModal = lazy(async () => {
-  const module = await import("@/features/suppliers/components/PdfMappingModal");
-  return { default: module.PdfMappingModal };
-});
-
-function SupplierDialogLoader() {
-  return (
-    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-      Cargando proveedor...
-    </div>
-  );
+function SuppliersWorkspace({ companyId }: { companyId?: string }) {
+  const { toast } = useToast();
+  const model = useSuppliersPage({ companyId, toast });
+  const purchasing = useSupplierPurchasing();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [comparisonVersionId, setComparisonVersionId] = useState("");
+  const [view, setView] = useState("suppliers");
+  const currency = purchasing?.currency ?? "ARS";
+  const setCurrency = purchasing?.setCurrency ?? (() => undefined);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const exchange = useSupplierExchangeRate(companyId);
+  const pagination = usePaginationSlice({ items: model.suppliers, page, pageSize });
+  const supplier = model.selectedSupplier;
+  useEffect(() => setPage(1), [model.search, model.statusFilter]);
+  const addItem = purchasing?.addItem ?? (() => undefined);
+  const requestedSupplierId = searchParams.get("supplier");
+  const requestedVersionId = searchParams.get("list");
+  const openedRequest = useRef<string | null>(null);
+  const requestedSupplier = useQuery({
+    queryKey: ["supplier-pricing", companyId, requestedSupplierId],
+    queryFn: () => fetchSupplier(companyId!, requestedSupplierId!),
+    enabled: Boolean(companyId && requestedSupplierId),
+  });
+  useEffect(() => {
+    if (!requestedSupplierId) { openedRequest.current = null; return; }
+    const selected = requestedSupplier.data;
+    if (!selected || !selected.is_active) return;
+    const request = `${requestedSupplierId}:${requestedVersionId}`;
+    if (openedRequest.current !== request) {
+      openedRequest.current = request;
+      model.openCatalog(selected);
+      setView("suppliers");
+      return;
+    }
+    if (supplier?.id === selected.id && !model.isHistoryLoading) {
+      if (requestedVersionId && Object.values(model.versionsByCatalog).flat().some((version) => version.id === requestedVersionId)) model.onCatalogVersionSelect(requestedVersionId);
+      setSearchParams({}, { replace: true });
+    }
+  }, [requestedSupplierId, requestedVersionId, requestedSupplier.data, model, supplier, setSearchParams]);
+  const importView = model.importOpen && supplier && companyId ? <Suspense fallback={<p className="p-8">Cargando importación…</p>}><SupplierExcelImport key={companyId + supplier.id} companyId={companyId} supplier={supplier} catalogs={model.catalogs} catalogsLoading={model.catalogsLoading} catalogsError={model.catalogsError} onRetryCatalogs={model.retryCatalogs} onCancel={model.cancelImport} onImported={model.finishImport} /></Suspense> : null;
+  const currencyToolbar = <SupplierCurrencyToolbar embedded currency={currency} onCurrencyChange={setCurrency} />;
+  return <AppLayout>
+    {importView}<PageContainer archetype="workspace" className="page-shell">
+    {!companyId ? <CompanyAccessNotice description="Necesitás una empresa activa para trabajar con proveedores." /> : null}
+    {requestedSupplier.error ? <p role="alert">No se pudo abrir el proveedor solicitado. <Button variant="link" onClick={() => void requestedSupplier.refetch()}>Reintentar</Button></p> : null}
+    <PageHeader variant="workspace" eyebrow="Compras" title="Proveedores" actions={view === "suppliers" ? <Button disabled={!companyId} onClick={model.openCreate}><Plus className="mr-2 h-4 w-4" />Nuevo proveedor</Button> : undefined} />
+    <PageTabs tabs={[{ value: "suppliers", label: "Proveedores y listas" }, { value: "comparison", label: "Comparar listas" }]} value={view} onValueChange={setView} />
+    {companyId && view === "comparison" ? <Suspense fallback={<p>Cargando comparación…</p>}><SupplierListsComparison key={`${companyId}:${comparisonVersionId}`} initialVersionId={comparisonVersionId} companyId={companyId} currency={currency} rate={exchange.data?.rate} onAdd={addItem} toolbar={currencyToolbar} /></Suspense> : null}
+    {model.catalogDialogOpen && supplier ? <EntityDialog open onOpenChange={model.onCatalogDialogOpenChange} title={supplier.name} contentClassName="max-w-[min(96vw,1360px)]"><div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm text-muted-foreground">{model.catalogs.length} listas disponibles</span><Button variant="outline" disabled={!model.activeVersionId} onClick={() => { setComparisonVersionId(model.activeVersionId ?? ""); model.onCatalogDialogOpenChange(false); setView("comparison"); }}>Comparar listas</Button></div>
+      {currencyToolbar}
+      <dl className="flex flex-wrap gap-5 text-sm"><div className="flex gap-2"><dt className="text-muted-foreground">IVA</dt><dd className="font-medium">{supplier.vat_rate ?? 21}%</dd></div><div className="flex gap-2"><dt className="text-muted-foreground">Flete</dt><dd className="font-medium">{supplier.freight_rate ?? 0}%</dd></div></dl>
+      <Select value={model.activeVersionId ?? ""} onValueChange={model.onCatalogVersionSelect}><SelectTrigger aria-label="Lista de precios del proveedor" className="w-full min-w-0"><SelectValue placeholder="Elegir lista de precios" /></SelectTrigger><SelectContent>{model.catalogs.map((catalog) => {
+        const latest = model.versionsByCatalog[catalog.id]?.[0];
+        return latest ? <SelectItem key={catalog.id} value={latest.id}>{catalog.title} ({latest.line_count} productos)</SelectItem> : null;
+      })}</SelectContent></Select>
+      {!model.isHistoryLoading && !model.catalogs.length ? <p className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">Este proveedor todavía no tiene listas. Cargá un Excel para empezar.</p> : null}
+      <FilterToolbar><div className="w-full sm:max-w-md"><Input aria-label="Buscar productos de la lista" placeholder="Buscar productos en esta lista" value={model.catalogSearch} onChange={(event) => model.setCatalogSearch(event.target.value)} /></div></FilterToolbar>
+      {model.catalogError ? <p role="alert" className="text-destructive">No se pudo cargar la lista: {model.catalogError.message}</p> : null}
+      {model.activeVersion && <SupplierListProducts key={`${model.activeVersion.id}:${model.catalogSearch}`} supplier={supplier} lines={model.activeCatalogLines} currency={currency} rate={exchange.data?.rate} loading={model.isCatalogLoading} onAdd={(line, quantity) => addItem({ supplierId: supplier.id, versionId: model.activeVersion!.id, listName: model.catalogTitleById.get(model.activeVersion!.catalog_id) ?? "Lista", line, quantity })} />}
+    </div></EntityDialog> : null}
+    {view === "suppliers" ? <>
+      <FilterToolbar><div className="relative w-full md:max-w-sm"><Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Buscar proveedores" placeholder="Buscar por nombre, contacto o email" className="pl-9" value={model.search} onChange={(event) => model.setSearch(event.target.value)} /></div><Select value={model.statusFilter} onValueChange={(value) => model.setStatusFilter(value as "active" | "inactive" | "all")}><SelectTrigger className="w-full md:w-56" aria-label="Filtrar proveedores por estado"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Activos</SelectItem><SelectItem value="inactive">Inactivos</SelectItem><SelectItem value="all">Todos</SelectItem></SelectContent></Select></FilterToolbar>
+      {model.suppliersError ? <p role="alert" className="text-destructive">No se pudieron cargar los proveedores: {model.suppliersError.message}</p> : null}
+      <SuppliersTable suppliers={pagination.pagedItems} isLoading={model.isLoading} onOpenCatalog={model.openCatalog} onUpload={model.openImport} onOpenEdit={model.openEdit} onDelete={model.setSupplierToDelete} onRestore={model.onRestoreSupplier} />
+      <DataTablePagination {...pagination} pageSize={pageSize} pageSizeOptions={[20, 50, 100]} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} itemLabel="proveedores" />
+    </> : null}
+    {model.dialogOpen ? <Suspense fallback={<p>Cargando formulario…</p>}><SupplierFormDialog open editingName={model.editing?.name} form={model.form} showAdvanced={model.showAdvanced} isSaving={model.saveMutation.isPending} onOpenChange={model.setDialogOpen} onShowAdvancedChange={model.setShowAdvanced} onFormChange={model.setForm} onSubmit={() => model.saveMutation.mutate()} /></Suspense> : null}
+    <ConfirmDeleteDialog open={!!model.supplierToDelete} onOpenChange={(open) => { if (!open) model.setSupplierToDelete(null); }} title="Eliminar proveedor" description={`Se eliminará al proveedor "${model.supplierToDelete?.name ?? ""}".`} isPending={model.deleteMutation.isPending} onConfirm={() => { if (model.supplierToDelete) model.deleteMutation.mutate(model.supplierToDelete.id); }} />
+  </PageContainer></AppLayout>;
 }
 
 export default function SuppliersPage() {
   const { currentCompany } = useAuth();
-  const { toast } = useToast();
-  const [comparisonOpen, setComparisonOpen] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [comparisonSelection, setComparisonSelection] = useState<SupplierComparisonOffer[]>([]);
-  useEffect(() => {
-    setComparisonSelection([]);
-  }, [currentCompany?.id]);
-  const {
-    activeCatalogLines,
-    activeVersion,
-    activeVersionId,
-    addToOrder,
-    addSuggestionsToOrder,
-    catalogDialogOpen,
-    catalogSearch,
-    catalogTitleById,
-    catalogUiTab,
-    catalogs,
-    closeMappingModal,
-    closePdfMappingModal,
-    confirmMappingModal,
-    confirmPdfMappingModal,
-    deleteMutation,
-    dialogOpen,
-    documentNotes,
-    documentTitle,
-    dropDetailOpen,
-    editing,
-    extractionImportPending,
-    extractionReviewLines,
-    extractionReviewOpen,
-    form,
-    goToPurchaseOrder,
-    goToPurchaseOrders,
-    isCatalogLoading,
-    isHistoryLoading,
-    isLoading,
-    isReorderSuggestionsLoading,
-    lastDiagnostics,
-    lineQuantities,
-    mappingModalColumns,
-    mappingModalConfidence,
-    mappingModalOpen,
-    mappingModalPreviewRows,
-    mappingModalSuggested,
-    onCatalogDialogOpenChange,
-    onCatalogVersionSelect,
-    onCopyOrderMessage,
-    onConfirmExtractionImport,
-    onExtractionReviewLineChange,
-    onOpenEmail,
-    onOpenWhatsApp,
-    onRemoveExtractionReviewLine,
-    onRemoveOrderItem,
-    onRestoreSupplier,
-    onUpdateLineQuantity,
-    onUpdateOrderQuantity,
-    openCatalog,
-    openCreate,
-    openEdit,
-    orderLines,
-    orderTotalsByCurrency,
-    purchaseOrders,
-    reorderSuggestions,
-    isPurchaseOrdersLoading,
-    isCreatingPurchaseOrder,
-    lastPurchaseOrder,
-    onCreatePurchaseOrder,
-    pdfMappingHeaders,
-    pdfMappingOpen,
-    pdfMappingRows,
-    pdfMappingSuggested,
-    pdfProgress,
-    saveMutation,
-    search,
-    selectedCatalogId,
-    selectedFile,
-    selectedSupplier,
-    setCatalogSearch,
-    setCatalogUiTab,
-    setDialogOpen,
-    setDocumentNotes,
-    setDocumentTitle,
-    setDropDetailOpen,
-    setForm,
-    setMappingModalOpen,
-    setPdfMappingOpen,
-    setSearch,
-    setSelectedCatalogId,
-    setSelectedFile,
-    setShowAdvanced,
-    setStatusFilter,
-    setSupplierToDelete,
-    showAdvanced,
-    statusFilter,
-    supplierToDelete,
-    suppliers,
-    uploadCatalogMutation,
-    versionsByCatalog,
-    setExtractionReviewLines,
-    setExtractionReviewOpen,
-  } = useSuppliersPage({
-    companyId: currentCompany?.id,
-    toast,
-  });
-  const pagination = usePaginationSlice({ items: suppliers, page, pageSize });
-
-  useEffect(() => setPage(1), [search, statusFilter, currentCompany?.id]);
-
-  return (
-    <AppLayout>
-      <PageContainer className="page-shell">
-        {!currentCompany ? (
-          <CompanyAccessNotice description="Necesitas una empresa activa para trabajar con proveedores, catalogos e importaciones." />
-        ) : null}
-
-        <PageHeader
-          eyebrow="Compras y catalogos"
-          title="Proveedores"
-          actions={(
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => setComparisonOpen(true)} disabled={!currentCompany}>
-                <Scale className="mr-2 h-4 w-4" /> Comparar listas
-              </Button>
-              <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Nuevo proveedor</Button>
-            </div>
-          )}
-        />
-
-        <FilterToolbar>
-          <div className="relative w-full md:max-w-sm">
-            <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input aria-label="Buscar proveedores" placeholder="Buscar por nombre, contacto o email" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-          <div className="w-full md:w-56">
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "active" | "inactive" | "all")}>
-              <SelectTrigger aria-label="Filtrar proveedores por estado">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Activos</SelectItem>
-                <SelectItem value="inactive">Inactivos</SelectItem>
-                <SelectItem value="all">Todos</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </FilterToolbar>
-
-        <SuppliersTable
-          suppliers={pagination.pagedItems}
-          isLoading={isLoading}
-          onOpenCatalog={openCatalog}
-          onOpenEdit={openEdit}
-          onDelete={setSupplierToDelete}
-          onRestore={onRestoreSupplier}
-        />
-        <DataTablePagination
-          {...pagination}
-          pageSize={pageSize}
-          pageSizeOptions={[20, 50, 100]}
-          onPageChange={setPage}
-          onPageSizeChange={(nextPageSize) => { setPageSize(nextPageSize); setPage(1); }}
-          itemLabel="proveedores"
-        />
-      </PageContainer>
-
-      {dialogOpen ? (
-        <Suspense fallback={<SupplierDialogLoader />}>
-          <SupplierFormDialog
-            open={dialogOpen}
-            editingName={editing?.name}
-            form={form}
-            showAdvanced={showAdvanced}
-            isSaving={saveMutation.isPending}
-            onOpenChange={setDialogOpen}
-            onShowAdvancedChange={setShowAdvanced}
-            onFormChange={setForm}
-            onSubmit={() => saveMutation.mutate()}
-          />
-        </Suspense>
-      ) : null}
-
-      {catalogDialogOpen ? (
-        <Suspense fallback={<SupplierDialogLoader />}>
-          <SupplierCatalogDialog
-            open={catalogDialogOpen}
-            onOpenChange={onCatalogDialogOpenChange}
-            selectedSupplier={selectedSupplier}
-            catalogUiTab={catalogUiTab}
-            onCatalogUiTabChange={setCatalogUiTab}
-            documentTitle={documentTitle}
-            onDocumentTitleChange={setDocumentTitle}
-            documentNotes={documentNotes}
-            onDocumentNotesChange={setDocumentNotes}
-            selectedCatalogId={selectedCatalogId}
-            onSelectedCatalogIdChange={setSelectedCatalogId}
-            selectedFile={selectedFile}
-            onSelectedFileChange={setSelectedFile}
-            onUpload={() => uploadCatalogMutation.mutate()}
-            isUploading={uploadCatalogMutation.isPending}
-            pdfProgress={pdfProgress}
-            lastDiagnostics={lastDiagnostics}
-            onOpenDropDetail={() => setDropDetailOpen(true)}
-            catalogs={catalogs}
-            isHistoryLoading={isHistoryLoading}
-            versionsByCatalog={versionsByCatalog}
-            activeVersionId={activeVersionId}
-            onSelectVersion={onCatalogVersionSelect}
-            activeVersion={activeVersion}
-            catalogTitleById={catalogTitleById}
-            catalogSearch={catalogSearch}
-            onCatalogSearchChange={setCatalogSearch}
-            isCatalogLoading={isCatalogLoading}
-            activeCatalogLines={activeCatalogLines}
-            lineQuantities={lineQuantities}
-            onLineQuantityChange={onUpdateLineQuantity}
-            onAddToOrder={addToOrder}
-            reorderSuggestions={reorderSuggestions}
-            isReorderSuggestionsLoading={isReorderSuggestionsLoading}
-            onAddReorderSuggestions={addSuggestionsToOrder}
-            onViewPurchaseOrder={goToPurchaseOrder}
-            onGoToPurchaseOrders={goToPurchaseOrders}
-            orderLines={orderLines}
-            orderTotalsByCurrency={orderTotalsByCurrency}
-            onOrderQuantityChange={onUpdateOrderQuantity}
-            onRemoveOrderItem={onRemoveOrderItem}
-            onCopyOrderMessage={onCopyOrderMessage}
-            onOpenEmail={onOpenEmail}
-            onOpenWhatsApp={onOpenWhatsApp}
-            purchaseOrders={purchaseOrders}
-            isPurchaseOrdersLoading={isPurchaseOrdersLoading}
-            isCreatingPurchaseOrder={isCreatingPurchaseOrder}
-            lastPurchaseOrder={lastPurchaseOrder}
-            onCreatePurchaseOrder={onCreatePurchaseOrder}
-          />
-        </Suspense>
-      ) : null}
-
-      {extractionReviewOpen ? (
-        <Suspense fallback={<SupplierDialogLoader />}>
-          <SupplierExtractionReviewDialog
-            open={extractionReviewOpen}
-            onOpenChange={setExtractionReviewOpen}
-            fileName={selectedFile?.name ?? null}
-            file={selectedFile}
-            lines={extractionReviewLines}
-            diagnostics={lastDiagnostics}
-            isImporting={extractionImportPending}
-            onLineChange={onExtractionReviewLineChange}
-            onRemoveLine={onRemoveExtractionReviewLine}
-            onConfirm={onConfirmExtractionImport}
-            onCancel={() => {
-              setExtractionReviewLines([]);
-              setExtractionReviewOpen(false);
-            }}
-          />
-        </Suspense>
-      ) : null}
-
-      <ConfirmDeleteDialog
-        open={!!supplierToDelete}
-        onOpenChange={(open) => {
-          if (!open) setSupplierToDelete(null);
-        }}
-        title="Eliminar proveedor"
-        description={
-          supplierToDelete
-            ? `Esta accion eliminara al proveedor "${supplierToDelete.name}" de forma permanente.`
-            : ""
-        }
-        isPending={deleteMutation.isPending}
-        onConfirm={() => {
-          if (!supplierToDelete) return;
-          deleteMutation.mutate(supplierToDelete.id);
-          setSupplierToDelete(null);
-        }}
-      />
-
-      {mappingModalOpen ? (
-        <Suspense fallback={<SupplierDialogLoader />}>
-          <ColumnMappingModal
-            open={mappingModalOpen}
-            onOpenChange={(open) => {
-              if (!open) closeMappingModal();
-              else setMappingModalOpen(true);
-            }}
-            columns={mappingModalColumns}
-            previewRows={mappingModalPreviewRows}
-            suggestedMapping={mappingModalSuggested}
-            confidence={mappingModalConfidence}
-            onConfirm={confirmMappingModal}
-            onCancel={closeMappingModal}
-          />
-        </Suspense>
-      ) : null}
-
-      {pdfMappingOpen ? (
-        <Suspense fallback={<SupplierDialogLoader />}>
-          <PdfMappingModal
-            open={pdfMappingOpen}
-            onOpenChange={(open) => {
-              if (!open) closePdfMappingModal();
-              else setPdfMappingOpen(true);
-            }}
-            headers={pdfMappingHeaders}
-            rows={pdfMappingRows}
-            suggested={pdfMappingSuggested}
-            onApply={confirmPdfMappingModal}
-            onCancel={closePdfMappingModal}
-          />
-        </Suspense>
-      ) : null}
-
-      {dropDetailOpen ? (
-        <Suspense fallback={<SupplierDialogLoader />}>
-          <SupplierDropDetailDialog
-            open={dropDetailOpen}
-            onOpenChange={setDropDetailOpen}
-            diagnostics={lastDiagnostics}
-          />
-        </Suspense>
-      ) : null}
-
-      <Dialog open={comparisonOpen} onOpenChange={setComparisonOpen}>
-        <DialogContent aria-describedby={undefined} className="h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-6xl overflow-y-auto sm:h-[calc(100dvh-2rem)]">
-          <DialogHeader>
-            <DialogTitle>Comparación de proveedores</DialogTitle>
-          </DialogHeader>
-          <Suspense fallback={<SupplierDialogLoader />}>
-            <SupplierComparison
-              companyId={currentCompany?.id ?? null}
-              selectedOffers={comparisonSelection}
-              onRemoveOffer={(offerId) => setComparisonSelection((current) => current.filter((offer) => offer.id !== offerId))}
-              onClearSelection={() => setComparisonSelection([])}
-              onSelectOffer={(offer) => {
-                setComparisonSelection((current) => current.some((selected) => selected.id === offer.id) ? current : [...current, offer]);
-                toast({ title: `${offer.description} seleccionado`, description: `${offer.supplierName} · ${offer.currency} ${offer.cost.toLocaleString("es-AR")}` });
-              }}
-            />
-          </Suspense>
-        </DialogContent>
-      </Dialog>
-    </AppLayout>
-  );
+  return <SuppliersWorkspace key={currentCompany?.id ?? "no-company"} companyId={currentCompany?.id} />;
 }

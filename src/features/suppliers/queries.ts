@@ -42,6 +42,12 @@ export async function fetchSupplierCatalogs(companyId: string, supplierId: strin
   return (data ?? []) as SupplierCatalog[];
 }
 
+export async function fetchSupplier(companyId: string, supplierId: string): Promise<Supplier> {
+  const { data, error } = await supabase.from("suppliers").select("*").eq("company_id", companyId).eq("id", supplierId).single();
+  if (error) throw error;
+  return data as Supplier;
+}
+
 export async function fetchSupplierCatalogVersions(companyId: string, supplierId: string) {
   const { data, error } = await supabase
     .from("supplier_catalog_versions")
@@ -70,12 +76,12 @@ export async function fetchSupplierCatalogVersions(companyId: string, supplierId
   if (docsError) throw docsError;
   const docsById = new Map((docs ?? []).map((doc) => [doc.id, doc]));
 
-  const { data: lineCounts, error: lineCountError } = await supabase
+  const lineCounts = await fetchAllPages<{ supplier_catalog_version_id: string }>(() => ({ range: async (from, to) => await supabase
     .from("supplier_catalog_lines")
     .select("supplier_catalog_version_id")
     .eq("company_id", companyId)
-    .in("supplier_catalog_version_id", versions.map((version) => version.id));
-  if (lineCountError) throw lineCountError;
+    .in("supplier_catalog_version_id", versions.map((version) => version.id))
+    .order("id").range(from, to) }));
 
   const countMap = (lineCounts ?? []).reduce<Record<string, number>>((acc, row) => {
     acc[row.supplier_catalog_version_id] = (acc[row.supplier_catalog_version_id] ?? 0) + 1;
@@ -98,16 +104,13 @@ export async function fetchSupplierCatalogLines(params: {
   versionId: string;
   search: string;
 }) {
-  const query = supabase
+  const data = await fetchAllPages(() => ({ range: async (from, to) => await supabase
     .from("supplier_catalog_lines")
     .select("id, supplier_code, raw_description, product_name, additional_description, presentation_raw, package_quantity, content_value, content_unit, semantic_detection, cost, currency, tax_treatment, matched_item_id")
     .eq("company_id", params.companyId)
     .eq("supplier_catalog_version_id", params.versionId)
     .order("row_index", { ascending: true, nullsFirst: false })
-    .limit(250);
-
-  const { data, error } = await query;
-  if (error) throw error;
+    .order("id").range(from, to) }));
   const rows = (data ?? []) as CatalogLine[];
   if (!params.search) return rows;
   return rows.filter((line) =>

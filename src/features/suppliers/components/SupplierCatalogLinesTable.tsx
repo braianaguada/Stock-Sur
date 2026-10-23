@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 import { RowActionButton, RowActions } from "@/components/common/RowActions";
 import { CategoryBadge, PrimaryCell } from "@/components/common/VisualSystem";
 import { DataTable } from "@/components/data-table/DataTable";
+import { DataTablePagination } from "@/components/data-table/DataTablePagination";
+import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SupplierOfferPrice } from "@/features/suppliers/components/SupplierOfferPrice";
@@ -17,24 +19,27 @@ export function SupplierCatalogLinesTable({ lines, activeVersionId, isLoading, q
   onQuantityChange: (lineId: string, value: string) => void;
   onAdd: (line: CatalogLine) => void;
 }) {
+  const [page, setPage] = useState(1);
+  const pagination = usePaginationSlice({ items: lines, page, pageSize: 25 });
   const columns = useMemo<ColumnDef<CatalogLine, unknown>[]>(() => [
     {
       id: "product",
-      header: "Producto",
+      header: "Nombre",
       cell: ({ row }) => (
         <PrimaryCell
           title={row.original.product_name ?? row.original.raw_description}
-          metadata={[row.original.presentation_raw, row.original.additional_description, row.original.supplier_code ? `Cód. ${row.original.supplier_code}` : null].filter(Boolean).join(" · ")}
+          metadata={[row.original.additional_description, row.original.supplier_code ? `Cód. ${row.original.supplier_code}` : null].filter(Boolean).join(" · ")}
         />
       ),
     },
+    { id: "unit", header: "Unidad", cell: ({ row }) => row.original.presentation_raw || "unidad" },
     {
       id: "price",
       header: "Precio",
       cell: ({ row }) => {
         const taxLabel = row.original.tax_treatment === "INCLUDED"
           ? "IVA incluido"
-          : row.original.tax_treatment === "EXCLUDED" ? "Más IVA" : "IVA no informado";
+          : row.original.tax_treatment === "EXCLUDED" ? "Sin IVA" : "IVA no informado";
         return (
           <div className="space-y-1 text-right">
             <SupplierOfferPrice value={Number(row.original.cost)} currency={row.original.currency} />
@@ -77,13 +82,13 @@ export function SupplierCatalogLinesTable({ lines, activeVersionId, isLoading, q
   ], [onAdd, onQuantityChange, quantities]);
 
   return (
-    <DataTable
+    <><DataTable
       columns={columns}
-      data={lines}
+      data={pagination.pagedItems}
       density="compact"
       isLoading={Boolean(activeVersionId && isLoading)}
       emptyMessage={activeVersionId ? "No encontramos productos. Probá con otra búsqueda." : "Elegí una versión en la sección Listas para consultar sus productos."}
       getRowId={(row) => row.id}
-    />
+    /><DataTablePagination {...pagination} onPageChange={setPage} itemLabel="productos" /></>
   );
 }

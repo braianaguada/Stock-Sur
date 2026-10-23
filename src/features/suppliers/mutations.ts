@@ -4,7 +4,12 @@ import type { SupplierFormState } from "@/features/suppliers/types";
 
 function buildSupplierPayload(form: SupplierFormState) {
   const taxId = form.tax_id.replace(/\D/g, "");
+  const vat = Number(form.vat_rate ?? 21);
+  const freight = Number(form.freight_rate ?? 0);
+  if (![vat, freight].every((rate) => Number.isFinite(rate) && rate >= 0 && rate <= 100)) throw new Error("IVA y flete deben ser porcentajes entre 0 y 100.");
   return {
+    vat_rate: vat,
+    freight_rate: freight,
     name: form.name.trim(),
     legal_name: form.legal_name.trim() || null,
     tax_id: taxId || null,

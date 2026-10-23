@@ -1,3 +1,22 @@
+### Proveedores: listas en modales y compras desde la topbar
+
+- Cada proveedor tiene acciones Ver listas y Subir lista. La carga Excel se realiza en un modal que permite crear una lista o reemplazar una existente; conserva la seleccion de columnas y las exclusiones de filas.
+- Directorio sin columna Estado; edicion y desactivacion disponibles en Mas acciones. Comparacion integrada de dos proveedores, con busqueda y conversion ARS/USD en la misma superficie.
+- Notificaciones en la topbar principal con vista previa de cinco categorias operativas y acceso a todas; no son un historial cronologico. Carrito accesible desde todos los modulos, con total incluyendo IVA/flete, cantidades editables y una orden por proveedor. Vacio ofrece Hacer pedido y seleccion de proveedor/lista.
+- Las notas y productos del carrito se conservan al navegar y cerrar el modal; se impide cerrarlo mientras se crea una orden. Cambiar empresa o usuario, cerrar sesion o recargar limpia el carrito.
+- Cotizacion BNA compartida en la topbar para proveedores y nuevos presupuestos USD de Servicios; los documentos guardados conservan su cotizacion historica. Las listas muestran selector compacto, IVA/flete y comparacion desde la lista abierta; la importacion queda en la accion anterior del proveedor.
+- Sin nuevas migraciones ni cambios en produccion. QA visual autenticada de escritorio/movil pendiente en staging.
+- Validacion: typecheck, lint, build y diff --check correctos; suite completa con timeout de 60 segundos: 962 pruebas aprobadas y 53 DB omitidas. Incluye regresiones de carrito global, aislamiento, totales, comparacion y cotizacion compartida/historica.
+
+### Listas de precios automaticas y Consumidor Final
+
+- Se retiran los botones Recalcular. Las listas calculan precios al incorporar productos, crear listas y cambiar costos o porcentajes; conservan los precios manuales.
+- Remitos y presupuestos muestran `Consumidor Final` en editor, vista previa e impresion, incluidos documentos anteriores con la etiqueta `Cliente final`.
+- Migracion: `20261020120000_automatic_price_list_calculation.sql`, aplicada solo en staging; resuelve pendientes existentes por empresa. Produccion sin cambios.
+- Integracion: se recuperan tambien en la rama de proveedores los cambios del PR #462, que aun no estaba incorporado en staging. No requiere nuevas migraciones.
+- QA de esta integracion: 62 pruebas focalizadas aprobadas de listas, destinatarios, editor, vista previa e impresion; incluyen controles estaticos SQL. QA visual y DB autenticada del recalculo automatico en staging pendiente.
+- Validaciones: typecheck, lint, build y diff --check correctos. Suite completa: 932 aprobadas, 53 omitidas y un timeout en el control de dependencias circulares; los dos controles de ese archivo pasaron al repetirlos aislados con timeout de 60 segundos.
+
 ### Emitir y compartir presupuestos de documentos
 
 - Al crear un presupuesto, `Emitir y compartir` emite y prepara el mensaje con numero definitivo, importe y enlace publico. `Copiar mensaje` permite pegarlo en el canal elegido.
@@ -512,15 +531,22 @@ Estado de cuenta lee `account_due_days` del cliente para calcular vencimientos c
 ### Base de abastecimiento: proveedores y listas
 
 - Proveedores incorpora razon social, CUIT normalizado, telefono y WhatsApp independientes y direccion. La moneda no se solicita ni se clasifica por proveedor.
-- Cada oferta importada conserva su propia moneda (`ARS` o `USD`), por lo que una lista puede ser ARS, USD o mixta. La deteccion prioriza celda de precio, columna de moneda y encabezado; los conflictos requieren revision y, sin evidencia, se usa ARS.
-- El preview permite corregir moneda por fila. Catalogo y bandeja de seleccion usan layouts adaptables sin megatablas horizontales.
+- La carga se rehace desde Excel `.xlsx`/`.xls` (hasta 20 MB y 20.000 filas de datos). Reemplaza los asistentes anteriores de PDF, extraccion automatica y mapeos complejos.
+- Se eligen hoja, fila de encabezados y las columnas nombre, unidad y precio. Nombre y precio son obligatorios; sin unidad se guarda `unidad`.
+- La moneda se elige explicitamente por lista: `ARS` o `USD`. Los precios se guardan sin IVA (`tax_treatment = EXCLUDED`), sin conversion monetaria ni suma de impuestos. Los precios numericos de Excel conservan su valor; los de texto usan el separador decimal elegido.
+- La vista previa deja las filas invalidas deseleccionadas y bloqueadas, indica el motivo y permite verlas por separado; las validas pueden importarse sin corregir las restantes. Las filas ocultas de XLS/XLSX se omiten conservando los numeros originales. Las listas se consultan completas, con busqueda y paginacion visual.
 - `price_lists` sigue siendo el dominio de precios internos de venta; abastecimiento reutiliza `supplier_catalogs`, `supplier_catalog_versions` y `supplier_catalog_lines`.
 - Las migraciones `20260711120000_procurement_supplier_list_foundation.sql` y `20260711150000_supplier_offer_currency_per_line.sql` son aditivas. La segunda canoniza y valida moneda por linea, preserva los campos legacy y no los usa como fallback operativo.
-- La importacion PDF permite revisar el documento real junto a las lineas detectadas, navegar paginas y zoom, y confirmar por linea si el costo incluye IVA, no lo incluye o no fue informado.
-- El tratamiento de IVA se conserva en `supplier_catalog_lines.tax_treatment`; las leyendas ambiguas quedan como `UNKNOWN` para evitar recalculos implicitos.
+- Cada proveedor muestra sus listas y la ultima carga de cada una, sin pestanas de versiones o catalogo. La comparacion muestra dos listas de distintos proveedores en paralelo, con busqueda compartida.
+- Las listas conservan sus precios originales. El selector ARS/USD convierte la visualizacion con dolar oficial BNA vendedor (misma fuente que Servicios), solo lectura y con fecha. Si falla la cotizacion, se puede reintentar; no se inventa una tasa ni se permite comprar importes que no puedan calcularse.
+- Configuracion por proveedor: IVA (21% inicial) y flete (0% inicial), ambos porcentajes. El flete se calcula sobre neto, separado del IVA de productos. Las listas muestran neto, IVA, flete y total; los precios legacy con IVA incluido se convierten primero a neto y los de IVA desconocido requieren reimportacion.
 - La migracion `20260713220000_supplier_catalog_line_tax_treatment.sql` agrega el dato impositivo y lo valida dentro del RPC de importacion, manteniendo los controles de empresa y permisos existentes.
-- La carga de listas ahora valida nombres, precios y monedas antes de confirmar, advierte codigos de proveedor repetidos y muestra la cantidad exacta a importar. La migracion `20260813133000_supplier_catalog_import_atomic.sql` guarda documento, version y lineas en una unica transaccion, conserva presentacion/IVA/precio de referencia y evita documentos huerfanos ante un error.
-- Abastecimiento incluye comparacion de ofertas y ordenes de compra persistidas. La confirmacion de una orden no genera por si sola movimientos de stock, Caja ni cuenta corriente.
+- Cada actualizacion crea una version internamente. El RPC `create_supplier_catalog_import_atomic` guarda documento, version y filas en una transaccion con controles de empresa y permisos.
+- El carrito conserva cantidades entre listas e importaciones dentro del modulo y agrupa por proveedor. Genera un borrador de orden por proveedor, incluso combinando varias listas; conserva monedas originales y congela IVA/flete para detalle e impresion. Las ordenes anteriores mantienen sus totales. No genera movimientos de stock, Caja ni cuenta corriente.
+- Migraciones nuevas, aplicadas solo en staging: `20261020170000_supplier_lists_cart.sql` (tasas, snapshots y RPC con varias listas) y `20261020173000_supplier_cart_authenticated_only.sql` (retira permiso anonimo heredado). Se restaura sin modificaciones `20261020120000_automatic_price_list_calculation.sql`, que ya estaba aplicada en staging, para mantener consistente el historial.
+- Regresiones: XLS/XLSX con filas ocultas, seleccion de filas validas, conversion, cargos, carrito, errores de guardado e impresion con totales. QA SQL transaccional: `npx supabase db query --linked --file scripts/supplier-lists-cart-qa.sql`; valida multiples listas, snapshots, permisos y rechazos sin dejar datos de prueba. QA visual autenticada e impresion fisica pendientes.
+- Validacion de esta mejora: typecheck habitual, lint, build y 926 pruebas aprobadas (53 omitidas); QA SQL ejecutada en staging con rollback. La comprobacion ampliada con `tsconfig.app.json` conserva deuda de tipos previa del repositorio.
+- Limitaciones: solo Excel, una moneda por carga y precios sin IVA; no hay equivalencias automaticas entre productos o unidades de diferentes proveedores. El carrito es temporal: salir del modulo, recargar o cambiar empresa lo vacia. Antes de reintentar una carga interrumpida, revisar las listas para evitar duplicados.
 
 `staging` es la rama de QA/demo donde se prueban los cambios antes de promoverlos a `main`.
 Al 2026-05-11, los cambios principales incorporados en `staging` son:
@@ -897,43 +923,11 @@ Notas:
 - El parser tolera precios con `,` o `.` como separador decimal, símbolos de moneda y espacios.
 - Si el archivo no se puede leer, se informa un error claro en pantalla y en consola.
 
-## Importación asistida con IA para PDFs difíciles
+## Carga de listas de proveedores
 
-Se agregó una capa opcional para PDFs de proveedores con muchas imágenes o texto poco legible:
+La carga de proveedores utiliza Excel con selección de hoja, encabezados y columnas de nombre, unidad y precio. Conserva los precios sin IVA en la moneda elegida (ARS o USD); la unidad vacía se interpreta como unidad. Ver el apartado de proveedores para límites y validaciones.
 
-- El flujo sigue intentando primero con `pdfjs` y OCR local.
-- Si el resultado es flojo, prueba automáticamente motores externos vía Edge Functions de Supabase.
-- La prioridad gratis actual es `Gemini`.
-- `Mistral OCR` queda como motor opcional, no requerido.
-- Si los motores externos no están configurados o fallan, el sistema vuelve al parser actual sin cortar la importación.
-
-### Configuración
-
-1. Configuracion minima gratis en Supabase:
-
-```sh
-supabase secrets set GEMINI_API_KEY=tu_api_key
-supabase secrets set GEMINI_MODEL=gemini-2.5-flash
-```
-
-2. Desplegar la función:
-
-```sh
-supabase functions deploy supplier-pdf-ai-extract
-```
-
-3. Verificar que la sesión del usuario autenticado pueda invocar Edge Functions normalmente.
-
-### Qué devuelve Gemini
-
-La función intenta devolver una estructura limpia con:
-
-- `supplier_code`
-- `description`
-- `price`
-- `currency`
-
-Luego el frontend reutiliza el mismo modal de mapeo PDF y el pipeline de importación, ahora con una revisión final antes de confirmar el alta del listado.
+Se retiró del repositorio el importador PDF anterior y sus funciones de extracción exclusivas. Este cambio no elimina funciones desplegadas ni modifica secretos de Supabase.
 
 ## Asistente IA para Presupuestos de Servicios
 
