@@ -201,7 +201,7 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, catalogsLoa
         </DialogBody>
         <DialogFooter className="shrink-0 gap-2 border-t pt-4">
           <Button variant="outline" disabled={Boolean(busy)} onClick={requestClose}>Cancelar</Button>
-          <Button onClick={() => void save()} disabled={Boolean(busy) || catalogsLoading || Boolean(catalogsError) || !file || !currency || !listTitle.trim() || Boolean(preview.error) || !included.length}>{mode === "replace" ? "Reemplazar lista" : `Importar ${included.length} productos sin IVA`}</Button>
+          <Button onClick={() => void save()} disabled={Boolean(busy) || catalogsLoading || Boolean(catalogsError) || !file || !currency || !listTitle.trim() || Boolean(preview.error) || !included.length}>{"Importar"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

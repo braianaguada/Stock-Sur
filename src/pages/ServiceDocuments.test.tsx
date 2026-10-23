@@ -26,6 +26,9 @@ vi.mock("@/contexts/company-brand-context", () => ({
   useCompanyBrand: () => ({ settings: {} }),
 }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
+vi.mock("@/hooks/use-bna-exchange-rate", () => ({
+  useBnaExchangeRate: () => ({ data: undefined, isLoading: false, isError: false }),
+}));
 vi.mock("@/lib/pdf-download", () => ({
   choosePdfSaveTarget: choosePdfSaveTargetMock,
   savePrintHtmlAsPdf: savePrintHtmlAsPdfMock,

@@ -15,9 +15,9 @@ const options = [
   { id: "v3", supplierId: "s2", supplierName: "Proveedor Dos", listName: "Lista C", importedAt: "2026-10-23T12:00:00Z" },
 ];
 
-function setup() {
+function setup(initialVersionId = "") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={client}><SupplierListsComparison companyId="company-1" currency="ARS" onAdd={vi.fn()} toolbar={<span>Moneda compartida</span>} /></QueryClientProvider>);
+  render(<QueryClientProvider client={client}><SupplierListsComparison initialVersionId={initialVersionId} companyId="company-1" currency="ARS" onAdd={vi.fn()} toolbar={<span>Moneda compartida</span>} /></QueryClientProvider>);
 }
 
 beforeEach(() => {
@@ -28,6 +28,16 @@ beforeEach(() => {
 });
 
 describe("SupplierListsComparison", () => {
+  it("starts with the list opened by the user and limits the other side to another supplier", async () => {
+    setup("v2");
+    await screen.findByText("Productos cargados");
+    expect(screen.getByRole("combobox", { name: "Lista 1" })).toHaveTextContent("Lista B");
+    expect(fetchSupplierCatalogLines).toHaveBeenCalledWith({ companyId: "company-1", versionId: "v2", search: "" });
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Lista 2" }), { key: "ArrowDown" });
+    expect(await screen.findByRole("option", { name: "Proveedor Dos · Lista C" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Proveedor Uno · Lista A" })).not.toBeInTheDocument();
+  });
+
   it("keeps search, currency and both supplier choices in the same workspace", async () => {
     setup();
     await screen.findByRole("combobox", { name: "Lista 1" });

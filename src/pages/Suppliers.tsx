@@ -1,7 +1,10 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchSupplier } from "@/features/suppliers/queries";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
 import { EntityDialog } from "@/components/common/EntityDialog";
-import { SupplierCartTrigger } from "@/features/suppliers/components/SupplierCartTrigger";
+import { useSupplierPurchasing } from "@/features/suppliers/hooks/useSupplierPurchasing";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -18,57 +21,70 @@ import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { SupplierCurrencyToolbar } from "@/features/suppliers/components/SupplierCurrencyToolbar";
 import { useSupplierExchangeRate } from "@/features/suppliers/hooks/useSupplierExchangeRate";
 import { SupplierListProducts } from "@/features/suppliers/components/SupplierListProducts";
-import { addSupplierCartItem, type SupplierCartItem, type DisplayCurrency } from "@/features/suppliers/pricing";
 
 const SupplierFormDialog = lazy(() => import("@/features/suppliers/components/SupplierFormDialog").then((module) => ({ default: module.SupplierFormDialog })));
 const SupplierExcelImport = lazy(() => import("@/features/suppliers/components/SupplierExcelImport").then((module) => ({ default: module.SupplierExcelImport })));
 const SupplierListsComparison = lazy(() => import("@/features/suppliers/components/SupplierListsComparison").then((module) => ({ default: module.SupplierListsComparison })));
-const SupplierCart = lazy(() => import("@/features/suppliers/components/SupplierCart").then((module) => ({ default: module.SupplierCart })));
 
 function SuppliersWorkspace({ companyId }: { companyId?: string }) {
   const { toast } = useToast();
   const model = useSuppliersPage({ companyId, toast });
-  const [cartOpen, setCartOpen] = useState(false);
-  const [cartNotes, setCartNotes] = useState<Record<string, string>>({});
-  const onNotesChange = useCallback((supplierId: string, notes: string) => {
-    setCartNotes((current) => ({ ...current, [supplierId]: notes }));
-  }, []);
-  const [pendingSuppliers, setPendingSuppliers] = useState<string[]>([]);
-  const onPendingChange = useCallback((supplierId: string, pending: boolean) => {
-    setPendingSuppliers((current) => pending ? [...current.filter((id) => id !== supplierId), supplierId] : current.filter((id) => id !== supplierId));
-  }, []);
+  const purchasing = useSupplierPurchasing();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [comparisonVersionId, setComparisonVersionId] = useState("");
   const [view, setView] = useState("suppliers");
-  const [currency, setCurrency] = useState<DisplayCurrency>("ARS");
-  const [items, setItems] = useState<SupplierCartItem[]>([]);
+  const currency = purchasing?.currency ?? "ARS";
+  const setCurrency = purchasing?.setCurrency ?? (() => undefined);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const exchange = useSupplierExchangeRate(companyId);
   const pagination = usePaginationSlice({ items: model.suppliers, page, pageSize });
   const supplier = model.selectedSupplier;
   useEffect(() => setPage(1), [model.search, model.statusFilter]);
-  const addItem = (item: SupplierCartItem) => {
-    setItems((current) => addSupplierCartItem(current, item));
-    toast({ title: "Producto agregado al carrito", description: item.line.raw_description });
-  };
+  const addItem = purchasing?.addItem ?? (() => undefined);
+  const requestedSupplierId = searchParams.get("supplier");
+  const requestedVersionId = searchParams.get("list");
+  const openedRequest = useRef<string | null>(null);
+  const requestedSupplier = useQuery({
+    queryKey: ["supplier-pricing", companyId, requestedSupplierId],
+    queryFn: () => fetchSupplier(companyId!, requestedSupplierId!),
+    enabled: Boolean(companyId && requestedSupplierId),
+  });
+  useEffect(() => {
+    if (!requestedSupplierId) { openedRequest.current = null; return; }
+    const selected = requestedSupplier.data;
+    if (!selected || !selected.is_active) return;
+    const request = `${requestedSupplierId}:${requestedVersionId}`;
+    if (openedRequest.current !== request) {
+      openedRequest.current = request;
+      model.openCatalog(selected);
+      setView("suppliers");
+      return;
+    }
+    if (supplier?.id === selected.id && !model.isHistoryLoading) {
+      if (requestedVersionId && Object.values(model.versionsByCatalog).flat().some((version) => version.id === requestedVersionId)) model.onCatalogVersionSelect(requestedVersionId);
+      setSearchParams({}, { replace: true });
+    }
+  }, [requestedSupplierId, requestedVersionId, requestedSupplier.data, model, supplier, setSearchParams]);
   const importView = model.importOpen && supplier && companyId ? <Suspense fallback={<p className="p-8">Cargando importación…</p>}><SupplierExcelImport key={companyId + supplier.id} companyId={companyId} supplier={supplier} catalogs={model.catalogs} catalogsLoading={model.catalogsLoading} catalogsError={model.catalogsError} onRetryCatalogs={model.retryCatalogs} onCancel={model.cancelImport} onImported={model.finishImport} /></Suspense> : null;
-  const currencyToolbar = <SupplierCurrencyToolbar embedded currency={currency} onCurrencyChange={setCurrency} exchange={exchange} />;
-  return <AppLayout topbarActions={companyId ? <SupplierCartTrigger items={items} onOpen={() => setCartOpen(true)} /> : undefined}>
+  const currencyToolbar = <SupplierCurrencyToolbar embedded currency={currency} onCurrencyChange={setCurrency} />;
+  return <AppLayout>
     {importView}<PageContainer archetype="workspace" className="page-shell">
     {!companyId ? <CompanyAccessNotice description="Necesitás una empresa activa para trabajar con proveedores." /> : null}
+    {requestedSupplier.error ? <p role="alert">No se pudo abrir el proveedor solicitado. <Button variant="link" onClick={() => void requestedSupplier.refetch()}>Reintentar</Button></p> : null}
     <PageHeader variant="workspace" eyebrow="Compras" title="Proveedores" actions={view === "suppliers" ? <Button disabled={!companyId} onClick={model.openCreate}><Plus className="mr-2 h-4 w-4" />Nuevo proveedor</Button> : undefined} />
     <PageTabs tabs={[{ value: "suppliers", label: "Proveedores y listas" }, { value: "comparison", label: "Comparar listas" }]} value={view} onValueChange={setView} />
-    {companyId && view === "comparison" ? <Suspense fallback={<p>Cargando comparación…</p>}><SupplierListsComparison key={companyId} companyId={companyId} currency={currency} rate={exchange.data?.rate} onAdd={addItem} toolbar={currencyToolbar} /></Suspense> : null}
-    {companyId ? <EntityDialog open={cartOpen} onOpenChange={(open) => { if (!pendingSuppliers.length) setCartOpen(open); }} title="Carrito de compras" description="Revisá los productos por proveedor y generá las órdenes de compra." contentClassName="max-w-[min(96vw,1280px)]">{currencyToolbar}<div className="mt-4"><Suspense fallback={<p>Cargando carrito…</p>}><SupplierCart notesBySupplier={cartNotes} onNotesChange={onNotesChange} onPendingChange={onPendingChange} companyId={companyId} currency={currency} rate={exchange.data?.rate} items={items} onUpdate={(id, quantity) => setItems((current) => current.map((item) => item.line.id === id ? { ...item, quantity } : item))} onRemove={(id) => setItems((current) => current.filter((item) => item.line.id !== id))} onCreated={(supplierId) => { setCartNotes((current) => { const next = { ...current }; delete next[supplierId]; return next; }); setItems((current) => current.filter((item) => item.supplierId !== supplierId)); toast({ title: "Orden de compra creada", description: "Podés revisarla en Órdenes de compra." }); }} /></Suspense></div></EntityDialog> : null}
-    {model.catalogDialogOpen && supplier ? <EntityDialog open onOpenChange={model.onCatalogDialogOpenChange} title={supplier.name} description="Listas de precios del proveedor" contentClassName="max-w-[min(96vw,1360px)]"><div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm text-muted-foreground">{model.catalogs.length} listas disponibles</span><Button disabled={!supplier.is_active || model.isHistoryLoading} onClick={model.startImport}>Subir lista</Button></div>
+    {companyId && view === "comparison" ? <Suspense fallback={<p>Cargando comparación…</p>}><SupplierListsComparison key={`${companyId}:${comparisonVersionId}`} initialVersionId={comparisonVersionId} companyId={companyId} currency={currency} rate={exchange.data?.rate} onAdd={addItem} toolbar={currencyToolbar} /></Suspense> : null}
+    {model.catalogDialogOpen && supplier ? <EntityDialog open onOpenChange={model.onCatalogDialogOpenChange} title={supplier.name} contentClassName="max-w-[min(96vw,1360px)]"><div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm text-muted-foreground">{model.catalogs.length} listas disponibles</span><Button variant="outline" disabled={!model.activeVersionId} onClick={() => { setComparisonVersionId(model.activeVersionId ?? ""); model.onCatalogDialogOpenChange(false); setView("comparison"); }}>Comparar listas</Button></div>
       {currencyToolbar}
-      <p className="text-sm text-muted-foreground">IVA {supplier.vat_rate ?? 21}% · Flete {supplier.freight_rate ?? 0}% sobre neto. Cada lista muestra su última carga; los precios originales se conservan.</p>
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{model.catalogs.map((catalog) => {
+      <dl className="flex flex-wrap gap-5 text-sm"><div className="flex gap-2"><dt className="text-muted-foreground">IVA</dt><dd className="font-medium">{supplier.vat_rate ?? 21}%</dd></div><div className="flex gap-2"><dt className="text-muted-foreground">Flete</dt><dd className="font-medium">{supplier.freight_rate ?? 0}%</dd></div></dl>
+      <Select value={model.activeVersionId ?? ""} onValueChange={model.onCatalogVersionSelect}><SelectTrigger aria-label="Lista de precios del proveedor" className="w-full min-w-0"><SelectValue placeholder="Elegir lista de precios" /></SelectTrigger><SelectContent>{model.catalogs.map((catalog) => {
         const latest = model.versionsByCatalog[catalog.id]?.[0];
-        return <Button key={catalog.id} variant={latest?.id === model.activeVersionId ? "default" : "outline"} className="h-auto min-w-0 justify-start whitespace-normal p-3 text-left" disabled={!latest} onClick={() => latest && model.onCatalogVersionSelect(latest.id)}><span className="min-w-0"><span className="block break-words font-semibold">{catalog.title}</span><span className="block text-xs opacity-80">{latest ? `${latest.line_count} productos · ${new Date(latest.imported_at).toLocaleDateString("es-AR")}` : "Sin productos"}</span></span></Button>;
-      })}</div>
+        return latest ? <SelectItem key={catalog.id} value={latest.id}>{catalog.title} ({latest.line_count} productos)</SelectItem> : null;
+      })}</SelectContent></Select>
       {!model.isHistoryLoading && !model.catalogs.length ? <p className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">Este proveedor todavía no tiene listas. Cargá un Excel para empezar.</p> : null}
-      <FilterToolbar><div className="w-full sm:max-w-md"><Input aria-label="Buscar productos de la lista" placeholder="Buscar productos en esta lista" value={model.catalogSearch} onChange={(event) => model.setCatalogSearch(event.target.value)} /></div><span className="text-sm text-muted-foreground">{model.activeVersion ? model.catalogTitleById.get(model.activeVersion.catalog_id) : "Seleccioná una lista"}</span></FilterToolbar>
+      <FilterToolbar><div className="w-full sm:max-w-md"><Input aria-label="Buscar productos de la lista" placeholder="Buscar productos en esta lista" value={model.catalogSearch} onChange={(event) => model.setCatalogSearch(event.target.value)} /></div></FilterToolbar>
       {model.catalogError ? <p role="alert" className="text-destructive">No se pudo cargar la lista: {model.catalogError.message}</p> : null}
       {model.activeVersion && <SupplierListProducts key={`${model.activeVersion.id}:${model.catalogSearch}`} supplier={supplier} lines={model.activeCatalogLines} currency={currency} rate={exchange.data?.rate} loading={model.isCatalogLoading} onAdd={(line, quantity) => addItem({ supplierId: supplier.id, versionId: model.activeVersion!.id, listName: model.catalogTitleById.get(model.activeVersion!.catalog_id) ?? "Lista", line, quantity })} />}
     </div></EntityDialog> : null}

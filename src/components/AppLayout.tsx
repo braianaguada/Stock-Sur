@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { OperationalNotificationCenter } from "@/features/notifications/components/OperationalNotificationCenter";
 import { GlobalQuickPriceConsultation } from "@/features/price-lists/components/GlobalQuickPriceConsultation";
+import { SupplierPurchasingActions } from "@/features/suppliers/components/SupplierPurchasingProvider";
 
 export function AppLayout({ children, topbarActions }: { children: ReactNode; topbarActions?: ReactNode }) {
   const location = useLocation();
@@ -27,6 +28,7 @@ export function AppLayout({ children, topbarActions }: { children: ReactNode; to
         actions={!hasNoActiveCompanyAccess ? (
           <>
             {topbarActions}
+            <SupplierPurchasingActions />
             <OperationalNotificationCenter key={currentCompany?.id} />
           </>
         ) : null}

@@ -21,7 +21,7 @@ describe("supplier topbar cart", () => {
     render(<SupplierCartTrigger items={[]} onOpen={vi.fn()} />);
     const trigger = screen.getByRole("button", { name: "Carrito de compras: 0 productos" });
     fireEvent.click(trigger);
-    const open = screen.getByRole("button", { name: "Ver carrito" });
+    const open = screen.getByRole("button", { name: "Hacer pedido" });
     open.focus();
     fireEvent.keyDown(open, { key: "Escape" });
     expect(trigger).toHaveFocus();

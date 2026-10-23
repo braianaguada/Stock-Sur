@@ -38,15 +38,16 @@ function ComparisonPanel({ companyId, option, search, currency, rate, onAdd }: {
   />;
 }
 
-export function SupplierListsComparison({ companyId, currency, rate, onAdd, toolbar }: {
+export function SupplierListsComparison({ companyId, currency, rate, onAdd, toolbar, initialVersionId = "" }: {
   companyId: string;
   currency: DisplayCurrency;
   rate?: number;
   onAdd: (item: SupplierCartItem) => void;
   toolbar?: ReactNode;
+  initialVersionId?: string;
 }) {
   const options = useQuery({ queryKey: ["supplier-comparison-versions", companyId], queryFn: () => fetchSupplierComparisonVersions(companyId) });
-  const [left, setLeft] = useState("");
+  const [left, setLeft] = useState(initialVersionId);
   const [right, setRight] = useState("");
   const [search, setSearch] = useState("");
   const leftOption = options.data?.find((option) => option.id === left);

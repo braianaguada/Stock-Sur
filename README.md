@@ -2,10 +2,11 @@
 
 - Cada proveedor tiene acciones Ver listas y Subir lista. La carga Excel se realiza en un modal que permite crear una lista o reemplazar una existente; conserva la seleccion de columnas y las exclusiones de filas.
 - Directorio sin columna Estado; edicion y desactivacion disponibles en Mas acciones. Comparacion integrada de dos proveedores, con busqueda y conversion ARS/USD en la misma superficie.
-- Notificaciones en la topbar principal con vista previa de cinco categorias operativas y acceso a todas; no son un historial cronologico. Carrito en la misma topbar al trabajar en Proveedores, con resumen y ordenes por proveedor.
-- Las notas del carrito se conservan al cerrar el modal; se impide cerrarlo mientras se crea una orden. Cambiar empresa, salir del modulo o recargar limpia el carrito.
+- Notificaciones en la topbar principal con vista previa de cinco categorias operativas y acceso a todas; no son un historial cronologico. Carrito accesible desde todos los modulos, con total incluyendo IVA/flete, cantidades editables y una orden por proveedor. Vacio ofrece Hacer pedido y seleccion de proveedor/lista.
+- Las notas y productos del carrito se conservan al navegar y cerrar el modal; se impide cerrarlo mientras se crea una orden. Cambiar empresa o usuario, cerrar sesion o recargar limpia el carrito.
+- Cotizacion BNA compartida en la topbar para proveedores y nuevos presupuestos USD de Servicios; los documentos guardados conservan su cotizacion historica. Las listas muestran selector compacto, IVA/flete y comparacion desde la lista abierta; la importacion queda en la accion anterior del proveedor.
 - Sin nuevas migraciones ni cambios en produccion. QA visual autenticada de escritorio/movil pendiente en staging.
-- Validacion: typecheck, lint, build y diff --check correctos; suite completa con timeout de 60 segundos: 950 pruebas aprobadas y 53 DB omitidas. 84 pruebas focalizadas aprobadas.
+- Validacion: typecheck, lint, build y diff --check correctos; suite completa con timeout de 60 segundos: 962 pruebas aprobadas y 53 DB omitidas. Incluye regresiones de carrito global, aislamiento, totales, comparacion y cotizacion compartida/historica.
 
 ### Listas de precios automaticas y Consumidor Final
 

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CountBadge } from "@/components/common/VisualSystem";
 import type { SupplierCartItem } from "../pricing";
 
-export function SupplierCartTrigger({ items, onOpen }: { items: SupplierCartItem[]; onOpen: () => void }) {
+export function SupplierCartTrigger({ items, onOpen, total }: { items: SupplierCartItem[]; onOpen: () => void; total?: string }) {
   const [preview, setPreview] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -23,7 +23,8 @@ export function SupplierCartTrigger({ items, onOpen }: { items: SupplierCartItem
       <h2 className="font-semibold">Carrito de compras</h2>
       <p className="mb-3 text-xs text-muted-foreground">{items.length} productos · {new Set(items.map((item) => item.supplierId)).size} proveedores</p>
       {items.length ? <ul className="space-y-2">{items.slice(-5).reverse().map((item) => <li key={item.line.id} className="flex gap-3 text-sm"><span className="font-medium tabular-nums">{item.quantity}×</span><span className="min-w-0"><span className="block truncate">{item.line.raw_description}</span><span className="block truncate text-xs text-muted-foreground">{item.listName}</span></span></li>)}</ul> : <p className="text-sm text-muted-foreground">Agregá productos desde las listas o la comparación.</p>}
-      <Button className="mt-4 w-full" onClick={() => { setPreview(false); onOpen(); }}>Ver carrito</Button>
+      {items.length > 0 && <p className="mt-3 flex justify-between gap-2 text-sm font-semibold"><span>Total con IVA y flete</span><span>{total ?? "Calculando…"}</span></p>}
+      <Button className="mt-4 w-full" onClick={() => { setPreview(false); onOpen(); }}>{items.length ? "Ver carrito" : "Hacer pedido"}</Button>
     </div></section>}
   </div>;
 }

@@ -45,7 +45,7 @@ describe("SupplierExcelImport", () => {
     expect(screen.getByRole("checkbox", { name: "Importar fila 3" })).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Importar fila 3" })).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox", { name: "Importar fila 3" }));
-    fireEvent.click(screen.getByRole("button", { name: "Importar 1 productos sin IVA" }));
+    fireEvent.click(screen.getByRole("button", { name: "Importar" }));
     await waitFor(() => expect(view.onImported).toHaveBeenCalledWith("v1"));
     expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ companyId: "c1", supplierId: "s1", catalogId: null, title: "octubre", currency: "USD", rows: [expect.objectContaining({ name: "Tornillo", unit: "unidad", price: 12.5, row: 2 })] }));
   });
@@ -55,7 +55,7 @@ describe("SupplierExcelImport", () => {
     setup([], new Error("Sin acceso a listas"), retry);
     await prepare();
     expect(screen.getByRole("alert")).toHaveTextContent("Sin acceso a listas");
-    expect(screen.getByRole("button", { name: "Importar 1 productos sin IVA" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Importar" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
     expect(retry).toHaveBeenCalledOnce();
     expect(mocks.save).not.toHaveBeenCalled();
@@ -66,10 +66,10 @@ describe("SupplierExcelImport", () => {
     const view = setup();
     await prepare();
     fireEvent.click(screen.getByRole("checkbox", { name: "Importar fila 3" }));
-    fireEvent.click(screen.getByRole("button", { name: "Importar 1 productos sin IVA" }));
+    fireEvent.click(screen.getByRole("button", { name: "Importar" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Sin permiso de edición");
     expect(view.onImported).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Importar 1 productos sin IVA" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Importar" })).toBeEnabled();
   });
 
   it("replaces only the selected list and preserves its name when uploading a differently named file", async () => {
@@ -78,7 +78,7 @@ describe("SupplierExcelImport", () => {
     await choose("Lista que querés reemplazar", "Lista habitual");
     await prepare();
     expect(screen.queryByLabelText("Nombre de la lista")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Reemplazar lista" }));
+    fireEvent.click(screen.getByRole("button", { name: "Importar" }));
     await waitFor(() => expect(view.onImported).toHaveBeenCalledWith("v1"));
     expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ catalogId: "list-1", title: "Lista habitual", fileName: "octubre.xlsx" }));
   });
@@ -90,7 +90,7 @@ describe("SupplierExcelImport", () => {
     setup([{ id: "list-1", title: "Lista habitual", created_at: "2026-10-23" }]);
     fireEvent.click(screen.getByRole("radio", { name: "Reemplazar existente" }));
     await prepare();
-    expect(screen.getByRole("button", { name: "Reemplazar lista" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Importar" })).toBeDisabled();
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
@@ -112,7 +112,7 @@ describe("SupplierExcelImport", () => {
     mocks.save.mockImplementation(() => new Promise<string>((resolve) => { finish = resolve; }));
     const view = setup();
     await prepare();
-    fireEvent.click(screen.getByRole("button", { name: "Importar 1 productos sin IVA" }));
+    fireEvent.click(screen.getByRole("button", { name: "Importar" }));
     expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     fireEvent.pointerDown(document.body);
