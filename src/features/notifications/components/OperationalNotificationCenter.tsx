@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { AlertTriangle, Bell, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CountBadge, StatusBadge } from "@/components/common/VisualSystem";
@@ -9,7 +9,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboardStats } from "@/features/index/hooks/useDashboardStats";
@@ -28,6 +27,11 @@ const TONE_STYLES = {
 
 export function OperationalNotificationCenter() {
   const [open, setOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const previewId = useId();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout>>();
   const { currentCompany, roles, companyRoleCodes, companyPermissionCodes, loading } = useAuth();
   const { dashboard, error, isLoading, isFetching, refetch } = useDashboardStats({
     companyId: currentCompany?.id,
@@ -40,17 +44,57 @@ export function OperationalNotificationCenter() {
   const pendingCount = countOperationalPendings(notifications);
   const badge = pendingCount > 99 ? "99+" : String(pendingCount);
 
+  useEffect(() => {
+    if (!previewOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !containerRef.current?.contains(event.target)) setPreviewOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [previewOpen]);
+
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
+
+  const showPreview = () => {
+    clearTimeout(closeTimer.current);
+    if (!open) setPreviewOpen(true);
+  };
+
   if (!currentCompany || loading) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+      <div
+        ref={containerRef}
+        className="relative"
+        onMouseEnter={showPreview}
+        onMouseLeave={() => {
+          closeTimer.current = setTimeout(() => {
+            if (!containerRef.current?.contains(document.activeElement)) setPreviewOpen(false);
+          }, 180);
+        }}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) setPreviewOpen(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && previewOpen) {
+            event.preventDefault();
+            triggerRef.current?.focus();
+            setPreviewOpen(false);
+          }
+        }}
+      >
         <Button
+          ref={triggerRef}
           type="button"
           variant="outline"
           size="icon"
           className="relative rounded-full bg-background/90"
           aria-label={pendingCount > 0 ? `Alertas operativas: ${pendingCount} pendientes` : "Alertas operativas: sin pendientes"}
+          aria-expanded={previewOpen}
+          aria-controls={previewOpen ? previewId : undefined}
+          onFocus={showPreview}
+          onClick={showPreview}
         >
           <Bell className="h-4 w-4" />
           {pendingCount > 0 ? (
@@ -59,8 +103,52 @@ export function OperationalNotificationCenter() {
             </div>
           ) : null}
         </Button>
-      </DialogTrigger>
-      <DialogContent variant="form">
+        {previewOpen ? (
+          <section
+            id={previewId}
+            aria-label="Notificaciones"
+            className="absolute right-0 top-full z-50 mt-2 w-[min(360px,calc(100vw-2rem))] rounded-xl border border-border bg-background shadow-lg motion-safe:animate-in motion-safe:slide-in-from-top-2 motion-safe:duration-150"
+          >
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <h2 className="text-sm font-semibold">Notificaciones</h2>
+              <CountBadge>{pendingCount}</CountBadge>
+            </div>
+            <div className="max-h-[min(60dvh,400px)] overflow-y-auto px-2 pb-2">
+              {isLoading ? (
+                <p className="p-4 text-sm text-muted-foreground" role="status">Revisando pendientes…</p>
+              ) : error ? (
+                <div className="p-3 text-sm text-destructive">
+                  <p>No se pudieron actualizar las alertas.</p>
+                  <Button type="button" size="sm" variant="ghost" disabled={isFetching} onClick={() => void refetch()}>Reintentar</Button>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="flex items-center gap-3 p-4 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-success" /> Sin pendientes por ahora
+                </div>
+              ) : notifications.slice(0, 5).map((notification) => (
+                <Link key={notification.key} to={notification.href} onClick={() => setPreviewOpen(false)} className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Bell className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium">{notification.label}</p>
+                      <CountBadge>{notification.count}</CountBadge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{notification.detail}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <div className="border-t border-border px-3 py-2">
+              <Button type="button" variant="ghost" className="w-full" onClick={() => { setPreviewOpen(false); setOpen(true); }}>Ver todas las notificaciones</Button>
+            </div>
+          </section>
+        ) : null}
+      </div>
+      <DialogContent variant="form" onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        triggerRef.current?.focus();
+        setPreviewOpen(false);
+      }}>
         <DialogHeader>
           <DialogTitle>Centro de alertas</DialogTitle>
           <DialogDescription>

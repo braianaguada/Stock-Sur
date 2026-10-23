@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Link } from "react-router-dom";
@@ -14,13 +14,22 @@ import { fetchSupplier } from "../queries";
 import { supplierPriceBreakdown, type DisplayCurrency, type SupplierCartItem } from "../pricing";
 import { supplierMoney } from "../pricing";
 
-function SupplierCartGroup({ companyId, supplierId, items, currency, rate, onUpdate, onRemove, onCreated }: {
+function SupplierCartGroup({ companyId, supplierId, items, currency, rate, onUpdate, onRemove, onCreated, onPendingChange, notesBySupplier, onNotesChange }: {
   companyId: string; supplierId: string; items: SupplierCartItem[]; currency: DisplayCurrency; rate?: number;
   onUpdate: (id: string, quantity: number) => void; onRemove: (id: string) => void; onCreated: (supplierId: string) => void;
+  onPendingChange?: (supplierId: string, pending: boolean) => void;
+  notesBySupplier?: Record<string, string>;
+  onNotesChange?: (supplierId: string, notes: string) => void;
 }) {
   const supplier = useQuery({ queryKey: ["supplier-pricing", companyId, supplierId], queryFn: () => fetchSupplier(companyId, supplierId), staleTime: 0 });
   const create = useCreateSupplierPurchaseOrder();
-  const [notes, setNotes] = useState("");
+  useEffect(() => {
+    onPendingChange?.(supplierId, create.isPending);
+    return () => onPendingChange?.(supplierId, false);
+  }, [supplierId, create.isPending, onPendingChange]);
+  const [localNotes, setLocalNotes] = useState("");
+  const notes = notesBySupplier?.[supplierId] ?? localNotes;
+  const setNotes = (value: string) => onNotesChange ? onNotesChange(supplierId, value) : setLocalNotes(value);
   const [confirm, setConfirm] = useState(false);
   const prices = items.map((item) => supplier.data ? supplierPriceBreakdown(item.line, supplier.data, currency, rate) : null);
   const complete = prices.every(Boolean);
@@ -46,7 +55,7 @@ function SupplierCartGroup({ companyId, supplierId, items, currency, rate, onUpd
   </section>;
 }
 
-export function SupplierCart(props: { companyId: string; items: SupplierCartItem[]; currency: DisplayCurrency; rate?: number; onUpdate: (id: string, quantity: number) => void; onRemove: (id: string) => void; onCreated: (supplierId: string) => void }) {
+export function SupplierCart(props: { companyId: string; items: SupplierCartItem[]; currency: DisplayCurrency; rate?: number; onUpdate: (id: string, quantity: number) => void; onRemove: (id: string) => void; onCreated: (supplierId: string) => void; onPendingChange?: (supplierId: string, pending: boolean) => void; notesBySupplier?: Record<string, string>; onNotesChange?: (supplierId: string, notes: string) => void }) {
   const supplierIds = [...new Set(props.items.map((item) => item.supplierId))];
   return <div className="space-y-4"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-muted-foreground">{props.items.length} productos en {supplierIds.length} proveedores. El carrito se conserva al navegar entre listas hasta salir del módulo.</p><Button variant="outline" asChild><Link to="/purchase-orders">Ver órdenes de compra</Link></Button></div>{supplierIds.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">Agregá productos desde las listas o la comparación.</p> : supplierIds.map((id) => <SupplierCartGroup key={id} {...props} supplierId={id} items={props.items.filter((item) => item.supplierId === id)} />)}</div>;
 }

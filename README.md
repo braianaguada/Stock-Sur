@@ -1,3 +1,12 @@
+### Proveedores: listas en modales y compras desde la topbar
+
+- Cada proveedor tiene acciones Ver listas y Subir lista. La carga Excel se realiza en un modal que permite crear una lista o reemplazar una existente; conserva la seleccion de columnas y las exclusiones de filas.
+- Directorio sin columna Estado; edicion y desactivacion disponibles en Mas acciones. Comparacion integrada de dos proveedores, con busqueda y conversion ARS/USD en la misma superficie.
+- Notificaciones en la topbar principal con vista previa de cinco categorias operativas y acceso a todas; no son un historial cronologico. Carrito en la misma topbar al trabajar en Proveedores, con resumen y ordenes por proveedor.
+- Las notas del carrito se conservan al cerrar el modal; se impide cerrarlo mientras se crea una orden. Cambiar empresa, salir del modulo o recargar limpia el carrito.
+- Sin nuevas migraciones ni cambios en produccion. QA visual autenticada de escritorio/movil pendiente en staging.
+- Validacion: typecheck, lint, build y diff --check correctos; suite completa con timeout de 60 segundos: 950 pruebas aprobadas y 53 DB omitidas. 84 pruebas focalizadas aprobadas.
+
 ### Listas de precios automaticas y Consumidor Final
 
 - Se retiran los botones Recalcular. Las listas calculan precios al incorporar productos, crear listas y cambiar costos o porcentajes; conservan los precios manuales.

@@ -260,8 +260,17 @@ export function useSuppliersPage({
     catalogTitleById,
     catalogUiTab,
     catalogs,
+    catalogsLoading: catalogsQuery.isLoading,
+    catalogsError: catalogsQuery.error,
+    retryCatalogs: () => { void catalogsQuery.refetch(); },
     importOpen: importOpen && Boolean(selectedSupplier),
     startImport: () => { setCatalogDialogOpen(false); setImportOpen(true); },
+    openImport: (supplier: Supplier) => {
+      resetCatalogDialogState();
+      setSupplierContext(companyId ? { companyId, supplier } : null);
+      setCatalogDialogOpen(false);
+      setImportOpen(true);
+    },
     cancelImport: () => { setImportOpen(false); setCatalogDialogOpen(true); },
     finishImport: (versionId: string) => {
       setImportOpen(false);
@@ -279,7 +288,7 @@ export function useSuppliersPage({
     catalogError: activeCatalogLinesQuery.error ?? catalogsQuery.error ?? catalogVersionsQuery.error,
     suppliersError: suppliersQuery.error,
     isCatalogLoading: activeCatalogLinesQuery.isLoading,
-    isHistoryLoading: catalogVersionsQuery.isLoading,
+    isHistoryLoading: catalogsQuery.isLoading || catalogVersionsQuery.isLoading,
     isLoading: suppliersQuery.isLoading,
     lineQuantities,
     onCatalogDialogOpenChange,

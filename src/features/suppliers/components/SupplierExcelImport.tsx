@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PageContainer, PageHeader } from "@/components/ui/page";
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,10 +29,13 @@ function ImportSelect({ id, label, value, onChange, options }: {
   </div>;
 }
 
-export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, onImported }: {
+export function SupplierExcelImport({ companyId, supplier, catalogs, catalogsLoading = false, catalogsError, onRetryCatalogs, onCancel, onImported }: {
   companyId: string;
   supplier: Supplier;
   catalogs: SupplierCatalog[];
+  catalogsLoading?: boolean;
+  catalogsError?: Error | null;
+  onRetryCatalogs?: () => void;
   onCancel: () => void;
   onImported: (versionId: string) => void;
 }) {
@@ -45,7 +48,8 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, o
   const [unitColumn, setUnitColumn] = useState("none");
   const [priceColumn, setPriceColumn] = useState("");
   const [title, setTitle] = useState("");
-  const [catalogId, setCatalogId] = useState("new");
+  const [mode, setMode] = useState<"new" | "replace">("new");
+  const [catalogId, setCatalogId] = useState("");
   const [currency, setCurrency] = useState<ImportCurrency | "">("");
   const [format, setFormat] = useState<PriceFormat>("comma");
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
@@ -67,6 +71,12 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, o
     return () => window.removeEventListener("beforeunload", warn);
   }, [file]);
 
+  const selectedCatalog = catalogs.find((catalog) => catalog.id === catalogId);
+  const listTitle = mode === "replace" ? selectedCatalog?.title ?? "" : title;
+  const requestClose = () => {
+    if (busy) return;
+    if (file) setCancelOpen(true); else onCancel();
+  };
   const sheet = sheets[Number(sheetIndex)];
   const headerNumber = Number(header);
   const columnOptions = useMemo(() => {
@@ -117,11 +127,11 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, o
   ], [busy, currency, excluded]);
 
   const save = async () => {
-    if (busy || !file || !currency || !title.trim() || preview.error || !included.length) return;
+    if (busy || !file || !currency || !listTitle.trim() || (mode === "replace" && !selectedCatalog) || preview.error || !included.length) return;
     setBusy("saving"); setError("");
     let versionId: string;
     try {
-      versionId = await saveSupplierExcel({ companyId, supplierId: supplier.id, title, fileName: file.name, catalogId: catalogId === "new" ? null : catalogId, currency, rows: included });
+      versionId = await saveSupplierExcel({ companyId, supplierId: supplier.id, title: listTitle, fileName: file.name, catalogId: mode === "new" ? null : catalogId, currency, rows: included });
     } catch (cause) {
       if (aliveRef.current) {
         const message = cause && typeof cause === "object" && "message" in cause ? String(cause.message) : "Revisá tu conexión y permisos.";
@@ -136,22 +146,39 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, o
     if (aliveRef.current) onImported(versionId);
   };
 
-  return <PageContainer className="page-shell">
-    <PageHeader title="Cargar lista de precios" eyebrow={supplier.name} actions={<Button variant="outline" disabled={Boolean(busy)} onClick={() => file ? setCancelOpen(true) : onCancel()}>Volver al proveedor</Button>} />
+  return <>
+    <Dialog open onOpenChange={(open) => { if (!open) requestClose(); }}>
+      <DialogContent variant="command" className="flex flex-col overflow-hidden" onEscapeKeyDown={(event) => { if (busy) event.preventDefault(); }} onInteractOutside={(event) => { if (busy) event.preventDefault(); }}>
+        <DialogHeader className="shrink-0 pr-8">
+          <DialogTitle>Subir lista de precios</DialogTitle>
+          <DialogDescription>{supplier.name} · Creá una lista o reemplazá los precios de una existente.</DialogDescription>
+        </DialogHeader>
+        <DialogBody className="-mx-1 space-y-6 px-1">
     <p className="text-sm text-muted-foreground">Elegí las columnas de nombre, unidad y precio. Todos los precios se guardan sin IVA, en la moneda de esta lista. Si la unidad está vacía, se usa «unidad».</p>
-    <fieldset disabled={Boolean(busy)} className="min-w-0 space-y-5 rounded-xl border bg-card p-4">
+    <fieldset disabled={Boolean(busy)} className="min-w-0 space-y-4">
       <legend className="px-1 font-medium">1. Archivo y lista</legend>
+      <div role="radiogroup" aria-label="Destino de la carga" className="grid gap-3 sm:grid-cols-2">
+        <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+          <input type="radio" name="supplier-import-mode" value="new" checked={mode === "new"} onChange={() => setMode("new")} className="accent-primary" />
+          <span className="text-sm font-medium">Nueva lista</span>
+        </label>
+        <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+          <input type="radio" name="supplier-import-mode" value="replace" checked={mode === "replace"} disabled={!catalogs.length} onChange={() => setMode("replace")} className="accent-primary" />
+          <span className="text-sm font-medium">Reemplazar existente</span>
+        </label>
+      </div>
+      {mode === "replace" && <ImportSelect id="supplier-list" label="Lista que querés reemplazar" value={catalogId} onChange={setCatalogId} options={catalogs.map((catalog) => ({ value: catalog.id, label: catalog.title }))} />}
+      {catalogsLoading ? <p role="status" className="text-sm text-muted-foreground">Cargando listas del proveedor…</p> : catalogsError ? <p role="alert" className="text-sm text-destructive">No se pudieron cargar las listas: {catalogsError.message} <Button variant="link" onClick={onRetryCatalogs}>Reintentar</Button></p> : !catalogs.length && <p className="text-sm text-muted-foreground">Este proveedor todavía no tiene listas para reemplazar.</p>}
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2"><Label htmlFor="supplier-excel">Archivo Excel (.xlsx o .xls, hasta 20 MB)</Label><Input id="supplier-excel" type="file" accept=".xlsx,.xls" onChange={(event) => { void selectFile(event.target.files?.[0] ?? null); event.target.value = ""; }} />{file && <p className="text-sm">Archivo en revisión: {file.name}</p>}</div>
-        <div className="space-y-2"><Label htmlFor="supplier-list-title">Nombre de la carga</Label><Input id="supplier-list-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ej.: Octubre contado" /></div>
-        <ImportSelect id="supplier-list" label="Guardar como" value={catalogId} onChange={setCatalogId} options={[{ value: "new", label: "Nueva lista" }, ...catalogs.map((catalog) => ({ value: catalog.id, label: `Actualizar lista: ${catalog.title}` }))]} />
+        {mode === "new" && <div className="space-y-2"><Label htmlFor="supplier-list-title">Nombre de la lista</Label><Input id="supplier-list-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ej.: Octubre contado" /></div>}
         <ImportSelect id="supplier-currency" label="Moneda de todos los precios" value={currency} onChange={(value) => { setCurrency(value as ImportCurrency); setExcluded(new Set()); }} options={[{ value: "ARS", label: "Pesos (ARS)" }, { value: "USD", label: "Dólares (USD)" }]} />
       </div>
-      <p className="text-sm text-muted-foreground">Los precios se guardan sin IVA en su moneda original. Al actualizar una lista, se mostrará la última carga y se conservarán los datos anteriores para las órdenes ya creadas.</p>
+      <p className="text-sm text-muted-foreground">Los precios se guardan sin IVA en su moneda original. Al reemplazar una lista se conserva su nombre y se muestran los nuevos precios. Las órdenes anteriores conservan sus datos.</p>
     </fieldset>
-    {sheets.length > 0 && <fieldset disabled={Boolean(busy)} className="min-w-0 space-y-5 rounded-xl border bg-card p-4">
+    {sheets.length > 0 && <fieldset disabled={Boolean(busy)} className="min-w-0 space-y-4">
       <legend className="px-1 font-medium">2. Hoja y columnas</legend>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <ImportSelect id="supplier-sheet" label="Hoja del Excel" value={sheetIndex} onChange={(value) => { setSheetIndex(value); setHeader("1"); resetMapping(); }} options={sheets.map((item, index) => ({ value: String(index), label: item.name }))} />
         <div className="space-y-2"><Label htmlFor="supplier-header">Fila que contiene los encabezados</Label><Input id="supplier-header" type="number" min={1} max={sheet?.rows.length || 1} value={header} onChange={(event) => { setHeader(event.target.value); resetMapping(); }} /></div>
         <ImportSelect id="supplier-price-format" label="Formato de precios escritos como texto" value={format} onChange={(value) => { setFormat(value as PriceFormat); setExcluded(new Set()); }} options={[{ value: "comma", label: "1.234,56 (coma decimal)" }, { value: "dot", label: "1,234.56 (punto decimal)" }]} />
@@ -171,7 +198,13 @@ export function SupplierExcelImport({ companyId, supplier, catalogs, onCancel, o
     </section>
     {(error || preview.error) && <p role="alert" className="text-sm text-destructive">{error || preview.error}</p>}
     {busy && <p role="status" className="text-sm">{busy === "reading" ? "Leyendo Excel…" : "Guardando lista…"}</p>}
-    <div className="flex flex-wrap justify-end gap-3"><Button onClick={() => void save()} disabled={Boolean(busy) || !file || !currency || !title.trim() || Boolean(preview.error) || !included.length}>Importar {included.length} productos sin IVA</Button></div>
+        </DialogBody>
+        <DialogFooter className="shrink-0 gap-2 border-t pt-4">
+          <Button variant="outline" disabled={Boolean(busy)} onClick={requestClose}>Cancelar</Button>
+          <Button onClick={() => void save()} disabled={Boolean(busy) || catalogsLoading || Boolean(catalogsError) || !file || !currency || !listTitle.trim() || Boolean(preview.error) || !included.length}>{mode === "replace" ? "Reemplazar lista" : `Importar ${included.length} productos sin IVA`}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Descartar esta carga?</AlertDialogTitle><AlertDialogDescription>El archivo y las columnas seleccionadas todavía no se guardaron.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Seguir revisando</AlertDialogCancel><AlertDialogAction onClick={onCancel}>Descartar y volver</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-  </PageContainer>;
+  </>;
 }

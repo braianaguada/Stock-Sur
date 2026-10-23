@@ -21,6 +21,7 @@ const supplier: Supplier = {
 describe("SuppliersTable", () => {
   it("renders the canonical directory and keeps operational actions accessible", () => {
     const onOpenCatalog = vi.fn();
+    const onUpload = vi.fn();
     const onOpenEdit = vi.fn();
     const onDelete = vi.fn();
 
@@ -29,6 +30,7 @@ describe("SuppliersTable", () => {
         suppliers={[supplier]}
         isLoading={false}
         onOpenCatalog={onOpenCatalog}
+        onUpload={onUpload}
         onOpenEdit={onOpenEdit}
         onDelete={onDelete}
         onRestore={vi.fn()}
@@ -38,13 +40,17 @@ describe("SuppliersTable", () => {
     expect(screen.getByRole("heading", { name: "Directorio de proveedores" })).toBeInTheDocument();
     expect(screen.getByText("1 registro")).toBeInTheDocument();
     expect(screen.getByText("Distribuidora Sur")).toBeInTheDocument();
-    expect(screen.getByText("Activo")).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Estado" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Catalogos" }));
-    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
-    fireEvent.click(screen.getByRole("button", { name: "Desactivar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver listas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Subir lista" }));
+    fireEvent.click(screen.getByRole("button", { name: "Más acciones del proveedor" }));
+    fireEvent.click(screen.getByRole("button", { name: "Editar proveedor" }));
+    fireEvent.click(screen.getByRole("button", { name: "Más acciones del proveedor" }));
+    fireEvent.click(screen.getByRole("button", { name: "Desactivar proveedor" }));
 
     expect(onOpenCatalog).toHaveBeenCalledWith(supplier);
+    expect(onUpload).toHaveBeenCalledWith(supplier);
     expect(onOpenEdit).toHaveBeenCalledWith(supplier);
     expect(onDelete).toHaveBeenCalledWith(supplier);
   });

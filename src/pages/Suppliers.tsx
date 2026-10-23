@@ -1,5 +1,7 @@
-import { Suspense, lazy, useEffect, useState } from "react";
-import { ArrowLeft, Plus, Search } from "lucide-react";
+import { Suspense, lazy, useCallback, useEffect, useState } from "react";
+import { Plus, Search } from "lucide-react";
+import { EntityDialog } from "@/components/common/EntityDialog";
+import { SupplierCartTrigger } from "@/features/suppliers/components/SupplierCartTrigger";
 import { AppLayout } from "@/components/AppLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CompanyAccessNotice } from "@/components/common/CompanyAccessNotice";
@@ -26,6 +28,15 @@ const SupplierCart = lazy(() => import("@/features/suppliers/components/Supplier
 function SuppliersWorkspace({ companyId }: { companyId?: string }) {
   const { toast } = useToast();
   const model = useSuppliersPage({ companyId, toast });
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartNotes, setCartNotes] = useState<Record<string, string>>({});
+  const onNotesChange = useCallback((supplierId: string, notes: string) => {
+    setCartNotes((current) => ({ ...current, [supplierId]: notes }));
+  }, []);
+  const [pendingSuppliers, setPendingSuppliers] = useState<string[]>([]);
+  const onPendingChange = useCallback((supplierId: string, pending: boolean) => {
+    setPendingSuppliers((current) => pending ? [...current.filter((id) => id !== supplierId), supplierId] : current.filter((id) => id !== supplierId));
+  }, []);
   const [view, setView] = useState("suppliers");
   const [currency, setCurrency] = useState<DisplayCurrency>("ARS");
   const [items, setItems] = useState<SupplierCartItem[]>([]);
@@ -39,16 +50,18 @@ function SuppliersWorkspace({ companyId }: { companyId?: string }) {
     setItems((current) => addSupplierCartItem(current, item));
     toast({ title: "Producto agregado al carrito", description: item.line.raw_description });
   };
-  const importView = model.importOpen && supplier && companyId ? <Suspense fallback={<p className="p-8">Cargando importación…</p>}><SupplierExcelImport key={companyId + supplier.id} companyId={companyId} supplier={supplier} catalogs={model.catalogs} onCancel={model.cancelImport} onImported={model.finishImport} /></Suspense> : null;
-  return <>{importView}<div className={importView ? "hidden" : undefined}><PageContainer archetype="workspace" className="page-shell">
+  const importView = model.importOpen && supplier && companyId ? <Suspense fallback={<p className="p-8">Cargando importación…</p>}><SupplierExcelImport key={companyId + supplier.id} companyId={companyId} supplier={supplier} catalogs={model.catalogs} catalogsLoading={model.catalogsLoading} catalogsError={model.catalogsError} onRetryCatalogs={model.retryCatalogs} onCancel={model.cancelImport} onImported={model.finishImport} /></Suspense> : null;
+  const currencyToolbar = <SupplierCurrencyToolbar embedded currency={currency} onCurrencyChange={setCurrency} exchange={exchange} />;
+  return <AppLayout topbarActions={companyId ? <SupplierCartTrigger items={items} onOpen={() => setCartOpen(true)} /> : undefined}>
+    {importView}<PageContainer archetype="workspace" className="page-shell">
     {!companyId ? <CompanyAccessNotice description="Necesitás una empresa activa para trabajar con proveedores." /> : null}
-    <PageHeader variant="workspace" eyebrow="Compras" title={view === "suppliers" && supplier ? supplier.name : "Proveedores"} actions={view === "suppliers" && supplier ? <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => model.openEdit(supplier)}>Configurar proveedor</Button><Button disabled={!supplier.is_active || model.isHistoryLoading} onClick={model.startImport}>Cargar lista Excel</Button></div> : view === "suppliers" ? <Button disabled={!companyId} onClick={model.openCreate}><Plus className="mr-2 h-4 w-4" />Nuevo proveedor</Button> : undefined} />
-    <PageTabs tabs={[{ value: "suppliers", label: "Proveedores y listas" }, { value: "comparison", label: "Comparar listas" }, { value: "cart", label: `Carrito (${items.length})` }]} value={view} onValueChange={setView} />
-    {companyId && (view !== "suppliers" || supplier) ? <SupplierCurrencyToolbar currency={currency} onCurrencyChange={setCurrency} exchange={exchange} /> : null}
-    {companyId && view === "comparison" ? <Suspense fallback={<p>Cargando comparación…</p>}><SupplierListsComparison key={companyId} companyId={companyId} currency={currency} rate={exchange.data?.rate} onAdd={addItem} /></Suspense> : null}
-    {companyId && items.length > 0 ? <div className={view === "cart" ? undefined : "hidden"}><Suspense fallback={<p>Cargando carrito…</p>}><SupplierCart companyId={companyId} currency={currency} rate={exchange.data?.rate} items={items} onUpdate={(id, quantity) => setItems((current) => current.map((item) => item.line.id === id ? { ...item, quantity } : item))} onRemove={(id) => setItems((current) => current.filter((item) => item.line.id !== id))} onCreated={(supplierId) => { setItems((current) => current.filter((item) => item.supplierId !== supplierId)); toast({ title: "Orden de compra creada", description: "Podés revisarla en Órdenes de compra." }); }} /></Suspense></div> : companyId && view === "cart" ? <p className="p-8 text-center text-muted-foreground">Agregá productos desde las listas o la comparación.</p> : null}
-    {view === "suppliers" && supplier ? <div className="space-y-4">
-      <Button variant="ghost" onClick={() => model.onCatalogDialogOpenChange(false)}><ArrowLeft className="mr-2 h-4 w-4" />Todos los proveedores</Button>
+    <PageHeader variant="workspace" eyebrow="Compras" title="Proveedores" actions={view === "suppliers" ? <Button disabled={!companyId} onClick={model.openCreate}><Plus className="mr-2 h-4 w-4" />Nuevo proveedor</Button> : undefined} />
+    <PageTabs tabs={[{ value: "suppliers", label: "Proveedores y listas" }, { value: "comparison", label: "Comparar listas" }]} value={view} onValueChange={setView} />
+    {companyId && view === "comparison" ? <Suspense fallback={<p>Cargando comparación…</p>}><SupplierListsComparison key={companyId} companyId={companyId} currency={currency} rate={exchange.data?.rate} onAdd={addItem} toolbar={currencyToolbar} /></Suspense> : null}
+    {companyId ? <EntityDialog open={cartOpen} onOpenChange={(open) => { if (!pendingSuppliers.length) setCartOpen(open); }} title="Carrito de compras" description="Revisá los productos por proveedor y generá las órdenes de compra." contentClassName="max-w-[min(96vw,1280px)]">{currencyToolbar}<div className="mt-4"><Suspense fallback={<p>Cargando carrito…</p>}><SupplierCart notesBySupplier={cartNotes} onNotesChange={onNotesChange} onPendingChange={onPendingChange} companyId={companyId} currency={currency} rate={exchange.data?.rate} items={items} onUpdate={(id, quantity) => setItems((current) => current.map((item) => item.line.id === id ? { ...item, quantity } : item))} onRemove={(id) => setItems((current) => current.filter((item) => item.line.id !== id))} onCreated={(supplierId) => { setCartNotes((current) => { const next = { ...current }; delete next[supplierId]; return next; }); setItems((current) => current.filter((item) => item.supplierId !== supplierId)); toast({ title: "Orden de compra creada", description: "Podés revisarla en Órdenes de compra." }); }} /></Suspense></div></EntityDialog> : null}
+    {model.catalogDialogOpen && supplier ? <EntityDialog open onOpenChange={model.onCatalogDialogOpenChange} title={supplier.name} description="Listas de precios del proveedor" contentClassName="max-w-[min(96vw,1360px)]"><div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm text-muted-foreground">{model.catalogs.length} listas disponibles</span><Button disabled={!supplier.is_active || model.isHistoryLoading} onClick={model.startImport}>Subir lista</Button></div>
+      {currencyToolbar}
       <p className="text-sm text-muted-foreground">IVA {supplier.vat_rate ?? 21}% · Flete {supplier.freight_rate ?? 0}% sobre neto. Cada lista muestra su última carga; los precios originales se conservan.</p>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{model.catalogs.map((catalog) => {
         const latest = model.versionsByCatalog[catalog.id]?.[0];
@@ -58,18 +71,19 @@ function SuppliersWorkspace({ companyId }: { companyId?: string }) {
       <FilterToolbar><div className="w-full sm:max-w-md"><Input aria-label="Buscar productos de la lista" placeholder="Buscar productos en esta lista" value={model.catalogSearch} onChange={(event) => model.setCatalogSearch(event.target.value)} /></div><span className="text-sm text-muted-foreground">{model.activeVersion ? model.catalogTitleById.get(model.activeVersion.catalog_id) : "Seleccioná una lista"}</span></FilterToolbar>
       {model.catalogError ? <p role="alert" className="text-destructive">No se pudo cargar la lista: {model.catalogError.message}</p> : null}
       {model.activeVersion && <SupplierListProducts key={`${model.activeVersion.id}:${model.catalogSearch}`} supplier={supplier} lines={model.activeCatalogLines} currency={currency} rate={exchange.data?.rate} loading={model.isCatalogLoading} onAdd={(line, quantity) => addItem({ supplierId: supplier.id, versionId: model.activeVersion!.id, listName: model.catalogTitleById.get(model.activeVersion!.catalog_id) ?? "Lista", line, quantity })} />}
-    </div> : view === "suppliers" ? <>
+    </div></EntityDialog> : null}
+    {view === "suppliers" ? <>
       <FilterToolbar><div className="relative w-full md:max-w-sm"><Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Buscar proveedores" placeholder="Buscar por nombre, contacto o email" className="pl-9" value={model.search} onChange={(event) => model.setSearch(event.target.value)} /></div><Select value={model.statusFilter} onValueChange={(value) => model.setStatusFilter(value as "active" | "inactive" | "all")}><SelectTrigger className="w-full md:w-56" aria-label="Filtrar proveedores por estado"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Activos</SelectItem><SelectItem value="inactive">Inactivos</SelectItem><SelectItem value="all">Todos</SelectItem></SelectContent></Select></FilterToolbar>
       {model.suppliersError ? <p role="alert" className="text-destructive">No se pudieron cargar los proveedores: {model.suppliersError.message}</p> : null}
-      <SuppliersTable suppliers={pagination.pagedItems} isLoading={model.isLoading} onOpenCatalog={model.openCatalog} onOpenEdit={model.openEdit} onDelete={model.setSupplierToDelete} onRestore={model.onRestoreSupplier} />
+      <SuppliersTable suppliers={pagination.pagedItems} isLoading={model.isLoading} onOpenCatalog={model.openCatalog} onUpload={model.openImport} onOpenEdit={model.openEdit} onDelete={model.setSupplierToDelete} onRestore={model.onRestoreSupplier} />
       <DataTablePagination {...pagination} pageSize={pageSize} pageSizeOptions={[20, 50, 100]} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} itemLabel="proveedores" />
     </> : null}
     {model.dialogOpen ? <Suspense fallback={<p>Cargando formulario…</p>}><SupplierFormDialog open editingName={model.editing?.name} form={model.form} showAdvanced={model.showAdvanced} isSaving={model.saveMutation.isPending} onOpenChange={model.setDialogOpen} onShowAdvancedChange={model.setShowAdvanced} onFormChange={model.setForm} onSubmit={() => model.saveMutation.mutate()} /></Suspense> : null}
     <ConfirmDeleteDialog open={!!model.supplierToDelete} onOpenChange={(open) => { if (!open) model.setSupplierToDelete(null); }} title="Eliminar proveedor" description={`Se eliminará al proveedor "${model.supplierToDelete?.name ?? ""}".`} isPending={model.deleteMutation.isPending} onConfirm={() => { if (model.supplierToDelete) model.deleteMutation.mutate(model.supplierToDelete.id); }} />
-  </PageContainer></div></>;
+  </PageContainer></AppLayout>;
 }
 
 export default function SuppliersPage() {
   const { currentCompany } = useAuth();
-  return <AppLayout><SuppliersWorkspace key={currentCompany?.id ?? "no-company"} companyId={currentCompany?.id} /></AppLayout>;
+  return <SuppliersWorkspace key={currentCompany?.id ?? "no-company"} companyId={currentCompany?.id} />;
 }

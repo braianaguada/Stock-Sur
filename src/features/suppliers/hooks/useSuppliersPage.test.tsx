@@ -19,6 +19,19 @@ vi.mock("@/features/purchase-orders/hooks", () => ({
 }));
 
 describe("supplier import company context", () => {
+  it("opens upload directly for the selected supplier and returns to its lists", () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => <MemoryRouter><QueryClientProvider client={client}>{children}</QueryClientProvider></MemoryRouter>;
+    const view = renderHook(() => useSuppliersPage({ companyId: "c1", toast: vi.fn() }), { wrapper });
+    const supplier = { id: "s1", name: "Proveedor A", is_active: true } as Supplier;
+    act(() => view.result.current.openImport(supplier));
+    expect(view.result.current.selectedSupplier).toEqual(supplier);
+    expect(view.result.current.importOpen).toBe(true);
+    expect(view.result.current.catalogDialogOpen).toBe(false);
+    act(() => view.result.current.cancelImport());
+    expect(view.result.current.importOpen).toBe(false);
+    expect(view.result.current.catalogDialogOpen).toBe(true);
+  });
   it("closes the import and removes the previous supplier when the active company changes", () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const wrapper = ({ children }: { children: ReactNode }) => <MemoryRouter><QueryClientProvider client={client}>{children}</QueryClientProvider></MemoryRouter>;

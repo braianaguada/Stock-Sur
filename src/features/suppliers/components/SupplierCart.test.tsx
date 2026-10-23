@@ -16,10 +16,10 @@ const items: SupplierCartItem[] = [
   { supplierId: "s1", versionId: "v2", listName: "Lista 2", line: { id: "l2", supplier_code: null, raw_description: "Tuerca", cost: 50, currency: "USD", tax_treatment: "EXCLUDED" }, quantity: 1 },
   { supplierId: "s2", versionId: "v3", listName: "Otra lista", line: { id: "l3", supplier_code: null, raw_description: "Tornillo", cost: 20, currency: "USD", tax_treatment: "EXCLUDED" }, quantity: 1 },
 ];
-function setup(rate?: number, currency: "USD" | "ARS" = "USD") {
+function setup(rate?: number, currency: "USD" | "ARS" = "USD", onPendingChange = vi.fn()) {
   const onCreated = vi.fn();
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  render(<MemoryRouter><QueryClientProvider client={client}><SupplierCart companyId="c1" items={items} currency={currency} rate={rate} onUpdate={vi.fn()} onRemove={vi.fn()} onCreated={onCreated} /></QueryClientProvider></MemoryRouter>);
+  render(<MemoryRouter><QueryClientProvider client={client}><SupplierCart companyId="c1" items={items} currency={currency} rate={rate} onUpdate={vi.fn()} onRemove={vi.fn()} onCreated={onCreated} onPendingChange={onPendingChange} /></QueryClientProvider></MemoryRouter>);
   return { onCreated };
 }
 beforeEach(() => {
@@ -27,6 +27,31 @@ beforeEach(() => {
   vi.mocked(fetchSupplier).mockImplementation(async (_company, id) => ({ id, name: `Proveedor ${id}`, is_active: true, vat_rate: 21, freight_rate: 5 } as Supplier));
 });
 describe("supplier grouped cart", () => {
+  it("restores externally preserved notes when the cart is reopened", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const onNotesChange = vi.fn();
+    const props = { companyId: "c1", items, currency: "USD" as const, onUpdate: vi.fn(), onRemove: vi.fn(), onCreated: vi.fn(), onNotesChange };
+    const wrap = (open: boolean, notes: Record<string, string>) => <MemoryRouter><QueryClientProvider client={client}>{open && <SupplierCart {...props} notesBySupplier={notes} />}</QueryClientProvider></MemoryRouter>;
+    const { rerender } = render(wrap(true, {}));
+    const input = await screen.findByLabelText("Observaciones para Proveedor s1");
+    fireEvent.change(input, { target: { value: "Entregar viernes" } });
+    expect(onNotesChange).toHaveBeenCalledWith("s1", "Entregar viernes");
+    rerender(wrap(false, { s1: "Entregar viernes" }));
+    rerender(wrap(true, { s1: "Entregar viernes" }));
+    expect(await screen.findByLabelText("Observaciones para Proveedor s1")).toHaveValue("Entregar viernes");
+  });
+  it("reports pending orders so the containing cart cannot close during creation", async () => {
+    let resolve!: (order: SupplierPurchaseOrder) => void;
+    vi.mocked(createSupplierPurchaseOrder).mockImplementation(() => new Promise((done) => { resolve = done; }));
+    const onPendingChange = vi.fn();
+    setup(undefined, "USD", onPendingChange);
+    const group = (await screen.findByText("Proveedor s1")).closest("section")!;
+    fireEvent.click(within(group).getByRole("button", { name: "Generar orden de compra" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar orden" }));
+    await waitFor(() => expect(onPendingChange).toHaveBeenCalledWith("s1", true));
+    resolve({ company_id: "c1", supplier_id: "s1" } as SupplierPurchaseOrder);
+    await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith("s1", false));
+  });
   it("creates one order with products from multiple lists, keeping the other supplier", async () => {
     vi.mocked(createSupplierPurchaseOrder).mockResolvedValue({ company_id: "c1", supplier_id: "s1" } as SupplierPurchaseOrder);
     const { onCreated } = setup();

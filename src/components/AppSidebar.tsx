@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Boxes, CircleDollarSign, Home, LayoutGrid, LogOut, Search, Settings2, ShieldAlert, ShoppingCart, UsersRound, Wrench } from "lucide-react";
@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { billingFeatureEnabled } from "@/lib/features";
 import { appNavGroups, appNavItems } from "@/components/app-navigation";
 
-export function AppSidebar() {
+export function AppSidebar({ actions }: { actions?: ReactNode }) {
   const location = useLocation();
   const [modulesOpen, setModulesOpen] = useState(false);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
@@ -251,6 +251,7 @@ export function AppSidebar() {
                   <LogOut className="h-4 w-4" />
                 </Button>
               </div>
+              {actions}
             </div>
           </div>
 

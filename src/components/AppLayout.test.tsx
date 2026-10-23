@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -91,6 +91,9 @@ describe("AppLayout", () => {
     expect(screen.getByRole("combobox")).toBeInTheDocument();
     expect(screen.getByText("contenido demo")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Alertas operativas: sin pendientes" })).toBeInTheDocument();
+    const topbar = screen.getByRole("banner");
+    expect(within(topbar).getByRole("button", { name: "Alertas operativas: sin pendientes" })).toBeInTheDocument();
+    expect(within(screen.getByRole("main")).queryByRole("banner")).not.toBeInTheDocument();
 
     const navigation = screen.getByRole("navigation", { name: /Navegación principal/i });
     expect(navigation).not.toHaveClass("overflow-x-auto");
