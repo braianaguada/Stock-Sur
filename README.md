@@ -1,3 +1,9 @@
+### Remitos internos: apertura de Caja
+
+- Al emitir un remito al personal interno se ofrece Registrar en Caja, con el permiso existente y consulta limitada a la empresa activa. Cambiar de empresa descarta la respuesta pendiente.
+- Sin migraciones ni cambios en cuentas, stock o reglas de cobro. QA automatizada de apertura, permisos y cambio de empresa; QA operativa con datos de prueba pendiente en staging. Produccion sin cambios.
+- Validaciones: typecheck, lint, build y diff --check correctos; suite completa con 2 workers: 895 tests aprobados y 53 DB omitidos por falta de credenciales. Primera ejecucion con timeouts; repeticion completa correcta.
+
 ### Emitir y compartir presupuestos de documentos
 
 - Al crear un presupuesto, `Emitir y compartir` emite y prepara el mensaje con numero definitivo, importe y enlace publico. `Copiar mensaje` permite pegarlo en el canal elegido.
