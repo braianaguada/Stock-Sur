@@ -62,4 +62,6 @@ export interface StockMovementForm {
   adjustment_direction: "ADD" | "REMOVE";
   quantity: string;
   reference: string;
+  unit_cost_ars?: string;
+  purchase_supplier?: string;
 }

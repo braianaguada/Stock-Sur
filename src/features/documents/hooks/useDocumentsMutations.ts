@@ -347,7 +347,7 @@ export function useDocumentsMutations({
     onSuccess: (result) => {
       void Promise.all([
         invalidateDocumentQueries(qc),
-        ...(result.issued ? [invalidateStockQueries(qc)] : []),
+        ...(result.issued ? [invalidateStockQueries(qc, currentCompanyId)] : []),
       ]);
       setDialogOpen(false);
       resetDraftForm();
@@ -415,7 +415,7 @@ export function useDocumentsMutations({
     onSuccess: (_, documentId) => {
       void Promise.all([
         invalidateDocumentQueries(qc),
-        invalidateStockQueries(qc),
+        invalidateStockQueries(qc, currentCompanyId),
       ]);
       toast({ title: "Documento emitido" });
       if (documentsById.get(documentId)?.doc_type === "REMITO") onRemitoIssued?.(documentId);
@@ -443,7 +443,7 @@ export function useDocumentsMutations({
     onSuccess: (_, variables) => {
       void Promise.all([
         invalidateDocumentQueries(qc),
-        invalidateStockQueries(qc),
+        invalidateStockQueries(qc, currentCompanyId),
       ]);
       toast({ title: `Documento ${STATUS_LABEL[variables.targetStatus].toLowerCase()}` });
     },

@@ -20,6 +20,7 @@ import { FilterToolbar, PageContainer, PageHeader } from "@/components/ui/page";
 import { MetricCard, MetricGrid, StatusBadge } from "@/components/common/VisualSystem";
 import { usePaginationSlice } from "@/hooks/use-pagination-slice";
 import { fetchStockAiSummary, type StockAiSummaryResult } from "@/features/stock/aiAlerts";
+import { StockCostLotsDialog } from "@/features/stock/components/StockCostLotsDialog";
 import { StockCurrentTable } from "@/features/stock/components/StockCurrentTable";
 import { StockMovementDialog } from "@/features/stock/components/StockMovementDialog";
 import { StockMovementsTable } from "@/features/stock/components/StockMovementsTable";
@@ -27,7 +28,7 @@ import { useStockPage } from "@/features/stock/hooks/useStockPage";
 import { buildStockInsights, countStockInsightTones, getStockInsightKindLabel } from "@/features/stock/insights";
 import { groupStockAlerts } from "@/features/stock/alert-presentation";
 import { formatStockQuantity } from "@/lib/stock-quantity";
-import type { DemandProfile, MovementType, StockHealth } from "@/features/stock/types";
+import type { DemandProfile, MovementType, StockHealth, StockRow } from "@/features/stock/types";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
 
@@ -43,6 +44,7 @@ export default function StockPage() {
   const navigate = useNavigate();
   const setupItemId = searchParams.get("setup") === "1" ? searchParams.get("itemId") : null;
   const linkedItemHandled = useRef<string | null>(null);
+  const [costItem, setCostItem] = useState<{ companyId: string; item: StockRow } | null>(null);
   const [tab, setTab] = useState("summary");
   const [alertsPage, setAlertsPage] = useState(1);
   const [stockPage, setStockPage] = useState(1);
@@ -82,6 +84,8 @@ export default function StockPage() {
     handleSelectedItemChange,
     submitMovement,
   } = useStockPage({ movementsEnabled: tab === "movements", movementsPage, movementsPageSize });
+
+  useEffect(() => { setCostItem(null); }, [currentCompany?.id]);
 
   const typeIcon = (type: MovementType) => {
     if (type === "IN") return <ArrowDownCircle className="h-4 w-4 text-green-500" />;
@@ -363,6 +367,7 @@ export default function StockPage() {
             <Card className="min-w-0 border-border/70 shadow-none">
               <StockCurrentTable
                 rows={stockPagination.pagedItems}
+                onViewLots={(item) => { if (currentCompany) setCostItem({ companyId: currentCompany.id, item }); }}
                 isLoading={loadingStock}
                 pageSize={stockPageSize}
                 formatCoverage={formatCoverage}
@@ -431,6 +436,10 @@ export default function StockPage() {
           </TabsContent>
         </Tabs>
       </PageContainer>
+
+      {costItem && costItem.companyId === currentCompany?.id ? <StockCostLotsDialog
+        key={`${costItem.companyId}:${costItem.item.item_id}`} companyId={costItem.companyId} item={costItem.item}
+        onClose={() => setCostItem(null)} /> : null}
 
       <StockMovementDialog
         open={dialogOpen}

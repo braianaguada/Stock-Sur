@@ -242,6 +242,90 @@ async function seedServiceJobWithService(companyId: string, userId: string, cust
 }
 
 describeCriticalDb("critical database rules", () => {
+  it("restores the original FIFO cost when returning and cancelling a remito", async () => {
+    await withRollback(async () => {
+      const companyId = crypto.randomUUID();
+      const userId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      const itemId = await seedItem(companyId, userId);
+      const createDoc = async (type: string, origin: string | null = null) => {
+        const result = await client.query(
+          "insert into public.documents(company_id,doc_type,status,point_of_sale,issue_date,subtotal,tax_total,total,customer_kind,created_by,origin_document_id) values($1,$2,'BORRADOR',1,current_date,0,0,0,'GENERAL',$3,$4) returning id",
+          [companyId, type, userId, origin],
+        );
+        return result.rows[0].id as string;
+      };
+      const doc = await createDoc("REMITO");
+      const returned = await createDoc("REMITO_DEVOLUCION", doc);
+      const move = async (type: string, quantity: number, cost: number | null, document: string | null = null, cancellation = false) => {
+        await client.query(
+          "insert into public.stock_movements(company_id,item_id,type,quantity,unit_cost_ars,cost_document_id,cost_is_cancellation,created_by) values($1,$2,$3,$4,$5,$6,$7,$8)",
+          [companyId, itemId, type, quantity, cost, document, cancellation, userId],
+        );
+      };
+      const balances = async () => (await client.query(
+        "select l.unit_cost_ars::float8 cost,sum(a.quantity)::float8 remaining from public.stock_cost_lots l join public.stock_cost_allocations a on a.lot_id=l.id where l.item_id=$1 group by l.id order by l.acquired_at,l.id", [itemId],
+      )).rows;
+      await move("IN", 10, 550);
+      await move("IN", 10, 450);
+      await move("OUT", 12, null, doc);
+      await move("IN", 3, null, returned);
+      expect(await balances()).toEqual([{ cost: 550, remaining: 3 }, { cost: 450, remaining: 8 }]);
+      await move("OUT", 3, null, returned, true);
+      expect(await balances()).toEqual([{ cost: 550, remaining: 0 }, { cost: 450, remaining: 8 }]);
+      await move("IN", 12, null, doc, true);
+      expect(await balances()).toEqual([{ cost: 550, remaining: 10 }, { cost: 450, remaining: 10 }]);
+    });
+  });
+
+  it("keeps purchase costs per lot, consumes FIFO and isolates valuation by company", async () => {
+    await withRollback(async () => {
+      const companyId = crypto.randomUUID();
+      const otherCompany = crypto.randomUUID();
+      const userId = crypto.randomUUID();
+      await seedUser(userId);
+      await seedCompany(companyId);
+      await seedCompany(otherCompany);
+      const actor = await seedActor(companyId, userId);
+      await seedPermission(actor, "stock.view");
+      await setActor(userId);
+      const itemId = await seedItem(companyId, userId);
+      const move = async (type: string, quantity: number, cost: number | null = null) => {
+        await client.query(
+          "insert into public.stock_movements(company_id,item_id,type,quantity,unit_cost_ars,created_by) values($1,$2,$3,$4,$5,$6)",
+          [companyId, itemId, type, quantity, cost, userId],
+        );
+      };
+      const balances = async () => (await client.query(
+        "select l.unit_cost_ars::float8 cost, sum(a.quantity)::float8 remaining from public.stock_cost_lots l join public.stock_cost_allocations a on a.lot_id=l.id where l.company_id=$1 and l.item_id=$2 group by l.id order by l.acquired_at,l.id",
+        [companyId, itemId],
+      )).rows;
+      await move("IN", 10, 550);
+      await move("IN", 10, 450);
+      await move("OUT", 12);
+      expect(await balances()).toEqual([{ cost: 550, remaining: 0 }, { cost: 450, remaining: 8 }]);
+      await move("OUT", 10);
+      await move("IN", 5, 400);
+      expect(await balances()).toEqual([
+        { cost: 550, remaining: 0 }, { cost: 450, remaining: 0 },
+        { cost: null, remaining: 0 }, { cost: 400, remaining: 3 },
+      ]);
+      await expectDbRejection("delete from public.stock_movements where company_id=$1", [companyId]);
+      await client.query("set local role authenticated");
+      const result = await client.query("select public.list_stock_cost_lots($1,$2) lots", [companyId, itemId]);
+      expect(result.rows[0].lots).toHaveLength(4);
+      await expectDbRejection("select public.list_stock_cost_lots($1,$2)", [otherCompany, itemId]);
+      await expectDbRejection(
+        "insert into public.stock_movements(company_id,item_id,type,quantity,cost_is_cancellation) values($1,$2,'IN',1,true)",
+        [companyId, itemId],
+      );
+      await client.query("reset role");
+      await client.query("update public.companies set status='INACTIVE' where id=$1", [companyId]);
+      await expectDbRejection("select public.list_stock_cost_lots($1,$2)", [companyId, itemId]);
+    });
+  });
+
   it("desglosa IVA incluido sin incrementar el precio final", async () => {
     await withRollback(async () => {
       const companyId = crypto.randomUUID();

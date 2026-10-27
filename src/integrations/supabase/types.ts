@@ -2180,6 +2180,10 @@ export type Database = {
       }
       stock_movements: {
         Row: {
+          unit_cost_ars: number | null
+          purchase_supplier: string | null
+          cost_document_id: string | null
+          cost_is_cancellation: boolean
           company_id: string
           created_at: string
           created_by: string | null
@@ -2191,6 +2195,10 @@ export type Database = {
           type: Database["public"]["Enums"]["movement_type"]
         }
         Insert: {
+          unit_cost_ars?: number | null
+          purchase_supplier?: string | null
+          cost_document_id?: string | null
+          cost_is_cancellation?: boolean
           company_id: string
           created_at?: string
           created_by?: string | null
@@ -2202,6 +2210,10 @@ export type Database = {
           type: Database["public"]["Enums"]["movement_type"]
         }
         Update: {
+          unit_cost_ars?: number | null
+          purchase_supplier?: string | null
+          cost_document_id?: string | null
+          cost_is_cancellation?: boolean
           company_id?: string
           created_at?: string
           created_by?: string | null
@@ -2659,6 +2671,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      list_stock_cost_lots: {
+        Args: { p_company_id: string; p_item_id: string }
+        Returns: Json
+      }
       get_stock_overview: { Args: { p_company_id: string }; Returns: Json }
       list_stock_movements_page: {
         Args: { p_company_id: string; p_search?: string; p_page?: number; p_page_size?: number }

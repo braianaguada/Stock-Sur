@@ -1,3 +1,4 @@
+import { purchaseCostFields } from "@/features/stock/purchase-cost";
 import { validateSaleQuantity } from '@/lib/stock-quantity';
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,6 +24,8 @@ const DEFAULT_STOCK_MOVEMENT_FORM: StockMovementForm = {
   adjustment_direction: "ADD",
   quantity: "",
   reference: "",
+  unit_cost_ars: "",
+  purchase_supplier: "",
 };
 
 type StockMovementDraft = {
@@ -262,17 +265,19 @@ export function useStockPage({ movementsEnabled = false, movementsPage = 1, move
         type: form.type,
         quantity: signedQuantity,
         reference: form.reference || null,
+        ...purchaseCostFields(form),
         created_by: user?.id ?? undefined,
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
+      return currentCompany.id;
     },
-    onSuccess: () => {
+    onSuccess: (companyId) => {
       setForm((currentForm) => ({
         ...DEFAULT_STOCK_MOVEMENT_FORM,
         item_id: currentForm.item_id,
       }));
       toast({ title: "Movimiento registrado" });
-      void invalidateStockQueries(queryClient);
+      void invalidateStockQueries(queryClient, companyId);
     },
     onError: (error: unknown) => {
       toast({

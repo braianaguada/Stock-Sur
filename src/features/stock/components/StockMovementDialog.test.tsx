@@ -25,6 +25,22 @@ const item: SearchableItem = {
 };
 
 describe("StockMovementDialog", () => {
+  it("offers purchase cost on receipts and hides it on outgoing movements", () => {
+    const onFormChange = vi.fn();
+    const props = {
+      open: true, form, itemSearch: "", availableItems: [], stockByItemId: new Map(),
+      selectedItem: null, searchingItems: false, isSaving: false,
+      onOpenChange: vi.fn(), onSubmit: vi.fn(), onFormChange,
+      onItemSearchChange: vi.fn(), onSelectedItemChange: vi.fn(),
+    };
+    const view = render(<StockMovementDialog {...props} />);
+    fireEvent.change(screen.getByLabelText(/Costo unitario de compra/), { target: { value: "550" } });
+    expect(onFormChange).toHaveBeenCalledWith({ ...form, unit_cost_ars: "550" });
+    view.rerender(<StockMovementDialog {...props} form={{ ...form, type: "OUT" }} />);
+    expect(screen.queryByLabelText(/Costo unitario de compra/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Proveedor de esta compra/)).not.toBeInTheDocument();
+  });
+
   it("starts with the product search control and no selected-product fallback", () => {
     render(
       <StockMovementDialog
