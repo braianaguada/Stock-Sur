@@ -21,6 +21,7 @@ import { getOperationalPrice } from "@/features/pricing/operational-price";
 import type { PriceRoundingConfig } from "@/features/pricing/rounding";
 
 import { customerPaymentTerms } from "../lib/payment-terms";
+import { normalizeManualQuote } from "../lib/manual-quote";
 
 type ToastFn = (args: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
 
@@ -63,6 +64,7 @@ export function normalizeDraftLine({
   userId: string | undefined;
   nowIso: string;
 }) {
+  if (draftForm.doc_type === "PRESUPUESTO" && !line.item_id) return normalizeManualQuote(line);
   if (!draftForm.price_list_id || !line.item_id) {
     return {
       ...line,
@@ -214,11 +216,16 @@ export function useDocumentsMutations({
         }
       }
 
+      if (draftForm.doc_type === "PRESUPUESTO") {
+        lines.filter((line) => !line.item_id).forEach(normalizeManualQuote);
+      }
       const valid = lines.filter((line) => line.description.trim() && line.quantity > 0);
       valid.forEach(line => validateSaleQuantity(line.quantity, line.unit));
       if (valid.length === 0) throw new Error("Agrega al menos una linea valida");
       if (totalDraft <= 0) throw new Error("El documento no puede guardarse con total cero");
-      if (!draftForm.price_list_id) throw new Error("Selecciona una lista de precios para cargar productos");
+      if (!draftForm.price_list_id && (draftForm.doc_type !== "PRESUPUESTO" || valid.some((line) => line.item_id))) {
+        throw new Error("Selecciona una lista de precios para cargar productos");
+      }
       if (draftForm.doc_type === "PRESUPUESTO" && draftForm.customer_kind === "INTERNO") {
         throw new Error("Los presupuestos no aplican a personal interno");
       }
@@ -229,7 +236,7 @@ export function useDocumentsMutations({
         throw new Error("El tipo de remito interno solo aplica a remitos del personal interno");
       }
       validateDocumentRecipientDraft(draftForm, serviceOptions);
-      if (draftForm.price_list_id && valid.some((line) => !line.item_id)) {
+      if (draftForm.doc_type !== "PRESUPUESTO" && valid.some((line) => !line.item_id)) {
         throw new Error("Con lista de precios activa, todas las lineas deben tener item");
       }
 

@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createManualQuoteLine } from "@/features/documents/lib/manual-quote";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -317,10 +318,11 @@ export default function DocumentsPage() {
 
   const loadDraftForEditing = useDocumentDraftLoader({ documentsById, currentCompanyId: currentCompany?.id ?? null });
 
-  const openCreateDialog = (docType: "PRESUPUESTO" | "REMITO") => {
+  const openCreateDialog = (docType: "PRESUPUESTO" | "REMITO", manualQuote = false) => {
     if (!canCreateDocumentDraft(roles)) return;
     resetDraftForm();
     setDraftForm({ ...buildEmptyDocumentForm(defaultPointOfSale), doc_type: docType });
+    if (manualQuote && docType === "PRESUPUESTO") setLines([createManualQuoteLine()]);
     setDialogOpen(true);
   };
 
@@ -827,6 +829,7 @@ export default function DocumentsPage() {
             <>              <Button variant="outline" onClick={() => openCreateDialog("PRESUPUESTO")} disabled={!canCreateDocumentDraft(roles)}>
                 <Plus className="mr-2 h-4 w-4" /> Presupuesto
               </Button>
+              <Button variant="outline" onClick={() => openCreateDialog("PRESUPUESTO", true)} disabled={!canCreateDocumentDraft(roles)}>Cotizacion rapida</Button>
               <Button onClick={() => openCreateDialog("REMITO")} disabled={!canCreateDocumentDraft(roles)}>
                 <Plus className="mr-2 h-4 w-4" /> Remito
               </Button>

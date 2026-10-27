@@ -4,11 +4,14 @@ import type { PropsWithChildren } from "react";
 import { normalizeDraftLine, useDocumentsMutations } from "./useDocumentsMutations";
 import type { DocRow, DocumentFormState, LineDraft, PriceListItemRow } from "../types";
 import { supabase } from "@/integrations/supabase/client";
+import { createManualQuoteLine, recalculateManualQuote } from "../lib/manual-quote";
+
+const { inserted } = vi.hoisted(() => ({ inserted: vi.fn() }));
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    from: () => ({
-      insert: () => ({ select: () => ({ single: async () => ({ data: { id: "doc-1" }, error: null }) }) }),
+    from: (table: string) => ({
+      insert: (payload: unknown) => { inserted(table, payload); return { select: () => ({ single: async () => ({ data: { id: "doc-1" }, error: null }) }) }; },
       update: () => ({ eq: () => ({ eq: () => ({ eq: () => ({ select: () => ({ single: async () => ({ data: { id: "converted-remito" }, error: null }) }) }) }) }) }),
       delete: () => ({ eq: () => ({}) }),
       select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
@@ -122,6 +125,41 @@ const basePriceRow: PriceListItemRow = {
   manual_price_note: null,
   items: null,
 };
+
+describe("manual budget persistence", () => {
+  it.each(["SAVE_DRAFT", "SEND_BUDGET"] as const)("%s saves free products without a price list or stock operations", async (intent) => {
+    inserted.mockClear();
+    vi.mocked(supabase.rpc).mockReset().mockResolvedValue({ data: null, error: null, count: null, status: 200, statusText: "OK" });
+    const line = recalculateManualQuote({ ...createManualQuoteLine(), description: "Producto por encargo", base_cost_snapshot: 1000,
+      list_flete_pct_snapshot: 10, manual_margin_pct: 30 });
+    const { result } = renderHook(() => useDocumentsMutations({
+      currentCompanyId: "company-1", userId: "user-1", documents: [], customers: [], technicians: [], serviceOptions: [],
+      lines: [line], draftForm: { ...baseDraftForm, price_list_id: "", recipient_type: "OCCASIONAL", customer_name: "Consumidor Final" },
+      totalDraft: line.unit_price, editingDocId: null, priceByItem: new Map(), priceListItemByItemId: new Map(),
+      resetDraftForm: vi.fn(), setDialogOpen: vi.fn(), toast: vi.fn(),
+    }));
+    await act(async () => { await result.current.upsertDraftMutation.mutateAsync(intent); });
+    expect(inserted).toHaveBeenCalledWith("documents", expect.objectContaining({ company_id: "company-1", doc_type: "PRESUPUESTO", price_list_id: null }));
+    expect(inserted).toHaveBeenCalledWith("document_lines", [expect.objectContaining({ item_id: null, description: "Producto por encargo", unit_price: 1730.3,
+      base_cost_snapshot: 1000, list_flete_pct_snapshot: 10, manual_margin_pct: 30, tax_pct: 21 })]);
+    expect(inserted.mock.calls.every(([table]) => ["documents", "document_lines", "document_events"].includes(table))).toBe(true);
+    if (intent === "SEND_BUDGET") expect(supabase.rpc).toHaveBeenCalledExactlyOnceWith("transition_document_status", { p_document_id: "doc-1", p_target_status: "ENVIADO" });
+    else expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects free products in remitos and never inserts them", async () => {
+    inserted.mockClear();
+    const { result } = renderHook(() => useDocumentsMutations({
+      currentCompanyId: "company-1", userId: "user-1", documents: [], customers: [], technicians: [], serviceOptions: [],
+      lines: [{ ...createManualQuoteLine(), description: "Producto", unit_price: 100 }],
+      draftForm: { ...baseDraftForm, doc_type: "REMITO", recipient_type: "OCCASIONAL", customer_name: "Consumidor Final" },
+      totalDraft: 100, editingDocId: null, priceByItem: new Map(), priceListItemByItemId: new Map(),
+      resetDraftForm: vi.fn(), setDialogOpen: vi.fn(), toast: vi.fn(),
+    }));
+    await expect(result.current.upsertDraftMutation.mutateAsync()).rejects.toThrow("todas las lineas deben tener item");
+    expect(inserted).not.toHaveBeenCalled();
+  });
+});
 
 describe("document submission intents", () => {
   it.each(["SAVE_DRAFT", "ISSUE_REMITO"] as const)("%s reuses the remito converted from a budget", async (intent) => {

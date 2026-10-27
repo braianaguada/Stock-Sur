@@ -116,6 +116,18 @@ function renderDialog(
 }
 
 describe("DocumentsEditorDialog", () => {
+  it("adds a free product only in budgets", () => {
+    const setLines = vi.fn();
+    renderDialog({ ...baseForm, doc_type: "PRESUPUESTO" }, vi.fn(), { setLines });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar producto manual" }));
+    expect(setLines).toHaveBeenCalledOnce();
+    expect(setLines.mock.calls[0][0]([])).toEqual([expect.objectContaining({ item_id: null, unit: "UN", quantity: 1 })]);
+  });
+
+  it("does not offer free products in remitos", () => {
+    renderDialog(baseForm);
+    expect(screen.queryByRole("button", { name: "Agregar producto manual" })).not.toBeInTheDocument();
+  });
   it.each([['OCCASIONAL', '', 'Contado'], ['REGISTERED', 'customer-1', '30 d\u00edas']] as const)("derives terms for %s and removes redundant controls", (recipient_type, customer_id, terms) => {
     renderDialog({ ...baseForm, recipient_type, customer_id });
     expect(screen.queryByText('Punto de venta', { selector: 'label' })).not.toBeInTheDocument();
