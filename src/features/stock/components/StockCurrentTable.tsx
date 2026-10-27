@@ -1,3 +1,5 @@
+import { History } from "lucide-react";
+import { RowActions, RowActionButton } from "@/components/common/RowActions";
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/DataTable";
@@ -8,6 +10,7 @@ import type { DemandProfile, StockHealth, StockRow } from "@/features/stock/type
 
 type StockCurrentTableProps = {
   rows: StockRow[];
+  onViewLots?: (item: StockRow) => void;
   isLoading: boolean;
   pageSize: number;
   formatCoverage: (value: number | null, unit: "m" | "d") => string;
@@ -52,6 +55,7 @@ function CoverageBar({ row, formatCoverage }: { row: StockRow; formatCoverage: (
 
 export function StockCurrentTable({
   rows,
+  onViewLots,
   isLoading,
   pageSize,
   formatCoverage,
@@ -133,7 +137,14 @@ export function StockCurrentTable({
         className: "w-[90px]",
       },
     },
-  ], [demandProfileLabel, formatCoverage, formatQuantity, healthLabel]);
+    ...(onViewLots ? [{
+      id: "costs", header: "Compras",
+      cell: ({ row }: { row: { original: StockRow } }) => <RowActions><RowActionButton
+        label={`Compras y costos de ${row.original.item_name}`} tone="view" onClick={() => onViewLots(row.original)}>
+        <History className="h-4 w-4" /></RowActionButton></RowActions>,
+      meta: { className: "w-[80px]" },
+    }] : []),
+  ], [demandProfileLabel, formatCoverage, formatQuantity, healthLabel, onViewLots]);
 
   return (
     <DataTable

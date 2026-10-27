@@ -193,6 +193,22 @@ export function StockMovementDialog({
           </div>
         ) : null}
 
+        {form.type === "IN" || (form.type === "ADJUSTMENT" && form.adjustment_direction === "ADD") ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="purchase-cost">Costo unitario de compra (ARS, sin IVA)</Label>
+              <Input id="purchase-cost" type="number" min={0} step="any" value={form.unit_cost_ars ?? ""}
+                onChange={(event) => onFormChange({ ...form, unit_cost_ars: event.target.value })} />
+              <p className="text-xs text-muted-foreground">Opcional. Vacío significa sin costo registrado. El precio de venta se mantiene.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="purchase-supplier">Proveedor de esta compra</Label>
+              <Input id="purchase-supplier" value={form.purchase_supplier ?? ""}
+                onChange={(event) => onFormChange({ ...form, purchase_supplier: event.target.value })} />
+            </div>
+          </div>
+        ) : null}
+
         <div className="space-y-2">
           <Label>Referencia</Label>
           <Input

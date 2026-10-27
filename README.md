@@ -1,3 +1,11 @@
+### Costos de compra por lote
+
+- Stock permite registrar costo unitario de compra en ARS sin IVA y proveedor opcionales. Cada ingreso conserva su costo; las salidas consumen primero los lotes antiguos (FIFO), sin modificar el precio de venta. Compras y costos muestra historial, disponibles y valor conocido por producto.
+- Migracion nueva: `20261027120000_stock_purchase_lots.sql`. Los saldos anteriores quedan sin costo registrado; no se reconstruyen precios historicos. Devoluciones y anulaciones recuperan las asignaciones originales. Los movimientos pasan a ser inmutables: las correcciones requieren ajustes compensatorios.
+- QA: pruebas de costos, formulario y resumen; PostgreSQL embebido para FIFO, devoluciones, anulaciones, stock negativo, permisos y aislamiento. Las pruebas DB integradas usan rollback y requieren credenciales interactivas. QA visual, concurrencia y flujos completos de documentos pendientes en staging. No se automatiza la recepcion desde ordenes de compra.
+- Validaciones: npm run typecheck, lint, build y diff --check correctos; suite completa con 900 pruebas aprobadas y 55 DB omitidas. Las 12 pruebas focalizadas pasaron. El chequeo extendido con tsconfig.app.json detecta errores fuera de las lineas modificadas y queda pendiente resolverlos.
+- Migracion aplicada en staging con `npm run db:push:staging`. Se recuperaron sin cambios desde el commit `833ea18` las migraciones historicas `20261020120000`, `20261020170000` y `20261020173000`, ya presentes en la base remota; no se altero su historial. QA DB pendiente: `npx vitest run src/features/db/criticalDb.test.ts --testNamePattern "purchase costs per lot|original FIFO cost"` con credenciales de QA interactivas. Produccion sin cambios.
+
 ### Emitir y compartir presupuestos de documentos
 
 - Al crear un presupuesto, `Emitir y compartir` emite y prepara el mensaje con numero definitivo, importe y enlace publico. `Copiar mensaje` permite pegarlo en el canal elegido.

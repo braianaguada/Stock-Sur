@@ -200,6 +200,8 @@ export const queryKeys = {
     },
   },
   stock: {
+    costLotsCompany: (companyId: string) => ["stock-cost-lots", companyId] as const,
+    costLots: (companyId: string, itemId: string) => ["stock-cost-lots", companyId, itemId] as const,
     recentItems: (companyId: string | null, userId: string | null | undefined) =>
       ["stock-recent-items", companyId ?? "no-company", userId ?? "no-user"] as const,
     itemSearch: (companyId: string | null, search: string) =>

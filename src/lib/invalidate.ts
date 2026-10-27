@@ -36,8 +36,9 @@ export async function invalidateDocumentQueries(queryClient: QueryClient) {
   ]);
 }
 
-export async function invalidateStockQueries(queryClient: QueryClient) {
+export async function invalidateStockQueries(queryClient: QueryClient, companyId?: string | null) {
   await Promise.all([
+    ...(companyId ? [queryClient.invalidateQueries({ queryKey: queryKeys.stock.costLotsCompany(companyId) })] : []),
     queryClient.invalidateQueries({ queryKey: ["items-catalog"] }),
     queryClient.invalidateQueries({ queryKey: queryKeys.pricing.quickSearchAll() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.stock.allCurrent() }),
