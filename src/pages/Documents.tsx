@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { offerIssuedRemitoCash } from "@/features/documents/api/offerIssuedRemitoCash";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -369,17 +370,14 @@ export default function DocumentsPage() {
       if (companyContext.current === currentCompany?.id) void openEditDialog(documentId);
     },
     onRemitoIssued: (documentId) => {
-      if (!canRegisterInCash || !currentCompany?.id || companyContext.current !== currentCompany.id) return;
-      void (async () => {
-        const { data, error } = await supabase.from("documents").select("*")
-          .eq("company_id", currentCompany.id).eq("id", documentId).eq("status", "EMITIDO").maybeSingle();
-        if (companyContext.current !== currentCompany.id) return;
-        if (error) {
-          toast({ title: "Remito emitido", description: "No se pudo abrir Caja. Podes registrarlo desde las acciones del remito.", variant: "destructive" });
-          return;
-        }
-        if (data?.doc_type === "REMITO" && data.customer_kind !== "INTERNO") openRegisterInCash(data as DocRow);
-      })();
+      void offerIssuedRemitoCash({
+        companyId: currentCompany?.id ?? null,
+        documentId,
+        canRegister: canRegisterInCash,
+        isCurrentCompany: () => companyContext.current === currentCompany?.id,
+        onOpen: openRegisterInCash,
+        onError: () => toast({ title: "Remito emitido", description: "No se pudo abrir Caja. Podes registrarlo desde las acciones del remito.", variant: "destructive" }),
+      });
     },
   });
 
