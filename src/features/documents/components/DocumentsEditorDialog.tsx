@@ -26,6 +26,8 @@ import { calculatePriceFromCostBase, changeDocumentRecipientType, changeRemitoUs
 import { rankNaturalItemSearch } from "@/features/items/search";
 
 import { customerPaymentTerms } from "../lib/payment-terms";
+import { createManualQuoteLine } from "../lib/manual-quote";
+import { ManualQuoteLineEditor } from "./ManualQuoteLineEditor";
 
 type CustomerOption = {
   account_due_days?: number | null;
@@ -285,7 +287,7 @@ export function DocumentsEditorDialog({
           <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
             <div className="p-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 items-end">
               <div className="space-y-1">
-                <Label>Lista de precios *</Label>
+                <Label>{documentForm.doc_type === "PRESUPUESTO" ? "Lista para productos del catalogo" : "Lista de precios *"}</Label>
                 <Select value={documentForm.price_list_id} onValueChange={onPriceListChange}>
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="Seleccionar lista" />
@@ -526,6 +528,12 @@ export function DocumentsEditorDialog({
           </div>
 
           <div className={isReturn ? "hidden" : "space-y-3"}>
+            {documentForm.doc_type === "PRESUPUESTO" ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="button" variant="outline" onClick={() => setLines((previous) => [...previous, createManualQuoteLine()])}>Agregar producto manual</Button>
+                <p className="text-xs text-muted-foreground">Cotiza sin crear productos. Para convertir a remito se requieren productos del catalogo.</p>
+              </div>
+            ) : null}
             <div className="w-full max-w-xl min-w-0">
               <ClearableSearchInput
                 value={itemSearch}
@@ -656,9 +664,9 @@ export function DocumentsEditorDialog({
                 <Search className="h-8 w-8 mb-3 text-muted-foreground/30" />
                 Todavia no hay productos agregados.
                 <br />
-                Usa el buscador para agregarlos.
+                {documentForm.doc_type === "PRESUPUESTO" ? "Usa el buscador o agrega un producto manual." : "Usa el buscador para agregarlos."}
               </div>
-            ) : (
+            ) : lines.some((line) => line.item_id) ? (
               <div className="sticky top-0 z-20 hidden rounded-md border border-border/40 bg-muted/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-md xl:grid xl:grid-cols-[minmax(0,2.9fr)_100px_160px_120px_140px_128px_72px] xl:gap-3">
                 <div>Producto</div>
                 <div>Cantidad</div>
@@ -668,9 +676,14 @@ export function DocumentsEditorDialog({
                 <div>Total</div>
                 <div className="text-right whitespace-nowrap">Acciones</div>
               </div>
-            )}
+            ) : null}
 
             {lines.map((line, index) => {
+              if (!line.item_id && documentForm.doc_type === "PRESUPUESTO") {
+                return <ManualQuoteLineEditor key={`manual-${index}`} line={line} formatMoney={formatMoney}
+                  onChange={(updated) => setLines((previous) => previous.map((entry, position) => position === index ? updated : entry))}
+                  onRemove={() => setLines((previous) => previous.filter((_, position) => position !== index))} />;
+              }
               const lockPrice = line.pricing_mode === "LIST_PRICE";
               const lineTotal = line.quantity * line.unit_price;
 

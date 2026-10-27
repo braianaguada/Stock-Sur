@@ -1,3 +1,12 @@
+### Cotizacion rapida en Documentos
+
+- `Cotizacion rapida` abre un presupuesto con productos escritos, sin alta en el catalogo ni lista obligatoria para renglones manuales. Tambien pueden agregarse desde cualquier presupuesto.
+- Por producto: descripcion, unidad, cantidad, costo sin IVA, flete y recargo. Calcula `(costo + flete porcentual) * (1 + recargo/100) * 1,21`; permite ajustar el precio final. Importes en ARS e IVA fijo del 21%, consistente con Documentos.
+- Conserva costos y porcentajes al guardar/reabrir. El cliente recibe descripcion, cantidades y precios finales; el enlace publico no expone los costos internos.
+- Permite guardar, emitir y compartir con los permisos existentes. Para convertir a remito, primero deben reemplazarse los renglones manuales por productos del catalogo: se conserva la validacion existente. Sin movimientos de stock, caja o cuentas por cotizar.
+- Sin migraciones ni cambios en produccion. QA automatizada de calculo, edicion, persistencia, envio y rechazo de productos libres en remitos. QA visual y operativa pendiente en staging: guardar/reabrir, emitir/compartir con datos de prueba y revisar el enlace como cliente; verificar las vistas de escritorio y movil.
+- Validaciones: typecheck, lint, build y diff --check correctos. Suite completa con 2 workers: 905 pruebas aprobadas y 53 de DB omitidas por falta de credenciales.
+
 ### Emitir y compartir presupuestos de documentos
 
 - Al crear un presupuesto, `Emitir y compartir` emite y prepara el mensaje con numero definitivo, importe y enlace publico. `Copiar mensaje` permite pegarlo en el canal elegido.
